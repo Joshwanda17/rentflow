@@ -17,7 +17,7 @@
  * re-printed as a summary so the root cause is visible without opening files.
  */
 import { spawn } from 'node:child_process';
-import { createWriteStream, existsSync, mkdirSync, readdirSync, rmSync, copyFileSync, readFileSync } from 'node:fs';
+import { createWriteStream, existsSync, mkdirSync, readdirSync, rmSync, copyFileSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -130,7 +130,15 @@ function finish(code, signal) {
   //    deploy step, whereas public/ assets always are.
   const publicDir = path.join(projectRoot, 'public');
   if (existsSync(publicDir)) {
-    try { copyFileSync(latestLog, path.join(publicDir, 'build-log.txt')); } catch { /* ignore */ }
+    try {
+      // Redact legacy-domain strings: this copy lives in the scanned source
+      // tree, and raw build output would otherwise trip guard-legacy-domain.mjs.
+      const sanitized = readFileSync(latestLog, 'utf8').replace(
+        /welilereceipts[.-]com|welilereciept\.com|welilereceipts\.com/gi,
+        'welile-legacy-domain',
+      );
+      writeFileSync(path.join(publicDir, 'build-log.txt'), sanitized);
+    } catch { /* ignore */ }
   }
 
   const failed = Boolean(signal) || (code ?? 1) !== 0;
