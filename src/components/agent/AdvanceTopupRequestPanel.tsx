@@ -29,6 +29,7 @@ export interface TopupEligibility {
   repaid_amount?: number;
   repaid_percent?: number;
   behind?: boolean;
+  expected_repaid_to_date?: number;
   status?: string;
   monthly_rate?: number;
   repayment_frequency?: RepaymentFrequency;
