@@ -116,7 +116,8 @@ const CATEGORY_LABELS: Record<string, string> = {
   rent_payment_for_tenant: 'Rent Payment (Tenant)',
 };
 
-export function LedgerEntryDetailDrawer({ entryId, open, onOpenChange }: LedgerEntryDetailDrawerProps) {
+export function LedgerEntryDetailDrawer({ entryId, open, onOpenChange, showRunningBalance }: LedgerEntryDetailDrawerProps) {
+  const { role, roles } = useAuth();
   const [loading, setLoading] = useState(true);
   const [entry, setEntry] = useState<FullLedgerEntry | null>(null);
   const [ownerProfile, setOwnerProfile] = useState<ProfileInfo | null>(null);
@@ -238,7 +239,7 @@ export function LedgerEntryDetailDrawer({ entryId, open, onOpenChange }: LedgerE
               <DetailRow label="Direction" value={isIn ? 'Cash In' : 'Cash Out'} />
               <DetailRow label="Amount" value={formatUGX(entry.amount)} bold />
               {entry.account && <DetailRow label="Account" value={entry.account} />}
-              {entry.running_balance !== null && entry.running_balance !== undefined && (
+              {canSeeRunningBalance && entry.running_balance !== null && entry.running_balance !== undefined && (
                 <DetailRow label="Running Balance" value={formatUGX(entry.running_balance)} />
               )}
               {entry.description && <DetailRow label="Description" value={entry.description} />}
