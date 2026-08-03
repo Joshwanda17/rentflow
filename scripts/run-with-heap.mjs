@@ -12,13 +12,46 @@
  * Usage: node scripts/run-with-heap.mjs <command> [args...]
  */
 import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const HEAP_MB = Number(process.env.BUILD_HEAP_MB || 8192);
-const [command, ...args] = process.argv.slice(2);
+const [rawCommand, ...rawArgs] = process.argv.slice(2);
 
-if (!command) {
+if (!rawCommand) {
   console.error('[heap] usage: node scripts/run-with-heap.mjs <command> [args...]');
   process.exit(1);
+}
+
+// Always execute through this Node binary so NODE_OPTIONS is guaranteed to apply.
+// Shell shims (npx / node_modules/.bin) can re-exec through another runtime
+// (bun, for example) that ignores NODE_OPTIONS, which is how a smaller ambient
+// heap cap silently survives into the build.
+const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+
+function resolveJsEntry(name) {
+  const candidates = [
+    path.join(projectRoot, 'node_modules', name, 'bin', `${name}.js`),
+    path.join(projectRoot, 'node_modules', name, 'bin', `${name}.mjs`),
+    path.join(projectRoot, 'node_modules', '.bin', name),
+  ];
+  return candidates.find((candidate) => existsSync(candidate));
+}
+
+let command = rawCommand;
+let args = rawArgs;
+
+if (rawCommand !== 'node' && rawCommand !== process.execPath) {
+  const entry = resolveJsEntry(rawCommand);
+  if (!entry) {
+    console.error(`[heap] could not resolve local executable "${rawCommand}"`);
+    process.exit(1);
+  }
+  command = process.execPath;
+  args = [entry, ...rawArgs];
+} else {
+  command = process.execPath;
 }
 
 const existing = process.env.NODE_OPTIONS ?? '';
@@ -30,7 +63,6 @@ console.log(`[heap] NODE_OPTIONS="${nodeOptions}" -> ${command} ${args.join(' ')
 
 const child = spawn(command, args, {
   stdio: 'inherit',
-  shell: process.platform === 'win32',
   env: { ...process.env, NODE_OPTIONS: nodeOptions },
 });
 
