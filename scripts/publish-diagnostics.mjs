@@ -65,9 +65,15 @@ function collectFiles(dir, base = dir, out = []) {
   return out;
 }
 
+// Files that carry the diagnostics themselves are excluded from the artifact
+// hash so the hash stays a pure function of the built application output.
+function isDiagnosticFile(rel) {
+  return rel === 'publish-diagnostics.json' || rel.startsWith('_deploy/');
+}
+
 function artifactFingerprint() {
   if (!existsSync(dist)) return { present: false, files: 0, bytes: 0, hash: null, entryHtmlHash: null };
-  const files = collectFiles(dist).filter((f) => f.rel !== 'publish-diagnostics.json');
+  const files = collectFiles(dist).filter((f) => !isDiagnosticFile(f.rel));
   const manifest = createHash('sha256');
   let bytes = 0;
   for (const file of files) {
@@ -137,6 +143,8 @@ async function probe(label, url, { json = false } = {}) {
       bytes: Buffer.byteLength(body),
       headers,
       json: parsed,
+      text: body.length <= 512 ? body : `${body.slice(0, 512)}…`,
+      servedHtml: /text\/html/i.test(res.headers.get('content-type') || '') || /^\s*<!DOCTYPE html/i.test(body),
     };
   } catch (error) {
     return {
@@ -151,26 +159,77 @@ async function probe(label, url, { json = false } = {}) {
       ms: Date.now() - started,
       headers: {},
       json: null,
+      text: null,
+      servedHtml: false,
     };
   } finally {
     clearTimeout(timer);
   }
 }
 
+/**
+ * Dedicated non-fallback diagnostic endpoints.
+ *
+ * Every path below lives under /_deploy/ and ends in a file extension, so the
+ * hosting layer treats it as an asset request and never rewrites it to
+ * index.html. That makes both failure modes visible instead of masked:
+ *   - missing artifact  -> a real 404 (not a 200 HTML shell)
+ *   - stale artifact    -> hash text that differs from the local build
+ *
+ * artifact-hash.txt is intentionally a bare hash so it can be diffed with a
+ * one-line curl, and manifest.json carries the full publish context.
+ */
+function emitDeployProbes(report) {
+  if (!report.artifact.present) return [];
+  const dir = path.join(dist, '_deploy');
+  mkdirSync(dir, { recursive: true });
+  const manifest = {
+    publishRequestId: report.publishRequestId,
+    publishRequestIdSource: report.publishRequestIdSource,
+    generatedAt: report.generatedAt,
+    git: report.git,
+    artifact: report.artifact,
+    note: 'Static non-fallback deploy probe. Compare artifact.hash with the locally built hash to prove whether hosting received this build.',
+  };
+  const written = [
+    ['artifact-hash.txt', `${report.artifact.hash}\n`],
+    ['publish-id.txt', `${report.publishRequestId}\n`],
+    ['index-html-hash.txt', `${report.artifact.entryHtmlHash}\n`],
+    ['manifest.json', `${JSON.stringify(manifest, null, 2)}\n`],
+    [
+      'probe.txt',
+      [
+        'welile deploy probe',
+        `publish-id=${report.publishRequestId}`,
+        `artifact-hash=${report.artifact.hash}`,
+        `generated-at=${report.generatedAt}`,
+        `commit=${report.git.commit || 'unknown'}`,
+        '',
+      ].join('\n'),
+    ],
+  ];
+  for (const [name, body] of written) writeFileSync(path.join(dir, name), body, 'utf8');
+  return written.map(([name]) => `_deploy/${name}`);
+}
+
 function verdict(report) {
   if (report.probesSkipped) return 'hosting probes skipped — local artifact fingerprint recorded only';
   const root = report.hosting.find((p) => p.label === 'canonical origin');
-  const live = report.hosting.find((p) => p.label === 'deployed diagnostics report');
+  const live = report.hosting.find((p) => p.label === 'deployed artifact hash (static, no fallback)');
+  const control = report.hosting.find((p) => p.label === 'negative control (must be 404)');
   if (!root?.ok) {
     return `HOSTING STAGE UNREACHABLE — canonical origin returned ${root?.status || 0} (${root?.statusText})`;
   }
-  if (!live?.ok || !live.json?.artifact?.hash) {
+  if (control && control.status !== 404) {
+    return `SPA FALLBACK IS MASKING MISSING FILES — a guaranteed-nonexistent static path returned ${control.status} (${control.headers['content-type'] || 'unknown type'}); every 404 on this host is unreliable, so version checks must use the /_deploy/ endpoints and compare hashes, never status codes`;
+  }
+  if (!live?.ok || !live.text) {
     return 'ROOT SERVES 200 BUT NO DEPLOYED DIAGNOSTICS REPORT — either the last publish never uploaded this artifact (deploy stage failed after a green build) or this is the first build carrying the report';
   }
-  if (live.json.artifact.hash === report.artifact.hash) {
+  if (live.text.trim() === report.artifact.hash) {
     return 'LIVE ARTIFACT MATCHES LOCAL BUILD — hosting stage received and is serving this exact build';
   }
-  return `LIVE ARTIFACT IS STALE — live hash ${live.json.artifact.hash.slice(0, 16)}… from publish ${live.json.publishRequestId} != this build ${String(report.artifact.hash).slice(0, 16)}…; the upload/CDN stage, not the build, is dropping the new artifact`;
+  return `LIVE ARTIFACT IS STALE — live hash ${live.text.trim().slice(0, 16)}… != this build ${String(report.artifact.hash).slice(0, 16)}…; the upload/CDN stage, not the build, is dropping the new artifact`;
 }
 
 function renderText(report) {
@@ -187,6 +246,7 @@ function renderText(report) {
   lines.push(`artifact hash       : ${report.artifact.hash || 'n/a'}`);
   lines.push(`index.html hash     : ${report.artifact.entryHtmlHash || 'n/a'}`);
   lines.push(`files / bytes       : ${report.artifact.files} files / ${report.artifact.bytes} bytes`);
+  lines.push(`non-fallback probes : ${report.deployProbeFiles.join(', ') || 'none (no dist)'}`);
   lines.push('');
   lines.push('-- HOSTING STAGE RESPONSES --------------------------------------------');
   if (report.probesSkipped) {
@@ -198,6 +258,10 @@ function renderText(report) {
       if (p.finalUrl && p.finalUrl !== p.url) lines.push(`      final url  : ${p.finalUrl}`);
       lines.push(`      result     : ${p.ok ? 'ok' : 'FAILED'} ${p.statusText || ''} in ${p.ms}ms`);
       for (const [k, v] of Object.entries(p.headers)) lines.push(`      ${k.padEnd(11)}: ${v}`);
+      if (p.servedHtml && !p.url.includes('?publish-diagnostics=')) {
+        lines.push('      WARNING    : HTML returned for a static asset path — SPA fallback is masking this response');
+      }
+      if (p.text && p.text.length <= 96 && !p.servedHtml) lines.push(`      body       : ${p.text.trim()}`);
       if (p.json?.artifact?.hash) lines.push(`      live hash  : ${p.json.artifact.hash}`);
       if (p.json?.publishRequestId) lines.push(`      live pubID : ${p.json.publishRequestId}`);
       lines.push('');
@@ -219,13 +283,19 @@ async function main() {
     runtime: { node: process.version, platform: `${process.platform}/${process.arch}` },
     artifact: artifactFingerprint(),
     probesSkipped: skipProbe,
+    deployProbeFiles: [],
     hosting: [],
     verdict: '',
   };
+  report.deployProbeFiles = emitDeployProbes(report);
 
   if (!skipProbe) {
     report.hosting = [
       await probe('canonical origin', `${CANONICAL_ORIGIN}/?publish-diagnostics=${encodeURIComponent(id)}`),
+      await probe('deployed artifact hash (static, no fallback)', `${CANONICAL_ORIGIN}/_deploy/artifact-hash.txt`),
+      await probe('deployed publish ID (static, no fallback)', `${CANONICAL_ORIGIN}/_deploy/publish-id.txt`),
+      await probe('deployed manifest (static, no fallback)', `${CANONICAL_ORIGIN}/_deploy/manifest.json`, { json: true }),
+      await probe('negative control (must be 404)', `${CANONICAL_ORIGIN}/_deploy/missing-${id}.txt`),
       await probe('deployed diagnostics report', `${CANONICAL_ORIGIN}/publish-diagnostics.json`, { json: true }),
       await probe('deployed build log', `${CANONICAL_ORIGIN}/build-log.txt`),
       await probe('sitemap', `${CANONICAL_ORIGIN}/sitemap.xml`),
