@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Loader2, RefreshCw, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import ThreeBodyLoader from '@/components/common/ThreeBodyLoader';
 
 interface StalledLoaderWatchdogProps {
   /** ms before showing the recovery UI. Default 15000. */
@@ -91,7 +92,7 @@ export default function StalledLoaderWatchdog({
         'min-h-screen flex flex-col items-center justify-center bg-background gap-4 px-6'
       }
     >
-      <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      <ThreeBodyLoader />
       {label && !stalled && (
         <p className="text-sm text-muted-foreground">{label}</p>
       )}
