@@ -1274,6 +1274,8 @@ export default function FindAHouse() {
                 </div>
               </div>
             )}
+              </div>
+            )}
           </div>
         </div>
 
