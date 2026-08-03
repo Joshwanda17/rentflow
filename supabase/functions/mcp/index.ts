@@ -3,17 +3,65 @@
 // supabase function: mcp
 // Bundled from src/lib/mcp/index.ts by @lovable.dev/mcp-js.
 // src/lib/mcp/index.ts
-import { auth, defineMcp } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { auth, defineMcp } from "npm:@lovable.dev/mcp-js@0.26.1";
 
 // src/lib/mcp/tools/get-my-profile.ts
+import { defineTool } from "npm:@lovable.dev/mcp-js@0.26.1";
+
+// src/lib/mcp/supabase.ts
 import { createClient } from "npm:@supabase/supabase-js@2.89.0";
-import { defineTool } from "npm:@lovable.dev/mcp-js@0.20.0";
+function runtimeEnv(name) {
+  const runtime = globalThis;
+  return runtime.Deno?.env?.get?.(name) ?? runtime.process?.env?.[name];
+}
+function configuredEnv(names) {
+  for (const name of names) {
+    const value = runtimeEnv(name)?.trim();
+    if (value) return value;
+  }
+  return void 0;
+}
+function supabaseProjectUrl() {
+  const url = configuredEnv(["SUPABASE_URL", "VITE_SUPABASE_URL"]);
+  if (!url) throw new Error("SUPABASE_URL (or VITE_SUPABASE_URL) is required");
+  return url;
+}
+function supabasePublishableKey() {
+  const direct = configuredEnv([
+    "SUPABASE_PUBLISHABLE_KEY",
+    "VITE_SUPABASE_PUBLISHABLE_KEY"
+  ]);
+  if (direct) return direct;
+  const keyset = runtimeEnv("SUPABASE_PUBLISHABLE_KEYS");
+  if (keyset) {
+    try {
+      const parsed = JSON.parse(keyset);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        const keys = parsed;
+        const key = [keys.default, ...Object.values(keys)].find(
+          (value) => typeof value === "string" && value.trim().startsWith("sb_publishable_")
+        )?.trim();
+        if (key) return key;
+      }
+    } catch {
+    }
+  }
+  const legacy = configuredEnv(["SUPABASE_ANON_KEY", "VITE_SUPABASE_ANON_KEY"]);
+  if (legacy) return legacy;
+  throw new Error(
+    "SUPABASE_PUBLISHABLE_KEY, SUPABASE_PUBLISHABLE_KEYS, or SUPABASE_ANON_KEY is required"
+  );
+}
 function supabaseForUser(ctx) {
-  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
-    global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
+  const token = ctx.getToken();
+  if (!token) throw new Error("A verified OAuth token is required");
+  return createClient(supabaseProjectUrl(), supabasePublishableKey(), {
+    global: { headers: { Authorization: `Bearer ${token}` } },
     auth: { persistSession: false, autoRefreshToken: false }
   });
 }
+
+// src/lib/mcp/tools/get-my-profile.ts
 var get_my_profile_default = defineTool({
   name: "get_my_profile",
   title: "Get my profile",
@@ -37,14 +85,7 @@ var get_my_profile_default = defineTool({
 });
 
 // src/lib/mcp/tools/get-my-wallet.ts
-import { createClient as createClient2 } from "npm:@supabase/supabase-js@2.89.0";
-import { defineTool as defineTool2 } from "npm:@lovable.dev/mcp-js@0.20.0";
-function supabaseForUser2(ctx) {
-  return createClient2(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
-    global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
-    auth: { persistSession: false, autoRefreshToken: false }
-  });
-}
+import { defineTool as defineTool2 } from "npm:@lovable.dev/mcp-js@0.26.1";
 var get_my_wallet_default = defineTool2({
   name: "get_my_wallet",
   title: "Get my wallet balance",
@@ -55,7 +96,7 @@ var get_my_wallet_default = defineTool2({
     if (!ctx.isAuthenticated()) {
       return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
     }
-    const supabase = supabaseForUser2(ctx);
+    const supabase = supabaseForUser(ctx);
     const userId = ctx.getUserId();
     const { data: available, error: rpcError } = await supabase.rpc(
       "get_user_available_balance",
@@ -82,16 +123,66 @@ var get_my_wallet_default = defineTool2({
 });
 
 // src/lib/mcp/tools/list-my-transactions.ts
-import { createClient as createClient3 } from "npm:@supabase/supabase-js@2.89.0";
-import { defineTool as defineTool3 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { defineTool as defineTool3 } from "npm:@lovable.dev/mcp-js@0.26.1";
 import { z } from "npm:zod@^4.4.3";
-import { applyCustomerWalletLedgerFilters, isCustomerWalletLedgerEntryVisible } from "npm:@/lib/customerWalletHistory";
-function supabaseForUser3(ctx) {
-  return createClient3(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
-    global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
-    auth: { persistSession: false, autoRefreshToken: false }
-  });
+
+// src/lib/mcp/walletHistory.ts
+var INTERNAL_CATEGORIES = [
+  "system_balance_correction",
+  "admin_balance_correction",
+  "administrative_balance_correction",
+  "reconciliation_adjustment",
+  "migration_adjustment",
+  "rollback_correction",
+  "backfill_correction",
+  "wallet_projection_reversed_bonus_exclusion"
+];
+var INTERNAL_SOURCE_TABLES = /* @__PURE__ */ new Set([
+  "commission_engine_reversal",
+  "wallet_projection_reversed_bonus_exclusion",
+  "wallet_reconciliation",
+  "admin_wallet_reconciliation",
+  "migration",
+  "migration_backfill",
+  "backfill",
+  "rollback",
+  "admin_correction"
+]);
+var INTERNAL_DESCRIPTION_FRAGMENTS = [
+  "internal accounting adjustment",
+  "accounting adjustment",
+  "reconciliation entry",
+  "reconciliation adjustment",
+  "migration entry",
+  "migration adjustment",
+  "rollback entry",
+  "rollback correction",
+  "backfill correction",
+  "administrative balance correction",
+  "admin balance correction",
+  "balance correction",
+  "reversal: erroneous"
+];
+var INTERNAL_REFERENCE_PREFIX = /^(ADMIN|ADJ|CORR|RECON|MIG|ROLLBACK|BACKFILL|WDR2FLT)-/i;
+function isCustomerWalletLedgerEntryVisible(row) {
+  const classification = (row.classification || "").toLowerCase();
+  const category = (row.category || "").toLowerCase();
+  const sourceTable = (row.source_table || "").toLowerCase();
+  const description = (row.description || "").toLowerCase();
+  const referenceId = row.reference_id || "";
+  if (classification === "admin_correction") return false;
+  if (INTERNAL_CATEGORIES.includes(category)) return false;
+  if (INTERNAL_SOURCE_TABLES.has(sourceTable)) return false;
+  if (INTERNAL_DESCRIPTION_FRAGMENTS.some((fragment) => description.includes(fragment))) return false;
+  if (description.includes("erroneous") && description.includes("backfill")) return false;
+  if (INTERNAL_REFERENCE_PREFIX.test(referenceId)) return false;
+  return true;
 }
+function applyCustomerWalletLedgerFilters(query) {
+  return query.neq("classification", "admin_correction").not("category", "in", `(${INTERNAL_CATEGORIES.join(",")})`);
+}
+
+// src/lib/mcp/tools/list-my-transactions.ts
 var list_my_transactions_default = defineTool3({
   name: "list_my_transactions",
   title: "List my recent transactions",
@@ -105,7 +196,7 @@ var list_my_transactions_default = defineTool3({
       return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
     }
     const take = Math.min(Math.max(limit ?? 20, 1), 100);
-    const { data, error } = await applyCustomerWalletLedgerFilters(supabaseForUser3(ctx).from("general_ledger").select("id, created_at, category, direction, amount, description, wallet_bucket, classification, source_table, reference_id").eq("user_id", ctx.getUserId()).eq("ledger_scope", "wallet")).order("created_at", { ascending: false }).limit(take);
+    const { data, error } = await applyCustomerWalletLedgerFilters(supabaseForUser(ctx).from("general_ledger").select("id, created_at, category, direction, amount, description, wallet_bucket, classification, source_table, reference_id").eq("user_id", ctx.getUserId()).eq("ledger_scope", "wallet")).order("created_at", { ascending: false }).limit(take);
     if (error) return { content: [{ type: "text", text: error.message }], isError: true };
     const rows = (data ?? []).filter(isCustomerWalletLedgerEntryVisible);
     const summary = rows.map(
@@ -119,21 +210,10 @@ var list_my_transactions_default = defineTool3({
 });
 
 // src/lib/mcp/tools/get-my-wallet-statement.ts
-import { defineTool as defineTool4 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { defineTool as defineTool4 } from "npm:@lovable.dev/mcp-js@0.26.1";
 import { z as z2 } from "npm:zod@^4.4.3";
 
 // src/lib/mcp/statement.ts
-import { createClient as createClient4 } from "npm:@supabase/supabase-js@2.89.0";
-import {
-  applyCustomerWalletLedgerFilters as applyCustomerWalletLedgerFilters2,
-  isCustomerWalletLedgerEntryVisible as isCustomerWalletLedgerEntryVisible2
-} from "npm:@/lib/customerWalletHistory";
-function supabaseForUser4(ctx) {
-  return createClient4(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
-    global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
-    auth: { persistSession: false, autoRefreshToken: false }
-  });
-}
 function ugx(n) {
   return `UGX ${Math.round(n).toLocaleString("en-US")}`;
 }
@@ -143,19 +223,19 @@ function isoDay(value, endOfDay) {
   return endOfDay ? `${value}T23:59:59.999Z` : `${value}T00:00:00.000Z`;
 }
 async function buildStatement(ctx, opts) {
-  const supabase = supabaseForUser4(ctx);
+  const supabase = supabaseForUser(ctx);
   const userId = ctx.getUserId();
   const take = Math.min(Math.max(opts.limit ?? 200, 1), 1e3);
   const fromTs = isoDay(opts.from, false);
   const toTs = isoDay(opts.to, true);
-  let query = applyCustomerWalletLedgerFilters2(
+  let query = applyCustomerWalletLedgerFilters(
     supabase.from("general_ledger").select("created_at, category, direction, amount, description, wallet_bucket, classification, source_table").eq("user_id", userId).eq("ledger_scope", "wallet")
   );
   if (fromTs) query = query.gte("created_at", fromTs);
   if (toTs) query = query.lte("created_at", toTs);
   const { data, error } = await query.order("created_at", { ascending: false }).limit(take + 1);
   if (error) throw new Error(error.message);
-  const visible = (data ?? []).filter(isCustomerWalletLedgerEntryVisible2);
+  const visible = (data ?? []).filter(isCustomerWalletLedgerEntryVisible);
   const truncated = visible.length > take;
   const rows = visible.slice(0, take).map((r) => ({
     date: new Date(r.created_at).toISOString().slice(0, 10),
@@ -225,7 +305,7 @@ var get_my_wallet_statement_default = defineTool4({
 });
 
 // src/lib/mcp/tools/export-my-wallet-statement.ts
-import { defineTool as defineTool5 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { defineTool as defineTool5 } from "npm:@lovable.dev/mcp-js@0.26.1";
 import { z as z3 } from "npm:zod@^4.4.3";
 
 // src/lib/mcp/simplePdf.ts
@@ -401,7 +481,7 @@ var export_my_wallet_statement_default = defineTool5({
       } : fmt === "csv" ? { bytes: csvBytes(statement), contentType: "text/csv", ext: "csv" } : { bytes: pdfBytes(statement), contentType: "application/pdf", ext: "pdf" };
       const stamp = (/* @__PURE__ */ new Date()).toISOString().replace(/[:.]/g, "-");
       const path = `${ctx.getUserId()}/wallet-statement-${stamp}.${file.ext}`;
-      const supabase = supabaseForUser4(ctx);
+      const supabase = supabaseForUser(ctx);
       const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, file.bytes, { contentType: file.contentType, upsert: true });
       if (uploadError) return { content: [{ type: "text", text: uploadError.message }], isError: true };
       const { data: signed, error: signError } = await supabase.storage.from(BUCKET).createSignedUrl(path, SIGNED_URL_TTL_SECONDS);
@@ -452,5 +532,5 @@ var mcp_default = defineMcp({
 });
 
 // lovable-mcp-supabase-entry.ts
-import { createSupabaseHandler } from "npm:@lovable.dev/mcp-js@0.20.0/stacks/supabase";
+import { createSupabaseHandler } from "npm:@lovable.dev/mcp-js@0.26.1/stacks/supabase";
 Deno.serve(createSupabaseHandler(mcp_default, { functionName: "mcp" }));

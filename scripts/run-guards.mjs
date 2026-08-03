@@ -17,11 +17,13 @@ import { fileURLToPath } from 'node:url';
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 
 const GUARDS = [
+  ['check-runtime-env.mjs', 'required build environment'],
   ['guard-schema-types.mjs', 'generated schema types fingerprint'],
   ['guard-frontend-ledger-writes.mjs', 'frontend ledger writes'],
   ['guard-deposit-purpose.mjs', 'deposit purpose'],
   ['guard-legacy-domain.mjs', 'legacy domain references'],
   ['guard-canonical-tags.mjs', 'canonical tags'],
+  ['guard-mcp-deploy.mjs', 'generated MCP deploy imports'],
 ];
 
 const bar = '='.repeat(78);
