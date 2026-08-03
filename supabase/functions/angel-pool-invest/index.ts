@@ -70,8 +70,23 @@ Deno.serve(async (req) => {
       .eq("user_id", user.id)
       .single();
 
-    if (!wallet || wallet.balance < actualAmount) {
-      return new Response(JSON.stringify({ error: `Insufficient wallet balance. You need UGX ${actualAmount.toLocaleString()}` }),
+    if (!wallet) {
+      return new Response(JSON.stringify({ error: "No wallet found for this account" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // Pre-check against the SAME strict, ledger-backed figure that
+    // create_ledger_transaction enforces. Using the cached wallets.balance
+    // column here let users past this gate and into a generic 500.
+    const { data: availableRaw, error: availErr } = await adminClient
+      .rpc("get_user_available_balance", { p_user_id: user.id });
+    if (availErr) throw availErr;
+    const available = Number(availableRaw ?? 0);
+
+    if (available < actualAmount) {
+      return new Response(JSON.stringify({
+        error: `Insufficient available balance. You need UGX ${actualAmount.toLocaleString()} but only UGX ${available.toLocaleString()} is available to invest.`,
+      }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -115,7 +130,17 @@ Deno.serve(async (req) => {
       ],
     });
 
-    if (rpcErr) throw rpcErr;
+    if (rpcErr) {
+      // Balance moved between the pre-check and the posting (or cache drift):
+      // surface a readable message instead of a generic 500.
+      if (rpcErr.code === "P0001" && /insufficient ledger balance/i.test(rpcErr.message ?? "")) {
+        return new Response(JSON.stringify({
+          error: `Insufficient available balance to invest UGX ${actualAmount.toLocaleString()}. Please refresh your wallet and try again.`,
+        }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      throw rpcErr;
+    }
 
     const { error: investErr } = await adminClient
       .from("angel_pool_investments")
