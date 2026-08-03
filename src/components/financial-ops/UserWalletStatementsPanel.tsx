@@ -284,6 +284,7 @@ function LedgerRowItem({ row: r }: { row: LedgerRow }) {
             entryId={r.id}
             open={detailOpen}
             onOpenChange={setDetailOpen}
+            showRunningBalance
           />
         </div>
       )}
