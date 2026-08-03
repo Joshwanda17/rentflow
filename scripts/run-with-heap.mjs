@@ -18,7 +18,16 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const REQUESTED_HEAP_MB = Number(process.env.BUILD_HEAP_MB || 8192);
+/**
+ * Default heap is deliberately conservative (4 GB). The publish build container
+ * is much smaller than a dev machine, and `os.totalmem()` reports HOST memory
+ * when no cgroup file is readable — so an 8 GB request could survive the
+ * ceiling check below and then get OOM-killed (SIGKILL) mid-`vite build`, which
+ * surfaces as an opaque "Publishing failed because of an error in your app".
+ * This project builds comfortably under 4 GB; raise via BUILD_HEAP_MB if ever
+ * needed.
+ */
+const REQUESTED_HEAP_MB = Number(process.env.BUILD_HEAP_MB || 4096);
 
 /**
  * Hard ceiling available to this container. Forcing an 8 GB V8 heap inside a
