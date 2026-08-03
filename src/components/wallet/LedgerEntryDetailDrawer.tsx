@@ -9,12 +9,36 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { applyCustomerWalletLedgerFilters, isCustomerWalletLedgerEntryVisible } from '@/lib/customerWalletHistory';
+import { useAuth } from '@/hooks/useAuth';
+import type { AppRole } from '@/hooks/useAuth';
 
 interface LedgerEntryDetailDrawerProps {
   entryId: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /**
+   * Presentation-only override for the internal "Running Balance" row.
+   * Internal finance surfaces (CFO / Financial Ops / audit / reconciliation)
+   * can force it visible; agent-facing surfaces never show it.
+   */
+  showRunningBalance?: boolean;
 }
+
+/**
+ * Running balance is an internal accounting figure. Only internal finance and
+ * executive/audit roles may see it — never agents. UI-only gate, no effect on
+ * ledger data or computation.
+ */
+const RUNNING_BALANCE_ROLES: string[] = [
+  'cfo',
+  'financial_ops',
+  'ceo',
+  'coo',
+  'manager',
+  'super_admin',
+  'admin',
+  'access_admin',
+];
 
 interface FullLedgerEntry {
   id: string;
@@ -92,7 +116,8 @@ const CATEGORY_LABELS: Record<string, string> = {
   rent_payment_for_tenant: 'Rent Payment (Tenant)',
 };
 
-export function LedgerEntryDetailDrawer({ entryId, open, onOpenChange }: LedgerEntryDetailDrawerProps) {
+export function LedgerEntryDetailDrawer({ entryId, open, onOpenChange, showRunningBalance }: LedgerEntryDetailDrawerProps) {
+  const { role, roles } = useAuth();
   const [loading, setLoading] = useState(true);
   const [entry, setEntry] = useState<FullLedgerEntry | null>(null);
   const [ownerProfile, setOwnerProfile] = useState<ProfileInfo | null>(null);
@@ -156,6 +181,12 @@ export function LedgerEntryDetailDrawer({ entryId, open, onOpenChange }: LedgerE
   const categoryLabel = entry ? (CATEGORY_LABELS[entry.category] || entry.category.replace(/_/g, ' ')) : '';
   const sourceLabel = entry ? (SOURCE_TABLE_LABELS[entry.source_table] || entry.source_table.replace(/_/g, ' ')) : '';
 
+  // Presentation-only gate: agents (and any non-finance role) never see the
+  // internal running balance. Explicit prop wins for internal finance screens.
+  const hasFinanceRole = RUNNING_BALANCE_ROLES.includes(role ?? '') ||
+    roles.some((r) => RUNNING_BALANCE_ROLES.includes(r));
+  const canSeeRunningBalance = showRunningBalance ?? (hasFinanceRole && role !== 'agent');
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[85vh] rounded-t-2xl">
@@ -214,7 +245,7 @@ export function LedgerEntryDetailDrawer({ entryId, open, onOpenChange }: LedgerE
               <DetailRow label="Direction" value={isIn ? 'Cash In' : 'Cash Out'} />
               <DetailRow label="Amount" value={formatUGX(entry.amount)} bold />
               {entry.account && <DetailRow label="Account" value={entry.account} />}
-              {entry.running_balance !== null && entry.running_balance !== undefined && (
+              {canSeeRunningBalance && entry.running_balance !== null && entry.running_balance !== undefined && (
                 <DetailRow label="Running Balance" value={formatUGX(entry.running_balance)} />
               )}
               {entry.description && <DetailRow label="Description" value={entry.description} />}
