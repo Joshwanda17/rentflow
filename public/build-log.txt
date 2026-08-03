@@ -1,7 +1,42 @@
 
 ==============================================================================
-[build-log] stage=smoke
-[build-log] started=2026-08-03T14:43:09.277Z
+[build-log] stage=prebuild
+[build-log] started=2026-08-03T14:46:18.748Z
 [build-log] node=v22.22.0 platform=linux
-[build-log] command=echo hello
+[build-log] command=node scripts/run-optional.mjs node --import tsx scripts/generate-sitemap.ts
 ==============================================================================
+sitemap.xml written (1056 entries, 1000 houses)
+sitemap-welilereceipts.xml written (1056 entries, base https://welilereceipts.com)
+
+------------------------------------------------------------------------------
+[build-log] stage=prebuild finished=2026-08-03T14:46:19.637Z duration=0.9s exit=0
+[build-log] suspicious lines: 0
+------------------------------------------------------------------------------
+
+==============================================================================
+[build-log] stage=build
+[build-log] started=2026-08-03T14:46:19.743Z
+[build-log] node=v22.22.0 platform=linux
+[build-log] command=node scripts/guard-frontend-ledger-writes.mjs && node scripts/guard-deposit-purpose.mjs && node scripts/guard-legacy-domain.mjs && node scripts/guard-canonical-tags.mjs && node scripts/run-with-heap.mjs vite build
+==============================================================================
+✅ Frontend ledger-write guard passed — no direct wallet/ledger mutations found.
+✓ guard-deposit-purpose: all deposit_purpose writes go through safeDepositPurpose()
+[stderr] 
+[stderr] ❌ Legacy-domain guard failed.
+[stderr] 
+[stderr] Shipping code must reference welileapp.com — never welilereceipts.com / welilereciept.com / welilereceipts-com.lovable.app.
+[stderr] 
+[stderr] Fix the URL, or if the reference is intentional (e.g. a redirect
+[stderr] guard), append the comment "legacy-domain-guard-allow" to that line.
+[stderr] 
+[stderr]   public/build-log.txt:9
+[stderr]      sitemap-welilereceipts.xml written (1056 entries, base https://welilereceipts.com)
+[stderr] 
+[stderr] 1 violation(s). Build aborted.
+[stderr] 
+
+------------------------------------------------------------------------------
+[build-log] stage=build finished=2026-08-03T14:46:21.091Z duration=1.3s exit=1
+[build-log] suspicious lines: 1
+  ! [stderr] ❌ Legacy-domain guard failed.
+------------------------------------------------------------------------------
