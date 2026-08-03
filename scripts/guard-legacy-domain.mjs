@@ -54,6 +54,9 @@ const ALLOW_FILES = new Set([
   'src/components/executive/ChangeOfAddressMonitorPanel.tsx',
   'src/components/executive/RedirectHealthAlertsPanel.tsx',
   'supabase/functions/_shared/transactional-email-templates/redirect-monitor-alert.tsx',
+  // Captured build output (scripts/build-logger.mjs) — echoes whatever the
+  // pipeline printed, including the legacy sitemap line. Not shipping code.
+  'public/build-log.txt',
 ]);
 
 function* walk(target) {
