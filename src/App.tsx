@@ -134,6 +134,7 @@ const Join = lazy(() => import('./pages/Join'));
 const SubAgentInvite = lazy(() => import('./pages/SubAgentInvite'));
 const InviteMerchantAgent = lazy(() => import('./pages/InviteMerchantAgent'));
 const MerchantRegister = lazy(() => import('./pages/MerchantRegister'));
+const MerchantLogin = lazy(() => import('./pages/MerchantLogin'));
 const MerchantAgentOnboarding = lazy(() => import('./pages/MerchantAgentOnboarding'));
 const MerchantAgentReferrals = lazy(() => import('./pages/MerchantAgentReferrals'));
 const AgentLeaderboard = lazy(() => import('./pages/agent/Leaderboard'));
@@ -417,6 +418,8 @@ function AppRoutes() {
           <Route path="/agent/campaigns" element={<AgentCampaignsPage />} />
           <Route path="/invite/merchant-agent" element={<InviteMerchantAgent />} />
           <Route path="/merchant/register" element={<MerchantRegister />} />
+          <Route path="/merchant/login" element={<MerchantLogin />} />
+          <Route path="/merchant" element={<MerchantLogin />} />
           <Route path="/merchant-agent/onboarding" element={<MerchantAgentOnboarding />} />
           <Route path="/merchant-agent-referrals" element={<MerchantAgentReferrals />} />
           <Route path="/profile/:aiId" element={<HolisticProfile />} />
