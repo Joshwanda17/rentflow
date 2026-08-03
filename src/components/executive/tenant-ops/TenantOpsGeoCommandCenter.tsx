@@ -188,10 +188,13 @@ export function TenantOpsGeoCommandCenter() {
       <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-6 gap-2">
         <Kpi label="Total tenants" value={total.tenants_total.toLocaleString()} sub={`${total.tenants_active.toLocaleString()} active · ${total.tenants_inactive.toLocaleString()} inactive`} />
         <Kpi label="New this month" value={total.tenants_new_month.toLocaleString()} sub={`Growth ${ratios.growthRate.toFixed(1)}%`} tone={ratios.growthRate >= 0 ? 'good' : 'bad'} />
-        <Kpi label="Due today" value={total.due_today.toLocaleString()} sub={`Tomorrow ${total.due_tomorrow} · Week ${total.due_week}`} />
-        <Kpi label="Paid today" value={formatUGX(total.paid_today)} sub={`Week ${formatUGX(total.paid_week)}`} tone="good" />
-        <Kpi label="Overdue" value={total.overdue_count.toLocaleString()} sub={formatUGX(total.overdue_amount)} tone="bad" />
-        <Kpi label="In arrears" value={total.arrears_count.toLocaleString()} sub={`Arrears rate ${ratios.arrearsRate.toFixed(1)}%`} tone="warn" />
+        <Kpi label="Billable today" value={total.billable_today.toLocaleString()} sub={`${formatUGX(total.expected_today)} expected today`} />
+        <Kpi label="Collected today" value={formatUGX(total.collected_today)} sub={`${ratios.dailyCollectionRate.toFixed(1)}% of today's expectation`} tone={ratios.dailyCollectionRate >= 80 ? 'good' : 'warn'} />
+        <Kpi label="Settled today" value={total.settled_today.toLocaleString()} sub={`${total.partial_today} part-paid · ${total.covered_by_advance} on advance`} tone="good" />
+        <Kpi label="Not collected yet" value={total.uncollected_today.toLocaleString()} sub={`Touch rate ${ratios.dailyContactRate.toFixed(1)}%`} tone="bad" />
+        <Kpi label="Behind schedule" value={total.overdue_count.toLocaleString()} sub={`${formatUGX(total.overdue_amount)} · avg ${total.avg_days_behind.toFixed(1)}d behind`} tone="bad" />
+        <Kpi label="At risk 30d+" value={`${ratios.par30Rate.toFixed(1)}%`} sub={`${(total.par_31_60 + total.par_60_plus).toLocaleString()} tenants · ${formatUGX(total.par_amount_30_plus)}`} tone="warn" />
+        <Kpi label="Paid week to date" value={formatUGX(total.paid_week)} sub={`Month ${formatUGX(total.paid_month)}`} tone="good" />
         <Kpi label="Monthly rent expected" value={formatUGX(total.rent_expected_monthly)} />
         <Kpi label="Collected this month" value={formatUGX(total.rent_collected_month)} sub={`${ratios.monthCollectionRate.toFixed(1)}% of expected`} tone="good" />
         <Kpi label="Collection rate (to date)" value={`${ratios.collectionRate.toFixed(1)}%`} sub={`${formatUGX(total.collected_to_date)} / ${formatUGX(total.expected_to_date)}`} />
@@ -275,21 +278,46 @@ export function TenantOpsGeoCommandCenter() {
           </Card>
 
           <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-sm">Payment behaviour (active tenants)</CardTitle></CardHeader>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Today's collection funnel</CardTitle>
+              <p className="text-[11px] text-muted-foreground">
+                Rent is repaid daily, so all {total.billable_today.toLocaleString()} live plans are billable today.
+              </p>
+            </CardHeader>
             <CardContent className="h-72">
-              {behaviour.length === 0 ? (
-                <p className="text-xs text-muted-foreground text-center pt-24">No active repayment activity here yet.</p>
+              {funnel.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center pt-24">No live repayment plans here yet.</p>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={behaviour} dataKey="value" nameKey="name" innerRadius={55} outerRadius={95} paddingAngle={2}>
-                      {behaviour.map((s) => <Cell key={s.name} fill={s.fill} />)}
+                    <Pie data={funnel} dataKey="value" nameKey="name" innerRadius={55} outerRadius={95} paddingAngle={2}>
+                      {funnel.map((s) => <Cell key={s.name} fill={s.fill} />)}
                     </Pie>
                     <Tooltip />
                     <Legend wrapperStyle={{ fontSize: 11 }} />
                   </PieChart>
                 </ResponsiveContainer>
               )}
+            </CardContent>
+          </Card>
+
+          <Card className="lg:col-span-2">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Arrears ageing (days behind the daily schedule)</CardTitle>
+              <p className="text-[11px] text-muted-foreground">
+                Portfolio at risk. Days behind = arrears ÷ daily installment.
+              </p>
+            </CardHeader>
+            <CardContent className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={ageing}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="name" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                  <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                  <Tooltip formatter={(v: any) => `${Number(v).toLocaleString()} tenants`} />
+                  <Bar dataKey="count" name="Tenants" fill="hsl(38 92% 50%)" />
+                </BarChart>
+              </ResponsiveContainer>
             </CardContent>
           </Card>
 
@@ -320,7 +348,7 @@ export function TenantOpsGeoCommandCenter() {
               <table className="w-full text-xs">
                 <thead className="bg-muted/50">
                   <tr>
-                    {['#', GEO_LEVEL_LABEL[level].replace(/s$/, ''), 'Tenants', 'Active', 'New', 'Due today', 'Overdue', 'Expected', 'Collected', 'Coll. %', 'Outstanding', 'Occupancy', 'Landlords', 'Agents'].map((h) => (
+                    {['#', GEO_LEVEL_LABEL[level].replace(/s$/, ''), 'Tenants', 'Active', 'New', 'Billable today', 'Settled today', 'Not collected', 'Today %', 'Behind', '30d+ risk', 'Expected', 'Collected', 'Coll. %', 'Outstanding', 'Occupancy', 'Landlords', 'Agents'].map((h) => (
                       <th key={h} className="text-left px-3 py-2 font-semibold whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
@@ -335,8 +363,12 @@ export function TenantOpsGeoCommandCenter() {
                         <td className="px-3 py-2">{r.tenants_total.toLocaleString()}</td>
                         <td className="px-3 py-2">{r.tenants_active.toLocaleString()}</td>
                         <td className="px-3 py-2">{r.tenants_new_month}</td>
-                        <td className="px-3 py-2">{r.due_today}</td>
+                        <td className="px-3 py-2">{r.billable_today}</td>
+                        <td className="px-3 py-2 text-emerald-600">{r.settled_today}</td>
+                        <td className="px-3 py-2 text-destructive">{r.uncollected_today}</td>
+                        <td className="px-3 py-2">{d.dailyCollectionRate.toFixed(0)}%</td>
                         <td className="px-3 py-2 text-destructive">{r.overdue_count}</td>
+                        <td className="px-3 py-2 text-amber-600">{r.par_31_60 + r.par_60_plus}</td>
                         <td className="px-3 py-2 whitespace-nowrap">{formatUGX(r.expected_to_date)}</td>
                         <td className="px-3 py-2 whitespace-nowrap text-emerald-600">{formatUGX(r.collected_to_date)}</td>
                         <td className="px-3 py-2">{d.collectionRate.toFixed(1)}%</td>
@@ -347,7 +379,7 @@ export function TenantOpsGeoCommandCenter() {
                       </tr>
                     );
                   })}
-                  {filtered.length === 0 && <tr><td colSpan={14} className="px-3 py-8 text-center text-muted-foreground">Nothing to show.</td></tr>}
+                  {filtered.length === 0 && <tr><td colSpan={18} className="px-3 py-8 text-center text-muted-foreground">Nothing to show.</td></tr>}
                 </tbody>
               </table>
             </CardContent>
