@@ -344,6 +344,9 @@ Deno.serve(async (req) => {
             full_name: partner.partner_name.trim(),
             email: realEmail ?? authEmailUsed,
           };
+          // Force a password change on first sign-in so the import-time
+          // temporary credential cannot linger.
+          profileData.must_change_password = true;
           if (hasPhone) profileData.phone = suppliedPhone;
           const { error: profileErr } = await adminClient.from("profiles").upsert(profileData);
           if (profileErr) {
@@ -372,6 +375,7 @@ Deno.serve(async (req) => {
           }
 
           partnersCreated++;
+          credentials.push({ partner: partner.partner_name.trim(), temp_password: tempPassword });
         }
 
         // Create portfolios (with duplicate detection)
