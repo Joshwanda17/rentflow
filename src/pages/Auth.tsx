@@ -688,36 +688,6 @@ export default function Auth() {
                   </Button>
                 </form>
 
-                {/* Divider — social sign-in as a secondary option */}
-                <div className="relative flex items-center py-1">
-                  <div className="flex-1 border-t border-border/40" />
-                  <span className="px-3 text-xs text-muted-foreground">or continue with</span>
-                  <div className="flex-1 border-t border-border/40" />
-                </div>
-
-                <OAuthEnvironmentHint />
-                <OAuthErrorCard />
-
-                <div className="flex w-full flex-wrap items-center justify-center gap-4">
-                  <GoogleSignInButton
-                    onClick={wrappedHandleGoogleSignIn}
-                    disabled={isGoogleLoading || isAppleLoading || isLoading}
-                    isLoading={isGoogleLoading}
-                    variant="icon"
-                  />
-                  <AppleSignInButton
-                    onClick={() => {
-                      localStorage.setItem('welile_last_login_method', 'apple');
-                      // OAuth sign-ins are always persistent — clear stale ephemeral flag.
-                      setDeviceTrust(true);
-                      handleAppleSignIn();
-                    }}
-                    disabled={isGoogleLoading || isAppleLoading || isLoading}
-                    isLoading={isAppleLoading}
-                    variant="icon"
-                  />
-                </div>
-
                 {failedAttempts >= 2 && (
                   <Button
                     type="button"
