@@ -904,6 +904,9 @@ export default function PayRuns() {
               </TableBody>
             </Table>
           )}
+          <p className="mt-3 text-xs text-muted-foreground">
+            A period stays open until you close it. Close July only after its run is locked.
+          </p>
         </CardContent>
       </Card>
 
