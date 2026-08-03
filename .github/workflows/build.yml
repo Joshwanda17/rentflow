@@ -16,9 +16,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      # scripts/run-with-heap.mjs strips any inherited --max-old-space-size and
-      # re-applies this cap, so an ambient NODE_OPTIONS can never shrink the heap.
-      BUILD_HEAP_MB: "8192"
+      # Must match what the publish/deploy container can actually afford.
+      # scripts/run-with-heap.mjs clamps the request to 75% of detected memory,
+      # so asking for 8192 here while the real builder resolves 4096 only made
+      # CI and production disagree. Keep both on the same figure: 4096.
+      # Override per-run via workflow_dispatch inputs if a build ever needs more.
+      BUILD_HEAP_MB: "4096"
       CI: "true"
     steps:
       - uses: actions/checkout@v4
@@ -28,22 +31,71 @@ jobs:
           node-version: "20"
           cache: "npm"
 
+      - name: Runner capacity + heap plan (diagnostics)
+        run: |
+          set -euxo pipefail
+          echo "BUILD_HEAP_MB=$BUILD_HEAP_MB"
+          free -m || true
+          nproc || true
+          df -h . || true
+          cat /sys/fs/cgroup/memory.max 2>/dev/null || echo "no cgroup memory.max"
+          node -e "console.log('node totalmem MB:', Math.floor(require('os').totalmem()/1048576))"
+
       - name: Install dependencies
-        run: npm ci
+        run: |
+          set -euxo pipefail
+          npm ci --foreground-scripts
 
       - name: Typecheck
-        run: npx tsgo --noEmit
+        run: |
+          set -euxo pipefail
+          npx tsgo --noEmit
+
+      - name: Pre-build guards (fail-fast, verbose)
+        run: |
+          set -euxo pipefail
+          node scripts/run-guards.mjs
 
       # npm run build runs prebuild (sitemap), the repo guards, vite build via the
       # heap wrapper, then postbuild (prerender) also via the heap wrapper.
       - name: Production build + prerender
-        run: npm run build
+        run: |
+          set -euxo pipefail
+          npm run build --foreground-scripts
 
       - name: Verify build output
         run: |
-          test -f dist/index.html || { echo "dist/index.html missing"; exit 1; }
+          set -euxo pipefail
+          if [ ! -f dist/index.html ]; then
+            echo "::error title=Build output missing::dist/index.html was not produced — the bundler stage did not complete."
+            ls -la dist || echo "dist/ does not exist"
+            exit 1
+          fi
           echo "dist size: $(du -sh dist | cut -f1)"
           echo "files: $(find dist -type f | wc -l)"
+
+      - name: Failure diagnostics (exact blocked reason + command output)
+        if: failure()
+        run: |
+          echo "::group::Captured build log (latest)"
+          tail -n 400 build-logs/build.txt 2>/dev/null || echo "no build-logs/build.txt captured"
+          echo "::endgroup::"
+          echo "::group::Per-run logs on disk"
+          ls -la build-logs 2>/dev/null || echo "no build-logs directory"
+          echo "::endgroup::"
+          echo "::group::Suspicious lines"
+          grep -nEi "error|failed|fatal|SIGKILL|out of memory|Cannot find module|Could not resolve|BLOCKED" build-logs/build.txt 2>/dev/null | tail -n 60 || echo "none found"
+          echo "::endgroup::"
+          echo "::error title=Publish blocked::See the grouped build log above for the exact failing command and its output."
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: build-logs
+          retention-days: 7
+          if-no-files-found: warn
 
       - name: Upload build output
         if: always()
