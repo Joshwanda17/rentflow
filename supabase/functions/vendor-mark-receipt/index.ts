@@ -1,9 +1,52 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+function fromBase64Url(value: string): Uint8Array {
+  const padded = value.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - value.length % 4) % 4);
+  const binary = atob(padded);
+  return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+}
+
+async function verifyVendorSessionToken(
+  token: unknown,
+  expectedVendorId: string,
+  secret: string,
+): Promise<boolean> {
+  if (typeof token !== 'string') return false;
+  const [payload, signature, extra] = token.split('.');
+  if (!payload || !signature || extra) return false;
+
+  try {
+    const key = await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(secret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['verify'],
+    );
+    const validSignature = await crypto.subtle.verify(
+      'HMAC',
+      key,
+      fromBase64Url(signature),
+      new TextEncoder().encode(payload),
+    );
+    if (!validSignature) return false;
+
+    const claims = JSON.parse(new TextDecoder().decode(fromBase64Url(payload))) as {
+      vendorId?: unknown;
+      exp?: unknown;
+    };
+    return claims.vendorId === expectedVendorId
+      && typeof claims.exp === 'number'
+      && claims.exp > Math.floor(Date.now() / 1000);
+  } catch {
+    return false;
+  }
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -14,36 +57,18 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-    // Authenticate the caller
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ success: false, message: 'Not authenticated' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const userClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
-      global: { headers: { Authorization: authHeader } }
-    });
-
-    const { data: { user }, error: authError } = await userClient.auth.getUser();
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ success: false, message: 'Invalid authentication' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const { vendorId, receiptId, amount } = await req.json();
-
-    if (!vendorId || !receiptId || !amount) {
+    const body = await req.json();
+    const { vendorId, vendorToken, receiptId, amount } = body;
+    if (typeof vendorId !== 'string' || typeof receiptId !== 'string' || typeof amount !== 'number') {
       return new Response(
         JSON.stringify({ success: false, message: 'Vendor ID, receipt ID, and amount are required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
+    // Platform managers may act on a vendor's behalf. Vendor portal users
+    // authenticate with the short-lived signed token issued by vendor-login.
+    const authHeader = req.headers.get('Authorization');
     if (amount <= 0) {
       return new Response(
         JSON.stringify({ success: false, message: 'Amount must be positive' }),
@@ -52,31 +77,29 @@ Deno.serve(async (req) => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Verify the caller is a manager or the vendor owner
-    // Check if the user has a manager role (managers can mark on behalf of vendors)
-    const { data: managerRole } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', user.id)
-      .eq('role', 'manager')
-      .maybeSingle();
-
-    // If not a manager, verify this is the actual vendor
-    if (!managerRole) {
-      const { data: vendor } = await supabase
-        .from('vendors')
-        .select('id')
-        .eq('id', vendorId)
-        .eq('active', true)
-        .maybeSingle();
-
-      if (!vendor) {
-        return new Response(
-          JSON.stringify({ success: false, message: 'Unauthorized - vendor not found or inactive' }),
-          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+    let authenticatedUserId: string | null = null;
+    let isManager = false;
+    if (authHeader) {
+      const token = authHeader.replace(/^Bearer\s+/i, '');
+      const { data: { user } } = await supabase.auth.getUser(token);
+      authenticatedUserId = user?.id ?? null;
+      if (authenticatedUserId) {
+        const { data: managerRole } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', authenticatedUserId)
+          .eq('role', 'manager')
+          .maybeSingle();
+        isManager = Boolean(managerRole);
       }
+    }
+
+    const hasVendorSession = await verifyVendorSessionToken(vendorToken, vendorId, supabaseServiceKey);
+    if (!isManager && !hasVendorSession) {
+      return new Response(
+        JSON.stringify({ success: false, message: 'Vendor session is invalid or expired. Please sign in again.' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // Verify the receipt belongs to this vendor and is available
@@ -133,12 +156,12 @@ Deno.serve(async (req) => {
         action_type: 'vendor_mark_receipt',
         table_name: 'receipt_numbers',
         record_id: receiptId,
-        performed_by: user.id,
+        performed_by: authenticatedUserId,
         metadata: { vendorId, amount, receipt_code: receipt.receipt_code }
       });
     } catch {}
 
-    console.log(`Receipt ${receipt.receipt_code} marked with amount ${amount} by vendor ${vendorId} (user ${user.id})`);
+    console.log(`Receipt ${receipt.receipt_code} marked with amount ${amount} by vendor ${vendorId}`);
 
     return new Response(
       JSON.stringify({ success: true, message: 'Receipt marked successfully' }),

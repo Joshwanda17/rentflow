@@ -17,6 +17,11 @@ interface Vendor {
   location: string;
 }
 
+interface VendorSession {
+  vendor: Vendor;
+  vendorToken: string;
+}
+
 interface ReceiptNumber {
   id: string;
   receipt_code: string;
@@ -29,6 +34,7 @@ interface ReceiptNumber {
 export default function VendorPortal() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [vendor, setVendor] = useState<Vendor | null>(null);
+  const [vendorToken, setVendorToken] = useState<string | null>(null);
   const [receipts, setReceipts] = useState<ReceiptNumber[]>([]);
   const [loading, setLoading] = useState(false);
   const [phone, setPhone] = useState('');
@@ -40,10 +46,15 @@ export default function VendorPortal() {
   useEffect(() => {
     const storedVendor = sessionStorage.getItem('vendor_session');
     if (storedVendor) {
-      const parsed = JSON.parse(storedVendor);
-      setVendor(parsed);
+      const parsed = JSON.parse(storedVendor) as Partial<VendorSession>;
+      if (!parsed.vendor || !parsed.vendorToken) {
+        sessionStorage.removeItem('vendor_session');
+        return;
+      }
+      setVendor(parsed.vendor);
+      setVendorToken(parsed.vendorToken);
       setIsLoggedIn(true);
-      fetchReceipts(parsed.id);
+      fetchReceipts(parsed.vendor.id);
     }
   }, []);
 
@@ -66,8 +77,12 @@ export default function VendorPortal() {
       }
 
       setVendor(data.vendor);
+      setVendorToken(data.vendorToken);
       setIsLoggedIn(true);
-      sessionStorage.setItem('vendor_session', JSON.stringify(data.vendor));
+      sessionStorage.setItem('vendor_session', JSON.stringify({
+        vendor: data.vendor,
+        vendorToken: data.vendorToken,
+      } satisfies VendorSession));
       fetchReceipts(data.vendor.id);
       toast.success(`Welcome, ${data.vendor.name}!`);
     } catch (error: any) {
@@ -104,6 +119,7 @@ export default function VendorPortal() {
       const { data, error } = await supabase.functions.invoke('vendor-mark-receipt', {
         body: {
           vendorId: vendor?.id,
+          vendorToken,
           receiptId,
           amount: parseFloat(markAmount)
         }
@@ -130,6 +146,7 @@ export default function VendorPortal() {
   const handleLogout = () => {
     sessionStorage.removeItem('vendor_session');
     setVendor(null);
+    setVendorToken(null);
     setIsLoggedIn(false);
     setReceipts([]);
     setPhone('');
