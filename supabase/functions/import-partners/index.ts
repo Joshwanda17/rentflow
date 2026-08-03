@@ -135,6 +135,7 @@ Deno.serve(async (req) => {
     let partnersCreated = 0;
     let partnersMatched = 0;
     let portfoliosCreated = 0;
+    const credentials: { partner: string; temp_password: string }[] = [];
     let skippedDuplicates = 0;
     const errors: { partner: string; error: string }[] = [];
 
