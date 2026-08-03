@@ -33733,6 +33733,7 @@ export type Database = {
         }
         Returns: Json
       }
+      partner_self_nearing_payouts: { Args: { p_days?: number }; Returns: Json }
       partner_self_portfolio: { Args: { p_partner_id?: string }; Returns: Json }
       partner_self_release_claims: {
         Args: { p_rent_request_ids?: string[] }
@@ -33742,6 +33743,7 @@ export type Database = {
         Args: { p_days: number; p_reason: string; p_rent_request_id: string }
         Returns: Json
       }
+      pay_partner_self_cycles: { Args: { p_limit?: number }; Returns: Json }
       populate_wallet_review_queue: {
         Args: never
         Returns: {
