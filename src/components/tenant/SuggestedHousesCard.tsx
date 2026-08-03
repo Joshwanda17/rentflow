@@ -4,11 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Sparkles, MapPin, DoorOpen, ChevronRight, ZoomIn } from 'lucide-react';
+import { Sparkles, MapPin, DoorOpen, ChevronRight, ZoomIn, ArrowRight } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { MoveInOfferBadge } from '@/components/house/MoveInOfferBadge';
-import { AgentContactBar } from '@/components/tenant/AgentContactBar';
-import { GetDirectionsButton } from '@/components/tenant/GetDirectionsButton';
 import { ImageLightbox } from '@/components/marketplace/ImageLightbox';
 
 interface SuggestedHousesCardProps {
