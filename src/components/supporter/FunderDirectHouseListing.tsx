@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, MapPin, Home, ArrowRight, X, AlertCircle, RefreshCw, Check, Wallet, TrendingUp, CalendarIcon, Lock, SlidersHorizontal, ChevronDown } from 'lucide-react';
+import { Search, MapPin, Home, ArrowRight, X, AlertCircle, RefreshCw, Check, Wallet, TrendingUp, CalendarIcon, Lock, SlidersHorizontal, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, addMonths } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -156,10 +156,12 @@ export function FunderDirectHouseListing() {
   const [countLoading, setCountLoading] = useState(false);
   const mountedRef = useRef(true);
   const countTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
 
 
   const PAGE_SIZE = 100;
+  const CARDS_PER_PAGE = 4;
 
   const [search, setSearch] = useState('');
   const [region, setRegion] = useState('all');
@@ -176,6 +178,7 @@ export function FunderDirectHouseListing() {
   const [draftSortBy, setDraftSortBy] = useState('newest');
   const [draftMinMonthlyEarn, setDraftMinMonthlyEarn] = useState('all');
   const [draftMinAnnualEarn, setDraftMinAnnualEarn] = useState('all');
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -298,6 +301,11 @@ export function FunderDirectHouseListing() {
     };
   }, [fetchMatchCount]);
 
+  // Reset pagination whenever search or filters change so results start from page 1
+  useEffect(() => {
+    setPage(1);
+  }, [search, region, category, rooms, sortBy, minMonthlyEarn, minAnnualEarn]);
+
 
   const filtered = useMemo(() => {
     if (!houses) return [];
@@ -373,6 +381,15 @@ export function FunderDirectHouseListing() {
     return result;
   }, [houses, search, region, category, rooms, sortBy, minMonthlyEarn, minAnnualEarn, moveInDate]);
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / CARDS_PER_PAGE));
+  const safePage = Math.min(page, totalPages);
+  const paginatedHouses = useMemo(() => {
+    const start = (safePage - 1) * CARDS_PER_PAGE;
+    return filtered.slice(start, start + CARDS_PER_PAGE);
+  }, [filtered, safePage]);
+  const showingStart = filtered.length === 0 ? 0 : (safePage - 1) * CARDS_PER_PAGE + 1;
+  const showingEnd = Math.min(safePage * CARDS_PER_PAGE, filtered.length);
+
   const openHouse = (house: House) => {
     hapticTap();
     navigate(`/house/${house.short_code || house.id}`, { state: { from: 'funder' } });
@@ -407,6 +424,14 @@ export function FunderDirectHouseListing() {
     setSortBy('newest');
     setMinMonthlyEarn('all');
     setMinAnnualEarn('all');
+    setPage(1);
+  };
+
+  const goToPage = (nextPage: number) => {
+    hapticTap();
+    const clamped = Math.max(1, Math.min(nextPage, totalPages));
+    setPage(clamped);
+    containerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   /**
@@ -540,7 +565,7 @@ export function FunderDirectHouseListing() {
   }
 
   return (
-    <div className="space-y-3">
+    <div ref={containerRef} className="space-y-3">
       {/* Search */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
@@ -771,7 +796,7 @@ export function FunderDirectHouseListing() {
       {/* Results header */}
       <div className="flex items-center justify-between">
         <p className="text-[11px] text-muted-foreground">
-          Showing {filtered.length.toLocaleString()} of {(totalMatch ?? filtered.length).toLocaleString()}
+          Showing {showingStart.toLocaleString()}–{showingEnd.toLocaleString()} of {(totalMatch ?? filtered.length).toLocaleString()}
         </p>
         <button
           type="button"
@@ -801,7 +826,7 @@ export function FunderDirectHouseListing() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {filtered.map((house) => {
+          {paginatedHouses.map((house) => {
             const earn = calcFunderEarnings(house.monthly_rent, moveInDate);
             const selected = selectedIds.includes(house.id);
             return (
@@ -931,6 +956,59 @@ export function FunderDirectHouseListing() {
             </motion.div>
             );
           })}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {filtered.length > CARDS_PER_PAGE && (
+        <div className="flex items-center justify-center gap-1.5 pt-1">
+          <button
+            type="button"
+            onClick={() => goToPage(safePage - 1)}
+            disabled={safePage <= 1}
+            aria-label="Previous page"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed touch-manipulation"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+
+          {Array.from({ length: totalPages }, (_, i) => i + 1)
+            .filter((p) => {
+              if (totalPages <= 5) return true;
+              if (p === 1 || p === totalPages) return true;
+              return Math.abs(p - safePage) <= 1;
+            })
+            .map((p, idx, arr) => {
+              const showGap = idx > 0 && p - arr[idx - 1] > 1;
+              return (
+                <div key={`page-${p}`} className="flex items-center gap-1.5">
+                  {showGap && <span className="text-[10px] text-muted-foreground px-1">…</span>}
+                  <button
+                    type="button"
+                    onClick={() => goToPage(p)}
+                    aria-label={`Page ${p}`}
+                    aria-current={p === safePage ? 'page' : undefined}
+                    className={`inline-flex h-8 min-w-8 items-center justify-center rounded-lg text-xs font-semibold touch-manipulation ${
+                      p === safePage
+                        ? 'bg-primary text-primary-foreground'
+                        : 'border border-border bg-card text-foreground hover:bg-muted'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                </div>
+              );
+            })}
+
+          <button
+            type="button"
+            onClick={() => goToPage(safePage + 1)}
+            disabled={safePage >= totalPages}
+            aria-label="Next page"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed touch-manipulation"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
         </div>
       )}
 
