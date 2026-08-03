@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   VAPID_PUBLIC_KEY,
   arrayBufferToBase64,
+  isInIframe,
   isPushSupported,
   subscriptionUsesCurrentVapidKey,
   urlBase64ToUint8Array,
