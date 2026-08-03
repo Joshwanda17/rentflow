@@ -159,10 +159,57 @@ async function probe(label, url, { json = false } = {}) {
       ms: Date.now() - started,
       headers: {},
       json: null,
+      text: null,
+      servedHtml: false,
     };
   } finally {
     clearTimeout(timer);
   }
+}
+
+/**
+ * Dedicated non-fallback diagnostic endpoints.
+ *
+ * Every path below lives under /_deploy/ and ends in a file extension, so the
+ * hosting layer treats it as an asset request and never rewrites it to
+ * index.html. That makes both failure modes visible instead of masked:
+ *   - missing artifact  -> a real 404 (not a 200 HTML shell)
+ *   - stale artifact    -> hash text that differs from the local build
+ *
+ * artifact-hash.txt is intentionally a bare hash so it can be diffed with a
+ * one-line curl, and manifest.json carries the full publish context.
+ */
+function emitDeployProbes(report) {
+  if (!report.artifact.present) return [];
+  const dir = path.join(dist, '_deploy');
+  mkdirSync(dir, { recursive: true });
+  const manifest = {
+    publishRequestId: report.publishRequestId,
+    publishRequestIdSource: report.publishRequestIdSource,
+    generatedAt: report.generatedAt,
+    git: report.git,
+    artifact: report.artifact,
+    note: 'Static non-fallback deploy probe. Compare artifact.hash with the locally built hash to prove whether hosting received this build.',
+  };
+  const written = [
+    ['artifact-hash.txt', `${report.artifact.hash}\n`],
+    ['publish-id.txt', `${report.publishRequestId}\n`],
+    ['index-html-hash.txt', `${report.artifact.entryHtmlHash}\n`],
+    ['manifest.json', `${JSON.stringify(manifest, null, 2)}\n`],
+    [
+      'probe.txt',
+      [
+        'welile deploy probe',
+        `publish-id=${report.publishRequestId}`,
+        `artifact-hash=${report.artifact.hash}`,
+        `generated-at=${report.generatedAt}`,
+        `commit=${report.git.commit || 'unknown'}`,
+        '',
+      ].join('\n'),
+    ],
+  ];
+  for (const [name, body] of written) writeFileSync(path.join(dir, name), body, 'utf8');
+  return written.map(([name]) => `_deploy/${name}`);
 }
 
 function verdict(report) {
