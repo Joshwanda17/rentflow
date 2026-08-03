@@ -166,17 +166,21 @@ async function probe(label, url, { json = false } = {}) {
 function verdict(report) {
   if (report.probesSkipped) return 'hosting probes skipped — local artifact fingerprint recorded only';
   const root = report.hosting.find((p) => p.label === 'canonical origin');
-  const live = report.hosting.find((p) => p.label === 'deployed diagnostics report');
+  const live = report.hosting.find((p) => p.label === 'deployed artifact hash (static, no fallback)');
+  const control = report.hosting.find((p) => p.label === 'negative control (must be 404)');
   if (!root?.ok) {
     return `HOSTING STAGE UNREACHABLE — canonical origin returned ${root?.status || 0} (${root?.statusText})`;
   }
-  if (!live?.ok || !live.json?.artifact?.hash) {
+  if (control && control.status !== 404) {
+    return `SPA FALLBACK IS MASKING MISSING FILES — a guaranteed-nonexistent static path returned ${control.status} (${control.headers['content-type'] || 'unknown type'}); every 404 on this host is unreliable, so version checks must use the /_deploy/ endpoints and compare hashes, never status codes`;
+  }
+  if (!live?.ok || !live.text) {
     return 'ROOT SERVES 200 BUT NO DEPLOYED DIAGNOSTICS REPORT — either the last publish never uploaded this artifact (deploy stage failed after a green build) or this is the first build carrying the report';
   }
-  if (live.json.artifact.hash === report.artifact.hash) {
+  if (live.text.trim() === report.artifact.hash) {
     return 'LIVE ARTIFACT MATCHES LOCAL BUILD — hosting stage received and is serving this exact build';
   }
-  return `LIVE ARTIFACT IS STALE — live hash ${live.json.artifact.hash.slice(0, 16)}… from publish ${live.json.publishRequestId} != this build ${String(report.artifact.hash).slice(0, 16)}…; the upload/CDN stage, not the build, is dropping the new artifact`;
+  return `LIVE ARTIFACT IS STALE — live hash ${live.text.trim().slice(0, 16)}… != this build ${String(report.artifact.hash).slice(0, 16)}…; the upload/CDN stage, not the build, is dropping the new artifact`;
 }
 
 function renderText(report) {
