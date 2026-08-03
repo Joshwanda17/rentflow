@@ -19,26 +19,28 @@ export function KPICard({ title, value, icon: Icon, trend, color = 'bg-primary/1
     <Comp
       {...(interactive ? { onClick, type: 'button' as const } : {})}
       className={cn(
-        'rounded-2xl border border-border bg-card p-4 flex items-start gap-3 min-w-0 w-full text-left',
+        'rounded-2xl border border-border bg-card p-4 flex flex-col gap-2 min-w-0 w-full text-left',
         interactive && 'cursor-pointer transition-colors hover:bg-muted/40 hover:border-primary/40 active:scale-[0.98] touch-manipulation',
       )}
     >
-      <div className={cn('p-2.5 rounded-xl shrink-0', color)}>
-        <Icon className="h-5 w-5" />
+      <div className="flex items-center gap-2.5 min-w-0">
+        <div className={cn('p-2 rounded-xl shrink-0', color)}>
+          <Icon className="h-5 w-5" />
+        </div>
+        <p className="text-xs font-medium text-muted-foreground truncate leading-tight">{title}</p>
       </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-xs text-muted-foreground truncate">{title}</p>
+      <div className="min-w-0">
         {loading ? (
-          <div className="h-7 w-20 bg-muted animate-pulse rounded mt-1" />
+          <div className="h-9 w-28 bg-muted animate-pulse rounded mt-0.5" />
         ) : (
-          <p className="text-xl font-bold truncate">{value}</p>
+          <p className="text-2xl font-bold tracking-tight leading-tight break-words">{value}</p>
         )}
         {trend && (
-          <p className={cn('text-[10px] mt-0.5', trend.value >= 0 ? 'text-green-600' : 'text-red-500')}>
+          <p className={cn('text-xs mt-1.5 font-medium', trend.value >= 0 ? 'text-green-600' : 'text-red-500')}>
             {trend.value >= 0 ? '↑' : '↓'} {Math.abs(trend.value)}% {trend.label}
           </p>
         )}
-        {subtitle && <p className="text-[10px] text-muted-foreground mt-0.5">{subtitle}</p>}
+        {subtitle && <p className="text-xs text-muted-foreground mt-1.5 leading-snug">{subtitle}</p>}
       </div>
     </Comp>
   );
