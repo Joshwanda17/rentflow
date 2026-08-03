@@ -37,6 +37,51 @@ export interface PayRunRow {
   created_at: string;
   period_code: string | null;
   rule_version_code: string | null;
+  /** Position title currently holding the run, derived from status. Null when locked. */
+  holding_position_title: string | null;
+  /** Timestamp of the most recent hr_pay_run_events row for this run. */
+  last_event_at: string | null;
+}
+
+/** Which authority function holds a run at each status. Locked runs are with nobody. */
+const STATUS_FUNCTION: Record<string, 'prepare' | 'approve' | 'release'> = {
+  draft: 'prepare',
+  calculated: 'prepare',
+  returned: 'prepare',
+  in_review: 'approve',
+  approved: 'release',
+  paid: 'prepare',
+};
+
+async function loadAuthorityTitles(): Promise<Record<string, string>> {
+  const res = await supabase
+    .from('hr_pay_authorities')
+    .select('function_code, hr_positions(title)')
+    .is('effective_to', null);
+  const rows = (unwrap(res) ?? []) as Array<{
+    function_code: string;
+    hr_positions?: { title: string } | null;
+  }>;
+  const map: Record<string, string> = {};
+  for (const row of rows) {
+    if (row.hr_positions?.title) map[row.function_code] = row.hr_positions.title;
+  }
+  return map;
+}
+
+async function loadLastEventAt(runIds: string[]): Promise<Record<string, string>> {
+  if (runIds.length === 0) return {};
+  const res = await supabase
+    .from('hr_pay_run_events')
+    .select('run_id, created_at')
+    .in('run_id', runIds)
+    .order('created_at', { ascending: false });
+  const rows = (unwrap(res) ?? []) as Array<{ run_id: string; created_at: string }>;
+  const map: Record<string, string> = {};
+  for (const row of rows) {
+    if (!map[row.run_id]) map[row.run_id] = row.created_at;
+  }
+  return map;
 }
 
 export async function listPeriods(): Promise<PayPeriodRow[]> {
@@ -89,19 +134,27 @@ export async function listRuns(): Promise<PayRunRow[]> {
       hr_pay_rule_versions?: { code: string } | null;
     }
   >;
-  return rows.map((row) => ({
+  const ids = rows.map((row) => row.id as string);
+  const [titles, lastEvents] = await Promise.all([loadAuthorityTitles(), loadLastEventAt(ids)]);
+  return rows.map((row) => {
+    const status = row.status as string;
+    const fn = STATUS_FUNCTION[status];
+    return {
     id: row.id as string,
     period_id: row.period_id as string,
     run_type: row.run_type as string,
     rule_version_id: (row.rule_version_id as string | null) ?? null,
     rule_status_at_run: (row.rule_status_at_run as string | null) ?? null,
-    status: row.status as string,
+    status,
     prepared_at: (row.prepared_at as string | null) ?? null,
     total_net: (row.total_net as number | null) ?? null,
     created_at: row.created_at as string,
     period_code: row.hr_pay_periods?.code ?? null,
     rule_version_code: row.hr_pay_rule_versions?.code ?? null,
-  }));
+    holding_position_title: fn ? titles[fn] ?? null : null,
+    last_event_at: lastEvents[row.id as string] ?? null,
+    };
+  });
 }
 
 export async function listRuleVersions(): Promise<PayRuleVersionOption[]> {
@@ -142,5 +195,11 @@ export async function createRun(input: {
     .single();
   unwrap(event);
 
-  return { ...run, period_code: null, rule_version_code: version?.code ?? null };
+  return {
+    ...run,
+    period_code: null,
+    rule_version_code: version?.code ?? null,
+    holding_position_title: null,
+    last_event_at: null,
+  };
 }
