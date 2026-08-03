@@ -21,7 +21,7 @@ import { FundRentDialog } from './FundRentDialog';
 import { InvestmentWithdrawButton } from './InvestmentWithdrawButton';
 import { useAuth } from '@/hooks/useAuth';
 import { useFunderApprovalStatus } from '@/hooks/useFunderApprovalStatus';
-import { FunderDirectHouseListing } from './FunderDirectHouseListing';
+import { SelfPortfolioFundingCard } from '@/components/partner/SelfPortfolioFundingCard';
 
 type OptionKey = 'managed' | 'direct' | 'angel';
 type ViewState = 'menu' | OptionKey;
@@ -364,7 +364,7 @@ export function FunderCapitalOpportunities() {
     return (
       <DetailShell
         title="Support Tenants Directly"
-        subtitle="Browse verified houses and pay landlords directly"
+        subtitle="Fund approved tenant rent plans from your balance"
         onBack={() => setView('menu')}
       >
         {/* Breadcrumb: Capital Opportunities → Support Tenants Directly */}
@@ -393,20 +393,22 @@ export function FunderCapitalOpportunities() {
         <div className="rounded-xl bg-primary/5 border border-primary/20 p-3.5 space-y-2">
           <p className="text-xs font-bold text-foreground">How it works</p>
           <p className="text-[11px] text-muted-foreground leading-relaxed">
-            Browse available verified houses below. When you fund one, your capital goes directly to
-            the landlord and Welile tracks repayments through your dashboard.
+            Pick one or more approved tenant rent plans below. Your capital funds the landlord
+            directly and Welile tracks repayments and monthly returns in your dashboard.
           </p>
         </div>
 
-        {/* Houses on Welile — live inventory available now for direct support */}
+        {/* Tenant rent plans awaiting funding — stacked cards with bulk selection */}
         <div className="pt-2 space-y-3">
           <div className="flex items-center gap-2">
             <div className="w-1 h-5 rounded-full bg-primary" />
             <h4 className="text-xs font-black text-foreground tracking-tight">
-              Houses on Welile · Available now
+              Tenants awaiting funding
             </h4>
           </div>
-          <FunderDirectHouseListing />
+          {user?.id
+            ? <SelfPortfolioFundingCard partnerId={user.id} />
+            : <p className="text-[11px] text-muted-foreground">Sign in to view tenant plans.</p>}
         </div>
       </DetailShell>
     );

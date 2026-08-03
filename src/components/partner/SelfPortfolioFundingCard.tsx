@@ -215,12 +215,37 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
         </Card>
       )}
 
+      {plans.length > 1 && (
+        <div className="flex items-center justify-between gap-2 px-1">
+          <p className="text-[11px] font-semibold text-muted-foreground">
+            {plans.length} tenant plan{plans.length > 1 ? 's' : ''} available
+          </p>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 text-[11px]"
+            disabled={busy}
+            onClick={() => {
+              const selectable = plans
+                .filter((p) => !fundedIds.includes(p.rent_request_id) && (!p.held_by || p.held_by === partnerId))
+                .map((p) => p.rent_request_id);
+              setSelected((prev) => (prev.length === selectable.length ? [] : selectable));
+            }}
+          >
+            {selected.length > 0 ? 'Clear selection' : 'Select all'}
+          </Button>
+        </div>
+      )}
+
       {plans.map((plan) => {
         const isFunded = fundedIds.includes(plan.rent_request_id);
         const heldByOther = !!plan.held_by && plan.held_by !== partnerId;
         const isSelected = selected.includes(plan.rent_request_id);
         return (
-          <Card key={plan.rent_request_id} className="p-4 rounded-2xl">
+          <Card
+            key={plan.rent_request_id}
+            className={`p-4 rounded-2xl transition-colors ${isSelected ? 'ring-2 ring-primary/60 bg-primary/5' : ''}`}
+          >
             <div className="flex items-start gap-3">
               <div className="relative w-12 h-12 rounded-full overflow-hidden bg-muted shrink-0">
                 {plan.tenant_avatar_url ? (
@@ -256,15 +281,11 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
                 </p>
                 <div className="flex items-center gap-1 text-[11px] text-muted-foreground mt-0.5">
                   <MapPin className="h-3 w-3" />
-                  <span className="truncate">{plan.request_city ?? 'Uganda'}</span>
-                </div>
-                <p className="text-sm font-black text-foreground mt-1">
-                  {formatDynamic(plan.funding_amount)}
-                  <span className="text-[11px] font-medium text-muted-foreground">
-                    {' '}
-                    · {plan.duration_days ?? 30} days
+                  <span className="truncate">
+                    {plan.request_city ?? 'Uganda'}
+                    {plan.house_category ? ` · ${plan.house_category}` : ''}
                   </span>
-                </p>
+                </div>
               </div>
 
               {!isFunded && (
@@ -277,6 +298,35 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
                 />
               )}
             </div>
+
+            <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {[
+                { label: 'Rent needed', value: formatDynamic(plan.funding_amount), strong: true },
+                { label: 'Daily repayment', value: plan.daily_repayment ? formatDynamic(plan.daily_repayment) : '—' },
+                { label: 'Term', value: `${plan.duration_days ?? 30} days` },
+                {
+                  label: 'Ends',
+                  value: plan.projected_end_date
+                    ? new Date(plan.projected_end_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+                    : '—',
+                },
+              ].map((f) => (
+                <div key={f.label} className="rounded-xl bg-muted/40 px-2.5 py-2 min-w-0">
+                  <p className="text-[9px] uppercase tracking-wide text-muted-foreground font-semibold truncate">
+                    {f.label}
+                  </p>
+                  <p className={`text-xs mt-0.5 truncate ${f.strong ? 'font-black text-foreground' : 'font-bold text-foreground/90'}`}>
+                    {f.value}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            {plan.repayment_cadence && (
+              <p className="text-[10px] text-muted-foreground mt-2">
+                Repayments collected {plan.repayment_cadence}.
+              </p>
+            )}
             {heldByOther && (
               <p className="text-[10px] text-muted-foreground mt-2">
                 Another partner is confirming this plan right now.
