@@ -31941,15 +31941,16 @@ export type Database = {
           agents_active: number
           agents_total: number
           arrears_count: number
+          avg_days_behind: number
           avg_rent: number
+          billable_today: number
           collected_to_date: number
+          collected_today: number
+          covered_by_advance: number
           districts_count: number
-          due_month: number
-          due_today: number
-          due_tomorrow: number
-          due_week: number
           ended_leases: number
           expected_to_date: number
+          expected_today: number
           expiring_leases: number
           key: string
           label: string
@@ -31965,15 +31966,24 @@ export type Database = {
           paid_on_time: number
           paid_today: number
           paid_week: number
+          par_1_7: number
+          par_31_60: number
+          par_60_plus: number
+          par_8_30: number
+          par_amount_30_plus: number
+          par_current: number
+          partial_today: number
           properties_total: number
           regions_count: number
           rent_collected_month: number
           rent_expected_monthly: number
+          settled_today: number
           tenants_active: number
           tenants_inactive: number
           tenants_new_month: number
           tenants_prev_month: number
           tenants_total: number
+          uncollected_today: number
           vacant_units: number
         }[]
       }
