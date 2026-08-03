@@ -1,5 +1,6 @@
-import html2canvas from 'html2canvas';
-import { jsPDF } from 'jspdf';
+// html2canvas (~200 KB) and jspdf (~340 KB) are loaded on demand inside
+// renderAgreementPdfBase64 — this module is imported by contract screens that
+// must paint long before anyone asks for a PDF.
 
 // Rasterise the SAME filled contract HTML the admin previews into a multi-page
 // A4 PDF. Each `.page-section` becomes its own page, so the stored/emailed PDF
@@ -36,6 +37,10 @@ export async function renderAgreementPdfBase64(
   opts?: { format?: 'a4' | 'letter' },
 ): Promise<string> {
   const format = opts?.format ?? 'a4';
+  const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+    import('html2canvas'),
+    import('jspdf'),
+  ]);
   // Mount the contract inside the parent document (off-screen but in-layout)
   // so html2canvas can walk real computed styles. Rendering into an off-screen
   // <iframe> produced blank pages on Chromium/WebKit.

@@ -45,6 +45,16 @@ export default defineConfig(({ mode }) => ({
           if (['react', 'react-dom', 'react-router', 'react-router-dom', 'scheduler'].includes(pkg)) {
             return 'vendor-react';
           }
+          // Group tightly-coupled families into ONE chunk each. Dozens of
+          // tiny sibling chunks cost more in rollup bookkeeping, deployed
+          // file count and HTTP requests than they save in memory.
+          if (pkg.startsWith('@radix-ui')) return 'vendor-radix';
+          if (pkg.startsWith('@tiptap') || pkg.startsWith('prosemirror')) return 'vendor-tiptap';
+          if (pkg.startsWith('@tanstack')) return 'vendor-tanstack';
+          if (pkg === 'leaflet' || pkg.startsWith('leaflet.') || pkg === 'react-leaflet') {
+            return 'vendor-leaflet';
+          }
+          if (pkg.startsWith('@babel') || pkg.startsWith('@swc')) return 'vendor-babel';
           return `vendor-${pkg.replace('@', '').replace('/', '-')}`;
         },
       },

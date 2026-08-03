@@ -6,11 +6,18 @@
  * world. We layer a best-effort continent map on top so the continent
  * field can auto-fill from a country pick.
  *
- * IMPORTANT: the `country-state-city` dataset is ~2.2 MB. It is loaded
- * lazily (dynamic import) ONLY when the location picker is actually
- * opened, so it never bloats the app's startup bundle for the (vast
- * majority of) users who already have a complete profile.
+ * IMPORTANT: the `country-state-city` city dataset is ~8 MB. It is NOT
+ * bundled as JavaScript — it is emitted as a static JSON asset and fetched
+ * on demand only when a country has been picked and the city list is
+ * actually needed. The (small, ~95 KB) country dataset is imported from the
+ * package subpath so picking a country never pulls the city data in.
+ * This keeps it out of the startup bundle AND out of Rollup's
+ * parse/minify path during production builds.
  */
+// Static URL only — Vite copies the JSON into dist/assets verbatim and this
+// import compiles down to a single string, not the dataset itself.
+import cityDataUrl from "country-state-city/lib/assets/city.json?url";
+
 export interface WorldCountry {
   name: string;
   continent: string;
@@ -71,7 +78,11 @@ let _countriesPromise: Promise<WorldCountry[]> | null = null;
 export async function loadWorldCountries(): Promise<WorldCountry[]> {
   if (_countriesCache) return _countriesCache;
   if (!_countriesPromise) {
-    _countriesPromise = import("country-state-city").then(({ Country }) => {
+    // Subpath import: pulls ONLY country.json (~95 KB), never city.json.
+    _countriesPromise = import("country-state-city/lib/country.js").then((mod) => {
+      const Country = ((mod as { default?: unknown }).default ?? mod) as {
+        getAllCountries: () => Array<{ name: string; isoCode: string }>;
+      };
       _countriesCache = Country.getAllCountries().map((c) => ({
         name: c.name,
         isoCode: c.isoCode,
@@ -112,16 +123,43 @@ export interface WorldCity {
   stateCode: string;
 }
 
+/**
+ * Raw city rows as shipped by `country-state-city`:
+ * [name, countryCode, stateCode, latitude, longitude]
+ */
+type RawCityRow = [string, string, string, string, string];
+
+let _cityRowsPromise: Promise<RawCityRow[]> | null = null;
+
+/** Fetch + cache the raw city dataset (once per session). */
+async function loadRawCityRows(): Promise<RawCityRow[]> {
+  if (!_cityRowsPromise) {
+    _cityRowsPromise = fetch(cityDataUrl)
+      .then((res) => {
+        if (!res.ok) throw new Error(`city dataset ${res.status}`);
+        return res.json() as Promise<RawCityRow[]>;
+      })
+      .catch((err) => {
+        // Allow a later retry instead of caching the failure forever.
+        _cityRowsPromise = null;
+        throw err;
+      });
+  }
+  return _cityRowsPromise;
+}
+
 /** All cities/towns for a country (deduplicated by name), alphabetically sorted. */
 export async function loadCitiesForCountry(isoCode: string): Promise<WorldCity[]> {
   if (!isoCode) return [];
-  const { City } = await import("country-state-city");
+  const rows = await loadRawCityRows();
   const seen = new Set<string>();
   const out: WorldCity[] = [];
-  for (const c of City.getCitiesOfCountry(isoCode) ?? []) {
-    if (seen.has(c.name)) continue;
-    seen.add(c.name);
-    out.push({ name: c.name, stateCode: c.stateCode });
+  for (const row of rows) {
+    if (row[1] !== isoCode) continue;
+    const name = row[0];
+    if (seen.has(name)) continue;
+    seen.add(name);
+    out.push({ name, stateCode: row[2] });
   }
   return out.sort((a, b) => a.name.localeCompare(b.name));
 }
