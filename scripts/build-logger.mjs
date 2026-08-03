@@ -72,10 +72,20 @@ const latestStream = createWriteStream(latestLog, { flags: mode });
 const captured = [];
 const startedAt = Date.now();
 
+// Automated redaction: legacy domains must never land in a captured log file,
+// because those files live in the scanned source tree (public/build-log.txt)
+// and would trip scripts/guard-legacy-domain.mjs, aborting the next build.
+// Console output is left untouched — only what we persist is redacted.
+const LEGACY_DOMAIN_RE = /welilereceipts-com\.lovable\.app|welilereceipts?\.com|welilereciepts?\.com|welile-receipts\.com/gi;
+export function redactLegacyDomains(text) {
+  return String(text).replace(LEGACY_DOMAIN_RE, '[legacy-domain-redacted]');
+}
+
 function write(line) {
-  captured.push(line);
-  runStream.write(line);
-  latestStream.write(line);
+  const safe = redactLegacyDomains(line);
+  captured.push(safe);
+  runStream.write(safe);
+  latestStream.write(safe);
 }
 
 write(
