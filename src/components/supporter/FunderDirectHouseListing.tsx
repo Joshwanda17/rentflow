@@ -959,6 +959,59 @@ export function FunderDirectHouseListing() {
         </div>
       )}
 
+      {/* Pagination */}
+      {filtered.length > CARDS_PER_PAGE && (
+        <div className="flex items-center justify-center gap-1.5 pt-1">
+          <button
+            type="button"
+            onClick={() => goToPage(safePage - 1)}
+            disabled={safePage <= 1}
+            aria-label="Previous page"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed touch-manipulation"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+
+          {Array.from({ length: totalPages }, (_, i) => i + 1)
+            .filter((p) => {
+              if (totalPages <= 5) return true;
+              if (p === 1 || p === totalPages) return true;
+              return Math.abs(p - safePage) <= 1;
+            })
+            .map((p, idx, arr) => {
+              const showGap = idx > 0 && p - arr[idx - 1] > 1;
+              return (
+                <div key={`page-${p}`} className="flex items-center gap-1.5">
+                  {showGap && <span className="text-[10px] text-muted-foreground px-1">…</span>}
+                  <button
+                    type="button"
+                    onClick={() => goToPage(p)}
+                    aria-label={`Page ${p}`}
+                    aria-current={p === safePage ? 'page' : undefined}
+                    className={`inline-flex h-8 min-w-8 items-center justify-center rounded-lg text-xs font-semibold touch-manipulation ${
+                      p === safePage
+                        ? 'bg-primary text-primary-foreground'
+                        : 'border border-border bg-card text-foreground hover:bg-muted'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                </div>
+              );
+            })}
+
+          <button
+            type="button"
+            onClick={() => goToPage(safePage + 1)}
+            disabled={safePage >= totalPages}
+            aria-label="Next page"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed touch-manipulation"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       {hasMore && filtered.length > 0 && (
         <div className="flex justify-center pt-2">
           <button
