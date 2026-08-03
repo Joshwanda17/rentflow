@@ -19,6 +19,7 @@ import { ChevronRight, ArrowLeft, History as HistoryIcon, Send, Filter, SlidersH
 import { Search, X } from 'lucide-react';
 import { format, isWithinInterval, parseISO, startOfDay, endOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { AdvanceTopupRequestPanel, useTopupEligibility } from '@/components/agent/AdvanceTopupRequestPanel';
 
 interface AgentAdvanceRequestFormProps {
   open: boolean;
@@ -44,7 +45,7 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
   const [cycleDays, setCycleDays] = useState<number>(30);
   const [reason, setReason] = useState('');
   const [allocOpen, setAllocOpen] = useState(false);
-  const [view, setView] = useState<'menu' | 'history' | 'request'>('menu');
+  const [view, setView] = useState<'menu' | 'history' | 'request' | 'topup'>('menu');
 
   // History filters
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
@@ -130,6 +131,10 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
     enabled: !!user?.id && open,
   });
   const isRepeatBorrower = (completedAdvanceCount ?? 0) > 0;
+  // Top-up eligibility — while an advance is running, the agent tops up
+  // instead of taking a brand new advance.
+  const { data: topupEligibility } = useTopupEligibility(user?.id, open);
+  const hasActiveAdvance = !!topupEligibility?.has_active_advance;
   const monthlyRate = isRepeatBorrower ? 0.28 : 0.33;
   const accessFee = calculateAccessFee(principal, cycleDays, monthlyRate);
   const registrationFee = calculateRegistrationFee(principal);
@@ -678,22 +683,30 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
 
             <button
               type="button"
-              onClick={() => setView('request')}
+              onClick={() => setView(hasActiveAdvance ? 'topup' : 'request')}
               className="w-full flex items-center gap-4 rounded-2xl border border-border/60 bg-card p-4 text-left transition-all active:scale-[0.98] hover:border-primary/40"
             >
               <div className="rounded-2xl bg-primary/10 p-3 shrink-0">
                 <Send className="h-6 w-6 text-primary" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-base font-bold text-foreground">Request a new advance</p>
+                <p className="text-base font-bold text-foreground">
+                  {hasActiveAdvance ? 'Request a top-up on your advance' : 'Request a new advance'}
+                </p>
                 <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
-                  Apply for funds and submit your request to the CFO for approval.
+                  {hasActiveAdvance
+                    ? 'Add more funds to your running advance once you have repaid at least 30% — same rate, schedule extended.'
+                    : 'Apply for funds and submit your request to the CFO for approval.'}
                 </p>
                 <p className="text-[11px] font-semibold text-primary mt-1">Submit to CFO →</p>
               </div>
               <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
             </button>
           </div>
+        )}
+
+        {view === 'topup' && (
+          <AdvanceTopupRequestPanel onSubmitted={() => setView('menu')} />
         )}
 
         {/* Back to menu */}

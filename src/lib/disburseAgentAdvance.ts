@@ -7,6 +7,29 @@ import {
 } from '@/lib/agentAdvanceCalculations';
 
 /**
+ * Merge an approved TOP-UP request into the agent's existing advance.
+ * The top-up inherits the parent advance's rate + repayment frequency and
+ * extends the schedule by `extend_days`; the DB re-validates eligibility
+ * (≥30% repaid, not behind, ≤90% of current principal).
+ */
+export async function applyAdvanceTopupForRequest(req: any, amount?: number, extendDays?: number) {
+  const topupAmount = Number(amount ?? req.principal);
+  const days = Number(extendDays ?? req.extend_days);
+  if (!Number.isFinite(topupAmount) || topupAmount <= 0) throw new Error('Top-up amount must be greater than zero');
+  if (!Number.isFinite(days) || days <= 0) throw new Error('Top-up requires the number of days to extend by');
+  if (!req.parent_advance_id) throw new Error('Top-up request is missing the advance it tops up');
+
+  const { data, error } = await supabase.rpc('apply_advance_topup' as any, {
+    p_advance_id: req.parent_advance_id,
+    p_amount: topupAmount,
+    p_extend_days: days,
+    p_request_id: req.id,
+  } as any);
+  if (error) throw error;
+  return data as any;
+}
+
+/**
  * Disburse an agent advance to the agent's wallet. Mirrors the CFO
  * disbursement flow in `CFOAdvanceRequestPayments.tsx` so Agent Ops can
  * shortcut the CFO stage when needed.
@@ -32,20 +55,21 @@ export async function disburseAgentAdvanceRequest(opts: {
   roiRecoveryPercent?: number;
 }) {
   const { req, actorId } = opts;
+  const isTopup = (req.request_kind ?? 'new') === 'topup';
   const principal = Number(opts.principal ?? req.principal);
-  const cycleDays = Number(opts.cycleDays ?? req.cycle_days);
-  const monthlyRate = Number(opts.monthlyRate ?? req.monthly_rate);
+  const cycleDays = isTopup ? Number(req.extend_days ?? req.cycle_days) : Number(opts.cycleDays ?? req.cycle_days);
+  const monthlyRate = isTopup ? Number(req.monthly_rate) : Number(opts.monthlyRate ?? req.monthly_rate);
   const repaymentFrequency: RepaymentFrequency =
     (opts.repaymentFrequency ?? req.repayment_frequency ?? 'daily') as RepaymentFrequency;
   if (!Number.isFinite(principal) || principal <= 0) throw new Error('Principal must be greater than zero');
   if (principal < 10000) throw new Error('Principal must be at least UGX 10,000 — advances below this are not permitted.');
   if (!Number.isFinite(cycleDays) || cycleDays <= 0) throw new Error('Cycle days must be greater than zero');
 
-  const registrationFee = calculateRegistrationFee(principal);
+  const registrationFee = isTopup ? 0 : calculateRegistrationFee(principal);
   const accessFee = calculateAccessFee(principal, cycleDays, monthlyRate);
   const totalPayable = principal + accessFee + registrationFee;
   const installments = installmentCount(cycleDays, repaymentFrequency);
-  const installment = Math.ceil(totalPayable / installments);
+  let installment = Math.ceil(totalPayable / installments);
   const daily = installment;
   const nowIso = new Date().toISOString();
   const combinedNotes = [opts.notes || null, opts.skipReason ? `[CFO skipped by Agent Ops] ${opts.skipReason}` : null]
@@ -79,7 +103,11 @@ export async function disburseAgentAdvanceRequest(opts: {
   if (updateErr) throw updateErr;
   if (!updated) throw new Error('Disbursement blocked — the request status changed or has already been disbursed.');
 
-  // 2. Start daily deductions.
+  // 2. Start (or extend) deductions.
+  if (isTopup) {
+    const merged = await applyAdvanceTopupForRequest(req, principal, cycleDays);
+    installment = Number(merged?.new_installment ?? installment);
+  } else {
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + cycleDays);
   const { error: advErr } = await supabase.from('agent_advances').insert({
@@ -102,6 +130,7 @@ export async function disburseAgentAdvanceRequest(opts: {
     roi_recovery_percent: opts.recoverySource === 'roi' ? Number(opts.roiRecoveryPercent ?? 0) : 0,
   } as any);
   if (advErr) throw advErr;
+  }
 
   // 3. Credit agent wallet via ledger RPC.
   const { error: rpcErr } = await supabase.rpc('create_ledger_transaction', {

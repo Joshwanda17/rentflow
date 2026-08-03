@@ -164,16 +164,19 @@ export type Database = {
           created_at: string
           cycle_days: number
           daily_payment: number
+          extend_days: number | null
           id: string
           landlord_ops_notes: string | null
           landlord_ops_reviewed_at: string | null
           monthly_rate: number
           paid_by_cfo: string | null
+          parent_advance_id: string | null
           principal: number
           reason: string
           registration_fee: number
           rejection_reason: string | null
           repayment_frequency: string
+          request_kind: string
           reviewed_by_agent_ops: string | null
           reviewed_by_landlord_ops: string | null
           reviewed_by_tenant_ops: string | null
@@ -199,16 +202,19 @@ export type Database = {
           created_at?: string
           cycle_days?: number
           daily_payment?: number
+          extend_days?: number | null
           id?: string
           landlord_ops_notes?: string | null
           landlord_ops_reviewed_at?: string | null
           monthly_rate?: number
           paid_by_cfo?: string | null
+          parent_advance_id?: string | null
           principal?: number
           reason?: string
           registration_fee?: number
           rejection_reason?: string | null
           repayment_frequency?: string
+          request_kind?: string
           reviewed_by_agent_ops?: string | null
           reviewed_by_landlord_ops?: string | null
           reviewed_by_tenant_ops?: string | null
@@ -234,16 +240,19 @@ export type Database = {
           created_at?: string
           cycle_days?: number
           daily_payment?: number
+          extend_days?: number | null
           id?: string
           landlord_ops_notes?: string | null
           landlord_ops_reviewed_at?: string | null
           monthly_rate?: number
           paid_by_cfo?: string | null
+          parent_advance_id?: string | null
           principal?: number
           reason?: string
           registration_fee?: number
           rejection_reason?: string | null
           repayment_frequency?: string
+          request_kind?: string
           reviewed_by_agent_ops?: string | null
           reviewed_by_landlord_ops?: string | null
           reviewed_by_tenant_ops?: string | null
@@ -451,6 +460,13 @@ export type Database = {
             referencedColumns: ["agent_id"]
           },
           {
+            foreignKeyName: "agent_advance_requests_parent_advance_id_fkey"
+            columns: ["parent_advance_id"]
+            isOneToOne: false
+            referencedRelation: "agent_advances"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "agent_advance_requests_reviewed_by_agent_ops_fkey"
             columns: ["reviewed_by_agent_ops"]
             isOneToOne: false
@@ -601,27 +617,36 @@ export type Database = {
       }
       agent_advance_topups: {
         Row: {
+          access_fee_added: number
           advance_id: string
           amount: number
           created_at: string
+          extend_days: number | null
           id: string
           monthly_rate: number
+          request_id: string | null
           topped_up_by: string
         }
         Insert: {
+          access_fee_added?: number
           advance_id: string
           amount: number
           created_at?: string
+          extend_days?: number | null
           id?: string
           monthly_rate?: number
+          request_id?: string | null
           topped_up_by: string
         }
         Update: {
+          access_fee_added?: number
           advance_id?: string
           amount?: number
           created_at?: string
+          extend_days?: number | null
           id?: string
           monthly_rate?: number
+          request_id?: string | null
           topped_up_by?: string
         }
         Relationships: [
@@ -28229,15 +28254,19 @@ export type Database = {
           created_at: string | null
           cycle_days: number | null
           daily_payment: number | null
+          extend_days: number | null
           id: string | null
           landlord_ops_notes: string | null
           landlord_ops_reviewed_at: string | null
           monthly_rate: number | null
           paid_by_cfo: string | null
+          parent_advance_id: string | null
           principal: number | null
           reason: string | null
           registration_fee: number | null
           rejection_reason: string | null
+          repayment_frequency: string | null
+          request_kind: string | null
           reviewed_by_agent_ops: string | null
           reviewed_by_landlord_ops: string | null
           reviewed_by_tenant_ops: string | null
@@ -28443,6 +28472,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_parent_advance_id_fkey"
+            columns: ["parent_advance_id"]
+            isOneToOne: false
+            referencedRelation: "agent_advances"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "agent_advance_requests_reviewed_by_agent_ops_fkey"
@@ -29592,6 +29628,10 @@ export type Database = {
         Returns: number
       }
       advance_period_days: { Args: { _frequency: string }; Returns: number }
+      agent_advance_topup_eligibility: {
+        Args: { p_agent_id: string }
+        Returns: Json
+      }
       agent_allocate_tenant_payment: {
         Args: {
           p_agent_id: string
@@ -29806,6 +29846,15 @@ export type Database = {
           p_original_transaction_group: string
           p_reason: string
           p_rent_request_id: string
+        }
+        Returns: Json
+      }
+      apply_advance_topup: {
+        Args: {
+          p_advance_id: string
+          p_amount: number
+          p_extend_days: number
+          p_request_id?: string
         }
         Returns: Json
       }
