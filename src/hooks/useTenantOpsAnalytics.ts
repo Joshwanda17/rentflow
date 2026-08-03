@@ -41,12 +41,24 @@ export interface GeoMetricsRow {
   tenants_inactive: number;
   tenants_new_month: number;
   tenants_prev_month: number;
-  due_today: number;
-  due_tomorrow: number;
-  due_week: number;
-  due_month: number;
+  /** Daily-cycle funnel. This product bills every active plan every calendar day. */
+  billable_today: number;
+  settled_today: number;
+  partial_today: number;
+  covered_by_advance: number;
+  uncollected_today: number;
+  expected_today: number;
+  collected_today: number;
   overdue_count: number;
   arrears_count: number;
+  /** Arrears ageing (Portfolio at Risk) in days behind the daily schedule. */
+  par_current: number;
+  par_1_7: number;
+  par_8_30: number;
+  par_31_60: number;
+  par_60_plus: number;
+  par_amount_30_plus: number;
+  avg_days_behind: number;
   paid_early: number;
   paid_on_time: number;
   paid_late: number;
@@ -89,12 +101,22 @@ function normalise(row: any): GeoMetricsRow {
     tenants_inactive: num(row.tenants_inactive),
     tenants_new_month: num(row.tenants_new_month),
     tenants_prev_month: num(row.tenants_prev_month),
-    due_today: num(row.due_today),
-    due_tomorrow: num(row.due_tomorrow),
-    due_week: num(row.due_week),
-    due_month: num(row.due_month),
+    billable_today: num(row.billable_today),
+    settled_today: num(row.settled_today),
+    partial_today: num(row.partial_today),
+    covered_by_advance: num(row.covered_by_advance),
+    uncollected_today: num(row.uncollected_today),
+    expected_today: num(row.expected_today),
+    collected_today: num(row.collected_today),
     overdue_count: num(row.overdue_count),
     arrears_count: num(row.arrears_count),
+    par_current: num(row.par_current),
+    par_1_7: num(row.par_1_7),
+    par_8_30: num(row.par_8_30),
+    par_31_60: num(row.par_31_60),
+    par_60_plus: num(row.par_60_plus),
+    par_amount_30_plus: num(row.par_amount_30_plus),
+    avg_days_behind: num(row.avg_days_behind),
     paid_early: num(row.paid_early),
     paid_on_time: num(row.paid_on_time),
     paid_late: num(row.paid_late),
@@ -148,7 +170,9 @@ export function rollupGeoRows(rows: GeoMetricsRow[] | undefined): GeoMetricsRow 
   if (!rows?.length) return base;
   const summable: (keyof GeoMetricsRow)[] = [
     'tenants_total', 'tenants_active', 'tenants_inactive', 'tenants_new_month', 'tenants_prev_month',
-    'due_today', 'due_tomorrow', 'due_week', 'due_month', 'overdue_count', 'arrears_count',
+    'billable_today', 'settled_today', 'partial_today', 'covered_by_advance', 'uncollected_today',
+    'expected_today', 'collected_today', 'overdue_count', 'arrears_count',
+    'par_current', 'par_1_7', 'par_8_30', 'par_31_60', 'par_60_plus', 'par_amount_30_plus',
     'paid_early', 'paid_on_time', 'paid_late', 'paid_today', 'paid_week', 'paid_month',
     'rent_expected_monthly', 'rent_collected_month', 'expected_to_date', 'collected_to_date',
     'outstanding_total', 'overdue_amount', 'advance_amount', 'expiring_leases', 'ended_leases',
@@ -157,6 +181,12 @@ export function rollupGeoRows(rows: GeoMetricsRow[] | undefined): GeoMetricsRow 
   ];
   const out: any = { ...base };
   for (const k of summable) out[k] = rows.reduce((s, r) => s + num(r[k]), 0);
+  // Days-behind is an average, not a sum — weight it by the tenants it describes.
+  const behind = rows.filter((r) => r.avg_days_behind > 0);
+  out.avg_days_behind = behind.length
+    ? behind.reduce((s, r) => s + r.avg_days_behind * Math.max(r.overdue_count, 1), 0) /
+      Math.max(behind.reduce((s, r) => s + Math.max(r.overdue_count, 1), 0), 1)
+    : 0;
   const rented = rows.filter((r) => r.avg_rent > 0);
   out.avg_rent = rented.length
     ? rented.reduce((s, r) => s + r.avg_rent * r.tenants_total, 0) /
@@ -178,6 +208,12 @@ export function deriveRatios(r: GeoMetricsRow) {
       ? ((r.tenants_new_month - r.tenants_prev_month) / r.tenants_prev_month) * 100
       : r.tenants_new_month > 0 ? 100 : 0,
     arrearsRate: pct(r.arrears_count, r.tenants_active),
+    /** Today's collection efficiency — the single number field ops is judged on. */
+    dailyCollectionRate: pct(r.collected_today, r.expected_today),
+    /** Share of today's billable book actually touched today (paid in full or part). */
+    dailyContactRate: pct(r.settled_today + r.partial_today, r.billable_today),
+    /** Share of the active book more than 30 days behind schedule. */
+    par30Rate: pct(r.par_31_60 + r.par_60_plus, r.tenants_active),
     retentionRate: r.tenants_total > 0
       ? pct(r.tenants_total - r.ended_leases, r.tenants_total)
       : 0,
