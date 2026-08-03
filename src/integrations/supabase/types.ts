@@ -1656,6 +1656,13 @@ export type Database = {
             foreignKeyName: "agent_collections_rent_request_id_fkey"
             columns: ["rent_request_id"]
             isOneToOne: false
+            referencedRelation: "v_partner_self_fundable_plans"
+            referencedColumns: ["rent_request_id"]
+          },
+          {
+            foreignKeyName: "agent_collections_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
             referencedRelation: "v_tenant_location_pivot"
             referencedColumns: ["rent_request_id"]
           },
@@ -2768,6 +2775,13 @@ export type Database = {
             foreignKeyName: "agent_float_withdrawals_rent_request_id_fkey"
             columns: ["rent_request_id"]
             isOneToOne: false
+            referencedRelation: "v_partner_self_fundable_plans"
+            referencedColumns: ["rent_request_id"]
+          },
+          {
+            foreignKeyName: "agent_float_withdrawals_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
             referencedRelation: "v_tenant_location_pivot"
             referencedColumns: ["rent_request_id"]
           },
@@ -3140,6 +3154,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "rent_requests"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_landlord_assignments_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "v_partner_self_fundable_plans"
+            referencedColumns: ["rent_request_id"]
           },
           {
             foreignKeyName: "agent_landlord_assignments_rent_request_id_fkey"
@@ -6501,6 +6522,13 @@ export type Database = {
             foreignKeyName: "commission_accrual_ledger_rent_request_id_fkey"
             columns: ["rent_request_id"]
             isOneToOne: false
+            referencedRelation: "v_partner_self_fundable_plans"
+            referencedColumns: ["rent_request_id"]
+          },
+          {
+            foreignKeyName: "commission_accrual_ledger_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
             referencedRelation: "v_tenant_location_pivot"
             referencedColumns: ["rent_request_id"]
           },
@@ -7289,6 +7317,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "rent_requests"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "default_recovery_ledger_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "v_partner_self_fundable_plans"
+            referencedColumns: ["rent_request_id"]
           },
           {
             foreignKeyName: "default_recovery_ledger_rent_request_id_fkey"
@@ -8989,6 +9024,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "rent_requests"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fee_revenue_ledger_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "v_partner_self_fundable_plans"
+            referencedColumns: ["rent_request_id"]
           },
           {
             foreignKeyName: "fee_revenue_ledger_rent_request_id_fkey"
@@ -15915,6 +15957,13 @@ export type Database = {
             foreignKeyName: "location_requests_rent_request_id_fkey"
             columns: ["rent_request_id"]
             isOneToOne: false
+            referencedRelation: "v_partner_self_fundable_plans"
+            referencedColumns: ["rent_request_id"]
+          },
+          {
+            foreignKeyName: "location_requests_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
             referencedRelation: "v_tenant_location_pivot"
             referencedColumns: ["rent_request_id"]
           },
@@ -17090,6 +17139,13 @@ export type Database = {
             foreignKeyName: "offline_collection_submissions_rent_request_id_fkey"
             columns: ["rent_request_id"]
             isOneToOne: false
+            referencedRelation: "v_partner_self_fundable_plans"
+            referencedColumns: ["rent_request_id"]
+          },
+          {
+            foreignKeyName: "offline_collection_submissions_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
             referencedRelation: "v_tenant_location_pivot"
             referencedColumns: ["rent_request_id"]
           },
@@ -17713,6 +17769,340 @@ export type Database = {
           status?: string | null
           wallet_after?: number | null
           wallet_before?: number | null
+        }
+        Relationships: []
+      }
+      partner_self_audit: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          metadata: Json
+          partner_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          metadata?: Json
+          partner_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          metadata?: Json
+          partner_id?: string | null
+        }
+        Relationships: []
+      }
+      partner_self_commitments: {
+        Row: {
+          committed_amount: number
+          created_at: string
+          id: string
+          idempotency_key: string | null
+          ledger_group_id: string | null
+          lines_count: number
+          monthly_rate: number
+          next_payout_at: string | null
+          partner_id: string
+          payout_anchor_at: string | null
+          payout_day: number | null
+          status: string
+          term_end_at: string | null
+          term_months: number
+          total_earned: number
+          total_paid: number
+          updated_at: string
+        }
+        Insert: {
+          committed_amount: number
+          created_at?: string
+          id?: string
+          idempotency_key?: string | null
+          ledger_group_id?: string | null
+          lines_count?: number
+          monthly_rate?: number
+          next_payout_at?: string | null
+          partner_id: string
+          payout_anchor_at?: string | null
+          payout_day?: number | null
+          status?: string
+          term_end_at?: string | null
+          term_months?: number
+          total_earned?: number
+          total_paid?: number
+          updated_at?: string
+        }
+        Update: {
+          committed_amount?: number
+          created_at?: string
+          id?: string
+          idempotency_key?: string | null
+          ledger_group_id?: string | null
+          lines_count?: number
+          monthly_rate?: number
+          next_payout_at?: string | null
+          partner_id?: string
+          payout_anchor_at?: string | null
+          payout_day?: number | null
+          status?: string
+          term_end_at?: string | null
+          term_months?: number
+          total_earned?: number
+          total_paid?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      partner_self_earnings: {
+        Row: {
+          amount: number
+          commitment_id: string
+          created_at: string
+          cycle_end: string
+          cycle_start: string
+          days_in_cycle: number
+          days_live: number
+          id: string
+          line_id: string
+          monthly_rate: number
+          paid_at: string | null
+          partner_id: string
+          payout_cycle_id: string | null
+          principal: number
+          recognized_at: string
+          status: string
+        }
+        Insert: {
+          amount: number
+          commitment_id: string
+          created_at?: string
+          cycle_end: string
+          cycle_start: string
+          days_in_cycle: number
+          days_live: number
+          id?: string
+          line_id: string
+          monthly_rate: number
+          paid_at?: string | null
+          partner_id: string
+          payout_cycle_id?: string | null
+          principal: number
+          recognized_at?: string
+          status?: string
+        }
+        Update: {
+          amount?: number
+          commitment_id?: string
+          created_at?: string
+          cycle_end?: string
+          cycle_start?: string
+          days_in_cycle?: number
+          days_live?: number
+          id?: string
+          line_id?: string
+          monthly_rate?: number
+          paid_at?: string | null
+          partner_id?: string
+          payout_cycle_id?: string | null
+          principal?: number
+          recognized_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_self_earnings_commitment_id_fkey"
+            columns: ["commitment_id"]
+            isOneToOne: false
+            referencedRelation: "partner_self_commitments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_self_earnings_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "partner_self_funding_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_self_funding_lines: {
+        Row: {
+          commitment_id: string
+          committed_at: string
+          completed_at: string | null
+          created_at: string
+          id: string
+          live_at: string | null
+          monthly_rate: number
+          partner_id: string
+          principal: number
+          rent_request_id: string
+          status: string
+          term_end_at: string | null
+          term_months: number
+          total_earned: number
+          updated_at: string
+        }
+        Insert: {
+          commitment_id: string
+          committed_at?: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          live_at?: string | null
+          monthly_rate?: number
+          partner_id: string
+          principal: number
+          rent_request_id: string
+          status?: string
+          term_end_at?: string | null
+          term_months?: number
+          total_earned?: number
+          updated_at?: string
+        }
+        Update: {
+          commitment_id?: string
+          committed_at?: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          live_at?: string | null
+          monthly_rate?: number
+          partner_id?: string
+          principal?: number
+          rent_request_id?: string
+          status?: string
+          term_end_at?: string | null
+          term_months?: number
+          total_earned?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_self_funding_lines_commitment_id_fkey"
+            columns: ["commitment_id"]
+            isOneToOne: false
+            referencedRelation: "partner_self_commitments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_self_payout_cycles: {
+        Row: {
+          commitment_id: string
+          created_at: string
+          cycle_end: string
+          cycle_start: string
+          failure_reason: string | null
+          id: string
+          ledger_group_id: string | null
+          lines_count: number
+          paid_at: string | null
+          partner_id: string
+          recognized_at: string
+          status: string
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          commitment_id: string
+          created_at?: string
+          cycle_end: string
+          cycle_start: string
+          failure_reason?: string | null
+          id?: string
+          ledger_group_id?: string | null
+          lines_count?: number
+          paid_at?: string | null
+          partner_id: string
+          recognized_at?: string
+          status?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          commitment_id?: string
+          created_at?: string
+          cycle_end?: string
+          cycle_start?: string
+          failure_reason?: string | null
+          id?: string
+          ledger_group_id?: string | null
+          lines_count?: number
+          paid_at?: string | null
+          partner_id?: string
+          recognized_at?: string
+          status?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_self_payout_cycles_commitment_id_fkey"
+            columns: ["commitment_id"]
+            isOneToOne: false
+            referencedRelation: "partner_self_commitments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_self_plan_claims: {
+        Row: {
+          amount: number
+          claimed_at: string
+          closed_at: string | null
+          commitment_id: string | null
+          confirmed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          idempotency_key: string | null
+          partner_id: string
+          rent_request_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          claimed_at?: string
+          closed_at?: string | null
+          commitment_id?: string | null
+          confirmed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          idempotency_key?: string | null
+          partner_id: string
+          rent_request_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          claimed_at?: string
+          closed_at?: string | null
+          commitment_id?: string | null
+          confirmed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          idempotency_key?: string | null
+          partner_id?: string
+          rent_request_id?: string
+          status?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -21477,6 +21867,13 @@ export type Database = {
             foreignKeyName: "rent_repayment_pauses_rent_request_id_fkey"
             columns: ["rent_request_id"]
             isOneToOne: false
+            referencedRelation: "v_partner_self_fundable_plans"
+            referencedColumns: ["rent_request_id"]
+          },
+          {
+            foreignKeyName: "rent_repayment_pauses_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
             referencedRelation: "v_tenant_location_pivot"
             referencedColumns: ["rent_request_id"]
           },
@@ -21712,6 +22109,8 @@ export type Database = {
           returned_at: string | null
           roi_payments_count: number | null
           schedule_status: string | null
+          self_funding_line_id: string | null
+          self_funding_partner_id: string | null
           status: string | null
           supporter_id: string | null
           tenancy_continuity: string | null
@@ -21825,6 +22224,8 @@ export type Database = {
           returned_at?: string | null
           roi_payments_count?: number | null
           schedule_status?: string | null
+          self_funding_line_id?: string | null
+          self_funding_partner_id?: string | null
           status?: string | null
           supporter_id?: string | null
           tenancy_continuity?: string | null
@@ -21938,6 +22339,8 @@ export type Database = {
           returned_at?: string | null
           roi_payments_count?: number | null
           schedule_status?: string | null
+          self_funding_line_id?: string | null
+          self_funding_partner_id?: string | null
           status?: string | null
           supporter_id?: string | null
           tenancy_continuity?: string | null
@@ -22142,6 +22545,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "rent_requests"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "repayments_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "v_partner_self_fundable_plans"
+            referencedColumns: ["rent_request_id"]
           },
           {
             foreignKeyName: "repayments_rent_request_id_fkey"
@@ -24234,6 +24644,13 @@ export type Database = {
             foreignKeyName: "subscription_charges_rent_request_id_fkey"
             columns: ["rent_request_id"]
             isOneToOne: false
+            referencedRelation: "v_partner_self_fundable_plans"
+            referencedColumns: ["rent_request_id"]
+          },
+          {
+            foreignKeyName: "subscription_charges_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
             referencedRelation: "v_tenant_location_pivot"
             referencedColumns: ["rent_request_id"]
           },
@@ -24360,6 +24777,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "rent_requests"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supporter_capital_ledger_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "v_partner_self_fundable_plans"
+            referencedColumns: ["rent_request_id"]
           },
           {
             foreignKeyName: "supporter_capital_ledger_rent_request_id_fkey"
@@ -24624,6 +25048,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "rent_requests"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supporter_roi_payments_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "v_partner_self_fundable_plans"
+            referencedColumns: ["rent_request_id"]
           },
           {
             foreignKeyName: "supporter_roi_payments_rent_request_id_fkey"
@@ -25082,6 +25513,13 @@ export type Database = {
             foreignKeyName: "tenant_idle_states_rent_request_id_fkey"
             columns: ["rent_request_id"]
             isOneToOne: true
+            referencedRelation: "v_partner_self_fundable_plans"
+            referencedColumns: ["rent_request_id"]
+          },
+          {
+            foreignKeyName: "tenant_idle_states_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: true
             referencedRelation: "v_tenant_location_pivot"
             referencedColumns: ["rent_request_id"]
           },
@@ -25367,6 +25805,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "rent_requests"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenant_reassignment_audit_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "v_partner_self_fundable_plans"
+            referencedColumns: ["rent_request_id"]
           },
           {
             foreignKeyName: "tenant_reassignment_audit_rent_request_id_fkey"
@@ -28726,6 +29171,28 @@ export type Database = {
         }
         Relationships: []
       }
+      v_partner_self_fundable_plans: {
+        Row: {
+          active_claim_id: string | null
+          approved_at: string | null
+          daily_repayment: number | null
+          duration_days: number | null
+          funding_amount: number | null
+          held_by: string | null
+          hold_expires_at: string | null
+          house_category: string | null
+          house_image_urls: string[] | null
+          number_of_payments: number | null
+          posted_at: string | null
+          projected_end_date: string | null
+          rent_amount: number | null
+          rent_request_id: string | null
+          repayment_cadence: string | null
+          request_city: string | null
+          total_repayment: number | null
+        }
+        Relationships: []
+      }
       v_pivot_drift: {
         Row: {
           advance_delta: number | null
@@ -29045,6 +29512,7 @@ export type Database = {
         Args: { p_withdrawal_id: string }
         Returns: Json
       }
+      accrue_partner_self_returns: { Args: { p_as_of?: string }; Returns: Json }
       acknowledge_finance_anomaly_alert: {
         Args: { p_check_key: string; p_note?: string }
         Returns: Json
@@ -29302,6 +29770,8 @@ export type Database = {
           returned_at: string | null
           roi_payments_count: number | null
           schedule_status: string | null
+          self_funding_line_id: string | null
+          self_funding_partner_id: string | null
           status: string | null
           supporter_id: string | null
           tenancy_continuity: string | null
@@ -30248,6 +30718,7 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: Json
       }
+      expire_partner_self_claims: { Args: never; Returns: Json }
       expire_stale_bonus_restrictions: { Args: never; Returns: number }
       expire_stale_cash_deposit_codes: { Args: never; Returns: number }
       export_users_with_password_hashes: { Args: never; Returns: string }
@@ -33137,6 +33608,33 @@ export type Database = {
             }
             Returns: Json
           }
+      partner_self_claim_plans: {
+        Args: { p_idempotency_key?: string; p_rent_request_ids: string[] }
+        Returns: Json
+      }
+      partner_self_confirm_commitment: {
+        Args: {
+          p_idempotency_key?: string
+          p_rent_request_ids: string[]
+          p_term_months?: number
+        }
+        Returns: Json
+      }
+      partner_self_list_fundable_plans: {
+        Args: {
+          p_city?: string
+          p_limit?: number
+          p_max_amount?: number
+          p_min_amount?: number
+          p_offset?: number
+        }
+        Returns: Json
+      }
+      partner_self_portfolio: { Args: { p_partner_id?: string }; Returns: Json }
+      partner_self_release_claims: {
+        Args: { p_rent_request_ids?: string[] }
+        Returns: Json
+      }
       pause_tenant_repayment: {
         Args: { p_days: number; p_reason: string; p_rent_request_id: string }
         Returns: Json
@@ -33174,6 +33672,18 @@ export type Database = {
         }
         Returns: Json
       }
+      psm_audit: {
+        Args: {
+          p_action: string
+          p_actor: string
+          p_entity_id?: string
+          p_entity_type?: string
+          p_metadata?: Json
+          p_partner: string
+        }
+        Returns: undefined
+      }
+      psm_is_partner: { Args: { p_user: string }; Returns: boolean }
       purge_geo_coverage_cache: { Args: never; Returns: number }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
