@@ -10,7 +10,7 @@ import { LoadMoreProgress } from '@/components/tenant/LoadMoreProgress';
 import { Button } from '@/components/ui/button';
 import {
   Search, MapPin, ShieldCheck, Home, DoorOpen,
-  ChevronLeft, ChevronRight, Clock, ExternalLink, Share2, Copy, Check, ZoomIn, Navigation,
+  ChevronLeft, ChevronRight, ChevronDown, Clock, ExternalLink, Share2, Copy, Check, ZoomIn, Navigation,
   SlidersHorizontal, X, Droplets, Zap, Car, Sofa, Loader2, ArrowRight,
   ArrowUpDown, BedDouble,
   Map as MapIcon, List as ListIcon, Route, Footprints, ArrowLeft
@@ -607,6 +607,11 @@ export default function FindAHouse() {
     };
   });
   const [showFilters, setShowFilters] = useState(false);
+  // Search + location bar can be collapsed to give listings more room.
+  const [searchBarOpen, setSearchBarOpen] = useState(true);
+  // Client-side pagination over the filtered set.
+  const PAGE_SIZE = 12;
+  const [page, setPage] = useState(1);
   const debouncedSearch = useDebouncedValue(searchText, 250);
   const [showMap, setShowMap] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -820,6 +825,26 @@ export default function FindAHouse() {
     return result;
   }, [listings, debouncedSearch, minPrice, maxPrice, minRooms, amenities, sortKey, effectiveLat, effectiveLng, selectedDistrict, selectedSubCounty, selectedVillage]);
 
+  // Reset to the first page whenever the result set changes shape.
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, minPrice, maxPrice, minRooms, amenities, sortKey, selectedRegion, selectedCategory, selectedDistrict, selectedSubCounty, selectedVillage]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const paginated = useMemo(
+    () => filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [filtered, currentPage],
+  );
+
+  const goToPage = useCallback((next: number) => {
+    const target = Math.max(1, next);
+    setPage(target);
+    // Fetch more from the server when the tenant walks past the loaded set.
+    if (target >= totalPages && hasMore) loadMore();
+    document.getElementById('house-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [totalPages, hasMore, loadMore]);
+
   // Distinct location options derived from the loaded listings, cascading from
   // the current region/district/sub-county selection. Only areas that actually
   // have houses are offered, so the dropdowns stay relevant for tenants & funders.
@@ -1011,6 +1036,26 @@ export default function FindAHouse() {
         {/* Filters */}
         <div className="sticky top-[53px] z-30 bg-background/95 backdrop-blur-md border-b border-border">
           <div className="max-w-2xl mx-auto px-4 py-3 space-y-2">
+            <button
+              type="button"
+              onClick={() => setSearchBarOpen(o => !o)}
+              aria-expanded={searchBarOpen}
+              aria-controls="find-a-house-searchbar"
+              className="w-full flex items-center justify-between gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground"
+            >
+              <span className="inline-flex items-center gap-1.5">
+                <Search className="h-3.5 w-3.5" />
+                {searchBarOpen ? 'Hide search & location' : 'Search & location'}
+                {!searchBarOpen && activeFilterCount > 0 && (
+                  <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </span>
+              <ChevronDown className={`h-4 w-4 transition-transform ${searchBarOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {searchBarOpen && (
+            <div id="find-a-house-searchbar" className="space-y-2">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -1069,6 +1114,8 @@ export default function FindAHouse() {
                   </Select>
                 )}
               </div>
+            )}
+            </div>
             )}
             {/* Filter toggle row */}
             <div className="flex gap-2">
@@ -1282,14 +1329,38 @@ export default function FindAHouse() {
                   </div>
                   {/* List — hidden on mobile while the map is open (toggle), shown beside map on desktop */}
                   <div className="hidden md:block md:order-1 md:flex-1 min-w-0">
-                    <VirtualHouseList listings={filtered} onOpenDetails={openDetails} userLat={effectiveLat} userLng={effectiveLng} />
+                    <VirtualHouseList listings={paginated} onOpenDetails={openDetails} userLat={effectiveLat} userLng={effectiveLng} />
                   </div>
                 </div>
               ) : (
-                <VirtualHouseList listings={filtered} onOpenDetails={openDetails} userLat={effectiveLat} userLng={effectiveLng} />
+                <VirtualHouseList listings={paginated} onOpenDetails={openDetails} userLat={effectiveLat} userLng={effectiveLng} />
               )}
-              {/* Infinite-scroll sentinel + status. */}
-              {hasMore && <div ref={loadMoreSentinelRef} className="h-1 w-full" aria-hidden="true" />}
+
+              {/* Pagination */}
+              <nav aria-label="House list pages" className="flex items-center justify-between gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => goToPage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="gap-1"
+                >
+                  <ChevronLeft className="h-4 w-4" /> Previous
+                </Button>
+                <span className="text-xs text-muted-foreground font-medium">
+                  Page {currentPage} of {totalPages}
+                  {hasMore ? '+' : ''}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => goToPage(currentPage + 1)}
+                  disabled={currentPage >= totalPages && !hasMore}
+                  className="gap-1"
+                >
+                  Next <ChevronRight className="h-4 w-4" />
+                </Button>
+              </nav>
               {loadingMore && (
                 <LoadMoreProgress
                   loadedCount={filtered.length}
