@@ -28254,15 +28254,19 @@ export type Database = {
           created_at: string | null
           cycle_days: number | null
           daily_payment: number | null
+          extend_days: number | null
           id: string | null
           landlord_ops_notes: string | null
           landlord_ops_reviewed_at: string | null
           monthly_rate: number | null
           paid_by_cfo: string | null
+          parent_advance_id: string | null
           principal: number | null
           reason: string | null
           registration_fee: number | null
           rejection_reason: string | null
+          repayment_frequency: string | null
+          request_kind: string | null
           reviewed_by_agent_ops: string | null
           reviewed_by_landlord_ops: string | null
           reviewed_by_tenant_ops: string | null
@@ -28468,6 +28472,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_parent_advance_id_fkey"
+            columns: ["parent_advance_id"]
+            isOneToOne: false
+            referencedRelation: "agent_advances"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "agent_advance_requests_reviewed_by_agent_ops_fkey"
