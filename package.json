@@ -15,6 +15,8 @@
     "guard:deposit-purpose": "node scripts/guard-deposit-purpose.mjs",
     "guard:canonical-tags": "node scripts/guard-canonical-tags.mjs",
     "guard:schema-types": "node scripts/guard-schema-types.mjs",
+    "guard:mcp-deploy": "node scripts/guard-mcp-deploy.mjs",
+    "check:runtime-env": "node scripts/check-runtime-env.mjs",
     "verify:dist": "node scripts/verify-dist.mjs",
     "publish:diagnostics": "node scripts/publish-diagnostics.mjs",
     "schema:accept-types": "node scripts/guard-schema-types.mjs --write",
@@ -27,7 +29,7 @@
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
     "@lovable.dev/cloud-auth-js": "^1.1.2",
-    "@lovable.dev/mcp-js": "^0.20.0",
+    "@lovable.dev/mcp-js": "^0.26.1",
     "@prisma/client": "^7.4.2",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-alert-dialog": "^1.1.14",

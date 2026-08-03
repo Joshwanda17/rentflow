@@ -1,14 +1,7 @@
-import { createClient } from "@supabase/supabase-js";
-import { defineTool, type ToolContext } from "@lovable.dev/mcp-js";
+import { defineTool } from "@lovable.dev/mcp-js";
 import { z } from "zod";
-import { applyCustomerWalletLedgerFilters, isCustomerWalletLedgerEntryVisible } from "@/lib/customerWalletHistory";
-
-function supabaseForUser(ctx: ToolContext) {
-  return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
-    global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-}
+import { supabaseForUser } from "../supabase";
+import { applyCustomerWalletLedgerFilters, isCustomerWalletLedgerEntryVisible } from "../walletHistory";
 
 export default defineTool({
   name: "list_my_transactions",
