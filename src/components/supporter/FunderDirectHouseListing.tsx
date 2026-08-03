@@ -818,7 +818,7 @@ export function FunderDirectHouseListing() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {filtered.map((house) => {
+          {paginatedHouses.map((house) => {
             const earn = calcFunderEarnings(house.monthly_rent, moveInDate);
             const selected = selectedIds.includes(house.id);
             return (
