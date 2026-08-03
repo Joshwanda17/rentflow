@@ -553,89 +553,26 @@ export function FunderDirectHouseListing() {
         />
       </div>
 
-      {/* Filters + live count */}
+      {/* Filter toggle + live count */}
       <div className="flex flex-wrap items-center gap-2">
-        <Select value={region} onValueChange={setRegion}>
-          <SelectTrigger className="h-9 text-xs w-[130px]" aria-label="Filter by region">
-            <SelectValue placeholder="Region" />
-          </SelectTrigger>
-          <SelectContent>
-            {REGIONS.map((r) => (
-              <SelectItem
-                key={r === 'All Regions' ? 'all' : r}
-                value={r === 'All Regions' ? 'all' : r}
-                className="text-xs"
-              >
-                {r}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select value={category} onValueChange={setCategory}>
-          <SelectTrigger className="h-9 text-xs w-[130px]" aria-label="Filter by house type">
-            <SelectValue placeholder="Type" />
-          </SelectTrigger>
-          <SelectContent>
-            {CATEGORIES.map((c) => (
-              <SelectItem key={c.value} value={c.value} className="text-xs">
-                {c.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select value={rooms} onValueChange={setRooms}>
-          <SelectTrigger className="h-9 text-xs w-[132px]" aria-label="Filter by number of rooms">
-            <SelectValue placeholder="Rooms" />
-          </SelectTrigger>
-          <SelectContent>
-            {ROOMS.map((r) => (
-              <SelectItem key={r.value} value={r.value} className="text-xs">
-                {r.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select value={sortBy} onValueChange={setSortBy}>
-          <SelectTrigger className="h-9 text-xs w-[150px]" aria-label="Sort houses">
-            <SelectValue placeholder="Sort" />
-          </SelectTrigger>
-          <SelectContent>
-            {SORTS.map((s) => (
-              <SelectItem key={s.value} value={s.value} className="text-xs">
-                {s.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select value={minMonthlyEarn} onValueChange={setMinMonthlyEarn}>
-          <SelectTrigger className="h-9 text-xs w-[170px]" aria-label="Filter by projected monthly earning">
-            <SelectValue placeholder="Monthly earning" />
-          </SelectTrigger>
-          <SelectContent>
-            {MIN_MONTHLY_EARN.map((m) => (
-              <SelectItem key={m.value} value={m.value} className="text-xs">
-                {m.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select value={minAnnualEarn} onValueChange={setMinAnnualEarn}>
-          <SelectTrigger className="h-9 text-xs w-[180px]" aria-label="Filter by projected 12-month earning">
-            <SelectValue placeholder="12-month earning" />
-          </SelectTrigger>
-          <SelectContent>
-            {MIN_ANNUAL_EARN.map((m) => (
-              <SelectItem key={m.value} value={m.value} className="text-xs">
-                {m.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Button
+          type="button"
+          variant={filtersOpen ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => (filtersOpen ? setFiltersOpen(false) : openFilters())}
+          aria-expanded={filtersOpen}
+          aria-controls="funder-house-filters"
+          className="h-9 gap-1.5 text-xs"
+        >
+          <SlidersHorizontal className="h-3.5 w-3.5" />
+          Filters
+          {activeFilterCount > 0 && (
+            <span className="ml-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary/15 px-1 text-[10px] font-bold text-primary">
+              {activeFilterCount}
+            </span>
+          )}
+          <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', filtersOpen && 'rotate-180')} />
+        </Button>
 
         <div className="ml-auto flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground">
           {countLoading && (
@@ -647,6 +584,115 @@ export function FunderDirectHouseListing() {
           </span>
         </div>
       </div>
+
+      {/* Collapsible filter panel */}
+      <AnimatePresence initial={false}>
+        {filtersOpen && (
+          <motion.div
+            id="funder-house-filters"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="rounded-2xl border border-border/60 bg-card p-3 space-y-3">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                <Select value={draftRegion} onValueChange={setDraftRegion}>
+                  <SelectTrigger className="h-9 text-xs" aria-label="Filter by region">
+                    <SelectValue placeholder="Region" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {REGIONS.map((r) => (
+                      <SelectItem
+                        key={r === 'All Regions' ? 'all' : r}
+                        value={r === 'All Regions' ? 'all' : r}
+                        className="text-xs"
+                      >
+                        {r}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={draftCategory} onValueChange={setDraftCategory}>
+                  <SelectTrigger className="h-9 text-xs" aria-label="Filter by house type">
+                    <SelectValue placeholder="Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CATEGORIES.map((c) => (
+                      <SelectItem key={c.value} value={c.value} className="text-xs">
+                        {c.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={draftRooms} onValueChange={setDraftRooms}>
+                  <SelectTrigger className="h-9 text-xs" aria-label="Filter by number of rooms">
+                    <SelectValue placeholder="Rooms" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ROOMS.map((r) => (
+                      <SelectItem key={r.value} value={r.value} className="text-xs">
+                        {r.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={draftSortBy} onValueChange={setDraftSortBy}>
+                  <SelectTrigger className="h-9 text-xs" aria-label="Sort houses">
+                    <SelectValue placeholder="Sort" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SORTS.map((s) => (
+                      <SelectItem key={s.value} value={s.value} className="text-xs">
+                        {s.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={draftMinMonthlyEarn} onValueChange={setDraftMinMonthlyEarn}>
+                  <SelectTrigger className="h-9 text-xs" aria-label="Filter by projected monthly earning">
+                    <SelectValue placeholder="Monthly earning" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MIN_MONTHLY_EARN.map((m) => (
+                      <SelectItem key={m.value} value={m.value} className="text-xs">
+                        {m.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={draftMinAnnualEarn} onValueChange={setDraftMinAnnualEarn}>
+                  <SelectTrigger className="h-9 text-xs" aria-label="Filter by projected 12-month earning">
+                    <SelectValue placeholder="12-month earning" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MIN_ANNUAL_EARN.map((m) => (
+                      <SelectItem key={m.value} value={m.value} className="text-xs">
+                        {m.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center justify-end gap-2">
+                <Button type="button" variant="ghost" size="sm" onClick={clearDraftFilters} className="h-9 text-xs">
+                  Clear
+                </Button>
+                <Button type="button" size="sm" onClick={applyDraftFilters} className="h-9 text-xs">
+                  Apply filters
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Move-in date anchor for the earnings projection */}
       <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-primary/20 bg-primary/5 px-3 py-2.5">
