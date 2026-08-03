@@ -168,6 +168,14 @@ export function FunderDirectHouseListing() {
   const [sortBy, setSortBy] = useState('newest');
   const [minMonthlyEarn, setMinMonthlyEarn] = useState('all');
   const [minAnnualEarn, setMinAnnualEarn] = useState('all');
+  // Draft filter values — only committed to the applied state on "Apply filters"
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [draftRegion, setDraftRegion] = useState('all');
+  const [draftCategory, setDraftCategory] = useState('all');
+  const [draftRooms, setDraftRooms] = useState('all');
+  const [draftSortBy, setDraftSortBy] = useState('newest');
+  const [draftMinMonthlyEarn, setDraftMinMonthlyEarn] = useState('all');
+  const [draftMinAnnualEarn, setDraftMinAnnualEarn] = useState('all');
 
   useEffect(() => {
     mountedRef.current = true;
