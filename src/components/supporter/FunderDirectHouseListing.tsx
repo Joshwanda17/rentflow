@@ -156,6 +156,7 @@ export function FunderDirectHouseListing() {
   const [countLoading, setCountLoading] = useState(false);
   const mountedRef = useRef(true);
   const countTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
 
 
