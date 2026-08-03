@@ -50,6 +50,29 @@ function isValidEmail(value: string | null): value is string {
   return !!value && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
+// Each imported partner gets their OWN cryptographically random temporary
+// password. A shared literal would let anyone who knows it sign into every
+// freshly-imported investor account.
+function rand(set: string): string {
+  const r = crypto.getRandomValues(new Uint32Array(1))[0] / 0x100000000;
+  return set[Math.floor(r * set.length)];
+}
+
+function generateTempPassword(): string {
+  const upper = "ABCDEFGHJKMNPQRSTUVWXYZ";
+  const lower = "abcdefghijkmnpqrstuvwxyz";
+  const digits = "23456789";
+  const symbols = "@#$%&*";
+  const all = upper + lower + digits + symbols;
+  const chars = [rand(upper), rand(upper), rand(lower), rand(lower), rand(digits), rand(digits), rand(symbols)];
+  for (let i = 0; i < 6; i++) chars.push(rand(all));
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = Math.floor((crypto.getRandomValues(new Uint32Array(1))[0] / 0x100000000) * (i + 1));
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+  return "Welile-" + chars.join("");
+}
+
 function pushImportError(
   errors: { partner: string; error: string }[],
   partner: string | null | undefined,
