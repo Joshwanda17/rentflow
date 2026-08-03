@@ -7,7 +7,7 @@ import Contracts from '@/hr/contracts/Contracts';
 
 const TABS = [
   { value: 'directory', label: 'Directory' },
-  { value: 'enrollment', label: 'Payroll enrollment' },
+  { value: 'enrollment', label: 'Pay setup' },
   { value: 'contracts', label: 'Contracts' },
   { value: 'documents', label: 'Documents' },
 ] as const;
