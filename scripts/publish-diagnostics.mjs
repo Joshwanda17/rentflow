@@ -246,6 +246,7 @@ function renderText(report) {
   lines.push(`artifact hash       : ${report.artifact.hash || 'n/a'}`);
   lines.push(`index.html hash     : ${report.artifact.entryHtmlHash || 'n/a'}`);
   lines.push(`files / bytes       : ${report.artifact.files} files / ${report.artifact.bytes} bytes`);
+  lines.push(`non-fallback probes : ${report.deployProbeFiles.join(', ') || 'none (no dist)'}`);
   lines.push('');
   lines.push('-- HOSTING STAGE RESPONSES --------------------------------------------');
   if (report.probesSkipped) {
@@ -257,6 +258,10 @@ function renderText(report) {
       if (p.finalUrl && p.finalUrl !== p.url) lines.push(`      final url  : ${p.finalUrl}`);
       lines.push(`      result     : ${p.ok ? 'ok' : 'FAILED'} ${p.statusText || ''} in ${p.ms}ms`);
       for (const [k, v] of Object.entries(p.headers)) lines.push(`      ${k.padEnd(11)}: ${v}`);
+      if (p.servedHtml && !p.url.includes('?publish-diagnostics=')) {
+        lines.push('      WARNING    : HTML returned for a static asset path — SPA fallback is masking this response');
+      }
+      if (p.text && p.text.length <= 96 && !p.servedHtml) lines.push(`      body       : ${p.text.trim()}`);
       if (p.json?.artifact?.hash) lines.push(`      live hash  : ${p.json.artifact.hash}`);
       if (p.json?.publishRequestId) lines.push(`      live pubID : ${p.json.publishRequestId}`);
       lines.push('');
@@ -278,13 +283,19 @@ async function main() {
     runtime: { node: process.version, platform: `${process.platform}/${process.arch}` },
     artifact: artifactFingerprint(),
     probesSkipped: skipProbe,
+    deployProbeFiles: [],
     hosting: [],
     verdict: '',
   };
+  report.deployProbeFiles = emitDeployProbes(report);
 
   if (!skipProbe) {
     report.hosting = [
       await probe('canonical origin', `${CANONICAL_ORIGIN}/?publish-diagnostics=${encodeURIComponent(id)}`),
+      await probe('deployed artifact hash (static, no fallback)', `${CANONICAL_ORIGIN}/_deploy/artifact-hash.txt`),
+      await probe('deployed publish ID (static, no fallback)', `${CANONICAL_ORIGIN}/_deploy/publish-id.txt`),
+      await probe('deployed manifest (static, no fallback)', `${CANONICAL_ORIGIN}/_deploy/manifest.json`, { json: true }),
+      await probe('negative control (must be 404)', `${CANONICAL_ORIGIN}/_deploy/missing-${id}.txt`),
       await probe('deployed diagnostics report', `${CANONICAL_ORIGIN}/publish-diagnostics.json`, { json: true }),
       await probe('deployed build log', `${CANONICAL_ORIGIN}/build-log.txt`),
       await probe('sitemap', `${CANONICAL_ORIGIN}/sitemap.xml`),
