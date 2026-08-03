@@ -250,8 +250,21 @@ export function EmployeeRequisitionQueuePanel() {
                                 body: { source_table: 'employee_requisitions', requisition_id: r.id },
                               });
                               setRetryingId(null);
-                              if (error) toast.error('Wallet credit failed', { description: error.message });
-                              else toast.success((data as { message?: string })?.message || 'Wallet credited');
+                              const res = data as {
+                                ok?: boolean;
+                                message?: string;
+                                stage?: string | null;
+                                upstream_status?: number | null;
+                                upstream_function?: string | null;
+                              } | null;
+                              if (error) {
+                                toast.error('Wallet credit retry failed', { description: error.message });
+                              } else if (res && res.ok === false) {
+                                const { headline, description } = describeCreditFailure(res, res.message ?? 'Retry failed');
+                                toast.error(headline, { description, duration: 10000 });
+                              } else {
+                                toast.success(res?.message || 'Wallet credited');
+                              }
                               load();
                             }}
                           >
