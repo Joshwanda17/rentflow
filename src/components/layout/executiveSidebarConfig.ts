@@ -86,6 +86,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
     {
       title: 'Quick Actions',
       items: [
+        { label: 'Payroll Approvals', icon: Banknote, id: 'cfo-pay-approvals', route: '/approvals' },
         { label: 'Home', icon: BarChart3, id: 'overview' },
         { label: 'Send Money', icon: Wallet, id: 'wallet-payout' },
         { label: 'Wallet Activities', icon: ClipboardList, id: 'wallet-activities' },
