@@ -143,6 +143,8 @@ async function probe(label, url, { json = false } = {}) {
       bytes: Buffer.byteLength(body),
       headers,
       json: parsed,
+      text: body.length <= 512 ? body : `${body.slice(0, 512)}…`,
+      servedHtml: /text\/html/i.test(res.headers.get('content-type') || '') || /^\s*<!DOCTYPE html/i.test(body),
     };
   } catch (error) {
     return {
