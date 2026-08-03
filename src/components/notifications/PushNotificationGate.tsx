@@ -153,19 +153,43 @@ async function refreshSubscriptionIfVapidChanged(userId: string): Promise<void> 
  * Mounted once, globally (App.tsx).
  */
 
-const SNOOZE_KEY = "welile-push-prompt-snooze";
-const SNOOZE_MS = 7 * 24 * 60 * 60 * 1000; // re-ask after 7 days if dismissed
 // Set once a device has successfully subscribed. Persisted per user so a
 // refresh never re-shows the mandatory prompt to someone already enabled.
 const ENABLED_KEY_PREFIX = "welile-push-enabled:";
+// Timestamp of the last time this user saw the gate (any dismissal path).
+const PROMPTED_KEY_PREFIX = "welile-push-prompted:";
+// Timestamp of the last time this user explicitly tapped "Not now".
+const SNOOZE_KEY_PREFIX = "welile-push-snooze:";
 
-function enabledKey(userId: string) {
-  return `${ENABLED_KEY_PREFIX}${userId}`;
+const PROMPTED_COOLDOWN_MS = 24 * 60 * 60 * 1000; // do not re-prompt within 24h
+const SNOOZE_MS = 7 * 24 * 60 * 60 * 1000; // re-ask after 7 days if explicitly snoozed
+
+function userKey(prefix: string, userId: string) {
+  return `${prefix}${userId}`;
+}
+
+function getTs(prefix: string, userId: string): number | null {
+  try {
+    const raw = localStorage.getItem(userKey(prefix, userId));
+    if (!raw) return null;
+    const ts = Number(raw);
+    return Number.isFinite(ts) ? ts : null;
+  } catch {
+    return null;
+  }
+}
+
+function setTs(prefix: string, userId: string) {
+  try {
+    localStorage.setItem(userKey(prefix, userId), String(Date.now()));
+  } catch {
+    /* ignore */
+  }
 }
 
 function isMarkedEnabled(userId: string): boolean {
   try {
-    return localStorage.getItem(enabledKey(userId)) === "1";
+    return localStorage.getItem(userKey(ENABLED_KEY_PREFIX, userId)) === "1";
   } catch {
     return false;
   }
@@ -173,7 +197,7 @@ function isMarkedEnabled(userId: string): boolean {
 
 function markEnabled(userId: string) {
   try {
-    localStorage.setItem(enabledKey(userId), "1");
+    localStorage.setItem(userKey(ENABLED_KEY_PREFIX, userId), "1");
   } catch {
     /* ignore */
   }
@@ -181,7 +205,7 @@ function markEnabled(userId: string) {
 
 function clearEnabled(userId: string) {
   try {
-    localStorage.removeItem(enabledKey(userId));
+    localStorage.removeItem(userKey(ENABLED_KEY_PREFIX, userId));
   } catch {
     /* ignore */
   }
