@@ -181,6 +181,12 @@ export function LedgerEntryDetailDrawer({ entryId, open, onOpenChange, showRunni
   const categoryLabel = entry ? (CATEGORY_LABELS[entry.category] || entry.category.replace(/_/g, ' ')) : '';
   const sourceLabel = entry ? (SOURCE_TABLE_LABELS[entry.source_table] || entry.source_table.replace(/_/g, ' ')) : '';
 
+  // Presentation-only gate: agents (and any non-finance role) never see the
+  // internal running balance. Explicit prop wins for internal finance screens.
+  const hasFinanceRole = RUNNING_BALANCE_ROLES.includes(role ?? '') ||
+    roles.some((r) => RUNNING_BALANCE_ROLES.includes(r));
+  const canSeeRunningBalance = showRunningBalance ?? (hasFinanceRole && role !== 'agent');
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[85vh] rounded-t-2xl">
