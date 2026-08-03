@@ -1,7 +1,7 @@
 
 ==============================================================================
 [build-log] stage=prebuild
-[build-log] started=2026-08-03T16:57:08.321Z
+[build-log] started=2026-08-03T17:23:08.407Z
 [build-log] node=v22.22.0 platform=linux
 [build-log] command=node scripts/run-optional.mjs node --import tsx scripts/generate-sitemap.ts
 ==============================================================================
@@ -9,13 +9,13 @@ sitemap.xml written (1056 entries, 1000 houses)
 sitemap-welilereceipts.xml written (1056 entries, base https://[legacy-domain-redacted])
 
 ------------------------------------------------------------------------------
-[build-log] stage=prebuild finished=2026-08-03T16:57:09.052Z duration=0.7s exit=0
+[build-log] stage=prebuild finished=2026-08-03T17:23:09.117Z duration=0.7s exit=0
 [build-log] suspicious lines: 0
 ------------------------------------------------------------------------------
 
 ==============================================================================
 [build-log] stage=build
-[build-log] started=2026-08-03T16:57:09.141Z
+[build-log] started=2026-08-03T17:23:09.206Z
 [build-log] node=v22.22.0 platform=linux
 [build-log] command=node scripts/run-guards.mjs && node scripts/run-with-heap.mjs vite build
 ==============================================================================
@@ -28,7 +28,7 @@ sitemap-welilereceipts.xml written (1056 entries, base https://[legacy-domain-re
 [guards] ok deposit purpose (0.3s)
 [guards] -> legacy domain references (guard-legacy-domain.mjs)
 ✅ Legacy-domain guard passed — no [legacy-domain-redacted] / [legacy-domain-redacted] / [legacy-domain-redacted] references in shipping code.
-[guards] ok legacy domain references (0.4s)
+[guards] ok legacy domain references (0.3s)
 [guards] -> canonical tags (guard-canonical-tags.mjs)
 ✅ Canonical-tag guard passed — 19 indexable routes carry correct welileapp.com canonicals.
 [guards] ok canonical tags (0.3s)
@@ -48,13 +48,13 @@ transforming...
 [stderr] Generated an empty chunk: "vendor-dom-helpers".
 rendering chunks...
 [stderr] [plugin:vite:reporter] [plugin vite:reporter] 
+[stderr] (!) /dev-server/src/lib/oauthErrorLog.ts is dynamically imported by /dev-server/src/hooks/useAuthForm.ts, /dev-server/src/hooks/useAuthForm.ts but also statically imported by /dev-server/src/components/auth/OAuthErrorCard.tsx, /dev-server/src/pages/Auth.tsx, dynamic import will not move module into another chunk.
+[stderr] 
+[stderr] [plugin:vite:reporter] [plugin vite:reporter] 
 [stderr] (!) /dev-server/src/lib/oauthFunnel.ts is dynamically imported by /dev-server/src/hooks/useAuth.tsx but also statically imported by /dev-server/src/hooks/auth/authOperations.ts, dynamic import will not move module into another chunk.
 [stderr] 
 [stderr] [plugin:vite:reporter] [plugin vite:reporter] 
 [stderr] (!) /dev-server/src/lib/campaignAttribution.ts is dynamically imported by /dev-server/src/hooks/useAuth.tsx but also statically imported by /dev-server/src/hooks/auth/authOperations.ts, /dev-server/src/hooks/useAuthForm.ts, /dev-server/src/pages/Auth.tsx, /dev-server/src/pages/CampaignRedirect.tsx, /dev-server/src/pages/SelectRole.tsx, dynamic import will not move module into another chunk.
-[stderr] 
-[stderr] [plugin:vite:reporter] [plugin vite:reporter] 
-[stderr] (!) /dev-server/src/lib/oauthErrorLog.ts is dynamically imported by /dev-server/src/hooks/useAuthForm.ts, /dev-server/src/hooks/useAuthForm.ts but also statically imported by /dev-server/src/components/auth/OAuthErrorCard.tsx, /dev-server/src/pages/Auth.tsx, dynamic import will not move module into another chunk.
 [stderr] 
 [stderr] [plugin:vite:reporter] [plugin vite:reporter] 
 [stderr] (!) /dev-server/src/lib/rentAccessShareAudit.ts is dynamically imported by /dev-server/src/components/agent/AgentTenantCollectDialog.tsx but also statically imported by /dev-server/src/components/agent/RentAccessLimitShareDialog.tsx, dynamic import will not move module into another chunk.
@@ -925,16 +925,16 @@ dist/assets/TenantOpsHub-C2L3lkvB.js                                            
 dist/assets/vendor-xlsx-fOJeg6_r.js                                                 428.57 kB │ gzip:   141.63 kB
 dist/assets/AgentOpsDashboard-dJ2kGEuR.js                                           474.59 kB │ gzip:   110.97 kB
 dist/assets/Dashboard-BU_vOa7k.js                                                   847.67 kB │ gzip:   199.29 kB
-✓ built in 59.00s
+✓ built in 1m 6s
 
 ------------------------------------------------------------------------------
-[build-log] stage=build finished=2026-08-03T16:58:11.168Z duration=62.0s exit=0
+[build-log] stage=build finished=2026-08-03T17:24:18.250Z duration=69.0s exit=0
 [build-log] suspicious lines: 0
 ------------------------------------------------------------------------------
 
 ==============================================================================
 [build-log] stage=postbuild
-[build-log] started=2026-08-03T16:58:11.254Z
+[build-log] started=2026-08-03T17:24:18.347Z
 [build-log] node=v22.22.0 platform=linux
 [build-log] command=node scripts/run-optional.mjs node scripts/run-with-heap.mjs node scripts/prerender-houses.mjs
 ==============================================================================
@@ -942,6 +942,6 @@ dist/assets/Dashboard-BU_vOa7k.js                                               
 prerender-houses: incremental — 1000 shells for 1000 listings (rendered 1000, reused 0, pruned 1000 cache + 0 dist)
 
 ------------------------------------------------------------------------------
-[build-log] stage=postbuild finished=2026-08-03T16:58:12.358Z duration=1.1s exit=0
+[build-log] stage=postbuild finished=2026-08-03T17:24:19.685Z duration=1.3s exit=0
 [build-log] suspicious lines: 0
 ------------------------------------------------------------------------------
