@@ -34,14 +34,18 @@ export default defineConfig(({ mode }) => ({
       // split every node_modules dependency into its own vendor chunk.
       maxParallelFileOps: 2,
       output: {
-        manualChunks: {
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-query': ['@tanstack/react-query'],
-          'vendor-ui': ['@radix-ui/react-dialog', '@radix-ui/react-popover', '@radix-ui/react-tooltip', '@radix-ui/react-dropdown-menu', '@radix-ui/react-tabs', '@radix-ui/react-select'],
-          'vendor-motion': ['framer-motion'],
-          'vendor-charts': ['recharts'],
-          'vendor-supabase': ['@supabase/supabase-js'],
-          'vendor-maps': ['leaflet', 'react-leaflet'],
+        // Split every node_modules dependency into its own vendor chunk so
+        // rollup never has to hold one enormous chunk in memory during the
+        // render/minify phase (that was OOM-killing the production build).
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined;
+          const parts = id.split('node_modules/').pop()!.split('/');
+          const pkg = parts[0].startsWith('@') ? `${parts[0]}/${parts[1]}` : parts[0];
+          // Keep the React runtime in a single chunk to avoid duplicate copies.
+          if (['react', 'react-dom', 'react-router', 'react-router-dom', 'scheduler'].includes(pkg)) {
+            return 'vendor-react';
+          }
+          return `vendor-${pkg.replace('@', '').replace('/', '-')}`;
         },
       },
     },
