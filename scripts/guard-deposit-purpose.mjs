@@ -12,9 +12,11 @@
  * impossible — this script enforces that.
  */
 import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join, relative, resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = new URL('../src/', import.meta.url).pathname;
+const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
+const ROOT = resolve(SCRIPT_DIR, '..', 'src');
 
 // Files that legitimately reference deposit_purpose without writing it
 // (read paths, type definitions, the guard itself).
