@@ -172,3 +172,13 @@ Cross-cutting recommendations:
 - finance_anomaly_scans — 48 rows 2026-08-02 11:15 -> 2026-08-03 04:15, all critical / 475 / 44,692,158 / notified=true.
 - Live recomputations: 435 pivot-drift rows (0 with empty pivot; 1/435 pivot-vs-strict mismatch; 416/435 view-cache-vs-strict mismatch); 3 real cache-vs-strict wallets; 8 orphan wallet legs 2026-07-22..26; 30 missing-bucket legs (27 system_balance_correction, 3 agent_commission_earned).
 - finance_anomaly_alert_config — enabled=t, min_amount=1000, one email + one phone (matches pinned constraint).
+
+## 11. Addendum — cron provenance reconciliation
+
+A parallel static code trace found **no `cron.schedule` entry in `supabase/migrations/*.sql`** that invokes `run_finance_anomaly_scan` or the `finance-anomaly-scan` edge function (37 `cron.schedule` occurrences scanned; zero reference it). The `"cron"` trigger source in `index.ts:9-10` is therefore **not registered through a tracked migration**.
+
+Live data closes the gap: all 48 rows in `finance_anomaly_scans` (2026-08-02 11:15 → 2026-08-03 04:15) carry `trigger_source='cron'` and land on exact quarter-hour boundaries. A pg_cron job therefore **does** exist in the database but was created out-of-band (dashboard/ad-hoc SQL), not via migration. `cron.job` is not readable from the app role (`permission denied for schema cron`), so its exact schedule string cannot be quoted — the 15-minute cadence is inferred from the timestamp series, which also shows occasional missed slots (48 runs where 68 were due).
+
+This is an **infrastructure-governance defect** in its own right: a job that pages an executive every 15 minutes is not represented in version control, so it cannot be reviewed, reasoned about, or rolled back through code.
+
+Also confirmed by the static trace: the detector reads `wallet_pivot_drift_view` (not `ledger_balance_pivot` directly), the SMS goes out through `_shared/sendSmsMultiProvider.ts` (Yoola → Africa's Talking → Lana chain), and RLS on `finance_anomaly_alert_config` limits reads to cfo/cto/ceo/super_admin and updates to cfo/super_admin.
