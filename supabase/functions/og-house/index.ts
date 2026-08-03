@@ -12,6 +12,17 @@ function formatUGX(amount: number): string {
   return `UGX ${amount.toLocaleString("en-UG")}`;
 }
 
+// Escape any listing-derived text before it is embedded in the HTML/meta output
+// so a malicious title or location can never inject markup or script.
+function esc(s: unknown): string {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
