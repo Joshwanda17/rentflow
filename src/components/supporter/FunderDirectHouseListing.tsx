@@ -380,6 +380,15 @@ export function FunderDirectHouseListing() {
     return result;
   }, [houses, search, region, category, rooms, sortBy, minMonthlyEarn, minAnnualEarn, moveInDate]);
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / CARDS_PER_PAGE));
+  const safePage = Math.min(page, totalPages);
+  const paginatedHouses = useMemo(() => {
+    const start = (safePage - 1) * CARDS_PER_PAGE;
+    return filtered.slice(start, start + CARDS_PER_PAGE);
+  }, [filtered, safePage]);
+  const showingStart = filtered.length === 0 ? 0 : (safePage - 1) * CARDS_PER_PAGE + 1;
+  const showingEnd = Math.min(safePage * CARDS_PER_PAGE, filtered.length);
+
   const openHouse = (house: House) => {
     hapticTap();
     navigate(`/house/${house.short_code || house.id}`, { state: { from: 'funder' } });
