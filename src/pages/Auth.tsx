@@ -1225,45 +1225,56 @@ export default function Auth() {
 
                 <div className="relative flex items-center py-1">
                   <div className="flex-1 border-t border-border/40" />
-                  <span className="px-3 text-xs text-muted-foreground">or sign up with phone</span>
+                  <span className="px-3 text-xs text-muted-foreground">or</span>
                   <div className="flex-1 border-t border-border/40" />
                 </div>
 
-                <form onSubmit={wrappedHandleSubmit} className="space-y-3">
+                <form onSubmit={wrappedHandleSubmit} className="space-y-4">
                   {/* Full Name */}
-                  <div className="relative">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="signup-name" className="px-1">Name</Label>
+                    <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
+                      id="signup-name"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       placeholder="Full name (first and last)"
-                      className="pl-10 h-12 text-base rounded-xl"
+                      className="pl-10 h-14 text-base rounded-lg"
                       style={{ fontSize: '16px' }}
                       required
                     />
+                    </div>
                   </div>
 
                   {/* Email (optional — lets users sign up without SMS OTP) */}
-                  <div className="relative">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="signup-email" className="px-1">Email <span className="font-normal text-muted-foreground">(optional)</span></Label>
+                    <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
+                      id="signup-email"
                       type="email"
                       inputMode="email"
                       autoComplete="email"
                       value={signupEmail}
                       onChange={(e) => setSignupEmail(e.target.value)}
-                      placeholder="Email (optional)"
-                      className="pl-10 h-12 text-base rounded-xl"
+                      placeholder="you@example.com"
+                      className="pl-10 h-14 text-base rounded-lg"
                       style={{ fontSize: '16px' }}
                     />
+                    </div>
                   </div>
 
                   {/* Phone */}
-                  <div className="relative flex">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="signup-phone" className="px-1">Phone number</Label>
+                    <div className="relative flex">
                     <CountryCodeSelect value={countryCode} onChange={setCountryCode} />
                     <div className="relative flex-1">
                       <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
+                        id="signup-phone"
                         ref={phoneInputRef}
                         type="tel"
                         inputMode="tel"
@@ -1271,10 +1282,11 @@ export default function Auth() {
                         value={phone}
                         onChange={(e) => { setPhone(e.target.value); setLoginError(null); }}
                         placeholder="700 123 456"
-                        className={cn("pl-10 h-12 text-base rounded-xl rounded-l-none", isDuplicate && 'border-destructive')}
+                        className={cn("pl-10 h-14 text-base rounded-lg rounded-l-none", isDuplicate && 'border-destructive')}
                         style={{ fontSize: '16px' }}
                         required
                       />
+                    </div>
                     </div>
                   </div>
                   {isDuplicate && (
