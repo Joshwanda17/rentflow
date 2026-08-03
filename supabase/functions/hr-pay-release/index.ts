@@ -243,7 +243,7 @@ Deno.serve(async (req) => {
       const entries = [
         {
           user_id: employeeUserId, ledger_scope: 'platform', direction: 'cash_out',
-          amount: net, category: 'system_balance_correction',
+          amount: net, category: 'salary_payout',
           source_table: 'hr_pay_payslips',
           description: 'Salary take-home',
           currency: 'UGX', reference_id: refId, transaction_date: payTxDate,
@@ -251,7 +251,7 @@ Deno.serve(async (req) => {
         },
         {
           user_id: employeeUserId, ledger_scope: 'wallet', direction: 'cash_in',
-          amount: net, category: 'system_balance_correction',
+          amount: net, category: 'salary_payout',
           source_table: 'hr_pay_payslips',
           description: 'Salary for ' + periodCode,
           currency: 'UGX', reference_id: refId, transaction_date: payTxDate,
