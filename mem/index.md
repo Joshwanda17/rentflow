@@ -73,3 +73,4 @@
 - [Sub-agent link evidence](mem://constraints/subagent-link-evidence) — Never build agent_subagents from profiles.referrer_id or the default agent role/capabilities; requires real agent activity
 - [Finance anomaly alert recipients](mem://constraints/finance-anomaly-alert-recipients) — finance anomaly SMS/email goes ONLY to joshwanda17@gmail.com + 0704825473; no CFO/CTO role fallback broadcast
 - [Rent fee edit notification](mem://constraints/rent-fee-edit-notification) — Rent fee/term edits logged to rent_amount_change_log; alert email goes to pexpert46@gmail.com ONLY (never finance_anomaly_alert_config recipients, no SMS)
+- [Finance alert monitoring architecture](mem://features/cfo/finance-alert-monitoring-architecture) — classified finance anomaly categories, materiality routing (SMS only for material financial integrity), alert lifecycle states, fingerprint heartbeat suppression, CFO monitoring health panel
