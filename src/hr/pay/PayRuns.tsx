@@ -536,15 +536,6 @@ const STATUS_CLASS: Record<string, string> = {
   locked: 'bg-slate-700 text-slate-50',
 };
 
-function StatusCell({ status }: { status: string }) {
-  const cls = STATUS_CLASS[status] ?? 'bg-muted text-muted-foreground';
-  return (
-    <span className={`inline-block rounded px-1.5 py-0.5 text-[11px] font-semibold ${cls}`}>
-      {status}
-    </span>
-  );
-}
-
 /** What the holding position must do next at each status. Empty when complete. */
 const NEXT_ACTION: Record<string, string> = {
   draft: 'Calculate',
@@ -580,7 +571,7 @@ function SinceCell({ at, status }: { at: string | null; status: string }) {
   );
 }
 
-function StatusCellUnused({ status }: { status: string }) {
+function StatusCell({ status }: { status: string }) {
   const cls = STATUS_CLASS[status] ?? 'bg-muted text-muted-foreground';
   return (
     <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${cls}`}>
