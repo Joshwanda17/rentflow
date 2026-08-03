@@ -2,8 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+
 import { Sparkles, MapPin, DoorOpen, ChevronRight, ZoomIn, ArrowRight } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { MoveInOfferBadge } from '@/components/house/MoveInOfferBadge';
@@ -109,76 +108,84 @@ export function SuggestedHousesCard({ userId, onViewAll }: SuggestedHousesCardPr
         </button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+      <div className="grid grid-cols-2 sm:grid-cols-2 gap-3">
         {suggestions.slice(0, 4).map(house => (
-          <Card key={house.id} className="overflow-hidden border-border/60 hover:border-primary/40 transition-colors">
-            <CardContent className="p-0">
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={() => navigate(`/house/${house.short_code || house.id}`)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    navigate(`/house/${house.short_code || house.id}`);
-                  }
-                }}
-                aria-label={`View details for ${house.title}`}
-                className="flex gap-3 p-3 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-              >
-                {/* Thumbnail */}
+          <div
+            key={house.id}
+            className="rounded-2xl overflow-hidden border border-border bg-card shadow-sm hover:border-primary/40 transition-colors"
+          >
+            {/* Image */}
+            <button
+              type="button"
+              onClick={() => {
+                if (house.image_urls?.length) {
+                  setLightbox({ images: house.image_urls, title: house.title, houseId: house.id });
+                } else {
+                  navigate(`/house/${house.short_code || house.id}`);
+                }
+              }}
+              aria-label={`View photos of ${house.title}`}
+              className="relative block h-32 w-full bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              {house.image_urls?.[0] ? (
+                <>
+                  <img
+                    src={house.image_urls[0]}
+                    alt={`${house.title} in ${house.region}`}
+                    loading="lazy"
+                    className="h-full w-full object-cover"
+                  />
+                  <span className="absolute bottom-1.5 right-1.5 bg-black/60 text-white rounded-full p-1">
+                    <ZoomIn className="h-3 w-3" />
+                  </span>
+                </>
+              ) : (
+                <div className="h-full w-full flex items-center justify-center">
+                  <DoorOpen className="h-7 w-7 text-muted-foreground/30" />
+                </div>
+              )}
+              <span className="absolute top-2 left-2">
+                <MoveInOfferBadge />
+              </span>
+            </button>
+
+            {/* Title + area */}
+            <button
+              type="button"
+              onClick={() => navigate(`/house/${house.short_code || house.id}`)}
+              aria-label={`View details for ${house.title}`}
+              className="block w-full text-left px-3 pt-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              <p className="text-sm font-semibold text-foreground truncate flex items-center gap-1">
+                <DoorOpen className="h-3.5 w-3.5 text-muted-foreground shrink-0" /> {house.title}
+              </p>
+              <p className="text-[11px] text-muted-foreground truncate flex items-center gap-1">
+                <MapPin className="h-3 w-3 shrink-0" />
+                {house.region}{house.district ? `, ${house.district}` : ''}
+              </p>
+            </button>
+
+            {/* Footer */}
+            <div className="p-3 pt-2 space-y-2">
+              <div className="flex items-end justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-[10px] text-muted-foreground">Daily amount</p>
+                  <p className="text-sm font-bold text-foreground leading-tight truncate">{formatUGX(house.daily_rate)}</p>
+                  <p className="text-[10px] text-muted-foreground leading-tight truncate">
+                    {house.house_category} · {house.number_of_rooms} rooms
+                  </p>
+                </div>
                 <button
                   type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (house.image_urls?.length) {
-                      setLightbox({ images: house.image_urls, title: house.title, houseId: house.id });
-                    }
-                  }}
-                  className="relative shrink-0 w-20 h-20 rounded-lg overflow-hidden bg-muted group"
-                  aria-label="View photos"
+                  onClick={() => navigate(`/house/${house.short_code || house.id}`)}
+                  className="shrink-0 inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[11px] font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 transition-colors"
+                  aria-label={`View ${house.title}`}
                 >
-                  {house.image_urls?.[0] ? (
-                    <>
-                      <img src={house.image_urls[0]} alt={house.title} className="w-full h-full object-cover" loading="lazy" />
-                      <span className="absolute bottom-0.5 right-0.5 bg-black/60 text-white rounded-full p-1">
-                        <ZoomIn className="h-2.5 w-2.5" />
-                      </span>
-                    </>
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <DoorOpen className="h-6 w-6 text-muted-foreground/30" />
-                    </div>
-                  )}
+                  View <ArrowRight className="h-3.5 w-3.5" />
                 </button>
-
-                {/* Details */}
-                <div className="flex-1 min-w-0 flex flex-col justify-between">
-                  <div className="space-y-1">
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="font-semibold text-sm truncate">{house.title}</p>
-                      <MoveInOfferBadge />
-                    </div>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <MapPin className="h-3 w-3 shrink-0" />
-                      <span className="truncate">{house.region}{house.district ? `, ${house.district}` : ''}</span>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <Badge variant="outline" className="text-[9px] h-4 px-1">{house.house_category}</Badge>
-                      <Badge variant="outline" className="text-[9px] h-4 px-1">{house.number_of_rooms} rooms</Badge>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-1">
-                    <p className="text-sm font-black text-success">{formatUGX(house.daily_rate)}<span className="text-[10px] font-normal text-muted-foreground">/day</span></p>
-                    <span className="text-[10px] font-medium text-primary flex items-center gap-0.5">
-                      View <ArrowRight className="h-3 w-3" />
-                    </span>
-                  </div>
-                </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         ))}
       </div>
       {lightbox && (
