@@ -1036,6 +1036,26 @@ export default function FindAHouse() {
         {/* Filters */}
         <div className="sticky top-[53px] z-30 bg-background/95 backdrop-blur-md border-b border-border">
           <div className="max-w-2xl mx-auto px-4 py-3 space-y-2">
+            <button
+              type="button"
+              onClick={() => setSearchBarOpen(o => !o)}
+              aria-expanded={searchBarOpen}
+              aria-controls="find-a-house-searchbar"
+              className="w-full flex items-center justify-between gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground"
+            >
+              <span className="inline-flex items-center gap-1.5">
+                <Search className="h-3.5 w-3.5" />
+                {searchBarOpen ? 'Hide search & location' : 'Search & location'}
+                {!searchBarOpen && activeFilterCount > 0 && (
+                  <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </span>
+              <ChevronDown className={`h-4 w-4 transition-transform ${searchBarOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {searchBarOpen && (
+            <div id="find-a-house-searchbar" className="space-y-2">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -1094,6 +1114,8 @@ export default function FindAHouse() {
                   </Select>
                 )}
               </div>
+            )}
+            </div>
             )}
             {/* Filter toggle row */}
             <div className="flex gap-2">
