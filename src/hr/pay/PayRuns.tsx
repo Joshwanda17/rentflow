@@ -536,6 +536,41 @@ const STATUS_CLASS: Record<string, string> = {
   locked: 'bg-slate-700 text-slate-50',
 };
 
+/** What the holding position must do next at each status. Empty when complete. */
+const NEXT_ACTION: Record<string, string> = {
+  draft: 'Calculate',
+  calculated: 'Submit for approval',
+  returned: 'Submit for approval',
+  in_review: 'Approve or return',
+  approved: 'Release payment',
+  paid: 'Lock',
+};
+
+/**
+ * Days since the last recorded event. Ageing colour is applied only to
+ * in_review and approved — a draft sitting for a week is nobody's delay.
+ */
+function SinceCell({ at, status }: { at: string | null; status: string }) {
+  if (!at) return <span className="text-xs text-muted-foreground">—</span>;
+  const days = Math.floor((Date.now() - new Date(at).getTime()) / 86400000);
+  const aged = status === 'in_review' || status === 'approved';
+  const tone = !aged
+    ? 'text-muted-foreground'
+    : days > 7
+      ? 'text-destructive font-semibold'
+      : days > 3
+        ? 'text-amber-600 font-semibold'
+        : 'text-muted-foreground';
+  return (
+    <span className="text-xs">
+      {formatDate(at)}{' '}
+      <span className={tone}>
+        ({days} {days === 1 ? 'day' : 'days'})
+      </span>
+    </span>
+  );
+}
+
 function StatusCell({ status }: { status: string }) {
   const cls = STATUS_CLASS[status] ?? 'bg-muted text-muted-foreground';
   return (
@@ -869,6 +904,9 @@ export default function PayRuns() {
               </TableBody>
             </Table>
           )}
+          <p className="mt-3 text-xs text-muted-foreground">
+            A period stays open until you close it. Close July only after its run is locked.
+          </p>
         </CardContent>
       </Card>
 
@@ -900,6 +938,8 @@ export default function PayRuns() {
                   <TableHead>Rule version</TableHead>
                   <TableHead>Rule status</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>With</TableHead>
+                  <TableHead>Since</TableHead>
                   <TableHead>Prepared at</TableHead>
                   <TableHead className="text-right">Net total</TableHead>
                   <TableHead className="text-right">Action</TableHead>
@@ -924,6 +964,19 @@ export default function PayRuns() {
                     </TableCell>
                     <TableCell>
                       <StatusCell status={r.status} />
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-xs font-medium">
+                        {r.status === 'locked' ? 'Complete' : r.holding_position_title ?? '—'}
+                      </span>
+                      {NEXT_ACTION[r.status] && (
+                        <span className="block text-[11px] text-muted-foreground">
+                          {NEXT_ACTION[r.status]}
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <SinceCell at={r.last_event_at} status={r.status} />
                     </TableCell>
                     <TableCell>{formatDate(r.prepared_at)}</TableCell>
                     <TableCell className="text-right">{formatNet(r.total_net)}</TableCell>
