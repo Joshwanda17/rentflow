@@ -1333,37 +1333,48 @@ export default function Auth() {
                   )}
 
                   {/* Password */}
-                  <div className="relative">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="signup-password" className="px-1">Password</Label>
+                    <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
+                      id="signup-password"
                       type={showPassword ? "text" : "password"}
                       autoComplete="new-password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="Password"
-                      className="pl-10 h-12 text-base rounded-xl"
+                      className="pl-10 pr-14 h-14 text-base rounded-lg"
                       style={{ fontSize: '16px' }}
                       required
                     />
                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground">
                       {showPassword ? 'Hide' : 'Show'}
                     </button>
+                    </div>
                   </div>
                   <PasswordStrengthIndicator password={password} />
 
                   {/* Confirm Password */}
-                  <div className="relative">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="signup-confirm-password" className="px-1">Confirm password</Label>
+                    <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
+                      id="signup-confirm-password"
                       type={showConfirmPassword ? "text" : "password"}
                       autoComplete="new-password"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="Confirm password"
-                      className={cn("pl-10 h-12 text-base rounded-xl", confirmPassword && password !== confirmPassword && 'border-destructive', confirmPassword && password === confirmPassword && 'border-emerald-500')}
+                      className={cn("pl-10 pr-14 h-14 text-base rounded-lg", confirmPassword && password !== confirmPassword && 'border-destructive', confirmPassword && password === confirmPassword && 'border-emerald-500')}
                       style={{ fontSize: '16px' }}
                       required
                     />
+                    <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground">
+                      {showConfirmPassword ? 'Hide' : 'Show'}
+                    </button>
+                    </div>
                   </div>
                   {confirmPassword && password !== confirmPassword && (
                     <p className="text-xs text-destructive px-1">Passwords don't match</p>
@@ -1371,7 +1382,7 @@ export default function Auth() {
 
                   <Button
                     type="submit"
-                    className="w-full h-12 text-base rounded-xl font-semibold touch-manipulation active:scale-[0.98]"
+                    className="w-full h-14 text-base rounded-lg font-semibold touch-manipulation active:scale-[0.98]"
                     disabled={
                       isLoading ||
                       isDuplicate ||
