@@ -1,5 +1,6 @@
-import { ReactNode } from 'react';
-import { Wallet, ChevronRight, Shield, Home, TrendingUp, Rocket, PiggyBank, Coins, Sparkles, Clock } from 'lucide-react';
+import { ReactNode, useEffect, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Wallet, ChevronRight, ChevronDown, Shield, Home, TrendingUp, Rocket, PiggyBank, Coins, Sparkles, Clock } from 'lucide-react';
 import { hapticTap } from '@/lib/haptics';
 import { useCurrency } from '@/hooks/useCurrency';
 import { useAuth } from '@/hooks/useAuth';
@@ -32,6 +33,18 @@ interface UnifiedWalletHeroCardProps {
   onDeployedTap?: () => void;
   /** Optional quick action buttons rendered below the balance */
   quickActions?: ReactNode;
+  /** Presentation only: start with the card collapsed to a single row. */
+  defaultCollapsed?: boolean;
+}
+
+/** Reference easing from the liquid-morph motion language. */
+const MORPH_EASE = [0.22, 1, 0.36, 1] as const;
+
+const collapseKey = (role: WalletRole) => `welile-wallet-hero-collapsed:${role}`;
+
+function prefersReducedMotion() {
+  if (typeof window === 'undefined' || !window.matchMedia) return false;
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
 const ROLE_LABELS: Record<WalletRole, string> = {
@@ -66,6 +79,7 @@ export function UnifiedWalletHeroCard({
   onReturnTap,
   onDeployedTap,
   quickActions,
+  defaultCollapsed = true,
 }: UnifiedWalletHeroCardProps) {
   const { formatAmount } = useCurrency();
   const { user } = useAuth();
@@ -94,14 +108,95 @@ export function UnifiedWalletHeroCard({
     (onViewStatement ?? onOpenWallet)?.();
   };
 
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return defaultCollapsed;
+    const stored = window.localStorage.getItem(collapseKey(role));
+    if (stored === 'open') return false;
+    if (stored === 'closed') return true;
+    return defaultCollapsed;
+  });
+  const [reduceMotion, setReduceMotion] = useState(false);
+
+  useEffect(() => { setReduceMotion(prefersReducedMotion()); }, []);
+
+  const toggleCollapsed = () => {
+    hapticTap();
+    setCollapsed((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem(collapseKey(role), next ? 'closed' : 'open');
+      } catch { /* storage unavailable — session-only preference */ }
+      return next;
+    });
+  };
+
+  const collapsedHeadline = showAgentSplit ? (withdrawableBalance ?? 0) : headlineBalance;
+  const morph = reduceMotion ? { duration: 0 } : undefined;
+
   return (
-    <div className="w-full text-left portfolio-hero-card rounded-3xl p-6 relative overflow-hidden">
+    <motion.div
+      className="w-full text-left portfolio-hero-card rounded-3xl relative overflow-hidden"
+      animate={{ padding: collapsed ? 14 : 24, borderRadius: collapsed ? 28 : 24 }}
+      transition={morph ?? { duration: collapsed ? 0.25 : 0.6, ease: MORPH_EASE }}
+    >
       {/* Decorative elements for depth and text clarity */}
       <div className="absolute -top-20 -right-20 w-56 h-56 rounded-full bg-primary-foreground/[0.06] pointer-events-none" />
       <div className="absolute -bottom-16 -left-16 w-44 h-44 rounded-full bg-primary-foreground/[0.04] pointer-events-none" />
       <div className="absolute top-1/2 right-0 w-64 h-[1px] bg-gradient-to-l from-transparent via-primary-foreground/10 to-transparent pointer-events-none" />
 
-      <div className="relative z-10 space-y-4">
+      {/* Liquid-morph sweep: rises from the bottom as the card opens */}
+      <motion.div
+        aria-hidden
+        className="absolute left-1/2 w-[200%] h-[200%] rounded-full bg-primary-foreground/[0.05] pointer-events-none"
+        style={{ x: '-50%' }}
+        animate={{ bottom: collapsed ? '-210%' : '-40%' }}
+        transition={morph ?? { duration: 0.7, ease: MORPH_EASE, delay: collapsed ? 0 : 0.05 }}
+      />
+
+      <AnimatePresence initial={false}>
+        {collapsed && (
+          <motion.button
+            key="collapsed-bar"
+            type="button"
+            onClick={toggleCollapsed}
+            aria-expanded={false}
+            aria-label={`Expand ${ROLE_LABELS[role]}`}
+            className="relative z-10 w-full flex items-center gap-3 px-1.5 py-1 text-left"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={morph ?? { duration: 0.25, ease: MORPH_EASE }}
+          >
+            <span className="p-1.5 rounded-lg bg-primary-foreground/15 backdrop-blur-sm shrink-0">
+              <Wallet className="h-3.5 w-3.5 text-primary-foreground/90" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[10px] font-semibold text-primary-foreground/70 uppercase tracking-[0.12em] truncate">
+                {ROLE_LABELS[role]}
+              </span>
+              <span className="block text-lg font-black leading-tight text-primary-foreground truncate">
+                {formatAmount(collapsedHeadline)}
+              </span>
+            </span>
+            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary-foreground/15 shrink-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-[9px] font-bold text-emerald-300 uppercase tracking-wider">Active</span>
+            </span>
+            <ChevronDown className="h-4 w-4 text-primary-foreground/60 shrink-0" />
+          </motion.button>
+        )}
+      </AnimatePresence>
+
+      <motion.div
+        className="relative z-10 space-y-4 overflow-hidden"
+        initial={false}
+        animate={{ height: collapsed ? 0 : 'auto', opacity: collapsed ? 0 : 1 }}
+        transition={morph ?? {
+          height: { duration: collapsed ? 0.25 : 0.6, ease: MORPH_EASE },
+          opacity: { duration: collapsed ? 0.15 : 0.45, ease: MORPH_EASE, delay: collapsed ? 0 : 0.1 },
+        }}
+        aria-hidden={collapsed}
+      >
         {/* Header row */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -112,9 +207,20 @@ export function UnifiedWalletHeroCard({
               {ROLE_LABELS[role]}
             </span>
           </div>
-          <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary-foreground/15 backdrop-blur-sm">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-[9px] font-bold text-emerald-300 uppercase tracking-wider">Active</span>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary-foreground/15 backdrop-blur-sm">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-[9px] font-bold text-emerald-300 uppercase tracking-wider">Active</span>
+            </div>
+            <button
+              type="button"
+              onClick={toggleCollapsed}
+              aria-expanded={!collapsed}
+              aria-label={`Collapse ${ROLE_LABELS[role]}`}
+              className="p-1 rounded-full bg-primary-foreground/10 hover:bg-primary-foreground/20 active:scale-95 transition-all"
+            >
+              <ChevronDown className="h-4 w-4 rotate-180 text-primary-foreground/70" />
+            </button>
           </div>
         </div>
 
@@ -286,7 +392,7 @@ export function UnifiedWalletHeroCard({
             <ChevronRight className="relative h-4 w-4 animate-pulse" />
           </button>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
