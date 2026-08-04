@@ -742,3 +742,354 @@ pending -> agent_ops_approved -> tenant_ops_approved -> landlord_ops_approved
 | Agent cancel | `agent_cancel_rent_request` RPC with a mandatory reason; terminal status `deleted_by_agent` |
 | Guard | `guard_rent_request_agent_updates` whitelists agent-driven transitions, including `repaying → completed` |
 | Reminders | `rent-reminders`, `payment-reminder`, `notify-agent-collection-lapse`, `rent-amount-change-notify` (10 min) |
+
+---
+
+## 8. Revenue recognition
+
+### 8.1 Time-elapsed recognition (ASC 606 / IFRS 15 style)
+
+`fee_revenue_ledger` is the revenue sub-ledger. Fees are **not** recognised when charged; they are
+recognised over the life of the facility.
+
+| Column | Meaning |
+| --- | --- |
+| `fee_type` | e.g. `agent_advance_access_fee`, `rent_service_fee`, `business_advance_fee` |
+| `gross_fee_amount` | Total contractual fee |
+| `recognized_amount` | Earned to date |
+| `deferred_amount` | `gross − recognized` (contract liability) |
+| `recognition_start_date` / `recognition_end_date` | Service window |
+| `status` | `deferred`, `partially_recognized`, `fully_recognized`, `written_off` |
+| `source_table` / `source_id` | Link back to the originating facility |
+
+`recognize_fee_revenue_daily()` recognises straight-line by elapsed days:
+
+```text
+target_recognized = gross_fee_amount × LEAST(1, elapsed_days / total_days)
+increment         = target_recognized − recognized_amount   -- posted only when > 0
+```
+
+Recognition posts a platform pair (deferred-revenue relief → earned revenue) and never touches a
+wallet. Early settlement recognises the remainder immediately; write-offs move the balance to
+`platform_loss_writeoff`.
+
+### 8.2 Revenue streams
+
+| Stream | Category | Basis |
+| --- | --- | --- |
+| Agent advance access fee | `agent_advance_fee` | Compound monthly, recognised over term |
+| Business advance fee | `business_advance_fee` | Daily compounding accruals |
+| Rent service fee | `rent_service_fee` | Over the rent term |
+| Registration fees | `registration_fee_collected` (259 rows / 2,900,000) | Point in time |
+| Telecom charge margin | embedded in payout tiers | Point of settlement |
+| Merchandise margin | `merchandise_sale` | Point of sale |
+| Penalty income | `rent_overdue_penalty` | On assessment |
+
+### 8.3 Expense recognition
+
+| Expense | Category | Live volume |
+| --- | --- | --- |
+| Supporter/partner ROI | `roi_expense` | 2,142 rows / 2,255,106,800 |
+| Marketing / referral | `marketing_expense` | 102,187 rows / 155,747,196 |
+| General admin | `general_admin_expense` | 563 rows / 1,147,164,039 |
+| Payroll | `payroll_expense` | 111 rows / 62,066,999 |
+| Credit losses | `platform_loss_writeoff` | 478 rows / 465,473,700 |
+| Interest on payroll growth | `interest_expense` | Daily 0.5% accrual |
+
+---
+
+## 9. Commissions, bonuses and incentives
+
+### 9.1 Accrual then release
+
+`commission_accrual_ledger` holds accruals with a lifecycle of
+`accrued → released → (reversed)`. Only a **released** accrual has a matching withdrawable ledger
+credit. `v_user_wallet_strict` explicitly subtracts legs whose accrual is `reversed` for the
+`rent_funded_landlord_float` event — a reversed commission cannot be withdrawn even if its original
+leg is still in the append-only ledger.
+
+### 9.2 Earning types (verified live volumes)
+
+| Category | Rows | Amount |
+| --- | --- | --- |
+| `agent_commission_earned` | 39,140 | 953,122,287 |
+| `agent_commission` | 57,651 | 115,957,758 |
+| `referral_bonus` | 47,562 | 18,484,000 |
+| `agent_commission` (bridge) | 2,363 | 1,766,095 |
+
+Verification bonuses: landlord verified and LC verified both pay **2,000**.
+
+### 9.3 Single source of truth for withdrawable commission
+
+The **Agent Wallet Card** (`UnifiedWalletHeroCard`) is the only authoritative display of
+withdrawable commission. Merchant agent commission was folded into the same wallet projection, so
+there is exactly one number per agent across the platform.
+
+### 9.4 Referral attribution
+
+`src/lib/referralAttribution.ts` persists the referral code in `localStorage` for **60 days** and
+survives auth redirects, which fixed the "sub-agents not appearing" class of bug.
+`merchant_agent_referrals` tracks merchant-side recruitment; field recruitment campaigns are
+tracked separately with their own tables and reports.
+
+---
+
+## 10. Supporter and partner capital
+
+### 10.1 Two operating models
+
+| Model | Who decides | Payout engine |
+| --- | --- | --- |
+| **Managed** | Welile allocates capital | `process-supporter-roi`, `roi_wallet_credit` (1,573 rows / 1,694,280,035) |
+| **Self-managed (PSM)** | The partner picks tenants/portfolios | `pay_partner_self_cycles()`, `partner_self_payout_cycles` |
+
+### 10.2 PSM object model
+
+`partner_self_commitments` → `partner_self_funding_lines` → `partner_self_return_accruals` →
+`partner_self_payout_cycles`.
+
+- Accrual: `partner-self-returns-accrual-daily` 01:10.
+- Payout: `partner-self-payouts-daily` 01:25, idempotent through `ledger_group_id`.
+- UI: `SelfPortfolioFundingCard`, `FunderCapitalOpportunities` (stacked cards with bulk selection).
+
+### 10.3 Double-debit protection
+
+`enforce_portfolio_portfolio_funding_at_creation` blocks a second identical funding debit for the
+same partner/portfolio/amount inside a **±30-minute** window. This closed a real incident where a
+trigger path and an application path both debited 100,000.
+
+### 10.4 Capital withdrawal
+
+`investment_withdrawal_requests` defaults `earliest_process_date` to `now() + 90 days`. Filing a
+request pauses reward accrual (`rewards_paused`) so a partner cannot earn ROI on capital already
+queued for exit.
+
+---
+
+## 11. Automation and scheduling
+
+### 11.1 Schedule map (verified via `cron_jobs_health()`)
+
+| Cadence | Jobs |
+| --- | --- |
+| Every 30 s | `deposit-bridge-worker-30s` |
+| Every minute | `expire-cash-deposit-codes`, `release-stale-cashout-claims`, `redispatch-withdrawals-1min` |
+| Every 2 min | `gmail-poll-transactions-every-2min`, `email-auto-create-deposits-24h`, `email-auto-match-retry-24h` |
+| Every 5 min | `deposit-bridge-gap-detector-5m`, `bridge-gap-alert-notify`, `gmail-withdrawal-backfill-every-5min`, `release-stale-cashout-claims-every-5min`, `welile-homes-sms-dispatch` |
+| Every 10 min | `reconcile-wallets-batch`, `rent-amount-change-notify` |
+| Every 15 min | `deposit-match-alert-notify`, `detect-sms-verification-failures`, `detect-credit-limit-drift-15min`, `monitor-bulk-payout-stuck-every-15-min` |
+| Every 30 min | `business-advance-stage-reminders` |
+| Every 3 h | `retry-no-smartphone-charges-3h` |
+| Daily 00:00 | Daily Wallet Financial Summary report |
+| Daily 01:10 / 01:25 | PSM accrual / PSM payouts |
+| Daily 06:00 | `auto-charge-wallets-daily`, `daily-credit-charges`, `lending-auto-deduct-daily` |
+| Daily 06:30 | `apply-rent-overdue-penalty-daily` |
+| Daily 07:00 / 07:15 | `pay-landlord-rent-daily`, `welile-homes-landlord-payouts` |
+| Daily 14:50 UTC | `daily-advance-deductions`, `sweep-agent-advance-recovery` |
+| Daily 23:00 | `auto_close_fully_repaid_rents`, `business-advance-daily-compounding`, `trigger-agent-liability-daily` |
+| Weekly | `landlord-daily-guarantee-sms` (Mon & Fri) |
+| Fortnightly | Rejected-listing purge (14-day retention) |
+| Inactive | `daily-recalculate-credit-limits`, `process-debt-recovery-daily` |
+
+### 11.2 Idempotency patterns in use
+
+| Pattern | Where |
+| --- | --- |
+| Advisory-lock + existing-group return | `create_ledger_transaction(idempotency_key)` |
+| Deterministic key claim | `hrpay:<runId>:<payslipId>` in `hr_pay_disbursements` |
+| Source-row probe | `approve-deposit` checks for an existing `source_table`/`source_id` credit |
+| Unique outbox key | `deposit_bridge_events.idempotency_key = <source>:<source_id>` |
+| Group-id stamp | `partner_self_payout_cycles.ledger_group_id` |
+| Unique settlement row | `proxy_payout_settlements.approval_id` |
+| Time-window guard | Portfolio funding ±30 min; duplicate withdrawal 15 min |
+
+---
+
+## 12. Reconciliation and drift control
+
+### 12.1 Layered defence
+
+| Layer | Mechanism | Cadence |
+| --- | --- | --- |
+| 1 — Prevention | 34 `general_ledger` triggers | Per write |
+| 2 — In-transaction projection | `tg_refresh_wallet_projection_on_ledger` | Per write |
+| 3 — Pre-debit validation | `validate_wallet_against_pivot` + `reconcile_wallet_from_pivot` in `approve-withdrawal` | Per withdrawal |
+| 4 — Batch heal | `reconcile_wallets_batch` | Every 10 min |
+| 5 — Delivery verification | Deposit bridge + `verify_ledger_delivery` | 30 s / on demand |
+| 6 — Detection | `detect_wallet_projection_drift` → `wallet_projection_drift_alerts` | Scheduled, log-only |
+| 7 — Reporting | Daily Wallet Financial Summary | 00:00 EAT |
+
+### 12.2 Drift semantics
+
+`detect_wallet_projection_drift()` compares `wallet_balances_projection` to
+`v_user_wallet_strict` and **only logs**. `reconcile_wallets_batch()` performs the write-back,
+bounded per run so a bad batch cannot cascade. Because the strict view is definitionally correct,
+reconciliation always moves the projection toward the ledger — never the reverse.
+
+### 12.3 Reconciliation registries
+
+`ledger_reconciled_tids` (TIDs already accounted for, used by `bulk_recover_gap_alerts` to close
+false gaps), `ledger_integrity_config` (`enforce_from` grandfather date),
+`wallet_fresh_start_anchors` (per-account re-basing).
+
+### 12.4 Bucket-aware obligation guard
+
+`trg_enforce_bucket_aware_obligation` prevents debt cross-contamination: an obligation attached to
+one bucket cannot be satisfied from another. Combined with the mandatory `recipient_type` on
+recovery categories, this is what keeps float and custody money out of debt recovery.
+
+---
+
+## 13. Anomaly detection and alerting
+
+| Signal | Detector | Sink |
+| --- | --- | --- |
+| Wallet projection drift | `detect_wallet_projection_drift` | `wallet_projection_drift_alerts` |
+| Credit limit drift | `detect-credit-limit-drift-15min` | `credit_limit_reconciliation_alerts` |
+| Deposit delivery gap | `deposit-bridge-gap-detector-5m` | `deposit_bridge_gap_alerts` |
+| Email match anomalies | `deposit-match-alert-notify` | `deposit_match_alerts` |
+| SMS/OTP failure spike | `detect_sms_verification_failures` | `system_events` + SMS metrics |
+| Stuck bulk payouts | `monitor-bulk-payout-stuck-every-15-min` | Ops alert |
+| Landlord payout SLA | `landlord-payout-sla-monitor` | Ops alert |
+| Overdraw attempts | `wallet_overdraw_events` | Table |
+| Routing violations | `wallet_routing_violations`, `wallet_unrouted_movements` | Tables |
+| Writer failures | `system_events` (`wallet.writer_failed`) | Table |
+| Duplicate accounts | `CFOInitiateAdvanceDialog` duplicate detection | UI + audit |
+| Fraud earnings | `trg_enforce_no_fraud_wallet_earnings` | Hard block |
+
+---
+
+## 14. Controls, authorisation and security
+
+### 14.1 Authorisation model
+
+- **RLS everywhere:** 452/452 public tables, 1,189 policies.
+- **Position-based authority for payroll:** `hr_pay_is_releaser()` / `hr_pay_is_rule_admin()` check
+  the employee's **position**, not a role claim, so a role grant alone cannot release salary.
+- **Role-based authority elsewhere:** `is_financial_ops_staff()`, CFO/COO/super_admin gates.
+- **Service-role-only RPCs:** field deposit processing is revoked from `public`, `anon`,
+  `authenticated` and granted to `service_role` alone.
+- **Department→role sync:** `trg_sync_operations_department_role` keeps DB roles aligned with
+  department assignment.
+
+### 14.2 Column-level integrity guards
+
+Trigger guards block self-modification of sensitive columns even where a broad `UPDATE` policy
+exists: `profiles` sensitive columns, `landlords` financial fields,
+`welile_homes_subscriptions` balances, `kyc_level_config`, `credit_access_limits`,
+`audit_logs` (ownership-checked writes only).
+
+### 14.3 Identity and eligibility gates
+
+| Gate | Component |
+| --- | --- |
+| Phone + mobile-money name capture | `PhoneCollectionGate`, `MobileMoneyNameCard`, OTP verified |
+| Real-name validation | `NameCompletionGate` (≥2 names, rejects random character strings) |
+| Frozen agent lockout | `AgentFrozenGate` (full-screen legal banner) |
+| KYC withdrawal cap | `enforce_kyc_withdrawal_cap` (Level 1 = 20,000/day; per-account overrides) |
+| Transfer eligibility | 10+ completed deposits required |
+
+### 14.4 Data-exposure controls
+
+- **Running Balance** is hidden from all agent- and user-facing statements, drawers and PDFs;
+  `LedgerEntryDetailDrawer` reveals it only to finance/audit roles.
+- Vendor PINs are never selected by UI reads (explicit column lists).
+- Map/browser API keys are not publicly readable.
+- Resume/PII tables restrict read access to HR.
+
+---
+
+## 15. Reporting surfaces
+
+| Report | Cadence | Delivery |
+| --- | --- | --- |
+| Daily Wallet Financial Summary | 00:00 EAT | Email |
+| Daily Rent Report (`DailyRentReport`) | Daily | PDF via `pg_cron` |
+| CMO daily performance | Daily | Email |
+| Agent advance repayment monitor | On demand | Agent Ops dashboard |
+| Merchant cashout reports | On demand | FinOps |
+| Wallet statements | On demand | PDF (no running balance for end users) |
+| Publish/build diagnostics | Per build | `public/build-log.txt` (legacy domains redacted) |
+
+Executive surfaces: CEO/CFO/COO dashboards, `AgentOpsDashboard`, `TenantOpsHub`,
+`LandlordOpsDashboard` (server-side search), `CfoPayrollPanel` (dry-run + typed `RELEASE`
+confirmation).
+
+---
+
+## 16. Known gaps and risk register
+
+| # | Finding | Severity | Detail |
+| --- | --- | --- | --- |
+| 1 | `detect_phantom_wallet_drift` references a table dropped in migration history but present in the live DB | Medium | Migration history and live schema disagree. Live DB is truth; the migration record should be reconciled before any environment rebuild, or a fresh environment will fail to create this function. |
+| 2 | `daily-recalculate-credit-limits` inactive | Medium | Credit limits are not recomputed on a schedule; drift detection still runs, so the symptom would be stale limits rather than silent loss. |
+| 3 | `process-debt-recovery-daily` inactive | Medium | Platform-wide written-down exposure recovery is not sweeping automatically. |
+| 4 | Daily-capacity coupling to `agent_collections` | Medium | `paid_today` reads only `agent_collections`; a new payment path that skips it silently reports zero capacity. |
+| 5 | `admin_correction` volume (8,531 rows) | Medium | Corrections are excluded from user statements but are a standing indicator of upstream defects; the trend should be tracked, not just the count. |
+| 6 | `test_dev` rows (676) in production tables | Low | Non-economic residue; excluded from strict balances but pollutes raw exports. |
+| 7 | `legacy_real` rows (2,797) pre-cutover | Low | Retained for history; must always be filtered out of post-April reporting. |
+| 8 | `apply_wallet_movement` retained as a no-op | Low | Intentional (call-site compatibility), but a future reader may mistake it for a live writer. Its comment states the invariant. |
+| 9 | `skip_balance_check: true` in `approve-withdrawal` | Low (by design) | Safe only because strict solvency is checked immediately before. Any refactor that removes the pre-check silently removes the solvency guarantee. |
+| 10 | Build memory ceiling | Low | Node heap pinned to 4,096 MB; SEO steps are wrapped in `scripts/run-optional.mjs` so they cannot fail the publish. |
+
+---
+
+## 17. Appendices
+
+### Appendix A — Ledger category allow-list (from `ledger_category_allowlist()`)
+
+Deposits and intake: `wallet_deposit`, `agent_float_deposit`, `agent_float_assignment`,
+`agent_float_settlement`, `agent_float_used_for_rent`, `field_deposit_commission`,
+`angel_pool_investment`, `historical_balance_reseed`, `pending_portfolio_topup`.
+
+Withdrawals and payouts: `wallet_withdrawal`, `wallet_transfer`, `rent_disbursement`,
+`landlord_rent_payment`, `salary_payout`, `roi_payout`, `roi_wallet_credit`, `roi_expense`,
+`merchant_settlement`.
+
+Credit and recovery: `agent_advance_credit`, `agent_repayment`, `agent_advance_repayment`,
+`agent_advance_fee`, `business_advance_credit`, `business_advance_fee`, `salary_advance_repayment`,
+`debt_recovery`, `credit_draw`, `platform_loss_writeoff`.
+
+Earnings: `agent_commission`, `agent_commission_earned`, `referral_bonus`, `verification_bonus`.
+
+Revenue and expense: `rent_service_fee`, `registration_fee_collected`, `rent_overdue_penalty`,
+`marketing_expense`, `general_admin_expense`, `payroll_expense`, `interest_expense`,
+`merchandise_sale`.
+
+Capital and partners: `partner_funding`, `supporter_facilitation_capital`.
+
+Corrections: `system_balance_correction`, `wallet_deduction`,
+`wallet_deduction_general_adjustment`, `rent_receivable_created`, `rent_payment_for_tenant`.
+
+*(~110 entries total; the function body is authoritative.)*
+
+### Appendix B — Key RPCs
+
+| RPC | Purpose |
+| --- | --- |
+| `create_ledger_transaction` | The only authorised ledger writer |
+| `user_wallet_strict` / `v_user_wallet_strict` | Ledger-truth balance |
+| `get_user_available_balance` | Projection read used by the UI |
+| `get_user_float_available_balance` | Float availability (now 11 ms, was 6.2 s) |
+| `validate_wallet_against_pivot` / `reconcile_wallet_from_pivot` | Per-withdrawal drift check/heal |
+| `reconcile_wallets_batch` | 10-minute batch heal |
+| `verify_ledger_delivery` | Server-side delivery verification |
+| `sweep_agent_advance_recovery` | Installment-aware advance recovery |
+| `get_agent_advance_potential` | Limit engine (20,000 floor / 9,000,000 ceiling) |
+| `calculate_business_advance_limit` | Business advance limit engine |
+| `recognize_fee_revenue_daily` | Time-elapsed revenue recognition |
+| `pay_partner_self_cycles` | PSM payouts |
+| `process_verified_field_deposit` | Field batch fan-out (service role only) |
+| `auto_dispatch_withdrawals` / `accept_withdrawal_dispatch` | Merchant dispatch and claiming |
+| `release_stale_cashout_claims` | 45-minute claim release |
+| `agent_cancel_rent_request` | Cancellation with mandatory reason |
+| `auto_close_fully_repaid_rents` | Rent plan auto-close |
+
+### Appendix C — Reading the system safely
+
+1. **Never write a balance.** Post a balanced ledger group and let the projection follow.
+2. **Always pass `recipient_type`** on recovery categories, or the write is rejected.
+3. **Always pass an `idempotency_key`** for anything an automation or a user can retry.
+4. **Check the classification filter** before quoting any total: `production` only, and only from
+   2026-04-01 onward for post-cutover reporting.
+5. **Trust `v_user_wallet_strict`, not `wallets`,** when investigating a disputed balance.
