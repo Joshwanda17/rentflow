@@ -29375,6 +29375,15 @@ export type Database = {
           },
         ]
       }
+      v_house_listing_latest_rejection: {
+        Row: {
+          listing_id: string | null
+          rejected_at: string | null
+          rejected_by: string | null
+          rejection_reason: string | null
+        }
+        Relationships: []
+      }
       v_landlord_ops_status: {
         Row: {
           has_smartphone: boolean | null
@@ -33593,6 +33602,20 @@ export type Database = {
         }[]
       }
       ops_global_verification_overview: { Args: never; Returns: Json }
+      ops_house_listing_report: {
+        Args: {
+          p_date_from?: string
+          p_date_to?: string
+          p_limit?: number
+          p_quick?: string
+          p_search?: string
+          p_status?: string
+        }
+        Returns: {
+          row_data: Json
+          total_count: number
+        }[]
+      }
       ops_house_listing_status_counts: {
         Args: { p_date_from?: string; p_date_to?: string; p_search?: string }
         Returns: {
@@ -33616,7 +33639,9 @@ export type Database = {
           has_images: number
           has_landlord: number
           has_lc1: number
+          hidden_scope: number
           no_landlord: number
+          visible_scope: number
         }[]
       }
       ops_link_agent_landlord: {

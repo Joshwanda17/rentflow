@@ -63,6 +63,8 @@ import { format } from 'date-fns';
 import { toast as sonnerToast } from 'sonner';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
 import { generateLandlordOpsReportPdf } from '@/lib/generateLandlordOpsReportPdf';
+import { generateHouseVerificationReportPdf, type HouseReportRow } from '@/lib/generateHouseVerificationReportPdf';
+import { FileDown } from 'lucide-react';
 import { RentAdjustmentDialog } from './RentAdjustmentDialog';
 import { VacancyAnalytics } from './VacancyAnalytics';
 import { TenantMatchingQueue } from './landlord-ops/TenantMatchingQueue';
@@ -506,18 +508,35 @@ export function LandlordOpsDashboard() {
 
   // ─── Verification Queue Search & Filters ───
   const [verifySearch, setVerifySearch] = useState('');
-  type VerifyFilter = 'all' | 'has_landlord' | 'no_landlord' | 'has_images' | 'has_gps' | 'has_lc1';
+  type VerifyFilter = 'all' | 'has_landlord' | 'no_landlord' | 'has_images' | 'has_gps' | 'has_lc1' | 'hidden' | 'visible';
   const [verifyFilter, setVerifyFilter] = useState<VerifyFilter>('all');
-  // Scope: pending | verified | hidden | rejected | all — thumb-friendly status chips
-  type HouseStatusFilter = 'pending' | 'verified' | 'hidden' | 'rejected' | 'all';
+  // Scope: pending | verified | rejected | all — thumb-friendly status chips.
+  // "Hidden" is deliberately NOT a scope: 99% of hidden houses are verified
+  // houses that ops temporarily pulled off the tenant feed, so a sibling chip
+  // double-counted them and split the verified backlog in two. Hidden is now a
+  // sub-filter (quick chip) inside Verified / All houses.
+  type HouseStatusFilter = 'pending' | 'verified' | 'rejected' | 'all';
   const [houseStatusFilter, setHouseStatusFilter] = useState<HouseStatusFilter>(() => {
     const saved = localStorage.getItem('landlordOpsHouseFilter');
-    if (saved === 'pending' || saved === 'verified' || saved === 'hidden' || saved === 'rejected' || saved === 'all') return saved;
+    // Legacy persisted 'hidden' scope migrates to Verified + hidden sub-filter.
+    if (saved === 'hidden') return 'verified';
+    if (saved === 'pending' || saved === 'verified' || saved === 'rejected' || saved === 'all') return saved;
     return 'pending';
   });
   useEffect(() => {
     localStorage.setItem('landlordOpsHouseFilter', houseStatusFilter);
   }, [houseStatusFilter]);
+  // hidden/visible only make sense inside Verified / All houses — drop them
+  // when the operator switches to Pending or Rejected.
+  useEffect(() => {
+    if (
+      (verifyFilter === 'hidden' || verifyFilter === 'visible')
+      && houseStatusFilter !== 'verified'
+      && houseStatusFilter !== 'all'
+    ) {
+      setVerifyFilter('all');
+    }
+  }, [houseStatusFilter, verifyFilter]);
   const [togglingHide, setTogglingHide] = useState<Record<string, boolean>>({});
   const [editingRentId, setEditingRentId] = useState<string | null>(null);
   const [editRentValue, setEditRentValue] = useState<string>('');
@@ -533,6 +552,8 @@ export function LandlordOpsDashboard() {
   // ─── Verification Queue pagination (client-side, keeps DOM light) ───
   const VERIFY_PAGE_SIZE = 30;
   const [verifyPage, setVerifyPage] = useState(1);
+  // ─── Verification Queue PDF export ───
+  const [exportingHouseReport, setExportingHouseReport] = useState(false);
 
   // ─── Landlord Pending Quick Filters ───
   type PendingFilter = 'all' | 'has_address' | 'has_phone' | 'has_smartphone' | 'has_bank' | 'has_momo';
@@ -975,6 +996,56 @@ export function LandlordOpsDashboard() {
     : null;
   const serverSearchTerm = debouncedVerifySearch.length >= 2 ? debouncedVerifySearch : null;
 
+  /**
+   * Export a fully comprehensive PDF for exactly the filters on screen.
+   * Pulls a dedicated report payload (verifier/rejector names, reasons,
+   * location, GPS, payout details) from `ops_house_listing_report` instead of
+   * reusing the paginated queue rows, so the export is never a partial page.
+   */
+  const exportHouseReportPdf = async () => {
+    setExportingHouseReport(true);
+    try {
+      const { data, error } = await (supabase.rpc as any)('ops_house_listing_report', {
+        p_status: houseStatusFilter,
+        p_search: serverSearchTerm,
+        p_date_from: verifyDateFromIso,
+        p_date_to: verifyDateToIso,
+        p_quick: verifyFilter,
+        p_limit: 10000,
+      });
+      if (error) throw error;
+      const payload = (data || []) as any[];
+      const reportRows = payload.map(r => (r.row_data ?? r) as HouseReportRow);
+      const trueTotal = Number(payload[0]?.total_count ?? reportRows.length);
+      if (!reportRows.length) {
+        sonnerToast.error('No houses match these filters — nothing to export');
+        return;
+      }
+      const blob = generateHouseVerificationReportPdf(reportRows, {
+        scope: houseStatusFilter,
+        quickFilter: verifyFilter,
+        search: serverSearchTerm,
+        dateFrom: verifyDateFromIso,
+        dateTo: verifyDateToIso,
+        totalMatches: trueTotal,
+        generatedBy: user?.email ?? null,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `welile-houses-${houseStatusFilter}-${format(new Date(), 'yyyy-MM-dd-HHmm')}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      sonnerToast.success(`${houseStatusFilter} houses report downloaded (${reportRows.length.toLocaleString()} houses)`);
+    } catch (err: any) {
+      sonnerToast.error(err?.message || 'Failed to generate the house report');
+    } finally {
+      setExportingHouseReport(false);
+    }
+  };
+
   const {
     data: houseSearchPages,
     isFetching: isHouseSearchFetching,
@@ -1062,6 +1133,8 @@ export function LandlordOpsDashboard() {
         has_images: Number(r.has_images || 0),
         has_gps: Number(r.has_gps || 0),
         has_lc1: Number(r.has_lc1 || 0),
+        hidden: Number(r.hidden_scope || 0),
+        visible: Number(r.visible_scope || 0),
       };
     },
   });
@@ -3095,6 +3168,14 @@ export function LandlordOpsDashboard() {
       { value: 'has_images', label: 'Has Photos' },
       { value: 'has_gps', label: 'Has GPS' },
       { value: 'has_lc1', label: 'Has LC1' },
+      // Hidden/visible are sub-filters of the scope (hidden is no longer a
+      // top-level status chip — hidden houses are verified houses).
+      ...(houseStatusFilter === 'verified' || houseStatusFilter === 'all'
+        ? ([
+            { value: 'hidden' as VerifyFilter, label: 'Hidden from tenants' },
+            { value: 'visible' as VerifyFilter, label: 'Live to tenants' },
+          ])
+        : []),
     ];
 
     // Status scope: pending | verified | hidden | rejected | all
@@ -3119,9 +3200,24 @@ export function LandlordOpsDashboard() {
       <>
       <div className="space-y-3">
         <BackButton />
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
           <h2 className="text-lg font-bold flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-amber-600" /> Verification Queue</h2>
-          <Badge variant="outline" className="text-sm font-bold px-3 py-1 bg-amber-100 text-amber-700 border-amber-300">{totalFiltered.toLocaleString()} {houseStatusFilter === 'all' ? 'houses' : houseStatusFilter === 'rejected' ? 'rejected' : houseStatusFilter}</Badge>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-9 gap-1.5"
+              disabled={exportingHouseReport}
+              onClick={exportHouseReportPdf}
+              title="Export a full PDF report for the filters currently applied"
+            >
+              {exportingHouseReport
+                ? <Loader2 className="h-4 w-4 animate-spin" />
+                : <FileDown className="h-4 w-4" />}
+              Export PDF
+            </Button>
+            <Badge variant="outline" className="text-sm font-bold px-3 py-1 bg-amber-100 text-amber-700 border-amber-300">{totalFiltered.toLocaleString()} {houseStatusFilter === 'all' ? 'houses' : houseStatusFilter === 'rejected' ? 'rejected' : houseStatusFilter}</Badge>
+          </div>
         </div>
 
         {/* Thumb-friendly status filter chips */}
@@ -3129,7 +3225,6 @@ export function LandlordOpsDashboard() {
           {([
             { value: 'pending' as HouseStatusFilter, label: 'Pending', count: houseStatusCounts?.pending ?? 0, color: 'amber' },
             { value: 'verified' as HouseStatusFilter, label: 'Verified', count: houseStatusCounts?.verified ?? 0, color: 'emerald' },
-            { value: 'hidden' as HouseStatusFilter, label: 'Hidden', count: houseStatusCounts?.hidden ?? 0, color: 'slate' },
             { value: 'rejected' as HouseStatusFilter, label: 'Rejected', count: houseStatusCounts?.rejected ?? 0, color: 'rose' },
             { value: 'all' as HouseStatusFilter, label: 'All houses', count: houseStatusCounts?.all ?? 0, color: 'primary' },
           ]).map(s => {
@@ -3189,9 +3284,29 @@ export function LandlordOpsDashboard() {
           </p>
         )}
 
-        {/* Date range filter */}
+        {/* Hidden houses live inside Verified now — surface the subset count so
+            nothing is lost by removing the old sibling "Hidden" chip. */}
+        {(houseStatusFilter === 'verified' || houseStatusFilter === 'all') && (houseStatusCounts?.hidden ?? 0) > 0 && (
+          <p className="text-[11px] text-muted-foreground -mt-1 pl-1">
+            {(houseStatusCounts?.hidden ?? 0).toLocaleString()} of these verified houses are currently hidden from the tenant feed —
+            {' '}
+            <button
+              onClick={() => setVerifyFilter(verifyFilter === 'hidden' ? 'all' : 'hidden')}
+              className="underline font-semibold hover:text-foreground"
+            >
+              {verifyFilter === 'hidden' ? 'show all again' : 'show only those'}
+            </button>
+          </p>
+        )}
+
+        {/* Date range filter — applied to the STATE date, not registration date */}
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[11px] text-muted-foreground font-medium">Date:</span>
+          <span className="text-[11px] text-muted-foreground font-medium">
+            {houseStatusFilter === 'verified' ? 'Verified between:'
+              : houseStatusFilter === 'rejected' ? 'Rejected between:'
+              : houseStatusFilter === 'pending' ? 'Registered between:'
+              : 'Status changed between:'}
+          </span>
           <Input
             type="date"
             value={verifyDateFrom}
