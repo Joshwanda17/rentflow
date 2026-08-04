@@ -182,3 +182,221 @@ There is **no `merchant_float` table**. Merchant agents claim rows from the gene
 
 ### 9.6 Recoveries
 `agent_unfunding_requests` (0), `agent_tenant_float_reversals` (1), `agent_landlord_float_corrections` (1,723). CFO UI: `CFOAgentOpsFloatSender.tsx`, `AgentFloatManagement.tsx`, `LandlordFloatAllocationsPanel.tsx`, `LandlordFloatReconciliationPanel.tsx`.
+
+## 10. Payroll
+
+`supabase/functions/hr-pay-release/index.ts` (337 lines) is the disbursement engine. **[observed]**
+
+- **Authority is position-based, not role-based**: `hr_pay_is_releaser()` with fallback `hr_pay_is_rule_admin()`. Also gated by `checkTreasuryGuard`.
+- The run must be `status='approved'` (else 409). `dryRun:true` computes blockers (`net<=0`, no linked `user_id`) and writes nothing.
+- **Idempotency:** claim row in `hr_pay_disbursements` keyed `hrpay:{runId}:{payslipId}` inserted **before** any ledger write; a `23505` is treated as `already_handled`.
+- Two balanced legs via `create_ledger_transaction`: `platform/cash_out/salary_payout/recipient_type:'user'` and `wallet/cash_in/salary_payout/recipient_type:'user'`.
+- On ledger failure the disbursement row is marked `failed` and the loop continues — **partial-run tolerant, no rollback of already-posted payslips**.
+- SMS is sent only **after** a posted disbursement and an `audit_logs` write; Yoola primary → Africa's Talking fallback, every attempt logged to `sms_delivery_log`.
+
+`src/hr/pay/api/workflow.ts` documents that `hr_pay_runs.status` is **never written from the client** — a DB trigger on `hr_pay_run_events` advances it from inserted events (`submitted`/`approved`/`returned`/`locked`). `myPayrollAuthority()` calls `hr_pay_is_preparer/approver/releaser`. **[observed]**
+
+`hr-submit-payroll` gates on `user_roles` (`hr`/`super_admin`) — **a different authority model from `hr-pay-release`'s position check** — and flips `payroll_batches` `draft→submitted` conditioned on `.eq('status','draft')`. **[observed]**
+
+`apply-payroll-growth` (159 lines) has **no visible auth check** (cron/service-role only), uses a `lte('last_growth_at', cutoff-23h)` time cutoff rather than a claim row, posts compounding `system_balance_correction`/`interest_expense` legs with `skip_balance_check:true`, calls `enforce_recipient_routing`, then emits `system_events` `payroll.growth.applied`. `payroll_growth_balances` has **108 rows** (live). **[observed]**
+
+Live state: `hr_pay_runs` 1 `in_review`, 1 `approved`; `hr_pay_disbursements` 26 `posted`; `hr_pay_payslips` 74 historical + 50 current. **`hr_pay_advances` has 0 rows** and no matching edge function — the feature is dormant. **[observed]**
+
+## 11. Employee and Director Requisitions
+
+`requisition-decide` (210 lines): `cfo/super_admin/manager`. CFO can **override the amount** (rounded 2dp) on approval. It snapshots the pre-decision row, short-circuits if `wallet_credit_status='credited'`, resolves the requester by `ilike(email)`, then calls the shared credit engine. **If the credit fails or no profile is found, it performs a full rollback** of `status/approved_by/approved_at/rejection_reason/amount` and sets `wallet_credit_status='failed'`, logging `requisition_approval_rolled_back` and skipping the email. True approve-or-nothing. **[observed]**
+
+`_shared/requisitionWalletCredit.ts` (406 lines) is the shared engine for employee requisitions, director requisitions and retries:
+- Unique row in `requisition_wallet_credits` keyed `(source_table, requisition_id)`; a duplicate is either returned as `already_credited` or reused for retry with `attempt_count++`. Never a double credit.
+- Credits via raw `fetch` to `cfo-direct-credit` with `system_requisition_credit:true` and a service-role bearer; `recipient_type:'user'`, category `payroll_expense`, `financial_impact:'expense'`.
+- On failure: marks both rows `failed`, notifies every `cfo`/`super_admin` via `notifications`, logs `requisition_wallet_credit_failed`.
+- On success: notification + email + SMS keyed `req-credit-${sourceTable}-${requisitionId}`.
+
+`requisition-submit` validates `requisition_links` (`is_active`, `expires_at`, `max_submissions`, `revoked_at`), rate-limits **5/hour per IP**, and emits `requisition.submitted`. `requisition-credit-retry` (`cfo/super_admin/manager/ceo`) has a `recover_all:true` bulk mode scanning both requisition tables for `status IN (approved,paid) AND wallet_credit_status='failed'`, limit 50 each. **[observed]**
+
+**Asymmetry to fix:** `director-requisition-action` (`ceo/super_admin/manager`) calls the same shared engine but has **no snapshot/rollback** — a director requisition stays `approved` even when the credit fails. **[observed]**
+
+Live: `employee_requisitions` 8 approved / 2 paid / 2 rejected; `director_requisitions` 17 approved / 1 rejected; `requisition_wallet_credits` **2 credited vs 6 failed**. All six failures read `"Edge Function returned a non-2xx status code"`, dated 2026-07-30 → 2026-08-03, attempt counts 1–3, **never recovered**. This is an open liability: `requisition-credit-retry --recover_all` has evidently not been run against them. **[observed]**
+
+## 12. Standing Orders (`process-scheduled-payouts`)
+
+278 lines. `checkTreasuryGuard` first; optional `payout_id` scoping for single-order runs. **[observed]**
+
+- **Per-cycle idempotency:** if a `scheduled_payout_runs` row with `status='success'` and `ran_at >= payout.next_run_at` exists, skip crediting and only advance `next_run_at`.
+- **Category map:** `roi_payout→roi_wallet_credit/roi_expense`; `agent_commission→agent_commission_earned`; `payroll→salary_payout/payroll_expense`; `marketing_expenses`, `research_development`, `operational_expense` → `system_balance_correction`; `correction_credit`→`system_balance_correction` (neutral); `wallet_transfer_out`→`wallet_transfer` (neutral); unmapped falls back to `operational_expense`.
+- **`computeNextRun`:** `daily` +1d · `weekly` to `day_of_week` (clamped 1–7d) · `interval` `interval_days` (min 1) · `monthly`/default +1 month.
+- Money moves via `cfo-direct-credit` with `system_requisition_credit:true` and a service-role bearer — the same server-to-server mechanism as requisitions.
+- **On failure:** writes a `failed` run row and **does not advance `next_run_at`**, so the same cycle retries. On success: best-effort `apply_roi_advance_recovery` keyed `sched-{payout.id}-{YYYY-MM-DD}`, a `success` run row, SMS, then advance.
+
+Live: 6 enabled `scheduled_payouts`; `scheduled_payout_runs` **56 failed vs 1 success**. Every sampled failure is `{"error":"Unauthorized"}` — the historical missing-`system_requisition_credit` bug already fixed; the single success is post-fix. **The failed backlog was never replayed.** **[observed]**
+
+## 13. Recovery and Debt
+
+**`process-debt-recovery` is dead code.** It reads `debt_recovery_cases`, a table that **does not exist** in the live database, matching `SYSTEM_CONTEXT.md`'s own note that it is "inactive". Its cron `process-debt-recovery-daily` is additionally `active=false` and stale. **[observed]**
+
+The live machinery is:
+- **`process-credit-draw`** — submission only, **no money moves**; creates `credit_access_draws` `status='pending_cfo'`; blocks a second draw while `active/overdue/pending_cfo` exists; `MONTHLY_RATE=0.33`, `accessFee = amount * (1.33^months − 1)`.
+- **`cfo-approve-credit-draw`** — `cfo/manager/super_admin`; `checkTreasuryGuard` on the approve path only (**the reject path is unguarded**); re-validates against `credit_access_limits.total_limit` at approval time; the update is conditioned `.eq('status','pending_cfo')` to kill the double-disbursement race; posts `platform cash_out` / `wallet cash_in` with **explicit `wallet_bucket:'withdrawable'`** — the only function observed setting the bucket explicitly.
+- **`process-credit-daily-charges`** — `DAILY_COMPOUND_RATE = 1.33^(1/30) − 1`; deducts from the user first, falls back to the `agent_id`'s wallet for the shortfall; one `credit_draw_ledger` row per draw per day (`deduction_status ∈ full|partial|none`); two separate balanced `agent_repayment` postings.
+- **`default_recovery_ledger`**: 600 `open`, 268 `voided_phantom`. **`cfo_debit_obligations`**: 600 `open`, 268 `voided_phantom`. **`credit_access_draws`**: 161 `pending_cfo`, 21 `overdue`, 11 `completed`, 2 `active`. **`credit_draw_ledger`**: 2,036 `none`, 366 `full`, 141 `partial`. **[observed]**
+- `send-recovery-notice` is unrelated to debt cases — it is a manual SMS backfill for float-recovery notices.
+
+## 14. Security Model
+
+### 14.1 Roles and the three inconsistent staff sets
+`app_role` enum (24 values): `tenant, agent, landlord, supporter, manager, ceo, coo, cfo, cto, cmo, crm, employee, operations, super_admin, hr, senior_agent, sub_agent, admin, tenant_ops, landlord_ops, agent_ops, financial_ops, partner_ops, access_admin`. **[observed]**
+
+| Helper | Members |
+|---|---|
+| `has_role(_user_id,_role)` | the atomic `EXISTS` primitive, requires `enabled=true` |
+| `is_ops_role` | `manager, super_admin, coo, operations` |
+| `is_withdrawal_staff` | `manager, operations, cfo, coo, super_admin, cto` |
+| `ops_caller_is_ops` | + `financial_ops, agent_ops, partner_ops, tenant_ops, landlord_ops, admin, cmo, ceo` |
+| `agent_ops_directory_guard` | raises `not_authorized` unless ops or `manager/cfo/ceo/coo/cto/super_admin` |
+| `is_welile_staff` | referenced by `director_requisitions` RLS; not in the canonical inventory |
+| `hr_pay_is_{rule_admin,preparer,approver,releaser,rule_reader,own_staff}` | a **separate** maker-checker chain for payroll |
+
+**Risk:** three different definitions of "finance staff" exist. `financial_ops` is in `ops_caller_is_ops` but **absent from `is_withdrawal_staff`**, so financial_ops cannot update `withdrawal_requests` via RLS. Adding a role to one helper does not propagate. **[observed]**
+
+### 14.2 RLS highlights (232 policies inventoried)
+- `general_ledger` — deny-all writes (§3).
+- `withdrawal_requests` — users insert own (or proxy agents with an active assignment); `is_withdrawal_staff()` may update **any**; users may cancel only their own `pending`; no DELETE policy.
+- `credit_access_limits` — explicit **`Deny direct credit limit updates`** (`UPDATE qual=false`); the only client write is a self-INSERT where every field equals the fixed starter defaults (UGX 20,000 base, zero bonuses).
+- `credit_draw_ledger` — `INSERT with_check = true` for any authenticated user: the **widest INSERT check found on a finance-adjacent table**.
+- `scheduled_payouts` — full CRUD to `cfo`/`super_admin` only.
+- `pending_wallet_operations` — `manager` only (narrower than cfo!).
+- `audit_logs` — INSERT self-attributed (`auth.uid()=user_id`, so a client cannot forge another actor); SELECT `manager`/`ceo` only (**cfo and coo excluded** — they use `get_cfo_ledger_trail`).
+- `system_events` — INSERT `with_check=true` (open append-only telemetry); SELECT `super_admin/manager/ceo/cfo/coo`.
+- `deposit_decision_audit`, `deposit_guardrail_audit` — **SELECT-only; no client write policy exists at all** (deny by omission; SECURITY DEFINER writes only).
+- `shadow_audit_logs` — **`ALL qual=false`, deny-all to everyone**, including executives. Strongest integrity guarantee on the platform.
+- `hr_pay_bank_secrets` — SELECT-only to `hr_pay_is_rule_admin()`.
+
+**[all observed]**
+
+### 14.3 Session flags and break-glass
+| Function | Gate | Verdict |
+|---|---|---|
+| `begin_ledger_maintenance` / `end_ledger_maintenance` | `cfo`/`manager`, reason ≥10 chars, window ≤240 min, both open and close write `audit_logs` | Well-guarded |
+| `begin_ledger_migration` | `cfo/manager/super_admin`, validates all params, double-logs to `audit_logs` + `system_events`; sets `ledger.migration_bypass` | Guarded, but see below |
+| `begin_wallet_accrual_lock` / `end_wallet_accrual_lock` | **none**; PUBLIC/anon/authenticated EXECUTE; `set_config(..., is_local=false)` = session-persistent | **P0 — platform-wide wallet freeze by any caller** |
+| `admin_reseed_wallet_cache` | **none**; anon + authenticated EXECUTE; sets `wallet.sync_authorized='true'` and overwrites balances | **P0 — arbitrary money write** |
+| `admin_purge_table_refs` / `admin_purge_user_dependencies` | EXECUTE limited to `postgres` + `service_role` | Acceptable |
+
+**GUC mapping resolved:** `ledger.bypass_guard` is read by `enforce_ledger_rpc_only`; `ledger.migration_bypass` is read by `enforce_wallet_scope_requires_user` and set by `begin_ledger_migration`. They are **two different flags guarding two different triggers** — not the dead-code mismatch it appears to be, but the naming is a trap. `ledger.bypass_guard` has **no role check at its read site**; whoever sets it is trusted implicitly. **[observed]**
+
+### 14.4 Approval matrix
+| Operation | Gate |
+|---|---|
+| Direct credit | No generic "credit anyone" RPC; ~15 narrow `credit_*` SECURITY DEFINER functions, one per bonus/fee type |
+| Direct debit | Legacy `wallet_deduction` hard-blocked; replacement is `cfo-direct-credit` + `cfo_debit_obligations` (`manager/cfo/super_admin/cto`) |
+| Withdrawal | Insert validated by two triggers; stage chain `pending → manager_approved → cfo_approved → fin_ops_approved` enforced **in the `approve-withdrawal` Edge Function, not in RLS** |
+| Payroll release | `hr_pay_is_releaser()` or rule_admin — an approver alone **cannot** release funds |
+| Employee requisition | `cfo/super_admin/manager` |
+| Credit draw | `manager/coo/cfo/super_admin` + `cfo-approve-credit-draw` |
+| Float allocation | `manager/cfo/super_admin` (+`operations` read); funding requires `approved`/`coo_approved` |
+
+**Architectural finding:** RLS enforces *coarse* membership ("are you finance staff at all"); *sequencing* lives in Edge Functions. A holder of direct PostgREST credentials with a staff role could skip approval stages the UI enforces, because `is_withdrawal_staff()` permits updating any `withdrawal_requests` row to any status. **[observed / partially inferred]**
+
+## 15. Withdrawal Guard Triggers
+
+| Trigger | Rule | Exemptions |
+|---|---|---|
+| `enforce_kyc_withdrawal_cap` | Accounts <30 days old with no advance / prior completed withdrawal / collection history are capped at **UGX 50,000/day** (or a per-user KYC override); `frozen` accounts are blocked outright via `get_kyc_effective_limits` | landlord-payout and proxy-partner withdrawals |
+| `enforce_withdrawal_ledger_match` | Rejects `amount > get_user_available_balance()` (special commission calc for cashout-commission withdrawals); failures logged to `withdrawal_attempt_failures` | `landlord_payout_id IS NOT NULL` (float already deducted upstream) |
+
+**[observed]** Note the "graduated" carve-out is the cap's real attack surface: an actor who can cause a `field_collections` row to exist may graduate an account out of the 50k limit. Not proven exploitable — flagged.
+
+## 16. Reconciliation and Drift Estate
+
+| Object | Kind | Rows |
+|---|---|---|
+| `ledger_balance_pivot` | table (fed by `trg_ledger_pivot_apply`) | 167,805 |
+| `ledger_balance_pivot_candidate` | staging | 167,769 |
+| `ledger_balance_pivot_2026_08_01_backup` | snapshot | 30,786 |
+| `wallet_pivot_drift_view` / `v_pivot_drift` | views (duplicates) | 56,127 each |
+| `agent_landlord_float_corrections` | table | **1,723** |
+| `ledger_reconciled_tids` | table | 6,620 |
+| `wallet_negative_reconciliation_log` | table | 486 |
+| `wallet_routing_v2_corrections` | table | 146 |
+| `finance_anomaly_scans` / `_alert_states` / `_alert_config` | tables | 51 / 12 / 1 |
+| `credit_limit_reconciliation_alerts` | table | 22 |
+| `deposit_match_alerts` | table | 112 (**106 unresolved**) |
+| `deposit_bridge_gap_alerts` | table | 5 |
+| `agent_capability_ops_dead_letters` | DLQ | 4 (**all 4 unresolved**) |
+| `email_credit_idempotency` / `gmail_dedup_audit` | dedup guards | 495 / 3,521 |
+| `ledger_anomaly_incidents` / `_isolations` | tables | 1 / 1 |
+| `wallet_routing_violations`, `wallet_projection_drift_alerts`, `wallet_overdraw_events`, `wallet_unrouted_movements`, `bulk_payout_stuck_alerts`, `cfo_threshold_alerts`, `email_payout_match_attempts`, `withdrawal_attempt_failures`, `settlement_reconciliation_ledger`, `managed_proxy_roi_routing_violations` | integrity tables | **0** |
+| `phantom_wallet_drift` | **does not exist** | n/a |
+
+**[all observed]** None of these objects carry a DB `COMMENT`, so purpose is inferred from definition and usage. Zero rows means *observed clean today*, not *cannot fire*.
+
+## 17. Reporting
+
+| Report | Source | Schedule |
+|---|---|---|
+| `generate-daily-wallet-report` → `daily_wallet_reports` (9 rows, latest 2026-08-03) | `compute_wallet_report` RPC; UI `DailyWalletReportsPanel.tsx` | Daily 21:00 UTC = **00:00 EAT** |
+| `daily-wallet-inflows-report` | ledger/wallet tables | Daily 21:00 UTC |
+| `DailyCashPositionReport.tsx` | `get_platform_cash_summary`, `get_wallet_totals`, `rent_requests` | on demand |
+| `LiquidityForecastPanel.tsx` | withdrawable across all wallets + ROI due/day, 7–60 day horizon | on demand |
+| `HouseListingCommissionReport.tsx` | `generate_house_listing_commission_report` | on demand |
+| `merchant-cashout-daily-report` (×2) + `generate-daily-merchant-commission` | merchant queue | daily |
+| `WithdrawalHistoryStatement.tsx` | `get_withdrawal_history` | on demand |
+| `UserWalletStatementsPanel.tsx` | per-user buckets + landlord float + advances | on demand |
+| `useFinancialStatements` (`src/hooks/useFinancialStatements.ts`) | consumed by `InvestorReportPage.tsx`, `FinancialStatementsPanel.tsx`, drill map in `financialStatementsDrillMap.ts` | on demand |
+| Persona dailies | `agent-ops-`, `agent-growth-`, `daily-cto-`, `daily-cmo-users-`, `daily-landlord-ops-report` | daily |
+
+**`agent_daily_commission_reports` has 0 rows** — either deprecated or never fed. **[observed]**
+
+`CFOActionsLog.tsx` is deliberately **ledger-derived, not action-string-derived**: it reads `get_cfo_ledger_trail`, one row per `transaction_group_id`, so *"every cash movement that posts to the ledger appears here automatically; there is no allow-list of action strings to maintain."* This makes the CFO audit view impossible to under-populate by forgetting to log an action. **[observed]**
+
+## 18. Cron Fleet and Health
+
+`cron.job` is **permission-denied** to ordinary roles; the SECURITY DEFINER RPC **`cron_jobs_health()`** is the supported introspection path and returns `{jobname, schedule, active, last_run_at, last_status, is_stale}`. `CronJobsHealthPanel.tsx` surfaces it, flagging anything not run in >24h with the warning *"Agent commission, debt recovery, ROI accrual and other automations may be silently frozen."* **[observed]**
+
+**Stale jobs, live (11; 9 of them `active=false`):**
+
+| Job | Schedule | Active |
+|---|---|---|
+| `process-debt-recovery-daily` | `0 6 * * *` | **false** |
+| `daily-recalculate-credit-limits` | `30 5 * * *` | **false** |
+| `check-agent-liquidity-hourly` | `0 4 * * *` | **false** |
+| `refresh-financial-summaries-daily` | `0 3 * * *` | **false** |
+| `process-promissory-deductions-daily` | `0 6 * * *` | **false** |
+| `partner-ops-automation-daily` | `0 7 * * *` | **false** |
+| `refresh-daily-stats` | `0 2 * * *` | **false** |
+| `vacancy-alerts-daily` | `0 9 * * *` | **false** |
+| `cleanup-old-system-events` | `0 3 * * *` | **false** |
+| `semrush-brand-tracker-weekly` / `weekly-database-backup` | weekly | true (stale by the >24h rule only — expected for weeklies) |
+
+**Healthy money-critical jobs (`succeeded`):** `deposit-bridge-worker-30s` (30s), `bridge-gap-alert-notify` & `deposit-bridge-gap-detector-5m` & `detect-deposit-guardrail-alerts` (5m), `auto-reject-unmatched-deposits` & `deposit-match-alert-notify` & `detect-credit-limit-drift-15min` & `detect-sms-verification-failures` (15m), `business-advance-stage-reminders` (30m), `daily-credit-charges` & `auto-charge-wallets-daily` & `auto-process-supporter-roi` (06:00), `daily-advance-deductions` (14:50), `auto-apply-pending-topups-6pm` (15:00), `agent-ops-daily-report-1800-eat`, `apply-scheduled-portfolio-renewals` (21:00), `daily-wallet-inflows-report` (21:00), `business-advance-daily-compounding` & `auto-close-fully-repaid-rents` (23:00), `apply-payroll-growth-daily` (00:00), `reconcile-agent-landlord-float` (`17 * * * *`). **[observed]**
+
+**Caveat:** `cron.schedule` upserts by name and several jobs were rescheduled across migrations (`expire-cash-deposit-codes`, `sweep-agent-advance-recovery`, `email-auto-create-deposits-24h`), so migrations alone under-represent the live fleet — the platform documents ~98 jobs while only ~33 `cron.schedule(` call sites exist in migrations, because cron `net.http_post` bodies embed project URLs/keys and are inserted directly rather than committed. **[observed]**
+
+## 19. Ranked Gap Register
+
+| # | Severity | Finding | Evidence | Suggested remedy |
+|---|---|---|---|---|
+| 1 | **P0** | `admin_reseed_wallet_cache` — SECURITY DEFINER, no role check, EXECUTE to `anon`+`authenticated`, defeats `enforce_wallet_ledger_only` and overwrites any wallet | §14.3 | `REVOKE EXECUTE FROM anon, authenticated`; add a `has_role(auth.uid(),'cfo'/'super_admin')` guard and an `audit_logs` write |
+| 2 | **P0** | `begin/end_wallet_accrual_lock` — no authz, PUBLIC EXECUTE, session-persistent `wallet.accrual_lock` freezes all wallet mutation | §14.3 | Revoke from PUBLIC; gate to cfo/manager; make the flag transaction-local |
+| 3 | **P1** | 6 finance crons `active=false` and stale: debt recovery, credit-limit recalc, agent liquidity, financial summaries, promissory deductions, partner-ops | §18 | Decide per job: re-enable or formally retire and delete the function |
+| 4 | **P1** | 6 `requisition_wallet_credits` stranded `failed` since 2026-07/08; approvals rolled back but never replayed | §11 | Run `requisition-credit-retry {recover_all:true}`; alert on `failed` age >24h |
+| 5 | **P1** | `ledger.bypass_guard` break-glass has no role check at its read site | §14.3 | Require a reason + role assertion in every setter; alert on `ledger_guard_bypass` audit rows |
+| 6 | **P1** | Approval *sequencing* is Edge-Function-only; `is_withdrawal_staff()` lets any staff row set any withdrawal status via PostgREST | §14.4 | Add a BEFORE UPDATE stage-transition trigger on `withdrawal_requests` |
+| 7 | **P1** | `process-debt-recovery` reads a non-existent `debt_recovery_cases`; `apply_layer_a_writedown` reads a non-existent `phantom_wallet_drift` | §7, §13 | Delete both, or create the tables — do not leave them presenting as live controls |
+| 8 | **P2** | Four duplicate bucket-move Edge Functions with divergent auth sets and categories | §8.2 | Consolidate on `finops-wallet-move`; make the others thin deprecating shims |
+| 9 | **P2** | Three inconsistent "finance staff" helpers; `financial_ops` cannot update `withdrawal_requests` | §14.1 | Collapse into one `is_finance_staff()` with an explicit matrix |
+| 10 | **P2** | `credit_draw_ledger` INSERT policy is `with_check = true` for any authenticated user | §14.2 | Restrict to service role / SECURITY DEFINER |
+| 11 | **P2** | `director-requisition-action` lacks the rollback that `requisition-decide` has | §11 | Port the snapshot/rollback block |
+| 12 | **P2** | 13 of 755 agents in LP float drift; the reconcile cron is **report-only** | §9.3 | Review the 13, then consider `p_apply=true` with a bounded delta |
+| 13 | **P2** | 106 unresolved `deposit_match_alerts`, 4 unresolved capability DLQ rows | §16 | Add an aging SLA + dashboard tile |
+| 14 | **P3** | Stale comments naming two dead writers (`apply_wallet_movement`, `sync_wallet_from_ledger`) as the cache authority | §5 | Correct comments to name `refresh_wallet_projection_for` |
+| 15 | **P3** | `agent_float_limits` (0 rows) and `hr_pay_advances` (0 rows) — built, unused | §9.2, §10 | Adopt or remove |
+| 16 | **P3** | `agent_daily_commission_reports` empty; `email_payout_match_attempts` empty despite a mounted panel | §16, §17 | Confirm the feeder job exists |
+| 17 | **P3** | `wallet_pivot_drift_view` and `v_pivot_drift` are duplicate 56,127-row views | §16 | Drop one |
+| 18 | **P3** | 56 failed `scheduled_payout_runs` (historical `Unauthorized`) never replayed or purged | §12 | Backfill or archive so the failure rate stops masking new faults |
+| 19 | **P3** | No DB `COMMENT` on any reconciliation object; `ledger.migration_bypass` vs `ledger.bypass_guard` naming trap | §14.3, §16 | Add comments; rename one GUC |
+
+---
+
+### Verification notes
+Written from six parallel read-only research passes plus direct `psql` verification of every number quoted. Items that could **not** be verified and remain open: the full line-by-line stage-transition logic inside `approve-withdrawal` (2,500+ lines, sampled only); the bodies of ~15 `credit_*` bonus functions; whether the "graduated" KYC carve-out is exploitable; and the portfolio-topup approval path, which appears only as a `system_events` enum value.
