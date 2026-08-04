@@ -29,6 +29,7 @@ import { RentDisbursementQueue } from '@/components/cfo/RentDisbursementQueue';
 import { BatchPayoutProcessor } from '@/components/cfo/BatchPayoutProcessor';
 import { LandlordFloatAllocationsPanel } from '@/components/cfo/LandlordFloatAllocationsPanel';
 import { WithdrawalHistoryStatement } from '@/components/financial-ops/WithdrawalHistoryStatement';
+import { StaleWithdrawalHoldsPanel } from '@/components/cfo/StaleWithdrawalHoldsPanel';
 import { AutoPayoutHistory } from '@/components/cfo/AutoPayoutHistory';
 import { DailyCashPositionReport } from '@/components/cfo/DailyCashPositionReport';
 import { RentPipelineQueue } from '@/components/executive/RentPipelineQueue';
@@ -238,6 +239,8 @@ export default function CFODashboardPage() {
         );
       case 'withdrawal-history':
         return <WithdrawalHistoryStatement />;
+      case 'withdrawal-reconciliation':
+        return <StaleWithdrawalHoldsPanel />;
       case 'financial-agents':
         return <FinancialAgentsPanel />;
       case 'cashout-agents':

@@ -5146,6 +5146,13 @@ export type Database = {
             foreignKeyName: "bulk_bank_payout_allocations_withdrawal_request_id_fkey"
             columns: ["withdrawal_request_id"]
             isOneToOne: true
+            referencedRelation: "v_withdrawal_holds_unbacked"
+            referencedColumns: ["withdrawal_id"]
+          },
+          {
+            foreignKeyName: "bulk_bank_payout_allocations_withdrawal_request_id_fkey"
+            columns: ["withdrawal_request_id"]
+            isOneToOne: true
             referencedRelation: "withdrawal_requests"
             referencedColumns: ["id"]
           },
@@ -6173,6 +6180,13 @@ export type Database = {
           withdrawal_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "cashout_claim_comments_withdrawal_id_fkey"
+            columns: ["withdrawal_id"]
+            isOneToOne: false
+            referencedRelation: "v_withdrawal_holds_unbacked"
+            referencedColumns: ["withdrawal_id"]
+          },
           {
             foreignKeyName: "cashout_claim_comments_withdrawal_id_fkey"
             columns: ["withdrawal_id"]
@@ -18981,6 +18995,13 @@ export type Database = {
             foreignKeyName: "payout_codes_withdrawal_request_id_fkey"
             columns: ["withdrawal_request_id"]
             isOneToOne: false
+            referencedRelation: "v_withdrawal_holds_unbacked"
+            referencedColumns: ["withdrawal_id"]
+          },
+          {
+            foreignKeyName: "payout_codes_withdrawal_request_id_fkey"
+            columns: ["withdrawal_request_id"]
+            isOneToOne: false
             referencedRelation: "withdrawal_requests"
             referencedColumns: ["id"]
           },
@@ -28452,6 +28473,156 @@ export type Database = {
         }
         Relationships: []
       }
+      withdrawal_hold_alerts: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          age_days: number
+          alert_type: string
+          amount: number
+          created_at: string
+          detected_at: string
+          hold_user_id: string | null
+          id: string
+          last_seen_at: string
+          metadata: Json
+          resolved_at: string | null
+          severity: string
+          status: string
+          updated_at: string
+          withdrawal_id: string
+          withdrawal_status: string | null
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          age_days?: number
+          alert_type: string
+          amount?: number
+          created_at?: string
+          detected_at?: string
+          hold_user_id?: string | null
+          id?: string
+          last_seen_at?: string
+          metadata?: Json
+          resolved_at?: string | null
+          severity?: string
+          status?: string
+          updated_at?: string
+          withdrawal_id: string
+          withdrawal_status?: string | null
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          age_days?: number
+          alert_type?: string
+          amount?: number
+          created_at?: string
+          detected_at?: string
+          hold_user_id?: string | null
+          id?: string
+          last_seen_at?: string
+          metadata?: Json
+          resolved_at?: string | null
+          severity?: string
+          status?: string
+          updated_at?: string
+          withdrawal_id?: string
+          withdrawal_status?: string | null
+        }
+        Relationships: []
+      }
+      withdrawal_hold_reconciliation_config: {
+        Row: {
+          auto_release_pre_anchor_holds: boolean
+          created_at: string
+          critical_after_days: number
+          enabled: boolean
+          id: string
+          stale_after_days: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          auto_release_pre_anchor_holds?: boolean
+          created_at?: string
+          critical_after_days?: number
+          enabled?: boolean
+          id?: string
+          stale_after_days?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          auto_release_pre_anchor_holds?: boolean
+          created_at?: string
+          critical_after_days?: number
+          enabled?: boolean
+          id?: string
+          stale_after_days?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      withdrawal_hold_reconciliations: {
+        Row: {
+          action: string
+          amount: number
+          created_at: string
+          decided_at: string
+          decided_by: string | null
+          hold_user_id: string
+          id: string
+          ledger_group_id: string | null
+          metadata: Json
+          new_status: string | null
+          payment_reference: string | null
+          previous_status: string | null
+          reason: string
+          withdrawable_after: number | null
+          withdrawable_before: number | null
+          withdrawal_id: string
+        }
+        Insert: {
+          action: string
+          amount: number
+          created_at?: string
+          decided_at?: string
+          decided_by?: string | null
+          hold_user_id: string
+          id?: string
+          ledger_group_id?: string | null
+          metadata?: Json
+          new_status?: string | null
+          payment_reference?: string | null
+          previous_status?: string | null
+          reason: string
+          withdrawable_after?: number | null
+          withdrawable_before?: number | null
+          withdrawal_id: string
+        }
+        Update: {
+          action?: string
+          amount?: number
+          created_at?: string
+          decided_at?: string
+          decided_by?: string | null
+          hold_user_id?: string
+          id?: string
+          ledger_group_id?: string | null
+          metadata?: Json
+          new_status?: string | null
+          payment_reference?: string | null
+          previous_status?: string | null
+          reason?: string
+          withdrawable_after?: number | null
+          withdrawable_before?: number | null
+          withdrawal_id?: string
+        }
+        Relationships: []
+      }
       withdrawal_notification_log: {
         Row: {
           amount: number
@@ -30004,6 +30175,30 @@ export type Database = {
         }
         Relationships: []
       }
+      v_withdrawal_holds_unbacked: {
+        Row: {
+          age_days: number | null
+          agent_id: string | null
+          amount: number | null
+          anchor_at: string | null
+          created_at: string | null
+          fin_ops_reference: string | null
+          hold_user_id: string | null
+          is_pre_anchor: boolean | null
+          mobile_money_name: string | null
+          mobile_money_number: string | null
+          mobile_money_provider: string | null
+          payout_method: string | null
+          proxy_partner_id: string | null
+          reason: string | null
+          requested_by: string | null
+          status: string | null
+          transaction_id: string | null
+          updated_at: string | null
+          withdrawal_id: string | null
+        }
+        Relationships: []
+      }
       vw_agent_ops_directory: {
         Row: {
           active_capability_count: number | null
@@ -30717,6 +30912,15 @@ export type Database = {
         Args: { p_cfo_note?: string; p_decision: string; p_request_id: string }
         Returns: Json
       }
+      cfo_reconcile_stale_withdrawal: {
+        Args: {
+          p_action: string
+          p_payment_reference?: string
+          p_reason: string
+          p_withdrawal_id: string
+        }
+        Returns: Json
+      }
       check_archived_account_by_email: {
         Args: { p_email: string }
         Returns: {
@@ -31228,6 +31432,7 @@ export type Database = {
       }
       detect_sms_failure_alerts: { Args: never; Returns: Json }
       detect_sms_verification_failures: { Args: never; Returns: Json }
+      detect_stale_withdrawal_holds: { Args: never; Returns: Json }
       detect_tenant_phone_near_duplicates: { Args: never; Returns: number }
       detect_velocity_abuse: {
         Args: { p_threshold?: number; p_window_minutes?: number }
@@ -32968,6 +33173,31 @@ export type Database = {
         Args: { p_hours?: number }
         Returns: Json
       }
+      get_stale_withdrawal_hold_queue: {
+        Args: { p_min_age_days?: number }
+        Returns: {
+          age_days: number
+          amount: number
+          anchor_at: string
+          created_at: string
+          full_name: string
+          hold_user_id: string
+          is_pre_anchor: boolean
+          ledger_debit_exists: boolean
+          mobile_money_name: string
+          mobile_money_number: string
+          mobile_money_provider: string
+          mobile_money_reference: string
+          payment_reference: string
+          phone: string
+          recommendation: string
+          severity: string
+          status: string
+          wallet_pending_holds: number
+          wallet_withdrawable: number
+          withdrawal_id: string
+        }[]
+      }
       get_subagent_leaderboard: {
         Args: { p_limit?: number; p_offset?: number; p_period?: string }
         Returns: {
@@ -33631,6 +33861,10 @@ export type Database = {
       is_tenant_locked: { Args: { _user_id: string }; Returns: boolean }
       is_tenant_ops_staff: { Args: { _uid: string }; Returns: boolean }
       is_welile_staff: { Args: { _user_id: string }; Returns: boolean }
+      is_withdrawal_hold_reviewer: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
       is_withdrawal_staff: { Args: { _user_id: string }; Returns: boolean }
       landlord_ops_bind_tenant_to_house: {
         Args: {

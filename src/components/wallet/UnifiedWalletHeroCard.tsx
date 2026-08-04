@@ -6,6 +6,7 @@ import { useCurrency } from '@/hooks/useCurrency';
 import { useAuth } from '@/hooks/useAuth';
 import { usePayrollGrowth } from '@/hooks/usePayrollGrowth';
 import { useAvailableBalance } from '@/hooks/useAvailableBalance';
+import { WalletHoldNotice } from '@/components/wallet/WalletHoldNotice';
 
 export type WalletRole = 'agent' | 'tenant' | 'supporter' | 'landlord';
 
@@ -302,6 +303,9 @@ export function UnifiedWalletHeroCard({
             </div>
           </button>
         )}
+
+        {/* Explains a suppressed available balance (pending withdrawal holds). */}
+        <WalletHoldNotice variant="hero" />
 
         {/* Supporter metric cards — individually tappable */}
         {role === 'supporter' && (
