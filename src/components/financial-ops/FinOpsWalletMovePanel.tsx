@@ -77,6 +77,12 @@ export function FinOpsWalletMovePanel() {
   // Float overdraft. Without this, the edge function refuses moves where the
   // amount only fills (or partly fills) a negative Float shortfall.
   const [acknowledgeOverdraft, setAcknowledgeOverdraft] = useState(false);
+  // TRUE float position from the raw wallet-scope ledger legs (can be negative).
+  // `wallets.float_balance` is a projection that never goes below 0, so it can
+  // never reveal an existing overdraft — this is the figure the backend
+  // overdraft guard actually uses.
+  const [floatNet, setFloatNet] = useState<number | null>(null);
+  const [floatNetLoading, setFloatNetLoading] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<MoveResult | null>(null);
@@ -166,6 +172,53 @@ export function FinOpsWalletMovePanel() {
     setTerm('');
   };
 
+  /**
+   * Compute the user's real float net exactly the way `admin-withdrawable-to-float`
+   * does: sum wallet-scope legs with `wallet_bucket='float'`, counting
+   * production/legacy legs plus admin-correction debits only.
+   */
+  useEffect(() => {
+    const needed = mode === 'same_user' && sameUserDir === 'withdrawable_to_float' && !!source;
+    if (!needed) {
+      setFloatNet(null);
+      setFloatNetLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setFloatNetLoading(true);
+    (async () => {
+      const { data, error } = await supabase
+        .from('general_ledger')
+        .select('amount, direction, category, classification')
+        .eq('user_id', source!.id)
+        .eq('ledger_scope', 'wallet')
+        .eq('wallet_bucket', 'float')
+        .limit(5000);
+      if (cancelled) return;
+      if (error || !Array.isArray(data)) {
+        setFloatNet(null);
+        setFloatNetLoading(false);
+        return;
+      }
+      let net = 0;
+      for (const r of data as Array<{
+        amount: number; direction: string; category: string; classification: string | null;
+      }>) {
+        const cls = r.classification;
+        const okCls =
+          cls === null || cls === 'production' ||
+          (cls === 'admin_correction' && r.category === 'system_balance_correction' &&
+            (r.direction === 'debit' || r.direction === 'cash_out'));
+        if (!okCls) continue;
+        const sign = r.direction === 'cash_in' || r.direction === 'credit' ? 1 : -1;
+        net += sign * Number(r.amount);
+      }
+      setFloatNet(net);
+      setFloatNetLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [mode, sameUserDir, source]);
+
   const amountNum = Number(amount.replace(/[, _]/g, ''));
   const sourceAvail = source
     ? sourceBucket === 'withdrawable'
@@ -177,8 +230,25 @@ export function FinOpsWalletMovePanel() {
   const wouldGoNegative = exceedsBalance; // sourceAvail - amountNum < 0
   const destOk =
     mode !== 'user_to_user' || (!!dest && dest.id !== source?.id);
+  // Overdraft state for same-user Withdrawable → Float.
+  const floatOverdrawn =
+    mode === 'same_user' && sameUserDir === 'withdrawable_to_float' &&
+    floatNet !== null && floatNet < 0;
+  const floatShortfall = floatOverdrawn ? Math.abs(floatNet as number) : 0;
+  // Visible float after the move: without acknowledgement the incoming amount is
+  // swallowed by the hidden hole, so visible float stays floored at 0.
+  const predictedVisibleFloat = floatOverdrawn
+    ? acknowledgeOverdraft
+      ? (source?.float_balance ?? 0) + (amountNum || 0)
+      : Math.max(0, (floatNet as number) + (amountNum || 0))
+    : (source?.float_balance ?? 0) + (amountNum || 0);
   const canSubmit =
-    !!source && destOk && validAmount && !exceedsBalance && reason.trim().length >= 10 && !submitting;
+    !!source && destOk && validAmount && !exceedsBalance && reason.trim().length >= 10 &&
+    !submitting && (!floatOverdrawn || acknowledgeOverdraft);
+  // Never let the operator submit a Withdrawable → Float move while the real
+  // float position is still being read.
+  const submitBlockedByFloatCheck =
+    mode === 'same_user' && sameUserDir === 'withdrawable_to_float' && floatNetLoading;
 
   const reset = () => {
     setSource(null);
@@ -189,6 +259,7 @@ export function FinOpsWalletMovePanel() {
     setTerm('');
     setPicking('source');
     setAcknowledgeOverdraft(false);
+    setFloatNet(null);
   };
 
   const submit = async () => {
@@ -269,6 +340,13 @@ export function FinOpsWalletMovePanel() {
       setSubmitting(false);
       setConfirmOpen(false);
       if (error || !data) {
+        // Backend overdraft guard (FLOAT_OVERDRAWN): surface the real shortfall
+        // and reveal the acknowledgement so the operator can retry in one step.
+        const m = /overdrawn by UGX\s*([\d,]+)/i.exec(error?.message || '');
+        if (m) {
+          const shortfall = Number(m[1].replace(/,/g, ''));
+          if (Number.isFinite(shortfall) && shortfall > 0) setFloatNet(-shortfall);
+        }
         setStep('idle');
         return;
       }
@@ -649,7 +727,11 @@ export function FinOpsWalletMovePanel() {
                     sameUserDir === 'float_to_withdrawable' ? (
                       <> · Withdrawable becomes: <span className="font-semibold text-foreground">{fmt(source.withdrawable_balance + amountNum)}</span></>
                     ) : (
-                      <> · Float becomes: <span className="font-semibold text-foreground">{fmt(source.float_balance + amountNum)}</span></>
+                      <> · Visible Float becomes: <span className="font-semibold text-foreground">{fmt(predictedVisibleFloat)}</span>
+                        {floatOverdrawn && !acknowledgeOverdraft && (
+                          <> (the move is absorbed by the {fmt(floatShortfall)} overdraft)</>
+                        )}
+                      </>
                     )
                   )}
                 </p>
@@ -666,24 +748,24 @@ export function FinOpsWalletMovePanel() {
                 className="mt-1"
               />
             </div>
-            {mode === 'same_user'
-              && sameUserDir === 'withdrawable_to_float'
-              && source.float_balance < 0 && (
+            {floatOverdrawn && (
                 <div className="rounded-lg border border-warning/40 bg-warning/10 p-3 space-y-2">
                   <div className="flex items-start gap-2 text-xs text-warning-foreground">
                     <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
                     <div>
                       <p className="font-semibold text-foreground">
-                        Float is overdrawn by {fmt(Math.abs(source.float_balance))}
+                        Float is overdrawn by {fmt(floatShortfall)}
                       </p>
                       <p className="text-muted-foreground mt-0.5">
+                        Past float usage exceeded recorded float deposits, so the wallet card shows
+                        Float {fmt(source.float_balance)} while the ledger position is negative.
                         On submit, the platform will first auto-fill the overdraft with a balanced
                         admin_correction entry (double-entry, hidden from the user's wallet history),
                         then move {fmt(amountNum || 0)} on top. Visible Float after move:{' '}
                         <span className="font-semibold text-foreground">
-                          {fmt(amountNum || 0)}
+                          {fmt(source.float_balance + (amountNum || 0))}
                         </span>
-                        .
+                        . Without this acknowledgement the move is rejected.
                       </p>
                     </div>
                   </div>
@@ -702,7 +784,11 @@ export function FinOpsWalletMovePanel() {
                   </label>
                 </div>
               )}
-            <Button onClick={() => setConfirmOpen(true)} disabled={!canSubmit} className="w-full gap-2">
+            <Button
+              onClick={() => setConfirmOpen(true)}
+              disabled={!canSubmit || submitBlockedByFloatCheck}
+              className="w-full gap-2"
+            >
               <ArrowRightLeft className="h-4 w-4" />
               {mode === 'user_to_user'
                 ? 'Move money'
