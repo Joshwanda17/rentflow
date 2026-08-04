@@ -18,6 +18,7 @@ import {
 import { CheckCircle2, XCircle, Clock, MapPin, User, UserCheck, Home, Banknote, ArrowRight, Loader2, Search, MessageCircle, Phone, Pencil, Check, X, PhoneCall, ShieldCheck, AlertCircle, Image as ImageIcon, Camera, Cloud, HardDrive, RotateCcw } from 'lucide-react';
 import { calculateRentRepayment } from '@/lib/rentCalculations';
 import { formatTenantSync } from '@/lib/tenantFilterSyncFormat';
+import { formatLocation, locationHaystack } from '@/lib/locationText';
 import { toast as sonnerToast } from 'sonner';
 import { format } from 'date-fns';
 import { AgentProximitySelector } from './AgentProximitySelector';
