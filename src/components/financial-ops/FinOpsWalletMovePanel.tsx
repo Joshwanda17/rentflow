@@ -335,6 +335,13 @@ export function FinOpsWalletMovePanel() {
       setSubmitting(false);
       setConfirmOpen(false);
       if (error || !data) {
+        // Backend overdraft guard (FLOAT_OVERDRAWN): surface the real shortfall
+        // and reveal the acknowledgement so the operator can retry in one step.
+        const m = /overdrawn by UGX\s*([\d,]+)/i.exec(error?.message || '');
+        if (m) {
+          const shortfall = Number(m[1].replace(/,/g, ''));
+          if (Number.isFinite(shortfall) && shortfall > 0) setFloatNet(-shortfall);
+        }
         setStep('idle');
         return;
       }
