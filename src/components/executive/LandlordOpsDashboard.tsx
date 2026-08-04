@@ -2982,7 +2982,7 @@ export function LandlordOpsDashboard() {
         {emptyLandlords.length > 0 && (
           <div className="rounded-xl border-2 border-destructive/30 p-3 flex items-start gap-3">
             <DoorOpen className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
-            <p className="text-sm font-semibold text-destructive">{emptyLandlords.length} empty — UGX {fmt(lostMonthlyRevenue)}/mo lost revenue</p>
+            <p className="text-sm font-semibold text-destructive">{emptyLandlords.length} empty — UGX {fmt(lostMonthlyRevenue ?? 0)}/mo lost revenue</p>
           </div>
         )}
         <DrilldownTable
