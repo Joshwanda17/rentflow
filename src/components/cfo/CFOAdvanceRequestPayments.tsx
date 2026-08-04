@@ -1349,6 +1349,14 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
       </Dialog>
 
       {/* Reject reason dialog — CFO must supply a reason. */}
+      <RejectAsDuplicateDialog
+        requestId={dupRejectReq?.id ?? null}
+        agentName={dupRejectReq?.profiles?.full_name}
+        dups={dupRejectReq?.agent_id ? cfoDuplicateMap[dupRejectReq.agent_id] : undefined}
+        onOpenChange={(open) => { if (!open) setDupRejectReq(null); }}
+        onDone={() => { setDupRejectReq(null); setEvalReq(null); }}
+      />
+
       <Dialog open={!!rejectingReq} onOpenChange={(open) => {
         if (!open) { setRejectingReq(null); setRejectReason(''); }
       }}>
