@@ -24566,6 +24566,57 @@ export type Database = {
           },
         ]
       }
+      subagent_tenant_transfers: {
+        Row: {
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_reason: string | null
+          from_sub_agent_id: string
+          id: string
+          parent_agent_id: string
+          reason: string
+          rent_request_id: string
+          requested_at: string
+          status: string
+          tenant_id: string | null
+          to_sub_agent_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_reason?: string | null
+          from_sub_agent_id: string
+          id?: string
+          parent_agent_id: string
+          reason: string
+          rent_request_id: string
+          requested_at?: string
+          status?: string
+          tenant_id?: string | null
+          to_sub_agent_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_reason?: string | null
+          from_sub_agent_id?: string
+          id?: string
+          parent_agent_id?: string
+          reason?: string
+          rent_request_id?: string
+          requested_at?: string
+          status?: string
+          tenant_id?: string | null
+          to_sub_agent_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       subscription_charge_logs: {
         Row: {
           amount_deducted: number
@@ -29724,6 +29775,10 @@ export type Database = {
         }
         Returns: Json
       }
+      agent_list_subagent_tenant_transfers: {
+        Args: { p_limit?: number }
+        Returns: Json
+      }
       agent_ops_directory_guard: { Args: never; Returns: string }
       agent_ops_qualifying_agent_ids: {
         Args: never
@@ -29756,8 +29811,20 @@ export type Database = {
         Args: { p_catalog_id: string; p_quantity: number }
         Returns: Json
       }
+      agent_request_subagent_tenant_transfer: {
+        Args: {
+          p_reason: string
+          p_rent_request_id: string
+          p_to_sub_agent_id: string
+        }
+        Returns: Json
+      }
       agent_respond_payment_edit: {
         Args: { p_edit_id: string; p_note?: string; p_response: string }
+        Returns: Json
+      }
+      agent_restore_subagent: {
+        Args: { p_reason: string; p_sub_agent_id: string }
         Returns: Json
       }
       agent_resubmit_rent_request: {
@@ -29895,6 +29962,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      agent_suspend_subagent: {
+        Args: { p_days: number; p_reason: string; p_sub_agent_id: string }
+        Returns: Json
       }
       agent_unallocate_tenant_payment: {
         Args: {
@@ -31399,6 +31470,7 @@ export type Database = {
           transaction_group: string
         }[]
       }
+      get_agent_service_center: { Args: never; Returns: Json }
       get_agent_split_balances: {
         Args: { p_agent_id: string }
         Returns: {
@@ -33289,6 +33361,10 @@ export type Database = {
         Returns: Json
       }
       ops_caller_is_ops: { Args: never; Returns: boolean }
+      ops_decide_subagent_tenant_transfer: {
+        Args: { p_approve: boolean; p_reason: string; p_transfer_id: string }
+        Returns: Json
+      }
       ops_edit_landlord_funding: {
         Args: {
           p_new_amount: number
@@ -33407,6 +33483,10 @@ export type Database = {
       }
       ops_link_user_to_agent: {
         Args: { p_agent_id: string; p_reason: string; p_user_id: string }
+        Returns: Json
+      }
+      ops_list_subagent_tenant_transfers: {
+        Args: { p_limit?: number; p_status?: string }
         Returns: Json
       }
       ops_query_tenants: {
