@@ -5,7 +5,6 @@ import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useOffline } from '@/contexts/OfflineContext';
 import { 
-  FileText,
   WifiOff,
   RefreshCw,
   BadgeCheck,
@@ -297,9 +296,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
 
   const handleViewWallet = () => { hapticTap(); setShowWallet(true); };
 
-  const menuItems = [
-    { icon: FileText, label: 'Request Rent', onClick: () => {} },
-  ];
+  const menuItems: never[] = [];
 
   return (
     <div className="h-[100dvh] bg-background flex flex-col overflow-hidden">
