@@ -61,6 +61,11 @@ const selectClass =
 
 const DASH = '—';
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Display fallback when an id has no matching profile. */
+const shortId = (id: string) => `${id.slice(0, 8)}…`;
+
 interface AuditRow {
   id: string;
   created_at: string | null;
@@ -150,6 +155,40 @@ export default function HRAudit() {
     if (!q) return logs;
     return logs.filter(l => (l.user_id || '').toLowerCase().includes(q));
   }, [logs, search]);
+
+  // Distinct, deduplicated ids referenced by the loaded rows (actors + targets).
+  const profileIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const l of logs) {
+      if (l.user_id && UUID_RE.test(l.user_id)) ids.add(l.user_id);
+      if (l.record_id && UUID_RE.test(l.record_id)) ids.add(l.record_id);
+    }
+    return Array.from(ids);
+  }, [logs]);
+
+  // Display-only name resolution. profiles holds 200k+ rows with per-row
+  // security: it is read in exactly this one place and only with an .in filter.
+  const { data: nameMap } = useQuery({
+    queryKey: ['hr-people-access-audit-names', profileIds],
+    enabled: profileIds.length > 0,
+    queryFn: async (): Promise<Record<string, string>> => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', profileIds);
+      if (error) throw error;
+      const map: Record<string, string> = {};
+      for (const p of data || []) {
+        if (p.id && p.full_name) map[p.id] = p.full_name;
+      }
+      return map;
+    },
+  });
+
+  const nameFor = (id?: string | null) => {
+    if (!id) return DASH;
+    return nameMap?.[id] || shortId(id);
+  };
 
   const toggle = (id: string) =>
     setExpanded(prev => {
@@ -245,14 +284,24 @@ export default function HRAudit() {
                       className="cursor-pointer"
                     >
                       <TableCell className="text-xs whitespace-nowrap">{shortWhen(log.created_at)}</TableCell>
-                      <TableCell className="text-xs font-mono">{text(log.user_id)}</TableCell>
+                      <TableCell className="text-xs">{nameFor(log.user_id)}</TableCell>
                       <TableCell className="text-xs">{readable(log.action_type)}</TableCell>
-                      <TableCell className="text-xs font-mono">{text(log.record_id)}</TableCell>
+                      <TableCell className="text-xs">{nameFor(log.record_id)}</TableCell>
                       <TableCell className="text-xs">{readable(log.table_name)}</TableCell>
                     </TableRow>
                     {isOpen && (
                       <TableRow className="bg-muted/40 hover:bg-muted/40">
                         <TableCell colSpan={5} className="text-xs">
+                          <div className="space-y-1">
+                            <p className="break-words">
+                              <span className="text-muted-foreground">Acting user id: </span>
+                              <span className="font-mono">{text(log.user_id)}</span>
+                            </p>
+                            <p className="break-words">
+                              <span className="text-muted-foreground">Target record id: </span>
+                              <span className="font-mono">{text(log.record_id)}</span>
+                            </p>
+                          </div>
                           {detailEntries.length === 0 ? (
                             <p className="text-muted-foreground">No further details recorded</p>
                           ) : (
