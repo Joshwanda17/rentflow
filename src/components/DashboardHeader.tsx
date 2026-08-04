@@ -208,13 +208,22 @@ const DashboardHeader = memo(function DashboardHeader({
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuItem
-                    onClick={() => navigate('/chat')}
+                    onClick={() => navigate('/your-profile')}
                     className="gap-3 cursor-pointer py-3 px-3 rounded-xl text-sm font-medium touch-manipulation"
                   >
                     <div className="p-1.5 rounded-lg bg-primary/10">
-                      <Globe className="h-4 w-4 text-primary" />
+                      <UserRound className="h-4 w-4 text-primary" />
                     </div>
-                    Messages
+                    Your Profile
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => navigate('/notifications')}
+                    className="gap-3 cursor-pointer py-3 px-3 rounded-xl text-sm font-medium touch-manipulation"
+                  >
+                    <div className="p-1.5 rounded-lg bg-primary/10">
+                      <Bell className="h-4 w-4 text-primary" />
+                    </div>
+                    Notifications
                   </DropdownMenuItem>
                   {currentRole === 'agent' && (
                     <DropdownMenuItem
