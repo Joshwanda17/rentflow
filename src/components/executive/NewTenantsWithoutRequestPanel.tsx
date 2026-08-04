@@ -4,7 +4,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { User, Phone, Search, UserPlus2, Calendar, AlertCircle, MapPin } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { User, Phone, Search, UserPlus2, Calendar, AlertCircle, MapPin, ChevronDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { formatLocation, locationHaystack } from '@/lib/locationText';
 
@@ -17,6 +18,7 @@ import { formatLocation, locationHaystack } from '@/lib/locationText';
  */
 export function NewTenantsWithoutRequestPanel() {
   const [search, setSearch] = useState('');
+  const [open, setOpen] = useState(false);
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['agent-ops-orphan-tenants'],
@@ -88,6 +90,10 @@ export function NewTenantsWithoutRequestPanel() {
 
   const q = search.toLowerCase().trim();
   const filtered = rows.filter(r => !q || r.search_text.includes(q));
+  const PREVIEW_COUNT = 3;
+  const visible = open ? filtered.slice(0, 50) : filtered.slice(0, PREVIEW_COUNT);
+  const agentCount = new Set(rows.map(r => r.agent_id).filter(Boolean)).size;
+  const districtCount = new Set(rows.map(r => r.tenant_district).filter(Boolean)).size;
 
   if (isLoading) {
     return (
@@ -106,6 +112,7 @@ export function NewTenantsWithoutRequestPanel() {
   return (
     <Card className="border-amber-300/60 bg-amber-50/40 dark:bg-amber-950/10">
       <CardContent className="p-3 space-y-3">
+      <Collapsible open={open} onOpenChange={setOpen} className="space-y-3">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-start gap-2 min-w-0">
             <div className="p-1.5 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-400 shrink-0">
@@ -124,6 +131,23 @@ export function NewTenantsWithoutRequestPanel() {
           <Badge variant="primary" size="sm">{rows.length}</Badge>
         </div>
 
+        {/* Always-visible summary stats */}
+        <div className="grid grid-cols-3 gap-2">
+          <div className="rounded-lg border border-border bg-card px-2 py-1.5">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Tenants</p>
+            <p className="text-sm font-bold">{rows.length}</p>
+          </div>
+          <div className="rounded-lg border border-border bg-card px-2 py-1.5">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Agents</p>
+            <p className="text-sm font-bold">{agentCount}</p>
+          </div>
+          <div className="rounded-lg border border-border bg-card px-2 py-1.5">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Districts</p>
+            <p className="text-sm font-bold">{districtCount}</p>
+          </div>
+        </div>
+
+        <CollapsibleContent className="space-y-3">
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
@@ -133,12 +157,13 @@ export function NewTenantsWithoutRequestPanel() {
             className="pl-8 h-8 text-xs bg-background"
           />
         </div>
+        </CollapsibleContent>
 
         {filtered.length === 0 ? (
           <p className="text-xs text-muted-foreground text-center py-2">No matches.</p>
         ) : (
-          <div className="space-y-2 max-h-[340px] overflow-y-auto pr-1">
-            {filtered.slice(0, 50).map(row => (
+          <div className={`space-y-2 pr-1 ${open ? 'max-h-[340px] overflow-y-auto' : ''}`}>
+            {visible.map(row => (
               <div
                 key={row.tenant_id}
                 className="rounded-lg border border-border bg-card p-2.5 flex items-start justify-between gap-2"
@@ -177,13 +202,21 @@ export function NewTenantsWithoutRequestPanel() {
                 </div>
               </div>
             ))}
-            {filtered.length > 50 && (
+            {open && filtered.length > 50 && (
               <p className="text-[10px] text-center text-muted-foreground pt-1">
                 Showing first 50 of {filtered.length}
               </p>
             )}
           </div>
         )}
+
+        {filtered.length > PREVIEW_COUNT && (
+          <CollapsibleTrigger className="flex w-full items-center justify-center gap-1.5 rounded-lg border bg-muted/30 px-3 py-2 text-xs font-semibold">
+            {open ? 'Show less' : `Open all ${filtered.length}`}
+            <ChevronDown className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
+          </CollapsibleTrigger>
+        )}
+      </Collapsible>
       </CardContent>
     </Card>
   );
