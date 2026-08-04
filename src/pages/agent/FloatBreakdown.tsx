@@ -381,7 +381,6 @@ export default function AgentFloatBreakdown() {
         'Dir',
         'Amount',
         'Signed',
-        'Running Bal.',
         'Run. Deposits',
         'Run. Used',
         'Run. Net',
@@ -398,7 +397,6 @@ export default function AgentFloatBreakdown() {
             r.direction === 'cash_in' ? 'IN' : 'OUT',
             formatAmount(Number(r.amount)),
             formatAmount(Number(r.signed_amount)),
-            formatAmount(Number(r.running_balance)),
             formatAmount(t.runDeposits),
             formatAmount(t.runUsed),
             formatAmount(t.runNet),
@@ -723,7 +721,6 @@ export default function AgentFloatBreakdown() {
               </div>
               <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
                 Each row is one float movement. <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Green +</span> adds to float, <span className="text-rose-600 dark:text-rose-400 font-semibold">red −</span> takes from float.
-                <span className="block mt-0.5"><span className="font-semibold">Bal:</span> your float balance immediately after that movement.</span>
               </p>
             </div>
             <ul className="divide-y">
@@ -758,9 +755,6 @@ export default function AgentFloatBreakdown() {
                           {new Date(r.occurred_at).toLocaleString('en-UG', { dateStyle: 'medium', timeStyle: 'short' })}
                         </p>
                         <div className="flex items-center gap-1">
-                          <p className="text-[10px] text-muted-foreground tabular-nums">
-                            Bal: {formatAmount(Number(r.running_balance))}
-                          </p>
                           <ChevronRight className="h-3 w-3 text-muted-foreground" />
                         </div>
                       </div>
