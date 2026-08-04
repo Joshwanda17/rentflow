@@ -92,14 +92,6 @@ export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: Full
     return () => window.clearTimeout(t);
   }, [open, scrollTarget]);
 
-  const fetchAllPendingCounts = useCallback(async () => {
-    if (!user) return;
-    const counts = await fetchPendingCounts(user.id);
-    setPendingCount(counts.moneyRequests);
-    setPendingDeposits(counts.deposits);
-    setPendingWithdrawals(counts.withdrawals);
-  }, [user]);
-
   // Check if the agent has proxy partners or proxy ROI entries. Custody v2
   // payouts can be approved directly to the partner wallet (target_wallet_user_id
   // is null/partner), so gating the tab only on old agent-wallet approvals hides
