@@ -63,6 +63,8 @@ import { format } from 'date-fns';
 import { toast as sonnerToast } from 'sonner';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
 import { generateLandlordOpsReportPdf } from '@/lib/generateLandlordOpsReportPdf';
+import { generateHouseVerificationReportPdf, type HouseReportRow } from '@/lib/generateHouseVerificationReportPdf';
+import { FileDown } from 'lucide-react';
 import { RentAdjustmentDialog } from './RentAdjustmentDialog';
 import { VacancyAnalytics } from './VacancyAnalytics';
 import { TenantMatchingQueue } from './landlord-ops/TenantMatchingQueue';
@@ -982,6 +984,54 @@ export function LandlordOpsDashboard() {
     ? new Date(new Date(verifyDateTo).getTime() + 24 * 60 * 60 * 1000 - 1).toISOString()
     : null;
   const serverSearchTerm = debouncedVerifySearch.length >= 2 ? debouncedVerifySearch : null;
+
+  /**
+   * Export a fully comprehensive PDF for exactly the filters on screen.
+   * Pulls a dedicated report payload (verifier/rejector names, reasons,
+   * location, GPS, payout details) from `ops_house_listing_report` instead of
+   * reusing the paginated queue rows, so the export is never a partial page.
+   */
+  const exportHouseReportPdf = async () => {
+    setExportingHouseReport(true);
+    try {
+      const { data, error } = await (supabase.rpc as any)('ops_house_listing_report', {
+        p_status: houseStatusFilter,
+        p_search: serverSearchTerm,
+        p_date_from: verifyDateFromIso,
+        p_date_to: verifyDateToIso,
+        p_quick: verifyFilter,
+        p_limit: 10000,
+      });
+      if (error) throw error;
+      const reportRows = ((data || []) as any[]).map(r => (r.row ?? r) as HouseReportRow);
+      if (!reportRows.length) {
+        sonnerToast.error('No houses match these filters — nothing to export');
+        return;
+      }
+      const blob = generateHouseVerificationReportPdf(reportRows, {
+        scope: houseStatusFilter,
+        quickFilter: verifyFilter,
+        search: serverSearchTerm,
+        dateFrom: verifyDateFromIso,
+        dateTo: verifyDateToIso,
+        totalMatches: totalFiltered,
+        generatedBy: user?.email ?? null,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `welile-houses-${houseStatusFilter}-${format(new Date(), 'yyyy-MM-dd-HHmm')}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      sonnerToast.success(`${SCOPE_LABEL[houseStatusFilter]} report downloaded (${reportRows.length.toLocaleString()} houses)`);
+    } catch (err: any) {
+      sonnerToast.error(err?.message || 'Failed to generate the house report');
+    } finally {
+      setExportingHouseReport(false);
+    }
+  };
 
   const {
     data: houseSearchPages,
