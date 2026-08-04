@@ -232,7 +232,8 @@ export default function FinancialStatement() {
   const handleDownloadCSV = () => {
     if (entries.length === 0) { toast.error('No entries to export'); return; }
     exportToCSV({
-      headers: ['Date', 'Category', 'Description', 'Reference', 'Credit (UGX)', 'Debit (UGX)', 'Balance (UGX)'],
+      // Running balance is internal-only and is not exported to users.
+      headers: ['Date', 'Category', 'Description', 'Reference', 'Credit (UGX)', 'Debit (UGX)'],
       rows: entries.map(e => [
         format(new Date(e.date), 'yyyy-MM-dd HH:mm'),
         e.category,
@@ -240,7 +241,6 @@ export default function FinancialStatement() {
         e.reference,
         e.type === 'credit' ? e.amount : '',
         e.type === 'debit' ? e.amount : '',
-        e.runningBalance ?? '',
       ]),
     }, `welile-statement-${userName.replace(/\s+/g, '_')}`);
     toast.success('Statement exported as CSV');
@@ -405,7 +405,6 @@ export default function FinancialStatement() {
                           <th className="text-left py-2.5 px-4 font-medium text-muted-foreground">Reference</th>
                           <th className="text-right py-2.5 px-4 font-medium text-muted-foreground">Credit</th>
                           <th className="text-right py-2.5 px-4 font-medium text-muted-foreground">Debit</th>
-                          <th className="text-right py-2.5 px-4 font-medium text-muted-foreground">Balance</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -427,7 +426,6 @@ export default function FinancialStatement() {
                             <td className="py-2.5 px-4 text-right text-destructive font-medium">
                               {entry.type === 'debit' ? formatCurrency(entry.amount) : ''}
                             </td>
-                            <td className="py-2.5 px-4 text-right font-semibold">{formatCurrency(entry.runningBalance ?? 0)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -436,7 +434,6 @@ export default function FinancialStatement() {
                           <td colSpan={4} className="py-2.5 px-4">Totals</td>
                           <td className="py-2.5 px-4 text-right text-green-600">{formatCurrency(totalCredits)}</td>
                           <td className="py-2.5 px-4 text-right text-destructive">{formatCurrency(totalDebits)}</td>
-                          <td className="py-2.5 px-4 text-right">{formatCurrency(totalCredits - totalDebits)}</td>
                         </tr>
                       </tfoot>
                     </table>
@@ -464,7 +461,6 @@ export default function FinancialStatement() {
                           <p className={`font-semibold text-sm ${entry.type === 'credit' ? 'text-green-600' : 'text-destructive'}`}>
                             {entry.type === 'credit' ? '+' : '-'}{formatCurrency(entry.amount)}
                           </p>
-                          <p className="text-xs text-muted-foreground">Bal: {formatCurrency(entry.runningBalance ?? 0)}</p>
                         </div>
                       </div>
                     ))}
