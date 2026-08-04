@@ -41,7 +41,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { formatUGX } from '@/lib/currency';
+import { formatUGX } from '@/lib/rentCalculations';
 
 interface StaleHoldRow {
   withdrawal_id: string;
