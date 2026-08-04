@@ -18,7 +18,6 @@ import {
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
-type EntityType = 'landlord' | 'lc1';
 type StatusFilter = 'pending' | 'rejected' | 'verified' | 'all';
 type Status = 'pending' | 'verified' | 'rejected';
 
@@ -43,10 +42,16 @@ function StatusBadge({ status }: { status: Status }) {
 
 const PAGE = 50;
 
+/**
+ * Landlord residence & GPS verification only.
+ *
+ * LC1 chairperson moderation was removed here (2026-08-04): every LC1 request
+ * now flows through the single inbox (`Lc1VerificationInboxPanel`) so no queue
+ * can hold LC1 items in parallel.
+ */
 export function ResidenceVerificationPanel() {
   const { user } = useAuth();
   const qc = useQueryClient();
-  const [entity, setEntity] = useState<EntityType>('landlord');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('pending');
   const [search, setSearch] = useState('');
   const [debounced, setDebounced] = useState('');
@@ -63,15 +68,13 @@ export function ResidenceVerificationPanel() {
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const queryKey = ['residence-verification', entity, statusFilter, debounced];
+  const entity = 'landlord' as const;
+  const queryKey = ['residence-verification', 'landlord', statusFilter, debounced];
   const { data: rows = [], isLoading } = useQuery({
     queryKey,
     queryFn: async () => {
-      const table = entity === 'landlord' ? 'landlords' : 'lc1_chairpersons';
-      const cols = entity === 'landlord'
-        ? 'id, name, phone, village, district, verification_status, verification_reason, latitude, longitude, property_address'
-        : 'id, name, phone, village, district, verification_status, verification_reason';
-      let q = supabase.from(table).select(cols);
+      let q = supabase.from('landlords')
+        .select('id, name, phone, village, district, verification_status, verification_reason, latitude, longitude, property_address');
       if (statusFilter !== 'all') q = q.eq('verification_status', statusFilter);
       if (debounced.length >= 2) {
         const digits = debounced.replace(/\D/g, '');
@@ -95,15 +98,15 @@ export function ResidenceVerificationPanel() {
     if (!target || !user) return;
     if (reason.trim().length < 10) { toast.error('Reason must be at least 10 characters'); return; }
     setSaving(true);
-    const rpc = entity === 'landlord' ? 'set_landlord_verification' : 'set_lc1_verification';
-    const idArg = entity === 'landlord' ? { p_landlord_id: target.id } : { p_lc1_id: target.id };
-    const { data: rpcData, error } = await supabase.rpc(rpc as any, { ...idArg, p_status: newStatus, p_reason: reason.trim() } as any);
+    const { data: rpcData, error } = await supabase.rpc('set_landlord_verification' as any, {
+      p_landlord_id: target.id, p_status: newStatus, p_reason: reason.trim(),
+    } as any);
     setSaving(false);
     if (error) { toast.error(error.message || 'Could not update status'); return; }
     const result = (rpcData ?? {}) as { agent_id?: string | null; agent_charged?: boolean; charge_amount?: number };
     const charged = !!result.agent_charged && (result.charge_amount ?? 0) > 0;
     toast.success(
-      `${entity === 'landlord' ? 'Landlord' : 'LC1'} set to ${newStatus}` +
+      `Landlord set to ${newStatus}` +
         (charged ? ` — UGX ${result.charge_amount!.toLocaleString()} penalty charged to registering agent` : '')
     );
     // Fire optional email/SMS alerts to linked borrowers (best-effort).
@@ -115,7 +118,7 @@ export function ResidenceVerificationPanel() {
     // rejection UX). The RPC already charged UGX 2,000 to their wallet and
     // wrote an in-app notification; this alerts them on their device.
     if (newStatus === 'rejected' && result.agent_id) {
-      const noun = entity === 'landlord' ? 'Landlord' : 'LC1 chairperson';
+      const noun = 'Landlord';
       const body =
         `The ${noun.toLowerCase()} "${target.name}" you registered was rejected. ` +
         `Reason: ${reason.trim()}.` +
@@ -146,26 +149,9 @@ export function ResidenceVerificationPanel() {
             <ShieldCheck className="h-[18px] w-[18px] text-amber-600" />
           </div>
           <div>
-            <p className="font-semibold text-sm leading-tight">GPS & LC1 Verification</p>
-            <p className="text-[11px] text-muted-foreground leading-snug">Set landlord GPS & LC1 chairperson status — a reason is required</p>
+            <p className="font-semibold text-sm leading-tight">Landlord GPS Verification</p>
+            <p className="text-[11px] text-muted-foreground leading-snug">Set landlord residence &amp; GPS status — a reason is required</p>
           </div>
-        </div>
-
-        {/* Entity toggle */}
-        <div className="grid grid-cols-2 gap-2">
-          {(['landlord', 'lc1'] as EntityType[]).map((e) => (
-            <button
-              key={e}
-              onClick={() => setEntity(e)}
-              className={cn(
-                'flex items-center justify-center gap-1.5 h-10 rounded-xl border text-xs font-bold transition-colors',
-                entity === e ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-border text-muted-foreground',
-              )}
-            >
-              {e === 'landlord' ? <Building2 className="h-4 w-4" /> : <Gavel className="h-4 w-4" />}
-              {e === 'landlord' ? 'Landlord GPS' : 'LC1 Chairpersons'}
-            </button>
-          ))}
         </div>
 
         {/* Status filter chips */}
