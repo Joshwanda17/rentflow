@@ -160,3 +160,19 @@ export function useRequestTenantTransfer() {
     onSuccess: invalidate,
   });
 }
+
+/** Break the parent ↔ sub-agent relationship (archived server-side, reason required). */
+export function useUnlinkSubAgent() {
+  const invalidate = useInvalidateServiceCenter();
+  return useMutation({
+    mutationFn: async (vars: { subAgentId: string; reason: string }) => {
+      const { data, error } = await db.rpc('agent_unlink_subagent', {
+        p_sub_agent_id: vars.subAgentId,
+        p_reason: vars.reason,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: invalidate,
+  });
+}

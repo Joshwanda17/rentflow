@@ -31014,6 +31014,10 @@ export type Database = {
         }
         Returns: Json
       }
+      agent_unlink_subagent: {
+        Args: { p_reason: string; p_sub_agent_id: string }
+        Returns: Json
+      }
       apply_advance_topup: {
         Args: {
           p_advance_id: string

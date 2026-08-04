@@ -19,6 +19,7 @@ import { SubAgentDetailSheet } from '@/components/agent/service-center/SubAgentD
 import {
   SuspendSubAgentDialog,
   TransferTenantDialog,
+  UnlinkSubAgentDialog,
 } from '@/components/agent/service-center/SubAgentActionDialogs';
 
 export default function AgentServiceCenter() {
@@ -31,6 +32,8 @@ export default function AgentServiceCenter() {
   const [visible, setVisible] = useState(20);
   const [suspendTarget, setSuspendTarget] = useState<ServiceCenterSubAgent | null>(null);
   const [transferTarget, setTransferTarget] = useState<ServiceCenterSubAgent | null>(null);
+  const [transferRentRequestId, setTransferRentRequestId] = useState<string | null>(null);
+  const [unlinkTarget, setUnlinkTarget] = useState<ServiceCenterSubAgent | null>(null);
   const [detailTarget, setDetailTarget] = useState<ServiceCenterSubAgent | null>(null);
 
   const subAgents = data?.sub_agents ?? [];
@@ -198,7 +201,12 @@ export default function AgentServiceCenter() {
         open={!!detailTarget}
         onOpenChange={(v) => !v && setDetailTarget(null)}
         onSuspend={(s) => { setDetailTarget(null); setSuspendTarget(s); }}
-        onTransfer={(s) => { setDetailTarget(null); setTransferTarget(s); }}
+        onTransfer={(s, rentRequestId) => {
+          setDetailTarget(null);
+          setTransferRentRequestId(rentRequestId);
+          setTransferTarget(s);
+        }}
+        onUnlink={(s) => { setDetailTarget(null); setUnlinkTarget(s); }}
       />
       <SuspendSubAgentDialog
         subAgent={suspendTarget}
@@ -209,7 +217,13 @@ export default function AgentServiceCenter() {
         subAgent={transferTarget}
         peers={subAgents}
         open={!!transferTarget}
-        onOpenChange={(v) => !v && setTransferTarget(null)}
+        presetRentRequestId={transferRentRequestId}
+        onOpenChange={(v) => { if (!v) { setTransferTarget(null); setTransferRentRequestId(null); } }}
+      />
+      <UnlinkSubAgentDialog
+        subAgent={unlinkTarget}
+        open={!!unlinkTarget}
+        onOpenChange={(v) => !v && setUnlinkTarget(null)}
       />
     </div>
   );

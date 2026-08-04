@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
-  ArrowLeftRight, Home, Mail, Phone, ShieldCheck, ShieldOff, Users, Wallet,
+  ArrowLeftRight, Home, Mail, Phone, ShieldCheck, ShieldOff, Unlink, Users, Wallet,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { ServiceCenterSubAgent } from '@/hooks/useAgentServiceCenter';
@@ -41,12 +41,14 @@ export function SubAgentDetailSheet({
   onOpenChange,
   onSuspend,
   onTransfer,
+  onUnlink,
 }: {
   subAgent: ServiceCenterSubAgent | null;
   open: boolean;
   onOpenChange: (v: boolean) => void;
   onSuspend: (s: ServiceCenterSubAgent) => void;
-  onTransfer: (s: ServiceCenterSubAgent) => void;
+  onTransfer: (s: ServiceCenterSubAgent, rentRequestId: string) => void;
+  onUnlink: (s: ServiceCenterSubAgent) => void;
 }) {
   if (!subAgent) return null;
 
@@ -150,20 +152,32 @@ export function SubAgentDetailSheet({
                 <ul className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border/60">
                   {subAgent.tenant_list.map((t) => (
                     <li key={t.rent_request_id} className="flex items-center justify-between gap-2 px-3 py-2.5">
-                      <span className="truncate text-sm font-medium text-foreground">
-                        {t.tenant_name ?? 'Unnamed tenant'}
-                      </span>
-                      <span className="flex shrink-0 items-center gap-2 text-xs">
-                        <span className="font-semibold text-foreground">
-                          {t.monthly_rent ? formatUGX(t.monthly_rent) : '—'}
-                        </span>
-                        <Badge
-                          variant={t.is_active ? 'default' : 'outline'}
-                          className="text-[10px] capitalize"
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-medium text-foreground">
+                          {t.tenant_name ?? 'Unnamed tenant'}
+                        </div>
+                        <div className="mt-0.5 flex items-center gap-2 text-xs">
+                          <span className="font-semibold text-foreground">
+                            {t.monthly_rent ? formatUGX(t.monthly_rent) : '—'}
+                          </span>
+                          <Badge
+                            variant={t.is_active ? 'default' : 'outline'}
+                            className="text-[10px] capitalize"
+                          >
+                            {t.status.replace(/_/g, ' ')}
+                          </Badge>
+                        </div>
+                      </div>
+                      {t.is_active && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="shrink-0"
+                          onClick={() => onTransfer(subAgent, t.rent_request_id)}
                         >
-                          {t.status.replace(/_/g, ' ')}
-                        </Badge>
-                      </span>
+                          <ArrowLeftRight className="mr-1.5 h-3.5 w-3.5" /> Transfer
+                        </Button>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -180,10 +194,9 @@ export function SubAgentDetailSheet({
               <Button
                 variant="outline"
                 className="flex-1"
-                onClick={() => onTransfer(subAgent)}
-                disabled={!subAgent.tenant_list.some((t) => t.is_active)}
+                onClick={() => onUnlink(subAgent)}
               >
-                <ArrowLeftRight className="mr-1.5 h-4 w-4" /> Transfer tenant
+                <Unlink className="mr-1.5 h-4 w-4" /> Unlink sub-agent
               </Button>
               <Button
                 variant={suspended ? 'secondary' : 'destructive'}
