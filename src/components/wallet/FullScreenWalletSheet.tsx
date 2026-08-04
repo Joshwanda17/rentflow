@@ -133,12 +133,6 @@ export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: Full
     { sent: 0, received: 0 }
   );
 
-
-  const netAmount = recentStats.received - recentStats.sent;
-  const currentMonth = format(new Date(), 'MMMM yyyy');
-  const spentGoal = 500000; // Example goal
-  const spentPercent = spentGoal > 0 ? Math.min((recentStats.sent / spentGoal) * 100, 100) : 0;
-
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
