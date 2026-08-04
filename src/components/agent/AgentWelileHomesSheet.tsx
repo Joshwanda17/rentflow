@@ -199,6 +199,17 @@ export function AgentWelileHomesSheet({ open, onOpenChange }: AgentWelileHomesSh
   const [receivablePeriod, setReceivablePeriod] = useState<'monthly' | 'yearly'>('yearly');
   const monthlyReceivable = subs.reduce((a, s) => a + (Number(s.monthly_rent) || 0), 0);
   const pendingConfirmation = subs.filter((s) => !getEnrollStatus(s).ready).length;
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [listQuery, setListQuery] = useState('');
+  const visibleSubs = (() => {
+    const q = listQuery.trim().toLowerCase();
+    if (!q) return subs;
+    return subs.filter((s) =>
+      (s.tenant_name ?? '').toLowerCase().includes(q) ||
+      (s.tenant_phone ?? '').toLowerCase().includes(q) ||
+      (s.landlord_name ?? '').toLowerCase().includes(q),
+    );
+  })();
 
   return (
     <>
@@ -259,9 +270,32 @@ export function AgentWelileHomesSheet({ open, onOpenChange }: AgentWelileHomesSh
               </div>
             )}
 
-            <Button className="w-full gap-2" onClick={() => setEnrollOpen(true)}>
-              <Plus className="h-4 w-4" /> Enroll a tenant
-            </Button>
+            <div className="flex gap-2">
+              <Button className="flex-1 gap-2" onClick={() => setEnrollOpen(true)}>
+                <Plus className="h-4 w-4" /> Enroll a tenant
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                aria-label="Search enrolled tenants"
+                onClick={() => { setSearchOpen((v) => !v); if (searchOpen) setListQuery(''); }}
+              >
+                <Search className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {searchOpen && (
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  autoFocus
+                  value={listQuery}
+                  onChange={(e) => setListQuery(e.target.value)}
+                  placeholder="Search by landlord, tenant or phone number"
+                  className="h-9 pl-8 text-sm"
+                />
+              </div>
+            )}
 
             {loading ? (
               <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
@@ -269,9 +303,13 @@ export function AgentWelileHomesSheet({ open, onOpenChange }: AgentWelileHomesSh
               <div className="text-center py-10 text-sm text-muted-foreground">
                 No Welile Homes tenants yet. Enroll a tenant to start earning 2% on their monthly rent.
               </div>
+            ) : visibleSubs.length === 0 ? (
+              <div className="text-center py-10 text-sm text-muted-foreground">
+                No match for "{listQuery}".
+              </div>
             ) : (
               <div className="space-y-2.5">
-                {subs.map((s) => (
+                {visibleSubs.map((s) => (
                   <Card key={s.id}>
                     <CardContent className="p-3 space-y-2">
                       <div className="flex items-start justify-between gap-2">
