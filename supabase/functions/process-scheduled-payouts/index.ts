@@ -93,12 +93,24 @@ Deno.serve(async (req) => {
   try {
     const now = new Date();
 
+    // Optional scoping: `{ "payout_id": "<uuid>" }` restricts this run to a
+    // single standing order. Used for targeted restorations so no other
+    // scheduled payout is executed.
+    let onlyPayoutId: string | null = null;
+    try {
+      const body = req.method === "POST" ? await req.json() : null;
+      const pid = body?.payout_id;
+      if (typeof pid === "string" && /^[0-9a-f-]{36}$/i.test(pid)) onlyPayoutId = pid;
+    } catch (_) { /* no body -> full scheduled sweep */ }
+
     // Find all enabled scheduled payouts where next_run_at <= now
-    const { data: duePays, error: fetchErr } = await adminClient
+    let dueQuery = adminClient
       .from("scheduled_payouts")
       .select("*")
       .eq("enabled", true)
       .lte("next_run_at", now.toISOString());
+    if (onlyPayoutId) dueQuery = dueQuery.eq("id", onlyPayoutId);
+    const { data: duePays, error: fetchErr } = await dueQuery;
 
     if (fetchErr) {
       console.error("[process-scheduled-payouts] Fetch error:", fetchErr.message);
@@ -116,10 +128,31 @@ Deno.serve(async (req) => {
 
     for (const payout of duePays) {
       try {
+        // ── Per-cycle idempotency ────────────────────────────────────────
+        // A cycle is identified by its scheduled next_run_at. If a successful
+        // run already exists at/after that timestamp, the cycle is paid and
+        // must never be credited twice (e.g. on a manual re-trigger).
+        const { data: alreadyPaid } = await adminClient
+          .from("scheduled_payout_runs")
+          .select("id")
+          .eq("scheduled_payout_id", payout.id)
+          .eq("status", "success")
+          .gte("ran_at", payout.next_run_at)
+          .maybeSingle();
+        if (alreadyPaid) {
+          console.log(`[process-scheduled-payouts] cycle already paid for ${payout.id}, skipping`);
+          const skipNext = computeNextRun(new Date(payout.next_run_at), payout);
+          await adminClient.from("scheduled_payouts")
+            .update({ next_run_at: skipNext.toISOString() })
+            .eq("id", payout.id);
+          continue;
+        }
+
         // Look up category config to get wallet/platform categories
         const catMap: Record<string, { walletCat: string; platformCat: string; impact: string }> = {
           roi_payout: { walletCat: 'roi_wallet_credit', platformCat: 'roi_expense', impact: 'expense' },
           agent_commission: { walletCat: 'agent_commission_earned', platformCat: 'agent_commission_earned', impact: 'expense' },
+          payroll: { walletCat: 'salary_payout', platformCat: 'payroll_expense', impact: 'expense' },
           marketing_expenses: { walletCat: 'system_balance_correction', platformCat: 'system_balance_correction', impact: 'expense' },
           research_development: { walletCat: 'system_balance_correction', platformCat: 'system_balance_correction', impact: 'expense' },
           operational_expense: { walletCat: 'system_balance_correction', platformCat: 'system_balance_correction', impact: 'expense' },
@@ -146,10 +179,14 @@ Deno.serve(async (req) => {
             "Authorization": `Bearer ${serviceKey}`,
           },
           body: JSON.stringify({
+            // Server-to-server call: cfo-direct-credit only accepts the
+            // service-role bearer when this flag is present.
+            system_requisition_credit: true,
             target_user_id: payout.target_user_id,
             amount: Number(payout.amount),
             reason: `[Automated] ${payout.reason}${subLabel}`,
             operation: 'credit',
+            recipient_type: 'user',
             wallet_category: catConfig.walletCat,
             platform_category: catConfig.platformCat,
             financial_impact: catConfig.impact,
