@@ -15,7 +15,7 @@ interface CreditAccessCardProps {
   compact?: boolean;
 }
 
-const MAX_LIMIT = 30_000_000;
+const MAX_LIMIT = 9_000_000;
 const MIN_LIMIT = 30_000;
 
 export function CreditAccessCard({ userId, showBreakdown = true, compact = false }: CreditAccessCardProps) {
@@ -73,7 +73,7 @@ export function CreditAccessCard({ userId, showBreakdown = true, compact = false
               {/* Motivational goal banner */}
               <div className="rounded-lg bg-success/10 border border-success/20 px-2.5 py-2 text-center">
                 <p className="text-[10px] text-muted-foreground">🎯 Your goal</p>
-                <p className="text-lg font-black text-success leading-tight">UGX 30,000,000</p>
+                <p className="text-lg font-black text-success leading-tight">UGX 9,000,000</p>
                 <p className="text-[9px] text-muted-foreground mt-0.5">
                   {remainingToMax > 0 
                     ? `${formatCreditAmount(remainingToMax, 'UGX')} more to unlock — pay on time!`

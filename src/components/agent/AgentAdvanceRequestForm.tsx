@@ -162,17 +162,17 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
     enabled: !!user?.id && open,
   });
   const allocBonus = limit?.bonusFromAgentAllocations || 0;
-  const BASE_LIMIT = 30_000;
-  const HARD_CAP = 30_000_000;
+  const BASE_LIMIT = 20_000;
+  const HARD_CAP = 9_000_000;
 
   // What actually raises an agent's advance limit, biggest driver first.
   // Sub-agents are ~70% of the limit; rent collection is significant; houses
   // listed and tenant rent requests each add on top.
   const breakdown = [
-    { key: 'subagents', label: 'Active sub-agents', value: limit?.bonusFromSubagents || 0, source: 'biggest driver — +1.5M per active sub-agent (up to 21M)' },
-    { key: 'collection', label: 'Rent you collect', value: allocBonus, source: 'half of the rent you collect (up to 6M)' },
-    { key: 'houses', label: 'Houses listed', value: limit?.bonusFromHousesListed || 0, source: '+100K per listing (up to 2.25M)' },
-    { key: 'rentRequests', label: 'Tenant rent requests', value: limit?.bonusFromRentHistory || 0, source: '+150K per rent request you raise (up to 2.25M)' },
+    { key: 'subagents', label: 'Active sub-agents', value: limit?.bonusFromSubagents || 0, source: 'biggest driver — +30,000 per active sub-agent (up to 3M)' },
+    { key: 'collection', label: 'Rent you collect', value: allocBonus, source: '6% of the rent you collect (up to 2.4M)' },
+    { key: 'rentRequests', label: 'Tenant rent requests', value: limit?.bonusFromRentHistory || 0, source: '+9,000 per rent request you raise (up to 1.5M)' },
+    { key: 'promissory', label: 'Promissory notes', value: limit?.bonusFromPartnersOnboarded || 0, source: '+9,000 per activated note (up to 600K)' },
     { key: 'base', label: 'Starter base', value: BASE_LIMIT, source: 'every agent starts here' },
   ];
   const breakdownSum = breakdown.reduce((s, b) => s + b.value, 0);
@@ -462,11 +462,11 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
             </div>
             <p className="mt-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">You can access now</p>
             <p className="mt-1 text-3xl font-black leading-none text-primary whitespace-pre-line">
-              {formatCreditAmount(limit?.totalLimit || 30000)}
+              {formatCreditAmount(limit?.totalLimit || 20000)}
             </p>
             <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-bold text-primary">
               <TrendingUp className="h-3.5 w-3.5" strokeWidth={2.4} />
-              Grow up to UGX 30,000,000 as you perform better
+              Grow up to UGX 9,000,000 as you perform better
             </div>
             <p className="mt-2 text-[13px] font-medium text-foreground leading-snug">
               Cash straight to your wallet · repay over up to 12 months. Clear it early to unlock a bigger advance.
