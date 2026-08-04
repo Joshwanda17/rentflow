@@ -455,6 +455,10 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
         toast.error(msg.replace(/^.*DUPLICATE_ACCOUNT_BLOCKED:\s*/, ''), { duration: 10000 });
         return;
       }
+      if (msg.includes('ADVANCE_NO_ACTIVITY')) {
+        toast.error(msg.replace(/^.*ADVANCE_NO_ACTIVITY:\s*/, ''), { duration: 12000 });
+        return;
+      }
       toast.error(msg);
     },
   });
