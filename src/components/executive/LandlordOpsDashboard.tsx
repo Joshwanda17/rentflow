@@ -64,6 +64,7 @@ import { toast as sonnerToast } from 'sonner';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
 import { generateLandlordOpsReportPdf } from '@/lib/generateLandlordOpsReportPdf';
 import { generateHouseVerificationReportPdf, type HouseReportRow } from '@/lib/generateHouseVerificationReportPdf';
+import { generateLc1VerificationReportPdf, lc1ReportFileName, type Lc1ReportRow } from '@/lib/generateLc1VerificationReportPdf';
 import { FileDown } from 'lucide-react';
 import { RentAdjustmentDialog } from './RentAdjustmentDialog';
 import { VacancyAnalytics } from './VacancyAnalytics';
@@ -2726,9 +2727,9 @@ export function LandlordOpsDashboard() {
         a.download = lc1ReportFileName(scope);
         a.click();
         URL.revokeObjectURL(url);
-        toast.success(`${reportRows.length.toLocaleString()} LC1 chairpersons exported`);
+        sonnerToast.success(`${reportRows.length.toLocaleString()} LC1 chairpersons exported`);
       } catch (e: any) {
-        toast.error(e?.message || 'Could not build the LC1 report');
+        sonnerToast.error(e?.message || 'Could not build the LC1 report');
       } finally {
         setLc1Exporting(false);
       }
