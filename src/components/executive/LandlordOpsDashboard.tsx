@@ -41,6 +41,12 @@ import {
   type LandlordSort as LandlordOpsSort,
 } from '@/hooks/useLandlordOps';
 import {
+  setLandlordVerification,
+  VERIFICATION_STATUS_META,
+  verificationSourceLabel,
+  type LandlordVerificationStatus,
+} from '@/lib/landlord-ops/verification';
+import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
 import {
