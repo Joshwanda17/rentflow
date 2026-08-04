@@ -1272,6 +1272,10 @@ export function LandlordOpsDashboard() {
   const emptyLandlordsCount = landlordOpsTotals?.no_tenants;
   const occupiedMonthlyRevenue = landlordOpsTotals?.occupied_monthly_revenue;
   const emptyMonthlyRevenue = landlordOpsTotals?.empty_monthly_revenue;
+  // Any KPI sourced from the totals RPC shows a skeleton until the exact
+  // server number is available — never a stale or partial client estimate.
+  const totalsLoading = isLoading || landlordOpsTotals === undefined;
+  const kpi = (n: number | undefined) => (n === undefined ? '—' : n.toLocaleString());
   const unverifiedListings = rows.filter(l =>
     !l.verified
     && l.status !== 'rejected'
@@ -3835,7 +3839,7 @@ export function LandlordOpsDashboard() {
         <div className="grid grid-cols-2 gap-2">
           <KPICard title="With Photos" value={withImages.length} icon={Image} loading={isLoading} color="bg-blue-500/10 text-blue-600" />
           <KPICard title="GPS Captured" value={withGPS.length} icon={MapPin} loading={isLoading} color="bg-purple-500/10 text-purple-600" />
-          <KPICard title="📱 Landlords" value={smartphoneLandlordsCount} icon={Smartphone} loading={isLoading} color="bg-teal-500/10 text-teal-600" subtitle={`of ${totalLandlordsCount}`} />
+          <KPICard title="📱 Landlords" value={kpi(smartphoneLandlordsCount)} icon={Smartphone} loading={totalsLoading} color="bg-teal-500/10 text-teal-600" subtitle={`of ${kpi(totalLandlordsCount)}`} />
           <KPICard title="Bonuses Pending" value={`${fmt(pendingHousesCount * 2000)}`} icon={Banknote} loading={isLoading} color="bg-orange-500/10 text-orange-600" subtitle="UGX to agents" />
         </div>
         <VacancyAnalytics listings={rows as any} />
@@ -4002,10 +4006,10 @@ export function LandlordOpsDashboard() {
 
       {/* KPIs — responsive card grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <KPICard title="Total Properties" value={totalLandlordsCount} icon={Home} loading={isLoading} onClick={() => setView('houses-by-landlord')} />
-        <KPICard title="Occupied" value={occupiedLandlordsCount} icon={UserCheck} loading={isLoading} color="bg-green-500/10 text-green-600" subtitle={`UGX ${fmt(totalMonthlyRevenue)}/mo`} onClick={() => setView('occupied')} />
-        <KPICard title="Empty" value={emptyLandlordsCount} icon={DoorOpen} loading={isLoading} color="bg-red-500/10 text-red-600" subtitle={`UGX ${fmt(lostMonthlyRevenue)}/mo lost`} onClick={() => setView('empty')} />
-        <KPICard title="Landlords" value={totalLandlordsCount} icon={Building2} loading={isLoading} color="bg-sky-500/10 text-sky-600" subtitle={`${verifiedLandlordsCount} verified`} onClick={() => setView('landlords')} />
+        <KPICard title="Total Properties" value={kpi(totalLandlordsCount)} icon={Home} loading={totalsLoading} onClick={() => setView('houses-by-landlord')} />
+        <KPICard title="Occupied" value={kpi(occupiedLandlordsCount)} icon={UserCheck} loading={totalsLoading} color="bg-green-500/10 text-green-600" subtitle={`UGX ${fmt(totalMonthlyRevenue ?? 0)}/mo`} onClick={() => setView('occupied')} />
+        <KPICard title="Empty" value={kpi(emptyLandlordsCount)} icon={DoorOpen} loading={totalsLoading} color="bg-red-500/10 text-red-600" subtitle={`UGX ${fmt(lostMonthlyRevenue ?? 0)}/mo lost`} onClick={() => setView('empty')} />
+        <KPICard title="Landlords" value={kpi(totalLandlordsCount)} icon={Building2} loading={totalsLoading} color="bg-sky-500/10 text-sky-600" subtitle={`${kpi(verifiedLandlordsCount)} verified · ${kpi(pendingLandlordsCount)} pending · ${kpi(rejectedLandlordsCount)} rejected`} onClick={() => setView('landlords')} />
         <KPICard title="Cities" value={cityGroups.length} icon={Globe} loading={isLoading} color="bg-teal-500/10 text-teal-600" subtitle="operating in" onClick={() => setView('cities')} />
         <KPICard title="No Landlord" value={noLandlordList.length} icon={UserX} loading={isLoading} color="bg-orange-500/10 text-orange-600" subtitle="need listing" onClick={() => setView('no-landlord')} />
       </div>
@@ -4067,7 +4071,7 @@ export function LandlordOpsDashboard() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {navItems.filter(n => n.priority).map(item => (
             <NavCard key={item.id} item={item} onClick={() => setView(item.id)} badge={
-              item.id === 'landlords' ? `${totalLandlordsCount}` :
+              item.id === 'landlords' ? (totalLandlordsCount !== undefined ? kpi(totalLandlordsCount) : undefined) :
               item.id === 'landlords-paid' ? (paidLandlordsCount !== undefined ? `${paidLandlordsCount}` : undefined) :
               item.id === 'locations' ? `${locationGroups.length}` :
               item.id === 'lc1' ? `${lc1Groups.length}` :
@@ -4088,8 +4092,8 @@ export function LandlordOpsDashboard() {
           {navItems.filter(n => !n.priority).map(item => (
             <NavCard key={item.id} item={item} onClick={() => setView(item.id)}
               badge={
-                item.id === 'empty' ? `${emptyLandlordsCount}` :
-                item.id === 'occupied' ? `${occupiedLandlordsCount}` :
+                item.id === 'empty' ? (emptyLandlordsCount !== undefined ? kpi(emptyLandlordsCount) : undefined) :
+                item.id === 'occupied' ? (occupiedLandlordsCount !== undefined ? kpi(occupiedLandlordsCount) : undefined) :
                 item.id === 'verify' ? (pendingHousesCount > 0 ? `${fmt(pendingHousesCount)}` : undefined) :
                 item.id === 'agents' ? `${agentSummary.length}` : undefined
               } />
