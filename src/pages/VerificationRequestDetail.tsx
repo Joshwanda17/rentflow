@@ -119,17 +119,11 @@ export default function VerificationRequestDetail() {
     }
     setBusy(true);
     try {
-      const { error } = await supabase
-        .from('landlord_verification_requests')
-        .update({ status: 'rejected', reject_comment: comment, resolved_by: user.id, resolved_at: new Date().toISOString() })
-        .eq('id', request.id);
-      if (error) throw error;
-      await supabase.from('audit_logs').insert({
-        user_id: user.id,
-        action_type: 'landlord_verification_rejected',
-        table_name: 'landlords',
-        record_id: request.landlord_id,
-        metadata: { landlord_name: request.landlord_name, reason: comment, rejected_by: 'landlord_ops' },
+      await setLandlordVerification({
+        landlordId: request.landlord_id,
+        status: 'rejected',
+        reason: comment,
+        source: 'verification_detail',
       });
       toast({ title: 'Request rejected', description: `${request.landlord_name || 'Landlord'} was rejected with a comment.` });
       void notifyVerificationResolved({
