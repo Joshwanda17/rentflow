@@ -9006,6 +9006,310 @@ export type Database = {
           },
         ]
       }
+      error_correction_alerts: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          alert_type: string
+          amount: number | null
+          audit_id: string | null
+          bucket: string | null
+          created_at: string
+          details: Json
+          id: string
+          operator_id: string | null
+          operator_name: string | null
+          reason_code: string | null
+          reference_number: string | null
+          severity: string
+          target_name: string | null
+          target_user_id: string | null
+          transaction_group_id: string | null
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          alert_type: string
+          amount?: number | null
+          audit_id?: string | null
+          bucket?: string | null
+          created_at?: string
+          details?: Json
+          id?: string
+          operator_id?: string | null
+          operator_name?: string | null
+          reason_code?: string | null
+          reference_number?: string | null
+          severity?: string
+          target_name?: string | null
+          target_user_id?: string | null
+          transaction_group_id?: string | null
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          alert_type?: string
+          amount?: number | null
+          audit_id?: string | null
+          bucket?: string | null
+          created_at?: string
+          details?: Json
+          id?: string
+          operator_id?: string | null
+          operator_name?: string | null
+          reason_code?: string | null
+          reference_number?: string | null
+          severity?: string
+          target_name?: string | null
+          target_user_id?: string | null
+          transaction_group_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "error_correction_alerts_audit_id_fkey"
+            columns: ["audit_id"]
+            isOneToOne: false
+            referencedRelation: "error_correction_audit"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      error_correction_approvals: {
+        Row: {
+          amount: number
+          approvals: Json
+          bucket: string
+          business_justification: string
+          commission_component: number
+          created_at: string
+          decided_at: string | null
+          executed_at: string | null
+          executed_ledger_group_id: string | null
+          float_before: number
+          id: string
+          reason_code: string
+          reason_detail: string
+          reference_number: string
+          related_transaction_id: string | null
+          requested_by: string
+          requester_roles: string[]
+          required_approvals: number
+          status: string
+          target_name: string | null
+          target_user_id: string
+          updated_at: string
+          withdrawable_before: number
+        }
+        Insert: {
+          amount: number
+          approvals?: Json
+          bucket: string
+          business_justification: string
+          commission_component?: number
+          created_at?: string
+          decided_at?: string | null
+          executed_at?: string | null
+          executed_ledger_group_id?: string | null
+          float_before?: number
+          id?: string
+          reason_code: string
+          reason_detail: string
+          reference_number: string
+          related_transaction_id?: string | null
+          requested_by: string
+          requester_roles?: string[]
+          required_approvals?: number
+          status?: string
+          target_name?: string | null
+          target_user_id: string
+          updated_at?: string
+          withdrawable_before?: number
+        }
+        Update: {
+          amount?: number
+          approvals?: Json
+          bucket?: string
+          business_justification?: string
+          commission_component?: number
+          created_at?: string
+          decided_at?: string | null
+          executed_at?: string | null
+          executed_ledger_group_id?: string | null
+          float_before?: number
+          id?: string
+          reason_code?: string
+          reason_detail?: string
+          reference_number?: string
+          related_transaction_id?: string | null
+          requested_by?: string
+          requester_roles?: string[]
+          required_approvals?: number
+          status?: string
+          target_name?: string | null
+          target_user_id?: string
+          updated_at?: string
+          withdrawable_before?: number
+        }
+        Relationships: []
+      }
+      error_correction_audit: {
+        Row: {
+          amount: number
+          approval_id: string | null
+          browser: string | null
+          bucket: string
+          business_justification: string
+          client_ip: string | null
+          commission_acknowledged: boolean
+          commission_component: number
+          created_at: string
+          device: string | null
+          float_after: number
+          float_before: number
+          high_value_confirmed: boolean
+          id: string
+          ledger_group_id: string | null
+          ledger_reference_id: string | null
+          operator_id: string
+          operator_name: string | null
+          operator_roles: string[]
+          platform_destination: string | null
+          reason_code: string
+          reason_detail: string
+          reference_number: string
+          related_transaction_id: string | null
+          session_id: string | null
+          status: string
+          target_name: string | null
+          target_phone: string | null
+          target_user_id: string
+          transaction_group_category: string | null
+          user_agent: string | null
+          withdrawable_after: number
+          withdrawable_before: number
+        }
+        Insert: {
+          amount: number
+          approval_id?: string | null
+          browser?: string | null
+          bucket: string
+          business_justification: string
+          client_ip?: string | null
+          commission_acknowledged?: boolean
+          commission_component?: number
+          created_at?: string
+          device?: string | null
+          float_after?: number
+          float_before?: number
+          high_value_confirmed?: boolean
+          id?: string
+          ledger_group_id?: string | null
+          ledger_reference_id?: string | null
+          operator_id: string
+          operator_name?: string | null
+          operator_roles?: string[]
+          platform_destination?: string | null
+          reason_code: string
+          reason_detail: string
+          reference_number: string
+          related_transaction_id?: string | null
+          session_id?: string | null
+          status?: string
+          target_name?: string | null
+          target_phone?: string | null
+          target_user_id: string
+          transaction_group_category?: string | null
+          user_agent?: string | null
+          withdrawable_after?: number
+          withdrawable_before?: number
+        }
+        Update: {
+          amount?: number
+          approval_id?: string | null
+          browser?: string | null
+          bucket?: string
+          business_justification?: string
+          client_ip?: string | null
+          commission_acknowledged?: boolean
+          commission_component?: number
+          created_at?: string
+          device?: string | null
+          float_after?: number
+          float_before?: number
+          high_value_confirmed?: boolean
+          id?: string
+          ledger_group_id?: string | null
+          ledger_reference_id?: string | null
+          operator_id?: string
+          operator_name?: string | null
+          operator_roles?: string[]
+          platform_destination?: string | null
+          reason_code?: string
+          reason_detail?: string
+          reference_number?: string
+          related_transaction_id?: string | null
+          session_id?: string | null
+          status?: string
+          target_name?: string | null
+          target_phone?: string | null
+          target_user_id?: string
+          transaction_group_category?: string | null
+          user_agent?: string | null
+          withdrawable_after?: number
+          withdrawable_before?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "error_correction_audit_approval_id_fkey"
+            columns: ["approval_id"]
+            isOneToOne: false
+            referencedRelation: "error_correction_approvals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      error_correction_config: {
+        Row: {
+          alert_threshold: number
+          cfo_approval_threshold: number
+          created_at: string
+          dual_approval_threshold: number
+          high_value_threshold: number
+          id: boolean
+          require_commission_ack: boolean
+          updated_at: string
+          velocity_max_distinct_users: number
+          velocity_max_operations: number
+          velocity_window_minutes: number
+        }
+        Insert: {
+          alert_threshold?: number
+          cfo_approval_threshold?: number
+          created_at?: string
+          dual_approval_threshold?: number
+          high_value_threshold?: number
+          id?: boolean
+          require_commission_ack?: boolean
+          updated_at?: string
+          velocity_max_distinct_users?: number
+          velocity_max_operations?: number
+          velocity_window_minutes?: number
+        }
+        Update: {
+          alert_threshold?: number
+          cfo_approval_threshold?: number
+          created_at?: string
+          dual_approval_threshold?: number
+          high_value_threshold?: number
+          id?: boolean
+          require_commission_ack?: boolean
+          updated_at?: string
+          velocity_max_distinct_users?: number
+          velocity_max_operations?: number
+          velocity_window_minutes?: number
+        }
+        Relationships: []
+      }
       fee_revenue_ledger: {
         Row: {
           created_at: string
@@ -29782,6 +30086,10 @@ export type Database = {
         Returns: Json
       }
       accrue_partner_self_returns: { Args: { p_as_of?: string }; Returns: Json }
+      acknowledge_error_correction_alert: {
+        Args: { p_alert_id: string }
+        Returns: undefined
+      }
       acknowledge_finance_anomaly_alert: {
         Args: { p_check_key: string; p_note?: string }
         Returns: Json
@@ -30851,6 +31159,10 @@ export type Database = {
       cto_set_kyc_level: {
         Args: { p_new_level: number; p_reason: string; p_user_id: string }
         Returns: undefined
+      }
+      decide_error_correction_approval: {
+        Args: { p_approval_id: string; p_decision: string; p_note?: string }
+        Returns: Json
       }
       decrement_rent_requested: {
         Args: { p_amount: number; p_summary_id: string }
@@ -32004,6 +32316,10 @@ export type Database = {
         Returns: {
           email: string
         }[]
+      }
+      get_error_correction_report: {
+        Args: { p_from?: string; p_to?: string }
+        Returns: Json
       }
       get_fee_revenue_summary: { Args: { p_months?: number }; Returns: Json }
       get_field_deposit_commission_config: {
@@ -33273,6 +33589,10 @@ export type Database = {
             }
             Returns: boolean
           }
+      is_error_correction_reviewer: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
       is_financial_ops_staff: { Args: { p_user: string }; Returns: boolean }
       is_fraud_identifier_blocked: {
         Args: { p_type: string; p_value: string }

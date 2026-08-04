@@ -7,6 +7,7 @@ import { useHorizontalSwipe } from '@/hooks/useHorizontalSwipe';
 import { executiveSidebarConfig } from '@/components/layout/executiveSidebarConfig';
 import ExecutiveDashboardLayout from '@/components/layout/ExecutiveDashboardLayout';
 import { ChannelBalanceTracker } from '@/components/cfo/ChannelBalanceTracker';
+import { ErrorCorrectionAuditPanel } from '@/components/cfo/ErrorCorrectionAuditPanel';
 import { PlatformVsWalletSummary } from '@/components/cfo/PlatformVsWalletSummary';
 import { CFOROIRequests } from '@/components/cfo/CFOROIRequests';
 import { CFOOverviewDashboard } from '@/components/cfo/CFOOverviewDashboard';
@@ -305,6 +306,8 @@ export default function CFODashboardPage() {
         return <AngelPoolManagementPanel userRole="cfo" />;
       case 'retractions':
         return <WalletRetractionsFeed />;
+      case 'error-corrections':
+        return <ErrorCorrectionAuditPanel />;
       case 'unfunding-approvals':
         return (
           <div className="space-y-6">
