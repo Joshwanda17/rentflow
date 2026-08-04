@@ -221,3 +221,73 @@ export function TransferTenantDialog({
     </Dialog>
   );
 }
+
+/** Break the parent ↔ sub-agent relationship entirely. */
+export function UnlinkSubAgentDialog({
+  subAgent,
+  open,
+  onOpenChange,
+}: {
+  subAgent: ServiceCenterSubAgent | null;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const [reason, setReason] = useState('');
+  const unlink = useUnlinkSubAgent();
+  const activeTenants = (subAgent?.tenant_list ?? []).filter((t) => t.is_active).length;
+
+  const submit = async () => {
+    if (!subAgent) return;
+    const err = reasonError(reason);
+    if (err) { toast.error(err); return; }
+    try {
+      await unlink.mutateAsync({ subAgentId: subAgent.sub_agent_id, reason: reason.trim() });
+      toast.success(`${subAgent.full_name ?? 'Sub-agent'} unlinked from your team`);
+      setReason('');
+      onOpenChange(false);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not unlink this sub-agent');
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Unlink sub-agent</DialogTitle>
+          <DialogDescription>
+            This breaks the relationship between you and {subAgent?.full_name ?? 'this sub-agent'}.
+            They keep their own account, but they leave your team and you stop earning overrides on
+            their future work. The removal is archived for audit.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {activeTenants > 0 && (
+            <p className="rounded-xl bg-destructive/10 p-3 text-xs text-destructive">
+              This sub-agent still has {activeTenants} active tenant(s). Transfer them first — the
+              system will refuse to unlink while active rent plans remain.
+            </p>
+          )}
+          <div className="space-y-2">
+            <Label htmlFor="sc-unlink-reason">Reason (required)</Label>
+            <Textarea
+              id="sc-unlink-reason"
+              rows={3}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Why are you removing this sub-agent from your team?"
+            />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={unlink.isPending}>Cancel</Button>
+          <Button variant="destructive" onClick={submit} disabled={unlink.isPending || activeTenants > 0}>
+            {unlink.isPending ? 'Unlinking…' : 'Unlink sub-agent'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
