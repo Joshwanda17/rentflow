@@ -153,6 +153,7 @@ export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: Full
                   <div>
                     <h3 className="text-base font-bold text-foreground">Wallet Statement</h3>
                     <p className="text-xs text-muted-foreground">Updated just now</p>
+                    <PaymentMethodIcons className="mt-2" />
                   </div>
                 </div>
 
