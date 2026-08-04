@@ -10,7 +10,41 @@ import WhatsAppInstallBanner from '@/components/WhatsAppInstallBanner';
 
 const IOSInstallGuide = lazy(() => import('@/components/IOSInstallGuide'));
 
-const SESSION_KEY = 'welile_install_card_dismissed';
+/**
+ * Dismissal is persistent, not per-session: "Not now" snoozes the card for
+ * SNOOZE_DAYS across tabs and app relaunches, and installing hides it for good.
+ * The card never re-appears on a timer — the only other install entry points
+ * are the dashboard header menu and the /install page.
+ */
+const SNOOZE_KEY = 'welile_install_card_snoozed_until';
+const SNOOZE_DAYS = 14;
+
+function readSnoozed(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const raw = localStorage.getItem(SNOOZE_KEY);
+    if (!raw) return false;
+    if (raw === 'installed') return true;
+    const until = Number(raw);
+    if (!Number.isFinite(until)) return false;
+    return Date.now() < until;
+  } catch {
+    return false;
+  }
+}
+
+function writeSnooze(value: 'installed' | 'snoozed') {
+  try {
+    localStorage.setItem(
+      SNOOZE_KEY,
+      value === 'installed'
+        ? 'installed'
+        : String(Date.now() + SNOOZE_DAYS * 24 * 60 * 60 * 1000),
+    );
+  } catch {
+    /* storage unavailable — card simply reappears next load */
+  }
+}
 
 interface InstallAppCardProps {
   className?: string;
@@ -21,16 +55,15 @@ export default function InstallAppCard({ className }: InstallAppCardProps) {
   // Preflight: don't advertise install until the manifest, apple-touch-icon,
   // service worker script, and a signed/CDN asset download all resolve.
   const preflight = useInstallPreflight(!isInstalled);
-  const [dismissed, setDismissed] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return sessionStorage.getItem(SESSION_KEY) === '1';
-  });
+  const [dismissed, setDismissed] = useState<boolean>(() => readSnoozed());
   const [isInstalling, setIsInstalling] = useState(false);
   const [showIOSGuide, setShowIOSGuide] = useState(false);
 
   // Auto-hide after install
   useEffect(() => {
-    if (isInstalled) setDismissed(true);
+    if (!isInstalled) return;
+    writeSnooze('installed');
+    setDismissed(true);
   }, [isInstalled]);
 
   // Log card impression once per mount when visible.
@@ -50,7 +83,7 @@ export default function InstallAppCard({ className }: InstallAppCardProps) {
   }, [preflight.loading, preflight.ready, preflight.checks, isIOS]);
 
   const handleDismiss = () => {
-    sessionStorage.setItem(SESSION_KEY, '1');
+    writeSnooze('snoozed');
     setDismissed(true);
     trackInstallEvent('install_card_dismissed', { isIOS });
   };
