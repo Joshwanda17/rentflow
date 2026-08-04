@@ -1,4 +1,4 @@
-import { lazy, type ComponentType } from "react";
+import { createElement, lazy, type ComponentType } from "react";
 
 /**
  * Concurrency-limited dynamic import queue.
@@ -38,8 +38,8 @@ const EmptyComponent = (() => null) as ComponentType<any>;
  * One-time hard reload to recover from stale/rotated chunks after a deploy.
  * Guarded by sessionStorage so we never trap the user in a reload loop.
  */
-function reloadOnceForStaleChunk(): void {
-  if (typeof window === "undefined") return;
+function reloadOnceForStaleChunk(): boolean {
+  if (typeof window === "undefined") return false;
   try {
     const KEY = "welile:lazy-reload-at";
     const last = Number(sessionStorage.getItem(KEY) || 0);
@@ -47,11 +47,52 @@ function reloadOnceForStaleChunk(): void {
     if (Date.now() - last > 30_000) {
       sessionStorage.setItem(KEY, String(Date.now()));
       window.location.reload();
+      return true;
     }
   } catch {
     /* ignore storage errors */
   }
+  return false;
 }
+
+/**
+ * Shown instead of a blank screen when a chunk cannot be resolved and we have
+ * already used our one-time reload. Gives the user an explicit way out.
+ */
+const StaleChunkFallback = (() =>
+  createElement(
+    "div",
+    {
+      style: {
+        padding: "24px",
+        textAlign: "center",
+        fontFamily: "system-ui, sans-serif",
+      },
+    },
+    createElement("p", { style: { marginBottom: "12px" } }, "This screen needs to reload."),
+    createElement(
+      "button",
+      {
+        type: "button",
+        onClick: () => {
+          try {
+            sessionStorage.removeItem("welile:lazy-reload-at");
+          } catch {
+            /* ignore */
+          }
+          window.location.reload();
+        },
+        style: {
+          padding: "10px 18px",
+          borderRadius: "8px",
+          border: "1px solid currentColor",
+          background: "transparent",
+          cursor: "pointer",
+        },
+      },
+      "Reload app",
+    ),
+  )) as ComponentType<any>;
 
 function hasValidDefault<T extends ComponentType<any>>(
   mod: { default?: T | null } | null | undefined,
@@ -76,8 +117,12 @@ function coerceModule<T extends ComponentType<any>>(
   if (inner && typeof inner === "object" && hasValidDefault(inner)) {
     return inner as { default: T };
   }
+  // Accept plain function components AND memo/forwardRef wrappers (objects
+  // carrying a React `$$typeof` marker).
+  const isComponentLike = (v: any) =>
+    typeof v === "function" || (v && typeof v === "object" && "$$typeof" in v);
   const candidates = Object.keys(mod).filter(
-    (k) => k !== "default" && typeof mod[k] === "function" && /^[A-Z]/.test(k),
+    (k) => k !== "default" && /^[A-Z]/.test(k) && isComponentLike(mod[k]),
   );
   if (candidates.length === 1) return { default: mod[candidates[0]] as T };
   return null;
@@ -134,7 +179,11 @@ export function lazyWithRetry<T extends ComponentType<any>>(
           // module and fails identically, so recover immediately with a
           // one-time hard reload to pull fresh assets instead of burning
           // retries and crashing to the recovery screen.
-          reloadOnceForStaleChunk();
+          // If the one-time reload is already spent, render an explicit
+          // recovery card instead of throwing to a blank screen.
+          if (!reloadOnceForStaleChunk()) {
+            return { default: StaleChunkFallback as T };
+          }
           throw new Error("Invalid lazy module: missing React default export");
         }
         return coerced;
@@ -146,7 +195,9 @@ export function lazyWithRetry<T extends ComponentType<any>>(
     }
     // All retries exhausted — likely a stale chunk after a deploy. Try a
     // one-time reload to fetch fresh assets instead of crashing to a blank screen.
-    reloadOnceForStaleChunk();
+    if (!reloadOnceForStaleChunk()) {
+      return { default: StaleChunkFallback as T };
+    }
     throw lastErr;
   });
 }
