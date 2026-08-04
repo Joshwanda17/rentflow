@@ -101,9 +101,9 @@ export default function YourProfile() {
             <Card className="rounded-2xl overflow-hidden">
               <CardContent className="p-5 flex items-center gap-4">
                 <UserAvatar
-                  name={profile?.full_name || 'You'}
+                  fullName={profile?.full_name || 'You'}
                   avatarUrl={profile?.avatar_url || undefined}
-                  className="h-16 w-16"
+                  size="lg"
                 />
                 <div className="min-w-0 flex-1">
                   <p className="text-lg font-semibold truncate">{txt(profile?.full_name)}</p>
