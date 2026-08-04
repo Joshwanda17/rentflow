@@ -49,7 +49,11 @@ export default function AgentServiceCenter() {
   const totals = useMemo(() => ({
     subAgents: subAgents.length,
     tenants: subAgents.reduce((a, s) => a + s.active_tenants, 0),
+    allTenants: subAgents.reduce((a, s) => a + Number(s.total_tenants || 0), 0),
     commissions: subAgents.reduce((a, s) => a + Number(s.commission_total || 0), 0),
+    bonuses: subAgents.reduce((a, s) => a + Number(s.referral_bonus || 0), 0),
+    landlords: subAgents.reduce((a, s) => a + Number(s.landlords_registered || 0), 0),
+    houses: subAgents.reduce((a, s) => a + Number(s.houses_listed || 0), 0),
     pending: transfers.filter((t) => t.status === 'pending').length,
   }), [subAgents, transfers]);
 
@@ -75,8 +79,10 @@ export default function AgentServiceCenter() {
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {[
             { label: 'Sub-agents', value: String(totals.subAgents) },
-            { label: 'Active tenants', value: String(totals.tenants) },
-            { label: 'Team commissions', value: formatUGX(totals.commissions) },
+            { label: 'Tenants (active/total)', value: `${totals.tenants}/${totals.allTenants}` },
+            { label: 'Team commissions', value: formatUGX(totals.commissions + totals.bonuses) },
+            { label: 'Landlords registered', value: String(totals.landlords) },
+            { label: 'Houses listed', value: String(totals.houses) },
             { label: 'Pending transfers', value: String(totals.pending) },
           ].map((s) => (
             <Card key={s.label}>
