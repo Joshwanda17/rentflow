@@ -183,21 +183,8 @@ export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: Full
                 />
                 <span className="text-lg font-bold text-foreground tracking-tight">Welile</span>
               </div>
-              <div className="flex items-center gap-3">
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="relative h-9 w-9 text-foreground hover:bg-muted rounded-full"
-                  onClick={() => setPendingOpen(true)}
-                >
-                  <Bell className="h-5 w-5" />
-                  {pendingCount > 0 && (
-                    <Badge className="absolute -top-0.5 -right-0.5 h-4 w-4 p-0 flex items-center justify-center text-[10px] bg-destructive text-destructive-foreground">
-                      {pendingCount}
-                    </Badge>
-                  )}
-                </Button>
-              </div>
+              <div className="flex items-center gap-3" />
+
             </div>
           </div>
 
