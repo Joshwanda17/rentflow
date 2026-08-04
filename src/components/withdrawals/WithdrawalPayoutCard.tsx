@@ -369,7 +369,12 @@ export function WithdrawalPayoutCard({
       });
       clearProof();
     } catch (e: any) {
-      setCompleteError(e?.message || 'Payout could not be confirmed. Check the details and try again.');
+      setCompleteError(
+        humanizeWithdrawalError(
+          e?.message || 'Payout could not be confirmed. Check the details and try again.',
+          recipientName,
+        ),
+      );
     }
   }
 
