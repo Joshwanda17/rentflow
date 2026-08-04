@@ -778,7 +778,11 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
       return (
         r.tenant_name.toLowerCase().includes(q) ||
         r.landlord_name.toLowerCase().includes(q) ||
-        r.agent_name.toLowerCase().includes(q)
+        r.agent_name.toLowerCase().includes(q) ||
+        (r.tenant_phone || '').includes(q) ||
+        (r.landlord_phone || '').includes(q) ||
+        // District / village / parish / sub-county / free-text address
+        (r.location_search || '').includes(q)
       );
     }
     return true;
