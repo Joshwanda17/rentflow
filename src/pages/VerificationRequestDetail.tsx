@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { notifyVerificationResolved } from '@/lib/landlordVerificationNotify';
+import { setLandlordVerification } from '@/lib/landlord-ops/verification';
 
 interface VerificationRequest {
   id: string;
@@ -86,22 +87,11 @@ export default function VerificationRequestDetail() {
     if (!user || !request) return;
     setBusy(true);
     try {
-      const { error: llErr } = await supabase
-        .from('landlords')
-        .update({ verified: true, verified_at: new Date().toISOString(), verified_by: user.id })
-        .eq('id', request.landlord_id);
-      if (llErr) throw llErr;
-      const { error: reqErr } = await supabase
-        .from('landlord_verification_requests')
-        .update({ status: 'verified', resolved_by: user.id, resolved_at: new Date().toISOString() })
-        .eq('id', request.id);
-      if (reqErr) throw reqErr;
-      await supabase.from('audit_logs').insert({
-        user_id: user.id,
-        action_type: 'landlord_verified',
-        table_name: 'landlords',
-        record_id: request.landlord_id,
-        metadata: { landlord_name: request.landlord_name, reason: `Verified from verification detail (${request.agent_name || 'agent'})`, verified_by: 'landlord_ops' },
+      await setLandlordVerification({
+        landlordId: request.landlord_id,
+        status: 'verified',
+        reason: `Verified from verification request review (${request.agent_name || 'agent'})`,
+        source: 'verification_detail',
       });
       toast({ title: '✅ Landlord verified', description: `${request.landlord_name || 'Landlord'} is now verified.` });
       void notifyVerificationResolved({
