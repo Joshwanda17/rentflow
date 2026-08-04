@@ -20,12 +20,14 @@ import {
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { format, addDays, differenceInCalendarDays, max as dateMax, min as dateMin, isAfter, startOfMonth, endOfMonth } from 'date-fns';
-import { CheckCircle2, Loader2, Pencil, User, Banknote, X, TrendingUp, Percent, Wallet, Users, FileText, CalendarRange, AlertTriangle } from 'lucide-react';
+import { CheckCircle2, Loader2, Pencil, User, Banknote, X, TrendingUp, Percent, Wallet, Users, FileText, CalendarRange, AlertTriangle, ShieldX } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Sparkles } from 'lucide-react';
 import { AgentAdvanceEvaluationDialog } from '@/components/agent/AgentAdvanceEvaluationDialog';
 import { AgentLocationBadge } from '@/components/ops/AgentLocationBadge';
 import { applyAdvanceTopupForRequest } from '@/lib/disburseAgentAdvance';
+import { DuplicateAccountAlert, useAgentDuplicateMap } from '@/components/ops/DuplicateAccountAlert';
+import { RejectAsDuplicateDialog, useAgentDuplicateFlags } from '@/components/ops/RejectAsDuplicateDialog';
 
 export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed?: () => void } = {}) {
   const { user } = useAuth();
@@ -43,6 +45,7 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [rejectingReq, setRejectingReq] = useState<any | null>(null);
   const [rejectReason, setRejectReason] = useState<string>('');
+  const [dupRejectReq, setDupRejectReq] = useState<any | null>(null);
   // Post-disbursement success dialog payload — shows the CFO what was sent and
   // a shortcut to the full list of disbursed advances.
   const [disbursed, setDisbursed] = useState<null | {
