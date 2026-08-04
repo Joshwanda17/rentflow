@@ -261,6 +261,17 @@ function DashboardContent() {
     || (showCachedUI && cachedRoles.length > 0 ? getDefaultRole(cachedRoles) : null);
   const displayRoles = roles.length > 0 ? roles : cachedRoles;
 
+  // PERF: once the visible dashboard has mounted, quietly warm the JS chunks
+  // for the other personas this user holds so tapping them renders instantly
+  // instead of showing the full-screen loader. Code only — no data fetching.
+  // Skipped on save-data / 2G connections and while the tab is hidden.
+  const rolesKey = displayRoles.join(',');
+  useEffect(() => {
+    if (!displayRole || displayRoles.length < 2) return;
+    return schedulePreloadOtherRoles(displayRoles, displayRole);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [displayRole, rolesKey]);
+
   // 🚫 FROZEN ACCOUNT - Block all access
   if (isFrozen) {
     return (
