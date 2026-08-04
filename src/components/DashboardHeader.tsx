@@ -14,7 +14,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { Menu, Settings, Download, Globe, Home, Users, Wallet, Building2, Shield, ChevronDown, LogOut, Coins, Check, GraduationCap, Briefcase } from 'lucide-react';
+import { Menu, Settings, Download, Home, Users, Wallet, Building2, Shield, ChevronDown, LogOut, Coins, Check, GraduationCap, Briefcase, UserRound, Bell } from 'lucide-react';
 
 import { hapticTap } from '@/lib/haptics';
 import { AppRole } from '@/hooks/useAuth';
@@ -196,6 +196,24 @@ const DashboardHeader = memo(function DashboardHeader({
                   align="end" 
                   className="w-56 max-h-[70vh] overflow-y-auto bg-primary-foreground backdrop-blur-xl border shadow-2xl rounded-2xl p-1"
                 >
+                  <DropdownMenuItem
+                    onClick={() => navigate('/your-profile')}
+                    className="gap-3 cursor-pointer py-3 px-3 rounded-xl text-sm font-medium touch-manipulation"
+                  >
+                    <div className="p-1.5 rounded-lg bg-primary/10">
+                      <UserRound className="h-4 w-4 text-primary" />
+                    </div>
+                    Your Profile
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => navigate('/notifications')}
+                    className="gap-3 cursor-pointer py-3 px-3 rounded-xl text-sm font-medium touch-manipulation"
+                  >
+                    <div className="p-1.5 rounded-lg bg-primary/10">
+                      <Bell className="h-4 w-4 text-primary" />
+                    </div>
+                    Notifications
+                  </DropdownMenuItem>
                   {showInstallButton && (
                     <DropdownMenuItem
                       onClick={handleInstallClick}
@@ -207,15 +225,6 @@ const DashboardHeader = memo(function DashboardHeader({
                       Install App
                     </DropdownMenuItem>
                   )}
-                  <DropdownMenuItem
-                    onClick={() => navigate('/chat')}
-                    className="gap-3 cursor-pointer py-3 px-3 rounded-xl text-sm font-medium touch-manipulation"
-                  >
-                    <div className="p-1.5 rounded-lg bg-primary/10">
-                      <Globe className="h-4 w-4 text-primary" />
-                    </div>
-                    Messages
-                  </DropdownMenuItem>
                   {currentRole === 'agent' && (
                     <DropdownMenuItem
                       onClick={() => navigate('/agent-commission-benefits')}
