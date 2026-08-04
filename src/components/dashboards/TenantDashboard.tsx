@@ -6,7 +6,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useOffline } from '@/contexts/OfflineContext';
 import { 
   FileText,
-  Menu,
   WifiOff,
   RefreshCw,
   BadgeCheck,
@@ -46,7 +45,7 @@ import RepaymentSection from '@/components/tenant/RepaymentSection';
 import RentProcessTracker from '@/components/rent/RentProcessTracker';
 import { BusinessAdvanceStatusHero } from '@/components/tenant/BusinessAdvanceStatusHero';
 import PaymentPartnersDialog from '@/components/payments/PaymentPartnersDialog';
-import { TenantMenuDrawer } from '@/components/tenant/TenantMenuDrawer';
+
 import { MerchantCodePills } from '@/components/supporter/MerchantCodePills';
 import { AgentDepositDialog } from '@/components/agent/AgentDepositDialog';
 import { AvailableHousesSheet } from '@/components/tenant/AvailableHousesSheet';
@@ -133,7 +132,6 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
   const [showRepaymentSchedule, setShowRepaymentSchedule] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
   const [showRequestForm, setShowRequestForm] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
   const rentCarouselRef = useRef<HTMLDivElement | null>(null);
   const [depositOpen, setDepositOpen] = useState(false);
   // Global "open deposit" entry: triggered from the mobile bottom-nav Deposit
@@ -164,12 +162,10 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
   const openHousesSheet = useCallback(() => {
     const active = (typeof document !== 'undefined' ? document.activeElement : null) as HTMLElement | null;
     if (active && typeof active.focus === 'function') housesTriggerRef.current = active;
-    setMenuOpen(false);
     setHousesOpen(true);
   }, []);
   const goToAllHouses = useCallback(() => {
     hapticTap();
-    setMenuOpen(false);
     setHousesOpen(false);
     navigate('/find-a-house');
   }, [navigate]);
@@ -300,7 +296,6 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
   };
 
   const handleViewWallet = () => { hapticTap(); setShowWallet(true); };
-  const handleOpenMenu = () => { hapticTap(); setMenuOpen(true); };
 
   const menuItems = [
     { icon: FileText, label: 'Request Rent', onClick: () => {} },
@@ -449,19 +444,6 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
             </div>
           )}
 
-          {/* Single Menu button */}
-          <button
-            onClick={handleOpenMenu}
-            className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border border-border/60 bg-card hover:bg-muted/40 transition-colors touch-manipulation"
-          >
-            <Menu className="h-5 w-5 text-foreground/70 shrink-0" />
-            <div className="flex-1 text-left">
-              <p className="font-medium text-sm">Menu</p>
-              <p className="text-xs text-muted-foreground">Payments, tools & more</p>
-            </div>
-            <span className="text-xs text-muted-foreground">→</span>
-          </button>
-
           {/* Invite & Earn — kept on home for growth */}
           <InviteAndEarnCard variant="tenant" compact />
         </main>
@@ -516,18 +498,6 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
             : 0
         }
         onSaved={(rent) => setSavedMonthlyRent(rent)}
-      />
-
-      {/* Menu Drawer */}
-      <TenantMenuDrawer
-        open={menuOpen}
-        onOpenChange={setMenuOpen}
-        onPayLandlord={() => hasAcceptedTerms ? setShowPayLandlord(true) : setShowAgreementModal(true)}
-
-        onPayWelile={() => hasAcceptedTerms ? setShowPaymentPartners(true) : setShowAgreementModal(true)}
-        onRepaymentSchedule={() => setShowRepaymentSchedule(prev => !prev)}
-        onRentCalculator={() => setShowCalculator(true)}
-        onBrowseHouses={() => { openHousesSheet(); }}
       />
 
       {/* Dialogs */}
