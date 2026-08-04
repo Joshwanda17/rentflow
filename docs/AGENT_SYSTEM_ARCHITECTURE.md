@@ -218,3 +218,126 @@ Security note: `LedgerEntryDetailDrawer.tsx` hides **Running Balance** from agen
 - Tiers: `Building` (<6), `Established` (6–11), `Welile Trusted` (≥12); previews at `avg_rent*6*1.20` and `avg_rent*12*1.60`.
 
 Supporting functions: `business-advance-stage-reminders` (per-stage SLA, e.g. `coo_approved → disbursed`, ETA 12h), `disburse-business-advance`, `repay-business-advance`, `process-business-advance-compounding` (daily), `claim-business-advance-account`.
+
+---
+
+## 14. Merchant Agent Operations
+
+**Model.** A merchant claims a pending withdrawal, pays the end user from their own MoMo, and is reimbursed **principal + 0.5% commission** into float → withdrawable. The **tiered telecom sending fee is debited from their float**, so Welile's float ledger matches the merchant's actual MoMo statement.
+
+- `auto_dispatch_withdrawals(batch_size=100)` — targets `withdrawal_requests` with `status='cfo_approved' AND assigned_cashout_agent_id IS NULL AND auto_dispatched=false`. VIP-first (`amount ≥ 500,000`), `priority_level`: `vip` ≥500k, `high` ≥100k, else `standard`. Matches on `handles_cash|bank|mtn|airtel` and `current_queue_count < max_daily_payouts`, picks least-loaded, increments the queue counter.
+- `accept_withdrawal_dispatch(id)` — caller must be an active `cashout_agents` row; verifies not already claimed and status still open (`pending|requested|manager_approved|cfo_approved|fin_ops_approved`); atomically claims and marks other pending `withdrawal_notification_log` rows `superseded`.
+- `ignore_withdrawal_dispatch`, `merchant_set_online`, `release_stale_cashout_claims()` (cron `*/5 * * * *`, **45-minute claim release timeout**).
+- Notifications/reports: `notify-merchant-agent-assigned`, `notify-merchants-new-withdrawal`, `merchant-cashout-daily-report`, `generate-daily-merchant-commission`.
+- **Fraud rule (hard).** `enforce_no_merchant_agent_auto_debit()` on `general_ledger` blocks any `production`, `wallet`-scope, `cash_out` entry whose description matches `%Auto-debit (phone match)%` or `%Auto-debit (name match)%` when the target is a merchant agent → `MERCHANT_AGENT_AUTO_DEBIT_BLOCKED (Rule 2)`. Gmail-parsed heuristics may never touch merchant float.
+- **Referral.** `merchant_agent_referrals` + `pay_merchant_agent_referral_bonus` trigger on `cashout_agents`; daily CMO performance email reports.
+- **Commission unification.** All withdrawable merchant commission is projected into the **Agent Wallet Card** as the single source of truth.
+
+## 15. Merchandise & Service Center
+
+| RPC | Behaviour |
+|---|---|
+| `agent_purchase_merchandise(catalog_id, qty)` | Instant wallet debit against `get_user_available_balance`; paired `wallet_deduction`/`debt_recovery` legs; key `merch_purchase_<sale_id>` |
+| `agent_order_merchandise(catalog_id, qty)` | Credit order; `qty ≤ 20`, order value ≤ **UGX 2,000,000**; 5-minute duplicate-order guard (same item/qty/customer) |
+| `agent_order_smartphone(amount)` | Agent chooses repayment amount (min 1,000), bounded by available balance; final price set by marketing |
+| `agent_order_spiro_bike(amount)` | Same, plus `SPB-XXXXXXXX` tracking reference |
+
+Service Center (`/agent/service-center`, `get_agent_service_center()`): purchases, sub-agent roster, suspension, tenant transfers.
+
+## 16. Sub-Agent Network
+
+- `agent_subagents` (link, `status='verified'`), `subagent_tenant_transfers`, `agent_landlord_assignments`.
+- Referral attribution via `referralAttribution.ts` (60-day localStorage persistence). Landlord referral copy no longer advertises "I earn 500 for referring you"; links are shortened via `createShortLink`.
+- `sweep-link-campaign-sub-agents` cron (`*/5 * * * *`) reconciles campaign-link signups to parents — this is the mechanism that fixes "agents can't see their invited sub-agents".
+- Recruiter override: parent receives 2% of a sub-agent's 10%.
+
+## 17. Security Model
+
+- **Pattern:** RLS is "own row SELECT/INSERT + staff sees all". Mutations on `agent_advances`, `agent_advance_ledger`, `agent_advance_topups` are **manager-policy only** — agents cannot write their own credit rows. `agent_earnings` has "Deny direct earnings inserts"; `agent_vouch_limit_history` has "Block client inserts". All real mutation flows through `SECURITY DEFINER` RPCs with `search_path=public`.
+- **Column-level guards:** `restrict_agent_profile_edits` (profiles), `guard_rent_request_agent_columns`, `guard_rent_request_agent_updates`, `guard_landlord_payment_edit_agent_columns`, `enforce_agent_listing_block` (house_listings), `enforce_agent_perf_withdrawal` (withdrawal_requests).
+- **Staff gate:** `agent_ops_directory_guard()` raises `auth_required` / `not_authorized` unless caller is `is_ops_role`, manager, cfo, ceo, coo, cto, or super_admin.
+- **AML/KYC:** `enforce_kyc_withdrawal_cap()` — accounts <30 days old capped at **UGX 50,000/day**; `kyc_profiles.daily_withdrawal_cap_ugx` per-user override (0/negative = uncapped); frozen KYC raises hint `kyc_frozen`; skipped for `landlord_payout_id`/`proxy_partner_id` rows; "graduated" agents (existing live advance, a completed withdrawal, or any collection row) bypass entirely.
+- **Transfer gate:** user→user transfers require ≥10 deposits.
+- **Treasury guard:** `checkTreasuryGuard` blocks money movement while the platform is paused (CTO/super_admin bypass).
+- **Data minimisation:** Running Balance hidden from agents/users in drawers, statements and PDFs.
+
+## 18. Cron & Scheduled Jobs
+
+> `cron.job` is not readable with the available role (`permission denied for schema cron`); the table below is reconstructed from `cron.schedule(...)` calls in migrations plus `send-system-context/doc.ts`.
+
+| Job | Cadence | Target |
+|---|---|---|
+| `process-agent-capability-jobs` | every 30s | capability grant/revoke queue |
+| `release-stale-cashout-claims-every-5min` | `*/5 * * * *` | `release_stale_cashout_claims()` |
+| `sweep-link-campaign-sub-agents` | `*/5 * * * *` | campaign-link → parent reconciliation |
+| `detect-withdrawable-drift-alerts-every-15min` | `*/15 * * * *` | withdrawable drift alerts |
+| `sweep-agent-advance-recovery` | **conflict:** `*/15 * * * *` then re-registered `0 4 * * *` | `sweep_agent_advance_recovery()` |
+| `reconcile-agent-landlord-float` | `17 * * * *` | `reconcile_agent_landlord_float_all(false,false,'scheduled_scan','cron')` |
+| `snapshot-agent-daily-eligibility` | `30 0 * * *` | `snapshot_agent_daily_eligibility(1)` |
+| `process-agent-advance-deductions` | daily 18:00 EAT | scheduled installments |
+| `merchant-cashout-daily-report` | daily | merchant report |
+| `auto_dispatch_withdrawals` / redispatch | ~every minute | withdrawal dispatch |
+| `expire-stale-bonus-restrictions` | daily | bonus restriction expiry — **currently failing** |
+| `recalculate-trust-scores-nightly` | nightly | trust score recompute — **currently failing** |
+
+## 19. Reconciliation & Audit Surfaces
+
+| Surface | Purpose |
+|---|---|
+| `v_agent_landlord_float_reconciliation` | cached vs recomputed LP float, `difference`, `open_allocations` |
+| `agent_landlord_float_corrections` | applied corrections with before/after and reason |
+| `v_operational_float_tid_duplicates` | duplicate normalised TIDs across float-delivery rows |
+| `operational_float_audit_log` | `created`/`edited` diffs on deposit-request float amounts |
+| `agent_tenant_float_reversals` | one-per-group allocation reversals with commission clawback |
+| `agent_allocation_traces` | allocation decision tracing **(inferred — schema not read)** |
+| `agent_misrouted_deposits_preview` | staging for misrouted deposits **(inferred — schema not read)** |
+| `agent_capability_ops_dead_letters` / `_undo_snapshots` | failed capability jobs + rollback state |
+| `agent_recommendation_audit`, `tenant_reassignment_audit`, `audit_logs`, `system_events` | human-readable trails |
+| `wallet_overdraw_events` | post-hoc negative-bucket anomalies |
+
+## 20. End-to-End Workflows
+
+**A. Landlord acquisition → funded rent → collection → earnings**
+1. Agent registers landlord; on verification the agent earns UGX 5,000 (LC verified 2,000).
+2. Agent lists house (2,000 on approval), registers tenant, posts a rent request.
+3. `enforce_agent_daily_eligibility` + `agent_per_tenant_max` gate the request size.
+4. Ops/COO approve → CFO calls `fund-agent-landlord-float` → allocation row created, LP float derived up, ledger pair posted, UGX 5,000 bonus paid.
+5. Agent pays the landlord (OTP to landlord phone, GPS captured) → `agent_float_withdrawals` → merchant dispatch settles.
+6. Tenant repays daily; `agent-deposit` debits agent float, credits tenant, pays 10% commission.
+7. `guard_rent_request_agent_updates` requires a same-transaction float debit before `amount_repaid` advances.
+8. `auto_close_fully_repaid_rents` closes the request when fully repaid.
+
+**B. Advance lifecycle**
+Request (single-slot guard) → Agent Ops → Tenant Ops → Landlord Ops → COO (or Agent Ops skip-CFO) → CFO disburse (disbursement-vs-principal check) → active → 15-min withdrawable sweep + daily 18:00 installments → shortfalls become arrears → earnings intercepted FIFO → optional top-up (≥30% repaid) → `completed`.
+
+**C. Merchant cash-out**
+User requests withdrawal → CFO approves → `auto_dispatch_withdrawals` assigns least-loaded matching merchant → merchant claims (`accept_withdrawal_dispatch`, others superseded) → pays from own MoMo → reimbursed principal + 0.5%, telecom fee debited from float → unclaimed after 45 min → `release_stale_cashout_claims` returns it to the pool.
+
+## 21. Known Failure Modes & Open Risks
+
+| Issue | Detection | Status |
+|---|---|---|
+| Stale opening balance → double charge | `zz_guard_agent_advance_double_charge` (`ADVANCE_LEDGER_STALE_OPENING`) | Guarded; races logged to `system_essevents`/`system_events` |
+| Same-day over-collection | Same guard (`ADVANCE_PERIOD_CAP_EXCEEDED`) | Guarded |
+| Over-disbursement vs principal | `verify_advance_disbursement_matches_principal` | Guarded |
+| LP float double/quadruple funding | 409 `already_funded` + unique live-allocation index | Fixed 2026-07-30 |
+| Stuck merchant claims | 45-min release cron | Mitigated |
+| Withdrawable/float drift | 15-min drift alert cron + reconciliation views | Alert-only |
+| Legacy commission imbalance (~UGX 22M over 8,558 rows) | ledger volume query | **Open — historical data only** |
+| Failing crons: `sweep-agent-advance-recovery`, `expire-stale-bonus-restrictions`, `recalculate-trust-scores-nightly` | cron run history | **Open** |
+| `sweep-agent-advance-recovery` cadence conflict (15-min vs daily) | migration diff; `cron.job` unreadable | **Open — needs privileged read** |
+| Access-fee formula divergence: trigger uses simple interest, top-up/frontend use compound | function-body comparison | **Open — quoted vs applied fee may differ** |
+| "Today's Capacity" coupled to `agent_collections`; a missing row makes an active agent look idle | eligibility view | **Open — design coupling** |
+| Merchant Gmail auto-debit against float | `MERCHANT_AGENT_AUTO_DEBIT_BLOCKED` | Guarded (hard block) |
+
+## 22. Appendix — Reference Inventory
+
+- **Scale:** ~74 agent-scoped tables/views, ~230 agent-scoped RPCs, 34 ledger triggers platform-wide.
+- **Key tables:** `agent_advance_requests`, `agent_advances`, `agent_advance_ledger`, `agent_advance_topups`, `advance_fee_config`, `business_advances`, `agent_landlord_float`, `agent_landlord_float_allocations`, `agent_landlord_float_corrections`, `agent_float_funding`, `agent_float_limits`, `agent_float_withdrawals`, `float_requests`, `agent_collections`, `field_collections`, `offline_collection_submissions`, `agent_earnings`, `agent_visits`, `venue_visits`, `agent_subagents`, `subagent_tenant_transfers`, `agent_landlord_assignments`, `agent_capabilities`, `agent_tier`, `agent_tier_capabilities`, `agent_capability_ops_*`, `cashout_agents`, `merchant_agent_referrals`, `wallet_balances_projection`, `wallets`, `general_ledger`.
+- **Key guard triggers:** `enforce_no_negative_wallet_ledger`, `enforce_no_double_agent_advance`, `enforce_advance_principal_integrity`, `enforce_tiered_advance_rate`, `enforce_agent_advance_min_principal`, `verify_advance_disbursement_matches_principal`, `zz_guard_agent_advance_double_charge`, `tg_cap_advance_arrears`, `guard_rent_request_agent_updates`, `enforce_agent_full_freeze`, `enforce_agent_daily_eligibility`, `enforce_agent_rent_request_capacity`, `enforce_kyc_withdrawal_cap`, `enforce_no_merchant_agent_auto_debit`, `trg_sync_landlord_float_from_allocation`, `trg_alfa_status`, `register_float_delivery_tid`.
+- **Key edge functions:** `assign-agent-float`, `record-bank-float-transfer`, `transfer-to-float`, `admin-withdrawable-to-float`, `admin-float-to-withdrawable`, `fund-agent-landlord-float`, `agent-deposit`, `agent-withdrawal`, `approve-withdrawal`, `process-agent-advance-deductions`, `voluntary-repay-advance`, `cfo-record-advance-payment`, `notify-agent-advance-disbursed`, `process-agent-capability-jobs`, `notify-merchants-new-withdrawal`, `notify-merchant-agent-assigned`, `merchant-cashout-daily-report`, `generate-daily-merchant-commission`, `business-advance-stage-reminders`, `disburse-business-advance`, `repay-business-advance`, `process-business-advance-compounding`.
+- **Follow-up reads to close remaining gaps:** `agent_allocation_traces`, `agent_misrouted_deposits_preview`, `agent_allocate_tenant_payment_internal`, `credit_agent_rent_commission`, `get_agent_split_balances`, `record_rent_request_repayment`, `sync_wallet_from_ledger`, `agent_advance_requests_privileged`, `approve-withdrawal/index.ts`, and a privileged `select * from cron.job`.
+
+---
+
+*This document is descriptive of observed system state. Where marked **(inferred)**, verify before relying on it for financial or legal conclusions.*
