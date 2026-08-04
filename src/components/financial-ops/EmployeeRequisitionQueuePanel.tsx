@@ -105,7 +105,7 @@ export function EmployeeRequisitionQueuePanel() {
     const rolledBack = (data as { rolled_back?: boolean })?.rolled_back === true;
     if (rolledBack) {
       const p = data as { credit_error?: string | null; credit_detail?: Parameters<typeof describeCreditFailure>[0] };
-      const { headline, description } = describeCreditFailure(p?.credit_detail ?? null, p?.credit_error ?? null);
+      const { headline, description } = describeCreditFailure(p?.credit_detail ?? null, p?.credit_error ?? 'Wallet credit failed.');
       toast.error(`Approval rolled back — ${headline}`, {
         description: `${description} The requisition was NOT approved and no funds were moved, so you can safely approve again.`,
         duration: 12000,
