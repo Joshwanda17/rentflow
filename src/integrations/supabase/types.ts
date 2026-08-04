@@ -18757,6 +18757,65 @@ export type Database = {
         }
         Relationships: []
       }
+      partner_self_topups: {
+        Row: {
+          amount: number
+          commitment_id: string
+          created_at: string
+          days_in_cycle: number
+          effective_at: string
+          id: string
+          idempotency_key: string | null
+          inherits_term_end_at: string | null
+          ledger_group_id: string | null
+          lines_count: number
+          partner_id: string
+          prorata_amount: number
+          prorata_days: number
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          commitment_id: string
+          created_at?: string
+          days_in_cycle?: number
+          effective_at?: string
+          id?: string
+          idempotency_key?: string | null
+          inherits_term_end_at?: string | null
+          ledger_group_id?: string | null
+          lines_count?: number
+          partner_id: string
+          prorata_amount?: number
+          prorata_days?: number
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          commitment_id?: string
+          created_at?: string
+          days_in_cycle?: number
+          effective_at?: string
+          id?: string
+          idempotency_key?: string | null
+          inherits_term_end_at?: string | null
+          ledger_group_id?: string | null
+          lines_count?: number
+          partner_id?: string
+          prorata_amount?: number
+          prorata_days?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_self_topups_commitment_id_fkey"
+            columns: ["commitment_id"]
+            isOneToOne: false
+            referencedRelation: "partner_self_commitments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_tokens: {
         Row: {
           agent_id: string
@@ -34911,6 +34970,18 @@ export type Database = {
       partner_self_portfolio: { Args: { p_partner_id?: string }; Returns: Json }
       partner_self_release_claims: {
         Args: { p_rent_request_ids?: string[] }
+        Returns: Json
+      }
+      partner_self_top_up: {
+        Args: {
+          p_commitment_id: string
+          p_idempotency_key?: string
+          p_rent_request_ids: string[]
+        }
+        Returns: Json
+      }
+      partner_self_topup_eligibility: {
+        Args: { p_commitment_id: string }
         Returns: Json
       }
       pause_tenant_repayment: {
