@@ -416,6 +416,23 @@ export function FinOpsWalletMovePanel() {
 
   const submit = async () => {
     if (!source) return;
+    // Hard client-side contract guard. The `finops-wallet-move` edge function
+    // rejects any request without a structured reason_code (400) and without a
+    // 10-character note, so refuse to spend a round trip on an invalid payload.
+    if (!reasonCode || !REASON_CODES.some((r) => r.value === reasonCode)) {
+      toast.error('Reason code required', {
+        description: 'Pick a structured reason code before recovering money to the platform.',
+      });
+      setConfirmOpen(false);
+      return;
+    }
+    if (reason.trim().length < 10) {
+      toast.error('Reason note too short', {
+        description: 'Explain what happened in at least 10 characters.',
+      });
+      setConfirmOpen(false);
+      return;
+    }
     setSubmitting(true);
     setStep('posting');
 
