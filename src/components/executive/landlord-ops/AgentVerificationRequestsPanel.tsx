@@ -11,6 +11,7 @@ import {
   ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { notifyVerificationResolved } from '@/lib/landlordVerificationNotify';
+import { setLandlordVerification } from '@/lib/landlord-ops/verification';
 
 interface VerificationRequest {
   id: string;
