@@ -8,6 +8,7 @@ import { AppRole } from "@/hooks/useAuth";
 import { useAuth } from "@/hooks/useAuth";
 import { roleDashboardRoutes } from "@/components/layout/executiveSidebarConfig";
 import { roleToSlug } from "@/lib/roleRoutes";
+import { preloadRole } from "@/lib/preloadRoleDashboards";
 import { useDeployedCapital } from "@/hooks/useDeployedCapital";
 import { useRoleAccessRequests } from "@/hooks/useRoleAccessRequests";
 import { areAllRolesUnlocked } from "@/hooks/useAppPreferences";
@@ -80,6 +81,9 @@ const BottomRoleSwitcher = memo(function BottomRoleSwitcher({ currentRole, onRol
     if (role === currentRole) return;
     hapticTap();
 
+    // Warm the chunk as early as possible in case idle preloading hasn't run.
+    preloadRole(role);
+
     // Check if role is gated for qualified investors
     if (isRoleGated(role)) {
       const label = PUBLIC_ROLES.find((r) => r.role === role)?.label ?? role;
@@ -142,6 +146,11 @@ const BottomRoleSwitcher = memo(function BottomRoleSwitcher({ currentRole, onRol
                 key={role}
                 ref={setItemRef(index)}
                 onClick={() => handleSwitch(role)}
+                onPointerDown={() => {
+                  // Warm on intent: starts the chunk fetch on touch-down,
+                  // buying a head start before the tap completes.
+                  if (role !== currentRole && !gated) preloadRole(role);
+                }}
                 aria-label={`${label}${isActive ? ' (current)' : ''}${gated ? ' (locked)' : ''}`}
                 aria-current={isActive ? 'page' : undefined}
                 className={cn(
