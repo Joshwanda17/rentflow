@@ -21,7 +21,7 @@ import { useWallet } from '@/hooks/useWallet';
 import { SendMoneyDialog } from './SendMoneyDialog';
 import DepositFlow from '@/components/payments/DepositFlow';
 import { RequestMoneyDialog } from './RequestMoneyDialog';
-import { PendingRequestsDialog } from './PendingRequestsDialog';
+
 import { TransactionReceipt } from './TransactionReceipt';
 import { UserDepositRequests } from './UserDepositRequests';
 import { UserWithdrawalRequests } from './UserWithdrawalRequests';
