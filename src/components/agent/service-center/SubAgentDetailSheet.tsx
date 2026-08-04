@@ -139,11 +139,12 @@ export function SubAgentDetailSheet({
 
             <section className="space-y-2">
               <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Tenants ({subAgent.tenant_list.length})
+                Tenants ({subAgent.tenant_list.length}
+                {subAgent.active_tenants > 0 ? ` · ${subAgent.active_tenants} active` : ''})
               </h3>
               {subAgent.tenant_list.length === 0 ? (
                 <p className="rounded-xl border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
-                  No active tenants yet.
+                  No tenants linked to this sub-agent yet.
                 </p>
               ) : (
                 <ul className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border/60">
@@ -156,7 +157,12 @@ export function SubAgentDetailSheet({
                         <span className="font-semibold text-foreground">
                           {t.monthly_rent ? formatUGX(t.monthly_rent) : '—'}
                         </span>
-                        <Badge variant="outline" className="text-[10px] capitalize">{t.status}</Badge>
+                        <Badge
+                          variant={t.is_active ? 'default' : 'outline'}
+                          className="text-[10px] capitalize"
+                        >
+                          {t.status.replace(/_/g, ' ')}
+                        </Badge>
                       </span>
                     </li>
                   ))}
@@ -175,7 +181,7 @@ export function SubAgentDetailSheet({
                 variant="outline"
                 className="flex-1"
                 onClick={() => onTransfer(subAgent)}
-                disabled={subAgent.tenant_list.length === 0}
+                disabled={!subAgent.tenant_list.some((t) => t.is_active)}
               >
                 <ArrowLeftRight className="mr-1.5 h-4 w-4" /> Transfer tenant
               </Button>
