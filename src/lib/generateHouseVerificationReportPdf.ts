@@ -66,6 +66,27 @@ export interface HouseReportRow {
 
 export type HouseReportScope = 'pending' | 'verified' | 'rejected' | 'all';
 
+/** A single-state section inside a report. `all` reports render one per state. */
+type SectionScope = Exclude<HouseReportScope, 'all'>;
+
+const SECTION_ORDER: SectionScope[] = ['verified', 'rejected', 'pending'];
+
+const SECTION_TITLE: Record<SectionScope, string> = {
+  pending: 'Pending verification',
+  verified: 'Verified houses',
+  rejected: 'Rejected houses',
+};
+
+const SECTION_BASIS: Record<SectionScope, string> = {
+  pending: 'Dates below are the registration date (the house has no decision yet).',
+  verified: 'Dates below are the verification date recorded against each house.',
+  rejected: 'Dates below are the rejection date recorded against each house.',
+};
+
+/** Classifies a row into exactly one state, matching the queue/status scopes. */
+const rowSection = (r: HouseReportRow): SectionScope =>
+  r.status === 'rejected' ? 'rejected' : r.verified ? 'verified' : 'pending';
+
 export interface HouseReportMeta {
   scope: HouseReportScope;
   quickFilter?: string;
@@ -180,69 +201,109 @@ export function generateHouseVerificationReportPdf(
   doc.line(margin, y, pageWidth - margin, y);
   y += 6;
 
-  // ─── KPI cards ───
-  const totalRent = rows.reduce((s, r) => s + Number(r.monthly_rent || 0), 0);
-  const withGps = rows.filter(r => r.latitude != null && r.longitude != null).length;
-  const withPhotos = rows.filter(r => Number(r.photo_count || 0) > 0).length;
-  const withLc1 = rows.filter(r => txt(r.lc1_chairperson_name, '') !== '').length;
-  const hidden = rows.filter(r => !!r.is_hidden).length;
-  const occupied = rows.filter(r => !!r.tenant_id).length;
-  const bonusPaid = rows.filter(r => !!r.listing_bonus_paid).length;
-  const agents = new Set(rows.map(r => txt(r.agent_name, '')).filter(Boolean)).size;
-  const landlords = new Set(rows.map(r => txt(r.landlord_name, '')).filter(Boolean)).size;
+  // ─── Reusable section builders ───────────────────────────────────────────
+  // Every block below renders for an arbitrary row set and state so that the
+  // "all" report can reuse the exact same, fully comprehensive layout the
+  // independent verified / rejected / pending reports use.
 
-  const cards: { label: string; value: string }[] = [
-    { label: 'HOUSES', value: num(rows.length) },
-    { label: 'LANDLORDS', value: num(landlords) },
-    { label: 'AGENTS', value: num(agents) },
-    { label: 'MONTHLY RENT', value: ugx(totalRent) },
-    { label: 'WITH GPS', value: `${num(withGps)} / ${num(rows.length)}` },
-    { label: 'WITH PHOTOS', value: `${num(withPhotos)} / ${num(rows.length)}` },
-    { label: 'WITH LC1', value: `${num(withLc1)} / ${num(rows.length)}` },
-    meta.scope === 'pending'
-      ? { label: 'OCCUPIED', value: num(occupied) }
-      : { label: 'HIDDEN (SUBSET)', value: num(hidden) },
-  ];
-
-  const cardGap = 2.5;
-  const cardW = (contentWidth - cardGap * (cards.length - 1)) / cards.length;
-  const cardH = 16;
-  cards.forEach((c, i) => {
-    const x = margin + i * (cardW + cardGap);
-    doc.setFillColor(248, 249, 252);
-    doc.setDrawColor(225, 227, 232);
-    doc.setLineWidth(0.2);
-    (doc as any).roundedRect(x, y, cardW, cardH, 2, 2, 'FD');
+  const sectionHeading = (label: string, size = 10) => {
+    ensure(16);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(6);
-    doc.setTextColor(120, 122, 135);
-    doc.text(c.label, x + 3, y + 5.5);
-    doc.setFontSize(9.5);
+    doc.setFontSize(size);
     doc.setTextColor(15, 23, 42);
-    doc.text(clip(c.value, 18), x + 3, y + 12);
-  });
-  y += cardH + 6;
+    doc.text(label, margin, y);
+    y += 4;
+  };
 
-  // ─── District summary ───
-  const byDistrict = new Map<string, { houses: number; rent: number; hidden: number; occupied: number }>();
-  rows.forEach(r => {
-    const key = txt(r.district, 'Unknown district');
-    const cur = byDistrict.get(key) || { houses: 0, rent: 0, hidden: 0, occupied: 0 };
-    cur.houses += 1;
-    cur.rent += Number(r.monthly_rent || 0);
-    if (r.is_hidden) cur.hidden += 1;
-    if (r.tenant_id) cur.occupied += 1;
-    byDistrict.set(key, cur);
-  });
-  const districtRows = Array.from(byDistrict.entries()).sort((a, b) => b[1].houses - a[1].houses);
-
-  if (districtRows.length) {
-    ensure(20);
+  /** Coloured band that opens a state section in the "all" report. */
+  const drawSectionBanner = (sec: SectionScope, sectionRows: HouseReportRow[]) => {
+    ensure(30);
+    const bandH = 9;
+    doc.setFillColor(...SCOPE_ACCENT[sec]);
+    (doc as any).roundedRect(margin, y, contentWidth, bandH, 1.5, 1.5, 'F');
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
-    doc.setTextColor(15, 23, 42);
-    doc.text('Breakdown by district', margin, y);
-    y += 4;
+    doc.setTextColor(255, 255, 255);
+    doc.text(SECTION_TITLE[sec].toUpperCase(), margin + 3, y + 6.2);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.text(
+      `${num(sectionRows.length)} of ${num(rows.length)} houses in this export`,
+      pageWidth - margin - 3, y + 6.2, { align: 'right' },
+    );
+    y += bandH + 3.5;
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(7.5);
+    doc.setTextColor(110, 110, 120);
+    doc.text(SECTION_BASIS[sec], margin, y);
+    y += 5;
+  };
+
+  const drawKpiCards = (sectionRows: HouseReportRow[], sec: SectionScope | 'all') => {
+    const totalRent = sectionRows.reduce((s, r) => s + Number(r.monthly_rent || 0), 0);
+    const withGps = sectionRows.filter(r => r.latitude != null && r.longitude != null).length;
+    const withPhotos = sectionRows.filter(r => Number(r.photo_count || 0) > 0).length;
+    const withLc1 = sectionRows.filter(r => txt(r.lc1_chairperson_name, '') !== '').length;
+    const hidden = sectionRows.filter(r => !!r.is_hidden).length;
+    const occupied = sectionRows.filter(r => !!r.tenant_id).length;
+    const agents = new Set(sectionRows.map(r => txt(r.agent_name, '')).filter(Boolean)).size;
+    const landlords = new Set(sectionRows.map(r => txt(r.landlord_name, '')).filter(Boolean)).size;
+
+    const cards: { label: string; value: string }[] = [
+      { label: 'HOUSES', value: num(sectionRows.length) },
+      { label: 'LANDLORDS', value: num(landlords) },
+      { label: 'AGENTS', value: num(agents) },
+      { label: 'MONTHLY RENT', value: ugx(totalRent) },
+      { label: 'WITH GPS', value: `${num(withGps)} / ${num(sectionRows.length)}` },
+      { label: 'WITH PHOTOS', value: `${num(withPhotos)} / ${num(sectionRows.length)}` },
+      { label: 'WITH LC1', value: `${num(withLc1)} / ${num(sectionRows.length)}` },
+      sec === 'pending'
+        ? { label: 'OCCUPIED', value: num(occupied) }
+        : { label: 'HIDDEN (SUBSET)', value: num(hidden) },
+    ];
+
+    ensure(22);
+    const cardGap = 2.5;
+    const cardW = (contentWidth - cardGap * (cards.length - 1)) / cards.length;
+    const cardH = 16;
+    cards.forEach((c, i) => {
+      const x = margin + i * (cardW + cardGap);
+      doc.setFillColor(248, 249, 252);
+      doc.setDrawColor(225, 227, 232);
+      doc.setLineWidth(0.2);
+      (doc as any).roundedRect(x, y, cardW, cardH, 2, 2, 'FD');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(6);
+      doc.setTextColor(120, 122, 135);
+      doc.text(c.label, x + 3, y + 5.5);
+      doc.setFontSize(9.5);
+      doc.setTextColor(15, 23, 42);
+      doc.text(clip(c.value, 18), x + 3, y + 12);
+    });
+    y += cardH + 6;
+  };
+
+  const drawDistrictBreakdown = (
+    sectionRows: HouseReportRow[],
+    sectionAccent: [number, number, number],
+    limit: number,
+    heading: string,
+  ) => {
+    const byDistrict = new Map<string, { houses: number; rent: number; hidden: number; occupied: number }>();
+    sectionRows.forEach(r => {
+      const key = txt(r.district, 'Unknown district');
+      const cur = byDistrict.get(key) || { houses: 0, rent: 0, hidden: 0, occupied: 0 };
+      cur.houses += 1;
+      cur.rent += Number(r.monthly_rent || 0);
+      if (r.is_hidden) cur.hidden += 1;
+      if (r.tenant_id) cur.occupied += 1;
+      byDistrict.set(key, cur);
+    });
+    const districtRows = Array.from(byDistrict.entries()).sort((a, b) => b[1].houses - a[1].houses);
+    if (!districtRows.length) return;
+
+    ensure(20);
+    sectionHeading(heading);
 
     const dCols = [
       { label: 'District', w: 60, align: 'left' as const },
@@ -251,9 +312,10 @@ export function generateHouseVerificationReportPdf(
       { label: 'Hidden', w: 22, align: 'right' as const },
       { label: 'Monthly rent (UGX)', w: 40, align: 'right' as const },
     ];
+    const dWidth = dCols.reduce((s, c) => s + c.w, 0);
     const dHead = () => {
-      doc.setFillColor(...accent);
-      doc.rect(margin, y, dCols.reduce((s, c) => s + c.w, 0), 6, 'F');
+      doc.setFillColor(...sectionAccent);
+      doc.rect(margin, y, dWidth, 6, 'F');
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(7.5);
       doc.setTextColor(255, 255, 255);
@@ -267,11 +329,11 @@ export function generateHouseVerificationReportPdf(
     dHead();
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.5);
-    districtRows.slice(0, 40).forEach(([name, v], i) => {
+    districtRows.slice(0, limit).forEach(([name, v], i) => {
       ensure(6, dHead);
       if (i % 2 === 1) {
         doc.setFillColor(248, 249, 252);
-        doc.rect(margin, y, dCols.reduce((s, c) => s + c.w, 0), 5.2, 'F');
+        doc.rect(margin, y, dWidth, 5.2, 'F');
       }
       doc.setTextColor(30, 35, 50);
       let x = margin;
@@ -282,22 +344,14 @@ export function generateHouseVerificationReportPdf(
       });
       y += 5.2;
     });
-    if (districtRows.length > 40) {
+    if (districtRows.length > limit) {
       doc.setFont('helvetica', 'italic');
       doc.setTextColor(120, 122, 135);
-      doc.text(`+ ${districtRows.length - 40} more districts (see detail below)`, margin, y + 3.5);
+      doc.text(`+ ${districtRows.length - limit} more districts (see detail below)`, margin, y + 3.5);
       y += 6;
     }
     y += 5;
-  }
-
-  // ─── Detail table (scope-aware columns) ───
-  ensure(24);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.setTextColor(15, 23, 42);
-  doc.text('House-by-house detail', margin, y);
-  y += 4;
+  };
 
   type Col = { label: string; w: number; align?: 'left' | 'right'; get: (r: HouseReportRow, i: number) => string };
 
@@ -311,8 +365,9 @@ export function generateHouseVerificationReportPdf(
     { label: 'Agent', w: 32, get: r => clip(txt(r.agent_name), 21) },
   ];
 
-  const scopeCols: Col[] =
-    meta.scope === 'verified'
+  /** State-specific trailing columns — identical to the standalone reports. */
+  const stateCols = (sec: SectionScope): Col[] =>
+    sec === 'verified'
       ? [
           { label: 'Verified by', w: 32, get: r => clip(txt(r.verified_by_name, 'System / pipeline'), 21) },
           { label: 'Verified on', w: 26, get: r => dt(r.verified_at, true) },
@@ -320,137 +375,210 @@ export function generateHouseVerificationReportPdf(
           { label: 'Bonus', w: 16, get: r => (r.listing_bonus_paid ? 'Paid' : '—') },
           { label: 'GPS', w: 12, get: r => (r.latitude != null && r.longitude != null ? 'Yes' : 'No') },
         ]
-      : meta.scope === 'rejected'
+      : sec === 'rejected'
         ? [
             { label: 'Rejected by', w: 30, get: r => clip(txt(r.rejected_by_name, 'Unknown'), 20) },
             { label: 'Rejected on', w: 24, get: r => dt(r.rejected_at, true) },
             { label: 'Reason', w: 50, get: r => clip(txt(r.rejection_reason, 'No reason recorded'), 40) },
           ]
-        : meta.scope === 'pending'
-          ? [
-              { label: 'Registered', w: 24, get: r => dt(r.created_at) },
-              {
-                label: 'Waiting',
-                w: 18,
-                align: 'right',
-                get: r => {
-                  if (!r.created_at) return '—';
-                  const days = Math.max(0, Math.floor((Date.now() - new Date(r.created_at).getTime()) / 86400000));
-                  return `${days}d`;
-                },
+        : [
+            { label: 'Registered', w: 24, get: r => dt(r.created_at) },
+            {
+              label: 'Waiting',
+              w: 18,
+              align: 'right',
+              get: r => {
+                if (!r.created_at) return '—';
+                const days = Math.max(0, Math.floor((Date.now() - new Date(r.created_at).getTime()) / 86400000));
+                return `${days}d`;
               },
-              { label: 'Photos', w: 16, align: 'right', get: r => num(r.photo_count) },
-              { label: 'GPS', w: 12, get: r => (r.latitude != null && r.longitude != null ? 'Yes' : 'No') },
-              { label: 'LC1', w: 26, get: r => clip(txt(r.lc1_chairperson_name), 17) },
-            ]
-          : [
-              { label: 'State', w: 20, get: r => (r.status === 'rejected' ? 'Rejected' : r.verified ? 'Verified' : 'Pending') },
-              { label: 'State date', w: 26, get: r => dt(r.activity_at, true) },
-              { label: 'Decided by', w: 30, get: r => clip(txt(r.status === 'rejected' ? r.rejected_by_name : r.verified_by_name), 20) },
-              { label: 'Visibility', w: 18, get: r => (r.is_hidden ? 'Hidden' : 'Live') },
-            ];
+            },
+            { label: 'Photos', w: 16, align: 'right', get: r => num(r.photo_count) },
+            { label: 'GPS', w: 12, get: r => (r.latitude != null && r.longitude != null ? 'Yes' : 'No') },
+            { label: 'LC1', w: 26, get: r => clip(txt(r.lc1_chairperson_name), 17) },
+          ];
 
-  const cols = [...baseCols, ...scopeCols];
-  const tableW = cols.reduce((s, c) => s + c.w, 0);
+  const drawDetailTable = (
+    sectionRows: HouseReportRow[],
+    cols: Col[],
+    sectionAccent: [number, number, number],
+    heading: string,
+  ) => {
+    ensure(24);
+    sectionHeading(heading);
 
-  const drawHead = () => {
-    doc.setFillColor(...accent);
-    doc.rect(margin, y, tableW, 6.5, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7);
-    doc.setTextColor(255, 255, 255);
-    let x = margin;
-    cols.forEach(c => {
-      doc.text(c.label, c.align === 'right' ? x + c.w - 1.5 : x + 1.5, y + 4.3, { align: c.align || 'left' });
-      x += c.w;
-    });
-    y += 6.5;
-  };
-  drawHead();
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7);
-  const rowH = 5.2;
-
-  rows.forEach((r, i) => {
-    ensure(rowH + 1, () => { drawHead(); doc.setFont('helvetica', 'normal'); doc.setFontSize(7); });
-    if (i % 2 === 1) {
-      doc.setFillColor(248, 249, 252);
-      doc.rect(margin, y, tableW, rowH, 'F');
-    }
-    doc.setDrawColor(234, 236, 242);
-    doc.setLineWidth(0.12);
-    doc.line(margin, y + rowH, margin + tableW, y + rowH);
-    let x = margin;
-    cols.forEach(c => {
-      doc.setTextColor(30, 35, 50);
-      doc.text(c.get(r, i), c.align === 'right' ? x + c.w - 1.5 : x + 1.5, y + 3.7, { align: c.align || 'left' });
-      x += c.w;
-    });
-    y += rowH;
-  });
-
-  // ─── Rejection reasons appendix (full, untruncated) ───
-  if (meta.scope === 'rejected' || meta.scope === 'all') {
-    const withReason = rows.filter(r => txt(r.rejection_reason, '') !== '');
-    if (withReason.length) {
-      y += 6;
-      ensure(16);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10);
-      doc.setTextColor(15, 23, 42);
-      doc.text('Appendix — full rejection reasons', margin, y);
-      y += 5;
+    if (!sectionRows.length) {
+      doc.setFont('helvetica', 'italic');
       doc.setFontSize(7.5);
-      withReason.forEach((r, i) => {
-        const head = `${i + 1}. ${txt(r.title)} — ${txt(r.village, '?')}, ${txt(r.district, '?')} — rejected by ${txt(r.rejected_by_name, 'Unknown')} on ${dt(r.rejected_at, true)}`;
-        const lines = doc.splitTextToSize(txt(r.rejection_reason), contentWidth - 4) as string[];
-        ensure(4 + lines.length * 3.4 + 2);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(15, 23, 42);
-        doc.text(clip(head, 175), margin, y);
-        y += 3.6;
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(80, 85, 100);
-        lines.forEach(ln => { doc.text(ln, margin + 3, y); y += 3.4; });
-        y += 1.6;
-      });
+      doc.setTextColor(120, 122, 135);
+      doc.text('No houses in this state for the selected filters.', margin, y + 2);
+      y += 7;
+      return;
     }
-  }
 
-  // ─── Landlord payout readiness appendix (verified scope) ───
-  if (meta.scope === 'verified') {
-    const missingPayout = rows.filter(
+    const tableW = cols.reduce((s, c) => s + c.w, 0);
+    const drawHead = () => {
+      doc.setFillColor(...sectionAccent);
+      doc.rect(margin, y, tableW, 6.5, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7);
+      doc.setTextColor(255, 255, 255);
+      let x = margin;
+      cols.forEach(c => {
+        doc.text(c.label, c.align === 'right' ? x + c.w - 1.5 : x + 1.5, y + 4.3, { align: c.align || 'left' });
+        x += c.w;
+      });
+      y += 6.5;
+    };
+    drawHead();
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    const rowH = 5.2;
+
+    sectionRows.forEach((r, i) => {
+      ensure(rowH + 1, () => { drawHead(); doc.setFont('helvetica', 'normal'); doc.setFontSize(7); });
+      if (i % 2 === 1) {
+        doc.setFillColor(248, 249, 252);
+        doc.rect(margin, y, tableW, rowH, 'F');
+      }
+      doc.setDrawColor(234, 236, 242);
+      doc.setLineWidth(0.12);
+      doc.line(margin, y + rowH, margin + tableW, y + rowH);
+      let x = margin;
+      cols.forEach(c => {
+        doc.setTextColor(30, 35, 50);
+        doc.text(c.get(r, i), c.align === 'right' ? x + c.w - 1.5 : x + 1.5, y + 3.7, { align: c.align || 'left' });
+        x += c.w;
+      });
+      y += rowH;
+    });
+  };
+
+  /** Full, untruncated rejection reasons for the supplied rows. */
+  const drawRejectionAppendix = (sectionRows: HouseReportRow[], heading: string) => {
+    const withReason = sectionRows.filter(r => txt(r.rejection_reason, '') !== '');
+    if (!withReason.length) return;
+    y += 6;
+    ensure(16);
+    sectionHeading(heading);
+    y += 1;
+    doc.setFontSize(7.5);
+    withReason.forEach((r, i) => {
+      const head = `${i + 1}. ${txt(r.title)} — ${txt(r.village, '?')}, ${txt(r.district, '?')} — rejected by ${txt(r.rejected_by_name, 'Unknown')} on ${dt(r.rejected_at, true)}`;
+      const lines = doc.splitTextToSize(txt(r.rejection_reason), contentWidth - 4) as string[];
+      ensure(4 + lines.length * 3.4 + 2);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7.5);
+      doc.setTextColor(15, 23, 42);
+      doc.text(clip(head, 175), margin, y);
+      y += 3.6;
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(80, 85, 100);
+      lines.forEach(ln => { doc.text(ln, margin + 3, y); y += 3.4; });
+      y += 1.6;
+    });
+  };
+
+  /** Landlord payout readiness for the supplied (verified) rows. */
+  const drawPayoutAppendix = (sectionRows: HouseReportRow[], heading: string) => {
+    const missingPayout = sectionRows.filter(
       r => txt(r.mobile_money_number, '') === '' && txt(r.account_number, '') === '',
     );
     y += 6;
     ensure(16);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.setTextColor(15, 23, 42);
-    doc.text('Appendix — landlord payout readiness', margin, y);
-    y += 5;
+    sectionHeading(heading);
+    y += 1;
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.5);
     doc.setTextColor(80, 85, 100);
     if (!missingPayout.length) {
-      doc.text('Every landlord in this report has at least one payout destination on file (mobile money or bank).', margin, y);
+      doc.text('Every landlord in this section has at least one payout destination on file (mobile money or bank).', margin, y);
       y += 4;
-    } else {
-      doc.text(
-        `${missingPayout.length} verified house${missingPayout.length === 1 ? '' : 's'} belong to landlords with NO payout destination on file:`,
-        margin, y,
-      );
-      y += 4;
-      missingPayout.slice(0, 60).forEach((r, i) => {
-        ensure(4);
-        doc.text(
-          `${i + 1}. ${txt(r.landlord_name)} (${txt(r.landlord_phone)}) — ${txt(r.title)} — ${txt(r.village, '?')}, ${txt(r.district, '?')}`,
-          margin + 3, y,
-        );
-        y += 3.6;
-      });
+      return;
     }
+    doc.text(
+      `${missingPayout.length} verified house${missingPayout.length === 1 ? '' : 's'} belong to landlords with NO payout destination on file:`,
+      margin, y,
+    );
+    y += 4;
+    missingPayout.slice(0, 60).forEach((r, i) => {
+      ensure(4);
+      doc.text(
+        `${i + 1}. ${txt(r.landlord_name)} (${txt(r.landlord_phone)}) — ${txt(r.title)} — ${txt(r.village, '?')}, ${txt(r.district, '?')}`,
+        margin + 3, y,
+      );
+      y += 3.6;
+    });
+    if (missingPayout.length > 60) {
+      doc.setFont('helvetica', 'italic');
+      doc.setTextColor(120, 122, 135);
+      doc.text(`+ ${missingPayout.length - 60} more landlords without a payout destination.`, margin + 3, y);
+      y += 4;
+    }
+  };
+
+  /** One complete, self-contained state section (used by the "all" report). */
+  const drawStateSection = (sec: SectionScope, sectionRows: HouseReportRow[]) => {
+    const sectionAccent = SCOPE_ACCENT[sec];
+    drawSectionBanner(sec, sectionRows);
+    drawKpiCards(sectionRows, sec);
+    drawDistrictBreakdown(sectionRows, sectionAccent, 20, `${SECTION_TITLE[sec]} — breakdown by district`);
+    drawDetailTable(sectionRows, [...baseCols, ...stateCols(sec)], sectionAccent, `${SECTION_TITLE[sec]} — house-by-house detail`);
+    if (sec === 'rejected') drawRejectionAppendix(sectionRows, 'Rejected houses — full rejection reasons');
+    if (sec === 'verified') drawPayoutAppendix(sectionRows, 'Verified houses — landlord payout readiness');
+    y += 8;
+  };
+
+  // ─── Body ───────────────────────────────────────────────────────────────
+  if (meta.scope === 'all') {
+    // Portfolio-wide overview first, then a fully organised section per state
+    // so verified / rejected / pending each read like their own report.
+    const grouped: Record<SectionScope, HouseReportRow[]> = { verified: [], rejected: [], pending: [] };
+    rows.forEach(r => { grouped[rowSection(r)].push(r); });
+
+    drawKpiCards(rows, 'all');
+
+    // State mix so the reader can see the composition before drilling in.
+    sectionHeading('Composition by state');
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    const mixW = contentWidth / 3 - 3;
+    SECTION_ORDER.forEach((sec, i) => {
+      const x = margin + i * (mixW + 4.5);
+      const list = grouped[sec];
+      const share = rows.length ? Math.round((list.length / rows.length) * 100) : 0;
+      doc.setFillColor(248, 249, 252);
+      doc.setDrawColor(...SCOPE_ACCENT[sec]);
+      doc.setLineWidth(0.5);
+      (doc as any).roundedRect(x, y, mixW, 14, 2, 2, 'FD');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7);
+      doc.setTextColor(...SCOPE_ACCENT[sec]);
+      doc.text(SECTION_TITLE[sec].toUpperCase(), x + 3, y + 5);
+      doc.setFontSize(9);
+      doc.setTextColor(15, 23, 42);
+      doc.text(`${num(list.length)} houses  (${share}%)`, x + 3, y + 11);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
+      doc.setTextColor(110, 110, 120);
+      doc.text(
+        ugx(list.reduce((s, r) => s + Number(r.monthly_rent || 0), 0)),
+        x + mixW - 3, y + 11, { align: 'right' },
+      );
+    });
+    y += 20;
+
+    drawDistrictBreakdown(rows, accent, 40, 'Portfolio breakdown by district');
+
+    SECTION_ORDER.forEach(sec => drawStateSection(sec, grouped[sec]));
+  } else {
+    const sec = meta.scope as SectionScope;
+    drawKpiCards(rows, sec);
+    drawDistrictBreakdown(rows, accent, 40, 'Breakdown by district');
+    drawDetailTable(rows, [...baseCols, ...stateCols(sec)], accent, 'House-by-house detail');
+    if (sec === 'rejected') drawRejectionAppendix(rows, 'Appendix — full rejection reasons');
+    if (sec === 'verified') drawPayoutAppendix(rows, 'Appendix — landlord payout readiness');
   }
 
   // ─── Footer ───
