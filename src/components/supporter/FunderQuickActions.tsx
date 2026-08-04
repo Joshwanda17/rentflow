@@ -58,7 +58,7 @@ export function FunderQuickActions({ availableBalance, roiBalance = 0, onChanged
   // (or overflows) the button border on narrow phones. `min-w-0` lets the grid
   // column shrink, and the label truncates instead of pushing past the edge.
   const btnBase =
-    'h-11 min-w-0 w-full justify-center gap-1 px-1.5 xs:gap-1.5 xs:px-2 sm:gap-2 sm:px-3';
+    'h-11 min-w-0 w-full justify-center gap-1 px-1.5 sm:gap-2 sm:px-3';
   const btnClass = isHero
     ? `${btnBase} rounded-xl bg-white/20 hover:bg-white/30 active:bg-white/30 backdrop-blur-sm border border-white/30 !text-white shadow-sm`
     : btnBase;
