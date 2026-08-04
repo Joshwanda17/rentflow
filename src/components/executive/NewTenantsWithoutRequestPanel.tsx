@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { User, Phone, Search, UserPlus2, Calendar, AlertCircle } from 'lucide-react';
+import { User, Phone, Search, UserPlus2, Calendar, AlertCircle, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
 import { formatLocation, locationHaystack } from '@/lib/locationText';
 
