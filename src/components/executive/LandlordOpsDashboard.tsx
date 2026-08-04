@@ -15,7 +15,7 @@ import { KPICard } from './KPICard';
 import { DrilldownTable, type DrilldownColumn } from './DrilldownTable';
 import { EntityDetailSheet } from './EntityDetailSheet';
 import {
-  Home, Banknote, CheckCircle2, MapPin, AlertTriangle, ShieldCheck,
+  Home, Banknote, CheckCircle2, MapPin, AlertTriangle, ShieldCheck, ShieldQuestion,
   Phone, MessageCircle, Image, MapPinned, DoorOpen, TrendingDown, Users,
   Building2, UserCheck, Smartphone, Handshake, GitBranch, Link2,
   ArrowLeft, ChevronRight, Search, X, Globe, UserX, UserPlus,
@@ -4040,8 +4040,8 @@ export function LandlordOpsDashboard() {
       </div>
       {/* PROMINENT: Agent-initiated landlord verification requests — top priority */}
       <AgentVerificationRequestsPanel onResolved={refetchAll} />
-      {/* PROMINENT: Agent-initiated LC1 chairperson verification requests */}
-      <Lc1VerificationRequestsPanel onResolved={refetchAll} />
+      {/* PROMINENT: the single LC1 chairperson verification inbox */}
+      <Lc1VerificationInboxPanel onResolved={() => { refetchLC1(); refetchAll(); }} />
       {/* PROMINENT: Awaiting verification (houses + landlords) — always first */}
       {(pendingHousesCount > 0 || pendingVerificationCount > 0) && (
         <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
