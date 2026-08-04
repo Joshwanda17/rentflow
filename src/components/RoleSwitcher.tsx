@@ -286,6 +286,31 @@ const RoleSwitcher = memo(function RoleSwitcher({ currentRole, availableRoles, o
               })}
             </>
           )}
+
+          {/* My Profile links for employees */}
+          {availableRoles.includes('employee') && (
+            <>
+              <DropdownMenuSeparator />
+              <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                My Profile
+              </div>
+              <DropdownMenuItem onClick={() => navigate('/my-pay')} className="cursor-pointer">
+                <span className="flex-1">My Payslips</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/hr/dashboard/my-work')} className="cursor-pointer">
+                <span className="flex-1">My Work</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/your-profile')} className="cursor-pointer">
+                <span className="flex-1">My Profile</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/settings')} className="cursor-pointer">
+                <span className="flex-1">Settings</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/notifications')} className="cursor-pointer">
+                <span className="flex-1">Notifications</span>
+              </DropdownMenuItem>
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
       {accessCodeDialog}
