@@ -561,8 +561,11 @@ export function LandlordOpsDashboard() {
   const [pendingFilter, setPendingFilter] = useState<PendingFilter>('all');
 
   // ─── LC1 Verification Filter ───
-  type LC1VerifyFilter = 'all' | 'verified' | 'unverified';
-  const [lc1VerifyFilter, setLc1VerifyFilter] = useState<LC1VerifyFilter>('all');
+  // Keys on the canonical `verification_status` (verified / rejected / pending)
+  // so approved chairpersons live here and rejected ones are never lost.
+  type LC1VerifyFilter = 'all' | 'verified' | 'rejected' | 'pending';
+  const [lc1VerifyFilter, setLc1VerifyFilter] = useState<LC1VerifyFilter>('verified');
+  const [lc1Exporting, setLc1Exporting] = useState(false);
 
   // ─── Sorting ───
   type SortOption = 'newest' | 'oldest' | 'highest_rent' | 'recently_updated';
