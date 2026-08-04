@@ -21,6 +21,7 @@ import { useConfetti } from '@/components/Confetti';
 import { Button } from '@/components/ui/button';
 import InstallAppCard from '@/components/InstallAppCard';
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
+import { schedulePreloadOtherRoles, preloadRole } from '@/lib/preloadRoleDashboards';
 // Lazy load dashboards for faster initial load
 const TenantDashboard = lazyWithRetry(() => import('@/components/dashboards/TenantDashboard'));
 const AgentDashboard = lazyWithRetry(() => import('@/components/dashboards/AgentDashboard'));
