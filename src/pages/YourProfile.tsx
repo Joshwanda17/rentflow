@@ -31,12 +31,7 @@ export default function YourProfile() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select(
-          'full_name, phone, email, avatar_url, verified, national_id, created_at, ' +
-          'district, village, sub_county, parish, region, country, ' +
-          'mobile_money_name, mobile_money_number, mobile_money_provider, ' +
-          'is_frozen, frozen_reason, whatsapp_verified, last_active_at',
-        )
+        .select('full_name, phone, email, avatar_url, verified, national_id, created_at, district, village, sub_county, parish, region, country, mobile_money_number, mobile_money_provider, is_frozen, frozen_reason, whatsapp_verified, last_active_at')
         .eq('id', user!.id)
         .maybeSingle();
       if (error) throw error;
@@ -60,9 +55,7 @@ export default function YourProfile() {
 
   const payout = useMemo(() => {
     if (!profile?.mobile_money_number) return null;
-    return `${txt(profile.mobile_money_name)} • ${profile.mobile_money_number}${
-      profile.mobile_money_provider ? ` (${profile.mobile_money_provider})` : ''
-    }`;
+    return `${profile.mobile_money_number}${profile.mobile_money_provider ? ` (${profile.mobile_money_provider})` : ''}`;
   }, [profile]);
 
   const rows: { icon: typeof Phone; label: string; value: string }[] = [
