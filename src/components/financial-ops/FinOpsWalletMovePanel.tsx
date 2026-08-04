@@ -498,7 +498,9 @@ export function FinOpsWalletMovePanel() {
         body: {
           target_user_id: source.id,
           amount: amountNum,
-          reason: reason.trim(),
+          // Keep the structured code inside the note so the same-user
+          // reclassification audit trail matches the correction trail.
+          reason: `[${reasonCode}] ${reason.trim()}`,
           acknowledge_float_overdraft:
             sameUserDir === 'withdrawable_to_float' && acknowledgeOverdraft
               ? true
