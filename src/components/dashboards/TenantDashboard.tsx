@@ -6,7 +6,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useOffline } from '@/contexts/OfflineContext';
 import { 
   FileText,
-  Menu,
   WifiOff,
   RefreshCw,
   BadgeCheck,
