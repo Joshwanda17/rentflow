@@ -21,6 +21,7 @@ import {
 import { Search, User, Phone, Calendar, TrendingUp, CheckCircle, Clock, AlertTriangle, XCircle, Mail, MessageCircle, FileText, Trash2, BadgeCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { formatLocation, locationHaystack } from '@/lib/locationText';
 import { CompactAmount } from '@/components/ui/CompactAmount';
 import { toast } from 'sonner';
 
@@ -223,7 +224,7 @@ export function PromissoryNotesQueue() {
       {/* Search & Filter */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name, agent, or phone..." className="pl-9" />
+        <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name, agent, phone, district or address..." className="pl-9" />
       </div>
 
       <div className="flex gap-1.5 overflow-x-auto scrollbar-hide">
