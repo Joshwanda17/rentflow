@@ -52,7 +52,7 @@ import { Wallet, Landmark, LayoutDashboard, ChevronRight } from 'lucide-react';
 import { HandCoins } from 'lucide-react';
 import { ShieldCheck } from 'lucide-react';
 import { Trophy } from 'lucide-react';
-import { ShoppingBag, Smartphone, Bike } from 'lucide-react';
+import { ShoppingBag, Smartphone, Bike, Store } from 'lucide-react';
 import SmartphoneOrderStatus from '@/components/merchandise/SmartphoneOrderStatus';
 import { formatUGX } from '@/lib/rentCalculations';
 import { AppRole } from '@/hooks/useAuth';
