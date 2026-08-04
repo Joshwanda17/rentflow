@@ -93,6 +93,8 @@ const DashboardRedirect = lazy(() => import("./pages/DashboardRedirect"));
 const SelectRole = lazy(() => import("./pages/SelectRole"));
 const TransactionHistory = lazy(() => import("./pages/TransactionHistory"));
 const Settings = lazy(() => import("./pages/Settings"));
+const YourProfile = lazy(() => import("./pages/YourProfile"));
+const NotificationsScreen = lazy(() => import("./pages/NotificationsScreen"));
 const AgentEarnings = lazy(() => import("./pages/AgentEarnings"));
 const UpdatePassword = lazy(() => import("./pages/UpdatePassword"));
 const OrderHistory = lazy(() => import("./pages/OrderHistory"));
