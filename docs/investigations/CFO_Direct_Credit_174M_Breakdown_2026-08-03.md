@@ -58,9 +58,9 @@ Times are EAT. Operator = the authenticated poster recorded in `audit_logs.actio
 
 | # | Time | Reference | Amount UGX | Recipient | Phone | User ID | Role | Bucket | Recipient type | Wallet category | Platform (expense) leg | Label / business purpose | Operator |
 |---:|---|---|---:|---|---|---|---|---|---|---|---|---|---|
-| 1 | 08-03 09:12 | `PAY-MSCU12D3-G80E` | 150,000 | Tumwiine Collines | +256786686225 | `5d593d07…` | Executive (CTO) | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Internet] | Bayo Mercy |
-| 2 | 08-03 10:34 | `PAY-MSCWYAEB-OPJQ` | 150,000 | COLLINES TUMWIINE | +256743586850 | `74a8bebe…` | Supporter | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Internet] | Bayo Mercy |
-| 3 | 08-03 11:09 | `PAY-MSCY7T1K-A5I0` | 470,000 | Bonny Lutta | +256773653595 | `41594d88…` | Supporter | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Office Rent] | Kabahuma Lillian |
+| 1 | 08-03 09:12 | `PAY-MSCU12D3-G80E` | 150,000 | Tumwiine Collines | +256786686225 | `5d593d07…` | Executive (CTO) | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Internet | Bayo Mercy |
+| 2 | 08-03 10:34 | `PAY-MSCWYAEB-OPJQ` | 150,000 | COLLINES TUMWIINE | +256743586850 | `74a8bebe…` | Supporter | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Internet | Bayo Mercy |
+| 3 | 08-03 11:09 | `PAY-MSCY7T1K-A5I0` | 470,000 | Bonny Lutta | +256773653595 | `41594d88…` | Supporter | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Office Rent | Kabahuma Lillian |
 | 4 | 08-03 13:07 | `PAY-MSD2EPZ4-MD1W` | 1,000,000 | Mudumba samuel | +256743401452 | `5f5847d2…` | Agent | float | operational_wallet | `agent_float_deposit` | `agent_float_deposit` | Agent Float Allocation | Bayo Mercy |
 | 5 | 08-03 13:55 | `PAY-MSD45K1C-2EWJ` | 720,000 | Hilary Evanz | +256756673744 | `151d6409…` | Agent | float | operational_wallet | `agent_float_deposit` | `agent_float_deposit` | Agent Float Allocation | JOSHUA WANDA |
 | 6 | 08-03 13:56 | `PAY-MSD45PKW-HLE6` | 20,000,000 | MBABAZI ROBERT | +256751237003 | `edd7aee0…` | Agent | float | operational_wallet | `agent_float_deposit` | `agent_float_deposit` | Agent Float Allocation | JOSHUA WANDA |
@@ -68,34 +68,34 @@ Times are EAT. Operator = the authenticated poster recorded in `audit_logs.actio
 | 8 | 08-03 14:43 | `PAY-MSD5UNTF-DFQ9` | 20,000,000 | Catherine Nabaggala | +256743049289 | `7f4d0676…` | Agent | float | operational_wallet | `agent_float_deposit` | `agent_float_deposit` | Agent Float Allocation | Bayo Mercy |
 | 9 | 08-03 14:43 | `PAY-MSD5USCM-RORP` | 20,000,000 | NAMULINDWA IMMECULATE | +256741003567 | `27d5a08b…` | Agent | float | operational_wallet | `agent_float_deposit` | `agent_float_deposit` | Agent Float Allocation | Bayo Mercy |
 | 10 | 08-03 14:48 | `PAY-MSD61I7I-3LA0` | 3,000,000 | Nankambo sharimah | +256708269084 | `59d45ad2…` | Executive (CFO) | float | operational_wallet | `agent_float_deposit` | `agent_float_deposit` | Agent Float Allocation | Bayo Mercy |
-| 11 | 08-03 14:49 | `PAY-MSD6211G-RN6U` | 5,000,000 | KARUNGI ANNET | +256772535388 | `61e1d579…` | Supporter | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Office Rent] | ATUHAIRE CAROLYNE |
-| 12 | 08-03 14:50 | `PAY-MSD63CBW-OU27` | 6,000,000 | WAKABI SIMON PETER | +256752496997 | `e145f9f8…` | Agent | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Office Rent] | ATUHAIRE CAROLYNE |
-| 13 | 08-03 14:51 | `PAY-MSD651A3-6OJ2` | 39,998 | Muwanguzi Gideon | +256703406836 | `75cd0f60…` | Employee | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Transport] | Bayo Mercy |
-| 14 | 08-03 14:53 | `PAY-MSD67EQ3-W040` | 20,000,000 | NAMPIIMA RUTH | — | `6155034a…` | Agent | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Office Rent] | ATUHAIRE CAROLYNE |
-| 15 | 08-03 14:54 | `PAY-MSD68ISP-84TR` | 2,500,000 | elisha maling | +256753486659 | `8d29bb61…` | Agent | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Office Rent] | ATUHAIRE CAROLYNE |
-| 16 | 08-03 14:55 | `PAY-MSD69QR4-ASF0` | 1,000,000 | Bisaso Aaron | +256755213966 | `04d69be9…` | Supporter | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Office Rent] | ATUHAIRE CAROLYNE |
-| 17 | 08-03 14:55 | `PAY-MSD6ADH2-I0L2` | 1,000,000 | NANGOLI HELLEN | +256755835466 | `4948ae77…` | Agent | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Office Rent] | ATUHAIRE CAROLYNE |
-| 18 | 08-03 14:56 | `PAY-MSD6BDCD-D49P` | 200,000 | CHELANGAT SARAH | — | `598c97d7…` | Agent | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Office Rent] | ATUHAIRE CAROLYNE |
+| 11 | 08-03 14:49 | `PAY-MSD6211G-RN6U` | 5,000,000 | KARUNGI ANNET | +256772535388 | `61e1d579…` | Supporter | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Office Rent | ATUHAIRE CAROLYNE |
+| 12 | 08-03 14:50 | `PAY-MSD63CBW-OU27` | 6,000,000 | WAKABI SIMON PETER | +256752496997 | `e145f9f8…` | Agent | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Office Rent | ATUHAIRE CAROLYNE |
+| 13 | 08-03 14:51 | `PAY-MSD651A3-6OJ2` | 39,998 | Muwanguzi Gideon | +256703406836 | `75cd0f60…` | Employee | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Transport | Bayo Mercy |
+| 14 | 08-03 14:53 | `PAY-MSD67EQ3-W040` | 20,000,000 | NAMPIIMA RUTH | — | `6155034a…` | Agent | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Office Rent | ATUHAIRE CAROLYNE |
+| 15 | 08-03 14:54 | `PAY-MSD68ISP-84TR` | 2,500,000 | elisha maling | +256753486659 | `8d29bb61…` | Agent | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Office Rent | ATUHAIRE CAROLYNE |
+| 16 | 08-03 14:55 | `PAY-MSD69QR4-ASF0` | 1,000,000 | Bisaso Aaron | +256755213966 | `04d69be9…` | Supporter | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Office Rent | ATUHAIRE CAROLYNE |
+| 17 | 08-03 14:55 | `PAY-MSD6ADH2-I0L2` | 1,000,000 | NANGOLI HELLEN | +256755835466 | `4948ae77…` | Agent | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Office Rent | ATUHAIRE CAROLYNE |
+| 18 | 08-03 14:56 | `PAY-MSD6BDCD-D49P` | 200,000 | CHELANGAT SARAH | — | `598c97d7…` | Agent | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Office Rent | ATUHAIRE CAROLYNE |
 | 19 | 08-03 15:26 | `PAY-MSD7DKAJ-4NR7` | 3,000,000 | Hilary Evanz | +256756673744 | `151d6409…` | Agent | float | operational_wallet | `agent_float_deposit` | `agent_float_deposit` | Agent Float Allocation | Bayo Mercy |
-| 20 | 08-03 15:56 | `PAY-MSD8GV0Z-IFB5` | 613,000 | NASASIRA FAITH DAVID | +256761742493 | `d0d2e6c4…` | Supporter | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Office Rent] | ATUHAIRE CAROLYNE |
-| 21 | 08-03 16:01 | `PAY-MSD8MHBB-ODJK` | 1,500,000 | KALULE SHARIF | — | `3f87c1f3…` | Agent | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Office Rent] | ATUHAIRE CAROLYNE |
-| 22 | 08-03 16:03 | `PAY-MSD8PPC9-MQW8` | 3,000,000 | victoria nakitto | — | `947e1423…` | Supporter | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Office Rent] | ATUHAIRE CAROLYNE |
-| 23 | 08-03 16:05 | `PAY-MSD8S4ZH-BTA7` | 90,000 | Watsala Enock | +256750223152 | `ebf0897b…` | Agent | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Office Rent] | ATUHAIRE CAROLYNE |
+| 20 | 08-03 15:56 | `PAY-MSD8GV0Z-IFB5` | 613,000 | NASASIRA FAITH DAVID | +256761742493 | `d0d2e6c4…` | Supporter | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Office Rent | ATUHAIRE CAROLYNE |
+| 21 | 08-03 16:01 | `PAY-MSD8MHBB-ODJK` | 1,500,000 | KALULE SHARIF | — | `3f87c1f3…` | Agent | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Office Rent | ATUHAIRE CAROLYNE |
+| 22 | 08-03 16:03 | `PAY-MSD8PPC9-MQW8` | 3,000,000 | victoria nakitto | — | `947e1423…` | Supporter | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Office Rent | ATUHAIRE CAROLYNE |
+| 23 | 08-03 16:05 | `PAY-MSD8S4ZH-BTA7` | 90,000 | Watsala Enock | +256750223152 | `ebf0897b…` | Agent | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Office Rent | ATUHAIRE CAROLYNE |
 | 24 | 08-03 16:15 | `PAY-MSD94R6V-7FHH` | 10,000,000 | MBABAZI ROBERT | +256751237003 | `edd7aee0…` | Agent | float | operational_wallet | `agent_float_deposit` | `agent_float_deposit` | Agent Float Allocation | Bayo Mercy |
-| 25 | 08-03 16:15 | `PAY-MSD94RA8-KDJM` | 470,000 | Bonny Lutta | +256773653595 | `41594d88…` | Supporter | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Office Rent] | ATUHAIRE CAROLYNE |
-| 26 | 08-03 16:19 | `PAY-MSD9AUI1-040L` | 24,500,000 | ALLEN NDYANABO | +256785067030 | `3377ad17…` | Agent | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Office Rent] | ATUHAIRE CAROLYNE |
-| 27 | 08-03 16:20 | `PAY-MSD9BTEN-LCNR` | 1,500,000 | BRENDAN JOSEPH LULE | — | `9779d5ab…` | Agent | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Office Rent] | ATUHAIRE CAROLYNE |
-| 28 | 08-03 16:22 | `PAY-MSD9DWNS-C576` | 500,000 | NASSANGA WINNIE | +256758480483 | `7eccef31…` | Supporter | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Office Rent] | ATUHAIRE CAROLYNE |
-| 29 | 08-03 16:22 | `PAY-MSD9ECAO-IFN4` | 90,000 | Ssekabembe Kenneth Derrick Dalaa | +256748787893 | `3c5bb0eb…` | Agent | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Office Rent] | Kabahuma Lillian |
-| 30 | 08-03 16:23 | `PAY-MSD9FK79-A28B` | 420,000 | LUYIMA SOLOMON SAMUEL | +256742412977 | `22f6cdf9…` | Supporter | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Office Rent] | ATUHAIRE CAROLYNE |
-| 31 | 08-03 16:30 | `PAY-MSD9OPFM-D79Q` | 1,000,000 | Mutebi Daniel | +256772833680 | `5bd97ed7…` | Supporter | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Office Rent] | Kabahuma Lillian |
+| 25 | 08-03 16:15 | `PAY-MSD94RA8-KDJM` | 470,000 | Bonny Lutta | +256773653595 | `41594d88…` | Supporter | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Office Rent | ATUHAIRE CAROLYNE |
+| 26 | 08-03 16:19 | `PAY-MSD9AUI1-040L` | 24,500,000 | ALLEN NDYANABO | +256785067030 | `3377ad17…` | Agent | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Office Rent | ATUHAIRE CAROLYNE |
+| 27 | 08-03 16:20 | `PAY-MSD9BTEN-LCNR` | 1,500,000 | BRENDAN JOSEPH LULE | — | `9779d5ab…` | Agent | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Office Rent | ATUHAIRE CAROLYNE |
+| 28 | 08-03 16:22 | `PAY-MSD9DWNS-C576` | 500,000 | NASSANGA WINNIE | +256758480483 | `7eccef31…` | Supporter | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Office Rent | ATUHAIRE CAROLYNE |
+| 29 | 08-03 16:22 | `PAY-MSD9ECAO-IFN4` | 90,000 | Ssekabembe Kenneth Derrick Dalaa | +256748787893 | `3c5bb0eb…` | Agent | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Office Rent | Kabahuma Lillian |
+| 30 | 08-03 16:23 | `PAY-MSD9FK79-A28B` | 420,000 | LUYIMA SOLOMON SAMUEL | +256742412977 | `22f6cdf9…` | Supporter | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Office Rent | ATUHAIRE CAROLYNE |
+| 31 | 08-03 16:30 | `PAY-MSD9OPFM-D79Q` | 1,000,000 | Mutebi Daniel | +256772833680 | `5bd97ed7…` | Supporter | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Office Rent | Kabahuma Lillian |
 | 32 | 08-03 16:42 | `PAY-MSDA39PB-04GO` | 100,000 | LWEGABA ENOCK EUGINE | — | `d5239331…` | Agent | withdrawable | user | `wallet_deposit` | `payroll_expense` | Office Supplies | RODGERS |
 | 33 | 08-03 16:42 | `PAY-MSDA3E5Y-4V6E` | 160,000 | Grace Paul Ochieng | +254733803035 | `99890a2e…` | Employee | withdrawable | user | `wallet_deposit` | `payroll_expense` | Travel | RODGERS |
-| 34 | 08-03 16:43 | `PAY-MSDA5H87-39NI` | 1,200,000 | JOSHUA WANDA | +256704825473 | `cb798acb…` | Executive (CFO) | withdrawable | user | `wallet_deposit` | `research_development_expense` | Software] | Benjamin Muhanguzi |
-| 35 | 08-03 16:54 | `PAY-MSDAJ4O8-UGQP` | 2,000,000 | TUMUGABIRWE BIBIAN | +256701239744 | `12c1b11f…` | Supporter | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Office Rent] | ATUHAIRE CAROLYNE |
+| 34 | 08-03 16:43 | `PAY-MSDA5H87-39NI` | 1,200,000 | JOSHUA WANDA | +256704825473 | `cb798acb…` | Executive (CFO) | withdrawable | user | `wallet_deposit` | `research_development_expense` | Software | Benjamin Muhanguzi |
+| 35 | 08-03 16:54 | `PAY-MSDAJ4O8-UGQP` | 2,000,000 | TUMUGABIRWE BIBIAN | +256701239744 | `12c1b11f…` | Supporter | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Office Rent | ATUHAIRE CAROLYNE |
 | 36 | 08-03 16:55 | `PAY-MSDAL3AE-RVBI` | 3,000,000 | Tugabirwe Apophia | +256782706146 | `f7a64907…` | Agent | float | operational_wallet | `agent_float_deposit` | `agent_float_deposit` | Agent Float Allocation | Bayo Mercy |
-| 37 | 08-03 17:03 | `PAY-MSDAUESD-29R6` | 13,000,000 | OKWIR SAMUEL | +256780658842 | `236ac349…` | Supporter | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Office Rent] | ATUHAIRE CAROLYNE |
-| 38 | 08-03 17:13 | `PAY-MSDB7CLQ-7HV9` | 800,000 | JOSHUA WANDA | +256704825473 | `cb798acb…` | Executive (CFO) | withdrawable | user | `wallet_deposit` | `research_development_expense` | Software] | Benjamin Muhanguzi |
+| 37 | 08-03 17:03 | `PAY-MSDAUESD-29R6` | 13,000,000 | OKWIR SAMUEL | +256780658842 | `236ac349…` | Supporter | withdrawable | user | `wallet_deposit` | `general_admin_expense` | Office Rent | ATUHAIRE CAROLYNE |
+| 38 | 08-03 17:13 | `PAY-MSDB7CLQ-7HV9` | 800,000 | JOSHUA WANDA | +256704825473 | `cb798acb…` | Executive (CFO) | withdrawable | user | `wallet_deposit` | `research_development_expense` | Software | Benjamin Muhanguzi |
 | 39 | 08-03 19:38 | `PAY-MSDGDQAS-CUJA` | 3,000,000 | Mudumba samuel | +256743401452 | `5f5847d2…` | Agent | float | operational_wallet | `agent_float_deposit` | `agent_float_deposit` | Agent Float Allocation | Bayo Mercy |
 | | | | **174,172,998** | **39 legs** | | | | | | | | | |
 
@@ -153,12 +153,12 @@ Times are EAT. Operator = the authenticated poster recorded in `audit_logs.actio
 | Group | Txns | Amount UGX | % of 174,172,998 |
 |---|---:|---:|---:|
 | Agent Float Funding | 11 | 86,720,000 | 49.79% |
-| Operational Expenses — Office Rent] | 21 | 84,853,000 | 48.72% |
-| Operational Expenses — Software] | 2 | 2,000,000 | 1.15% |
-| Operational Expenses — Internet] | 2 | 300,000 | 0.17% |
+| Operational Expenses — Office Rent | 21 | 84,853,000 | 48.72% |
+| Operational Expenses — Software | 2 | 2,000,000 | 1.15% |
+| Operational Expenses — Internet | 2 | 300,000 | 0.17% |
 | Operational Expenses — Travel | 1 | 160,000 | 0.09% |
 | Operational Expenses — Office Supplies | 1 | 100,000 | 0.06% |
-| Operational Expenses — Transport] | 1 | 39,998 | 0.02% |
+| Operational Expenses — Transport | 1 | 39,998 | 0.02% |
 | **Total** | **39** | **174,172,998** | **100.00%** |
 
 ### 3.2 By posted accounting label (as booked in the ledger description)
@@ -166,12 +166,12 @@ Times are EAT. Operator = the authenticated poster recorded in `audit_logs.actio
 | Group | Txns | Amount UGX | % of 174,172,998 |
 |---|---:|---:|---:|
 | Agent Float Allocation | 11 | 86,720,000 | 49.79% |
-| Office Rent] | 21 | 84,853,000 | 48.72% |
-| Software] | 2 | 2,000,000 | 1.15% |
-| Internet] | 2 | 300,000 | 0.17% |
+| Office Rent | 21 | 84,853,000 | 48.72% |
+| Software | 2 | 2,000,000 | 1.15% |
+| Internet | 2 | 300,000 | 0.17% |
 | Travel | 1 | 160,000 | 0.09% |
 | Office Supplies | 1 | 100,000 | 0.06% |
-| Transport] | 1 | 39,998 | 0.02% |
+| Transport | 1 | 39,998 | 0.02% |
 | **Total** | **39** | **174,172,998** | **100.00%** |
 
 ### 3.3 By ledger category / platform counter-leg
@@ -263,12 +263,12 @@ No transaction in this line carries a `sub_category` value — every leg has `su
 | Group | Txns | Amount UGX | % of 174,172,998 |
 |---|---:|---:|---:|
 | Field float / cash-out working capital (funded against approved float requisitions) | 11 | 86,720,000 | 49.79% |
-| Operational expense reimbursement — Office Rent] | 21 | 84,853,000 | 48.72% |
-| Operational expense reimbursement — Software] | 2 | 2,000,000 | 1.15% |
-| Operational expense reimbursement — Internet] | 2 | 300,000 | 0.17% |
+| Operational expense reimbursement — Office Rent | 21 | 84,853,000 | 48.72% |
+| Operational expense reimbursement — Software | 2 | 2,000,000 | 1.15% |
+| Operational expense reimbursement — Internet | 2 | 300,000 | 0.17% |
 | Operational expense reimbursement — Travel | 1 | 160,000 | 0.09% |
 | Operational expense reimbursement — Office Supplies | 1 | 100,000 | 0.06% |
-| Operational expense reimbursement — Transport] | 1 | 39,998 | 0.02% |
+| Operational expense reimbursement — Transport | 1 | 39,998 | 0.02% |
 | **Total** | **39** | **174,172,998** | **100.00%** |
 
 ---
