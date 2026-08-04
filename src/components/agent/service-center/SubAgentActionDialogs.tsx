@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -15,6 +15,7 @@ import {
   useRequestTenantTransfer,
   useRestoreSubAgent,
   useSuspendSubAgent,
+  useUnlinkSubAgent,
 } from '@/hooks/useAgentServiceCenter';
 
 const MIN_REASON = 10;
@@ -121,16 +122,23 @@ export function TransferTenantDialog({
   peers,
   open,
   onOpenChange,
+  presetRentRequestId,
 }: {
   subAgent: ServiceCenterSubAgent | null;
   peers: ServiceCenterSubAgent[];
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  /** Tenant chosen from the sub-agent's tenant list. */
+  presetRentRequestId?: string | null;
 }) {
   const [rentRequestId, setRentRequestId] = useState('');
   const [toId, setToId] = useState('');
   const [reason, setReason] = useState('');
   const request = useRequestTenantTransfer();
+
+  useEffect(() => {
+    if (open) setRentRequestId(presetRentRequestId ?? '');
+  }, [open, presetRentRequestId]);
 
   // Only funded/repaying rent plans can be transferred.
   const tenants = (subAgent?.tenant_list ?? []).filter((t) => t.is_active);
