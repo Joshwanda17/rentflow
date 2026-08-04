@@ -15,9 +15,9 @@ interface WelileLogoProps {
 }
 
 const sizeMap = {
-  sm: 'h-6',
-  md: 'h-8',
-  lg: 'h-12',
+  sm: 'h-7 sm:h-8 md:h-9',
+  md: 'h-9 sm:h-10 md:h-11',
+  lg: 'h-14 sm:h-16 md:h-20',
 };
 
 export default function WelileLogo({
