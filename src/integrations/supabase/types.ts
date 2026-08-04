@@ -33969,34 +33969,16 @@ export type Database = {
       hr_pay_my_payslips: {
         Args: never
         Returns: {
-          calc_seq: number
-          calculation_trace: Json
-          chargeable_income: number
-          computed_at: string
-          department_id: string | null
-          employer_cost: number
           gross: number
           id: string
-          inputs_snapshot: Json
-          is_current: boolean
-          lst: number
           net: number
           nssf_employee: number
-          nssf_employer: number
           other_deductions: number
+          pay_date: string
           paye: number
-          position_id: string | null
-          rule_status_at_run: string
-          rule_version_id: string
-          run_id: string
-          staff_id: string
+          period_code: string
+          run_status: string
         }[]
-        SetofOptions: {
-          from: "*"
-          to: "hr_pay_payslips"
-          isOneToOne: false
-          isSetofReturn: true
-        }
       }
       hr_pay_my_positions: { Args: never; Returns: string[] }
       hr_pay_position_for: { Args: { _fn: string }; Returns: string }
