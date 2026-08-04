@@ -790,7 +790,21 @@ export function FinOpsWalletMovePanel() {
               )}
             </div>
             <div>
-              <Label htmlFor="fwm-reason" className="text-xs">Reason (min 10 characters)</Label>
+              <Label htmlFor="fwm-reason-code" className="text-xs">Reason code (required)</Label>
+              <select
+                id="fwm-reason-code"
+                value={reasonCode}
+                onChange={(e) => setReasonCode(e.target.value)}
+                className="mt-1 w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="">Select a reason code…</option>
+                {REASON_CODES.map((r) => (
+                  <option key={r.value} value={r.value}>{r.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <Label htmlFor="fwm-reason" className="text-xs">Reason note (min 10 characters)</Label>
               <Textarea
                 id="fwm-reason"
                 value={reason}
@@ -800,6 +814,42 @@ export function FinOpsWalletMovePanel() {
                 className="mt-1"
               />
             </div>
+            {mode === 'error_correction' && lifetimeDeposits !== null && (
+              <p className="text-xs text-muted-foreground">
+                Lifetime approved deposits by this user:{' '}
+                <span className="font-semibold text-foreground">{fmt(lifetimeDeposits)}</span>
+              </p>
+            )}
+            {fullHistorySweep && (
+              <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 space-y-2">
+                <div className="flex items-start gap-2 text-xs">
+                  <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-foreground">
+                      This removes everything this user ever deposited
+                    </p>
+                    <p className="text-muted-foreground mt-0.5">
+                      {fmt(amountNum)} equals or exceeds their full lifetime approved deposits of{' '}
+                      {fmt(lifetimeDeposits ?? 0)}. They will be left with nothing in this bucket
+                      and will receive an SMS telling them the money was reversed. Confirm only if
+                      that is genuinely correct.
+                    </p>
+                  </div>
+                </div>
+                <label className="flex items-start gap-2 text-xs cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={confirmFullHistory}
+                    onChange={(e) => setConfirmFullHistory(e.target.checked)}
+                  />
+                  <span>
+                    I confirm this full-history recovery is correct and I have verified the
+                    underlying deposits.
+                  </span>
+                </label>
+              </div>
+            )}
             {floatOverdrawn && (
                 <div className="rounded-lg border border-warning/40 bg-warning/10 p-3 space-y-2">
                   <div className="flex items-start gap-2 text-xs text-warning-foreground">
