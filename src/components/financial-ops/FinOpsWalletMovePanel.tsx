@@ -784,7 +784,11 @@ export function FinOpsWalletMovePanel() {
                   </label>
                 </div>
               )}
-            <Button onClick={() => setConfirmOpen(true)} disabled={!canSubmit} className="w-full gap-2">
+            <Button
+              onClick={() => setConfirmOpen(true)}
+              disabled={!canSubmit || submitBlockedByFloatCheck}
+              className="w-full gap-2"
+            >
               <ArrowRightLeft className="h-4 w-4" />
               {mode === 'user_to_user'
                 ? 'Move money'
