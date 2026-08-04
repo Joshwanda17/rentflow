@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { formatDynamic } from '@/lib/currencyFormat';
 import { toast } from 'sonner';
 import { CalendarClock, Loader2, Lock, MapPin, RefreshCw, ShieldCheck, Wallet } from 'lucide-react';
+import { SelfPortfolioDeployDialog } from './SelfPortfolioDeployDialog';
 
 const MIN_FUNDING = 50000;
 
@@ -53,6 +54,8 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
   const [busy, setBusy] = useState(false);
   const [fundedIds, setFundedIds] = useState<string[]>([]);
   const [earnings, setEarnings] = useState<EarningsSummary | null>(null);
+  const [activeCommitmentId, setActiveCommitmentId] = useState<string | null>(null);
+  const [deployOpen, setDeployOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -74,12 +77,24 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
     const { data } = await supabase.rpc('partner_self_portfolio', { p_partner_id: partnerId });
     const payload = (data ?? {}) as {
       lines?: { rent_request_id: string; status?: string; principal?: number }[];
-      commitments?: { status?: string; next_payout_at?: string | null; monthly_rate?: number }[];
+      commitments?: {
+        id?: string;
+        status?: string;
+        next_payout_at?: string | null;
+        monthly_rate?: number;
+        created_at?: string;
+      }[];
       totals?: { total_earned?: number; total_paid?: number; active?: number };
     };
     setFundedIds((payload.lines ?? []).map((l) => l.rent_request_id));
 
     const activeCommitments = (payload.commitments ?? []).filter((c) => c.status === 'active');
+    // Newest active portfolio is the top-up target.
+    setActiveCommitmentId(
+      [...activeCommitments]
+        .sort((a, b) => String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')))[0]?.id ??
+        null,
+    );
     const nextPayoutDate = activeCommitments
       .map((c) => c.next_payout_at)
       .filter((d): d is string => !!d)
@@ -111,7 +126,7 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
   const toggle = (id: string) =>
     setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
-  const fund = async () => {
+  const openDeploy = () => {
     if (total < MIN_FUNDING) {
       toast.error(`Minimum funding is ${formatDynamic(MIN_FUNDING)}.`);
       return;
@@ -120,29 +135,12 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
       toast.error('Your withdrawable balance is not enough for this selection.');
       return;
     }
-    setBusy(true);
-    try {
-      const { error: claimError } = await supabase.rpc('partner_self_claim_plans', {
-        p_rent_request_ids: selected,
-      });
-      if (claimError) throw claimError;
+    setDeployOpen(true);
+  };
 
-      const { error: confirmError } = await supabase.rpc('partner_self_confirm_commitment', {
-        p_rent_request_ids: selected,
-        p_term_months: 12,
-      });
-      if (confirmError) throw confirmError;
-
-      toast.success('Funding committed. The plan goes active once the landlord float is disbursed.');
-      setSelected([]);
-      await Promise.all([load(), loadFunded()]);
-    } catch (e) {
-      const message = e instanceof Error ? e.message : 'Funding failed';
-      toast.error(message);
-      await supabase.rpc('partner_self_release_claims', { p_rent_request_ids: selected });
-    } finally {
-      setBusy(false);
-    }
+  const handleDeployed = async () => {
+    setSelected([]);
+    await Promise.all([load(), loadFunded()]);
   };
 
   if (loading) {
@@ -200,7 +198,7 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
           <p className="text-[10px] text-muted-foreground mt-2">
             {earnings.nextPayoutDate
               ? `Returns pay into your withdrawable balance on the ${ordinal(new Date(earnings.nextPayoutDate).getDate())} of each month — your own contribution date.`
-              : 'Returns start once the landlord float is disbursed, then pay monthly on your contribution date.'}
+              : 'Returns start the day you deploy, then pay monthly on your deployment date.'}
           </p>
         </Card>
       )}
@@ -345,17 +343,26 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
               </p>
               <p className="text-base font-black">{formatDynamic(total)}</p>
             </div>
-            <Button onClick={() => void fund()} disabled={busy || total < MIN_FUNDING}>
+            <Button onClick={openDeploy} disabled={busy || total < MIN_FUNDING}>
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-              <span className="ml-2">Fund now</span>
+              <span className="ml-2">{activeCommitmentId ? 'Deploy or top up' : 'Fund now'}</span>
             </Button>
           </div>
           <p className="text-[10px] text-muted-foreground mt-2">
-            Money leaves your withdrawable balance and funds the landlord float. Your capital becomes
-            active the moment the landlord float is disbursed. Tenant contact stays with the agent.
+            Money leaves your withdrawable balance and funds the company landlord float pool. Your
+            capital starts earning from the day you deploy. Tenant contact stays with the agent.
           </p>
         </Card>
       )}
+
+      <SelfPortfolioDeployDialog
+        open={deployOpen}
+        onOpenChange={setDeployOpen}
+        activeCommitmentId={activeCommitmentId}
+        selectedIds={selected}
+        total={total}
+        onDeployed={handleDeployed}
+      />
     </div>
   );
 }

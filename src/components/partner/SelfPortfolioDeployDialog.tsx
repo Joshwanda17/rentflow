@@ -1,0 +1,302 @@
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { formatDynamic } from '@/lib/currencyFormat';
+import { toast } from 'sonner';
+import { CalendarClock, CheckCircle2, Info, Loader2, PlusCircle, Sparkles } from 'lucide-react';
+
+/**
+ * Self Portfolio Management — deployment decision.
+ *
+ * A partner deploying capital is never asked about policy, only about outcome.
+ * Two priced options, side by side:
+ *
+ *   A. Add to the existing portfolio — earns immediately, pro-rata for the rest
+ *      of the current month, then the full monthly rate. Inherits the parent
+ *      portfolio's maturity date, so a top-up never extends the 12-month term.
+ *   B. Start a new 12-month portfolio — fresh anchor date, full 12 monthly cycles.
+ *
+ * Guard: inside the final 90 days of a portfolio, option A is closed. That window
+ * is the principal-return runway, so new capital must start its own term.
+ * The server enforces the same guard; this UI only explains it early.
+ */
+
+interface Eligibility {
+  commitment_id: string;
+  status: string;
+  committed_amount: number;
+  monthly_rate: number;
+  term_end_at: string | null;
+  next_payout_at: string | null;
+  days_remaining: number;
+  cycles_remaining: number;
+  days_in_cycle: number;
+  days_left_in_cycle: number;
+  allow_topup: boolean;
+  block_reason: string | null;
+  available_balance: number;
+}
+
+type Choice = 'topup' | 'new';
+
+const shortDate = (iso: string | null) =>
+  iso
+    ? new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+    : '—';
+
+export function SelfPortfolioDeployDialog({
+  open,
+  onOpenChange,
+  activeCommitmentId,
+  selectedIds,
+  total,
+  onDeployed,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  activeCommitmentId: string | null;
+  selectedIds: string[];
+  total: number;
+  onDeployed: () => void | Promise<void>;
+}) {
+  const [eligibility, setEligibility] = useState<Eligibility | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [choice, setChoice] = useState<Choice>('new');
+
+  const loadEligibility = useCallback(async () => {
+    if (!activeCommitmentId) {
+      setEligibility(null);
+      setChoice('new');
+      return;
+    }
+    setLoading(true);
+    const { data, error } = await supabase.rpc('partner_self_topup_eligibility', {
+      p_commitment_id: activeCommitmentId,
+    });
+    if (error) {
+      setEligibility(null);
+      setChoice('new');
+    } else {
+      const payload = data as unknown as Eligibility;
+      setEligibility(payload);
+      setChoice(payload?.allow_topup ? 'topup' : 'new');
+    }
+    setLoading(false);
+  }, [activeCommitmentId]);
+
+  useEffect(() => {
+    if (open) void loadEligibility();
+  }, [open, loadEligibility]);
+
+  const rate = Number(eligibility?.monthly_rate ?? 15);
+  const fullMonthly = Math.round((total * rate) / 100);
+
+  /** Pro-rata slice for the remainder of the current cycle. */
+  const prorata = useMemo(() => {
+    if (!eligibility) return 0;
+    const daysInCycle = Math.max(1, Number(eligibility.days_in_cycle || 30));
+    const daysLeft = Math.max(0, Math.min(Number(eligibility.days_left_in_cycle || 0), daysInCycle));
+    return Math.round((fullMonthly * daysLeft) / daysInCycle);
+  }, [eligibility, fullMonthly]);
+
+  const cyclesRemaining = Number(eligibility?.cycles_remaining ?? 0);
+  const topupProjection = prorata + fullMonthly * cyclesRemaining;
+  const newProjection = fullMonthly * 12;
+  const canTopUp = !!eligibility?.allow_topup;
+
+  const deploy = async () => {
+    if (selectedIds.length === 0) return;
+    setBusy(true);
+    try {
+      const { error: claimError } = await supabase.rpc('partner_self_claim_plans', {
+        p_rent_request_ids: selectedIds,
+      });
+      if (claimError) throw claimError;
+
+      if (choice === 'topup' && eligibility) {
+        const { error } = await supabase.rpc('partner_self_top_up', {
+          p_commitment_id: eligibility.commitment_id,
+          p_rent_request_ids: selectedIds,
+        });
+        if (error) throw error;
+        toast.success(
+          prorata > 0
+            ? `Top-up deployed. It starts earning today — ${formatDynamic(prorata)} for the rest of this month.`
+            : 'Top-up deployed and now earning.',
+        );
+      } else {
+        const { error } = await supabase.rpc('partner_self_confirm_commitment', {
+          p_rent_request_ids: selectedIds,
+          p_term_months: 12,
+        });
+        if (error) throw error;
+        toast.success('New 12-month portfolio deployed and earning from today.');
+      }
+
+      onOpenChange(false);
+      await onDeployed();
+    } catch (e) {
+      const raw = e instanceof Error ? e.message : 'Deployment failed';
+      // Server-side maturity guard: fall back to the new-portfolio path.
+      if (raw.includes('PSM_TOPUP_WINDOW_CLOSED')) {
+        setChoice('new');
+        await loadEligibility();
+        toast.error(raw.replace(/^.*PSM_TOPUP_WINDOW_CLOSED:\s*/, ''));
+      } else {
+        toast.error(raw);
+      }
+      await supabase.rpc('partner_self_release_claims', { p_rent_request_ids: selectedIds });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="text-base">Deploy {formatDynamic(total)}</DialogTitle>
+          <DialogDescription className="text-xs">
+            Supporting {selectedIds.length} tenant plan{selectedIds.length === 1 ? '' : 's'}. Your
+            capital starts earning the day it is deployed — it does not wait for the landlord payout
+            step. Principal is never reduced by tenant outcomes.
+          </DialogDescription>
+        </DialogHeader>
+
+        {loading ? (
+          <div className="space-y-3">
+            <Skeleton className="h-24 w-full rounded-2xl" />
+            <Skeleton className="h-24 w-full rounded-2xl" />
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {eligibility && (
+              <button
+                type="button"
+                disabled={!canTopUp || busy}
+                onClick={() => setChoice('topup')}
+                aria-pressed={choice === 'topup'}
+                className={`w-full text-left rounded-2xl border p-3 transition-colors ${
+                  choice === 'topup' ? 'border-primary bg-primary/5' : 'border-border'
+                } ${!canTopUp ? 'opacity-60' : ''}`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <PlusCircle className="h-4 w-4 text-primary shrink-0" />
+                      <p className="text-sm font-bold truncate">Add to my current portfolio</p>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      Earns from today, pro-rata for the rest of this month, then the full monthly
+                      rate. Matures with the parent portfolio on {shortDate(eligibility.term_end_at)}.
+                    </p>
+                  </div>
+                  {canTopUp && cyclesRemaining >= 3 && (
+                    <Badge variant="secondary" className="text-[10px] shrink-0">
+                      Recommended
+                    </Badge>
+                  )}
+                </div>
+
+                {canTopUp ? (
+                  <div className="mt-2 grid grid-cols-3 gap-2">
+                    {[
+                      { label: 'Rest of this month', value: formatDynamic(prorata) },
+                      { label: 'Then per month', value: formatDynamic(fullMonthly) },
+                      { label: `Over ${cyclesRemaining} cycle${cyclesRemaining === 1 ? '' : 's'}`, value: formatDynamic(topupProjection) },
+                    ].map((f) => (
+                      <div key={f.label} className="rounded-xl bg-muted/40 px-2 py-1.5 min-w-0">
+                        <p className="text-[9px] uppercase tracking-wide font-semibold text-muted-foreground truncate">
+                          {f.label}
+                        </p>
+                        <p className="text-xs font-black mt-0.5 truncate">{f.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="mt-2 flex items-start gap-2 rounded-xl bg-muted/40 px-2.5 py-2">
+                    <Info className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                    <p className="text-[10px] text-muted-foreground">
+                      {eligibility.block_reason ?? 'Top-ups are closed on this portfolio.'}
+                    </p>
+                  </div>
+                )}
+              </button>
+            )}
+
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => setChoice('new')}
+              aria-pressed={choice === 'new'}
+              className={`w-full text-left rounded-2xl border p-3 transition-colors ${
+                choice === 'new' ? 'border-primary bg-primary/5' : 'border-border'
+              }`}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-primary shrink-0" />
+                    <p className="text-sm font-bold truncate">Start a new 12-month portfolio</p>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Fresh start date, full 12 monthly payouts on its own anniversary date.
+                  </p>
+                </div>
+                {(!eligibility || !canTopUp || cyclesRemaining < 3) && (
+                  <Badge variant="secondary" className="text-[10px] shrink-0">
+                    Recommended
+                  </Badge>
+                )}
+              </div>
+              <div className="mt-2 grid grid-cols-3 gap-2">
+                {[
+                  { label: 'Per month', value: formatDynamic(fullMonthly) },
+                  { label: 'Cycles', value: '12' },
+                  { label: 'Over 12 cycles', value: formatDynamic(newProjection) },
+                ].map((f) => (
+                  <div key={f.label} className="rounded-xl bg-muted/40 px-2 py-1.5 min-w-0">
+                    <p className="text-[9px] uppercase tracking-wide font-semibold text-muted-foreground truncate">
+                      {f.label}
+                    </p>
+                    <p className="text-xs font-black mt-0.5 truncate">{f.value}</p>
+                  </div>
+                ))}
+              </div>
+            </button>
+
+            <div className="flex items-start gap-2 rounded-xl bg-muted/30 px-2.5 py-2">
+              <CalendarClock className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
+              <p className="text-[10px] text-muted-foreground">
+                Returns pay monthly into your withdrawable balance and are never compounded
+                automatically. At the end of the 12-month term, principal is returned over the
+                standard 90-day settlement window.
+              </p>
+            </div>
+
+            <Button className="w-full" onClick={() => void deploy()} disabled={busy || selectedIds.length === 0}>
+              {busy ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4" />
+              )}
+              <span className="ml-2">
+                {choice === 'topup' ? 'Add to portfolio' : 'Start new portfolio'}
+              </span>
+            </Button>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
