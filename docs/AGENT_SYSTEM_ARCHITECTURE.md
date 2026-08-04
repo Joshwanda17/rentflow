@@ -109,3 +109,112 @@ Security note: `LedgerEntryDetailDrawer.tsx` hides **Running Balance** from agen
 - `enforce_agent_daily_eligibility` and `enforce_agent_rent_request_capacity` triggers on `rent_requests` block posting beyond capacity.
 
 **Operational trap:** "Today's Capacity" is coupled to the `agent_collections` table. If an agent collects but the row isn't written, the agent appears idle and loses capacity.
+
+---
+
+## 8. Float Architecture — Two Distinct Inventories
+
+### 8.1 Operational float
+`wallet_balances_projection.float_balance` (`wallet_bucket='float'`) — company money the agent may spend in the field. Funded by:
+
+| Edge function | Auth | Effect |
+|---|---|---|
+| `assign-agent-float` | super_admin, manager, cfo, coo, operations | Balanced `agent_float_assignment` wallet pair + `audit_logs` |
+| `record-bank-float-transfer` | cfo, manager, super_admin | Requires `bank_reference` (TID); `agent_float_funding` row + ledger pair |
+| `transfer-to-float` | agent role | Backend-authority: client sends only `{amount}`; server validates withdrawable, posts `wallet_deduction`/`agent_float_deposit` with `idempotency_key = float-transfer-<uid>-<ts>` |
+| `admin-withdrawable-to-float` / `admin-float-to-withdrawable` | cfo/manager/super_admin/cto + `checkTreasuryGuard` | Bucket reclassification with explicit `wallet_bucket`/`recipient_type` |
+
+`admin-withdrawable-to-float` pre-checks float net; refuses with `FLOAT_OVERDRAWN` (409) unless `acknowledge_float_overdraft:true`, in which case it seeds an `admin_correction` overdraft-fill leg (`solvency_bypass_reason:'admin_correction_seed'`) first. Post-write it re-reads `wallets`, logs `wallet_overdraw_events` and returns 500 if any bucket went negative.
+
+### 8.2 Landlord-Payout (LP) float
+- **Source of truth:** `agent_landlord_float_allocations` (`allocated_amount`, `paid_out_amount`, `remaining_amount` generated, status `open|partially_paid|fully_paid|cancelled|return_pending`), with unique index `idx_alfa_one_live_per_request_source` — **one live allocation per (rent_request_id, source)**.
+- **Cache:** `agent_landlord_float.balance`, since 2026-07-30 **never written directly**; derived by `trg_sync_landlord_float_from_allocation`. Backstop `CHECK (balance >= 0)`.
+- **Available:** `get_agent_lp_float_available()` = `GREATEST(0, balance − SUM(landlord_payouts WHERE status IN ('otp_verified','pending_merchant_payout')))`.
+- **Funding:** `fund-agent-landlord-float` (CFO/manager/super_admin). Requires rent request `approved`/`coo_approved`; returns 409 `already_funded` if already funded (guard added after the 2026-07-29 quadruple-funding incident on RR `d723bc4d`). Order: create allocation → bump `total_funded` → set status `funded` → `agent_float_funding` row → ledger pair `rent_disbursement`/`rent_receivable_created` with key `fund-agent-landlord-float:<id>:float` → UGX 5,000 agent bonus + notification + email + manager push.
+
+### 8.3 Limits, guards and monitoring
+- `agent_float_limits`: `float_limit`, `collected_today`, `daily_txn_limit` (default **5,000,000**), `low_threshold_pct` 20, `critical_threshold_pct` 10, `is_paused`, `cash_on_hand`. Threshold enforcement appears to be dashboard-side alerting; no hard DB trigger for `daily_txn_limit` was located **(inferred)**.
+- `enforce_no_negative_wallet_ledger()` — the central overdraft guard. Fires on `ledger_scope='wallet'` + `direction IN ('cash_out','debit')`:
+  - float debits → `NEGATIVE_FLOAT_BLOCKED` if projection float < amount (falls back to `v_user_wallet_strict` when projection row missing);
+  - withdrawable debits → `LEDGER_BACKING_REQUIRED` using `get_user_available_balance()` plus active withdrawal holds;
+  - `admin_correction` / `platform_loss_writeoff` require `solvency_bypass_reason`; `other_with_note` needs a ≥30-char description; `system_balance_correction` bypasses entirely.
+- **Monitoring:** `v_agent_landlord_float_reconciliation` (cached vs recomputed), `agent_landlord_float_corrections`, `v_operational_float_tid_duplicates`, `operational_float_audit_log`, `agent_rebalance_records`, `agent_unfunding_requests`, `wallet_overdraw_events`. Hourly cron `reconcile-agent-landlord-float` (`17 * * * *`).
+
+## 9. Float Withdrawal & Payout Pipeline
+
+`agent_float_withdrawals`: GPS-matched payouts to landlords (`agent_latitude/longitude`, `landlord_latitude/longitude`, `gps_match`, `gps_distance_meters`), staged `pending_agent_ops → agent_ops_approved/rejected → cfo_approved/rejected → completed`, with OTP fields.
+
+**Landlord payout flow:** agent selects landlord → taps Withdraw → OTP sent to the landlord's phone → verified → payout enters `pending_merchant_payout` → merchant dispatch settles it. `agent-withdrawal` explicitly blocks debiting a `supporter` wallet (`PROXY_CUSTODY_BLOCKED`) to force the proper proxy path.
+
+---
+
+## 10. Tenant Management
+
+- **Auto-assignment.** `auto_assign_landlord_to_agent()` upserts `agent_landlord_assignments` on any `rent_requests` row where both `agent_id` and `landlord_id` are present (`ON CONFLICT DO NOTHING`).
+- **Rent request lifecycle RPCs** (all `SECURITY DEFINER`, all assert `auth.uid() = agent_id`):
+  - `agent_cancel_rent_request(id, reason)` — reason ≥10 chars; only `pending|approved|rejected` and not yet funded/disbursed; sets `deleted_by_agent`.
+  - `agent_resubmit_rent_request(id, patch, note)` — note ≥10 chars, only from `rejected`, `reopen_count < 5`; recomputes `access_fee`/`total_repayment`/`daily_repayment` (33%).
+  - `agent_delete_rejected_rent_request(id, reason)` — reason ≥10 chars.
+  - `agent_respond_payment_edit(edit_id, response, note)` — `disputed` requires ≥5-char note and reverts `rent_amount`/`agent_landlord_payouts.amount` to `old_amount`.
+- **Tamper guard.** `guard_rent_request_agent_updates()` resets protected fields (`approved_by/at`, `funded_at`, `disbursed_at`, `fund_routed_*`, `manager_verified*`) to `OLD` on every agent update, and allows `amount_repaid` to advance / status → `repaying|completed` **only** when a same-transaction (`gl.xmin::text::bigint = txid_current()`) `agent_float_used_for_rent` float debit matches the delta. Agents cannot self-report repayment.
+- **Status & priority.** `agent_set_rent_payment_status(id, status, reason)`: `not_paying` needs ≥10-char reason, suspends the house listing (`suspended_tenant_id` set, `tenant_id` cleared, `status='available'`), clears `landlords.tenant_id`, bumps `ops_inbox_events` (`bucket='at_risk'`), fires `capture_trust_signal`; `paying` restores.
+- **Reassignment.** `agent_ops_reassign_idle_tenant(id, new_agent, reason)` — agent_ops/coo/manager/super_admin; reason ≥10 chars; target agent must have collected in the last 3 days; writes `tenant_reassignment_audit`, clears `tenant_idle_states`, emits `tenant.reassigned`.
+- **Sub-agent transfer.** `agent_request_subagent_tenant_transfer()` — caller must be verified parent of both sides (`agent_subagents.status='verified'`); no duplicate pending transfer; row in `subagent_tenant_transfers` (`pending`). Reviewed by `admin_decide_service_center_request` (`is_service_center_reviewer` gate; rejection requires reason).
+- **Auto-closure.** `auto_close_fully_repaid_rents()` moves `funded|repaying` rows with `amount_repaid >= total_repayment > 0` to `completed` / `agent_payment_status='completed_auto'`.
+- **Verification messaging.** `AgentRentRequestDialog.tsx` shows "Landlord {Name} is not yet verified…" instead of hard-blocking.
+
+## 11. Collections & Allocation
+
+- `agent_allocate_tenant_payment()` — thin wrapper asserting `auth.uid() = p_agent_id` and agent/senior_agent/sub_agent role, delegating to `agent_allocate_tenant_payment_internal`.
+- `agent_unallocate_tenant_payment()` — reason ≥10 chars, 7-day window, landlord match verified, 4-leg reversal (float back, landlord debit, commission clawback ×2), rolls back `amount_repaid`/`status`, writes `agent_tenant_float_reversals` + `audit_logs`.
+- `agent_reverse_tenant_allocation()` — reason ≥5 chars, own `agent_collections` rows tagged `float allocation`, idempotent via `[REVERSED]` marker, inserts a **negative** `repayments` row.
+- `agent-deposit` — validates the agent's **float** (not total wallet) via `get_agent_split_balances`, credits the tenant, pays 10% via `creditFlatAgentCommission` (key `agent-collection-comm-<ref>`, duplicate-tolerant).
+- Parallel manual/offline paths: `field_collections`, `submit-offline-collection`, `manual-collect-rent`, `offline_collection_submissions`.
+
+---
+
+## 12. Agent Advances (Credit)
+
+**Tables.** `agent_advance_requests` (33 cols) → `agent_advances` → `agent_advance_ledger`, `agent_advance_topups`, `advance_fee_config`.
+
+**Approval chain.** `pending → agent_ops_approved → tenant_ops_approved → landlord_ops_approved → coo_approved → cfo_disbursed → active → completed` (`rejected`/`defaulted` terminal). Per-stage `reviewed_by_*`, `*_reviewed_at`, `*_notes`; plus `approved_by_coo`, `paid_by_cfo`, `cfo_approved_by`, `cfo_adjusted_rate`. **Agent Ops may skip CFO** for small amounts; the amount threshold lives in the approval edge function, not SQL **(inferred)**. CFO may edit amount and fee band before approving.
+
+**Limits.** `get_agent_advance_potential()` scores 0–100: network 55/15, collections 15, repayment 5, listings 5, requests 5. `suggested_amt = power(score/100, 1.3) * 900,000`, ceiling **UGX 9,000,000**, base **UGX 20,000**. New agents get 30% of theoretical max; repeat agents `min(1.0, 0.50 + 0.40*repay_rate + 0.10*min(repaid_count/3,1))`. (Limits were deliberately reduced to ~30% of an earlier scheme.)
+
+**Fees.** `enforce_tiered_advance_rate`: **33% monthly** for a first advance, **28%** once one is completed; hard cap 0.33 (`ADVANCE_RATE_ABOVE_STANDARD`). Compound form (frontend + `apply_advance_topup`): `principal * (1.33^(days/30) - 1)`. Trigger recompute path uses the simple form — **divergence flagged in §21**. Registration fee: **UGX 10,000 if principal ≤ 200,000, else 20,000**.
+
+**Integrity guards.**
+- `enforce_advance_principal_integrity` — min 1,000 on insert; principal may never increase (`ADVANCE_PRINCIPAL_INFLATION_BLOCKED`).
+- `enforce_agent_advance_min_principal` — blocks approval/payment transitions below 10,000.
+- `trg_enforce_no_double_agent_advance` — **one live advance only**: blocks if any `agent_advances` in `active|overdue` with `outstanding_balance > 0`, or any request already in the pipeline. `request_kind='topup'` is re-validated against `agent_advance_topup_eligibility` and forced to the current advance's `parent_advance_id`.
+- `verify_advance_disbursement_matches_principal` — sums `agent_advance` wallet cash_ins within ±10 min of issue; raises `ADVANCE_DISBURSEMENT_EXCEEDS_PRINCIPAL`.
+
+**Top-ups.** `agent_advance_topup_eligibility()` requires: live advance with balance; nothing in the pipeline; not behind schedule (no arrears, not overdue); **≥30% repaid** of `principal + access_fee + registration_fee`; `max_topup = floor(principal*0.90) ≥ 10,000`. `apply_advance_topup()` (cfo/manager/agent_ops/coo/super_admin or service role) charges a fresh compound fee on the top-up only, extends `cycle_days`/`expires_at`, recomputes `installment_amount`.
+
+**Repayment schedule.** `advance_period_days`: daily 1, weekly 7, biweekly 14, monthly 30. `advance_installment_amount = ceil(total_payable / installments)` unless overridden. `advance_expected_repaid_to_date` caps at `total_payable`.
+
+**Recovery, two layers.**
+1. `sweep_agent_advance_recovery()` — sweeps **withdrawable only**, FIFO by `issued_at`, excludes `recovery_source='roi'`, gates weekly/biweekly/monthly to the due day anchored on the last successful deduction (self-correcting after missed runs), never exceeds `expected_to_date − paid_to_date`, writes `deduction_status ∈ {full, partial, not_due, ahead, prepaid}`, and grows `arrears_balance` by the shortfall.
+2. `process-agent-advance-deductions` — daily 18:00 EAT scheduled installments.
+
+**Arrears never compound.** A missed day increases `arrears_balance`, not principal. `trg_cap_advance_arrears` clamps arrears to `[0, outstanding_balance]` and zeroes it on completion. `recover_agent_arrears_from_credit()` applies incoming earnings FIFO to arrears (only for advances issued on a prior calendar day, bounded by `get_user_available_balance`), posting paired `agent_repayment` legs + notification + `system_events`.
+
+**Voluntary prepayment.** `voluntary-repay-advance`, `cfo-record-advance-payment`, `StaffRepayAdvanceDialog.tsx`. Prepayments populate `prepaid_installments_remaining`, consumed one per due period by the sweep (shifting, not shrinking, the schedule).
+
+**Double-charge guard.** `zz_guard_agent_advance_double_charge()` (named to sort last so it runs after other BEFORE triggers) row-locks the advance `FOR UPDATE` and rejects: stale reads (`opening_balance > outstanding + 1` → `ADVANCE_LEDGER_STALE_OPENING`, logs `repayment_skipped_insufficient_balance` / `stale_opening_balance`), over-collection beyond `outstanding + interest_accrued + 1`, and same-day totals beyond `installment + arrears + 1` (`ADVANCE_PERIOD_CAP_EXCEEDED` / `daily_cap_exceeded`).
+
+**Completion.** Set to `completed` inside the sweep or the arrears recovery when `outstanding_balance ≤ 0`. Pre-disbursement negatives terminate as `rejected`; a distinct post-disbursement cancel path was not located.
+
+**Merge / duplicate handling.** `CFOInitiateAdvanceDialog.tsx` supports CFO-initiated advances with duplicate-account detection so advances can be merged onto the active account.
+
+## 13. Business Advances (Tenant/Agent)
+
+`business_advances` (56 cols), enum `business_advance_status` mirroring the 5-stage shape. `calculate_business_advance_limit(tenant)`:
+
+- `rent_history_records` (`pending` + `verified`), `total_months` capped at 12.
+- 0 months → flat **UGX 50,000**, tier `Starter`, unlock at 3 months.
+- `base = avg_rent * total_months`; **+20%** if ≥6 months, **+15%** if 1–2 distinct landlords, **+25%** if ≥12 months.
+- `total = max(50,000, base + bonuses)`, platform ceiling **UGX 10,000,000**.
+- Tiers: `Building` (<6), `Established` (6–11), `Welile Trusted` (≥12); previews at `avg_rent*6*1.20` and `avg_rent*12*1.60`.
+
+Supporting functions: `business-advance-stage-reminders` (per-stage SLA, e.g. `coo_approved → disbursed`, ETA 12h), `disburse-business-advance`, `repay-business-advance`, `process-business-advance-compounding` (daily), `claim-business-advance-account`.
