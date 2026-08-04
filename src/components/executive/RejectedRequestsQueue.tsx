@@ -250,7 +250,7 @@ export function RejectedRequestsQueue({ stageFilter, title = 'Rejected Rent Requ
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Search tenant, phone, or rejection reason"
+            placeholder="Search tenant, phone, district, address, or rejection reason"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
@@ -287,6 +287,11 @@ export function RejectedRequestsQueue({ stageFilter, title = 'Rejected Rent Requ
                       <td className="py-2 pr-3">
                         <div className="font-medium">{r.tenant_name}</div>
                         <div className="text-xs text-muted-foreground">{r.tenant_phone || r.id.slice(0, 8)}</div>
+                        {(r.landlord_address || r.tenant_address) && (
+                          <div className="text-xs text-muted-foreground truncate">
+                            📍 {r.landlord_address || r.tenant_address}
+                          </div>
+                        )}
                       </td>
                       <td className="py-2 pr-3 text-right">{Number(r.rent_amount || 0).toLocaleString()}</td>
                       <td className="py-2 pr-3">
