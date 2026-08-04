@@ -4,7 +4,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { User, Phone, Search, UserPlus2, Calendar, AlertCircle, MapPin } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { User, Phone, Search, UserPlus2, Calendar, AlertCircle, MapPin, ChevronDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { formatLocation, locationHaystack } from '@/lib/locationText';
 
@@ -17,6 +18,7 @@ import { formatLocation, locationHaystack } from '@/lib/locationText';
  */
 export function NewTenantsWithoutRequestPanel() {
   const [search, setSearch] = useState('');
+  const [open, setOpen] = useState(false);
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['agent-ops-orphan-tenants'],
@@ -88,6 +90,10 @@ export function NewTenantsWithoutRequestPanel() {
 
   const q = search.toLowerCase().trim();
   const filtered = rows.filter(r => !q || r.search_text.includes(q));
+  const PREVIEW_COUNT = 3;
+  const visible = open ? filtered.slice(0, 50) : filtered.slice(0, PREVIEW_COUNT);
+  const agentCount = new Set(rows.map(r => r.agent_id).filter(Boolean)).size;
+  const districtCount = new Set(rows.map(r => r.tenant_district).filter(Boolean)).size;
 
   if (isLoading) {
     return (
