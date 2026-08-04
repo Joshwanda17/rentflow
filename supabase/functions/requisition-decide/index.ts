@@ -64,6 +64,20 @@ Deno.serve(async (req) => {
         }
       : { status: 'rejected', approved_by: userId, approved_at: new Date().toISOString(), rejection_reason: body.reason!.trim() };
 
+    // Snapshot the pre-decision state so an approval whose wallet credit fails
+    // can be rolled back to it (atomic business operation — no
+    // approved-but-uncredited limbo).
+    const { data: before, error: beforeErr } = await admin
+      .from('employee_requisitions')
+      .select('id, status, amount, approved_by, approved_at, rejection_reason, wallet_credit_status')
+      .eq('id', body.id)
+      .maybeSingle();
+    if (beforeErr) throw beforeErr;
+    if (!before) return json({ error: 'not_found' }, 404);
+    if (body.action === 'approve' && before.wallet_credit_status === 'credited') {
+      return json({ ok: true, already_credited: true, credit_error: null, credit_detail: null, wallet_credit: null }, 200);
+    }
+
     const { data: updated, error: upErr } = await admin
       .from('employee_requisitions')
       .update(patch)
@@ -76,6 +90,7 @@ Deno.serve(async (req) => {
     let creditError: string | null = null;
     let creditDetail: Record<string, unknown> | null = null;
     let walletCredit: unknown = null;
+    let rolledBack = false;
     if (body.action === 'approve') {
       const { data: profile } = await admin
         .from('profiles')
@@ -84,8 +99,8 @@ Deno.serve(async (req) => {
         .maybeSingle();
       if (!profile?.id) {
         creditError = 'No user profile matches ' + updated.employee_email;
-        creditDetail = { stage: 'recipient_lookup', message: creditError };
-        await admin.from('employee_requisitions').update({ wallet_credit_status: 'failed' }).eq('id', body.id);
+        creditDetail = { stage: 'recipient_lookup', message: creditError, rolled_back: true };
+        rolledBack = true;
       } else {
         const result = await creditRequisitionWallet({
           admin,
@@ -106,6 +121,7 @@ Deno.serve(async (req) => {
         walletCredit = result;
         if (!result.ok) {
           creditError = result.error ?? result.message;
+          rolledBack = true;
           creditDetail = {
             stage: result.stage ?? 'wallet_credit',
             message: result.message,
@@ -113,29 +129,50 @@ Deno.serve(async (req) => {
             upstream_status: result.upstream_status ?? null,
             attempt_count: result.attempt_count ?? null,
             idempotency_reference: result.idempotency_reference ?? null,
+            rolled_back: true,
           };
         }
         else if (!result.already_credited) {
           await admin.from('employee_requisitions').update({ status: 'paid' }).eq('id', body.id);
         }
       }
+
+      // Roll the approval back so the requisition is never left approved
+      // without a wallet credit. The idempotency row stays `failed` and is
+      // reused (never duplicated) when the CFO approves again.
+      if (rolledBack) {
+        await admin
+          .from('employee_requisitions')
+          .update({
+            status: before.status,
+            approved_by: before.approved_by,
+            approved_at: before.approved_at,
+            rejection_reason: before.rejection_reason,
+            amount: before.amount,
+            wallet_credit_status: 'failed',
+          })
+          .eq('id', body.id);
+      }
     }
 
     // Audit
     try {
       await admin.from('audit_logs').insert({
-        action_type: body.action === 'approve' ? 'requisition_approved' : 'requisition_rejected',
+        action_type: body.action === 'approve'
+          ? (rolledBack ? 'requisition_approval_rolled_back' : 'requisition_approved')
+          : 'requisition_rejected',
         table_name: 'employee_requisitions',
         record_id: body.id,
         performed_by: userId,
         reason: body.action === 'approve'
-          ? `CFO approval via portal (${updated.currency} ${Number(updated.amount).toLocaleString()})`
+          ? `${rolledBack ? 'CFO approval rolled back — wallet credit failed' : 'CFO approval via portal'} (${updated.currency} ${Number(updated.amount).toLocaleString()})`
           : body.reason!.trim(),
       } as never);
     } catch (_) { /* non-fatal */ }
 
-    // Best-effort email to employee
+    // Best-effort email to employee (never on a rolled-back approval)
     try {
+      if (rolledBack) throw new Error('skip');
       const subject = body.action === 'approve'
         ? 'Requisition Approved'
         : 'Requisition Rejected';
@@ -147,7 +184,18 @@ Deno.serve(async (req) => {
       });
     } catch (_) { /* non-fatal */ }
 
-    return json({ ok: true, credit_error: creditError, credit_detail: creditDetail, wallet_credit: walletCredit }, 200);
+    if (rolledBack) {
+      return json({
+        ok: false,
+        rolled_back: true,
+        error: creditError,
+        credit_error: creditError,
+        credit_detail: creditDetail,
+        wallet_credit: walletCredit,
+      }, 200);
+    }
+
+    return json({ ok: true, credit_error: null, credit_detail: null, wallet_credit: walletCredit }, 200);
   } catch (e) {
     console.error('decide error', e);
     return json({ error: String((e as Error).message ?? e) }, 500);
