@@ -20,6 +20,8 @@ import { Search, X } from 'lucide-react';
 import { format, isWithinInterval, parseISO, startOfDay, endOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { AdvanceTopupRequestPanel, useTopupEligibility } from '@/components/agent/AdvanceTopupRequestPanel';
+import { useAgentAdvanceActivity } from '@/hooks/useAgentAdvanceActivity';
+import { AdvanceActivityGateCard } from '@/components/agent/AdvanceActivityGateCard';
 
 interface AgentAdvanceRequestFormProps {
   open: boolean;
@@ -40,6 +42,8 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { limit, loading: limitLoading, refreshLimit } = useCreditAccessLimit(user?.id);
+  // No field work recorded → no advance request (mirrors the DB trigger).
+  const { activity, blocked: activityBlocked } = useAgentAdvanceActivity(user?.id);
 
   const [amount, setAmount] = useState('');
   const [cycleDays, setCycleDays] = useState<number>(30);
@@ -688,6 +692,9 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
               <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
             </button>
 
+            {activityBlocked && !hasActiveAdvance ? (
+              <AdvanceActivityGateCard activity={activity} />
+            ) : (
             <button
               type="button"
               onClick={() => setView(hasActiveAdvance ? 'topup' : 'request')}
@@ -709,6 +716,7 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
               </div>
               <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
             </button>
+            )}
           </div>
         )}
 
@@ -727,7 +735,11 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
           </button>
         )}
 
-        {view === 'request' && (
+        {view === 'request' && activityBlocked && (
+          <AdvanceActivityGateCard activity={activity} className="mb-4" />
+        )}
+
+        {view === 'request' && !activityBlocked && (
         <>
 
         {/* Credit limit indicator */}
