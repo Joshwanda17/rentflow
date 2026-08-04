@@ -526,6 +526,17 @@ export function LandlordOpsDashboard() {
   useEffect(() => {
     localStorage.setItem('landlordOpsHouseFilter', houseStatusFilter);
   }, [houseStatusFilter]);
+  // hidden/visible only make sense inside Verified / All houses — drop them
+  // when the operator switches to Pending or Rejected.
+  useEffect(() => {
+    if (
+      (verifyFilter === 'hidden' || verifyFilter === 'visible')
+      && houseStatusFilter !== 'verified'
+      && houseStatusFilter !== 'all'
+    ) {
+      setVerifyFilter('all');
+    }
+  }, [houseStatusFilter, verifyFilter]);
   const [togglingHide, setTogglingHide] = useState<Record<string, boolean>>({});
   const [editingRentId, setEditingRentId] = useState<string | null>(null);
   const [editRentValue, setEditRentValue] = useState<string>('');
