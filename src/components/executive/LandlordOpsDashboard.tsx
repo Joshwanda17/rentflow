@@ -2823,16 +2823,29 @@ export function LandlordOpsDashboard() {
                   {lc1.agentPhone && <PhoneLinks phone={lc1.agentPhone} name={lc1.agentName || 'Agent'} />}
                 </div>
               )}
-              {/* LC1 chairperson verification — required before agents can post rent requests */}
+              {/* LC1 chairperson verification state — decisions are taken in the
+                  single inbox so status, request trail, audit log, notification
+                  and the agent penalty always move together. */}
               <div className="flex items-center justify-between gap-2 rounded-lg bg-muted/40 px-2.5 py-1.5">
                 <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">LC1 verification</span>
-                <VerifyLc1Button
-                  lc1Id={lc1.id}
-                  lc1Name={lc1.name}
-                  verified={lc1.verified}
-                  onVerified={() => { refetchLC1(); refetchAll(); }}
-                />
+                <div className="flex items-center gap-1.5">
+                  {lc1State(lc1) === 'verified' ? (
+                    <Badge className="bg-emerald-500/15 text-emerald-700 border-0 text-[10px] font-bold">Approved</Badge>
+                  ) : lc1State(lc1) === 'rejected' ? (
+                    <Badge className="bg-destructive/15 text-destructive border-0 text-[10px] font-bold">Rejected</Badge>
+                  ) : (
+                    <Badge className="bg-amber-500/15 text-amber-700 border-0 text-[10px] font-bold">Pending</Badge>
+                  )}
+                  <Button size="sm" variant="outline" className="h-7 text-[10px] font-bold" onClick={() => { setSearch(lc1.phone || lc1.name); setView('lc1-requests'); }}>
+                    Review
+                  </Button>
+                </div>
               </div>
+              {lc1.verification_reason && (
+                <p className="text-[11px] text-muted-foreground rounded-lg bg-muted px-2 py-1.5 break-words">
+                  <span className="font-semibold">Decision reason:</span> {lc1.verification_reason}
+                </p>
+              )}
               {/* Landlords under this LC1 */}
               {lc1.landlords.length > 0 && (
                 <div className="mt-2 pl-3 border-l-2 border-primary/20 space-y-1.5">
@@ -2897,13 +2910,34 @@ export function LandlordOpsDashboard() {
     );
   }
 
-  // ─── GPS & LC1 VERIFICATION VIEW (set pending/verified/rejected with reason) ───
+  // ─── LC1 VERIFICATION INBOX VIEW (single queue for every incoming request) ───
+  if (view === 'lc1-requests') {
+    return (
+      <div className="space-y-3">
+        <BackButton />
+        <h2 className="text-lg font-bold flex items-center gap-2"><ShieldQuestion className="h-5 w-5 text-amber-600" /> Agents requesting LC1 verification</h2>
+        <p className="text-sm text-muted-foreground">
+          Every LC1 chairperson awaiting review lands here — whether an agent raised it while posting a rent request or
+          it came in through registration. Approved chairpersons move to <span className="font-semibold">LC1 Chairpersons</span>;
+          rejected ones stay in the Rejected tab with the reason and the agent penalty on record.
+        </p>
+        <Lc1VerificationInboxPanel standalone onResolved={() => { refetchLC1(); refetchAll(); }} />
+      </div>
+    );
+  }
+
+  // ─── LANDLORD GPS VERIFICATION VIEW (set pending/verified/rejected with reason) ───
   if (view === 'residence-verify') {
     return (
       <>
       <div className="space-y-4">
         <BackButton />
-        <h2 className="text-lg font-bold flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-amber-600" /> GPS & LC1 Verification</h2>
+        <h2 className="text-lg font-bold flex items-center gap-2"><MapPin className="h-5 w-5 text-sky-600" /> Landlord GPS Verification</h2>
+        <p className="text-sm text-muted-foreground">
+          Landlord residence &amp; GPS moderation only. LC1 chairperson decisions moved to
+          {' '}
+          <button className="font-semibold text-amber-700 underline" onClick={() => setView('lc1-requests')}>Agents requesting LC1 verification</button>.
+        </p>
         <ResidenceVerificationPanel />
       </div>
       {renderDialogs()}
