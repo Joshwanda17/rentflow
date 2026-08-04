@@ -196,6 +196,8 @@ export function AgentWelileHomesSheet({ open, onOpenChange }: AgentWelileHomesSh
   useEffect(() => { if (open) load(); }, [open, load]);
 
   const totalReceivable = subs.reduce((a, s) => a + (Number(s.receivable_total) || 0), 0);
+  const [receivablePeriod, setReceivablePeriod] = useState<'monthly' | 'yearly'>('yearly');
+  const monthlyReceivable = subs.reduce((a, s) => a + (Number(s.monthly_rent) || 0), 0);
   const pendingConfirmation = subs.filter((s) => !getEnrollStatus(s).ready).length;
 
   return (
@@ -216,8 +218,29 @@ export function AgentWelileHomesSheet({ open, onOpenChange }: AgentWelileHomesSh
                 <p className="text-xl font-bold">{subs.length}</p>
               </CardContent></Card>
               <Card><CardContent className="p-3">
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><Banknote className="h-3.5 w-3.5" /> Receivable</div>
-                <p className="text-lg font-bold">{formatUGX(totalReceivable)}</p>
+                <div className="flex items-center justify-between gap-1.5">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><Banknote className="h-3.5 w-3.5" /> Receivable</div>
+                  <div className="flex items-center rounded-md border border-border/60 overflow-hidden">
+                    {(['monthly', 'yearly'] as const).map((p) => (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => setReceivablePeriod(p)}
+                        className={`px-1.5 py-0.5 text-[10px] font-medium capitalize transition-colors ${
+                          receivablePeriod === p ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'
+                        }`}
+                      >
+                        {p === 'monthly' ? 'M' : 'Y'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <p className="text-lg font-bold">
+                  {formatUGX(receivablePeriod === 'monthly' ? monthlyReceivable : totalReceivable)}
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  {receivablePeriod === 'monthly' ? 'Per month' : 'Full 12-month term'}
+                </p>
               </CardContent></Card>
               <Card><CardContent className="p-3">
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><TrendingUp className="h-3.5 w-3.5" /> Your 2% earned</div>
