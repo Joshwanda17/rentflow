@@ -196,17 +196,6 @@ const DashboardHeader = memo(function DashboardHeader({
                   align="end" 
                   className="w-56 max-h-[70vh] overflow-y-auto bg-primary-foreground backdrop-blur-xl border shadow-2xl rounded-2xl p-1"
                 >
-                  {showInstallButton && (
-                    <DropdownMenuItem
-                      onClick={handleInstallClick}
-                      className="gap-3 cursor-pointer py-3 px-3 rounded-xl text-sm font-medium touch-manipulation"
-                    >
-                      <div className="p-1.5 rounded-lg bg-primary/10">
-                        <Download className="h-4 w-4 text-primary" />
-                      </div>
-                      Install App
-                    </DropdownMenuItem>
-                  )}
                   <DropdownMenuItem
                     onClick={() => navigate('/your-profile')}
                     className="gap-3 cursor-pointer py-3 px-3 rounded-xl text-sm font-medium touch-manipulation"
@@ -225,6 +214,17 @@ const DashboardHeader = memo(function DashboardHeader({
                     </div>
                     Notifications
                   </DropdownMenuItem>
+                  {showInstallButton && (
+                    <DropdownMenuItem
+                      onClick={handleInstallClick}
+                      className="gap-3 cursor-pointer py-3 px-3 rounded-xl text-sm font-medium touch-manipulation"
+                    >
+                      <div className="p-1.5 rounded-lg bg-primary/10">
+                        <Download className="h-4 w-4 text-primary" />
+                      </div>
+                      Install App
+                    </DropdownMenuItem>
+                  )}
                   {currentRole === 'agent' && (
                     <DropdownMenuItem
                       onClick={() => navigate('/agent-commission-benefits')}
