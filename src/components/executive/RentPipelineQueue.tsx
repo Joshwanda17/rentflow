@@ -18,6 +18,7 @@ import {
 import { CheckCircle2, XCircle, Clock, MapPin, User, UserCheck, Home, Banknote, ArrowRight, Loader2, Search, MessageCircle, Phone, Pencil, Check, X, PhoneCall, ShieldCheck, AlertCircle, Image as ImageIcon, Camera, Cloud, HardDrive, RotateCcw } from 'lucide-react';
 import { calculateRentRepayment } from '@/lib/rentCalculations';
 import { formatTenantSync } from '@/lib/tenantFilterSyncFormat';
+import { formatLocation, locationHaystack } from '@/lib/locationText';
 import { toast as sonnerToast } from 'sonner';
 import { format } from 'date-fns';
 import { AgentProximitySelector } from './AgentProximitySelector';
@@ -664,13 +665,19 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
 
       const [profilesRes, landlordsRes, lc1Res] = await Promise.all([
         ids.size > 0
-          ? supabase.from('profiles').select('id, full_name, phone, email').in('id', [...ids])
+          ? supabase
+              .from('profiles')
+              .select('id, full_name, phone, email, region, district, sub_county, parish, village, city, town, landmark')
+              .in('id', [...ids])
           : { data: [] },
         landlordIds.length > 0
-          ? supabase.from('landlords').select('id, name, phone, mobile_money_number').in('id', landlordIds)
+          ? supabase
+              .from('landlords')
+              .select('id, name, phone, mobile_money_number, property_address, region, district, sub_county, village')
+              .in('id', landlordIds)
           : { data: [] },
         lc1Ids.length > 0
-          ? supabase.from('lc1_chairpersons').select('id, name, phone, village').in('id', lc1Ids)
+          ? supabase.from('lc1_chairpersons').select('id, name, phone, village, parish, district, region').in('id', lc1Ids)
           : { data: [] },
       ]);
 
@@ -698,21 +705,56 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
           : r.agent_id
             ? profileMap.get(r.agent_id)
             : null;
+        const tenantProfile = profileMap.get(r.tenant_id) as any;
+        const landlord = landlordMap.get(r.landlord_id) as any;
+        const lc1 = r.lc1_id ? (lc1Map.get(r.lc1_id) as any) : null;
+        // Full tenant residence as captured at registration.
+        const tenantAddress = formatLocation([
+          tenantProfile?.landmark,
+          tenantProfile?.village,
+          tenantProfile?.parish,
+          tenantProfile?.sub_county,
+          tenantProfile?.city || tenantProfile?.town,
+          tenantProfile?.district,
+          tenantProfile?.region,
+        ]);
+        const landlordAddress = formatLocation([
+          landlord?.property_address,
+          landlord?.village,
+          landlord?.sub_county,
+          landlord?.district,
+          landlord?.region,
+        ]);
+        const lc1Address = formatLocation([lc1?.village, lc1?.parish, lc1?.district, lc1?.region]);
         return {
           ...r,
           is_resubmitted: resubmittedSet.has(r.id),
-          tenant_name: profileMap.get(r.tenant_id)?.full_name || 'Unknown',
-          tenant_phone: profileMap.get(r.tenant_id)?.phone || '',
+          tenant_name: tenantProfile?.full_name || 'Unknown',
+          tenant_phone: tenantProfile?.phone || '',
+          tenant_district: tenantProfile?.district || '',
+          tenant_address: tenantAddress,
           agent_name: r.agent_id ? (profileMap.get(r.agent_id)?.full_name || 'Unassigned') : 'Unassigned',
           agent_phone: agentProfile?.phone || '',
           agent_email: agentProfile?.email || '',
           assigned_agent_name: r.assigned_agent_id ? (profileMap.get(r.assigned_agent_id)?.full_name || '') : '',
-          landlord_name: landlordMap.get(r.landlord_id)?.name || 'Unknown',
-          landlord_phone: landlordMap.get(r.landlord_id)?.phone || '',
-          landlord_momo: landlordMap.get(r.landlord_id)?.mobile_money_number || landlordMap.get(r.landlord_id)?.phone || '',
-          lc1_name: r.lc1_id ? (lc1Map.get(r.lc1_id)?.name || '') : '',
-          lc1_phone: r.lc1_id ? (lc1Map.get(r.lc1_id)?.phone || '') : '',
-          lc1_village: r.lc1_id ? (lc1Map.get(r.lc1_id)?.village || '') : '',
+          landlord_name: landlord?.name || 'Unknown',
+          landlord_phone: landlord?.phone || '',
+          landlord_momo: landlord?.mobile_money_number || landlord?.phone || '',
+          landlord_district: landlord?.district || '',
+          landlord_address: landlordAddress,
+          lc1_name: lc1?.name || '',
+          lc1_phone: lc1?.phone || '',
+          lc1_village: lc1?.village || '',
+          lc1_district: lc1?.district || '',
+          lc1_address: lc1Address,
+          // Single lowercased haystack so the search box matches any district,
+          // village, parish, sub-county or free-text address on the record.
+          location_search: locationHaystack([
+            r.request_city,
+            tenantAddress,
+            landlordAddress,
+            lc1Address,
+          ]),
         };
       });
     },
@@ -736,7 +778,11 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
       return (
         r.tenant_name.toLowerCase().includes(q) ||
         r.landlord_name.toLowerCase().includes(q) ||
-        r.agent_name.toLowerCase().includes(q)
+        r.agent_name.toLowerCase().includes(q) ||
+        (r.tenant_phone || '').includes(q) ||
+        (r.landlord_phone || '').includes(q) ||
+        // District / village / parish / sub-county / free-text address
+        (r.location_search || '').includes(q)
       );
     }
     return true;
@@ -1049,7 +1095,7 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search tenant, landlord, agent..."
+              placeholder="Search tenant, landlord, agent, district or address..."
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="pl-9 h-9 text-sm"
@@ -1146,10 +1192,10 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
                             No Agent
                           </span>
                         )}
-                        {req.request_city && (
+                        {(req.request_city || req.landlord_district || req.tenant_district) && (
                           <span className="flex items-center gap-1">
                             <MapPin className="h-3 w-3" />
-                            {req.request_city}
+                            {req.request_city || req.landlord_district || req.tenant_district}
                           </span>
                         )}
                       </div>
@@ -1387,6 +1433,18 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
                     <p className="font-semibold">{selectedRequest.request_city}</p>
                   </div>
                 )}
+                {selectedRequest.tenant_address && (
+                  <div className="space-y-0.5 col-span-2">
+                    <p className="text-xs text-muted-foreground">Tenant Residence (as captured)</p>
+                    <p className="font-semibold">{selectedRequest.tenant_address}</p>
+                  </div>
+                )}
+                {selectedRequest.landlord_address && (
+                  <div className="space-y-0.5 col-span-2">
+                    <p className="text-xs text-muted-foreground">Landlord / Property Address</p>
+                    <p className="font-semibold">{selectedRequest.landlord_address}</p>
+                  </div>
+                )}
               </div>
 
               {/* Latest rent receipt from landlord — highlighted for operator review */}
@@ -1489,6 +1547,12 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
                     <div className="space-y-0.5">
                       <p className="text-xs text-muted-foreground">Village</p>
                       <p className="font-semibold">{selectedRequest.lc1_village}</p>
+                    </div>
+                  )}
+                  {selectedRequest.lc1_address && (
+                    <div className="space-y-0.5">
+                      <p className="text-xs text-muted-foreground">LC1 Area</p>
+                      <p className="font-semibold">{selectedRequest.lc1_address}</p>
                     </div>
                   )}
                   {(selectedRequest.request_latitude && selectedRequest.request_longitude) && (

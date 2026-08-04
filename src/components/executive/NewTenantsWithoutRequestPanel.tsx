@@ -4,8 +4,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { User, Phone, Search, UserPlus2, Calendar, AlertCircle } from 'lucide-react';
+import { User, Phone, Search, UserPlus2, Calendar, AlertCircle, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
+import { formatLocation, locationHaystack } from '@/lib/locationText';
 
 /**
  * Surfaces tenants that an agent registered (via referral / quick-register flows)
@@ -45,7 +46,7 @@ export function NewTenantsWithoutRequestPanel() {
       // 3. Resolve names/phones for tenants and the agents who referred them
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('id, full_name, phone, created_at')
+        .select('id, full_name, phone, created_at, region, district, sub_county, parish, village, city, town, landmark')
         .in('id', [...new Set([...orphanIds, ...referrerIds])]);
       const pMap = new Map((profiles || []).map(p => [p.id, p]));
 
@@ -54,14 +55,31 @@ export function NewTenantsWithoutRequestPanel() {
         .map(r => {
           const tenant = pMap.get(r.referred_id);
           const agent = pMap.get(r.referrer_id);
+          const tenantAddress = formatLocation([
+            (tenant as any)?.landmark,
+            (tenant as any)?.village,
+            (tenant as any)?.parish,
+            (tenant as any)?.sub_county,
+            (tenant as any)?.city || (tenant as any)?.town,
+            (tenant as any)?.district,
+            (tenant as any)?.region,
+          ]);
           return {
             tenant_id: r.referred_id,
             tenant_name: tenant?.full_name || 'Unknown',
             tenant_phone: tenant?.phone || '',
+            tenant_district: (tenant as any)?.district || '',
+            tenant_address: tenantAddress,
             agent_id: r.referrer_id,
             agent_name: agent?.full_name || 'Unknown agent',
             agent_phone: agent?.phone || '',
             registered_at: r.created_at,
+            search_text: locationHaystack([
+              tenant?.full_name,
+              tenant?.phone,
+              agent?.full_name,
+              tenantAddress,
+            ]),
           };
         });
     },
@@ -69,13 +87,7 @@ export function NewTenantsWithoutRequestPanel() {
   });
 
   const q = search.toLowerCase().trim();
-  const filtered = rows.filter(
-    r =>
-      !q ||
-      r.tenant_name.toLowerCase().includes(q) ||
-      r.tenant_phone.includes(q) ||
-      r.agent_name.toLowerCase().includes(q),
-  );
+  const filtered = rows.filter(r => !q || r.search_text.includes(q));
 
   if (isLoading) {
     return (
@@ -115,7 +127,7 @@ export function NewTenantsWithoutRequestPanel() {
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
-            placeholder="Search tenant, phone or agent…"
+            placeholder="Search tenant, phone, agent, district or address…"
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="pl-8 h-8 text-xs bg-background"
@@ -140,6 +152,12 @@ export function NewTenantsWithoutRequestPanel() {
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <Phone className="h-3 w-3 text-muted-foreground shrink-0" />
                       <span className="text-[11px] text-muted-foreground">{row.tenant_phone}</span>
+                    </div>
+                  )}
+                  {row.tenant_address && (
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
+                      <span className="text-[11px] text-muted-foreground truncate">{row.tenant_address}</span>
                     </div>
                   )}
                   <div className="flex items-center gap-1.5 mt-0.5">

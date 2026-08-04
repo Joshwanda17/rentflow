@@ -12,6 +12,7 @@ import { RentPipelineQueue } from './RentPipelineQueue';
 import { PromissoryNotesQueue } from './PromissoryNotesQueue';
 import { RejectedRequestsQueue } from './RejectedRequestsQueue';
 import { NewTenantsWithoutRequestPanel } from './NewTenantsWithoutRequestPanel';
+import { formatLocation, locationHaystack } from '@/lib/locationText';
 
 function LandlordsPipeline() {
   const [search, setSearch] = useState('');
@@ -21,19 +22,35 @@ function LandlordsPipeline() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('rent_requests')
-        .select('id, status, created_at, rent_amount, landlord_id, tenant_id, landlords!inner(id, name, phone, property_address)')
+        .select('id, status, created_at, rent_amount, landlord_id, tenant_id, landlords!inner(id, name, phone, property_address, region, district, sub_county, village)')
         .not('status', 'in', '("funded","rejected","cancelled")')
         .order('created_at', { ascending: false })
         .limit(200);
 
       if (error) throw error;
 
-      const grouped = new Map<string, { name: string; phone: string; address: string; statuses: string[]; requests: { id: string; status: string; rent_amount: number; created_at: string }[] }>();
+      const grouped = new Map<string, { name: string; phone: string; address: string; district: string; fullAddress: string; searchText: string; statuses: string[]; requests: { id: string; status: string; rent_amount: number; created_at: string }[] }>();
       for (const r of data || []) {
         const ll = r.landlords as any;
         const key = r.landlord_id;
         if (!grouped.has(key)) {
-          grouped.set(key, { name: ll?.name || 'Unknown', phone: ll?.phone || '', address: ll?.property_address || '', statuses: [], requests: [] });
+          const fullAddress = formatLocation([
+            ll?.property_address,
+            ll?.village,
+            ll?.sub_county,
+            ll?.district,
+            ll?.region,
+          ]);
+          grouped.set(key, {
+            name: ll?.name || 'Unknown',
+            phone: ll?.phone || '',
+            address: ll?.property_address || '',
+            district: ll?.district || '',
+            fullAddress,
+            searchText: locationHaystack([ll?.name, ll?.phone, fullAddress]),
+            statuses: [],
+            requests: [],
+          });
         }
         const entry = grouped.get(key)!;
         entry.statuses.push(r.status || 'pending');
@@ -44,9 +61,7 @@ function LandlordsPipeline() {
   });
 
   const q = search.toLowerCase().trim();
-  const filtered = landlords.filter(ll =>
-    !q || ll.name.toLowerCase().includes(q) || ll.phone.includes(q) || ll.address.toLowerCase().includes(q)
-  );
+  const filtered = landlords.filter(ll => !q || ll.searchText.includes(q));
 
   if (isLoading) return <div className="text-center py-8 text-muted-foreground text-sm">Loading landlords...</div>;
   if (landlords.length === 0) return <div className="text-center py-8 text-muted-foreground text-sm">No landlords in pipeline</div>;
@@ -56,7 +71,7 @@ function LandlordsPipeline() {
       <div className="relative">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
         <Input
-          placeholder="Search by name, phone, or address..."
+          placeholder="Search by name, phone, district, or address..."
           value={search}
           onChange={e => setSearch(e.target.value)}
           className="pl-8 h-8 text-xs"
@@ -78,10 +93,10 @@ function LandlordsPipeline() {
                     <span className="text-xs text-muted-foreground">{ll.phone}</span>
                   </div>
                 )}
-                {ll.address && (
+                {(ll.fullAddress || ll.address) && (
                   <div className="flex items-center gap-2 mt-0.5">
                     <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
-                    <span className="text-xs text-muted-foreground truncate">{ll.address}</span>
+                    <span className="text-xs text-muted-foreground truncate">{ll.fullAddress || ll.address}</span>
                   </div>
                 )}
               </div>
@@ -118,10 +133,10 @@ function LandlordsPipeline() {
                       <span>{selectedLandlord.phone}</span>
                     </div>
                   )}
-                  {selectedLandlord.address && (
+                  {(selectedLandlord.fullAddress || selectedLandlord.address) && (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <MapPin className="h-3.5 w-3.5" />
-                      <span>{selectedLandlord.address}</span>
+                      <span>{selectedLandlord.fullAddress || selectedLandlord.address}</span>
                     </div>
                   )}
                 </CardContent>

@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { Loader2, RotateCcw, ShieldCheck, XCircle, Search, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatLocation, locationHaystack } from '@/lib/locationText';
 
 type RejectedStage =
   | 'pending'
@@ -55,6 +56,9 @@ interface RejectedRow {
   created_at: string;
   tenant_name?: string;
   tenant_phone?: string;
+  tenant_address?: string;
+  landlord_address?: string;
+  search_text?: string;
 }
 
 interface Props {
@@ -115,15 +119,45 @@ export function RejectedRequestsQueue({ stageFilter, title = 'Rejected Rent Requ
       const { data, error } = await q;
       if (error) throw error;
       const tenantIds = [...new Set((data ?? []).map((r) => r.tenant_id).filter(Boolean))];
-      const profiles = tenantIds.length
-        ? (await supabase.from('profiles').select('id, full_name, phone').in('id', tenantIds)).data ?? []
-        : [];
-      const pmap = new Map(profiles.map((p) => [p.id, p]));
-      return (data ?? []).map((r) => ({
-        ...r,
-        tenant_name: pmap.get(r.tenant_id)?.full_name ?? 'Unknown',
-        tenant_phone: pmap.get(r.tenant_id)?.phone ?? '',
-      })) as RejectedRow[];
+      const landlordIds = [...new Set((data ?? []).map((r) => r.landlord_id).filter(Boolean))] as string[];
+      const [profiles, landlords] = await Promise.all([
+        tenantIds.length
+          ? supabase
+              .from('profiles')
+              .select('id, full_name, phone, region, district, sub_county, parish, village, city, town, landmark')
+              .in('id', tenantIds)
+              .then((res) => res.data ?? [])
+          : Promise.resolve([] as any[]),
+        landlordIds.length
+          ? supabase
+              .from('landlords')
+              .select('id, name, property_address, region, district, sub_county, village')
+              .in('id', landlordIds)
+              .then((res) => res.data ?? [])
+          : Promise.resolve([] as any[]),
+      ]);
+      const pmap = new Map<string, any>(profiles.map((p: any) => [p.id, p] as [string, any]));
+      const lmap = new Map<string, any>(landlords.map((l: any) => [l.id, l] as [string, any]));
+      return (data ?? []).map((r) => {
+        const t = pmap.get(r.tenant_id) as any;
+        const l = r.landlord_id ? (lmap.get(r.landlord_id) as any) : null;
+        const tenantAddress = formatLocation([
+          t?.landmark, t?.village, t?.parish, t?.sub_county, t?.city || t?.town, t?.district, t?.region,
+        ]);
+        const landlordAddress = formatLocation([
+          l?.property_address, l?.village, l?.sub_county, l?.district, l?.region,
+        ]);
+        return {
+          ...r,
+          tenant_name: t?.full_name ?? 'Unknown',
+          tenant_phone: t?.phone ?? '',
+          tenant_address: tenantAddress,
+          landlord_address: landlordAddress,
+          search_text: locationHaystack([
+            t?.full_name, t?.phone, l?.name, r.rejected_reason, tenantAddress, landlordAddress,
+          ]),
+        };
+      }) as RejectedRow[];
     },
   });
 
@@ -131,12 +165,7 @@ export function RejectedRequestsQueue({ stageFilter, title = 'Rejected Rent Requ
     if (!rows) return [];
     if (!search.trim()) return rows;
     const s = search.toLowerCase();
-    return rows.filter(
-      (r) =>
-        (r.tenant_name ?? '').toLowerCase().includes(s) ||
-        (r.tenant_phone ?? '').toLowerCase().includes(s) ||
-        (r.rejected_reason ?? '').toLowerCase().includes(s),
-    );
+    return rows.filter((r) => (r.search_text ?? '').includes(s));
   }, [rows, search]);
 
   const openDialog = (row: RejectedRow, m: 'reopen' | 'force') => {
@@ -221,7 +250,7 @@ export function RejectedRequestsQueue({ stageFilter, title = 'Rejected Rent Requ
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Search tenant, phone, or rejection reason"
+            placeholder="Search tenant, phone, district, address, or rejection reason"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
@@ -258,6 +287,11 @@ export function RejectedRequestsQueue({ stageFilter, title = 'Rejected Rent Requ
                       <td className="py-2 pr-3">
                         <div className="font-medium">{r.tenant_name}</div>
                         <div className="text-xs text-muted-foreground">{r.tenant_phone || r.id.slice(0, 8)}</div>
+                        {(r.landlord_address || r.tenant_address) && (
+                          <div className="text-xs text-muted-foreground truncate">
+                            📍 {r.landlord_address || r.tenant_address}
+                          </div>
+                        )}
                       </td>
                       <td className="py-2 pr-3 text-right">{Number(r.rent_amount || 0).toLocaleString()}</td>
                       <td className="py-2 pr-3">
@@ -324,6 +358,12 @@ export function RejectedRequestsQueue({ stageFilter, title = 'Rejected Rent Requ
             <div className="space-y-3 text-sm">
               <div className="rounded-md bg-muted p-3 space-y-1">
                 <div><span className="text-muted-foreground">Tenant:</span> {active.tenant_name}</div>
+                {active.tenant_address && (
+                  <div><span className="text-muted-foreground">Tenant address:</span> {active.tenant_address}</div>
+                )}
+                {active.landlord_address && (
+                  <div><span className="text-muted-foreground">Property address:</span> {active.landlord_address}</div>
+                )}
                 <div><span className="text-muted-foreground">Rent:</span> UGX {Number(active.rent_amount || 0).toLocaleString()}</div>
                 <div className="line-clamp-3"><span className="text-muted-foreground">Original reason:</span> {active.rejected_reason ?? '—'}</div>
               </div>
