@@ -500,18 +500,6 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
         onSaved={(rent) => setSavedMonthlyRent(rent)}
       />
 
-      {/* Menu Drawer */}
-      <TenantMenuDrawer
-        open={menuOpen}
-        onOpenChange={setMenuOpen}
-        onPayLandlord={() => hasAcceptedTerms ? setShowPayLandlord(true) : setShowAgreementModal(true)}
-
-        onPayWelile={() => hasAcceptedTerms ? setShowPaymentPartners(true) : setShowAgreementModal(true)}
-        onRepaymentSchedule={() => setShowRepaymentSchedule(prev => !prev)}
-        onRentCalculator={() => setShowCalculator(true)}
-        onBrowseHouses={() => { openHousesSheet(); }}
-      />
-
       {/* Dialogs */}
       <PayLandlordDialog open={showPayLandlord} onOpenChange={setShowPayLandlord} />
       <PaymentPartnersDialog 
