@@ -29695,6 +29695,10 @@ export type Database = {
         Returns: Json
       }
       agent_can_view_trust: { Args: { _user_id: string }; Returns: boolean }
+      agent_cancel_rent_request: {
+        Args: { p_reason: string; p_request_id: string }
+        Returns: string
+      }
       agent_capture_contact_location: {
         Args: {
           p_accuracy?: number
