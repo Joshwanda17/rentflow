@@ -1192,10 +1192,10 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
                             No Agent
                           </span>
                         )}
-                        {req.request_city && (
+                        {(req.request_city || req.landlord_district || req.tenant_district) && (
                           <span className="flex items-center gap-1">
                             <MapPin className="h-3 w-3" />
-                            {req.request_city}
+                            {req.request_city || req.landlord_district || req.tenant_district}
                           </span>
                         )}
                       </div>
