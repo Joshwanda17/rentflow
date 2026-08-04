@@ -722,7 +722,11 @@ export function FinOpsWalletMovePanel() {
                     sameUserDir === 'float_to_withdrawable' ? (
                       <> · Withdrawable becomes: <span className="font-semibold text-foreground">{fmt(source.withdrawable_balance + amountNum)}</span></>
                     ) : (
-                      <> · Float becomes: <span className="font-semibold text-foreground">{fmt(source.float_balance + amountNum)}</span></>
+                      <> · Visible Float becomes: <span className="font-semibold text-foreground">{fmt(predictedVisibleFloat)}</span>
+                        {floatOverdrawn && !acknowledgeOverdraft && (
+                          <> (the move is absorbed by the {fmt(floatShortfall)} overdraft)</>
+                        )}
+                      </>
                     )
                   )}
                 </p>
@@ -739,24 +743,24 @@ export function FinOpsWalletMovePanel() {
                 className="mt-1"
               />
             </div>
-            {mode === 'same_user'
-              && sameUserDir === 'withdrawable_to_float'
-              && source.float_balance < 0 && (
+            {floatOverdrawn && (
                 <div className="rounded-lg border border-warning/40 bg-warning/10 p-3 space-y-2">
                   <div className="flex items-start gap-2 text-xs text-warning-foreground">
                     <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
                     <div>
                       <p className="font-semibold text-foreground">
-                        Float is overdrawn by {fmt(Math.abs(source.float_balance))}
+                        Float is overdrawn by {fmt(floatShortfall)}
                       </p>
                       <p className="text-muted-foreground mt-0.5">
+                        Past float usage exceeded recorded float deposits, so the wallet card shows
+                        Float {fmt(source.float_balance)} while the ledger position is negative.
                         On submit, the platform will first auto-fill the overdraft with a balanced
                         admin_correction entry (double-entry, hidden from the user's wallet history),
                         then move {fmt(amountNum || 0)} on top. Visible Float after move:{' '}
                         <span className="font-semibold text-foreground">
-                          {fmt(amountNum || 0)}
+                          {fmt(source.float_balance + (amountNum || 0))}
                         </span>
-                        .
+                        . Without this acknowledgement the move is rejected.
                       </p>
                     </div>
                   </div>
