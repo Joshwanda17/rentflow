@@ -1,20 +1,20 @@
 #!/usr/bin/env node
 /**
- * CI guard — enforces correct canonical tags for welileapp.com.
+ * CI guard — enforces correct canonical tags for welile.tech.
  *
  * Two invariants:
  *   1. PRESENCE + CORRECTNESS: every public, indexable route (mirrors the
  *      static routes in scripts/generate-sitemap.ts) ships a react-helmet
- *      `<link rel="canonical">` that resolves to the exact welileapp.com URL
+ *      `<link rel="canonical">` that resolves to the exact welile.tech URL
  *      for that route. Two routes are allow-listed (see ALLOWLIST) because
  *      their canonical is provided elsewhere or intentionally consolidates.
  *   2. GLOBAL CORRECTNESS: every `rel="canonical"` anywhere in src/ resolves
- *      to an absolute https://welileapp.com URL — never a relative path, the
+ *      to an absolute https://welile.tech URL — never a relative path, the
  *      legacy domain, or any other host.
  *
  * Runs in the `build` script. The existing guard-legacy-domain.mjs is the
  * companion that blocks legacy-domain references; this one guarantees the
- * positive canonical is present and points at the right welileapp.com URL.
+ * positive canonical is present and points at the right welile.tech URL.
  */
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join, relative, extname, resolve, dirname } from 'node:path';
@@ -55,7 +55,7 @@ const ALLOWLIST = {
   '/onboarding': 'Onboarding variants intentionally consolidate to /funder-onboarding.',
 };
 
-// Tokens that resolve to the welileapp.com origin at runtime.
+// Tokens that resolve to the welile.tech origin at runtime.
 const ORIGIN_TOKENS = /^(getPublicOrigin\(\)|CANONICAL_ORIGIN)$/;
 
 /** Extract the raw href expression from a `rel="canonical"` line. */
@@ -159,7 +159,7 @@ for (const file of walk(join(REPO_ROOT, 'src'))) {
     const resolved = resolveHref(src, h);
     const rel = relative(REPO_ROOT, file);
     if (resolved === null) {
-      // Dynamic canonical: require it be built from a welileapp.com origin.
+      // Dynamic canonical: require it be built from a welile.tech origin.
       const usesWelile = src.includes(BASE) || /getPublicOrigin|CANONICAL_ORIGIN/.test(src);
       if (!usesWelile) {
         violations.push(`${rel}:${idx + 1} dynamic canonical not derived from ${BASE}: ${h.value}`);
@@ -183,4 +183,4 @@ if (violations.length > 0) {
 }
 
 const n = Object.keys(INDEXABLE).length;
-console.log(`\u2705 Canonical-tag guard passed — ${n} indexable routes carry correct welileapp.com canonicals.`);
+console.log(`\u2705 Canonical-tag guard passed — ${n} indexable routes carry correct welile.tech canonicals.`);

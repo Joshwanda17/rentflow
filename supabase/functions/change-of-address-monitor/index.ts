@@ -21,7 +21,7 @@ const corsHeaders = {
 };
 
 const OLD_DOMAIN = "welilereceipts.com";
-const NEW_DOMAIN = "welileapp.com";
+const NEW_DOMAIN = "welile.tech";
 const NEW_SITE_URL = `https://${NEW_DOMAIN}/`;
 const PATHS = ["/", "/opportunities", "/join"];
 

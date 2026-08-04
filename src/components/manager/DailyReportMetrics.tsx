@@ -188,7 +188,7 @@ export function DailyReportMetrics() {
     pdf.setFont('helvetica', 'normal');
     pdf.setTextColor(100, 100, 100);
     pdf.text(`Generated: ${new Date().toLocaleString()}`, margin, yPosition);
-    pdf.text('welileapp.com', pageWidth - margin - 30, yPosition);
+    pdf.text('welile.tech', pageWidth - margin - 30, yPosition);
     yPosition += 6;
 
     const img = new Image();

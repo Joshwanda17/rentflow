@@ -879,7 +879,7 @@ Thank you for being part of Welile! 🏠`;
                               e.stopPropagation();
                               const tenant = request.tenant;
                               const landlord = request.landlord;
-                              const appUrl = 'https://welileapp.com';
+                              const appUrl = 'https://welile.tech';
                               const msg = `🏠 *VERIFICATION REQUEST*
 
 Hi Agent! A tenant needs verification. Please verify them on the Welile app.

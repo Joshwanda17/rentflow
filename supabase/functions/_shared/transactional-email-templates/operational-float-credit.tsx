@@ -205,7 +205,7 @@ export function OperationalFloatCredit({
                     <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation">
                       <tbody><tr>
                         <td align="center" style={{ padding: '8px 0 20px 0' }}>
-                          <a href="https://welileapp.com/ZQhyGb" style={dashboardBtn}>
+                          <a href="https://welile.tech/ZQhyGb" style={dashboardBtn}>
                             Access your dashboard
                           </a>
                         </td>
@@ -260,8 +260,8 @@ export function OperationalFloatCredit({
                     This is an automated notification. Please do not reply directly to this email.
                   </Text>
                   <Text style={{ margin: '0 0 15px 0' }}>
-                    <Link href="https://welileapp.com/privacy-policy" style={footerLink}>Privacy Policy</Link>
-                    <Link href="https://welileapp.com/partners-terms" style={footerLink}>Terms of Service</Link>
+                    <Link href="https://welile.tech/privacy-policy" style={footerLink}>Privacy Policy</Link>
+                    <Link href="https://welile.tech/partners-terms" style={footerLink}>Terms of Service</Link>
                     <Link href={unsubscribe_url} style={footerLink}>Unsubscribe</Link>
                   </Text>
                   <Text style={footerCopyText}>
@@ -530,7 +530,7 @@ export const template = {
     source: 'MTN MoMo',
     new_float_balance: 1450000,
     company_name: 'Welile',
-    logo_url: 'https://welileapp.com/welile-logo.png',
+    logo_url: 'https://welile.tech/welile-logo.png',
     unsubscribe_url: 'https://welile.com/unsubscribe',
     contact_url: 'https://welile.com/contact',
   },

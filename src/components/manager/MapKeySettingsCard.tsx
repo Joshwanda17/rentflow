@@ -11,7 +11,7 @@ import { validateGoogleMapsKey } from '@/lib/validateGoogleMapsKey';
 
 /**
  * Manager-only card to configure a custom Google Maps browser API key.
- * Used so the map works on custom domains (e.g. welileapp.com) that the
+ * Used so the map works on custom domains (e.g. welile.tech) that the
  * Lovable-managed key does not authorize. The key is a referrer-restricted
  * public browser key, so it is safe to store and serve to the client.
  */
@@ -114,7 +114,7 @@ export function MapKeySettingsCard() {
           <div>
             <CardTitle className="text-sm">Google Maps Key (Custom Domain)</CardTitle>
             <CardDescription className="text-xs">
-              Paste your own Google Maps <span className="font-medium">browser</span> API key so the map works on welileapp.com. Leave empty to use the default Lovable key.
+              Paste your own Google Maps <span className="font-medium">browser</span> API key so the map works on welile.tech. Leave empty to use the default Lovable key.
             </CardDescription>
           </div>
         </div>
@@ -156,8 +156,8 @@ export function MapKeySettingsCard() {
             )}
             <div className="rounded-lg bg-muted/40 border border-border/40 p-2.5 text-[11px] text-muted-foreground leading-relaxed">
               In Google Cloud, enable the <span className="font-medium text-foreground">Maps JavaScript API</span> and add these HTTP referrers to the key:
-              <code className="block mt-1 text-foreground">https://welileapp.com/*</code>
-              <code className="block text-foreground">https://*.welileapp.com/*</code>
+              <code className="block mt-1 text-foreground">https://welile.tech/*</code>
+              <code className="block text-foreground">https://*.welile.tech/*</code>
               <a
                 href="https://console.cloud.google.com/google/maps-apis/credentials"
                 target="_blank"

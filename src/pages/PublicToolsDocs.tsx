@@ -355,7 +355,7 @@ export default function PublicToolsDocs() {
           name="description"
           content="Reference for every public Welile Receipts AI tool: parameters, what each returns, and example prompts you can use in ChatGPT or Claude. No account needed."
         />
-        <link rel="canonical" href="https://welileapp.com/public-tools" />
+        <link rel="canonical" href="https://welile.tech/public-tools" />
         <meta property="og:title" content="Public AI Tools Reference | Welile Receipts" />
         <meta
           property="og:description"

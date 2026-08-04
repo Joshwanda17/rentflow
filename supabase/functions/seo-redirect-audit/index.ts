@@ -1,5 +1,5 @@
 // Runtime redirect audit: confirms the legacy domain (welilereceipts.com) and  legacy-domain-guard-allow
-// the www / staging variants always 301 to the matching welileapp.com URL.
+// the www / staging variants always 301 to the matching welile.tech URL.
 //
 // For each check it issues a manual-redirect request (to read the 3xx +
 // Location header) and a follow request (to read the final resolved URL), then
@@ -11,13 +11,13 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const TARGET = "welileapp.com";
+const TARGET = "welile.tech";
 
-// Origins that must redirect to https://welileapp.com<path>.
+// Origins that must redirect to https://welile.tech<path>.
 const SOURCES = [
   { origin: "https://welilereceipts.com", label: "Legacy apex" }, // legacy-domain-guard-allow
   { origin: "https://www.welilereceipts.com", label: "Legacy www" }, // legacy-domain-guard-allow
-  { origin: "https://www.welileapp.com", label: "welileapp www" },
+  { origin: "https://www.welile.tech", label: "welileapp www" },
 ];
 
 const PATHS = ["/", "/welcome", "/find-a-house", "/rent-money"];

@@ -48,7 +48,7 @@ export default function ShareCardThemeSettings() {
             paidToday: true,
             todayChange: 21000,
           } as any,
-          shareUrl: 'https://welileapp.com/limit/sample',
+          shareUrl: 'https://welile.tech/limit/sample',
         });
         if (cancelled) return;
         const url = URL.createObjectURL(blob);
@@ -107,7 +107,7 @@ export default function ShareCardThemeSettings() {
           paidToday: true,
           todayChange: 21000,
         } as any,
-        shareUrl: 'https://welileapp.com/limit/sample',
+        shareUrl: 'https://welile.tech/limit/sample',
       });
       const url = URL.createObjectURL(blob);
       window.open(url, '_blank', 'noopener,noreferrer');

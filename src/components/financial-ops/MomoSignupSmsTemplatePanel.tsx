@@ -25,7 +25,7 @@ const DEFAULTS: MomoSignupSmsTemplate = {
   enabled: true,
   thank_you_text: 'Thank you for sending {amount} via {provider}. Create your free Welile account to manage this money.',
   signup_prompt: 'Access your dashboard to view your wallet, transactions, and account details:',
-  signup_link: 'https://welileapp.com/ZQhyGb',
+  signup_link: 'https://welile.tech/ZQhyGb',
   address: '',
   website: '',
   support_email: '',

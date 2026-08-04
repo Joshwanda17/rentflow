@@ -90,7 +90,7 @@ The application will launch on [http://localhost:8080](http://localhost:8080).
 
 ## 🔄 Rebrand & Sync Workflow
 
-This codebase is managed upstream via Lovable (configured for the legacy domain `welileapp.com`), but builds and deploys in production under the domain `welile.tech` (`rentflow`).
+This codebase is managed upstream via Lovable (configured for the legacy domain `welile.tech`), but builds and deploys in production under the domain `welile.tech` (`rentflow`).
 
 To make sure updates are synchronized seamlessly without breaking domain references, the project uses a post-merge git automation.
 
@@ -99,12 +99,12 @@ To make sure updates are synchronized seamlessly without breaking domain referen
 ```
 ┌──────────────┐     sync     ┌──────────────────┐    rebrand     ┌─────────────────┐
 │   Lovable    │ ──────────── │  Local Workspace │ ─────────────  │  RentFlow Repo  │
-│  (upstream)  │  git pull    │ (welileapp.com)  │ commit & push  │  (welile.tech)  │
+│  (upstream)  │  git pull    │ (welile.tech)  │ commit & push  │  (welile.tech)  │
 └──────────────┘              └──────────────────┘                └─────────────────┘
 ```
 
 1. **Automatic Sync:** When you run `git pull origin lovable`, the git post-merge hook (`.git/hooks/post-merge`) fires.
-2. **Global Replacement:** The hook executes the rebrand pipeline, replacing all instances of `welileapp.com` with `welile.tech` across indexable routes, SEO meta tags, email templates, and manifests.
+2. **Global Replacement:** The hook executes the rebrand pipeline, replacing all instances of `welile.tech` with `welile.tech` across indexable routes, SEO meta tags, email templates, and manifests.
 3. **Automated Commit:** All modified files are committed and force-pushed to the production repository (`rentflow`).
 4. **Local Reset:** The local workspace is reset back to the default `origin/lovable` state to avoid merge conflicts on subsequent syncs.
 

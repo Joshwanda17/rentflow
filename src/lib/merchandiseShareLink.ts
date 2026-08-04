@@ -9,7 +9,7 @@
  *
  * IMPORTANT: keep `SHARE_LINK_HOST` empty until the share host actually
  * resolves. While it is empty, links fall back to the long function URL and
- * keep working exactly as before. Set it to "https://s.welileapp.com" (no
+ * keep working exactly as before. Set it to "https://s.welile.tech" (no
  * trailing slash) the moment the CNAME + Worker route are live.
  */
 export const SHARE_LINK_HOST = "";

@@ -20,7 +20,7 @@ const PARTNERSHIP_EMAIL = 'partnership@welile.com';
 // contract email — the partner has an account and expects a confirmation. In
 // that case we fall back to a portal link they can sign into to view/download
 // the generated contract from their dashboard.
-const PARTNER_PORTAL_URL = 'https://welileapp.com/dashboard/funder';
+const PARTNER_PORTAL_URL = 'https://welile.tech/dashboard/funder';
 
 // ─── numberToWords (for the email summary) ───────────────────────────────────
 const ONES = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];

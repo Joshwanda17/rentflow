@@ -14,13 +14,13 @@ export default function Privacy() {
           name="description"
           content="Learn how Welile collects, uses, shares, and protects your personal information, including identity, transaction, and location data on our rent platform."
         />
-        <link rel="canonical" href="https://welileapp.com/privacy" />
+        <link rel="canonical" href="https://welile.tech/privacy" />
         <meta property="og:title" content="Privacy Policy | Welile" />
         <meta
           property="og:description"
           content="How Welile handles and protects your personal data."
         />
-        <meta property="og:url" content="https://welileapp.com/privacy" />
+        <meta property="og:url" content="https://welile.tech/privacy" />
       </Helmet>
       <div className="max-w-2xl mx-auto px-4 py-8">
         <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="mb-6 gap-2">

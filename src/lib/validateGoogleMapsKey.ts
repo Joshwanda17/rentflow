@@ -25,7 +25,7 @@ export interface MapsKeyValidation {
 const FRIENDLY: Record<MapsKeyFailureReason, string> = {
   format: 'That doesn\'t look like a Google Maps API key. Keys usually start with "AIza".',
   referrer:
-    'Google rejected this key for this website. Add this domain to the key\'s HTTP referrer allowlist in Google Cloud (e.g. https://welileapp.com/* and https://*.welileapp.com/*), and make sure the Maps JavaScript API is enabled.',
+    'Google rejected this key for this website. Add this domain to the key\'s HTTP referrer allowlist in Google Cloud (e.g. https://welile.tech/* and https://*.welile.tech/*), and make sure the Maps JavaScript API is enabled.',
   network: 'Could not reach Google to verify the key. Check your internet connection and try again.',
   timeout: 'Verifying the key timed out. Check the key and your connection, then try again.',
   'already-loaded':

@@ -103,13 +103,13 @@ export default function PublicRentCalculator() {
           name="description"
           content="Use Welile's free rent calculator to estimate your rent advance repayments, daily amounts, and access fees before you apply. Plan with confidence in Uganda."
         />
-        <link rel="canonical" href="https://welileapp.com/rent-calculator" />
+        <link rel="canonical" href="https://welile.tech/rent-calculator" />
         <meta property="og:title" content="Welile Rent Calculator — Estimate Repayments" />
         <meta
           property="og:description"
           content="Estimate your rent advance repayments and daily amounts before you apply, free with Welile."
         />
-        <meta property="og:url" content="https://welileapp.com/rent-calculator" />
+        <meta property="og:url" content="https://welile.tech/rent-calculator" />
       </Helmet>
       {/* Header */}
       <div className="bg-primary text-primary-foreground py-6 px-4">

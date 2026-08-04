@@ -18,7 +18,7 @@ function makeBlob() {
 
 const opts = {
   filename: 'Welile-Landlord-Registration-Form.pdf',
-  caption: 'Welile Landlord Registration Form — please print, fill in, and return. welileapp.com',
+  caption: 'Welile Landlord Registration Form — please print, fill in, and return. welile.tech',
 };
 
 describe('sharePdfViaWhatsApp', () => {

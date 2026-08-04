@@ -72,7 +72,7 @@ export function SeoRedirectAuditPanel() {
       <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
         <div className="flex items-center gap-2">
           <Route className="w-5 h-5 text-primary" />
-          <CardTitle className="text-base sm:text-lg">Domain Redirect Audit → welileapp.com</CardTitle>
+          <CardTitle className="text-base sm:text-lg">Domain Redirect Audit → welile.tech</CardTitle>
         </div>
         <Button size="sm" variant="outline" onClick={run} disabled={isFetching}>
           <RefreshCw className={`w-4 h-4 mr-1.5 ${isFetching ? 'animate-spin' : ''}`} />
@@ -102,7 +102,7 @@ export function SeoRedirectAuditPanel() {
           <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm flex items-start gap-2">
             <AlertTriangle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
             <span>
-              <strong>welilereceipts.com is not redirecting to welileapp.com.</strong>{/* legacy-domain-guard-allow */} It must issue a 301 at the
+              <strong>welilereceipts.com is not redirecting to welile.tech.</strong>{/* legacy-domain-guard-allow */} It must issue a 301 at the
               DNS/host level (repoint to Lovable and add it as a custom domain, or add an <code>.htaccess</code> 301
               on the current host). Until then Google keeps ranking signals on the legacy domain.
             </span>
@@ -133,7 +133,7 @@ export function SeoRedirectAuditPanel() {
                       <TableCell><VerdictBadge v={c.verdict} /></TableCell>
                       <TableCell className="text-xs">
                         {c.final_host ? (
-                          <span className={c.final_host === 'welileapp.com' ? 'text-success' : 'text-destructive'}>{c.final_host}</span>
+                          <span className={c.final_host === 'welile.tech' ? 'text-success' : 'text-destructive'}>{c.final_host}</span>
                         ) : (
                           <span className="text-muted-foreground">—</span>
                         )}

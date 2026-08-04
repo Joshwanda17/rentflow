@@ -17,7 +17,7 @@ import { useToast } from '@/hooks/use-toast';
  * Receipt Archive — CFO / Financial Ops surface for the platform-of-record
  * payout receipts. Every completed withdrawal_requests row with a
  * receipt_token is a permanent, retrievable receipt (public URL
- * https://welileapp.com/r/<token>). No external Gmail archive is used.
+ * https://welile.tech/r/<token>). No external Gmail archive is used.
  */
 
 type Row = {
@@ -40,7 +40,7 @@ type Row = {
 };
 
 const PAGE_SIZE = 25;
-const RECEIPT_BASE_URL = 'https://welileapp.com/r/';
+const RECEIPT_BASE_URL = 'https://welile.tech/r/';
 
 const STATUSES = [
   { v: 'all', label: 'All Statuses' },
@@ -248,7 +248,7 @@ export function ReceiptArchivePanel() {
             <p className="text-xs text-muted-foreground mt-1">
               Permanent record of every payout receipt. Welile is the source of truth.
               Every row opens at{' '}
-              <span className="font-mono">welileapp.com/r/&lt;token&gt;</span>.
+              <span className="font-mono">welile.tech/r/&lt;token&gt;</span>.
             </p>
           </div>
           <Badge variant="outline" className="text-xs shrink-0">

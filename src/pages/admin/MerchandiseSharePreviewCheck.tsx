@@ -134,7 +134,7 @@ export default function MerchandiseSharePreviewCheck() {
             (!expectedImage || ogImage === expectedImage),
         },
         {
-          label: 'og:url points at welileapp.com/merchandise',
+          label: 'og:url points at welile.tech/merchandise',
           pass: !!ogUrl && /welileapp\.com\/merchandise/i.test(ogUrl),
         },
         {
@@ -152,7 +152,7 @@ export default function MerchandiseSharePreviewCheck() {
         <h1 className="text-2xl font-bold">Share preview verification</h1>
         <p className="text-sm text-muted-foreground">
           Confirm that a pasted merchandise link unfurls with the item photo and the branded
-          welileapp.com destination before you send it on WhatsApp.
+          welile.tech destination before you send it on WhatsApp.
         </p>
       </div>
 

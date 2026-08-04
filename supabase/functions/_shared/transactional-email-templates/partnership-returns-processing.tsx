@@ -51,7 +51,7 @@ export function PartnershipReturnsProcessing({
   is_managed_by_agent = false,
   agent_name = '',
   company_name = 'Welile',
-  logo_url = 'https://welileapp.com/welile-logo.png',
+  logo_url = 'https://welile.tech/welile-logo.png',
   unsubscribe_url = 'https://welile.com/unsubscribe',
   contact_url = 'https://welile.com/contact',
 }: PartnershipReturnsProcessingProps) {
@@ -231,8 +231,8 @@ export function PartnershipReturnsProcessing({
                     This is an automated notification. Please do not reply directly to this email.
                   </Text>
                   <Text style={{ margin: '0 0 15px 0' }}>
-                    <Link href="https://welileapp.com/privacy-policy" style={footerLink}>Privacy Policy</Link>
-                    <Link href="https://welileapp.com/partners-terms" style={footerLink}>Terms of Service</Link>
+                    <Link href="https://welile.tech/privacy-policy" style={footerLink}>Privacy Policy</Link>
+                    <Link href="https://welile.tech/partners-terms" style={footerLink}>Terms of Service</Link>
                     <Link href={unsubscribe_url} style={footerLink}>Unsubscribe</Link>
                   </Text>
                   <Text style={footerCopyText}>© {year} {company_name}. All rights reserved.</Text>
@@ -328,7 +328,7 @@ export const template = {
     is_managed_by_agent: true,
     agent_name: 'James Okello',
     company_name: 'Welile',
-    logo_url: 'https://welileapp.com/welile-logo.png',
+    logo_url: 'https://welile.tech/welile-logo.png',
     unsubscribe_url: 'https://welile.com/unsubscribe',
     contact_url: 'https://welile.com/contact',
   },

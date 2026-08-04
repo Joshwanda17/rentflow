@@ -48,13 +48,13 @@ function buildTemplateData(opts: {
     maturity_date: opts.maturity_date,
     currency: opts.currency,
     company_name: "Welile",
-    logo_url: "https://welileapp.com/welile-logo.png",
-    dashboard_url: "https://welileapp.com/auth",
+    logo_url: "https://welile.tech/welile-logo.png",
+    dashboard_url: "https://welile.tech/auth",
     renew_url: opts.renew_url || "",
     redeem_url: opts.redeem_url || "",
     unsubscribe_url: "https://welile.com/unsubscribe",
-    terms_url: "https://welileapp.com/partners-terms",
-    privacy_url: "https://welileapp.com/privacy",
+    terms_url: "https://welile.tech/partners-terms",
+    privacy_url: "https://welile.tech/privacy",
   };
 }
 
@@ -181,8 +181,8 @@ Deno.serve(async (req) => {
           start_date: fmtDate(now.toISOString()),
           maturity_date: fmtDate(maturity.toISOString()),
           currency: "UGX",
-          renew_url: "https://welileapp.com/portfolios/PF-TEST-001/renew",
-          redeem_url: "https://welileapp.com/portfolios/PF-TEST-001/redeem",
+          renew_url: "https://welile.tech/portfolios/PF-TEST-001/renew",
+          redeem_url: "https://welile.tech/portfolios/PF-TEST-001/redeem",
         }),
       });
       return json({ ok: ok === "sent", outcome: ok, test: true, recipient: testEmail }, ok === "sent" ? 200 : 502);
@@ -279,8 +279,8 @@ Deno.serve(async (req) => {
           start_date: fmtDate(p.created_at),
           maturity_date: fmtDate(p.maturity_date),
           currency: p.display_currency || "UGX",
-          renew_url: `https://welileapp.com/portfolios/${p.id}/renew`,
-          redeem_url: `https://welileapp.com/portfolios/${p.id}/redeem`,
+          renew_url: `https://welile.tech/portfolios/${p.id}/renew`,
+          redeem_url: `https://welile.tech/portfolios/${p.id}/redeem`,
         }),
       });
       if (outcome === "sent") counts.sent++;
