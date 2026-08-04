@@ -82,7 +82,7 @@ import { BulkImportLandlordsDialog } from './landlord-ops/BulkImportLandlordsDia
 import { AssignPersonDialog } from './landlord-ops/AssignPersonDialog';
 import { StorageImage } from '@/components/ui/StorageImage';
 import { ChevronLeft } from 'lucide-react';
-import { VerifyLc1Button } from '@/components/verification/VerifyLc1Button';
+
 import { VerifyLandlordButton } from '@/components/verification/VerifyLandlordButton';
 import { LandlordsPaidView } from './landlord-ops/LandlordsPaidView';
 import { LandlordsWithTenantsView } from './landlord-ops/LandlordsWithTenantsView';
