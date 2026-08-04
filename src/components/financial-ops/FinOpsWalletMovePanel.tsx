@@ -416,6 +416,23 @@ export function FinOpsWalletMovePanel() {
 
   const submit = async () => {
     if (!source) return;
+    // Hard client-side contract guard. The `finops-wallet-move` edge function
+    // rejects any request without a structured reason_code (400) and without a
+    // 10-character note, so refuse to spend a round trip on an invalid payload.
+    if (!reasonCode || !REASON_CODES.some((r) => r.value === reasonCode)) {
+      toast.error('Reason code required', {
+        description: 'Pick a structured reason code before recovering money to the platform.',
+      });
+      setConfirmOpen(false);
+      return;
+    }
+    if (reason.trim().length < 10) {
+      toast.error('Reason note too short', {
+        description: 'Explain what happened in at least 10 characters.',
+      });
+      setConfirmOpen(false);
+      return;
+    }
     setSubmitting(true);
     setStep('posting');
 
@@ -481,7 +498,9 @@ export function FinOpsWalletMovePanel() {
         body: {
           target_user_id: source.id,
           amount: amountNum,
-          reason: reason.trim(),
+          // Keep the structured code inside the note so the same-user
+          // reclassification audit trail matches the correction trail.
+          reason: `[${reasonCode}] ${reason.trim()}`,
           acknowledge_float_overdraft:
             sameUserDir === 'withdrawable_to_float' && acknowledgeOverdraft
               ? true
@@ -928,6 +947,12 @@ export function FinOpsWalletMovePanel() {
                   <option key={r.value} value={r.value}>{r.label}</option>
                 ))}
               </select>
+              {!reasonCode && (
+                <p className="text-xs text-destructive mt-1 flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" /> A reason code is required — it classifies
+                  why this correction exists.
+                </p>
+              )}
             </div>
             <div>
               <Label htmlFor="fwm-reason" className="text-xs">Reason note (min 10 characters)</Label>
@@ -939,6 +964,11 @@ export function FinOpsWalletMovePanel() {
                 rows={2}
                 className="mt-1"
               />
+              {reason.trim().length > 0 && reason.trim().length < 10 && (
+                <p className="text-xs text-destructive mt-1">
+                  Explain what happened in at least 10 characters ({reason.trim().length}/10).
+                </p>
+              )}
             </div>
             {isCorrection && (
               <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-3">
