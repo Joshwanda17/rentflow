@@ -437,7 +437,9 @@ function DashboardContent() {
 
   return (
     <>
-      <InstallAppCard className="fixed top-4 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-2rem)] max-w-md" />
+      {/* In-flow: the install card pushes the dashboard down instead of
+          covering the header greeting. */}
+      <InstallAppCard className="mx-auto w-[calc(100%-2rem)] max-w-md pt-4" />
       <Suspense fallback={<DashboardLoadingFallback />}>
         {renderDashboard()}
       </Suspense>
