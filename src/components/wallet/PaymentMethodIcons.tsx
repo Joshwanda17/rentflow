@@ -91,7 +91,7 @@ const METHODS = [
 export function PaymentMethodIcons({ className, iconClassName }: PaymentMethodIconsProps) {
   return (
     <div className={cn('flex items-center gap-2', className)}>
-      {METHODS.map(({ key, label, Icon })` }) => (
+      {METHODS.map(({ key, label, Icon }) => (
         <div
           key={key}
           className="group relative flex flex-col items-center gap-1"
