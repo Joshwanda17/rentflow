@@ -111,6 +111,30 @@ export function FinOpsWalletMovePanel() {
   const refetching = useIsFetching({ predicate: (q) => isWalletQuery(q.queryKey) });
   const refreshStartedRef = useRef(false);
 
+  // Lifetime approved deposits for the selected source user — drives the
+  // full-history sweep guard and gives the operator context before recovering.
+  useEffect(() => {
+    if (!source) {
+      setLifetimeDeposits(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('deposit_requests')
+        .select('amount')
+        .eq('user_id', source.id)
+        .eq('status', 'approved');
+      if (cancelled) return;
+      setLifetimeDeposits(
+        (data ?? []).reduce((s, d) => s + Number((d as { amount: number | null }).amount ?? 0), 0),
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [source]);
+
   // Once the refetch wave drains, mark the refresh complete. A fallback timer
   // guarantees completion even if no wallet panels are currently mounted
   // (invalidate only refetches active queries).
