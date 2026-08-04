@@ -30758,6 +30758,7 @@ export type Database = {
         Returns: number
       }
       advance_period_days: { Args: { _frequency: string }; Returns: number }
+      agent_advance_activity: { Args: { p_user_id: string }; Returns: Json }
       agent_advance_topup_eligibility: {
         Args: { p_agent_id: string }
         Returns: Json
