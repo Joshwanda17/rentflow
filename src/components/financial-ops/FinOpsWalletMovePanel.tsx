@@ -1100,8 +1100,14 @@ export function FinOpsWalletMovePanel() {
                   </label>
                 </div>
               )}
+            {pendingApproval && (
+              <div className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-xs">
+                <p className="font-semibold text-foreground">Awaiting approval</p>
+                <p className="text-muted-foreground mt-0.5">{pendingApproval.message}</p>
+              </div>
+            )}
             <Button
-              onClick={() => { setConfirmStage('preview'); setConfirmOpen(true); }}
+              onClick={() => { setPendingApproval(null); setConfirmStage('preview'); setConfirmOpen(true); }}
               disabled={!canSubmit || submitBlockedByFloatCheck}
               className="w-full gap-2"
             >
