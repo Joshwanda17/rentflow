@@ -429,6 +429,8 @@ export function FinOpsWalletMovePanel() {
         dest_bucket: mode === 'user_to_user' ? destBucket : undefined,
         amount: amountNum,
         reason: reason.trim(),
+        reason_code: reasonCode,
+        confirm_full_history: fullHistorySweep ? true : undefined,
       },
       errorTitle: 'Move failed',
     });
