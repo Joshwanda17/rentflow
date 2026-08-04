@@ -23,6 +23,16 @@ type Mode = 'user_to_user' | 'error_correction' | 'same_user';
 type MoveStep = 'idle' | 'posting' | 'refreshing' | 'done';
 type SameUserDir = 'float_to_withdrawable' | 'withdrawable_to_float';
 
+/** Structured reason codes — free text alone produced unusable audit trails. */
+const REASON_CODES: { value: string; label: string }[] = [
+  { value: 'duplicate_credit', label: 'Duplicate credit reversed' },
+  { value: 'wrong_bucket', label: 'Credited to the wrong wallet bucket' },
+  { value: 'wrong_user', label: 'Credited to the wrong user' },
+  { value: 'fraud_hold', label: 'Funds held pending fraud review' },
+  { value: 'reconciliation', label: 'Reconciliation adjustment' },
+  { value: 'other', label: 'Other' },
+];
+
 /** Matches every wallet/balance/ledger-backed panel query. */
 const isWalletQuery = (key: readonly unknown[]) =>
   /wallet|balance|ledger|finops|withdraw|float|recon|drift|overview/.test(
@@ -73,6 +83,11 @@ export function FinOpsWalletMovePanel() {
 
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
+  const [reasonCode, setReasonCode] = useState('');
+  // Full-history sweep: the operator must confirm twice when the amount wipes
+  // out everything the user has ever deposited.
+  const [confirmFullHistory, setConfirmFullHistory] = useState(false);
+  const [lifetimeDeposits, setLifetimeDeposits] = useState<number | null>(null);
   // Same-user Withdrawable → Float only: operator opt-in to fill an existing
   // Float overdraft. Without this, the edge function refuses moves where the
   // amount only fills (or partly fills) a negative Float shortfall.
@@ -244,7 +259,8 @@ export function FinOpsWalletMovePanel() {
     : (source?.float_balance ?? 0) + (amountNum || 0);
   const canSubmit =
     !!source && destOk && validAmount && !exceedsBalance && reason.trim().length >= 10 &&
-    !submitting && (!floatOverdrawn || acknowledgeOverdraft);
+    !!reasonCode && !submitting && (!floatOverdrawn || acknowledgeOverdraft) &&
+    (!fullHistorySweep || confirmFullHistory);
   // Never let the operator submit a Withdrawable → Float move while the real
   // float position is still being read.
   const submitBlockedByFloatCheck =
@@ -255,6 +271,9 @@ export function FinOpsWalletMovePanel() {
     setDest(null);
     setAmount('');
     setReason('');
+    setReasonCode('');
+    setConfirmFullHistory(false);
+    setLifetimeDeposits(null);
     setHits([]);
     setTerm('');
     setPicking('source');
