@@ -46,12 +46,30 @@ const MATCH_LABEL: Record<string, string> = {
 };
 
 /** Compact inline flag for list cards. */
-export function DuplicateAccountBadge({ dups }: { dups?: DuplicateAccount[] }) {
+export function DuplicateAccountBadge({ dups, flagged }: { dups?: DuplicateAccount[]; flagged?: boolean }) {
+  if (flagged) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-bold text-white">
+        <AlertTriangle className="h-3 w-3" />
+        FLAGGED DUPLICATE — BLOCKED
+      </span>
+    );
+  }
   if (!dups || dups.length === 0) return null;
+  const borrowing = dups.filter((d) => d.active_advances > 0).length;
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-red-100 dark:bg-red-950/40 px-2 py-0.5 text-[10px] font-bold text-red-700 dark:text-red-400">
+    <span
+      className={cn(
+        'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold',
+        borrowing > 0
+          ? 'bg-red-600 text-white animate-pulse'
+          : 'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400',
+      )}
+    >
       <AlertTriangle className="h-3 w-3" />
-      {dups.length} duplicate account{dups.length > 1 ? 's' : ''}
+      {borrowing > 0
+        ? `DUPLICATE WITH ACTIVE ADVANCE (${borrowing})`
+        : `${dups.length} duplicate account${dups.length > 1 ? 's' : ''}`}
     </span>
   );
 }
@@ -60,7 +78,22 @@ export function DuplicateAccountBadge({ dups }: { dups?: DuplicateAccount[] }) {
 export function DuplicateAccountAlert({
   dups,
   className,
-}: { dups?: DuplicateAccount[]; className?: string }) {
+  flag,
+}: { dups?: DuplicateAccount[]; className?: string; flag?: { reason: string; flagged_at: string } | null }) {
+  const borrowing = (dups ?? []).filter((d) => d.active_advances > 0);
+  if (flag) {
+    return (
+      <div className={cn('rounded-xl border-2 border-red-600 bg-red-600/10 p-3 space-y-1', className)}>
+        <p className="text-xs font-black uppercase tracking-wide text-red-700 dark:text-red-400 inline-flex items-center gap-1.5">
+          <AlertTriangle className="h-4 w-4" /> Account flagged as duplicate — advances blocked
+        </p>
+        <p className="text-[11px] text-red-800 dark:text-red-300">{flag.reason}</p>
+        <p className="text-[10px] text-muted-foreground">
+          Flagged {new Date(flag.flagged_at).toLocaleString()} • only a manager can release this flag.
+        </p>
+      </div>
+    );
+  }
   if (!dups || dups.length === 0) {
     return (
       <div className={cn('rounded-xl border border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/30 p-2.5', className)}>
@@ -71,11 +104,32 @@ export function DuplicateAccountAlert({
     );
   }
   return (
-    <div className={cn('rounded-xl border border-red-300 dark:border-red-900 bg-red-50 dark:bg-red-950/30 p-2.5 space-y-2', className)}>
-      <p className="text-[11px] font-bold text-red-700 dark:text-red-400 inline-flex items-center gap-1.5">
-        <AlertTriangle className="h-3.5 w-3.5" />
-        Possible duplicate account{dups.length > 1 ? 's' : ''} ({dups.length}) — review for fraud before approving
-      </p>
+    <div
+      className={cn(
+        'rounded-xl p-2.5 space-y-2',
+        borrowing.length > 0
+          ? 'border-2 border-red-600 bg-red-600/10'
+          : 'border border-red-300 dark:border-red-900 bg-red-50 dark:bg-red-950/30',
+        className,
+      )}
+    >
+      {borrowing.length > 0 ? (
+        <div className="space-y-1">
+          <p className="text-xs font-black uppercase tracking-wide text-red-700 dark:text-red-400 inline-flex items-center gap-1.5">
+            <AlertTriangle className="h-4 w-4" /> Do not approve — duplicate account already borrowing
+          </p>
+          <p className="text-[11px] text-red-800 dark:text-red-300">
+            {borrowing.length} account{borrowing.length > 1 ? 's' : ''} sharing this identity already
+            hold an advance. Use <span className="font-bold">Reject as duplicate</span> to flag and
+            block this account.
+          </p>
+        </div>
+      ) : (
+        <p className="text-[11px] font-bold text-red-700 dark:text-red-400 inline-flex items-center gap-1.5">
+          <AlertTriangle className="h-3.5 w-3.5" />
+          Possible duplicate account{dups.length > 1 ? 's' : ''} ({dups.length}) — review for fraud before approving
+        </p>
+      )}
       <div className="space-y-1.5">
         {dups.map((d) => (
           <div key={d.id} className="rounded-lg bg-background/70 px-2 py-1.5">

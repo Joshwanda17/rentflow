@@ -20,12 +20,14 @@ import {
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { format, addDays, differenceInCalendarDays, max as dateMax, min as dateMin, isAfter, startOfMonth, endOfMonth } from 'date-fns';
-import { CheckCircle2, Loader2, Pencil, User, Banknote, X, TrendingUp, Percent, Wallet, Users, FileText, CalendarRange, AlertTriangle } from 'lucide-react';
+import { CheckCircle2, Loader2, Pencil, User, Banknote, X, TrendingUp, Percent, Wallet, Users, FileText, CalendarRange, AlertTriangle, ShieldX } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Sparkles } from 'lucide-react';
 import { AgentAdvanceEvaluationDialog } from '@/components/agent/AgentAdvanceEvaluationDialog';
 import { AgentLocationBadge } from '@/components/ops/AgentLocationBadge';
 import { applyAdvanceTopupForRequest } from '@/lib/disburseAgentAdvance';
+import { DuplicateAccountAlert, useAgentDuplicateMap } from '@/components/ops/DuplicateAccountAlert';
+import { RejectAsDuplicateDialog, useAgentDuplicateFlags } from '@/components/ops/RejectAsDuplicateDialog';
 
 export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed?: () => void } = {}) {
   const { user } = useAuth();
@@ -43,6 +45,7 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [rejectingReq, setRejectingReq] = useState<any | null>(null);
   const [rejectReason, setRejectReason] = useState<string>('');
+  const [dupRejectReq, setDupRejectReq] = useState<any | null>(null);
   // Post-disbursement success dialog payload — shows the CFO what was sent and
   // a shortcut to the full list of disbursed advances.
   const [disbursed, setDisbursed] = useState<null | {
@@ -100,6 +103,10 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
         : stageFilter === 'cfo_rejected'
           ? cfoRejected
           : allRequests.filter((r: any) => r.status !== 'cfo_rejected');
+
+  const advanceAgentIds = (allRequests as any[]).map((r) => r.agent_id).filter(Boolean);
+  const { data: cfoDuplicateMap = {} } = useAgentDuplicateMap(advanceAgentIds);
+  const { data: cfoDuplicateFlagMap = {} } = useAgentDuplicateFlags(advanceAgentIds);
 
   // Update global default rate
   const updateConfigMutation = useMutation({
@@ -1191,6 +1198,11 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
                   </p>
                 </div>
               ) : (
+                <>
+                <DuplicateAccountAlert
+                  dups={req.agent_id ? cfoDuplicateMap[req.agent_id] : undefined}
+                  flag={req.agent_id ? cfoDuplicateFlagMap[req.agent_id] : undefined}
+                />
                 <div className="flex flex-col sm:flex-row gap-2">
                   <Button
                     variant="outline"
@@ -1215,6 +1227,14 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
                     {isCfoApproved ? 'Disburse' : 'Approve'} {formatUGX(currentPrincipal)}
                   </Button>
                 </div>
+                <Button
+                  variant="outline"
+                  className="w-full gap-2 border-red-400 text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30"
+                  onClick={() => setDupRejectReq(req)}
+                >
+                  <ShieldX className="h-4 w-4" /> Reject as duplicate account &amp; block
+                </Button>
+                </>
               )}
 
               {isCfoApproved && (
@@ -1329,6 +1349,14 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
       </Dialog>
 
       {/* Reject reason dialog — CFO must supply a reason. */}
+      <RejectAsDuplicateDialog
+        requestId={dupRejectReq?.id ?? null}
+        agentName={dupRejectReq?.profiles?.full_name}
+        dups={dupRejectReq?.agent_id ? cfoDuplicateMap[dupRejectReq.agent_id] : undefined}
+        onOpenChange={(open) => { if (!open) setDupRejectReq(null); }}
+        onDone={() => { setDupRejectReq(null); setEvalReq(null); }}
+      />
+
       <Dialog open={!!rejectingReq} onOpenChange={(open) => {
         if (!open) { setRejectingReq(null); setRejectReason(''); }
       }}>

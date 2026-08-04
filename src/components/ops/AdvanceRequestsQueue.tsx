@@ -36,6 +36,10 @@ import {
   DuplicateAccountAlert,
 } from '@/components/ops/DuplicateAccountAlert';
 import {
+  RejectAsDuplicateDialog,
+  useAgentDuplicateFlags,
+} from '@/components/ops/RejectAsDuplicateDialog';
+import {
   AgentAdvanceEvaluationDialog,
   type PotentialInfo,
   scoreColor,
@@ -137,6 +141,11 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
   const { data: duplicateMap = {} } = useAgentDuplicateMap(
     (requests as any[]).map((r) => r.agent_id).filter(Boolean),
   );
+
+  const { data: duplicateFlagMap = {} } = useAgentDuplicateFlags(
+    (requests as any[]).map((r) => r.agent_id).filter(Boolean),
+  );
+  const [dupRejectReq, setDupRejectReq] = useState<any | null>(null);
 
   const approveMutation = useMutation({
     mutationFn: async ({ id, approve, principal, skip, reason }: { id: string; approve: boolean; principal?: number; skip?: boolean; reason?: string }) => {
@@ -408,7 +417,10 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
                     <AgentLocationBadge req={req} />
                     {req.agent_id && (
                       <div className="mt-1">
-                        <DuplicateAccountBadge dups={duplicateMap[req.agent_id]} />
+                        <DuplicateAccountBadge
+                          dups={duplicateMap[req.agent_id]}
+                          flagged={!!duplicateFlagMap[req.agent_id]}
+                        />
                       </div>
                     )}
                   </div>
@@ -483,6 +495,7 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
           <>
             <DuplicateAccountAlert
               dups={selected.agent_id ? duplicateMap[selected.agent_id] : undefined}
+              flag={selected.agent_id ? duplicateFlagMap[selected.agent_id] : undefined}
               className="mb-3"
             />
             <div>
@@ -540,8 +553,23 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
                 <XCircle className="h-4 w-4" /> Reject
               </Button>
             </div>
+            <Button
+              variant="outline"
+              className="w-full gap-1.5 border-red-400 text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30"
+              onClick={() => setDupRejectReq(selected)}
+            >
+              <AlertTriangle className="h-4 w-4" /> Reject as duplicate account & block
+            </Button>
           </>
         ) : null}
+      />
+
+      <RejectAsDuplicateDialog
+        requestId={dupRejectReq?.id ?? null}
+        agentName={dupRejectReq?.agent_full_name}
+        dups={dupRejectReq?.agent_id ? duplicateMap[dupRejectReq.agent_id] : undefined}
+        onOpenChange={(open) => { if (!open) setDupRejectReq(null); }}
+        onDone={() => { setDupRejectReq(null); setSelected(null); }}
       />
 
       <AlertDialog open={!!confirm} onOpenChange={(open) => { if (!open) { setConfirm(null); setSkipCfo(false); setSkipReason(''); } }}>
