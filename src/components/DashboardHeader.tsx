@@ -14,7 +14,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { Menu, Settings, Download, Globe, Home, Users, Wallet, Building2, Shield, ChevronDown, LogOut, Coins, Check, GraduationCap, Briefcase } from 'lucide-react';
+import { Menu, Settings, Download, Home, Users, Wallet, Building2, Shield, ChevronDown, LogOut, Coins, Check, GraduationCap, Briefcase, UserRound, Bell } from 'lucide-react';
 
 import { hapticTap } from '@/lib/haptics';
 import { AppRole } from '@/hooks/useAuth';
