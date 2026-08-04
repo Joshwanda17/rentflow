@@ -506,13 +506,19 @@ export function LandlordOpsDashboard() {
 
   // ─── Verification Queue Search & Filters ───
   const [verifySearch, setVerifySearch] = useState('');
-  type VerifyFilter = 'all' | 'has_landlord' | 'no_landlord' | 'has_images' | 'has_gps' | 'has_lc1';
+  type VerifyFilter = 'all' | 'has_landlord' | 'no_landlord' | 'has_images' | 'has_gps' | 'has_lc1' | 'hidden' | 'visible';
   const [verifyFilter, setVerifyFilter] = useState<VerifyFilter>('all');
-  // Scope: pending | verified | hidden | rejected | all — thumb-friendly status chips
-  type HouseStatusFilter = 'pending' | 'verified' | 'hidden' | 'rejected' | 'all';
+  // Scope: pending | verified | rejected | all — thumb-friendly status chips.
+  // "Hidden" is deliberately NOT a scope: 99% of hidden houses are verified
+  // houses that ops temporarily pulled off the tenant feed, so a sibling chip
+  // double-counted them and split the verified backlog in two. Hidden is now a
+  // sub-filter (quick chip) inside Verified / All houses.
+  type HouseStatusFilter = 'pending' | 'verified' | 'rejected' | 'all';
   const [houseStatusFilter, setHouseStatusFilter] = useState<HouseStatusFilter>(() => {
     const saved = localStorage.getItem('landlordOpsHouseFilter');
-    if (saved === 'pending' || saved === 'verified' || saved === 'hidden' || saved === 'rejected' || saved === 'all') return saved;
+    // Legacy persisted 'hidden' scope migrates to Verified + hidden sub-filter.
+    if (saved === 'hidden') return 'verified';
+    if (saved === 'pending' || saved === 'verified' || saved === 'rejected' || saved === 'all') return saved;
     return 'pending';
   });
   useEffect(() => {
