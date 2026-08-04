@@ -1926,20 +1926,16 @@ export function LandlordOpsDashboard() {
   };
 
   // Approve (verify) a pending landlord with an optional inline note.
+  // Goes through the single authorized write path so state + derived flag +
+  // audit log + transition event + notifications all happen atomically.
   const handleApproveLandlord = async (landlord: any, note?: string) => {
     if (!user) return;
     try {
-      const { error } = await supabase
-        .from('landlords')
-        .update({ verified: true, verified_at: new Date().toISOString(), verified_by: user.id })
-        .eq('id', landlord.id);
-      if (error) throw error;
-      await supabase.from('audit_logs').insert({
-        user_id: user.id,
-        action_type: 'landlord_verified',
-        table_name: 'landlords',
-        record_id: landlord.id,
-        metadata: { landlord_name: landlord.name, reason: (note?.trim() || 'Approved via Landlord Ops verification queue'), verified_by: 'landlord_ops' },
+      await setLandlordVerification({
+        landlordId: landlord.id,
+        status: 'verified',
+        reason: note?.trim() || 'Approved via the Landlord Ops verification queue after review',
+        source: 'ops_queue',
       });
       setExpandedLandlordId(null);
       toast({ title: '✅ Landlord verified', description: `${landlord.name} is now verified.` });
@@ -1949,7 +1945,8 @@ export function LandlordOpsDashboard() {
     }
   };
 
-  // Reject a pending landlord (notes required, min 10 chars). Logged + hidden for the session.
+  // Reject a pending landlord (notes required, min 10 chars). Persisted state:
+  // the landlord moves to the Rejected tab and survives a refresh.
   const handleRejectLandlord = async (landlord: any, note: string) => {
     if (!user) return;
     const reason = note.trim();
@@ -1958,16 +1955,15 @@ export function LandlordOpsDashboard() {
       return;
     }
     try {
-      await supabase.from('audit_logs').insert({
-        user_id: user.id,
-        action_type: 'landlord_verification_rejected',
-        table_name: 'landlords',
-        record_id: landlord.id,
-        metadata: { landlord_name: landlord.name, reason, rejected_by: 'landlord_ops' },
+      await setLandlordVerification({
+        landlordId: landlord.id,
+        status: 'rejected',
+        reason,
+        source: 'ops_queue',
       });
-      setRejectedLandlordIds(prev => new Set(prev).add(landlord.id));
       setExpandedLandlordId(null);
-      toast({ title: 'Landlord rejected', description: `${landlord.name} was rejected and logged.` });
+      toast({ title: 'Landlord rejected', description: `${landlord.name} moved to Rejected. The agent was notified.` });
+      refetchAll();
     } catch (err: any) {
       toast({ title: 'Reject failed', description: err?.message || 'Could not reject landlord', variant: 'destructive' });
     }
@@ -1992,8 +1988,9 @@ export function LandlordOpsDashboard() {
   // Prefer the server-computed totals so the home dashboard doesn't need the
   // full landlord set loaded. Fall back to iterating landlordsList only when
   // it happens to already be loaded (occupied/empty views).
-  const totalMonthlyRevenue = occupiedMonthlyRevenue ?? occupiedLandlords.reduce((s, l) => s + (l.monthly_rent || 0), 0);
-  const lostMonthlyRevenue  = emptyMonthlyRevenue    ?? emptyLandlords.reduce((s, l) => s + (l.monthly_rent || 0), 0);
+  // Server-computed revenue only — a partial client list would understate it.
+  const totalMonthlyRevenue = occupiedMonthlyRevenue;
+  const lostMonthlyRevenue  = emptyMonthlyRevenue;
 
   // ─── Navigate to any section (resets transient search/filter state) ───
   const goToView = (id: View) => {
