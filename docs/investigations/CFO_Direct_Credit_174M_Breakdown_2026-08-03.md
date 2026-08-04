@@ -153,7 +153,7 @@ Times are EAT. Operator = the authenticated poster recorded in `audit_logs.actio
 | Group | Txns | Amount UGX | % of 174,172,998 |
 |---|---:|---:|---:|
 | Agent Float Funding | 11 | 86,720,000 | 49.79% |
-| Operational Expenses — Office Rent | 21 | 84,853,000 | 48.72% |
+| Manual Wallet Credits posted as “Office Rent” (see §8 — misclassified) | 21 | 84,853,000 | 48.72% |
 | Operational Expenses — Software | 2 | 2,000,000 | 1.15% |
 | Operational Expenses — Internet | 2 | 300,000 | 0.17% |
 | Operational Expenses — Travel | 1 | 160,000 | 0.09% |
