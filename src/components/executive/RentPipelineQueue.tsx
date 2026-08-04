@@ -1433,6 +1433,18 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
                     <p className="font-semibold">{selectedRequest.request_city}</p>
                   </div>
                 )}
+                {selectedRequest.tenant_address && (
+                  <div className="space-y-0.5 col-span-2">
+                    <p className="text-xs text-muted-foreground">Tenant Residence (as captured)</p>
+                    <p className="font-semibold">{selectedRequest.tenant_address}</p>
+                  </div>
+                )}
+                {selectedRequest.landlord_address && (
+                  <div className="space-y-0.5 col-span-2">
+                    <p className="text-xs text-muted-foreground">Landlord / Property Address</p>
+                    <p className="font-semibold">{selectedRequest.landlord_address}</p>
+                  </div>
+                )}
               </div>
 
               {/* Latest rent receipt from landlord — highlighted for operator review */}
