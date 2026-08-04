@@ -462,11 +462,11 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
             </div>
             <p className="mt-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">You can access now</p>
             <p className="mt-1 text-3xl font-black leading-none text-primary whitespace-pre-line">
-              {formatCreditAmount(limit?.totalLimit || 30000)}
+              {formatCreditAmount(limit?.totalLimit || 20000)}
             </p>
             <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-bold text-primary">
               <TrendingUp className="h-3.5 w-3.5" strokeWidth={2.4} />
-              Grow up to UGX 30,000,000 as you perform better
+              Grow up to UGX 9,000,000 as you perform better
             </div>
             <p className="mt-2 text-[13px] font-medium text-foreground leading-snug">
               Cash straight to your wallet · repay over up to 12 months. Clear it early to unlock a bigger advance.
