@@ -22,12 +22,21 @@ export interface MyPayslipRow {
 
 /** Payslips visible to the signed-in employee, newest pay date first. */
 export async function listMyPayslips(): Promise<MyPayslipRow[]> {
+  const { data: staffRow } = await supabase
+    .from('hr_staff')
+    .select('id')
+    .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+    .maybeSingle();
+
+  if (!staffRow?.id) return [];
+
   const rows = (unwrap(
     await supabase
       .from('hr_pay_payslips')
       .select(
         'id, gross, paye, nssf_employee, other_deductions, net, is_current, hr_pay_runs!inner(status, hr_pay_periods(code, pay_date))',
       )
+      .eq('staff_id', staffRow.id)
       .eq('is_current', true)
       .in('hr_pay_runs.status', ['paid', 'locked']),
   ) ?? []) as Array<Record<string, any>>;
