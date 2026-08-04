@@ -364,6 +364,12 @@ export function PromissoryNotesQueue() {
                         <span>{selectedNote.phone_number}</span>
                       </div>
                     )}
+                    {(selectedNote.partner_address || selectedNote.agent_address) && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <MapPin className="h-3.5 w-3.5 shrink-0" />
+                        <span>{selectedNote.partner_address || selectedNote.agent_address}</span>
+                      </div>
+                    )}
                     {selectedNote.email && (
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Mail className="h-3.5 w-3.5" />
