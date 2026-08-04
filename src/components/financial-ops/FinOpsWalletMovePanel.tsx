@@ -77,6 +77,12 @@ export function FinOpsWalletMovePanel() {
   // Float overdraft. Without this, the edge function refuses moves where the
   // amount only fills (or partly fills) a negative Float shortfall.
   const [acknowledgeOverdraft, setAcknowledgeOverdraft] = useState(false);
+  // TRUE float position from the raw wallet-scope ledger legs (can be negative).
+  // `wallets.float_balance` is a projection that never goes below 0, so it can
+  // never reveal an existing overdraft — this is the figure the backend
+  // overdraft guard actually uses.
+  const [floatNet, setFloatNet] = useState<number | null>(null);
+  const [floatNetLoading, setFloatNetLoading] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<MoveResult | null>(null);
