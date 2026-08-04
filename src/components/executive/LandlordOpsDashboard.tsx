@@ -1014,7 +1014,7 @@ export function LandlordOpsDashboard() {
         search: serverSearchTerm,
         dateFrom: verifyDateFromIso,
         dateTo: verifyDateToIso,
-        totalMatches: totalFiltered,
+        totalMatches: reportRows.length,
         generatedBy: user?.email ?? null,
       });
       const url = URL.createObjectURL(blob);
@@ -1025,7 +1025,7 @@ export function LandlordOpsDashboard() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      sonnerToast.success(`${SCOPE_LABEL[houseStatusFilter]} report downloaded (${reportRows.length.toLocaleString()} houses)`);
+      sonnerToast.success(`${houseStatusFilter} houses report downloaded (${reportRows.length.toLocaleString()} houses)`);
     } catch (err: any) {
       sonnerToast.error(err?.message || 'Failed to generate the house report');
     } finally {
