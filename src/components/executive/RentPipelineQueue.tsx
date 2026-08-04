@@ -704,21 +704,56 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
           : r.agent_id
             ? profileMap.get(r.agent_id)
             : null;
+        const tenantProfile = profileMap.get(r.tenant_id) as any;
+        const landlord = landlordMap.get(r.landlord_id) as any;
+        const lc1 = r.lc1_id ? (lc1Map.get(r.lc1_id) as any) : null;
+        // Full tenant residence as captured at registration.
+        const tenantAddress = formatLocation([
+          tenantProfile?.landmark,
+          tenantProfile?.village,
+          tenantProfile?.parish,
+          tenantProfile?.sub_county,
+          tenantProfile?.city || tenantProfile?.town,
+          tenantProfile?.district,
+          tenantProfile?.region,
+        ]);
+        const landlordAddress = formatLocation([
+          landlord?.property_address,
+          landlord?.village,
+          landlord?.sub_county,
+          landlord?.district,
+          landlord?.region,
+        ]);
+        const lc1Address = formatLocation([lc1?.village, lc1?.parish, lc1?.district, lc1?.region]);
         return {
           ...r,
           is_resubmitted: resubmittedSet.has(r.id),
-          tenant_name: profileMap.get(r.tenant_id)?.full_name || 'Unknown',
-          tenant_phone: profileMap.get(r.tenant_id)?.phone || '',
+          tenant_name: tenantProfile?.full_name || 'Unknown',
+          tenant_phone: tenantProfile?.phone || '',
+          tenant_district: tenantProfile?.district || '',
+          tenant_address: tenantAddress,
           agent_name: r.agent_id ? (profileMap.get(r.agent_id)?.full_name || 'Unassigned') : 'Unassigned',
           agent_phone: agentProfile?.phone || '',
           agent_email: agentProfile?.email || '',
           assigned_agent_name: r.assigned_agent_id ? (profileMap.get(r.assigned_agent_id)?.full_name || '') : '',
-          landlord_name: landlordMap.get(r.landlord_id)?.name || 'Unknown',
-          landlord_phone: landlordMap.get(r.landlord_id)?.phone || '',
-          landlord_momo: landlordMap.get(r.landlord_id)?.mobile_money_number || landlordMap.get(r.landlord_id)?.phone || '',
-          lc1_name: r.lc1_id ? (lc1Map.get(r.lc1_id)?.name || '') : '',
-          lc1_phone: r.lc1_id ? (lc1Map.get(r.lc1_id)?.phone || '') : '',
-          lc1_village: r.lc1_id ? (lc1Map.get(r.lc1_id)?.village || '') : '',
+          landlord_name: landlord?.name || 'Unknown',
+          landlord_phone: landlord?.phone || '',
+          landlord_momo: landlord?.mobile_money_number || landlord?.phone || '',
+          landlord_district: landlord?.district || '',
+          landlord_address: landlordAddress,
+          lc1_name: lc1?.name || '',
+          lc1_phone: lc1?.phone || '',
+          lc1_village: lc1?.village || '',
+          lc1_district: lc1?.district || '',
+          lc1_address: lc1Address,
+          // Single lowercased haystack so the search box matches any district,
+          // village, parish, sub-county or free-text address on the record.
+          location_search: locationHaystack([
+            r.request_city,
+            tenantAddress,
+            landlordAddress,
+            lc1Address,
+          ]),
         };
       });
     },
