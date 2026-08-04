@@ -445,7 +445,14 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
       setCycleDays(30);
       queryClient.invalidateQueries({ queryKey: ['my-advance-requests'] });
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => {
+      const msg = err.message || 'Request failed';
+      if (msg.includes('DUPLICATE_ACCOUNT_BLOCKED')) {
+        toast.error(msg.replace(/^.*DUPLICATE_ACCOUNT_BLOCKED:\s*/, ''), { duration: 10000 });
+        return;
+      }
+      toast.error(msg);
+    },
   });
 
   return (
