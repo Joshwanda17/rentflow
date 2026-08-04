@@ -529,66 +529,6 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
         onRepaymentSchedule={() => setShowRepaymentSchedule(prev => !prev)}
         onRentCalculator={() => setShowCalculator(true)}
         onBrowseHouses={() => { openHousesSheet(); }}
-        extraContent={
-          <div className="space-y-4">
-            <VerificationChecklist userId={user.id} highlightRole="tenant" compact />
-            <SubscriptionStatusCard userId={user.id} />
-            <div className="space-y-2">
-              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider px-0.5">Actions</p>
-              <LockedActionTooltip isLocked={!hasAcceptedTerms && !agreementLoading}>
-                <RentRequestButton userId={user.id} onSuccess={fetchData} />
-              </LockedActionTooltip>
-            </div>
-            {rentRequests.length > 0 && (
-              <RentProcessTracker
-                requestStatus={rentRequests[0].status}
-                agentVerified={true}
-                managerApproved={['approved', 'funded', 'disbursed', 'completed'].includes(rentRequests[0].status)}
-                supporterFunded={['funded', 'disbursed', 'completed'].includes(rentRequests[0].status)}
-                fundRecipientType={(rentRequests[0] as any).fund_recipient_type}
-                fundRecipientName={(rentRequests[0] as any).fund_recipient_name}
-                fundRoutedAt={(rentRequests[0] as any).fund_routed_at}
-              />
-            )}
-            {showCalculator && (
-              <div className="animate-fade-in">
-                <RentCalculator
-                  onProceed={() => {
-                    setShowCalculator(false);
-                    setShowRequestForm(true);
-                  }}
-                />
-              </div>
-            )}
-            {showRequestForm && (
-              <div className="animate-fade-in">
-                <RentRequestForm
-                  userId={user.id}
-                  onSuccess={() => {
-                    setShowRequestForm(false);
-                    fetchData();
-                    toast({
-                      title: 'Request Submitted',
-                      description: 'Your rent request has been submitted for approval'
-                    });
-                  }}
-                  onCancel={() => setShowRequestForm(false)}
-                />
-              </div>
-            )}
-            {showRepaymentSchedule && (
-              <div className="animate-fade-in">
-                <RepaymentSection
-                  userId={user.id}
-                  activeRequest={rentRequests.find(r => ['disbursed', 'repaying'].includes(r.status))}
-                  repayments={repayments}
-                  onRepaymentSuccess={fetchData}
-                />
-              </div>
-            )}
-            <WalletDisclaimer />
-          </div>
-        }
       />
 
       {/* Dialogs */}
