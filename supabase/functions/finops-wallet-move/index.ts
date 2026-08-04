@@ -188,7 +188,7 @@ Deno.serve(async (req) => {
         {
           error:
             `FULL_HISTORY_SWEEP: UGX ${amount.toLocaleString()} equals or exceeds every deposit ` +
-            `${sourceName} has ever made (UGX ${lifetimeDeposits.toLocaleString()}). ` +
+            `this user has ever made (UGX ${lifetimeDeposits.toLocaleString()}). ` +
             `Re-submit with confirm_full_history=true if this is genuinely correct.`,
           lifetime_deposits: lifetimeDeposits,
           requires_confirmation: "confirm_full_history",
