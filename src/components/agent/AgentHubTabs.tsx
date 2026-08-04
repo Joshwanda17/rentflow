@@ -1,4 +1,4 @@
-import { Home, Wallet, Users, TrendingUp, UsersRound } from 'lucide-react';
+import { Home, Wallet, Users, TrendingUp, Store } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { hapticTap } from '@/lib/haptics';
 
@@ -16,7 +16,7 @@ const tabs: { id: AgentHubTab; icon: typeof Home; label: string }[] = [
   { id: 'money', icon: Wallet, label: 'Money' },
   { id: 'tenants', icon: Users, label: 'Tenants' },
   { id: 'grow', icon: TrendingUp, label: 'Grow' },
-  { id: 'subagents', icon: UsersRound, label: 'Sub Agents' },
+  { id: 'subagents', icon: Store, label: 'Service Center' },
 ];
 
 export function AgentHubTabs({ active, onChange, restricted = false }: AgentHubTabsProps) {
