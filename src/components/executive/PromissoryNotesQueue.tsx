@@ -132,27 +132,47 @@ export function PromissoryNotesQueue() {
       if (!data) return [];
 
       // Fetch agent profiles
-      const agentIds = [...new Set(data.map(n => n.agent_id))];
+      const agentIds = [...new Set([
+        ...data.map(n => n.agent_id),
+        ...data.map(n => n.partner_user_id),
+      ].filter(Boolean))];
       const { data: agents } = await supabase
         .from('profiles')
-        .select('id, full_name, phone')
+        .select('id, full_name, phone, region, district, sub_county, parish, village, city, town, landmark')
         .in('id', agentIds);
 
       const agentMap = new Map(agents?.map(a => [a.id, a]) || []);
 
-      return data.map(note => ({
-        ...note,
-        agent_name: agentMap.get(note.agent_id)?.full_name || 'Unknown Agent',
-        agent_phone: agentMap.get(note.agent_id)?.phone || '',
-      }));
+      const addressOf = (p: any) => formatLocation([
+        p?.landmark, p?.village, p?.parish, p?.sub_county, p?.city || p?.town, p?.district, p?.region,
+      ]);
+
+      return data.map(note => {
+        const agent = agentMap.get(note.agent_id) as any;
+        const partner = note.partner_user_id ? (agentMap.get(note.partner_user_id) as any) : null;
+        const agentAddress = addressOf(agent);
+        const partnerAddress = addressOf(partner);
+        return {
+          ...note,
+          agent_name: agent?.full_name || 'Unknown Agent',
+          agent_phone: agent?.phone || '',
+          agent_address: agentAddress,
+          partner_address: partnerAddress,
+          search_text: locationHaystack([
+            note.partner_name,
+            note.whatsapp_number,
+            note.phone_number,
+            agent?.full_name,
+            agentAddress,
+            partnerAddress,
+          ]),
+        };
+      });
     },
   });
 
   const filtered = notes.filter(n => {
-    const matchesSearch = !search || 
-      n.partner_name.toLowerCase().includes(search.toLowerCase()) ||
-      n.agent_name?.toLowerCase().includes(search.toLowerCase()) ||
-      n.whatsapp_number.includes(search);
+    const matchesSearch = !search || (n.search_text || '').includes(search.toLowerCase());
     const matchesStatus = statusFilter === 'all' || n.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
