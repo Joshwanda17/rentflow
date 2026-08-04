@@ -181,11 +181,13 @@ export function LedgerEntryDetailDrawer({ entryId, open, onOpenChange, showRunni
   const categoryLabel = entry ? (CATEGORY_LABELS[entry.category] || entry.category.replace(/_/g, ' ')) : '';
   const sourceLabel = entry ? (SOURCE_TABLE_LABELS[entry.source_table] || entry.source_table.replace(/_/g, ' ')) : '';
 
-  // Presentation-only gate: agents (and any non-finance role) never see the
-  // internal running balance. Explicit prop wins for internal finance screens.
+  // Presentation-only gate. Running balance is internal accounting data: it is
+  // shown ONLY on internal reconciliation surfaces that explicitly opt in
+  // (showRunningBalance) AND only when the viewer holds a finance/audit role.
+  // Every user-facing wallet surface omits the prop, so it stays hidden.
   const hasFinanceRole = RUNNING_BALANCE_ROLES.includes(role ?? '') ||
     roles.some((r) => RUNNING_BALANCE_ROLES.includes(r));
-  const canSeeRunningBalance = showRunningBalance ?? (hasFinanceRole && role !== 'agent');
+  const canSeeRunningBalance = showRunningBalance === true && hasFinanceRole;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

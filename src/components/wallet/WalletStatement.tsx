@@ -464,7 +464,8 @@ export function WalletStatement() {
       const s = val == null ? '' : String(val);
       return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
-    const header = ['Date', 'Time', 'Description', 'Category', 'Type', 'Amount (UGX)', 'Balance After (UGX)', 'Reference', 'Linked Party'];
+    // Running / after balance is internal-only and never exported to users.
+    const header = ['Date', 'Time', 'Description', 'Category', 'Type', 'Amount (UGX)', 'Reference', 'Linked Party'];
     const rows = filteredEntries.map(e => [
       format(new Date(e.date), 'yyyy-MM-dd'),
       format(new Date(e.date), 'HH:mm:ss'),
@@ -472,7 +473,6 @@ export function WalletStatement() {
       e.category,
       e.type === 'credit' ? 'IN' : 'OUT',
       (e.type === 'credit' ? '+' : '-') + e.amount,
-      e.balance_after ?? '',
       e.reference_id ?? '',
       e.linked_party ?? '',
     ]);
@@ -588,8 +588,8 @@ export function WalletStatement() {
       y += 6;
 
       // Table header
-      const colWidths = [28, 62, 22, 32, 32];
-      const headers = ['Date', 'Description', 'Type', 'Amount', 'Balance'];
+      const colWidths = [30, 78, 24, 36];
+      const headers = ['Date', 'Description', 'Type', 'Amount'];
 
       doc.setFillColor(88, 28, 135);
       doc.rect(margin, y, contentWidth, 8, 'F');
@@ -650,12 +650,6 @@ export function WalletStatement() {
 
         // Amount
         doc.text(`${isCredit ? '+' : '-'}${formatAmount(entry.amount)}`, xPos, y + 4.5);
-        xPos += colWidths[3];
-
-        // Balance
-        doc.setTextColor(80, 80, 80);
-        doc.setFont('helvetica', 'normal');
-        doc.text(formatAmount(entry.balance_after || 0), xPos, y + 4.5);
 
         y += rowHeight;
       }
@@ -1239,7 +1233,7 @@ export function WalletStatement() {
                             : status === 'pending'
                             ? 'bg-warning/15 text-warning'
                             : 'bg-destructive/10 text-destructive';
-                          const summaryAria = `${label}, ${isCredit ? 'money in' : 'money out'} ${formatUGX(entry.amount)}, ${format(new Date(entry.date), 'h:mm a')}. Balance after ${formatUGX(entry.balance_after || 0)}. Tap to open receipt.`;
+                          const summaryAria = `${label}, ${isCredit ? 'money in' : 'money out'} ${formatUGX(entry.amount)}, ${format(new Date(entry.date), 'h:mm a')}. Tap to open receipt.`;
 
                           return (
                             <li key={entry.id} className="list-none">
@@ -1266,11 +1260,6 @@ export function WalletStatement() {
                                     <p className={`text-base font-extrabold tabular-nums ${amountColor}`}>
                                       {isCredit ? '+ ' : '- '}{formatUGX(entry.amount)}
                                     </p>
-                                    <p className="mt-1 text-[10px] text-muted-foreground tabular-nums">
-                                      <span aria-hidden="true">Bal </span>
-                                      <span className="sr-only">Balance after </span>
-                                      {formatUGX(entry.balance_after || 0)}
-                                    </p>
                                   </div>
                                 </summary>
                                 <div className="mt-1 rounded-2xl border border-border/60 bg-card px-4 py-4 text-[12px] leading-relaxed">
@@ -1286,9 +1275,6 @@ export function WalletStatement() {
 
                                     <dt className="col-span-1 text-muted-foreground">{partyLabel}</dt>
                                     <dd className="col-span-2 font-semibold text-foreground truncate">{partyValue}</dd>
-
-                                    <dt className="col-span-1 text-muted-foreground">Balance</dt>
-                                    <dd className="col-span-2 font-bold text-foreground tabular-nums">{formatUGX(entry.balance_after || 0)}</dd>
 
                                     <dt className="col-span-1 text-muted-foreground">Status</dt>
                                     <dd className="col-span-2">

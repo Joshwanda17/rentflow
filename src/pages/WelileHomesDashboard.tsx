@@ -692,9 +692,6 @@ Let's build a better future together! 🏡`;
                       <p className="text-sm font-bold text-emerald-600">
                         +{formatUGX(contribution.amount)}
                       </p>
-                      <p className="text-xs text-muted-foreground">
-                        Balance: {formatUGX(contribution.balance_after)}
-                      </p>
                     </div>
                   </div>
                 ))}

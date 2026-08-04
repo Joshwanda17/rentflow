@@ -392,33 +392,7 @@ export function WalletTransactionTimeline({
         </Card>
       ) : (
         <Card className="border-border/50 shadow-sm overflow-hidden">
-          {/* Sticky running balance line */}
-          <div className="sticky top-0 z-20 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-border/50 px-4 py-2.5">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                Running balance
-              </span>
-              <span
-                className="text-sm font-black tabular-nums text-foreground"
-                aria-live="polite"
-                aria-atomic="true"
-              >
-                {visibleBalance !== null ? formatCurrency(visibleBalance) : formatCurrency(currentBalance)}
-              </span>
-            </div>
-            <div className="mt-1 h-0.5 w-full bg-muted rounded-full overflow-hidden">
-              <div
-                className="h-full bg-primary transition-all duration-150 ease-out"
-                style={{
-                  width:
-                    visibleTxId && filteredCount > 1
-                      ? `${((filtered.findIndex((t) => t.id === visibleTxId) / (filteredCount - 1)) * 100).toFixed(1)}%`
-                      : '0%',
-                }}
-              />
-            </div>
-          </div>
-
+          {/* Running balance is an internal accounting figure — not shown to users. */}
           <div className="divide-y divide-border/50">
             {dateEntries.map(([dateKey, dayTransactions], dayIndex) => {
               const date = new Date(dateKey);
@@ -455,7 +429,6 @@ export function WalletTransactionTimeline({
                       const isSent = tx.sender_id === currentUserId;
                       const category = deriveCategory(tx.description, isSent);
                       const Icon = category.icon;
-                      const balanceAfter = runningBalances.get(tx.id) ?? 0;
                       const counterparty = isSent ? tx.recipient_name : tx.sender_name;
                       const isLast = txIndex === dayTransactions.length - 1;
 
@@ -525,11 +498,6 @@ export function WalletTransactionTimeline({
                                 >
                                   {isSent ? '-' : '+'}
                                   {formatCurrency(tx.amount)}
-                                </p>
-                                <p className="text-[10px] text-muted-foreground tabular-nums">
-                                  <span className="sr-only">Balance after </span>
-                                  <span aria-hidden="true">Bal </span>
-                                  {formatCurrency(balanceAfter)}
                                 </p>
                               </div>
                             </div>
