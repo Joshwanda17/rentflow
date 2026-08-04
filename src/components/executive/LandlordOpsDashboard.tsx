@@ -3101,6 +3101,14 @@ export function LandlordOpsDashboard() {
       { value: 'has_images', label: 'Has Photos' },
       { value: 'has_gps', label: 'Has GPS' },
       { value: 'has_lc1', label: 'Has LC1' },
+      // Hidden/visible are sub-filters of the scope (hidden is no longer a
+      // top-level status chip — hidden houses are verified houses).
+      ...(houseStatusFilter === 'verified' || houseStatusFilter === 'all'
+        ? ([
+            { value: 'hidden' as VerifyFilter, label: 'Hidden from tenants' },
+            { value: 'visible' as VerifyFilter, label: 'Live to tenants' },
+          ])
+        : []),
     ];
 
     // Status scope: pending | verified | hidden | rejected | all
@@ -3125,9 +3133,24 @@ export function LandlordOpsDashboard() {
       <>
       <div className="space-y-3">
         <BackButton />
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
           <h2 className="text-lg font-bold flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-amber-600" /> Verification Queue</h2>
-          <Badge variant="outline" className="text-sm font-bold px-3 py-1 bg-amber-100 text-amber-700 border-amber-300">{totalFiltered.toLocaleString()} {houseStatusFilter === 'all' ? 'houses' : houseStatusFilter === 'rejected' ? 'rejected' : houseStatusFilter}</Badge>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-9 gap-1.5"
+              disabled={exportingHouseReport}
+              onClick={exportHouseReportPdf}
+              title="Export a full PDF report for the filters currently applied"
+            >
+              {exportingHouseReport
+                ? <Loader2 className="h-4 w-4 animate-spin" />
+                : <FileDown className="h-4 w-4" />}
+              Export PDF
+            </Button>
+            <Badge variant="outline" className="text-sm font-bold px-3 py-1 bg-amber-100 text-amber-700 border-amber-300">{totalFiltered.toLocaleString()} {houseStatusFilter === 'all' ? 'houses' : houseStatusFilter === 'rejected' ? 'rejected' : houseStatusFilter}</Badge>
+          </div>
         </div>
 
         {/* Thumb-friendly status filter chips */}
@@ -3135,7 +3158,6 @@ export function LandlordOpsDashboard() {
           {([
             { value: 'pending' as HouseStatusFilter, label: 'Pending', count: houseStatusCounts?.pending ?? 0, color: 'amber' },
             { value: 'verified' as HouseStatusFilter, label: 'Verified', count: houseStatusCounts?.verified ?? 0, color: 'emerald' },
-            { value: 'hidden' as HouseStatusFilter, label: 'Hidden', count: houseStatusCounts?.hidden ?? 0, color: 'slate' },
             { value: 'rejected' as HouseStatusFilter, label: 'Rejected', count: houseStatusCounts?.rejected ?? 0, color: 'rose' },
             { value: 'all' as HouseStatusFilter, label: 'All houses', count: houseStatusCounts?.all ?? 0, color: 'primary' },
           ]).map(s => {
@@ -3195,9 +3217,29 @@ export function LandlordOpsDashboard() {
           </p>
         )}
 
-        {/* Date range filter */}
+        {/* Hidden houses live inside Verified now — surface the subset count so
+            nothing is lost by removing the old sibling "Hidden" chip. */}
+        {(houseStatusFilter === 'verified' || houseStatusFilter === 'all') && (houseStatusCounts?.hidden ?? 0) > 0 && (
+          <p className="text-[11px] text-muted-foreground -mt-1 pl-1">
+            {(houseStatusCounts?.hidden ?? 0).toLocaleString()} of these verified houses are currently hidden from the tenant feed —
+            {' '}
+            <button
+              onClick={() => setVerifyFilter(verifyFilter === 'hidden' ? 'all' : 'hidden')}
+              className="underline font-semibold hover:text-foreground"
+            >
+              {verifyFilter === 'hidden' ? 'show all again' : 'show only those'}
+            </button>
+          </p>
+        )}
+
+        {/* Date range filter — applied to the STATE date, not registration date */}
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[11px] text-muted-foreground font-medium">Date:</span>
+          <span className="text-[11px] text-muted-foreground font-medium">
+            {houseStatusFilter === 'verified' ? 'Verified between:'
+              : houseStatusFilter === 'rejected' ? 'Rejected between:'
+              : houseStatusFilter === 'pending' ? 'Registered between:'
+              : 'Status changed between:'}
+          </span>
           <Input
             type="date"
             value={verifyDateFrom}
