@@ -34,6 +34,7 @@ import { UserAvatar } from '@/components/UserAvatar';
 import { hapticTap } from '@/lib/haptics';
 
 import { WalletLedgerStatement } from './WalletLedgerStatement';
+import { PaymentMethodIcons } from './PaymentMethodIcons';
 import { ProxyPartnerFunds } from '@/components/agent/ProxyPartnerFunds';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { WalletTransactionTimeline } from './WalletTransactionTimeline';
@@ -152,6 +153,7 @@ export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: Full
                   <div>
                     <h3 className="text-base font-bold text-foreground">Wallet Statement</h3>
                     <p className="text-xs text-muted-foreground">Updated just now</p>
+                    <PaymentMethodIcons className="mt-2" />
                   </div>
                 </div>
 
