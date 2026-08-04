@@ -29684,6 +29684,16 @@ export type Database = {
         }
         Returns: Json
       }
+      agent_allocate_tenant_payment_internal: {
+        Args: {
+          p_agent_id: string
+          p_amount: number
+          p_notes?: string
+          p_rent_request_id: string
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
       agent_can_view_trust: { Args: { _user_id: string }; Returns: boolean }
       agent_capture_contact_location: {
         Args: {
