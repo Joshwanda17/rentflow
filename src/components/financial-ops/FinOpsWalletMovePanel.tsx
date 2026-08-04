@@ -245,6 +245,10 @@ export function FinOpsWalletMovePanel() {
   const canSubmit =
     !!source && destOk && validAmount && !exceedsBalance && reason.trim().length >= 10 &&
     !submitting && (!floatOverdrawn || acknowledgeOverdraft);
+  // Never let the operator submit a Withdrawable → Float move while the real
+  // float position is still being read.
+  const submitBlockedByFloatCheck =
+    mode === 'same_user' && sameUserDir === 'withdrawable_to_float' && floatNetLoading;
 
   const reset = () => {
     setSource(null);
@@ -255,6 +259,7 @@ export function FinOpsWalletMovePanel() {
     setTerm('');
     setPicking('source');
     setAcknowledgeOverdraft(false);
+    setFloatNet(null);
   };
 
   const submit = async () => {
