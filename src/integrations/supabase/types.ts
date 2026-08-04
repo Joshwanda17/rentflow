@@ -15131,6 +15131,13 @@ export type Database = {
             referencedRelation: "v_lc1_phone_duplicates"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "lc1_verification_requests_lc1_id_fkey"
+            columns: ["lc1_id"]
+            isOneToOne: false
+            referencedRelation: "v_lc1_verification_inbox"
+            referencedColumns: ["lc1_id"]
+          },
         ]
       }
       leave_balances: {
@@ -20780,6 +20787,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "profiles_borrower_lc1_id_fkey"
+            columns: ["borrower_lc1_id"]
+            isOneToOne: false
+            referencedRelation: "v_lc1_verification_inbox"
+            referencedColumns: ["lc1_id"]
+          },
+          {
             foreignKeyName: "profiles_merchant_agent_referrer_id_fkey"
             columns: ["merchant_agent_referrer_id"]
             isOneToOne: false
@@ -23171,6 +23185,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_lc1_phone_duplicates"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rent_requests_lc1_id_fkey"
+            columns: ["lc1_id"]
+            isOneToOne: false
+            referencedRelation: "v_lc1_verification_inbox"
+            referencedColumns: ["lc1_id"]
           },
           {
             foreignKeyName: "rent_requests_manager_verified_by_fkey"
@@ -30112,6 +30133,39 @@ export type Database = {
         }
         Relationships: []
       }
+      v_lc1_verification_inbox: {
+        Row: {
+          agent_id: string | null
+          agent_name: string | null
+          agent_note: string | null
+          agent_phone: string | null
+          lc1_created_at: string | null
+          lc1_district: string | null
+          lc1_id: string | null
+          lc1_name: string | null
+          lc1_parish: string | null
+          lc1_phone: string | null
+          lc1_region: string | null
+          lc1_sub_county: string | null
+          lc1_village: string | null
+          linked_landlords: number | null
+          reason: string | null
+          reject_comment: string | null
+          request_id: string | null
+          request_status: string | null
+          requested_at: string | null
+          resolved_at: string | null
+          resolved_by_name: string | null
+          reviewer_name: string | null
+          source: string | null
+          status: string | null
+          verification_bonus_paid: boolean | null
+          verified_at: string | null
+          verified_by: string | null
+          verified_flag: boolean | null
+        }
+        Relationships: []
+      }
       v_operational_float_tid_duplicates: {
         Row: {
           amounts: number[] | null
@@ -34424,6 +34478,51 @@ export type Database = {
           no_landlord: number
           visible_scope: number
         }[]
+      }
+      ops_lc1_verification_report: {
+        Args: {
+          p_from?: string
+          p_limit?: number
+          p_search?: string
+          p_status?: string
+          p_to?: string
+        }
+        Returns: {
+          agent_id: string | null
+          agent_name: string | null
+          agent_note: string | null
+          agent_phone: string | null
+          lc1_created_at: string | null
+          lc1_district: string | null
+          lc1_id: string | null
+          lc1_name: string | null
+          lc1_parish: string | null
+          lc1_phone: string | null
+          lc1_region: string | null
+          lc1_sub_county: string | null
+          lc1_village: string | null
+          linked_landlords: number | null
+          reason: string | null
+          reject_comment: string | null
+          request_id: string | null
+          request_status: string | null
+          requested_at: string | null
+          resolved_at: string | null
+          resolved_by_name: string | null
+          reviewer_name: string | null
+          source: string | null
+          status: string | null
+          verification_bonus_paid: boolean | null
+          verified_at: string | null
+          verified_by: string | null
+          verified_flag: boolean | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "v_lc1_verification_inbox"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       ops_link_agent_landlord: {
         Args: { p_agent_id: string; p_landlord_id: string; p_reason: string }
