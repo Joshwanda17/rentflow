@@ -2688,28 +2688,73 @@ export function LandlordOpsDashboard() {
     );
   }
 
-  // ─── LC1 VIEW ───
+  // ─── LC1 VIEW (approved / rejected register) ───
   if (view === 'lc1') {
+    // Canonical state: `verification_status`. The legacy `verified` boolean is
+    // only a fallback for rows written before the status column existed.
+    const lc1State = (g: { verified: boolean | null; verification_status?: string | null }) =>
+      (g.verification_status as string | null) || (g.verified ? 'verified' : 'pending');
+
     let filtered = search
       ? lc1Groups.filter(g => g.name.toLowerCase().includes(search.toLowerCase()) || g.village?.toLowerCase().includes(search.toLowerCase()) || g.phone?.includes(search))
       : [...lc1Groups];
-    // "Needs Verification" keys ONLY on the LC1 chairperson's own verified flag,
-    // NOT on the landlords linked under them.
-    if (lc1VerifyFilter === 'verified') filtered = filtered.filter(g => g.verified);
-    else if (lc1VerifyFilter === 'unverified') filtered = filtered.filter(g => !g.verified);
+    if (lc1VerifyFilter !== 'all') filtered = filtered.filter(g => lc1State(g) === lc1VerifyFilter);
 
-    const unverifiedCount = lc1Groups.filter(g => !g.verified).length;
-    const verifiedCount = lc1Groups.filter(g => g.verified).length;
+    const verifiedCount = lc1Groups.filter(g => lc1State(g) === 'verified').length;
+    const rejectedCount = lc1Groups.filter(g => lc1State(g) === 'rejected').length;
+    const pendingCount = lc1Groups.filter(g => lc1State(g) === 'pending').length;
+
+    const exportLc1Report = async (scope: 'verified' | 'rejected' | 'pending' | 'all') => {
+      setLc1Exporting(true);
+      try {
+        const { data, error } = await supabase.rpc('ops_lc1_verification_report' as any, {
+          p_status: scope,
+          p_search: search.trim().length >= 2 ? search.trim() : null,
+          p_limit: 3000,
+        } as any);
+        if (error) throw error;
+        const reportRows = (data ?? []) as Lc1ReportRow[];
+        const blob = generateLc1VerificationReportPdf(reportRows, {
+          scope,
+          search: search.trim().length >= 2 ? search.trim() : null,
+          totalMatches: scope === 'verified' ? verifiedCount : scope === 'rejected' ? rejectedCount : scope === 'pending' ? pendingCount : lc1Groups.length,
+          generatedBy: (user as any)?.email ?? null,
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = lc1ReportFileName(scope);
+        a.click();
+        URL.revokeObjectURL(url);
+        toast.success(`${reportRows.length.toLocaleString()} LC1 chairpersons exported`);
+      } catch (e: any) {
+        toast.error(e?.message || 'Could not build the LC1 report');
+      } finally {
+        setLc1Exporting(false);
+      }
+    };
+
     return (
       <>
       <div className="space-y-3">
         <BackButton />
         <div className="flex items-center justify-between gap-2 flex-wrap">
-          <h2 className="text-lg font-bold flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-amber-600" /> LC1 Chairpersons ({filtered.length}{filtered.length !== lc1Groups.length ? ` / ${lc1Groups.length}` : ''})</h2>
-          <Button size="sm" onClick={() => setBulkImportOpen(true)} className="h-9">
-            <Upload className="h-4 w-4 mr-1.5" /> Bulk Import
-          </Button>
+          <h2 className="text-lg font-bold flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-emerald-600" /> LC1 Chairpersons ({filtered.length}{filtered.length !== lc1Groups.length ? ` / ${lc1Groups.length}` : ''})</h2>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button size="sm" variant="outline" className="h-9 text-[11px] font-bold" disabled={lc1Exporting} onClick={() => exportLc1Report(lc1VerifyFilter === 'all' ? 'all' : lc1VerifyFilter)}>
+              {lc1Exporting ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <FileDown className="h-3.5 w-3.5 mr-1.5" />}
+              Export report
+            </Button>
+            <Button size="sm" onClick={() => setBulkImportOpen(true)} className="h-9">
+              <Upload className="h-4 w-4 mr-1.5" /> Bulk Import
+            </Button>
+          </div>
         </div>
+        <p className="text-[11px] text-muted-foreground">
+          Approved and rejected chairpersons live here. New requests are reviewed in
+          {' '}
+          <button className="font-semibold text-amber-700 underline" onClick={() => setView('lc1-requests')}>Agents requesting LC1 verification</button>.
+        </p>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Search by name, village, or phone…" value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-11" />
@@ -2718,9 +2763,10 @@ export function LandlordOpsDashboard() {
         {/* LC1 Verification quick filter chips */}
         <div className="flex flex-wrap gap-1.5">
           {([
+            { value: 'verified' as LC1VerifyFilter, label: 'Approved', count: verifiedCount },
+            { value: 'rejected' as LC1VerifyFilter, label: 'Rejected', count: rejectedCount },
+            { value: 'pending' as LC1VerifyFilter, label: 'Awaiting review', count: pendingCount },
             { value: 'all' as LC1VerifyFilter, label: 'All', count: lc1Groups.length },
-            { value: 'verified' as LC1VerifyFilter, label: 'Verified', count: verifiedCount },
-            { value: 'unverified' as LC1VerifyFilter, label: 'Needs Verification', count: unverifiedCount },
           ]).map(f => {
             const active = lc1VerifyFilter === f.value;
             return (
@@ -2729,7 +2775,7 @@ export function LandlordOpsDashboard() {
                 onClick={() => setLc1VerifyFilter(f.value)}
                 className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all border ${
                   active
-                    ? f.value === 'unverified'
+                    ? f.value === 'rejected'
                       ? 'bg-rose-100 text-rose-700 border-rose-300 shadow-sm'
                       : f.value === 'verified'
                         ? 'bg-emerald-100 text-emerald-700 border-emerald-300 shadow-sm'
