@@ -1122,6 +1122,8 @@ export function LandlordOpsDashboard() {
         has_images: Number(r.has_images || 0),
         has_gps: Number(r.has_gps || 0),
         has_lc1: Number(r.has_lc1 || 0),
+        hidden: Number(r.hidden_scope || 0),
+        visible: Number(r.visible_scope || 0),
       };
     },
   });
