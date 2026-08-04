@@ -1939,6 +1939,63 @@ export type Database = {
           },
         ]
       }
+      agent_duplicate_flags: {
+        Row: {
+          agent_id: string
+          created_at: string
+          duplicate_of_user_id: string | null
+          flagged_at: string
+          flagged_by: string | null
+          id: string
+          match_type: string
+          metadata: Json
+          reason: string
+          release_reason: string | null
+          released_at: string | null
+          released_by: string | null
+          request_id: string | null
+          source: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string
+          duplicate_of_user_id?: string | null
+          flagged_at?: string
+          flagged_by?: string | null
+          id?: string
+          match_type?: string
+          metadata?: Json
+          reason: string
+          release_reason?: string | null
+          released_at?: string | null
+          released_by?: string | null
+          request_id?: string | null
+          source?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string
+          duplicate_of_user_id?: string | null
+          flagged_at?: string
+          flagged_by?: string | null
+          id?: string
+          match_type?: string
+          metadata?: Json
+          reason?: string
+          release_reason?: string | null
+          released_at?: string | null
+          released_by?: string | null
+          request_id?: string | null
+          source?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       agent_earnings: {
         Row: {
           agent_id: string
@@ -35263,6 +35320,15 @@ export type Database = {
         Args: { p_payout_id: string; p_reason: string }
         Returns: Json
       }
+      reject_advance_as_duplicate: {
+        Args: {
+          p_duplicate_of_user_id?: string
+          p_match_type?: string
+          p_reason: string
+          p_request_id: string
+        }
+        Returns: Json
+      }
       reject_field_collection: {
         Args: { p_field_collection_id: string; p_reason: string }
         Returns: Json
@@ -35278,6 +35344,10 @@ export type Database = {
       reject_self_registered_funder: {
         Args: { _reason: string; _target_user: string }
         Returns: undefined
+      }
+      release_agent_duplicate_flag: {
+        Args: { p_agent_id: string; p_reason: string }
+        Returns: Json
       }
       release_historical_drift: {
         Args: { p_amount: number; p_reason: string; p_review_id: string }
