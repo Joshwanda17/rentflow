@@ -136,8 +136,8 @@ export function RejectedRequestsQueue({ stageFilter, title = 'Rejected Rent Requ
               .then((res) => res.data ?? [])
           : Promise.resolve([] as any[]),
       ]);
-      const pmap = new Map(profiles.map((p: any) => [p.id, p]));
-      const lmap = new Map(landlords.map((l: any) => [l.id, l]));
+      const pmap = new Map<string, any>(profiles.map((p: any) => [p.id, p] as [string, any]));
+      const lmap = new Map<string, any>(landlords.map((l: any) => [l.id, l] as [string, any]));
       return (data ?? []).map((r) => {
         const t = pmap.get(r.tenant_id) as any;
         const l = r.landlord_id ? (lmap.get(r.landlord_id) as any) : null;
