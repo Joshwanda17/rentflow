@@ -296,7 +296,6 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
   };
 
   const handleViewWallet = () => { hapticTap(); setShowWallet(true); };
-  const handleOpenMenu = () => { hapticTap(); setMenuOpen(true); };
 
   const menuItems = [
     { icon: FileText, label: 'Request Rent', onClick: () => {} },
