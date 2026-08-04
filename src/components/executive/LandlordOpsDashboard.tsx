@@ -2435,11 +2435,19 @@ export function LandlordOpsDashboard() {
                         <PhoneLinks phone={landlord.phone} name={landlord.name} />
                       </td>
                       <td className="px-3 py-2.5 hidden md:table-cell">
-                        {landlord.verified ? (
-                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-emerald-100 text-emerald-700 border-0">Verified</Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-red-100 text-red-700 border-0 font-semibold">Not Verified</Badge>
-                        )}
+                        {(() => {
+                          // Single source of truth: the state machine column.
+                          const status = (landlord.verification_status || (landlord.verified ? 'verified' : 'pending')) as LandlordVerificationStatus;
+                          const meta = VERIFICATION_STATUS_META[status] ?? VERIFICATION_STATUS_META.pending;
+                          return (
+                            <div className="flex flex-col gap-0.5">
+                              <Badge variant="outline" className={`text-[10px] px-1.5 py-0 border-0 font-semibold ${meta.chipClass}`}>{meta.label}</Badge>
+                              {status === 'verified' && landlord.verification_source && (
+                                <span className="text-[9px] text-muted-foreground">{verificationSourceLabel(landlord.verification_source)}</span>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td className="px-3 py-2.5 text-muted-foreground hidden md:table-cell">{tenantCount > 0 ? tenantCount : '—'}</td>
                       <td className="px-3 py-2.5 text-muted-foreground truncate max-w-[120px] hidden lg:table-cell">{landlord.agent_name || '—'}</td>
