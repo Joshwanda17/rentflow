@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useEffect, useState } from 'react';
 import {
   ArrowLeftRight, Home, Mail, Phone, ShieldCheck, ShieldOff, Unlink, Users, Wallet,
 } from 'lucide-react';
@@ -50,6 +51,12 @@ export function SubAgentDetailSheet({
   onTransfer: (s: ServiceCenterSubAgent, rentRequestId: string) => void;
   onUnlink: (s: ServiceCenterSubAgent) => void;
 }) {
+  const [visibleTenants, setVisibleTenants] = useState(10);
+
+  useEffect(() => {
+    setVisibleTenants(10);
+  }, [subAgent?.sub_agent_id, open]);
+
   if (!subAgent) return null;
 
   const suspended = !!subAgent.suspension;
@@ -118,12 +125,18 @@ export function SubAgentDetailSheet({
 
             <section className="space-y-2">
               <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Portfolio</h3>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 <Metric label="Tenants" value={String(subAgent.active_tenants)} tone="primary" icon={Users} />
                 <Metric
                   label="Landlords"
                   value={`${subAgent.landlords_verified}/${subAgent.landlords_registered}`}
                   tone="accent"
+                  icon={Home}
+                />
+                <Metric
+                  label="Houses (verified/total)"
+                  value={`${subAgent.houses_verified ?? 0}/${subAgent.houses_listed ?? 0}`}
+                  tone="primary"
                   icon={Home}
                 />
                 <Metric label="Own subs" value={String(subAgent.nested_subagents)} tone="accent" icon={Users} />
@@ -149,8 +162,9 @@ export function SubAgentDetailSheet({
                   No tenants linked to this sub-agent yet.
                 </p>
               ) : (
+                <>
                 <ul className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border/60">
-                  {subAgent.tenant_list.map((t) => (
+                  {subAgent.tenant_list.slice(0, visibleTenants).map((t) => (
                     <li key={t.rent_request_id} className="flex items-center justify-between gap-2 px-3 py-2.5">
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-sm font-medium text-foreground">
@@ -181,6 +195,17 @@ export function SubAgentDetailSheet({
                     </li>
                   ))}
                 </ul>
+                {subAgent.tenant_list.length > visibleTenants && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => setVisibleTenants((n) => n + 10)}
+                  >
+                    Load more ({subAgent.tenant_list.length - visibleTenants} left)
+                  </Button>
+                )}
+                </>
               )}
             </section>
 
