@@ -34,6 +34,7 @@ import { UserAvatar } from '@/components/UserAvatar';
 import { hapticTap } from '@/lib/haptics';
 
 import { WalletLedgerStatement } from './WalletLedgerStatement';
+import { PaymentMethodIcons } from './PaymentMethodIcons';
 import { ProxyPartnerFunds } from '@/components/agent/ProxyPartnerFunds';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { WalletTransactionTimeline } from './WalletTransactionTimeline';
