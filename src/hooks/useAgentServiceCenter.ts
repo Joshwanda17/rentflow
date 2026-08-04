@@ -33,6 +33,8 @@ export interface ServiceCenterSubAgent {
   nested_subagents: number;
   landlords_registered: number;
   landlords_verified: number;
+  houses_listed?: number;
+  houses_verified?: number;
   wallet: { withdrawable: number; float: number; advance: number };
   suspension: { blocked_until: string | null; reason: string | null; scope: string | null } | null;
   pending_transfers: number;
