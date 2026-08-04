@@ -39,8 +39,7 @@ import RentRequestForm from '@/components/tenant/RentRequestForm';
 import RentCalculator from '@/components/tenant/RentCalculator';
 import { 
   TenantAgreementNotice, 
-  TenantAgreementModal,
-  LockedActionTooltip 
+  TenantAgreementModal
 } from '@/components/tenant/agreement';
 import { useTenantAgreement } from '@/hooks/useTenantAgreement';
 import RepaymentSection from '@/components/tenant/RepaymentSection';
