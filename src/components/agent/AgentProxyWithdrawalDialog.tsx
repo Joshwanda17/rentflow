@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { formatUGX } from '@/lib/rentCalculations';
 import { cn } from '@/lib/utils';
+import { humanizeWithdrawalError } from '@/lib/withdrawalErrorText';
 
 type PayoutMode = 'mobile_money' | 'bank_transfer' | 'cash';
 
@@ -255,7 +256,10 @@ export function AgentProxyWithdrawalDialog({
       onSuccess?.();
       clientRequestIdRef.current = null;
     } catch (err: any) {
-      toast.error('Failed to submit', { description: err.message });
+      toast.error('Failed to submit', {
+        description: humanizeWithdrawalError(err?.message, funderName),
+        duration: 8000,
+      });
     } finally {
       setLoading(false);
       isSubmittingRef.current = false;
