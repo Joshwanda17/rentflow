@@ -392,7 +392,7 @@ export function UnifiedWalletHeroCard({
             <ChevronRight className="relative h-4 w-4 animate-pulse" />
           </button>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
