@@ -7,11 +7,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { 
   Send, Plus, HandCoins, 
-  Bell, TrendingUp,
+  TrendingUp,
   X, Calendar, ChevronRight,
   ChevronDown, FileDown, CreditCard,
   SlidersHorizontal
@@ -22,7 +21,7 @@ import { useWallet } from '@/hooks/useWallet';
 import { SendMoneyDialog } from './SendMoneyDialog';
 import DepositFlow from '@/components/payments/DepositFlow';
 import { RequestMoneyDialog } from './RequestMoneyDialog';
-import { PendingRequestsDialog } from './PendingRequestsDialog';
+
 import { TransactionReceipt } from './TransactionReceipt';
 import { UserDepositRequests } from './UserDepositRequests';
 import { UserWithdrawalRequests } from './UserWithdrawalRequests';
@@ -33,7 +32,7 @@ import { useProfile } from '@/hooks/useProfile';
 import { useAgentBalances } from '@/hooks/useAgentBalances';
 import { UserAvatar } from '@/components/UserAvatar';
 import { hapticTap } from '@/lib/haptics';
-import { fetchPendingCounts, invalidatePendingCountsCache } from '@/lib/pendingCountsCache';
+
 import { WalletLedgerStatement } from './WalletLedgerStatement';
 import { ProxyPartnerFunds } from '@/components/agent/ProxyPartnerFunds';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -42,7 +41,7 @@ import { BillPaymentDialog } from './BillPaymentDialog';
 import { FoodMarketDialog } from './FoodMarketDialog';
 import { WalletDisclaimer } from './WalletDisclaimer';
 import { AgentRentRequestsWalletSection } from './AgentRentRequestsWalletSection';
-import { format } from 'date-fns';
+
 import { EmptyHousePlacementBonusBanner } from '@/components/agent/EmptyHousePlacementBonusBanner';
 import { FloatBreakdownCard } from './FloatBreakdownCard';
 import { AgentMoneyMapCard } from './AgentMoneyMapCard';
@@ -75,13 +74,9 @@ export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: Full
   const [sendOpen, setSendOpen] = useState(false);
   const [depositOpen, setDepositOpen] = useState(false);
   const [requestOpen, setRequestOpen] = useState(false);
-  const [pendingOpen, setPendingOpen] = useState(false);
   const [nfcCardOpen, setNfcCardOpen] = useState(false);
   const [billsOpen, setBillsOpen] = useState(false);
   const [foodMarketOpen, setFoodMarketOpen] = useState(false);
-  const [pendingCount, setPendingCount] = useState(0);
-  const [pendingDeposits, setPendingDeposits] = useState(0);
-  const [pendingWithdrawals, setPendingWithdrawals] = useState(0);
   const [selectedTransaction, setSelectedTransaction] = useState<typeof transactions[0] | null>(null);
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [hasProxyPartners, setHasProxyPartners] = useState(false);
@@ -96,14 +91,6 @@ export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: Full
     }, 250);
     return () => window.clearTimeout(t);
   }, [open, scrollTarget]);
-
-  const fetchAllPendingCounts = useCallback(async () => {
-    if (!user) return;
-    const counts = await fetchPendingCounts(user.id);
-    setPendingCount(counts.moneyRequests);
-    setPendingDeposits(counts.deposits);
-    setPendingWithdrawals(counts.withdrawals);
-  }, [user]);
 
   // Check if the agent has proxy partners or proxy ROI entries. Custody v2
   // payouts can be approved directly to the partner wallet (target_wallet_user_id
@@ -126,44 +113,13 @@ export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: Full
 
   useEffect(() => {
     if (open) {
-      fetchAllPendingCounts();
       refreshWallet();
       refreshTransactions();
     }
-  }, [open, fetchAllPendingCounts, refreshWallet, refreshTransactions]);
+  }, [open, refreshWallet, refreshTransactions]);
 
 
   const { formatAmount: formatCurrency } = useCurrency();
-
-  const handlePendingClose = (isOpen: boolean) => {
-    setPendingOpen(isOpen);
-    if (!isOpen) {
-      invalidatePendingCountsCache();
-      fetchAllPendingCounts();
-      refreshWallet();
-      refreshTransactions();
-    }
-  };
-
-  const totalPending = pendingCount + pendingDeposits + pendingWithdrawals;
-
-  const recentStats = transactions.reduce(
-    (acc, tx) => {
-      if (tx.sender_id === user?.id) {
-        acc.sent += tx.amount;
-      } else {
-        acc.received += tx.amount;
-      }
-      return acc;
-    },
-    { sent: 0, received: 0 }
-  );
-
-
-  const netAmount = recentStats.received - recentStats.sent;
-  const currentMonth = format(new Date(), 'MMMM yyyy');
-  const spentGoal = 500000; // Example goal
-  const spentPercent = spentGoal > 0 ? Math.min((recentStats.sent / spentGoal) * 100, 100) : 0;
 
   return (
     <>
@@ -174,30 +130,13 @@ export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: Full
         >
           {/* Clean white top bar */}
           <div className="safe-area-top bg-background border-b border-border/40">
-            <div className="flex items-center justify-between px-4 py-3">
-              <div className="flex items-center gap-3">
-                <UserAvatar 
-                  avatarUrl={profile?.avatar_url} 
-                  fullName={profile?.full_name} 
-                  size="sm" 
-                />
-                <span className="text-lg font-bold text-foreground tracking-tight">Welile</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="relative h-9 w-9 text-foreground hover:bg-muted rounded-full"
-                  onClick={() => setPendingOpen(true)}
-                >
-                  <Bell className="h-5 w-5" />
-                  {pendingCount > 0 && (
-                    <Badge className="absolute -top-0.5 -right-0.5 h-4 w-4 p-0 flex items-center justify-center text-[10px] bg-destructive text-destructive-foreground">
-                      {pendingCount}
-                    </Badge>
-                  )}
-                </Button>
-              </div>
+            <div className="flex items-center gap-3 px-4 py-3">
+              <UserAvatar 
+                avatarUrl={profile?.avatar_url} 
+                fullName={profile?.full_name} 
+                size="sm" 
+              />
+              <span className="text-lg font-bold text-foreground tracking-tight">Welile</span>
             </div>
           </div>
 
@@ -305,9 +244,7 @@ export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: Full
       <RequestMoneyDialog 
         open={requestOpen} 
         onOpenChange={setRequestOpen} 
-        onSuccess={fetchAllPendingCounts}
       />
-      <PendingRequestsDialog open={pendingOpen} onOpenChange={handlePendingClose} />
       <TransactionReceipt 
         open={receiptOpen} 
         onOpenChange={setReceiptOpen} 
