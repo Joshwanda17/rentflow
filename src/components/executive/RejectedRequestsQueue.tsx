@@ -358,6 +358,12 @@ export function RejectedRequestsQueue({ stageFilter, title = 'Rejected Rent Requ
             <div className="space-y-3 text-sm">
               <div className="rounded-md bg-muted p-3 space-y-1">
                 <div><span className="text-muted-foreground">Tenant:</span> {active.tenant_name}</div>
+                {active.tenant_address && (
+                  <div><span className="text-muted-foreground">Tenant address:</span> {active.tenant_address}</div>
+                )}
+                {active.landlord_address && (
+                  <div><span className="text-muted-foreground">Property address:</span> {active.landlord_address}</div>
+                )}
                 <div><span className="text-muted-foreground">Rent:</span> UGX {Number(active.rent_amount || 0).toLocaleString()}</div>
                 <div className="line-clamp-3"><span className="text-muted-foreground">Original reason:</span> {active.rejected_reason ?? '—'}</div>
               </div>
