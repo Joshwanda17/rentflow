@@ -10,6 +10,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -860,21 +861,42 @@ function AllocateDialog({ sub, onClose, onDone }: {
 }) {
   const { toast } = useToast();
   const [amount, setAmount] = useState('');
+  const [period, setPeriod] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => { if (sub) setAmount(String(Math.min(sub.monthly_rent, sub.outstanding_balance))); }, [sub]);
+  // Month options: current month plus the 5 previous and 2 upcoming months.
+  const monthOptions = (() => {
+    const now = new Date();
+    const opts: { value: string; label: string }[] = [];
+    for (let i = 5; i >= -2; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      opts.push({ value, label: d.toLocaleString('en-US', { month: 'long', year: 'numeric' }) });
+    }
+    return opts;
+  })();
+
+  useEffect(() => {
+    if (sub) {
+      setAmount(String(Math.min(sub.monthly_rent, sub.outstanding_balance)));
+      const now = new Date();
+      setPeriod(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
+    }
+  }, [sub]);
 
   const submit = async () => {
     if (!sub) return;
     const amt = parseFloat(amount);
     if (!amt || amt <= 0) { toast({ title: 'Enter a valid amount', variant: 'destructive' }); return; }
+    if (!period) { toast({ title: 'Select the month being paid for', variant: 'destructive' }); return; }
+    const periodLabel = monthOptions.find((m) => m.value === period)?.label || period;
     setSubmitting(true);
     try {
       const { data, error } = await supabase.rpc('welile_home_record_collection', {
         p_subscription_id: sub.id,
         p_amount: amt,
         p_source: 'agent_allocation',
-        p_notes: 'Agent allocation',
+        p_notes: `Agent allocation — rent for ${periodLabel}`,
       });
       if (error) throw error;
       const res = data as any;
@@ -901,6 +923,19 @@ function AllocateDialog({ sub, onClose, onDone }: {
         <div className="space-y-2">
           <Label>Amount (UGX)</Label>
           <Input type="number" inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value)} />
+        </div>
+        <div className="space-y-2">
+          <Label>Month being paid for</Label>
+          <Select value={period} onValueChange={setPeriod}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select month" />
+            </SelectTrigger>
+            <SelectContent>
+              {monthOptions.map((m) => (
+                <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <DialogFooter>
           <Button onClick={submit} disabled={submitting} className="w-full">
