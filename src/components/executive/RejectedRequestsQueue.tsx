@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { Loader2, RotateCcw, ShieldCheck, XCircle, Search, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatLocation, locationHaystack } from '@/lib/locationText';
 
 type RejectedStage =
   | 'pending'
@@ -55,6 +56,9 @@ interface RejectedRow {
   created_at: string;
   tenant_name?: string;
   tenant_phone?: string;
+  tenant_address?: string;
+  landlord_address?: string;
+  search_text?: string;
 }
 
 interface Props {
