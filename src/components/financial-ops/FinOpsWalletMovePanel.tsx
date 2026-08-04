@@ -172,6 +172,53 @@ export function FinOpsWalletMovePanel() {
     setTerm('');
   };
 
+  /**
+   * Compute the user's real float net exactly the way `admin-withdrawable-to-float`
+   * does: sum wallet-scope legs with `wallet_bucket='float'`, counting
+   * production/legacy legs plus admin-correction debits only.
+   */
+  useEffect(() => {
+    const needed = mode === 'same_user' && sameUserDir === 'withdrawable_to_float' && !!source;
+    if (!needed) {
+      setFloatNet(null);
+      setFloatNetLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setFloatNetLoading(true);
+    (async () => {
+      const { data, error } = await supabase
+        .from('general_ledger')
+        .select('amount, direction, category, classification')
+        .eq('user_id', source!.id)
+        .eq('ledger_scope', 'wallet')
+        .eq('wallet_bucket', 'float')
+        .limit(5000);
+      if (cancelled) return;
+      if (error || !Array.isArray(data)) {
+        setFloatNet(null);
+        setFloatNetLoading(false);
+        return;
+      }
+      let net = 0;
+      for (const r of data as Array<{
+        amount: number; direction: string; category: string; classification: string | null;
+      }>) {
+        const cls = r.classification;
+        const okCls =
+          cls === null || cls === 'production' ||
+          (cls === 'admin_correction' && r.category === 'system_balance_correction' &&
+            (r.direction === 'debit' || r.direction === 'cash_out'));
+        if (!okCls) continue;
+        const sign = r.direction === 'cash_in' || r.direction === 'credit' ? 1 : -1;
+        net += sign * Number(r.amount);
+      }
+      setFloatNet(net);
+      setFloatNetLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [mode, sameUserDir, source]);
+
   const amountNum = Number(amount.replace(/[, _]/g, ''));
   const sourceAvail = source
     ? sourceBucket === 'withdrawable'
@@ -183,8 +230,21 @@ export function FinOpsWalletMovePanel() {
   const wouldGoNegative = exceedsBalance; // sourceAvail - amountNum < 0
   const destOk =
     mode !== 'user_to_user' || (!!dest && dest.id !== source?.id);
+  // Overdraft state for same-user Withdrawable → Float.
+  const floatOverdrawn =
+    mode === 'same_user' && sameUserDir === 'withdrawable_to_float' &&
+    floatNet !== null && floatNet < 0;
+  const floatShortfall = floatOverdrawn ? Math.abs(floatNet as number) : 0;
+  // Visible float after the move: without acknowledgement the incoming amount is
+  // swallowed by the hidden hole, so visible float stays floored at 0.
+  const predictedVisibleFloat = floatOverdrawn
+    ? acknowledgeOverdraft
+      ? (source?.float_balance ?? 0) + (amountNum || 0)
+      : Math.max(0, (floatNet as number) + (amountNum || 0))
+    : (source?.float_balance ?? 0) + (amountNum || 0);
   const canSubmit =
-    !!source && destOk && validAmount && !exceedsBalance && reason.trim().length >= 10 && !submitting;
+    !!source && destOk && validAmount && !exceedsBalance && reason.trim().length >= 10 &&
+    !submitting && (!floatOverdrawn || acknowledgeOverdraft);
 
   const reset = () => {
     setSource(null);
