@@ -15,7 +15,7 @@ export interface CreditAccessLimit {
   bonusFromSubagents: number;
 }
 
-const MIN_LIMIT = 30_000;
+const MIN_LIMIT = 20_000;
 
 // Fixed display exchange rates (approximate)
 const EXCHANGE_RATES: Record<string, number> = {
