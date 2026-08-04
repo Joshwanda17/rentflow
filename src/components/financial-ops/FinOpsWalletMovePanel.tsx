@@ -27,10 +27,26 @@ type SameUserDir = 'float_to_withdrawable' | 'withdrawable_to_float';
 const REASON_CODES: { value: string; label: string }[] = [
   { value: 'duplicate_credit', label: 'Duplicate credit reversed' },
   { value: 'wrong_bucket', label: 'Credited to the wrong wallet bucket' },
+  { value: 'incorrect_float_allocation', label: 'Incorrect float allocation' },
+  { value: 'failed_funding_reversal', label: 'Reversal of failed funding' },
+  { value: 'wrong_recipient', label: 'Wrong recipient' },
   { value: 'wrong_user', label: 'Credited to the wrong user' },
   { value: 'fraud_hold', label: 'Funds held pending fraud review' },
+  { value: 'fraud_investigation', label: 'Fraud investigation' },
+  { value: 'test_transaction', label: 'Test transaction' },
+  { value: 'treasury_adjustment', label: 'Treasury adjustment' },
+  { value: 'manual_reconciliation', label: 'Manual reconciliation' },
   { value: 'reconciliation', label: 'Reconciliation adjustment' },
-  { value: 'other', label: 'Other' },
+  { value: 'other', label: 'Other (requires detailed explanation)' },
+];
+
+/** Wallet ledger categories that represent income the user has already EARNED. */
+const COMMISSION_CATEGORIES = [
+  'agent_commission',
+  'agent_commission_earned',
+  'proxy_investment_commission',
+  'agent_investment_commission',
+  'partner_commission',
 ];
 
 /** Matches every wallet/balance/ledger-backed panel query. */
@@ -84,6 +100,22 @@ export function FinOpsWalletMovePanel() {
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
   const [reasonCode, setReasonCode] = useState('');
+  // ── Error-correction governance ─────────────────────────────────────────
+  const [justification, setJustification] = useState('');
+  const [referenceNumber, setReferenceNumber] = useState('');
+  const [relatedTxnId, setRelatedTxnId] = useState('');
+  const [ackEarnedIncome, setAckEarnedIncome] = useState(false);
+  const [commissionComponent, setCommissionComponent] = useState<number | null>(null);
+  const [confirmStage, setConfirmStage] = useState<'preview' | 'final'>('preview');
+  const [config, setConfig] = useState<{
+    high_value_threshold: number;
+    cfo_approval_threshold: number;
+    dual_approval_threshold: number;
+    require_commission_ack: boolean;
+  } | null>(null);
+  const [pendingApproval, setPendingApproval] = useState<{
+    approval_id: string | null; required_approvals: number; message: string;
+  } | null>(null);
   // Full-history sweep: the operator must confirm twice when the amount wipes
   // out everything the user has ever deposited.
   const [confirmFullHistory, setConfirmFullHistory] = useState(false);
@@ -110,6 +142,53 @@ export function FinOpsWalletMovePanel() {
   // Live count of in-flight wallet/balance refetches kicked off by the move.
   const refetching = useIsFetching({ predicate: (q) => isWalletQuery(q.queryKey) });
   const refreshStartedRef = useRef(false);
+
+  // Governance thresholds (configurable by CFO/CTO).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('error_correction_config')
+        .select('high_value_threshold, cfo_approval_threshold, dual_approval_threshold, require_commission_ack')
+        .maybeSingle();
+      if (cancelled || !data) return;
+      setConfig({
+        high_value_threshold: Number(data.high_value_threshold ?? 100000),
+        cfo_approval_threshold: Number(data.cfo_approval_threshold ?? 500000),
+        dual_approval_threshold: Number(data.dual_approval_threshold ?? 2000000),
+        require_commission_ack: data.require_commission_ack !== false,
+      });
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Earned commission sitting in the selected user's Withdrawable bucket —
+  // drives the earned-income protection warning.
+  useEffect(() => {
+    if (mode !== 'error_correction' || !source || sourceBucket !== 'withdrawable') {
+      setCommissionComponent(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('general_ledger')
+        .select('amount, direction')
+        .eq('user_id', source.id)
+        .eq('ledger_scope', 'wallet')
+        .eq('wallet_bucket', 'withdrawable')
+        .in('category', COMMISSION_CATEGORIES)
+        .limit(5000);
+      if (cancelled) return;
+      let net = 0;
+      for (const l of (data ?? []) as Array<{ amount: number; direction: string }>) {
+        const sign = l.direction === 'cash_in' || l.direction === 'credit' ? 1 : -1;
+        net += sign * Number(l.amount ?? 0);
+      }
+      setCommissionComponent(Math.max(0, Math.min(net, source.withdrawable_balance)));
+    })();
+    return () => { cancelled = true; };
+  }, [mode, source, sourceBucket]);
 
   // Lifetime approved deposits for the selected source user — drives the
   // full-history sweep guard and gives the operator context before recovering.
@@ -281,6 +360,23 @@ export function FinOpsWalletMovePanel() {
     lifetimeDeposits > 0 &&
     amountNum > 0 &&
     amountNum >= lifetimeDeposits;
+  // ── Error-correction governance gates ─────────────────────────────────
+  const isCorrection = mode === 'error_correction';
+  const highValueThreshold = config?.high_value_threshold ?? 100000;
+  const cfoThreshold = config?.cfo_approval_threshold ?? 500000;
+  const dualThreshold = config?.dual_approval_threshold ?? 2000000;
+  const removesEarnedIncome =
+    isCorrection && (commissionComponent ?? 0) > 0 && (config?.require_commission_ack ?? true);
+  const isHighValue = isCorrection && amountNum >= highValueThreshold;
+  const requiredApprovals = !isCorrection
+    ? 0
+    : amountNum >= dualThreshold ? 2 : amountNum >= cfoThreshold ? 1 : 0;
+  const governanceComplete =
+    !isCorrection ||
+    (justification.trim().length >= 20 &&
+      referenceNumber.trim().length >= 3 &&
+      (reasonCode !== 'other' || reason.trim().length >= 30) &&
+      (!removesEarnedIncome || ackEarnedIncome));
   // Visible float after the move: without acknowledgement the incoming amount is
   // swallowed by the hidden hole, so visible float stays floored at 0.
   const predictedVisibleFloat = floatOverdrawn
@@ -291,7 +387,7 @@ export function FinOpsWalletMovePanel() {
   const canSubmit =
     !!source && destOk && validAmount && !exceedsBalance && reason.trim().length >= 10 &&
     !!reasonCode && !submitting && (!floatOverdrawn || acknowledgeOverdraft) &&
-    (!fullHistorySweep || confirmFullHistory);
+    (!fullHistorySweep || confirmFullHistory) && governanceComplete;
   // Never let the operator submit a Withdrawable → Float move while the real
   // float position is still being read.
   const submitBlockedByFloatCheck =
@@ -303,6 +399,12 @@ export function FinOpsWalletMovePanel() {
     setAmount('');
     setReason('');
     setReasonCode('');
+    setJustification('');
+    setReferenceNumber('');
+    setRelatedTxnId('');
+    setAckEarnedIncome(false);
+    setCommissionComponent(null);
+    setConfirmStage('preview');
     setConfirmFullHistory(false);
     setLifetimeDeposits(null);
     setHits([]);
@@ -420,7 +522,9 @@ export function FinOpsWalletMovePanel() {
       return;
     }
 
-    const { data, error } = await invokeEdgeFunction<MoveResult>('finops-wallet-move', {
+    const { data, error } = await invokeEdgeFunction<
+      MoveResult & { requires_approval?: boolean; approval_id?: string | null; required_approvals?: number }
+    >('finops-wallet-move', {
       body: {
         mode,
         source_user_id: source.id,
@@ -431,6 +535,14 @@ export function FinOpsWalletMovePanel() {
         reason: reason.trim(),
         reason_code: reasonCode,
         confirm_full_history: fullHistorySweep ? true : undefined,
+        business_justification: isCorrection ? justification.trim() : undefined,
+        reference_number: isCorrection ? referenceNumber.trim() : undefined,
+        related_transaction_id: isCorrection && relatedTxnId.trim() ? relatedTxnId.trim() : undefined,
+        acknowledge_earned_income: isCorrection && ackEarnedIncome ? true : undefined,
+        confirm_high_value: isCorrection && isHighValue ? true : undefined,
+        session_id: typeof window !== 'undefined'
+          ? (window.sessionStorage.getItem('welile-session-id') ?? undefined)
+          : undefined,
       },
       errorTitle: 'Move failed',
     });
@@ -438,6 +550,20 @@ export function FinOpsWalletMovePanel() {
     setConfirmOpen(false);
     if (error || !data) {
       setStep('idle');
+      return;
+    }
+    // Above threshold: nothing is posted — the correction is parked for
+    // CFO / dual approval.
+    if ((data as { requires_approval?: boolean }).requires_approval) {
+      setStep('idle');
+      setConfirmStage('preview');
+      setPendingApproval({
+        approval_id: data.approval_id ?? null,
+        required_approvals: data.required_approvals ?? 1,
+        message: (data as unknown as { message: string }).message,
+      });
+      toast.info('Approval required', { description: (data as unknown as { message: string }).message });
+      reset();
       return;
     }
     toast.success(data.message);
@@ -814,6 +940,94 @@ export function FinOpsWalletMovePanel() {
                 className="mt-1"
               />
             </div>
+            {isCorrection && (
+              <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Mandatory justification
+                </p>
+                {reasonCode === 'other' && reason.trim().length < 30 && (
+                  <p className="text-xs text-destructive">
+                    “Other” requires a detailed explanation of at least 30 characters in the reason
+                    note above ({reason.trim().length}/30).
+                  </p>
+                )}
+                <div>
+                  <Label htmlFor="fwm-justification" className="text-xs">
+                    Business justification (min 20 characters)
+                  </Label>
+                  <Textarea
+                    id="fwm-justification"
+                    value={justification}
+                    onChange={(e) => setJustification(e.target.value)}
+                    placeholder="Why is the platform entitled to recover this money?"
+                    rows={2}
+                    className="mt-1"
+                  />
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <Label htmlFor="fwm-ref" className="text-xs">
+                      Ticket / investigation reference (required)
+                    </Label>
+                    <Input
+                      id="fwm-ref"
+                      value={referenceNumber}
+                      onChange={(e) => setReferenceNumber(e.target.value)}
+                      placeholder="e.g. FIN-2026-0142"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="fwm-txn" className="text-xs">
+                      Related transaction ID (if applicable)
+                    </Label>
+                    <Input
+                      id="fwm-txn"
+                      value={relatedTxnId}
+                      onChange={(e) => setRelatedTxnId(e.target.value)}
+                      placeholder="Ledger reference or TID"
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+            {removesEarnedIncome && (
+              <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 space-y-2">
+                <div className="flex items-start gap-2 text-xs">
+                  <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-foreground">
+                      You are about to remove earned commission from this user's Withdrawable wallet
+                    </p>
+                    <p className="text-muted-foreground mt-0.5">
+                      {fmt(commissionComponent ?? 0)} of this balance is commission they have
+                      already earned. This represents income already earned by the user, not
+                      company float.
+                    </p>
+                  </div>
+                </div>
+                <label className="flex items-start gap-2 text-xs cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={ackEarnedIncome}
+                    onChange={(e) => setAckEarnedIncome(e.target.checked)}
+                  />
+                  <span>
+                    I explicitly confirm that earned income is being removed and that this is
+                    justified.
+                  </span>
+                </label>
+              </div>
+            )}
+            {isCorrection && requiredApprovals > 0 && validAmount && (
+              <p className="text-xs text-muted-foreground">
+                {fmt(amountNum)} is at or above the{' '}
+                {requiredApprovals >= 2 ? 'dual-approval' : 'CFO-approval'} threshold — submitting
+                raises an approval request instead of posting immediately.
+              </p>
+            )}
             {mode === 'error_correction' && lifetimeDeposits !== null && (
               <p className="text-xs text-muted-foreground">
                 Lifetime approved deposits by this user:{' '}
@@ -887,7 +1101,7 @@ export function FinOpsWalletMovePanel() {
                 </div>
               )}
             <Button
-              onClick={() => setConfirmOpen(true)}
+              onClick={() => { setConfirmStage('preview'); setConfirmOpen(true); }}
               disabled={!canSubmit || submitBlockedByFloatCheck}
               className="w-full gap-2"
             >
@@ -902,10 +1116,17 @@ export function FinOpsWalletMovePanel() {
         </Card>
       )}
 
-      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+      <AlertDialog
+        open={confirmOpen}
+        onOpenChange={(o) => { setConfirmOpen(o); if (!o) setConfirmStage('preview'); }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirm money movement</AlertDialogTitle>
+            <AlertDialogTitle>
+              {isCorrection && confirmStage === 'preview'
+                ? 'Review this correction'
+                : 'Confirm money movement'}
+            </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-2 text-sm">
                 <p>
@@ -921,14 +1142,63 @@ export function FinOpsWalletMovePanel() {
                       : 'back to the platform as an error correction.'}
                 </p>
                 <p className="text-muted-foreground">{reason}</p>
+                {isCorrection && (
+                  <div className="rounded-lg border border-border bg-muted/40 p-3 space-y-1 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Current {sourceBucket} balance</span>
+                      <span className="font-semibold text-foreground">
+                        {fmt(sourceBucket === 'withdrawable'
+                          ? (source?.withdrawable_balance ?? 0)
+                          : (source?.float_balance ?? 0))}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Balance after correction</span>
+                      <span className="font-semibold text-foreground">
+                        {fmt(Math.max(0,
+                          (sourceBucket === 'withdrawable'
+                            ? (source?.withdrawable_balance ?? 0)
+                            : (source?.float_balance ?? 0)) - (amountNum || 0)))}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Earned commission affected</span>
+                      <span className="font-semibold text-foreground">
+                        {fmt(Math.min(commissionComponent ?? 0, amountNum || 0))}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Destination</span>
+                      <span className="font-semibold text-foreground">Welile Platform</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Reference</span>
+                      <span className="font-semibold text-foreground">{referenceNumber || '—'}</span>
+                    </div>
+                    {requiredApprovals > 0 && (
+                      <p className="pt-1 text-warning-foreground">
+                        Requires {requiredApprovals === 2 ? 'two approvals' : 'CFO approval'} before
+                        it posts.
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={submitting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={(e) => { e.preventDefault(); submit(); }} disabled={submitting}>
-              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Confirm'}
-            </AlertDialogAction>
+            {isCorrection && confirmStage === 'preview' ? (
+              <AlertDialogAction
+                onClick={(e) => { e.preventDefault(); setConfirmStage('final'); }}
+              >
+                Continue
+              </AlertDialogAction>
+            ) : (
+              <AlertDialogAction onClick={(e) => { e.preventDefault(); submit(); }} disabled={submitting}>
+                {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Confirm'}
+              </AlertDialogAction>
+            )}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -30,8 +30,43 @@ const REASON_CODES: Record<string, string> = {
   wrong_user: "Credited to the wrong user",
   fraud_hold: "Funds held pending fraud review",
   reconciliation: "Reconciliation adjustment",
+  incorrect_float_allocation: "Incorrect float allocation",
+  fraud_investigation: "Fraud investigation",
+  failed_funding_reversal: "Reversal of failed funding",
+  test_transaction: "Test transaction",
+  wrong_recipient: "Wrong recipient",
+  treasury_adjustment: "Treasury adjustment",
+  manual_reconciliation: "Manual reconciliation",
   other: "Other",
 };
+
+/** Wallet ledger categories that represent income the user has already EARNED. */
+const COMMISSION_CATEGORIES = [
+  "agent_commission",
+  "agent_commission_earned",
+  "proxy_investment_commission",
+  "agent_investment_commission",
+  "partner_commission",
+];
+
+/** Best-effort device/browser fingerprint from the User-Agent string. */
+function parseUserAgent(ua: string) {
+  const browser =
+    /Edg\//.test(ua) ? "Edge"
+    : /OPR\//.test(ua) ? "Opera"
+    : /Chrome\//.test(ua) ? "Chrome"
+    : /Safari\//.test(ua) ? "Safari"
+    : /Firefox\//.test(ua) ? "Firefox"
+    : ua ? "Other" : "Unknown";
+  const device =
+    /iPhone|iPad|iPod/.test(ua) ? "iOS"
+    : /Android/.test(ua) ? "Android"
+    : /Windows/.test(ua) ? "Windows"
+    : /Macintosh|Mac OS/.test(ua) ? "macOS"
+    : /Linux/.test(ua) ? "Linux"
+    : "Unknown";
+  return { browser, device };
+}
 
 /**
  * finops-wallet-move
@@ -101,6 +136,14 @@ Deno.serve(async (req) => {
     const reasonCode: string = String(body?.reason_code ?? "").trim();
     const reasonNote: string = String(body?.reason ?? "").trim();
     const confirmFullHistory = body?.confirm_full_history === true;
+    // ── Governance inputs (error corrections) ─────────────────────────────
+    const businessJustification: string = String(body?.business_justification ?? "").trim();
+    const referenceNumber: string = String(body?.reference_number ?? "").trim();
+    const relatedTransactionId: string = String(body?.related_transaction_id ?? "").trim();
+    const acknowledgeEarnedIncome = body?.acknowledge_earned_income === true;
+    const confirmHighValue = body?.confirm_high_value === true;
+    const approvalId: string = String(body?.approval_id ?? "").trim();
+    const sessionId: string = String(body?.session_id ?? "").trim();
     const amount =
       typeof body?.amount === "number"
         ? body.amount
@@ -209,6 +252,184 @@ Deno.serve(async (req) => {
     };
     const sourceName = nameOf(sourceUserId);
     const destName = mode === "user_to_user" ? nameOf(destUserId) : "Welile Platform";
+
+    // ══════════════════════════════════════════════════════════════════════
+    // ERROR CORRECTION GOVERNANCE
+    // Historical corrections removed legitimate earnings with a one-line
+    // free-text reason and no independent approval. Every future correction
+    // now needs structured justification, earned-income acknowledgement,
+    // high-value confirmation and (above threshold) CFO / dual approval.
+    // Nothing here touches historical balances or ledger entries.
+    // ══════════════════════════════════════════════════════════════════════
+    const { data: cfg } = await adminClient
+      .from("error_correction_config")
+      .select("*")
+      .eq("id", true)
+      .maybeSingle();
+    const highValueThreshold = Number(cfg?.high_value_threshold ?? 100_000);
+    const cfoApprovalThreshold = Number(cfg?.cfo_approval_threshold ?? 500_000);
+    const dualApprovalThreshold = Number(cfg?.dual_approval_threshold ?? 2_000_000);
+    const alertThreshold = Number(cfg?.alert_threshold ?? 100_000);
+    const velocityWindowMinutes = Number(cfg?.velocity_window_minutes ?? 60);
+    const velocityMaxOps = Number(cfg?.velocity_max_operations ?? 3);
+    const velocityMaxUsers = Number(cfg?.velocity_max_distinct_users ?? 3);
+    const requireCommissionAck = cfg?.require_commission_ack !== false;
+
+    const ua = req.headers.get("user-agent") || "";
+    const { browser, device } = parseUserAgent(ua);
+    const clientIp =
+      (req.headers.get("x-forwarded-for") || "").split(",")[0].trim() ||
+      req.headers.get("cf-connecting-ip") ||
+      null;
+
+    // Earned-commission portion sitting in the user's Withdrawable bucket.
+    let commissionComponent = 0;
+    if (mode === "error_correction" && sourceBucket === "withdrawable") {
+      const { data: commLegs } = await adminClient
+        .from("general_ledger")
+        .select("amount, direction")
+        .eq("user_id", sourceUserId)
+        .eq("ledger_scope", "wallet")
+        .eq("wallet_bucket", "withdrawable")
+        .in("category", COMMISSION_CATEGORIES)
+        .limit(5000);
+      let net = 0;
+      for (const l of (commLegs || []) as Array<{ amount: number; direction: string }>) {
+        const sign = l.direction === "cash_in" || l.direction === "credit" ? 1 : -1;
+        net += sign * Number(l.amount ?? 0);
+      }
+      commissionComponent = Math.max(0, Math.min(net, srcWithdrawable));
+    }
+
+    let approvalRow: { id: string; status: string; amount: number; bucket: string; requested_by: string } | null = null;
+
+    if (mode === "error_correction") {
+      // 1 ── Mandatory structured justification
+      if (businessJustification.length < 20) {
+        return json({
+          error: "A business justification of at least 20 characters is required.",
+          field: "business_justification",
+        }, 400);
+      }
+      if (referenceNumber.length < 3) {
+        return json({
+          error: "A ticket number or investigation reference is required.",
+          field: "reference_number",
+        }, 400);
+      }
+      if (reasonCode === "other" && reasonNote.length < 30) {
+        return json({
+          error: "When the reason is “Other”, a detailed explanation of at least 30 characters is required.",
+          field: "reason",
+        }, 400);
+      }
+
+      // 2 ── Earned income protection
+      if (requireCommissionAck && commissionComponent > 0 && !acknowledgeEarnedIncome) {
+        return json({
+          error:
+            `EARNED_INCOME: UGX ${Math.round(commissionComponent).toLocaleString()} of this user's ` +
+            `Withdrawable wallet is commission they have already earned. ` +
+            `Re-submit with acknowledge_earned_income=true to confirm you are removing earned income.`,
+          commission_component: commissionComponent,
+          requires_confirmation: "acknowledge_earned_income",
+        }, 409);
+      }
+
+      // 3 ── High-value second confirmation
+      if (amount >= highValueThreshold && !confirmHighValue) {
+        return json({
+          error:
+            `HIGH_VALUE: UGX ${amount.toLocaleString()} is at or above the high-value threshold of ` +
+            `UGX ${highValueThreshold.toLocaleString()}. Re-submit with confirm_high_value=true after reviewing the preview.`,
+          high_value_threshold: highValueThreshold,
+          requires_confirmation: "confirm_high_value",
+        }, 409);
+      }
+
+      // 4 ── Approval workflow
+      const requiredApprovals =
+        amount >= dualApprovalThreshold ? 2 : amount >= cfoApprovalThreshold ? 1 : 0;
+      if (requiredApprovals > 0) {
+        if (approvalId) {
+          if (!UUID_RE.test(approvalId)) return json({ error: "Invalid approval reference." }, 400);
+          const { data: appr } = await adminClient
+            .from("error_correction_approvals")
+            .select("id, status, amount, bucket, requested_by, target_user_id")
+            .eq("id", approvalId)
+            .maybeSingle();
+          if (!appr) return json({ error: "Approval request not found." }, 404);
+          if (appr.status !== "approved") {
+            return json({
+              error: `This correction is still ${appr.status}. It cannot be executed yet.`,
+              approval_id: appr.id,
+              approval_status: appr.status,
+            }, 409);
+          }
+          if (
+            String(appr.target_user_id) !== sourceUserId ||
+            Number(appr.amount) !== amount ||
+            String(appr.bucket) !== sourceBucket
+          ) {
+            return json({
+              error: "The approved correction does not match this request (user, amount or bucket changed).",
+            }, 409);
+          }
+          approvalRow = appr as typeof approvalRow;
+        } else {
+          const { data: created, error: apprErr } = await adminClient
+            .from("error_correction_approvals")
+            .insert({
+              requested_by: authedUser.id,
+              requester_roles: callerRoles,
+              target_user_id: sourceUserId,
+              target_name: sourceName,
+              amount,
+              bucket: sourceBucket,
+              reason_code: reasonCode,
+              reason_detail: reasonNote,
+              business_justification: businessJustification,
+              reference_number: referenceNumber,
+              related_transaction_id: relatedTransactionId || null,
+              withdrawable_before: srcWithdrawable,
+              float_before: srcFloat,
+              commission_component: commissionComponent,
+              required_approvals: requiredApprovals,
+            })
+            .select("id")
+            .maybeSingle();
+          if (apprErr) {
+            return json({ error: `Could not raise the approval request: ${apprErr.message}` }, 500);
+          }
+          await adminClient.from("error_correction_alerts").insert({
+            alert_type: "approval_required",
+            severity: requiredApprovals >= 2 ? "critical" : "high",
+            operator_id: authedUser.id,
+            operator_name: authedUser.email ?? null,
+            target_user_id: sourceUserId,
+            target_name: sourceName,
+            amount,
+            bucket: sourceBucket,
+            reason_code: reasonCode,
+            reference_number: referenceNumber,
+            details: {
+              required_approvals: requiredApprovals,
+              approval_id: created?.id ?? null,
+              business_justification: businessJustification,
+            },
+          }).then(() => {}, () => {});
+          return json({
+            requires_approval: true,
+            approval_id: created?.id ?? null,
+            required_approvals: requiredApprovals,
+            message:
+              requiredApprovals >= 2
+                ? `UGX ${amount.toLocaleString()} needs dual approval before it can be posted. The request has been sent to the CFO.`
+                : `UGX ${amount.toLocaleString()} needs CFO approval before it can be posted. The request has been sent to the CFO.`,
+          }, 202);
+        }
+      }
+    }
 
     const bucketLeg = (
       userId: string,
@@ -390,6 +611,143 @@ Deno.serve(async (req) => {
     const srcWithdrawableAfter = Number(srcAfter?.withdrawable_balance ?? 0);
     const srcFloatAfter = Number(srcAfter?.float_balance ?? 0);
     const srcBucketAfter = sourceBucket === "withdrawable" ? srcWithdrawableAfter : srcFloatAfter;
+
+    // ── Error-correction governance register + high-risk alerts ───────────
+    if (mode === "error_correction") {
+      let auditId: string | null = null;
+      try {
+        const { data: auditRow } = await adminClient
+          .from("error_correction_audit")
+          .insert({
+            operator_id: authedUser.id,
+            operator_name: authedUser.email ?? null,
+            operator_roles: callerRoles,
+            target_user_id: sourceUserId,
+            target_name: sourceName,
+            target_phone: profiles?.find((x) => x.id === sourceUserId)?.phone ?? null,
+            amount,
+            bucket: sourceBucket,
+            reason_code: reasonCode,
+            reason_detail: reasonNote,
+            business_justification: businessJustification,
+            reference_number: referenceNumber,
+            related_transaction_id: relatedTransactionId || null,
+            withdrawable_before: srcWithdrawable,
+            withdrawable_after: srcWithdrawableAfter,
+            float_before: srcFloat,
+            float_after: srcFloatAfter,
+            commission_component: commissionComponent,
+            commission_acknowledged: acknowledgeEarnedIncome,
+            high_value_confirmed: confirmHighValue,
+            approval_id: approvalRow?.id ?? null,
+            ledger_group_id: groupId,
+            ledger_reference_id: refId,
+            transaction_group_category: "system_balance_correction",
+            platform_destination: "Welile Platform",
+            status: "posted",
+            client_ip: clientIp,
+            user_agent: ua || null,
+            device,
+            browser,
+            session_id: sessionId || null,
+          })
+          .select("id")
+          .maybeSingle();
+        auditId = auditRow?.id ?? null;
+      } catch (_) {
+        // Never fail a posted transaction on an audit write.
+      }
+
+      if (approvalRow?.id) {
+        await adminClient
+          .from("error_correction_approvals")
+          .update({
+            status: "executed",
+            executed_at: new Date().toISOString(),
+            executed_ledger_group_id: groupId,
+          })
+          .eq("id", approvalRow.id)
+          .then(() => {}, () => {});
+      }
+
+      // High-risk alerts: earned income removed, large float correction,
+      // operator velocity, and multiple users corrected in succession.
+      try {
+        const alerts: Record<string, unknown>[] = [];
+        const base = {
+          operator_id: authedUser.id,
+          operator_name: authedUser.email ?? null,
+          target_user_id: sourceUserId,
+          target_name: sourceName,
+          amount,
+          bucket: sourceBucket,
+          reason_code: reasonCode,
+          reference_number: referenceNumber,
+          transaction_group_id: groupId,
+          audit_id: auditId,
+        };
+        if (commissionComponent > 0) {
+          alerts.push({
+            ...base,
+            alert_type: "earned_commission_removed",
+            severity: "critical",
+            details: { commission_component: commissionComponent, business_justification: businessJustification },
+          });
+        }
+        if (amount >= alertThreshold) {
+          alerts.push({
+            ...base,
+            alert_type: sourceBucket === "float" ? "large_float_correction" : "large_withdrawable_correction",
+            severity: "high",
+            details: { alert_threshold: alertThreshold, business_justification: businessJustification },
+          });
+        }
+        const since = new Date(Date.now() - velocityWindowMinutes * 60_000).toISOString();
+        const { data: recent } = await adminClient
+          .from("error_correction_audit")
+          .select("target_user_id")
+          .eq("operator_id", authedUser.id)
+          .gte("created_at", since);
+        const recentCount = (recent || []).length;
+        const distinctUsers = new Set((recent || []).map((r: { target_user_id: string }) => r.target_user_id)).size;
+        if (recentCount >= velocityMaxOps) {
+          alerts.push({
+            ...base,
+            alert_type: "operator_velocity",
+            severity: "high",
+            details: { corrections_in_window: recentCount, window_minutes: velocityWindowMinutes },
+          });
+        }
+        if (distinctUsers >= velocityMaxUsers) {
+          alerts.push({
+            ...base,
+            alert_type: "multiple_users_corrected",
+            severity: "critical",
+            details: { distinct_users_in_window: distinctUsers, window_minutes: velocityWindowMinutes },
+          });
+        }
+        if (alerts.length) {
+          await adminClient.from("error_correction_alerts").insert(alerts);
+          await adminClient.from("system_events").insert({
+            event_type: "wallet.finops_error_correction",
+            description:
+              `HIGH RISK error correction: ${fmt} removed from ${sourceName}'s ${srcBucketLabel} ` +
+              `(${alerts.map((a) => a.alert_type).join(", ")})`,
+            metadata: {
+              operator_id: authedUser.id,
+              target_user_id: sourceUserId,
+              amount,
+              reason_code: reasonCode,
+              reference_number: referenceNumber,
+              transaction_group_id: groupId,
+              alert_types: alerts.map((a) => a.alert_type),
+            },
+          }).then(() => {}, () => {});
+        }
+      } catch (_) {
+        // Alerts are best-effort; the audit row is the durable record.
+      }
+    }
 
     // Belt-and-suspenders: if a race condition caused a negative bucket, flag it.
     if (srcBucketAfter < 0 || (destAfter && destBucket === "withdrawable" && Number(destAfter.withdrawable_balance) < 0) || (destAfter && destBucket === "float" && Number(destAfter.float_balance) < 0)) {
