@@ -88,7 +88,7 @@ export function FindAHouseCTA({ onClick }: FindAHouseCTAProps) {
             </span>
           )}
         </div>
-        <p className="block text-lg font-black leading-tight text-primary-foreground truncate">
+        <p className="block text-[15px] font-black leading-tight text-primary-foreground truncate">
           {totalCount !== null ? (
             <>{totalCount} house{totalCount !== 1 ? 's' : ''} available · Pay daily</>
           ) : (
