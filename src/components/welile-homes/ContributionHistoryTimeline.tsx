@@ -209,9 +209,6 @@ export function ContributionHistoryTimeline({
                         }`}>
                           +{formatUGX(contribution.amount)}
                         </p>
-                        <p className="text-[10px] text-muted-foreground">
-                          Bal: {formatUGX(contribution.balance_after)}
-                        </p>
                       </div>
                     </div>
                     {contribution.notes && (
