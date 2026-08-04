@@ -981,9 +981,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             onChange={(tab) => {
               // Merchant Agents are locked to Home only.
               if (isMerchant && tab !== 'home') { guardMerchant(); return; }
-              // Tapping the "Sub Agents" icon opens the full team analytics page
-              // rather than the inline panel.
-              if (tab === 'subagents') { navigate('/sub-agents'); return; }
+              // Tapping the "Service Center" icon opens the Agent Service Center page.
+              if (tab === 'subagents') { navigate('/agent/service-center'); return; }
               setSlideDirection(null);
               setActiveTab(tab);
             }}
