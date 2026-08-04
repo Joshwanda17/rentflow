@@ -102,6 +102,17 @@ export function EmployeeRequisitionQueuePanel() {
       body: { id, action, reason, amount },
     });
     setBusyId(null);
+    const rolledBack = (data as { rolled_back?: boolean })?.rolled_back === true;
+    if (rolledBack) {
+      const p = data as { credit_error?: string | null; credit_detail?: Parameters<typeof describeCreditFailure>[0] };
+      const { headline, description } = describeCreditFailure(p?.credit_detail ?? null, p?.credit_error ?? null);
+      toast.error(`Approval rolled back — ${headline}`, {
+        description: `${description} The requisition was NOT approved and no funds were moved, so you can safely approve again.`,
+        duration: 12000,
+      });
+      load();
+      return;
+    }
     if (error || (data as { error?: string })?.error) {
       toast.error('Requisition decision failed', {
         description: (data as { error?: string })?.error ?? error?.message ?? 'The backend returned an unexpected error.',
@@ -123,7 +134,9 @@ export function EmployeeRequisitionQueuePanel() {
         const { headline, description } = describeCreditFailure(payload?.credit_detail ?? null, creditErr);
         toast.error(`Approved — ${headline}`, { description, duration: 10000 });
       } else {
-        toast.success('Approved — wallet credited');
+        toast.success('Requisition approved — wallet credited successfully', {
+          description: 'The employee can use the funds immediately.',
+        });
       }
     } else {
       toast.success('Requisition rejected');
