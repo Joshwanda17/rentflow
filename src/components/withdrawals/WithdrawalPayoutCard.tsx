@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { parsePayoutConfirmationSms } from '@/utils/smsParser';
 import { usePayoutsUiEnabled } from '@/hooks/usePayoutsUiEnabled';
+import { humanizeWithdrawalError } from '@/lib/withdrawalErrorText';
 
 export interface WithdrawalPayoutCardProps {
   withdrawal: any;
