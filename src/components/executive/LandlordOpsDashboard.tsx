@@ -464,7 +464,9 @@ export function LandlordOpsDashboard() {
   const [deleting, setDeleting] = useState(false);
   const [assignPerson, setAssignPerson] = useState<{ listingId: string; title: string; type: 'landlord' | 'agent' } | null>(null);
   // Landlord verification moderation (frontend session state).
-  const [rejectedLandlordIds, setRejectedLandlordIds] = useState<Set<string>>(new Set());
+  // NOTE: rejections are persisted state (landlords.verification_status), never
+  // session state — a rejected landlord must survive a refresh and appear under
+  // the Rejected tab.
   const [expandedLandlordId, setExpandedLandlordId] = useState<string | null>(null);
   // Drilldown row → entity detail sheet (cities / no-landlord tenants / landlords)
   const [entityDetail, setEntityDetail] = useState<
@@ -1250,12 +1252,18 @@ export function LandlordOpsDashboard() {
   // Server-derived counts (constant-time, no full-table pull). Used by home KPIs
   // and the "All Landlords" list category chips. Fall back to landlordsList
   // counts only for the occupied/empty views where the full set is already loaded.
-  const totalLandlordsCount = landlordOpsTotals?.total ?? landlordsList.length;
-  const verifiedLandlordsCount = landlordOpsTotals?.verified ?? landlordsList.filter(l => l.verified).length;
-  const pendingLandlordsCount = landlordOpsTotals?.pending ?? landlordsList.filter(l => !l.verified).length;
-  const smartphoneLandlordsCount = landlordOpsTotals?.smartphone ?? landlordsList.filter(l => l.has_smartphone).length;
-  const occupiedLandlordsCount = landlordOpsTotals?.has_tenants ?? 0;
-  const emptyLandlordsCount = landlordOpsTotals?.no_tenants ?? 0;
+  // Counts ALWAYS come from the server (same query definition as the list).
+  // `undefined` means "not loaded yet" and renders a skeleton — we never swap
+  // in a client-side filter over a partial page, which produced wrong numbers.
+  const totalLandlordsCount = landlordOpsTotals?.total;
+  const verifiedLandlordsCount = landlordOpsTotals?.verified;
+  const pendingLandlordsCount = landlordOpsTotals?.pending;
+  const rejectedLandlordsCount = landlordOpsTotals?.rejected;
+  const verifiedHumanCount = landlordOpsTotals?.verified_human;
+  const verifiedAutoCount = landlordOpsTotals?.verified_auto;
+  const smartphoneLandlordsCount = landlordOpsTotals?.smartphone;
+  const occupiedLandlordsCount = landlordOpsTotals?.has_tenants;
+  const emptyLandlordsCount = landlordOpsTotals?.no_tenants;
   const occupiedMonthlyRevenue = landlordOpsTotals?.occupied_monthly_revenue;
   const emptyMonthlyRevenue = landlordOpsTotals?.empty_monthly_revenue;
   const unverifiedListings = rows.filter(l =>
@@ -1450,7 +1458,7 @@ export function LandlordOpsDashboard() {
   const lc1Groups = fullLC1Data || [];
 
   const verifiedLandlords = landlordsList.filter(l => l.verified);
-  const unverifiedLandlords = landlordsList.filter(l => !l.verified && !rejectedLandlordIds.has(l.id));
+  const unverifiedLandlords = landlordsList.filter(l => !l.verified);
   const smartphoneLandlords = landlordsList.filter(l => l.has_smartphone);
 
   const handleVerifyListing = async (listing: ListingWithLandlord, note?: string) => {
