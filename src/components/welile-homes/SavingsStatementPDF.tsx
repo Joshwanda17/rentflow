@@ -199,7 +199,6 @@ export function SavingsStatementPDF({
       doc.text('Date', margin + 3, yPos + 6);
       doc.text('Type', margin + 45, yPos + 6);
       doc.text('Amount', margin + 95, yPos + 6);
-      doc.text('Balance', margin + 135, yPos + 6);
 
       yPos += 8;
       doc.setTextColor(0, 0, 0);
@@ -227,8 +226,6 @@ export function SavingsStatementPDF({
         doc.text(`+${formatUGX(contrib.amount)}`, margin + 95, yPos + 5);
         
         doc.setTextColor(0, 0, 0);
-        doc.text(formatUGX(contrib.balance_after), margin + 135, yPos + 5);
-
         yPos += 7;
       });
 
