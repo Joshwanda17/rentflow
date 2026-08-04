@@ -507,6 +507,8 @@ function AppRoutes() {
           <Route path="/transactions" element={<TransactionHistory />} />
           <Route path="/financial-statement" element={<FinancialStatement />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/your-profile" element={<YourProfile />} />
+          <Route path="/notifications" element={<NotificationsScreen />} />
           <Route path="/earnings" element={<AgentEarnings />} />
           <Route path="/update-password" element={<UpdatePassword />} />
           <Route path="/orders" element={<OrderHistory />} />
