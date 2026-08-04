@@ -250,6 +250,13 @@ export function FinOpsWalletMovePanel() {
     mode === 'same_user' && sameUserDir === 'withdrawable_to_float' &&
     floatNet !== null && floatNet < 0;
   const floatShortfall = floatOverdrawn ? Math.abs(floatNet as number) : 0;
+  // Amount wipes out (or exceeds) every deposit this user has ever made.
+  const fullHistorySweep =
+    mode === 'error_correction' &&
+    lifetimeDeposits !== null &&
+    lifetimeDeposits > 0 &&
+    amountNum > 0 &&
+    amountNum >= lifetimeDeposits;
   // Visible float after the move: without acknowledgement the incoming amount is
   // swallowed by the hidden hole, so visible float stays floored at 0.
   const predictedVisibleFloat = floatOverdrawn
