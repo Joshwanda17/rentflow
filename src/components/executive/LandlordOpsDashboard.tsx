@@ -2239,11 +2239,13 @@ export function LandlordOpsDashboard() {
 
   // ─── LANDLORDS VIEW ───
   if (view === 'landlords') {
-    type LandlordCategory = 'all' | 'verified' | 'pending' | 'has_tenants' | 'no_tenants';
+    type LandlordCategory = 'all' | 'verified' | 'pending' | 'rejected' | 'resubmitted' | 'has_tenants' | 'no_tenants';
     const LANDLORD_CATEGORIES: { value: LandlordCategory; label: string; color: string }[] = [
       { value: 'all', label: 'All', color: 'bg-muted text-foreground' },
-      { value: 'verified', label: 'Verified', color: 'bg-emerald-100 text-emerald-700' },
-      { value: 'pending', label: 'Pending', color: 'bg-amber-100 text-amber-700' },
+      { value: 'verified', label: 'Verified', color: VERIFICATION_STATUS_META.verified.chipClass },
+      { value: 'pending', label: 'Pending', color: VERIFICATION_STATUS_META.pending.chipClass },
+      { value: 'rejected', label: 'Rejected', color: VERIFICATION_STATUS_META.rejected.chipClass },
+      { value: 'resubmitted', label: 'Resubmitted', color: VERIFICATION_STATUS_META.resubmitted.chipClass },
       { value: 'has_tenants', label: 'Has Tenants', color: 'bg-blue-100 text-blue-700' },
       { value: 'no_tenants', label: 'No Tenants', color: 'bg-orange-100 text-orange-700' },
     ];
@@ -2253,17 +2255,23 @@ export function LandlordOpsDashboard() {
 
     // Server-driven data: rows, total count, and category counts all come from
     // the `landlord-ops` edge function (RPC-backed). No full-table client fetch.
-    const paginated = (landlordOpsList?.rows ?? []).filter(l => !rejectedLandlordIds.has(l.id));
+    // No client-side post-filtering: the server list is the list.
+    const paginated = landlordOpsList?.rows ?? [];
     const totalMatched = landlordOpsList?.totalMatched ?? 0;
     const totalPages = Math.max(1, Math.ceil(totalMatched / perPage));
     const safePage = Math.min(landlordPage, totalPages);
 
-    const categoryCounts = {
-      all: landlordOpsTotals?.total ?? 0,
-      verified: landlordOpsTotals?.verified ?? 0,
-      pending: landlordOpsTotals?.pending ?? 0,
-      has_tenants: landlordOpsTotals?.has_tenants ?? 0,
-      no_tenants: landlordOpsTotals?.no_tenants ?? 0,
+    // Chip counts come from get_landlord_ops_totals(), which reads the same
+    // v_landlord_ops_status view the list RPC filters on — a chip and the list
+    // it opens can never disagree. `undefined` renders "…" while loading.
+    const categoryCounts: Record<LandlordCategory, number | undefined> = {
+      all: landlordOpsTotals?.total,
+      verified: landlordOpsTotals?.verified,
+      pending: landlordOpsTotals?.pending,
+      rejected: landlordOpsTotals?.rejected,
+      resubmitted: landlordOpsTotals?.resubmitted,
+      has_tenants: landlordOpsTotals?.has_tenants,
+      no_tenants: landlordOpsTotals?.no_tenants,
     };
 
     return (
@@ -2302,10 +2310,21 @@ export function LandlordOpsDashboard() {
               }`}
             >
               {cat.label}
-              <span className="ml-1 opacity-70">({categoryCounts[cat.value]})</span>
+              <span className="ml-1 opacity-70">
+                ({categoryCounts[cat.value] === undefined ? '…' : categoryCounts[cat.value]!.toLocaleString()})
+              </span>
             </button>
           ))}
         </div>
+
+        {/* Verified attribution: human decisions vs automatic pipeline flips */}
+        {categoryFilter === 'verified' && (
+          <p className="text-[11px] text-muted-foreground">
+            {verifiedHumanCount === undefined || verifiedAutoCount === undefined
+              ? 'Loading verification attribution…'
+              : `${verifiedHumanCount.toLocaleString()} verified by a reviewer · ${verifiedAutoCount.toLocaleString()} auto-verified by rent pipeline approval`}
+          </p>
+        )}
 
         {/* Pending landlord quick filters */}
         {categoryFilter === 'pending' && (
