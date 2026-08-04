@@ -15,7 +15,7 @@ import { KPICard } from './KPICard';
 import { DrilldownTable, type DrilldownColumn } from './DrilldownTable';
 import { EntityDetailSheet } from './EntityDetailSheet';
 import {
-  Home, Banknote, CheckCircle2, MapPin, AlertTriangle, ShieldCheck,
+  Home, Banknote, CheckCircle2, MapPin, AlertTriangle, ShieldCheck, ShieldQuestion,
   Phone, MessageCircle, Image, MapPinned, DoorOpen, TrendingDown, Users,
   Building2, UserCheck, Smartphone, Handshake, GitBranch, Link2,
   ArrowLeft, ChevronRight, Search, X, Globe, UserX, UserPlus,
@@ -64,6 +64,7 @@ import { toast as sonnerToast } from 'sonner';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
 import { generateLandlordOpsReportPdf } from '@/lib/generateLandlordOpsReportPdf';
 import { generateHouseVerificationReportPdf, type HouseReportRow } from '@/lib/generateHouseVerificationReportPdf';
+import { generateLc1VerificationReportPdf, lc1ReportFileName, type Lc1ReportRow } from '@/lib/generateLc1VerificationReportPdf';
 import { FileDown } from 'lucide-react';
 import { RentAdjustmentDialog } from './RentAdjustmentDialog';
 import { VacancyAnalytics } from './VacancyAnalytics';
@@ -81,13 +82,13 @@ import { BulkImportLandlordsDialog } from './landlord-ops/BulkImportLandlordsDia
 import { AssignPersonDialog } from './landlord-ops/AssignPersonDialog';
 import { StorageImage } from '@/components/ui/StorageImage';
 import { ChevronLeft } from 'lucide-react';
-import { VerifyLc1Button } from '@/components/verification/VerifyLc1Button';
+
 import { VerifyLandlordButton } from '@/components/verification/VerifyLandlordButton';
 import { LandlordsPaidView } from './landlord-ops/LandlordsPaidView';
 import { LandlordsWithTenantsView } from './landlord-ops/LandlordsWithTenantsView';
 import { LandlordHousesPanel } from './landlord-ops/LandlordHousesPanel';
 import { AgentVerificationRequestsPanel } from './landlord-ops/AgentVerificationRequestsPanel';
-import { Lc1VerificationRequestsPanel } from './landlord-ops/Lc1VerificationRequestsPanel';
+import { Lc1VerificationInboxPanel } from './landlord-ops/Lc1VerificationInboxPanel';
 import { Lc1DuplicatesPanel } from './landlord-ops/Lc1DuplicatesPanel';
 import { ResidenceVerificationPanel } from './landlord-ops/ResidenceVerificationPanel';
 
@@ -326,7 +327,7 @@ function ImagePreviewDialog({ images, open, onClose, title, startIndex = 0 }: { 
   );
 }
 
-type View = 'home' | 'landlords' | 'locations' | 'lc1' | 'residence-verify' | 'lc1-duplicates' | 'empty' | 'occupied' | 'verify' | 'pipeline' | 'chain' | 'matching' | 'agents' | 'analytics' | 'cities' | 'no-landlord' | 'advance-requests' | 'landlords-paid' | 'landlords-tenants' | 'all-requests' | 'houses-by-landlord';
+type View = 'home' | 'landlords' | 'locations' | 'lc1' | 'lc1-requests' | 'residence-verify' | 'lc1-duplicates' | 'empty' | 'occupied' | 'verify' | 'pipeline' | 'chain' | 'matching' | 'agents' | 'analytics' | 'cities' | 'no-landlord' | 'advance-requests' | 'landlords-paid' | 'landlords-tenants' | 'all-requests' | 'houses-by-landlord';
 
 // ─── Navigation Items ───
 const navItems: { id: View; label: string; icon: typeof Building2; color: string; description: string; priority?: boolean }[] = [
@@ -336,8 +337,9 @@ const navItems: { id: View; label: string; icon: typeof Building2; color: string
   { id: 'landlords-paid', label: 'Landlords Paid', icon: Banknote, color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30', description: 'Disbursements from tenant rent', priority: true },
   { id: 'all-requests', label: 'All Requests', icon: Table2, color: 'bg-slate-500/10 text-slate-600 border-slate-500/30', description: 'Full table of every rent request (landlord lens)', priority: true },
   { id: 'locations', label: 'Locations', icon: MapPin, color: 'bg-purple-500/10 text-purple-600 border-purple-500/30', description: 'Regions, districts & house counts', priority: true },
-  { id: 'lc1', label: 'LC1 Chairpersons', icon: ShieldCheck, color: 'bg-amber-500/10 text-amber-600 border-amber-500/30', description: 'LC1 contacts per village', priority: true },
-  { id: 'residence-verify', label: 'GPS & LC1 Verification', icon: ShieldCheck, color: 'bg-amber-500/10 text-amber-600 border-amber-500/30', description: 'Set landlord GPS & LC1 status (pending/verified/rejected)', priority: true },
+  { id: 'lc1-requests', label: 'Agents requesting LC1 verification', icon: ShieldQuestion, color: 'bg-amber-500/10 text-amber-600 border-amber-500/30', description: 'Single inbox — approve or reject every LC1 chairperson', priority: true },
+  { id: 'lc1', label: 'LC1 Chairpersons', icon: ShieldCheck, color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30', description: 'Approved & rejected LC1 chairpersons · reports', priority: true },
+  { id: 'residence-verify', label: 'Landlord GPS Verification', icon: MapPin, color: 'bg-sky-500/10 text-sky-600 border-sky-500/30', description: 'Set landlord GPS verification status (pending/verified/rejected)', priority: true },
   { id: 'lc1-duplicates', label: 'LC1 Duplicates', icon: Layers, color: 'bg-rose-500/10 text-rose-600 border-rose-500/30', description: 'Review & merge duplicate LC1 phone rows' },
   { id: 'cities', label: 'Cities We Operate In', icon: Globe, color: 'bg-teal-500/10 text-teal-600 border-teal-500/30', description: 'All cities with tenants & properties', priority: true },
   { id: 'no-landlord', label: 'No Landlord Listed', icon: UserX, color: 'bg-orange-500/10 text-orange-600 border-orange-500/30', description: 'Tenants without landlord — contact to list & earn 5K', priority: true },
@@ -560,8 +562,11 @@ export function LandlordOpsDashboard() {
   const [pendingFilter, setPendingFilter] = useState<PendingFilter>('all');
 
   // ─── LC1 Verification Filter ───
-  type LC1VerifyFilter = 'all' | 'verified' | 'unverified';
-  const [lc1VerifyFilter, setLc1VerifyFilter] = useState<LC1VerifyFilter>('all');
+  // Keys on the canonical `verification_status` (verified / rejected / pending)
+  // so approved chairpersons live here and rejected ones are never lost.
+  type LC1VerifyFilter = 'all' | 'verified' | 'rejected' | 'pending';
+  const [lc1VerifyFilter, setLc1VerifyFilter] = useState<LC1VerifyFilter>('verified');
+  const [lc1Exporting, setLc1Exporting] = useState(false);
 
   // ─── Sorting ───
   type SortOption = 'newest' | 'oldest' | 'highest_rent' | 'recently_updated';
@@ -1471,12 +1476,12 @@ export function LandlordOpsDashboard() {
     queryKey: ['landlord-ops-full-lc1'],
     queryFn: async () => {
       // 1. Fetch all LC1 chairpersons
-      const allLC1: { id: string; name: string; phone: string; village: string; created_at: string; verified: boolean | null; registered_by: string | null }[] = [];
+      const allLC1: { id: string; name: string; phone: string; village: string; created_at: string; verified: boolean | null; registered_by: string | null; verification_status: string | null; verification_reason: string | null }[] = [];
       let offset = 0;
       let hasMore = true;
       while (hasMore) {
         const { data, error } = await supabase.from('lc1_chairpersons')
-          .select('id, name, phone, village, created_at, verified, registered_by')
+          .select('id, name, phone, village, created_at, verified, registered_by, verification_status, verification_reason')
           .order('name').range(offset, offset + 999);
         if (error) { console.error('[LC1] fetch error', error); break; }
         if (data && data.length > 0) { allLC1.push(...data as any); offset += 1000; hasMore = data.length === 1000; }
@@ -2684,28 +2689,73 @@ export function LandlordOpsDashboard() {
     );
   }
 
-  // ─── LC1 VIEW ───
+  // ─── LC1 VIEW (approved / rejected register) ───
   if (view === 'lc1') {
+    // Canonical state: `verification_status`. The legacy `verified` boolean is
+    // only a fallback for rows written before the status column existed.
+    const lc1State = (g: { verified: boolean | null; verification_status?: string | null }) =>
+      (g.verification_status as string | null) || (g.verified ? 'verified' : 'pending');
+
     let filtered = search
       ? lc1Groups.filter(g => g.name.toLowerCase().includes(search.toLowerCase()) || g.village?.toLowerCase().includes(search.toLowerCase()) || g.phone?.includes(search))
       : [...lc1Groups];
-    // "Needs Verification" keys ONLY on the LC1 chairperson's own verified flag,
-    // NOT on the landlords linked under them.
-    if (lc1VerifyFilter === 'verified') filtered = filtered.filter(g => g.verified);
-    else if (lc1VerifyFilter === 'unverified') filtered = filtered.filter(g => !g.verified);
+    if (lc1VerifyFilter !== 'all') filtered = filtered.filter(g => lc1State(g) === lc1VerifyFilter);
 
-    const unverifiedCount = lc1Groups.filter(g => !g.verified).length;
-    const verifiedCount = lc1Groups.filter(g => g.verified).length;
+    const verifiedCount = lc1Groups.filter(g => lc1State(g) === 'verified').length;
+    const rejectedCount = lc1Groups.filter(g => lc1State(g) === 'rejected').length;
+    const pendingCount = lc1Groups.filter(g => lc1State(g) === 'pending').length;
+
+    const exportLc1Report = async (scope: 'verified' | 'rejected' | 'pending' | 'all') => {
+      setLc1Exporting(true);
+      try {
+        const { data, error } = await supabase.rpc('ops_lc1_verification_report' as any, {
+          p_status: scope,
+          p_search: search.trim().length >= 2 ? search.trim() : null,
+          p_limit: 3000,
+        } as any);
+        if (error) throw error;
+        const reportRows = (data ?? []) as Lc1ReportRow[];
+        const blob = generateLc1VerificationReportPdf(reportRows, {
+          scope,
+          search: search.trim().length >= 2 ? search.trim() : null,
+          totalMatches: scope === 'verified' ? verifiedCount : scope === 'rejected' ? rejectedCount : scope === 'pending' ? pendingCount : lc1Groups.length,
+          generatedBy: (user as any)?.email ?? null,
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = lc1ReportFileName(scope);
+        a.click();
+        URL.revokeObjectURL(url);
+        sonnerToast.success(`${reportRows.length.toLocaleString()} LC1 chairpersons exported`);
+      } catch (e: any) {
+        sonnerToast.error(e?.message || 'Could not build the LC1 report');
+      } finally {
+        setLc1Exporting(false);
+      }
+    };
+
     return (
       <>
       <div className="space-y-3">
         <BackButton />
         <div className="flex items-center justify-between gap-2 flex-wrap">
-          <h2 className="text-lg font-bold flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-amber-600" /> LC1 Chairpersons ({filtered.length}{filtered.length !== lc1Groups.length ? ` / ${lc1Groups.length}` : ''})</h2>
-          <Button size="sm" onClick={() => setBulkImportOpen(true)} className="h-9">
-            <Upload className="h-4 w-4 mr-1.5" /> Bulk Import
-          </Button>
+          <h2 className="text-lg font-bold flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-emerald-600" /> LC1 Chairpersons ({filtered.length}{filtered.length !== lc1Groups.length ? ` / ${lc1Groups.length}` : ''})</h2>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button size="sm" variant="outline" className="h-9 text-[11px] font-bold" disabled={lc1Exporting} onClick={() => exportLc1Report(lc1VerifyFilter === 'all' ? 'all' : lc1VerifyFilter)}>
+              {lc1Exporting ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <FileDown className="h-3.5 w-3.5 mr-1.5" />}
+              Export report
+            </Button>
+            <Button size="sm" onClick={() => setBulkImportOpen(true)} className="h-9">
+              <Upload className="h-4 w-4 mr-1.5" /> Bulk Import
+            </Button>
+          </div>
         </div>
+        <p className="text-[11px] text-muted-foreground">
+          Approved and rejected chairpersons live here. New requests are reviewed in
+          {' '}
+          <button className="font-semibold text-amber-700 underline" onClick={() => setView('lc1-requests')}>Agents requesting LC1 verification</button>.
+        </p>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Search by name, village, or phone…" value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-11" />
@@ -2714,9 +2764,10 @@ export function LandlordOpsDashboard() {
         {/* LC1 Verification quick filter chips */}
         <div className="flex flex-wrap gap-1.5">
           {([
+            { value: 'verified' as LC1VerifyFilter, label: 'Approved', count: verifiedCount },
+            { value: 'rejected' as LC1VerifyFilter, label: 'Rejected', count: rejectedCount },
+            { value: 'pending' as LC1VerifyFilter, label: 'Awaiting review', count: pendingCount },
             { value: 'all' as LC1VerifyFilter, label: 'All', count: lc1Groups.length },
-            { value: 'verified' as LC1VerifyFilter, label: 'Verified', count: verifiedCount },
-            { value: 'unverified' as LC1VerifyFilter, label: 'Needs Verification', count: unverifiedCount },
           ]).map(f => {
             const active = lc1VerifyFilter === f.value;
             return (
@@ -2725,7 +2776,7 @@ export function LandlordOpsDashboard() {
                 onClick={() => setLc1VerifyFilter(f.value)}
                 className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all border ${
                   active
-                    ? f.value === 'unverified'
+                    ? f.value === 'rejected'
                       ? 'bg-rose-100 text-rose-700 border-rose-300 shadow-sm'
                       : f.value === 'verified'
                         ? 'bg-emerald-100 text-emerald-700 border-emerald-300 shadow-sm'
@@ -2772,16 +2823,29 @@ export function LandlordOpsDashboard() {
                   {lc1.agentPhone && <PhoneLinks phone={lc1.agentPhone} name={lc1.agentName || 'Agent'} />}
                 </div>
               )}
-              {/* LC1 chairperson verification — required before agents can post rent requests */}
+              {/* LC1 chairperson verification state — decisions are taken in the
+                  single inbox so status, request trail, audit log, notification
+                  and the agent penalty always move together. */}
               <div className="flex items-center justify-between gap-2 rounded-lg bg-muted/40 px-2.5 py-1.5">
                 <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">LC1 verification</span>
-                <VerifyLc1Button
-                  lc1Id={lc1.id}
-                  lc1Name={lc1.name}
-                  verified={lc1.verified}
-                  onVerified={() => { refetchLC1(); refetchAll(); }}
-                />
+                <div className="flex items-center gap-1.5">
+                  {lc1State(lc1) === 'verified' ? (
+                    <Badge className="bg-emerald-500/15 text-emerald-700 border-0 text-[10px] font-bold">Approved</Badge>
+                  ) : lc1State(lc1) === 'rejected' ? (
+                    <Badge className="bg-destructive/15 text-destructive border-0 text-[10px] font-bold">Rejected</Badge>
+                  ) : (
+                    <Badge className="bg-amber-500/15 text-amber-700 border-0 text-[10px] font-bold">Pending</Badge>
+                  )}
+                  <Button size="sm" variant="outline" className="h-7 text-[10px] font-bold" onClick={() => { setSearch(lc1.phone || lc1.name); setView('lc1-requests'); }}>
+                    Review
+                  </Button>
+                </div>
               </div>
+              {lc1.verification_reason && (
+                <p className="text-[11px] text-muted-foreground rounded-lg bg-muted px-2 py-1.5 break-words">
+                  <span className="font-semibold">Decision reason:</span> {lc1.verification_reason}
+                </p>
+              )}
               {/* Landlords under this LC1 */}
               {lc1.landlords.length > 0 && (
                 <div className="mt-2 pl-3 border-l-2 border-primary/20 space-y-1.5">
@@ -2846,13 +2910,34 @@ export function LandlordOpsDashboard() {
     );
   }
 
-  // ─── GPS & LC1 VERIFICATION VIEW (set pending/verified/rejected with reason) ───
+  // ─── LC1 VERIFICATION INBOX VIEW (single queue for every incoming request) ───
+  if (view === 'lc1-requests') {
+    return (
+      <div className="space-y-3">
+        <BackButton />
+        <h2 className="text-lg font-bold flex items-center gap-2"><ShieldQuestion className="h-5 w-5 text-amber-600" /> Agents requesting LC1 verification</h2>
+        <p className="text-sm text-muted-foreground">
+          Every LC1 chairperson awaiting review lands here — whether an agent raised it while posting a rent request or
+          it came in through registration. Approved chairpersons move to <span className="font-semibold">LC1 Chairpersons</span>;
+          rejected ones stay in the Rejected tab with the reason and the agent penalty on record.
+        </p>
+        <Lc1VerificationInboxPanel standalone onResolved={() => { refetchLC1(); refetchAll(); }} />
+      </div>
+    );
+  }
+
+  // ─── LANDLORD GPS VERIFICATION VIEW (set pending/verified/rejected with reason) ───
   if (view === 'residence-verify') {
     return (
       <>
       <div className="space-y-4">
         <BackButton />
-        <h2 className="text-lg font-bold flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-amber-600" /> GPS & LC1 Verification</h2>
+        <h2 className="text-lg font-bold flex items-center gap-2"><MapPin className="h-5 w-5 text-sky-600" /> Landlord GPS Verification</h2>
+        <p className="text-sm text-muted-foreground">
+          Landlord residence &amp; GPS moderation only. LC1 chairperson decisions moved to
+          {' '}
+          <button className="font-semibold text-amber-700 underline" onClick={() => setView('lc1-requests')}>Agents requesting LC1 verification</button>.
+        </p>
         <ResidenceVerificationPanel />
       </div>
       {renderDialogs()}
@@ -4039,8 +4124,8 @@ export function LandlordOpsDashboard() {
       </div>
       {/* PROMINENT: Agent-initiated landlord verification requests — top priority */}
       <AgentVerificationRequestsPanel onResolved={refetchAll} />
-      {/* PROMINENT: Agent-initiated LC1 chairperson verification requests */}
-      <Lc1VerificationRequestsPanel onResolved={refetchAll} />
+      {/* PROMINENT: the single LC1 chairperson verification inbox */}
+      <Lc1VerificationInboxPanel onResolved={() => { refetchLC1(); refetchAll(); }} />
       {/* PROMINENT: Awaiting verification (houses + landlords) — always first */}
       {(pendingHousesCount > 0 || pendingVerificationCount > 0) && (
         <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
