@@ -455,16 +455,20 @@ Deno.serve(async (req) => {
         (profiles?.find((x) => x.id === id)?.phone || "").trim();
       const firstNameOf = (id: string) =>
         (profiles?.find((x) => x.id === id)?.full_name || "").trim().split(" ")[0] || "there";
-      const support = "For assistance, contact Welile Support on 0748747134.";
-
       const srcPhone = phoneOf(sourceUserId);
       if (srcPhone) {
         const srcNewBucket = `New ${srcBucketLabel} balance: UGX ${Math.max(0, srcBucketAfter).toLocaleString()}.`;
         const msg =
           mode === "user_to_user"
-            ? `Welile: Hi ${firstNameOf(sourceUserId)}, ${fmt} was moved out of your ${srcBucketLabel} wallet by Welile Financial Operations (ref ${refId}). ${srcNewBucket} Reason: ${REASON_CODES[reasonCode]}. ${support}`
-            : `Welile: Hi ${firstNameOf(sourceUserId)}, ${fmt} was reversed from your ${srcBucketLabel} wallet by Welile Financial Operations (ref ${refId}). ${srcNewBucket} Reason: ${REASON_CODES[reasonCode]}. ${support}`;
-        sendSMS(srcPhone, msg, { source: "finops-wallet-move" }).catch(() => {});
+            ? `Welile: Hi ${firstNameOf(sourceUserId)}, ${fmt} was moved out of your ${srcBucketLabel} wallet by Welile Financial Operations (ref ${refId}). ${srcNewBucket} Reason: ${REASON_CODES[reasonCode]}.`
+            : `Welile: Hi ${firstNameOf(sourceUserId)}, ${fmt} was reversed from your ${srcBucketLabel} wallet by Welile Financial Operations (ref ${refId}). ${srcNewBucket} Reason: ${REASON_CODES[reasonCode]}.`;
+        sendSMS(srcPhone, msg, {
+          admin: adminClient,
+          source: "finops-wallet-move",
+          reference_id: refId,
+          recipient_user_id: sourceUserId,
+          recipient_name: sourceName,
+        }).catch(() => {});
       }
 
       if (mode === "user_to_user" && destUserId) {
@@ -477,8 +481,14 @@ Deno.serve(async (req) => {
               : Number(destAfter?.float_balance ?? 0);
           sendSMS(
             dstPhone,
-            `Welile: Hi ${firstNameOf(destUserId)}, ${fmt} was credited to your ${dstBucketLabel2} wallet by Welile Financial Operations (ref ${refId}). New ${dstBucketLabel2} balance: UGX ${Math.max(0, dstAfter).toLocaleString()}. ${support}`,
-            { source: "finops-wallet-move" },
+            `Welile: Hi ${firstNameOf(destUserId)}, ${fmt} was credited to your ${dstBucketLabel2} wallet by Welile Financial Operations (ref ${refId}). New ${dstBucketLabel2} balance: UGX ${Math.max(0, dstAfter).toLocaleString()}.`,
+            {
+              admin: adminClient,
+              source: "finops-wallet-move",
+              reference_id: refId,
+              recipient_user_id: destUserId,
+              recipient_name: destName,
+            },
           ).catch(() => {});
         }
       }
