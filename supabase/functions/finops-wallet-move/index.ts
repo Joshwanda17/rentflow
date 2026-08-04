@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { checkTreasuryGuard } from "../_shared/treasuryGuard.ts";
+import { sendSMS } from "../_shared/sendSmsMultiProvider.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,6 +18,20 @@ const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 type Bucket = "withdrawable" | "float";
+
+/**
+ * Structured reason codes. Free-text reasons produced unusable audit trails
+ * ("not suposed h", "notb va;igbf"), so every move now carries a code plus a
+ * human note.
+ */
+const REASON_CODES: Record<string, string> = {
+  duplicate_credit: "Duplicate credit reversed",
+  wrong_bucket: "Credited to the wrong wallet bucket",
+  wrong_user: "Credited to the wrong user",
+  fraud_hold: "Funds held pending fraud review",
+  reconciliation: "Reconciliation adjustment",
+  other: "Other",
+};
 
 /**
  * finops-wallet-move
@@ -83,7 +98,9 @@ Deno.serve(async (req) => {
     const sourceBucket = String(body?.source_bucket ?? "").trim() as Bucket;
     const destUserId: string = String(body?.dest_user_id ?? "").trim();
     const destBucket = String(body?.dest_bucket ?? "withdrawable").trim() as Bucket;
-    const reason: string = String(body?.reason ?? "").trim();
+    const reasonCode: string = String(body?.reason_code ?? "").trim();
+    const reasonNote: string = String(body?.reason ?? "").trim();
+    const confirmFullHistory = body?.confirm_full_history === true;
     const amount =
       typeof body?.amount === "number"
         ? body.amount
@@ -111,9 +128,18 @@ Deno.serve(async (req) => {
     if (!Number.isInteger(amount)) {
       return json({ error: "Amount must be a whole number of UGX." }, 400);
     }
-    if (reason.length < 10) {
-      return json({ error: "A reason of at least 10 characters is required." }, 400);
+    if (!REASON_CODES[reasonCode]) {
+      return json(
+        {
+          error: `A reason code is required. Allowed: ${Object.keys(REASON_CODES).join(", ")}.`,
+        },
+        400,
+      );
     }
+    if (reasonNote.length < 10) {
+      return json({ error: "A reason note of at least 10 characters is required." }, 400);
+    }
+    const reason = `[${REASON_CODES[reasonCode]}] ${reasonNote}`;
 
     // ── Confirm the source has enough in the chosen bucket (NO overdraw) ───
     const { data: srcWallet, error: srcErr } = await adminClient
@@ -133,6 +159,41 @@ Deno.serve(async (req) => {
           error: `Insufficient ${label} balance. Available: UGX ${srcAvailable.toLocaleString()}, requested: UGX ${amount.toLocaleString()}.`,
         },
         422,
+      );
+    }
+
+    // ── Full-history sweep guard ──────────────────────────────────────────
+    // 15 of 42 historical float error corrections removed exactly the user's
+    // entire lifetime deposits. When the requested amount wipes out everything
+    // the user ever deposited, demand a second, explicit confirmation.
+    let lifetimeDeposits = 0;
+    {
+      const { data: deposits } = await adminClient
+        .from("deposit_requests")
+        .select("amount")
+        .eq("user_id", sourceUserId)
+        .eq("status", "approved");
+      lifetimeDeposits = (deposits || []).reduce(
+        (s: number, d: { amount: number | null }) => s + Number(d.amount ?? 0),
+        0,
+      );
+    }
+    if (
+      mode === "error_correction" &&
+      lifetimeDeposits > 0 &&
+      amount >= lifetimeDeposits &&
+      !confirmFullHistory
+    ) {
+      return json(
+        {
+          error:
+            `FULL_HISTORY_SWEEP: UGX ${amount.toLocaleString()} equals or exceeds every deposit ` +
+            `this user has ever made (UGX ${lifetimeDeposits.toLocaleString()}). ` +
+            `Re-submit with confirm_full_history=true if this is genuinely correct.`,
+          lifetime_deposits: lifetimeDeposits,
+          requires_confirmation: "confirm_full_history",
+        },
+        409,
       );
     }
 
@@ -275,6 +336,11 @@ Deno.serve(async (req) => {
         dest_bucket: mode === "user_to_user" ? destBucket : "platform",
         amount,
         reason,
+        reason_code: reasonCode,
+        reason_note: reasonNote,
+        lifetime_deposits: lifetimeDeposits,
+        full_history_sweep_confirmed:
+          mode === "error_correction" && lifetimeDeposits > 0 && amount >= lifetimeDeposits,
         reference_id: refId,
         source_withdrawable_before: srcWithdrawable,
         source_float_before: srcFloat,
@@ -379,6 +445,55 @@ Deno.serve(async (req) => {
           },
         }),
       }).catch(() => {});
+    }
+
+    // ── Customer SMS on EVERY move (fire-and-forget) ─────────────────────
+    // Historically an error correction silently emptied a user's wallet with no
+    // notification at all, so the money looked stolen. Always tell them.
+    try {
+      const phoneOf = (id: string) =>
+        (profiles?.find((x) => x.id === id)?.phone || "").trim();
+      const firstNameOf = (id: string) =>
+        (profiles?.find((x) => x.id === id)?.full_name || "").trim().split(" ")[0] || "there";
+      const srcPhone = phoneOf(sourceUserId);
+      if (srcPhone) {
+        const srcNewBucket = `New ${srcBucketLabel} balance: UGX ${Math.max(0, srcBucketAfter).toLocaleString()}.`;
+        const msg =
+          mode === "user_to_user"
+            ? `Welile: Hi ${firstNameOf(sourceUserId)}, ${fmt} was moved out of your ${srcBucketLabel} wallet by Welile Financial Operations (ref ${refId}). ${srcNewBucket} Reason: ${REASON_CODES[reasonCode]}.`
+            : `Welile: Hi ${firstNameOf(sourceUserId)}, ${fmt} was reversed from your ${srcBucketLabel} wallet by Welile Financial Operations (ref ${refId}). ${srcNewBucket} Reason: ${REASON_CODES[reasonCode]}.`;
+        sendSMS(srcPhone, msg, {
+          admin: adminClient,
+          source: "finops-wallet-move",
+          reference_id: refId,
+          recipient_user_id: sourceUserId,
+          recipient_name: sourceName,
+        }).catch(() => {});
+      }
+
+      if (mode === "user_to_user" && destUserId) {
+        const dstPhone = phoneOf(destUserId);
+        if (dstPhone) {
+          const dstBucketLabel2 = destBucket === "withdrawable" ? "Withdrawable" : "Float";
+          const dstAfter =
+            destBucket === "withdrawable"
+              ? Number(destAfter?.withdrawable_balance ?? 0)
+              : Number(destAfter?.float_balance ?? 0);
+          sendSMS(
+            dstPhone,
+            `Welile: Hi ${firstNameOf(destUserId)}, ${fmt} was credited to your ${dstBucketLabel2} wallet by Welile Financial Operations (ref ${refId}). New ${dstBucketLabel2} balance: UGX ${Math.max(0, dstAfter).toLocaleString()}.`,
+            {
+              admin: adminClient,
+              source: "finops-wallet-move",
+              reference_id: refId,
+              recipient_user_id: destUserId,
+              recipient_name: destName,
+            },
+          ).catch(() => {});
+        }
+      }
+    } catch (_) {
+      // Never let a notification failure affect money that already moved.
     }
 
     return json({

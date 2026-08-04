@@ -1855,6 +1855,30 @@ async function _tryAutoCreditOperationalFloat(
       return;
     } else {
       console.log(`[gmail-poll] auto-credited float for user=${profile.id} dep=${newDep.id} amt=${parsed.amount}`);
+      // ── Float-routing review flag ──────────────────────────────────────
+      // Deposits auto-credit to Operational Float for everyone (FLOAT-ALWAYS).
+      // When the recipient holds the `agent` role but has never acted as a
+      // collecting agent, that routing is very likely wrong — this is what led
+      // to funds being swept back out of a funder's Float days later with no
+      // notice. Flag it for operator reclassification instead of leaving it
+      // silent. Money routing itself is unchanged.
+      let floatRoutingReview = false;
+      try {
+        const [{ data: agentRole }, { count: collections }, { count: rentReqs }] = await Promise.all([
+          supabase.from('user_roles').select('role').eq('user_id', profile.id).eq('role', 'agent').maybeSingle(),
+          supabase.from('agent_collections').select('id', { count: 'exact', head: true }).eq('agent_id', profile.id),
+          supabase.from('rent_requests').select('id', { count: 'exact', head: true }).eq('agent_id', profile.id),
+        ]);
+        floatRoutingReview = !!agentRole && (collections ?? 0) === 0 && (rentReqs ?? 0) === 0;
+        if (floatRoutingReview) {
+          console.warn(
+            `[gmail-poll] float-routing review: user=${profile.id} holds agent role with no ` +
+            `collections or rent requests; dep=${newDep.id} may belong in Withdrawable.`,
+          );
+        }
+      } catch (_) {
+        // Best-effort classification only.
+      }
       await logDepositDecision(supabase, {
         source: 'matcher',
         decision: 'auto_credited',
@@ -1862,7 +1886,15 @@ async function _tryAutoCreditOperationalFloat(
         deposit_request_id: newDep.id,
         amount: parsed.amount ?? null,
         actor_id: profile.id,
-        metadata: { gmail_message_id: gmailMessageId, match_method: matchMethod, provider },
+        metadata: {
+          gmail_message_id: gmailMessageId,
+          match_method: matchMethod,
+          provider,
+          float_routing_review: floatRoutingReview,
+          float_routing_reason: floatRoutingReview
+            ? 'agent_role_without_agent_activity'
+            : 'float_always',
+        },
       });
     }
   } catch (e) {

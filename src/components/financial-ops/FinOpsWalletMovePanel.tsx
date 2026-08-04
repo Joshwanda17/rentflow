@@ -23,6 +23,16 @@ type Mode = 'user_to_user' | 'error_correction' | 'same_user';
 type MoveStep = 'idle' | 'posting' | 'refreshing' | 'done';
 type SameUserDir = 'float_to_withdrawable' | 'withdrawable_to_float';
 
+/** Structured reason codes — free text alone produced unusable audit trails. */
+const REASON_CODES: { value: string; label: string }[] = [
+  { value: 'duplicate_credit', label: 'Duplicate credit reversed' },
+  { value: 'wrong_bucket', label: 'Credited to the wrong wallet bucket' },
+  { value: 'wrong_user', label: 'Credited to the wrong user' },
+  { value: 'fraud_hold', label: 'Funds held pending fraud review' },
+  { value: 'reconciliation', label: 'Reconciliation adjustment' },
+  { value: 'other', label: 'Other' },
+];
+
 /** Matches every wallet/balance/ledger-backed panel query. */
 const isWalletQuery = (key: readonly unknown[]) =>
   /wallet|balance|ledger|finops|withdraw|float|recon|drift|overview/.test(
@@ -73,6 +83,11 @@ export function FinOpsWalletMovePanel() {
 
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
+  const [reasonCode, setReasonCode] = useState('');
+  // Full-history sweep: the operator must confirm twice when the amount wipes
+  // out everything the user has ever deposited.
+  const [confirmFullHistory, setConfirmFullHistory] = useState(false);
+  const [lifetimeDeposits, setLifetimeDeposits] = useState<number | null>(null);
   // Same-user Withdrawable → Float only: operator opt-in to fill an existing
   // Float overdraft. Without this, the edge function refuses moves where the
   // amount only fills (or partly fills) a negative Float shortfall.
@@ -95,6 +110,30 @@ export function FinOpsWalletMovePanel() {
   // Live count of in-flight wallet/balance refetches kicked off by the move.
   const refetching = useIsFetching({ predicate: (q) => isWalletQuery(q.queryKey) });
   const refreshStartedRef = useRef(false);
+
+  // Lifetime approved deposits for the selected source user — drives the
+  // full-history sweep guard and gives the operator context before recovering.
+  useEffect(() => {
+    if (!source) {
+      setLifetimeDeposits(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('deposit_requests')
+        .select('amount')
+        .eq('user_id', source.id)
+        .eq('status', 'approved');
+      if (cancelled) return;
+      setLifetimeDeposits(
+        (data ?? []).reduce((s, d) => s + Number((d as { amount: number | null }).amount ?? 0), 0),
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [source]);
 
   // Once the refetch wave drains, mark the refresh complete. A fallback timer
   // guarantees completion even if no wallet panels are currently mounted
@@ -235,6 +274,13 @@ export function FinOpsWalletMovePanel() {
     mode === 'same_user' && sameUserDir === 'withdrawable_to_float' &&
     floatNet !== null && floatNet < 0;
   const floatShortfall = floatOverdrawn ? Math.abs(floatNet as number) : 0;
+  // Amount wipes out (or exceeds) every deposit this user has ever made.
+  const fullHistorySweep =
+    mode === 'error_correction' &&
+    lifetimeDeposits !== null &&
+    lifetimeDeposits > 0 &&
+    amountNum > 0 &&
+    amountNum >= lifetimeDeposits;
   // Visible float after the move: without acknowledgement the incoming amount is
   // swallowed by the hidden hole, so visible float stays floored at 0.
   const predictedVisibleFloat = floatOverdrawn
@@ -244,7 +290,8 @@ export function FinOpsWalletMovePanel() {
     : (source?.float_balance ?? 0) + (amountNum || 0);
   const canSubmit =
     !!source && destOk && validAmount && !exceedsBalance && reason.trim().length >= 10 &&
-    !submitting && (!floatOverdrawn || acknowledgeOverdraft);
+    !!reasonCode && !submitting && (!floatOverdrawn || acknowledgeOverdraft) &&
+    (!fullHistorySweep || confirmFullHistory);
   // Never let the operator submit a Withdrawable → Float move while the real
   // float position is still being read.
   const submitBlockedByFloatCheck =
@@ -255,6 +302,9 @@ export function FinOpsWalletMovePanel() {
     setDest(null);
     setAmount('');
     setReason('');
+    setReasonCode('');
+    setConfirmFullHistory(false);
+    setLifetimeDeposits(null);
     setHits([]);
     setTerm('');
     setPicking('source');
@@ -379,6 +429,8 @@ export function FinOpsWalletMovePanel() {
         dest_bucket: mode === 'user_to_user' ? destBucket : undefined,
         amount: amountNum,
         reason: reason.trim(),
+        reason_code: reasonCode,
+        confirm_full_history: fullHistorySweep ? true : undefined,
       },
       errorTitle: 'Move failed',
     });
@@ -738,7 +790,21 @@ export function FinOpsWalletMovePanel() {
               )}
             </div>
             <div>
-              <Label htmlFor="fwm-reason" className="text-xs">Reason (min 10 characters)</Label>
+              <Label htmlFor="fwm-reason-code" className="text-xs">Reason code (required)</Label>
+              <select
+                id="fwm-reason-code"
+                value={reasonCode}
+                onChange={(e) => setReasonCode(e.target.value)}
+                className="mt-1 w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="">Select a reason code…</option>
+                {REASON_CODES.map((r) => (
+                  <option key={r.value} value={r.value}>{r.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <Label htmlFor="fwm-reason" className="text-xs">Reason note (min 10 characters)</Label>
               <Textarea
                 id="fwm-reason"
                 value={reason}
@@ -748,6 +814,42 @@ export function FinOpsWalletMovePanel() {
                 className="mt-1"
               />
             </div>
+            {mode === 'error_correction' && lifetimeDeposits !== null && (
+              <p className="text-xs text-muted-foreground">
+                Lifetime approved deposits by this user:{' '}
+                <span className="font-semibold text-foreground">{fmt(lifetimeDeposits)}</span>
+              </p>
+            )}
+            {fullHistorySweep && (
+              <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 space-y-2">
+                <div className="flex items-start gap-2 text-xs">
+                  <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-foreground">
+                      This removes everything this user ever deposited
+                    </p>
+                    <p className="text-muted-foreground mt-0.5">
+                      {fmt(amountNum)} equals or exceeds their full lifetime approved deposits of{' '}
+                      {fmt(lifetimeDeposits ?? 0)}. They will be left with nothing in this bucket
+                      and will receive an SMS telling them the money was reversed. Confirm only if
+                      that is genuinely correct.
+                    </p>
+                  </div>
+                </div>
+                <label className="flex items-start gap-2 text-xs cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={confirmFullHistory}
+                    onChange={(e) => setConfirmFullHistory(e.target.checked)}
+                  />
+                  <span>
+                    I confirm this full-history recovery is correct and I have verified the
+                    underlying deposits.
+                  </span>
+                </label>
+              </div>
+            )}
             {floatOverdrawn && (
                 <div className="rounded-lg border border-warning/40 bg-warning/10 p-3 space-y-2">
                   <div className="flex items-start gap-2 text-xs text-warning-foreground">
