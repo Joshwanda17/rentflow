@@ -195,6 +195,7 @@ export default function AgentServiceCenter() {
 
       <SuspendSubAgentDialog
         subAgent={suspendTarget}
+*** placeholder
         open={!!suspendTarget}
         onOpenChange={(v) => !v && setSuspendTarget(null)}
       />
