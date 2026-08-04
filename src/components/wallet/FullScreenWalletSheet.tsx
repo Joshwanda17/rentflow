@@ -173,17 +173,13 @@ export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: Full
         >
           {/* Clean white top bar */}
           <div className="safe-area-top bg-background border-b border-border/40">
-            <div className="flex items-center justify-between px-4 py-3">
-              <div className="flex items-center gap-3">
-                <UserAvatar 
-                  avatarUrl={profile?.avatar_url} 
-                  fullName={profile?.full_name} 
-                  size="sm" 
-                />
-                <span className="text-lg font-bold text-foreground tracking-tight">Welile</span>
-              </div>
-              <div className="flex items-center gap-3" />
-
+            <div className="flex items-center gap-3 px-4 py-3">
+              <UserAvatar 
+                avatarUrl={profile?.avatar_url} 
+                fullName={profile?.full_name} 
+                size="sm" 
+              />
+              <span className="text-lg font-bold text-foreground tracking-tight">Welile</span>
             </div>
           </div>
 
