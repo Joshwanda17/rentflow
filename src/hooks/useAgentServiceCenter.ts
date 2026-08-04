@@ -11,6 +11,8 @@ export interface ServiceCenterTenant {
   tenant_name: string | null;
   status: string;
   monthly_rent: number | null;
+  /** True only for funded/repaying rent plans; transfers are limited to these. */
+  is_active?: boolean;
 }
 
 export interface ServiceCenterSubAgent {
