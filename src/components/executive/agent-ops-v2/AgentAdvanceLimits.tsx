@@ -37,7 +37,7 @@ interface LimitRow {
 }
 
 const num = (v: any) => Number(v ?? 0);
-const MAX_LIMIT = 30_000_000;
+const MAX_LIMIT = 9_000_000;
 
 function AgentAvatar({ src, name }: { src: string | null; name: string | null }) {
   const [failed, setFailed] = useState(false);
@@ -111,16 +111,16 @@ export function AgentAdvanceLimits() {
           <div className="min-w-0">
             <h3 className="text-sm font-bold">How the advance limit is calculated</h3>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-              Every agent starts at <strong>{formatUGX(30000)}</strong>. Each ingredient below adds to the
+              Every agent starts at <strong>{formatUGX(20000)}</strong>. Each ingredient below adds to the
               limit, and the total is capped at <strong>{formatUGX(MAX_LIMIT)}</strong>. Tap an agent to see
               the exact breakdown of how their number is reached.
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3">
               {[
-                { label: 'Active sub-agents', icon: Users, add: '+1,500,000 each', note: 'plus 50,000 flat · cap 21M' },
-                { label: 'Rent collected', icon: Wallet, add: '+50% collected', note: 'cap 6,000,000' },
-                { label: 'Houses listed', icon: Home, add: '+100,000 each', note: 'cap 2,250,000' },
-                { label: 'Tenants placed', icon: FileText, add: '+150,000 each', note: 'cap 2,250,000' },
+                { label: 'Active sub-agents', icon: Users, add: '+30,000 each', note: 'plus 9,000 registered · cap 3M' },
+                { label: 'Rent collected', icon: Wallet, add: '+6% collected', note: 'cap 2,400,000' },
+                { label: 'Rent requests', icon: FileText, add: '+9,000 each', note: 'cap 1,500,000' },
+                { label: 'Promissory notes', icon: Home, add: '+9,000 each', note: 'cap 600,000' },
               ].map((c) => (
                 <div key={c.label} className="rounded-xl border border-border bg-card p-2.5">
                   <div className="flex items-center gap-1.5">
@@ -134,7 +134,7 @@ export function AgentAdvanceLimits() {
             </div>
             <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 mt-3 flex items-start gap-1.5">
               <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-              Sub-agents are by far the biggest driver — roughly 13 active sub-agents alone reach the full {formatUGX(MAX_LIMIT)} cap.
+              Sub-agents are by far the biggest driver, then rent collected, then rent requests, then promissory notes.
             </p>
           </div>
         </div>
