@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { 
   Send, Plus, HandCoins, 
-  Bell, TrendingUp,
+  TrendingUp,
   X, Calendar, ChevronRight,
   ChevronDown, FileDown, CreditCard,
   SlidersHorizontal
