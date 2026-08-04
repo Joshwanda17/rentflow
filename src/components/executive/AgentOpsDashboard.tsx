@@ -28,6 +28,7 @@ import { ServiceCentreDirectory } from './service-centres/ServiceCentreDirectory
 import { ServiceCentrePayouts } from './service-centres/ServiceCentrePayouts';
 import { ServiceCentreOperatingModel } from './service-centres/ServiceCentreOperatingModel';
 import { SubAgentVerificationQueue } from './SubAgentVerificationQueue';
+import SubAgentTenantTransfersQueue from './agent-ops/SubAgentTenantTransfersQueue';
 import { TenantToSubAgentPanel } from './TenantToSubAgentPanel';
 import { AgentOpsFloatPayoutReview } from '@/components/agent/AgentOpsFloatPayoutReview';
 import { AgentBalancesPanel } from './AgentBalancesPanel';
@@ -241,6 +242,7 @@ export function AgentOpsDashboard() {
       case 'sc-requests': return <ServiceCenterRequestsQueue />;
       case 'sc-operating-model': return <ServiceCentreOperatingModel />;
       case 'sub-agents': return <SubAgentVerificationQueue />;
+      case 'subagent-transfers': return <SubAgentTenantTransfersQueue />;
       case 'promote-tenant': return <TenantToSubAgentPanel />;
       case 'float-payouts': return <AgentOpsFloatPayoutReview />;
       case 'balances': return <AgentBalancesPanel />;
@@ -316,7 +318,7 @@ export function AgentOpsDashboard() {
 
   // Grouped sections for the "More" tab (mobile dropdown + grid)
   const MORE_GROUPS: { title: string; keys: ActiveView[] }[] = [
-    { title: 'Agents', keys: ['directory', 'performance', 'sub-agents', 'bulk-ops'] },
+    { title: 'Agents', keys: ['directory', 'performance', 'sub-agents', 'subagent-transfers', 'bulk-ops'] },
     { title: 'Field Operations', keys: ['pipeline', 'rent-capacity', 'daily-collections-report', 'tasks', 'escalations', 'connector'] },
     { title: 'Service Centers', keys: ['sc-overview', 'service-centres', 'sc-directory', 'sc-payouts', 'sc-requests', 'sc-operating-model'] },
     { title: 'Financials', keys: ['balances', 'float-payouts', 'earnings', 'locked-transfers', 'allocation-report', 'lending-agents'] },
@@ -482,7 +484,7 @@ function AgentOpsSideNav({
   // collapsible so the nav never over-scrolls. Agent Network sits right
   // below Priority and is open by default (this dashboard is agent-centric).
   const SIDE_GROUPS: { title: string; keys: ActiveView[]; pinned?: boolean; defaultOpen?: boolean }[] = [
-    { title: 'Agents', defaultOpen: true, keys: ['directory', 'performance', 'sub-agents', 'bulk-ops'] },
+    { title: 'Agents', defaultOpen: true, keys: ['directory', 'performance', 'sub-agents', 'subagent-transfers', 'bulk-ops'] },
     { title: 'Field Operations', defaultOpen: true, keys: ['pipeline', 'rent-capacity', 'daily-collections-report', 'tasks', 'escalations', 'connector'] },
     { title: 'Service Centers', keys: ['sc-overview', 'service-centres', 'sc-directory', 'sc-payouts', 'sc-requests', 'sc-operating-model'] },
     { title: 'Financials', keys: ['balances', 'float-payouts', 'earnings', 'locked-transfers', 'allocation-report', 'lending-agents'] },
