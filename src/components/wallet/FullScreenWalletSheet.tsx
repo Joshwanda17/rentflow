@@ -113,26 +113,13 @@ export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: Full
 
   useEffect(() => {
     if (open) {
-      fetchAllPendingCounts();
       refreshWallet();
       refreshTransactions();
     }
-  }, [open, fetchAllPendingCounts, refreshWallet, refreshTransactions]);
+  }, [open, refreshWallet, refreshTransactions]);
 
 
   const { formatAmount: formatCurrency } = useCurrency();
-
-  const handlePendingClose = (isOpen: boolean) => {
-    setPendingOpen(isOpen);
-    if (!isOpen) {
-      invalidatePendingCountsCache();
-      fetchAllPendingCounts();
-      refreshWallet();
-      refreshTransactions();
-    }
-  };
-
-  const totalPending = pendingCount + pendingDeposits + pendingWithdrawals;
 
   const recentStats = transactions.reduce(
     (acc, tx) => {
