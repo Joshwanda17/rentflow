@@ -162,12 +162,10 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
   const openHousesSheet = useCallback(() => {
     const active = (typeof document !== 'undefined' ? document.activeElement : null) as HTMLElement | null;
     if (active && typeof active.focus === 'function') housesTriggerRef.current = active;
-    setMenuOpen(false);
     setHousesOpen(true);
   }, []);
   const goToAllHouses = useCallback(() => {
     hapticTap();
-    setMenuOpen(false);
     setHousesOpen(false);
     navigate('/find-a-house');
   }, [navigate]);
