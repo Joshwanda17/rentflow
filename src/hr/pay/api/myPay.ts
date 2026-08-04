@@ -1,10 +1,11 @@
 /**
  * Employee self-service payroll reads.
  *
- * These queries deliberately carry no staff filter. Row level security on
- * `hr_pay_payslips` (`hr_pay_is_own_staff`) already restricts an ordinary
- * employee to their own rows, so adding a client-side filter would only
- * duplicate — and risk contradicting — the database rule.
+ * Payslip reads go through the `hr_pay_my_payslips` RPC, which resolves the
+ * caller's own staff record server-side and returns only the rows the employee
+ * is allowed to see. The client must not query `hr_pay_payslips`,
+ * `hr_pay_runs` or `hr_pay_periods` directly because an ordinary employee has
+ * no read access to the run and period tables.
  */
 import { supabase, unwrap } from '../../api/client';
 
@@ -22,36 +23,18 @@ export interface MyPayslipRow {
 
 /** Payslips visible to the signed-in employee, newest pay date first. */
 export async function listMyPayslips(): Promise<MyPayslipRow[]> {
-  const { data: staffRow } = await supabase
-    .from('hr_staff')
-    .select('id')
-    .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
-    .maybeSingle();
+  const rows = (unwrap(await supabase.rpc('hr_pay_my_payslips')) ??
+    []) as Array<Record<string, any>>;
 
-  if (!staffRow?.id) return [];
-
-  const rows = (unwrap(
-    await supabase
-      .from('hr_pay_payslips')
-      .select(
-        'id, gross, paye, nssf_employee, other_deductions, net, is_current, hr_pay_runs!inner(status, hr_pay_periods(code, pay_date))',
-      )
-      .eq('staff_id', staffRow.id)
-      .eq('is_current', true)
-      .in('hr_pay_runs.status', ['paid', 'locked']),
-  ) ?? []) as Array<Record<string, any>>;
-
-  return rows
-    .map((r) => ({
-      id: r.id as string,
-      period_code: (r.hr_pay_runs?.hr_pay_periods?.code as string | null) ?? null,
-      pay_date: (r.hr_pay_runs?.hr_pay_periods?.pay_date as string | null) ?? null,
-      gross: Number(r.gross ?? 0),
-      paye: Number(r.paye ?? 0),
-      nssf_employee: Number(r.nssf_employee ?? 0),
-      other_deductions: Number(r.other_deductions ?? 0),
-      net: Number(r.net ?? 0),
-      run_status: (r.hr_pay_runs?.status as string) ?? '',
-    }))
-    .sort((a, b) => (b.pay_date ?? '').localeCompare(a.pay_date ?? ''));
+  return rows.map((r) => ({
+    id: r.id as string,
+    period_code: (r.period_code as string | null) ?? null,
+    pay_date: (r.pay_date as string | null) ?? null,
+    gross: Number(r.gross ?? 0),
+    paye: Number(r.paye ?? 0),
+    nssf_employee: Number(r.nssf_employee ?? 0),
+    other_deductions: Number(r.other_deductions ?? 0),
+    net: Number(r.net ?? 0),
+    run_status: (r.run_status as string) ?? '',
+  }));
 }
