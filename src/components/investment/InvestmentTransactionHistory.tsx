@@ -179,9 +179,6 @@ export function InvestmentTransactionHistory({
                     <p className={`text-sm font-semibold ${config.isPositive ? 'text-success' : 'text-destructive'}`}>
                       {config.isPositive ? '+' : '-'}{formatUGX(Math.abs(tx.amount))}
                     </p>
-                    <p className="text-xs text-muted-foreground">
-                      Bal: {formatUGX(tx.balance_after)}
-                    </p>
                   </div>
                 </div>
               );
