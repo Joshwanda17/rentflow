@@ -27,6 +27,7 @@ export default function AgentServiceCenter() {
   const { data: catalog = [], isLoading: loadingCatalog } = useServiceCenterCatalog();
 
   const [query, setQuery] = useState('');
+  const [visible, setVisible] = useState(20);
   const [suspendTarget, setSuspendTarget] = useState<ServiceCenterSubAgent | null>(null);
   const [transferTarget, setTransferTarget] = useState<ServiceCenterSubAgent | null>(null);
 
@@ -117,7 +118,7 @@ export default function AgentServiceCenter() {
                 {subAgents.length === 0 ? 'You have no sub-agents yet.' : 'No sub-agent matches that search.'}
               </CardContent></Card>
             ) : (
-              filtered.map((s) => (
+              filtered.slice(0, visible).map((s) => (
                 <SubAgentRosterCard
                   key={s.sub_agent_id}
                   subAgent={s}
@@ -125,6 +126,12 @@ export default function AgentServiceCenter() {
                   onTransfer={setTransferTarget}
                 />
               ))
+            )}
+
+            {filtered.length > visible && (
+              <Button variant="outline" className="w-full" onClick={() => setVisible((v) => v + 20)}>
+                Show more ({filtered.length - visible} left)
+              </Button>
             )}
           </TabsContent>
 
