@@ -122,6 +122,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'Agent Commissions', icon: Banknote, id: 'commissions' },
         { label: 'Withdrawals', icon: Wallet, id: 'withdrawals' },
         { label: 'Withdrawal History', icon: ClipboardList, id: 'withdrawal-history' },
+        { label: 'Withdrawal Reconciliation', icon: ShieldAlert, id: 'withdrawal-reconciliation' },
         { label: 'Staff & Payroll', icon: Users, id: 'payroll' },
         { label: 'Agent Requests', icon: FileText, id: 'agent-requisitions' },
         { label: 'Requisition Links', icon: FileText, id: 'employee-requisition-links' },
