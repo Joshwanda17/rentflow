@@ -314,3 +314,270 @@ request simply stops being claimable for future partners.
 ---
 
 *Prepared as a design review. Nothing in this document has been implemented.*
+
+---
+
+# Addendum A — 2026-08-04 (afternoon): pool-vs-lock, partner typing, and the booking model
+
+**Trigger:** your response to §0.2 ("instead of locking it, why not move it to the investment
+pool where other portfolios reside, and tag the partner/portfolio as self-managed?"), plus the
+observation that tenant plans have now started appearing on the funder dashboard.
+
+Nothing below is implemented. This addendum supersedes §0.2 and §3 where they conflict.
+
+---
+
+## A1. First, the good news: supply arrived, and your read of the status is right
+
+Re-measured just now, against the live database:
+
+| Fact | This morning | Now |
+|---|---|---|
+| Unfunded `coo_approved` requests | 0 | **33 / UGX 10.2M** |
+| Unfunded `agent_ops_approved` | 14 | 10 / UGX 5.31M |
+| Unfunded `pending` | 130 | 121 / UGX 57.97M |
+| `landlord_ops_approved` rows **as a status value** | 0 | **0 — the status does not exist in data** |
+
+Two corrections to the morning document:
+
+1. **The shelf is no longer empty.** The 20 plans in your screenshot are real: they are the
+   `coo_approved` (and residual `agent_ops_approved`) unfunded rows that the view now admits.
+   The morning claim "empty by construction" was true at that moment and is now stale.
+2. **`landlord_ops_approved` is not a status — it is a timestamp.** The lifecycle column only
+   ever holds `pending → agent_ops_approved → coo_approved → funded → repaying → completed`
+   (plus `rejected`, `cancelled`, `deleted_by_agent`). Landlord Ops sign-off is recorded as
+   `landlord_ops_reviewed_at` / `landlord_ops_reviewed_by`, exactly as Tenant Ops is recorded as
+   `tenant_ops_reviewed_at`. So the recommendation in §2 must be restated as a **predicate, not
+   a status filter**:
+
+   ```
+   status IN ('coo_approved')            -- lifecycle gate
+   AND landlord_ops_reviewed_at IS NOT NULL  -- house + landlord + payout destination verified
+   AND tenant_ops_reviewed_at   IS NOT NULL  -- tenant identity verified
+   ```
+
+   Your screenshot is showing plans that satisfy the lifecycle gate but that were **never
+   checked against the two review stamps**. That is the actual defect to fix, and it is a
+   one-line change to the view — not a re-architecture.
+
+**Answer to "or we get the agent_ops verified?":** no. Agent Ops verifies that the *agent* did
+their paperwork. It says nothing about whether the tenant exists, the house exists, or the
+landlord payout destination is correct. Partner money is exposed to all three. Agent Ops as the
+shelf boundary would mean a partner can fund a house that turns out to be occupied, with no
+verified account to pay the landlord — the one failure you cannot explain to a partner
+afterwards. Keep Agent Ops as a *supply* metric, never as the funding gate.
+
+---
+
+## A2. Your proposal, stated precisely
+
+> New self-management partners get their capital represented as a **portfolio row in the
+> existing investment pool tables**, tagged as self-managed. Existing portfolios stay untagged
+> (untagged ⇒ managed). Tenant selection becomes a **booking**, not a live funding quote — so
+> the rent amount moving no longer corrupts anything.
+
+This is a better idea than the one it replaces, for a reason worth naming: it changes what the
+partner is buying. Under the morning design the partner buys *this tenant's rent at this price*,
+so the price is a term of the deal and must be frozen. Under your design the partner buys
+**capital placement of a fixed amount they chose**, and the tenant is the *destination* of that
+capital. The amount is authored by the partner, not derived from the request — so there is
+nothing to drift.
+
+That is the correct primitive. The partner types "UGX 500,000". Nobody, including an agent
+editing a rent request, can change that number.
+
+---
+
+## A3. Does the pool model remove the need for locking?
+
+**It removes the need to lock `rent_amount`. It does not remove the need to lock the
+allocation.** The lock does not disappear; it moves, and it gets much cheaper.
+
+| What the morning design had to freeze | Under the pool/booking model |
+|---|---|
+| `rent_amount` (the quote) | **Not frozen — irrelevant.** Partner authors their own amount. |
+| `daily_repayment`, `duration_days`, `total_repayment` | **Not frozen.** Returns come from the portfolio's own rate/term, not the tenant's schedule. |
+| Term & maturity | From the portfolio row (`duration_months`, `roi_percentage`) — already a locked contract today. |
+| Principal | The partner's typed commitment. Immutable by construction. |
+| **The booking itself** | **Must still be exclusive.** One tenant plan cannot be booked twice, and the CFO must not fund a booked plan with company money. |
+| **Delivery of the booked capital** | Must still be tracked: booked → capital placed → delivered to landlord float → landlord paid. |
+
+So the residual lock is: *a booked plan is off the shelf, and off the CFO queue, until it is
+delivered or released.* That is the `self_funding_partner_id` stamp already recommended as
+item #1 in §7 — and item #1 was always the highest-value, smallest change. Items #3 and #4 (quote
+freeze, mutation lock on rent fields) can be **dropped entirely** under this model. That is a
+real simplification, and it is the strongest argument for your proposal.
+
+**Consequence you should accept explicitly:** if the partner books UGX 500,000 against a tenant
+whose rent is later re-quoted to UGX 400,000, the partner's principal stays at 500,000 and the
+surplus 100,000 stays as unallocated capital in their portfolio, available for the next booking.
+Under the old model that scenario voided the claim. Under this model it is a routine remainder.
+This is strictly better ops behaviour, and it is why the release path (§7 item #5) becomes a
+"re-book" rather than a "refund".
+
+---
+
+## A4. Partner typing: how to classify without a backfill
+
+You are right that no backfill is needed, and the way to guarantee that is **absence-as-default**.
+
+Two viable shapes:
+
+**Option 1 — a nullable column on `investor_portfolios` (recommended).**
+
+```
+management_type text NULL   -- 'self' for new self-managed portfolios; NULL = managed (legacy + default)
+```
+
+- All 1,005 existing portfolio rows keep `NULL` and are read as managed. No UPDATE, no migration
+  risk, no re-derivation of anything already paying returns.
+- Every read site that cares uses `management_type = 'self'` or
+  `coalesce(management_type,'managed')`. Sites that don't care are untouched.
+- Do **not** add a `DEFAULT 'managed'` and do **not** make it `NOT NULL` — that forces a table
+  rewrite and, worse, asserts a classification for 1,005 rows that were created before the
+  concept existed.
+- Constrain the vocabulary (`CHECK (management_type IN ('self'))`) rather than enumerating
+  managed, so the untagged state stays the single meaning of "legacy/managed".
+
+**Option 2 — a separate `partner_self_portfolios` link table.**
+Cleaner isolation, zero risk to the hottest financial table in the system, but every partner
+dashboard read gains a join and every reconciliation query gains a way to be wrong. Prefer
+Option 1 unless the portfolio table is under change-freeze.
+
+**Partner-level vs portfolio-level typing.** Type the **portfolio**, not the partner. A partner
+may legitimately hold one managed portfolio and one self-managed portfolio; typing the person
+forces an artificial exclusivity and breaks the moment someone converts. If you want a
+partner-level convenience flag, derive it (`EXISTS self portfolio`) — never store it twice.
+
+**What the self-managed tag must change downstream (each of these is a decision, not a detail):**
+
+| Surface | Managed (untagged) | Self-managed (`'self'`) |
+|---|---|---|
+| Capital allocation | Company allocates across the book | Partner books named tenant plans |
+| Return rate | Existing managed rate | Same rate (per the standing decision) — but read from config, not the hardcoded `15` |
+| Tenant default | Company absorbs | Company absorbs (unchanged — this is the selling point) |
+| Withdrawal | Existing 90-day notice | Same notice; capped by uncommitted capital only |
+| Payout cadence | Monthly | Monthly, with daily/weekly display equivalents |
+| Unallocated capital | N/A | Must be visible, and must not accrue as if placed |
+
+That last row is the one most likely to be missed. Booked-but-undelivered and
+never-booked capital are different states, and only *placed* capital should accrue returns.
+Paying returns on idle capital is the fastest way to turn this product into an unfunded
+liability.
+
+---
+
+## A5. Booking, not funding: the state machine this implies
+
+```
+portfolio (self)  →  capital available
+     │
+     ├── partner books a plan            → booking: reserved
+     │       plan leaves the shelf, plan leaves the CFO queue
+     │
+     ├── capital placed                  → booking: placed      (accrual starts here)
+     │       credited to the agent's landlord-float bucket for that tenant
+     │
+     ├── agent pays landlord             → booking: delivered   (delivery confirmation, not disbursed_at)
+     │
+     └── ops release / plan dies         → booking: released    (capital returns to available, no refund flow)
+```
+
+Four rules that make this safe:
+
+1. **Exclusivity.** One live booking per rent request. Enforced by a unique partial index on the
+   request id where the booking is live, not by application logic.
+2. **CFO queue exclusion.** A reserved plan is invisible to the CFO payout queue. This is the
+   double-pay hole from §0 and it is still the single most expensive open risk.
+3. **Accrual starts at `placed`, never at `reserved`.** Otherwise the partner earns on money the
+   company still holds.
+4. **Delivery is asserted, not inferred.** `disbursed_at` is unreliable (393 of 964). Use the
+   explicit agent delivery confirmation that already exists for landlord float.
+
+Note this preserves your destination decision from the morning review: the capital still lands
+in **the relevant agent's landlord-float bucket**, earmarked to the named tenant. "Pool" here
+means *the partner's capital is represented as a portfolio*, not *the money is blended into an
+undifferentiated book*. Those are separable, and you want the first without the second — the
+booking is what keeps the support attached to a named tenant, and it is what keeps this from
+becoming a share-of-the-book product with a heavier regulatory posture.
+
+---
+
+## A6. Revised case scenarios (replacing S1–S3 where they differ)
+
+**S1′ — Agent edits rent upward after booking (400k → 500k).** Partner principal unchanged at
+whatever they booked. The shortfall is a company/agent funding question, not a partner question.
+No void, no refund, no partner-facing event beyond an informational note.
+
+**S2′ — Agent edits rent downward after booking (500k → 400k).** Booking delivers 400k; 100k
+reverts to the partner's available capital. Accrual follows placed capital only. No void.
+
+**S3′ — Request deleted or rejected after booking, before placement.** Booking → `released`,
+capital returns to available, partner notified with the plan name and a prompt to re-book. No
+ledger movement at all, because nothing was placed. This is dramatically cheaper than the
+morning design's refund path.
+
+**S4′ — Request deleted after placement.** Now there *is* money in an agent's float. Ops must
+recover the earmarked float (existing float-correction rails, audited, reason-coded) and return
+the capital to available. This is the only scenario in the whole feature that requires a
+reversal — and it is the one the placement/delivery split exists to make rare.
+
+**S5′ — CFO funds a reserved plan.** Prevented by rule A5.2. Unchanged in importance: still the
+top-priority fix.
+
+**S6′ — Two partners want the same plan.** Unique partial index rejects the second booking.
+The UI must say "already booked by another supporter", and — because capital is now
+partner-authored — should immediately offer the next comparable plan.
+
+**S7′ — Partner books more than they hold.** Reject at booking time against *available*
+(= portfolio capital − reserved − placed) capital. Your screenshot already shows the honest
+version of this: UGX 32,850 available against a UGX 50,000 minimum. The card correctly refuses
+to pretend.
+
+**S8′ — Partner books nothing for weeks.** Idle capital does not accrue (A4). This needs to be
+stated in partner-facing copy *before* they fund, or it becomes a support ticket.
+
+---
+
+## A7. Revised recommended sequence
+
+| # | Change | Note vs the morning list |
+|---|---|---|
+| 1 | Stamp `self_funding_partner_id` and exclude reserved/placed plans from the CFO payout queue | Unchanged. Still first. |
+| 2 | Fix the shelf predicate: require `landlord_ops_reviewed_at` **and** `tenant_ops_reviewed_at`, drop the bare `coo_reviewed_at` test, prune dead statuses | **Revised** — it is a review-stamp predicate, not a `landlord_ops_approved` status |
+| 3 | ~~Frozen quote~~ | **Dropped.** Partner-authored amount makes it unnecessary |
+| 4 | ~~Mutation lock on rent fields~~ | **Dropped.** A1–A6 remove the need |
+| 5 | `management_type` nullable tag on portfolios (`'self'`; NULL = managed) | **New.** No backfill, no NOT NULL, no default |
+| 6 | Booking table + state machine (reserved / placed / delivered / released) with a unique partial index for exclusivity | **New.** Replaces the claim-with-frozen-quote model |
+| 7 | Accrual on placed capital only; unallocated capital visible and non-accruing | **New.** Highest-risk omission if skipped |
+| 8 | Ops "release booking" path (re-book, not refund) + agent-eligibility gate on booking (not frozen/suspended) + delivery confirmation | Merged from old #5 and #6 |
+| 9 | Move the hardcoded `15` rate into config | Unchanged |
+| 10 | Surface the 121-row / UGX 57.97M `pending` backlog to Agent Ops as the supply constraint | Unchanged |
+
+---
+
+## A8. Honest reservations about *your* proposal
+
+- **"Pool" is an overloaded word and it will cost you.** Represent the partner's capital as a
+  portfolio; do **not** let that slide into blending the money. The moment partner capital funds
+  the book generally rather than a named tenant, the product becomes a security-like interest in
+  a loan book, with a materially heavier regulatory posture. The booking is the firewall. Say so
+  in the internal spec, or someone will "simplify" it away.
+- **Idle capital is the new failure mode.** The old design's risk was drifting quotes; this
+  design's risk is partners funding and then never booking, expecting returns. Non-accruing idle
+  capital is correct and unpopular. Decide the copy now, not after the first complaint.
+- **Reserved-but-never-placed bookings will accumulate.** You need an expiry on `reserved` (the
+  10-minute hold is right for checkout, too short for a booking). Suggest a short reservation
+  window with auto-release and a partner nudge.
+- **Two accrual engines is a real cost.** Managed portfolios accrue one way; self-managed accrue
+  on placed capital. Keep both driven by the same daily job and the same rate config, or they
+  will diverge within a quarter.
+- **The shelf predicate fix is urgent and independent.** Partners are, right now, being shown 20
+  plans that were not checked against the Landlord Ops and Tenant Ops review stamps. Whatever you
+  decide about pooling, fix that predicate first.
+- **Terminology and events, unchanged.** Rent Plan / Supporter / Returns — never Loan, Lender,
+  ROI. Every booking transition emits a `system_event` and contributes to the trust score.
+
+---
+
+*Addendum A prepared as design review. Nothing in this document has been implemented.*
