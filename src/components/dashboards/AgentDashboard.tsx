@@ -772,6 +772,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   };
 
   const menuItems = [
+    { icon: Store, label: 'Service Center', onClick: () => { hapticTap(); navigate('/agent/service-center'); } },
     { icon: ShoppingBag, label: 'Buy Merchandise', onClick: () => { hapticTap(); navigate('/merchandise'); } },
   ];
 
