@@ -132,7 +132,6 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
   const [showRepaymentSchedule, setShowRepaymentSchedule] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
   const [showRequestForm, setShowRequestForm] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
   const rentCarouselRef = useRef<HTMLDivElement | null>(null);
   const [depositOpen, setDepositOpen] = useState(false);
   // Global "open deposit" entry: triggered from the mobile bottom-nav Deposit
