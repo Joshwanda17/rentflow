@@ -121,18 +121,6 @@ export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: Full
 
   const { formatAmount: formatCurrency } = useCurrency();
 
-  const recentStats = transactions.reduce(
-    (acc, tx) => {
-      if (tx.sender_id === user?.id) {
-        acc.sent += tx.amount;
-      } else {
-        acc.received += tx.amount;
-      }
-      return acc;
-    },
-    { sent: 0, received: 0 }
-  );
-
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
