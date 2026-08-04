@@ -5094,6 +5094,233 @@ export type Database = {
         }
         Relationships: []
       }
+      budget_calls: {
+        Row: {
+          created_at: string
+          deadline: string | null
+          id: string
+          issued_by_position_id: string
+          issued_by_user_id: string
+          period_end: string
+          period_start: string
+          period_type: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          deadline?: string | null
+          id?: string
+          issued_by_position_id: string
+          issued_by_user_id: string
+          period_end: string
+          period_start: string
+          period_type?: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          deadline?: string | null
+          id?: string
+          issued_by_position_id?: string
+          issued_by_user_id?: string
+          period_end?: string
+          period_start?: string
+          period_type?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      budget_disbursements: {
+        Row: {
+          amount: number
+          attempt_count: number
+          created_at: string
+          error_message: string | null
+          id: string
+          idempotency_key: string
+          ledger_reference_id: string | null
+          status: string
+          submission_id: string
+          updated_at: string
+          wallet_transaction_id: string | null
+        }
+        Insert: {
+          amount: number
+          attempt_count?: number
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          idempotency_key: string
+          ledger_reference_id?: string | null
+          status?: string
+          submission_id: string
+          updated_at?: string
+          wallet_transaction_id?: string | null
+        }
+        Update: {
+          amount?: number
+          attempt_count?: number
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          idempotency_key?: string
+          ledger_reference_id?: string | null
+          status?: string
+          submission_id?: string
+          updated_at?: string
+          wallet_transaction_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_disbursements_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "budget_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      budget_submission_events: {
+        Row: {
+          actor_position_id: string | null
+          actor_user_id: string
+          created_at: string
+          event_type: string
+          id: string
+          payload: Json
+          submission_id: string
+        }
+        Insert: {
+          actor_position_id?: string | null
+          actor_user_id: string
+          created_at?: string
+          event_type: string
+          id?: string
+          payload?: Json
+          submission_id: string
+        }
+        Update: {
+          actor_position_id?: string | null
+          actor_user_id?: string
+          created_at?: string
+          event_type?: string
+          id?: string
+          payload?: Json
+          submission_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_submission_events_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "budget_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      budget_submission_lines: {
+        Row: {
+          category: string | null
+          created_at: string
+          description: string
+          id: string
+          line_total: number
+          quantity: number
+          sort_order: number
+          submission_id: string
+          unit_amount: number
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          description: string
+          id?: string
+          line_total: number
+          quantity?: number
+          sort_order?: number
+          submission_id: string
+          unit_amount: number
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          line_total?: number
+          quantity?: number
+          sort_order?: number
+          submission_id?: string
+          unit_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_submission_lines_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "budget_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      budget_submissions: {
+        Row: {
+          call_id: string | null
+          created_at: string
+          department: string
+          id: string
+          purpose: string | null
+          reference: string
+          status: string
+          submitted_by_position_id: string | null
+          submitted_by_user_id: string | null
+          title: string | null
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          call_id?: string | null
+          created_at?: string
+          department: string
+          id?: string
+          purpose?: string | null
+          reference: string
+          status?: string
+          submitted_by_position_id?: string | null
+          submitted_by_user_id?: string | null
+          title?: string | null
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          call_id?: string | null
+          created_at?: string
+          department?: string
+          id?: string
+          purpose?: string | null
+          reference?: string
+          status?: string
+          submitted_by_position_id?: string | null
+          submitted_by_user_id?: string | null
+          title?: string | null
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_submissions_call_id_fkey"
+            columns: ["call_id"]
+            isOneToOne: false
+            referencedRelation: "budget_calls"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bulk_bank_payout_allocations: {
         Row: {
           allocated_amount: number
