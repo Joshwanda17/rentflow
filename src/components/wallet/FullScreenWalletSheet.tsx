@@ -74,13 +74,9 @@ export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: Full
   const [sendOpen, setSendOpen] = useState(false);
   const [depositOpen, setDepositOpen] = useState(false);
   const [requestOpen, setRequestOpen] = useState(false);
-  const [pendingOpen, setPendingOpen] = useState(false);
   const [nfcCardOpen, setNfcCardOpen] = useState(false);
   const [billsOpen, setBillsOpen] = useState(false);
   const [foodMarketOpen, setFoodMarketOpen] = useState(false);
-  const [pendingCount, setPendingCount] = useState(0);
-  const [pendingDeposits, setPendingDeposits] = useState(0);
-  const [pendingWithdrawals, setPendingWithdrawals] = useState(0);
   const [selectedTransaction, setSelectedTransaction] = useState<typeof transactions[0] | null>(null);
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [hasProxyPartners, setHasProxyPartners] = useState(false);
