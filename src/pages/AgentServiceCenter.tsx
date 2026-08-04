@@ -15,6 +15,7 @@ import {
   useServiceCenterTransfers,
 } from '@/hooks/useAgentServiceCenter';
 import { SubAgentRosterCard } from '@/components/agent/service-center/SubAgentRosterCard';
+import { SubAgentDetailSheet } from '@/components/agent/service-center/SubAgentDetailSheet';
 import {
   SuspendSubAgentDialog,
   TransferTenantDialog,
@@ -30,6 +31,7 @@ export default function AgentServiceCenter() {
   const [visible, setVisible] = useState(20);
   const [suspendTarget, setSuspendTarget] = useState<ServiceCenterSubAgent | null>(null);
   const [transferTarget, setTransferTarget] = useState<ServiceCenterSubAgent | null>(null);
+  const [detailTarget, setDetailTarget] = useState<ServiceCenterSubAgent | null>(null);
 
   const subAgents = data?.sub_agents ?? [];
 
@@ -122,8 +124,7 @@ export default function AgentServiceCenter() {
                 <SubAgentRosterCard
                   key={s.sub_agent_id}
                   subAgent={s}
-                  onSuspend={setSuspendTarget}
-                  onTransfer={setTransferTarget}
+                  onOpen={setDetailTarget}
                 />
               ))
             )}
