@@ -447,6 +447,45 @@ Deno.serve(async (req) => {
       }).catch(() => {});
     }
 
+    // ── Customer SMS on EVERY move (fire-and-forget) ─────────────────────
+    // Historically an error correction silently emptied a user's wallet with no
+    // notification at all, so the money looked stolen. Always tell them.
+    try {
+      const phoneOf = (id: string) =>
+        (profiles?.find((x) => x.id === id)?.phone || "").trim();
+      const firstNameOf = (id: string) =>
+        (profiles?.find((x) => x.id === id)?.full_name || "").trim().split(" ")[0] || "there";
+      const support = "For assistance, contact Welile Support on 0748747134.";
+
+      const srcPhone = phoneOf(sourceUserId);
+      if (srcPhone) {
+        const srcNewBucket = `New ${srcBucketLabel} balance: UGX ${Math.max(0, srcBucketAfter).toLocaleString()}.`;
+        const msg =
+          mode === "user_to_user"
+            ? `Welile: Hi ${firstNameOf(sourceUserId)}, ${fmt} was moved out of your ${srcBucketLabel} wallet by Welile Financial Operations (ref ${refId}). ${srcNewBucket} Reason: ${REASON_CODES[reasonCode]}. ${support}`
+            : `Welile: Hi ${firstNameOf(sourceUserId)}, ${fmt} was reversed from your ${srcBucketLabel} wallet by Welile Financial Operations (ref ${refId}). ${srcNewBucket} Reason: ${REASON_CODES[reasonCode]}. ${support}`;
+        sendSMS(srcPhone, msg, { source: "finops-wallet-move" }).catch(() => {});
+      }
+
+      if (mode === "user_to_user" && destUserId) {
+        const dstPhone = phoneOf(destUserId);
+        if (dstPhone) {
+          const dstBucketLabel2 = destBucket === "withdrawable" ? "Withdrawable" : "Float";
+          const dstAfter =
+            destBucket === "withdrawable"
+              ? Number(destAfter?.withdrawable_balance ?? 0)
+              : Number(destAfter?.float_balance ?? 0);
+          sendSMS(
+            dstPhone,
+            `Welile: Hi ${firstNameOf(destUserId)}, ${fmt} was credited to your ${dstBucketLabel2} wallet by Welile Financial Operations (ref ${refId}). New ${dstBucketLabel2} balance: UGX ${Math.max(0, dstAfter).toLocaleString()}. ${support}`,
+            { source: "finops-wallet-move" },
+          ).catch(() => {});
+        }
+      }
+    } catch (_) {
+      // Never let a notification failure affect money that already moved.
+    }
+
     return json({
       success: true,
       mode,
