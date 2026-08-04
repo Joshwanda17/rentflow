@@ -664,13 +664,19 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
 
       const [profilesRes, landlordsRes, lc1Res] = await Promise.all([
         ids.size > 0
-          ? supabase.from('profiles').select('id, full_name, phone, email').in('id', [...ids])
+          ? supabase
+              .from('profiles')
+              .select('id, full_name, phone, email, region, district, sub_county, parish, village, city, town, landmark')
+              .in('id', [...ids])
           : { data: [] },
         landlordIds.length > 0
-          ? supabase.from('landlords').select('id, name, phone, mobile_money_number').in('id', landlordIds)
+          ? supabase
+              .from('landlords')
+              .select('id, name, phone, mobile_money_number, property_address, region, district, sub_county, village')
+              .in('id', landlordIds)
           : { data: [] },
         lc1Ids.length > 0
-          ? supabase.from('lc1_chairpersons').select('id, name, phone, village').in('id', lc1Ids)
+          ? supabase.from('lc1_chairpersons').select('id, name, phone, village, parish, district, region').in('id', lc1Ids)
           : { data: [] },
       ]);
 
