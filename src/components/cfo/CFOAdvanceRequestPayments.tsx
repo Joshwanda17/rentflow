@@ -104,6 +104,10 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
           ? cfoRejected
           : allRequests.filter((r: any) => r.status !== 'cfo_rejected');
 
+  const advanceAgentIds = (allRequests as any[]).map((r) => r.agent_id).filter(Boolean);
+  const { data: cfoDuplicateMap = {} } = useAgentDuplicateMap(advanceAgentIds);
+  const { data: cfoDuplicateFlagMap = {} } = useAgentDuplicateFlags(advanceAgentIds);
+
   // Update global default rate
   const updateConfigMutation = useMutation({
     mutationFn: async (newRate: number) => {
