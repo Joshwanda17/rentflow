@@ -444,19 +444,6 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
             </div>
           )}
 
-          {/* Single Menu button */}
-          <button
-            onClick={handleOpenMenu}
-            className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border border-border/60 bg-card hover:bg-muted/40 transition-colors touch-manipulation"
-          >
-            <Menu className="h-5 w-5 text-foreground/70 shrink-0" />
-            <div className="flex-1 text-left">
-              <p className="font-medium text-sm">Menu</p>
-              <p className="text-xs text-muted-foreground">Payments, tools & more</p>
-            </div>
-            <span className="text-xs text-muted-foreground">→</span>
-          </button>
-
           {/* Invite & Earn — kept on home for growth */}
           <InviteAndEarnCard variant="tenant" compact />
         </main>
