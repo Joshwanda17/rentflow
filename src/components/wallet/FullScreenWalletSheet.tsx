@@ -262,9 +262,7 @@ export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: Full
       <RequestMoneyDialog 
         open={requestOpen} 
         onOpenChange={setRequestOpen} 
-        onSuccess={fetchAllPendingCounts}
       />
-      <PendingRequestsDialog open={pendingOpen} onOpenChange={handlePendingClose} />
       <TransactionReceipt 
         open={receiptOpen} 
         onOpenChange={setReceiptOpen} 
