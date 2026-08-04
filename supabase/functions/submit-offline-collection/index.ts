@@ -342,7 +342,11 @@ Deno.serve(async (req) => {
       ? `${body.notes.trim()} ${noteSuffix}`
       : noteSuffix;
 
-    const { data: rpcData, error: rpcErr } = await admin.rpc("agent_allocate_tenant_payment", {
+    // Keep the caller's verified agent JWT on the money-movement RPC. The
+    // public wrapper derives wallet ownership from auth.uid(); using the
+    // privileged client here would erase that identity and make offline
+    // collections behave differently from the online flow.
+    const { data: rpcData, error: rpcErr } = await userClient.rpc("agent_allocate_tenant_payment", {
       p_agent_id: agentId,
       p_tenant_id: body.tenant_id,
       p_rent_request_id: body.rent_request_id,
