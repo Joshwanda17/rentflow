@@ -193,9 +193,15 @@ export default function AgentServiceCenter() {
         </Tabs>
       </main>
 
+      <SubAgentDetailSheet
+        subAgent={detailTarget}
+        open={!!detailTarget}
+        onOpenChange={(v) => !v && setDetailTarget(null)}
+        onSuspend={(s) => { setDetailTarget(null); setSuspendTarget(s); }}
+        onTransfer={(s) => { setDetailTarget(null); setTransferTarget(s); }}
+      />
       <SuspendSubAgentDialog
         subAgent={suspendTarget}
-*** placeholder
         open={!!suspendTarget}
         onOpenChange={(v) => !v && setSuspendTarget(null)}
       />
