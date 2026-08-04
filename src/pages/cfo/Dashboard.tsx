@@ -244,6 +244,8 @@ export default function CFODashboardPage() {
         return <CashoutAgentActivity />;
       case 'payroll':
         return <PayrollPanel />;
+      case 'payroll-release':
+        return <CfoPayrollPanel />;
       case 'delivery-pipeline':
         return <DeliveryPipelineTracker />;
       case 'cash-reconciliation':
