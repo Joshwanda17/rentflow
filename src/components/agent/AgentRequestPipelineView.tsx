@@ -1197,28 +1197,29 @@ function RequestDetailDrawer({
   const queryClient = useQueryClient();
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
   const dailyRepay =
     row && row.duration_days > 0 ? Math.round(row.total_repayment / row.duration_days) : 0;
   const canCancel =
     !!row && !!user && SUBMITTED_STATUSES.includes(row.status);
   const handleCancel = async () => {
     if (!row || !user) return;
+    if (cancelReason.trim().length < 10) {
+      toast.error('Reason required', {
+        description: 'Please give at least 10 characters explaining why you are cancelling.',
+      });
+      return;
+    }
     setCancelling(true);
     try {
-      const { data, error } = await supabase
-        .from('rent_requests')
-        .update({ status: 'deleted_by_agent' })
-        .eq('id', row.id)
-        .eq('agent_id', user.id)
-        .select('id');
+      const { error } = await (supabase as any).rpc('agent_cancel_rent_request', {
+        p_request_id: row.id,
+        p_reason: cancelReason.trim(),
+      });
       if (error) throw error;
-      if (!data || data.length === 0) {
-        throw new Error(
-          'This request could not be cancelled — it may no longer be yours or has already moved further in the pipeline.',
-        );
-      }
       toast.success('Request cancelled', { description: 'The rent request has been removed.' });
       setConfirmCancel(false);
+      setCancelReason('');
       queryClient.invalidateQueries({ queryKey: ['agent-pipeline'] });
       onClose();
     } catch (e: any) {
@@ -1403,19 +1404,35 @@ function RequestDetailDrawer({
           </div>
         )}
       </DrawerContent>
-      <AlertDialog open={confirmCancel} onOpenChange={(o) => { if (!cancelling) setConfirmCancel(o); }}>
+      <AlertDialog
+        open={confirmCancel}
+        onOpenChange={(o) => { if (!cancelling) { setConfirmCancel(o); if (!o) setCancelReason(''); } }}
+      >
         <AlertDialogContent className="z-[210]">
           <AlertDialogHeader>
             <AlertDialogTitle>Cancel this rent request?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will remove the rent request from the pipeline. This cannot be undone.
+              This will remove the rent request from the pipeline. A reason is required and is
+              recorded against your name.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="space-y-1.5">
+            <Textarea
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              placeholder="Why are you cancelling? e.g. duplicate submission, wrong rent amount captured…"
+              rows={3}
+              disabled={cancelling}
+            />
+            <p className="text-xs text-muted-foreground">
+              {cancelReason.trim().length}/10 characters minimum
+            </p>
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={cancelling}>Keep request</AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => { e.preventDefault(); handleCancel(); }}
-              disabled={cancelling}
+              disabled={cancelling || cancelReason.trim().length < 10}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {cancelling ? 'Cancelling…' : 'Yes, cancel'}

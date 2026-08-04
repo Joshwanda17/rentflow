@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -98,6 +99,7 @@ export function AgentMyRentRequestsSheet({ open, onOpenChange }: AgentMyRentRequ
   const [pdfLoading, setPdfLoading] = useState<string | null>(null);
   const [cancelTarget, setCancelTarget] = useState<AgentRentRequest | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
 
   useEffect(() => {
     if (open && user) fetchRequests();
@@ -189,19 +191,26 @@ export function AgentMyRentRequestsSheet({ open, onOpenChange }: AgentMyRentRequ
 
   const handleCancel = async () => {
     if (!cancelTarget || !user) return;
+    if (cancelReason.trim().length < 10) {
+      toast({
+        title: 'Reason required',
+        description: 'Please give at least 10 characters explaining why you are cancelling.',
+        variant: 'destructive',
+      });
+      return;
+    }
     setCancelling(true);
     try {
-      const { error } = await supabase
-        .from('rent_requests')
-        .update({ status: 'deleted_by_agent' })
-        .eq('id', cancelTarget.id)
-        .eq('agent_id', user.id);
-
+      const { error } = await (supabase as any).rpc('agent_cancel_rent_request', {
+        p_request_id: cancelTarget.id,
+        p_reason: cancelReason.trim(),
+      });
       if (error) throw error;
 
       setRequests(prev => prev.filter(r => r.id !== cancelTarget.id));
       toast({ title: 'Request cancelled', description: 'The rent request has been removed.' });
       setCancelTarget(null);
+      setCancelReason('');
     } catch (e: any) {
       toast({
         title: 'Could not cancel',
@@ -586,7 +595,10 @@ export function AgentMyRentRequestsSheet({ open, onOpenChange }: AgentMyRentRequ
         </ScrollArea>
       </SheetContent>
 
-      <AlertDialog open={!!cancelTarget} onOpenChange={(o) => { if (!o) setCancelTarget(null); }}>
+      <AlertDialog
+        open={!!cancelTarget}
+        onOpenChange={(o) => { if (!o && !cancelling) { setCancelTarget(null); setCancelReason(''); } }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Cancel this rent request?</AlertDialogTitle>
@@ -594,14 +606,26 @@ export function AgentMyRentRequestsSheet({ open, onOpenChange }: AgentMyRentRequ
               {cancelTarget?.tenant?.full_name
                 ? `This will remove the rent request for ${cancelTarget.tenant.full_name}. `
                 : 'This will remove the rent request. '}
-              This action cannot be undone.
+              A reason is required and is recorded against your name.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="space-y-1.5">
+            <Textarea
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              placeholder="Why are you cancelling? e.g. duplicate submission, wrong rent amount captured…"
+              rows={3}
+              disabled={cancelling}
+            />
+            <p className="text-xs text-muted-foreground">
+              {cancelReason.trim().length}/10 characters minimum
+            </p>
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={cancelling}>Keep it</AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => { e.preventDefault(); handleCancel(); }}
-              disabled={cancelling}
+              disabled={cancelling || cancelReason.trim().length < 10}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-2"
             >
               {cancelling ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
