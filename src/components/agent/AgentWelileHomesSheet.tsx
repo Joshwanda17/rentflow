@@ -196,6 +196,7 @@ export function AgentWelileHomesSheet({ open, onOpenChange }: AgentWelileHomesSh
   useEffect(() => { if (open) load(); }, [open, load]);
 
   const totalReceivable = subs.reduce((a, s) => a + (Number(s.receivable_total) || 0), 0);
+  const [receivablePeriod, setReceivablePeriod] = useState<'monthly' | 'yearly'>('yearly');
   const monthlyReceivable = subs.reduce((a, s) => a + (Number(s.monthly_rent) || 0), 0);
   const pendingConfirmation = subs.filter((s) => !getEnrollStatus(s).ready).length;
 
