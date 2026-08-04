@@ -475,6 +475,14 @@ Deno.serve(async (req) => {
       </div>`;
 
     const filename = `welile-deposit-monitoring-${slotLabel(end).replace(/[ :]/g, '-')}.pdf`;
+
+    // dry_run: return the PDF without emailing (used for QA / on-demand download)
+    if (body?.dry_run === true) {
+      return new Response(pdfBytes, {
+        headers: { ...corsHeaders, 'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename="${filename}"` },
+      });
+    }
+
     const form = new FormData();
     form.set('from', FROM);
     recipients.forEach((r) => form.append('to', r));
