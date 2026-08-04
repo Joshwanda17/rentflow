@@ -539,6 +539,8 @@ export function LandlordOpsDashboard() {
   // ─── Verification Queue pagination (client-side, keeps DOM light) ───
   const VERIFY_PAGE_SIZE = 30;
   const [verifyPage, setVerifyPage] = useState(1);
+  // ─── Verification Queue PDF export ───
+  const [exportingHouseReport, setExportingHouseReport] = useState(false);
 
   // ─── Landlord Pending Quick Filters ───
   type PendingFilter = 'all' | 'has_address' | 'has_phone' | 'has_smartphone' | 'has_bank' | 'has_momo';
