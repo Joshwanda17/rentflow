@@ -132,7 +132,8 @@ export function TransferTenantDialog({
   const [reason, setReason] = useState('');
   const request = useRequestTenantTransfer();
 
-  const tenants = subAgent?.tenant_list ?? [];
+  // Only funded/repaying rent plans can be transferred.
+  const tenants = (subAgent?.tenant_list ?? []).filter((t) => t.is_active);
   const options = peers.filter((p) => p.sub_agent_id !== subAgent?.sub_agent_id && p.link_status === 'verified');
 
   const submit = async () => {
