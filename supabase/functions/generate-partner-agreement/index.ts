@@ -7,6 +7,7 @@
 // and emails the partner a download link. This guarantees the stored/emailed
 // PDF is pixel-identical to the on-screen preview.
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { renderContractPdf, decodeDataUrlToBytes } from '../_shared/partnerContractPdf.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -124,6 +125,65 @@ Deno.serve(async (req) => {
         .from('partner-agreements')
         .createSignedUrl(objectPath, 60 * 60 * 24 * 365);
       signedUrl = signed?.signedUrl || null;
+    }
+
+    // ── SERVER-SIDE FALLBACK ──────────────────────────────────────────────
+    // The client render (html2canvas) can time out or be cut short on slow
+    // phones, which previously produced a contract email with NO agreement at
+    // all. Render the filled contract server-side from the agreement row so
+    // the partner always receives a complete, populated PDF.
+    if (!objectPath) {
+      try {
+        const amountNum = Math.max(0, Math.floor(Number(row.partnership_amount) || 0));
+        let fallbackReturnLabel = '15%';
+        try {
+          const { data: portfolio } = await admin
+            .from('investor_portfolios')
+            .select('roi_percentage, created_at')
+            .eq('investor_id', partnerId)
+            .not('roi_percentage', 'is', null)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          const pct = Number(portfolio?.roi_percentage);
+          if (Number.isFinite(pct) && pct > 0) {
+            fallbackReturnLabel = `${Number.isInteger(pct) ? pct : pct.toFixed(2).replace(/\.?0+$/, '')}%`;
+          }
+        } catch { /* keep default */ }
+
+        const fallbackBytes = await renderContractPdf({
+          partnerName: row.full_name || 'Partner',
+          partnerId: row.national_id || '',
+          partnerAddress: row.address || '',
+          partnerPhone: row.phone || '',
+          partnerEmail: row.email || '',
+          partnershipAmount: amountNum,
+          partnershipAmountWords: row.partnership_amount_words || numberToWords(amountNum),
+          monthlyReturnLabel: fallbackReturnLabel,
+          bankName: row.bank_name || '',
+          bankAccountName: row.bank_account_name || '',
+          bankAccountNumber: row.bank_account_number || '',
+          momoProvider: row.momo_provider || '',
+          momoNumber: row.momo_number || '',
+          payoutMode: row.payout_mode === 'momo' ? 'momo' : 'bank',
+          reference,
+          partnerSignaturePngBytes: decodeDataUrlToBytes(row.partner_signature_data_url),
+          agreementDate: new Date(row.created_at || Date.now()),
+        });
+        objectPath = `${partnerId}/partnership-agreement-${reference}.pdf`;
+        const { error: fbUpErr } = await admin.storage
+          .from('partner-agreements')
+          .upload(objectPath, fallbackBytes, { contentType: 'application/pdf', upsert: true });
+        if (fbUpErr) throw fbUpErr;
+        const { data: fbSigned } = await admin.storage
+          .from('partner-agreements')
+          .createSignedUrl(objectPath, 60 * 60 * 24 * 365);
+        signedUrl = fbSigned?.signedUrl || null;
+        console.log('server-side fallback contract rendered for', partnerId);
+      } catch (e) {
+        objectPath = null;
+        console.warn('server-side fallback contract render failed:', e);
+      }
     }
 
     // ── Update the row state ──
