@@ -1191,6 +1191,11 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
                   </p>
                 </div>
               ) : (
+                <>
+                <DuplicateAccountAlert
+                  dups={req.agent_id ? cfoDuplicateMap[req.agent_id] : undefined}
+                  flag={req.agent_id ? cfoDuplicateFlagMap[req.agent_id] : undefined}
+                />
                 <div className="flex flex-col sm:flex-row gap-2">
                   <Button
                     variant="outline"
@@ -1215,6 +1220,14 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
                     {isCfoApproved ? 'Disburse' : 'Approve'} {formatUGX(currentPrincipal)}
                   </Button>
                 </div>
+                <Button
+                  variant="outline"
+                  className="w-full gap-2 border-red-400 text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30"
+                  onClick={() => setDupRejectReq(req)}
+                >
+                  <ShieldX className="h-4 w-4" /> Reject as duplicate account &amp; block
+                </Button>
+                </>
               )}
 
               {isCfoApproved && (
