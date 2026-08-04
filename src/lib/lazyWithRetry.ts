@@ -117,8 +117,12 @@ function coerceModule<T extends ComponentType<any>>(
   if (inner && typeof inner === "object" && hasValidDefault(inner)) {
     return inner as { default: T };
   }
+  // Accept plain function components AND memo/forwardRef wrappers (objects
+  // carrying a React `$$typeof` marker).
+  const isComponentLike = (v: any) =>
+    typeof v === "function" || (v && typeof v === "object" && "$$typeof" in v);
   const candidates = Object.keys(mod).filter(
-    (k) => k !== "default" && typeof mod[k] === "function" && /^[A-Z]/.test(k),
+    (k) => k !== "default" && /^[A-Z]/.test(k) && isComponentLike(mod[k]),
   );
   if (candidates.length === 1) return { default: mod[candidates[0]] as T };
   return null;
