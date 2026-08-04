@@ -1549,6 +1549,12 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
                       <p className="font-semibold">{selectedRequest.lc1_village}</p>
                     </div>
                   )}
+                  {selectedRequest.lc1_address && (
+                    <div className="space-y-0.5">
+                      <p className="text-xs text-muted-foreground">LC1 Area</p>
+                      <p className="font-semibold">{selectedRequest.lc1_address}</p>
+                    </div>
+                  )}
                   {(selectedRequest.request_latitude && selectedRequest.request_longitude) && (
                     <div className="space-y-0.5 col-span-2">
                       <p className="text-xs text-muted-foreground">GPS Coordinates</p>
