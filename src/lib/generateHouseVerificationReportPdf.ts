@@ -66,6 +66,27 @@ export interface HouseReportRow {
 
 export type HouseReportScope = 'pending' | 'verified' | 'rejected' | 'all';
 
+/** A single-state section inside a report. `all` reports render one per state. */
+type SectionScope = Exclude<HouseReportScope, 'all'>;
+
+const SECTION_ORDER: SectionScope[] = ['verified', 'rejected', 'pending'];
+
+const SECTION_TITLE: Record<SectionScope, string> = {
+  pending: 'Pending verification',
+  verified: 'Verified houses',
+  rejected: 'Rejected houses',
+};
+
+const SECTION_BASIS: Record<SectionScope, string> = {
+  pending: 'Dates below are the registration date (the house has no decision yet).',
+  verified: 'Dates below are the verification date recorded against each house.',
+  rejected: 'Dates below are the rejection date recorded against each house.',
+};
+
+/** Classifies a row into exactly one state, matching the queue/status scopes. */
+const rowSection = (r: HouseReportRow): SectionScope =>
+  r.status === 'rejected' ? 'rejected' : r.verified ? 'verified' : 'pending';
+
 export interface HouseReportMeta {
   scope: HouseReportScope;
   quickFilter?: string;
