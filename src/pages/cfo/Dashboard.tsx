@@ -238,6 +238,8 @@ export default function CFODashboardPage() {
         );
       case 'withdrawal-history':
         return <WithdrawalHistoryStatement />;
+      case 'withdrawal-reconciliation':
+        return <StaleWithdrawalHoldsPanel />;
       case 'financial-agents':
         return <FinancialAgentsPanel />;
       case 'cashout-agents':
