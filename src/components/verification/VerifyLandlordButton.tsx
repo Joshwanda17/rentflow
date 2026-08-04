@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { hapticTap, hapticSuccess } from '@/lib/haptics';
+import { setLandlordVerification } from '@/lib/landlord-ops/verification';
 import {
   Dialog,
   DialogContent,
@@ -46,16 +47,12 @@ export function VerifyLandlordButton({
     setLoading(true);
 
     try {
-      const { error } = await supabase
-        .from('landlords')
-        .update({
-          verified: true,
-          verified_at: new Date().toISOString(),
-          verified_by: user.id
-        })
-        .eq('id', landlordId);
-
-      if (error) throw error;
+      await setLandlordVerification({
+        landlordId,
+        status: 'verified',
+        reason: 'Verified by Landlord Operations after reviewing the landlord record',
+        source: 'ops_manual',
+      });
 
       toast.success(`Landlord ${landlordName} verified successfully!`);
       setConfirmDialog(false);
@@ -73,14 +70,16 @@ export function VerifyLandlordButton({
     setLoading(true);
 
     try {
+      await setLandlordVerification({
+        landlordId,
+        status: 'verified',
+        reason: 'Verified and marked ready to receive payments by Landlord Operations',
+        source: 'ops_manual',
+      });
+
       const { error } = await supabase
         .from('landlords')
-        .update({
-          verified: true,
-          verified_at: new Date().toISOString(),
-          verified_by: user.id,
-          ready_to_receive: true
-        })
+        .update({ ready_to_receive: true })
         .eq('id', landlordId);
 
       if (error) throw error;

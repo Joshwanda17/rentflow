@@ -41,6 +41,12 @@ import {
   type LandlordSort as LandlordOpsSort,
 } from '@/hooks/useLandlordOps';
 import {
+  setLandlordVerification,
+  VERIFICATION_STATUS_META,
+  verificationSourceLabel,
+  type LandlordVerificationStatus,
+} from '@/lib/landlord-ops/verification';
+import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
 import {
@@ -464,7 +470,9 @@ export function LandlordOpsDashboard() {
   const [deleting, setDeleting] = useState(false);
   const [assignPerson, setAssignPerson] = useState<{ listingId: string; title: string; type: 'landlord' | 'agent' } | null>(null);
   // Landlord verification moderation (frontend session state).
-  const [rejectedLandlordIds, setRejectedLandlordIds] = useState<Set<string>>(new Set());
+  // NOTE: rejections are persisted state (landlords.verification_status), never
+  // session state — a rejected landlord must survive a refresh and appear under
+  // the Rejected tab.
   const [expandedLandlordId, setExpandedLandlordId] = useState<string | null>(null);
   // Drilldown row → entity detail sheet (cities / no-landlord tenants / landlords)
   const [entityDetail, setEntityDetail] = useState<
@@ -1250,14 +1258,24 @@ export function LandlordOpsDashboard() {
   // Server-derived counts (constant-time, no full-table pull). Used by home KPIs
   // and the "All Landlords" list category chips. Fall back to landlordsList
   // counts only for the occupied/empty views where the full set is already loaded.
-  const totalLandlordsCount = landlordOpsTotals?.total ?? landlordsList.length;
-  const verifiedLandlordsCount = landlordOpsTotals?.verified ?? landlordsList.filter(l => l.verified).length;
-  const pendingLandlordsCount = landlordOpsTotals?.pending ?? landlordsList.filter(l => !l.verified).length;
-  const smartphoneLandlordsCount = landlordOpsTotals?.smartphone ?? landlordsList.filter(l => l.has_smartphone).length;
-  const occupiedLandlordsCount = landlordOpsTotals?.has_tenants ?? 0;
-  const emptyLandlordsCount = landlordOpsTotals?.no_tenants ?? 0;
+  // Counts ALWAYS come from the server (same query definition as the list).
+  // `undefined` means "not loaded yet" and renders a skeleton — we never swap
+  // in a client-side filter over a partial page, which produced wrong numbers.
+  const totalLandlordsCount = landlordOpsTotals?.total;
+  const verifiedLandlordsCount = landlordOpsTotals?.verified;
+  const pendingLandlordsCount = landlordOpsTotals?.pending;
+  const rejectedLandlordsCount = landlordOpsTotals?.rejected;
+  const verifiedHumanCount = landlordOpsTotals?.verified_human;
+  const verifiedAutoCount = landlordOpsTotals?.verified_auto;
+  const smartphoneLandlordsCount = landlordOpsTotals?.smartphone;
+  const occupiedLandlordsCount = landlordOpsTotals?.has_tenants;
+  const emptyLandlordsCount = landlordOpsTotals?.no_tenants;
   const occupiedMonthlyRevenue = landlordOpsTotals?.occupied_monthly_revenue;
   const emptyMonthlyRevenue = landlordOpsTotals?.empty_monthly_revenue;
+  // Any KPI sourced from the totals RPC shows a skeleton until the exact
+  // server number is available — never a stale or partial client estimate.
+  const totalsLoading = isLoading || landlordOpsTotals === undefined;
+  const kpi = (n: number | undefined) => (n === undefined ? '—' : n.toLocaleString());
   const unverifiedListings = rows.filter(l =>
     !l.verified
     && l.status !== 'rejected'
@@ -1450,7 +1468,7 @@ export function LandlordOpsDashboard() {
   const lc1Groups = fullLC1Data || [];
 
   const verifiedLandlords = landlordsList.filter(l => l.verified);
-  const unverifiedLandlords = landlordsList.filter(l => !l.verified && !rejectedLandlordIds.has(l.id));
+  const unverifiedLandlords = landlordsList.filter(l => !l.verified);
   const smartphoneLandlords = landlordsList.filter(l => l.has_smartphone);
 
   const handleVerifyListing = async (listing: ListingWithLandlord, note?: string) => {
@@ -1918,20 +1936,16 @@ export function LandlordOpsDashboard() {
   };
 
   // Approve (verify) a pending landlord with an optional inline note.
+  // Goes through the single authorized write path so state + derived flag +
+  // audit log + transition event + notifications all happen atomically.
   const handleApproveLandlord = async (landlord: any, note?: string) => {
     if (!user) return;
     try {
-      const { error } = await supabase
-        .from('landlords')
-        .update({ verified: true, verified_at: new Date().toISOString(), verified_by: user.id })
-        .eq('id', landlord.id);
-      if (error) throw error;
-      await supabase.from('audit_logs').insert({
-        user_id: user.id,
-        action_type: 'landlord_verified',
-        table_name: 'landlords',
-        record_id: landlord.id,
-        metadata: { landlord_name: landlord.name, reason: (note?.trim() || 'Approved via Landlord Ops verification queue'), verified_by: 'landlord_ops' },
+      await setLandlordVerification({
+        landlordId: landlord.id,
+        status: 'verified',
+        reason: note?.trim() || 'Approved via the Landlord Ops verification queue after review',
+        source: 'ops_queue',
       });
       setExpandedLandlordId(null);
       toast({ title: '✅ Landlord verified', description: `${landlord.name} is now verified.` });
@@ -1941,7 +1955,8 @@ export function LandlordOpsDashboard() {
     }
   };
 
-  // Reject a pending landlord (notes required, min 10 chars). Logged + hidden for the session.
+  // Reject a pending landlord (notes required, min 10 chars). Persisted state:
+  // the landlord moves to the Rejected tab and survives a refresh.
   const handleRejectLandlord = async (landlord: any, note: string) => {
     if (!user) return;
     const reason = note.trim();
@@ -1950,16 +1965,15 @@ export function LandlordOpsDashboard() {
       return;
     }
     try {
-      await supabase.from('audit_logs').insert({
-        user_id: user.id,
-        action_type: 'landlord_verification_rejected',
-        table_name: 'landlords',
-        record_id: landlord.id,
-        metadata: { landlord_name: landlord.name, reason, rejected_by: 'landlord_ops' },
+      await setLandlordVerification({
+        landlordId: landlord.id,
+        status: 'rejected',
+        reason,
+        source: 'ops_queue',
       });
-      setRejectedLandlordIds(prev => new Set(prev).add(landlord.id));
       setExpandedLandlordId(null);
-      toast({ title: 'Landlord rejected', description: `${landlord.name} was rejected and logged.` });
+      toast({ title: 'Landlord rejected', description: `${landlord.name} moved to Rejected. The agent was notified.` });
+      refetchAll();
     } catch (err: any) {
       toast({ title: 'Reject failed', description: err?.message || 'Could not reject landlord', variant: 'destructive' });
     }
@@ -1984,8 +1998,9 @@ export function LandlordOpsDashboard() {
   // Prefer the server-computed totals so the home dashboard doesn't need the
   // full landlord set loaded. Fall back to iterating landlordsList only when
   // it happens to already be loaded (occupied/empty views).
-  const totalMonthlyRevenue = occupiedMonthlyRevenue ?? occupiedLandlords.reduce((s, l) => s + (l.monthly_rent || 0), 0);
-  const lostMonthlyRevenue  = emptyMonthlyRevenue    ?? emptyLandlords.reduce((s, l) => s + (l.monthly_rent || 0), 0);
+  // Server-computed revenue only — a partial client list would understate it.
+  const totalMonthlyRevenue = occupiedMonthlyRevenue;
+  const lostMonthlyRevenue  = emptyMonthlyRevenue;
 
   // ─── Navigate to any section (resets transient search/filter state) ───
   const goToView = (id: View) => {
@@ -2228,11 +2243,13 @@ export function LandlordOpsDashboard() {
 
   // ─── LANDLORDS VIEW ───
   if (view === 'landlords') {
-    type LandlordCategory = 'all' | 'verified' | 'pending' | 'has_tenants' | 'no_tenants';
+    type LandlordCategory = 'all' | 'verified' | 'pending' | 'rejected' | 'resubmitted' | 'has_tenants' | 'no_tenants';
     const LANDLORD_CATEGORIES: { value: LandlordCategory; label: string; color: string }[] = [
       { value: 'all', label: 'All', color: 'bg-muted text-foreground' },
-      { value: 'verified', label: 'Verified', color: 'bg-emerald-100 text-emerald-700' },
-      { value: 'pending', label: 'Pending', color: 'bg-amber-100 text-amber-700' },
+      { value: 'verified', label: 'Verified', color: VERIFICATION_STATUS_META.verified.chipClass },
+      { value: 'pending', label: 'Pending', color: VERIFICATION_STATUS_META.pending.chipClass },
+      { value: 'rejected', label: 'Rejected', color: VERIFICATION_STATUS_META.rejected.chipClass },
+      { value: 'resubmitted', label: 'Resubmitted', color: VERIFICATION_STATUS_META.resubmitted.chipClass },
       { value: 'has_tenants', label: 'Has Tenants', color: 'bg-blue-100 text-blue-700' },
       { value: 'no_tenants', label: 'No Tenants', color: 'bg-orange-100 text-orange-700' },
     ];
@@ -2242,17 +2259,23 @@ export function LandlordOpsDashboard() {
 
     // Server-driven data: rows, total count, and category counts all come from
     // the `landlord-ops` edge function (RPC-backed). No full-table client fetch.
-    const paginated = (landlordOpsList?.rows ?? []).filter(l => !rejectedLandlordIds.has(l.id));
+    // No client-side post-filtering: the server list is the list.
+    const paginated = landlordOpsList?.rows ?? [];
     const totalMatched = landlordOpsList?.totalMatched ?? 0;
     const totalPages = Math.max(1, Math.ceil(totalMatched / perPage));
     const safePage = Math.min(landlordPage, totalPages);
 
-    const categoryCounts = {
-      all: landlordOpsTotals?.total ?? 0,
-      verified: landlordOpsTotals?.verified ?? 0,
-      pending: landlordOpsTotals?.pending ?? 0,
-      has_tenants: landlordOpsTotals?.has_tenants ?? 0,
-      no_tenants: landlordOpsTotals?.no_tenants ?? 0,
+    // Chip counts come from get_landlord_ops_totals(), which reads the same
+    // v_landlord_ops_status view the list RPC filters on — a chip and the list
+    // it opens can never disagree. `undefined` renders "…" while loading.
+    const categoryCounts: Record<LandlordCategory, number | undefined> = {
+      all: landlordOpsTotals?.total,
+      verified: landlordOpsTotals?.verified,
+      pending: landlordOpsTotals?.pending,
+      rejected: landlordOpsTotals?.rejected,
+      resubmitted: landlordOpsTotals?.resubmitted,
+      has_tenants: landlordOpsTotals?.has_tenants,
+      no_tenants: landlordOpsTotals?.no_tenants,
     };
 
     return (
@@ -2291,10 +2314,21 @@ export function LandlordOpsDashboard() {
               }`}
             >
               {cat.label}
-              <span className="ml-1 opacity-70">({categoryCounts[cat.value]})</span>
+              <span className="ml-1 opacity-70">
+                ({categoryCounts[cat.value] === undefined ? '…' : categoryCounts[cat.value]!.toLocaleString()})
+              </span>
             </button>
           ))}
         </div>
+
+        {/* Verified attribution: human decisions vs automatic pipeline flips */}
+        {categoryFilter === 'verified' && (
+          <p className="text-[11px] text-muted-foreground">
+            {verifiedHumanCount === undefined || verifiedAutoCount === undefined
+              ? 'Loading verification attribution…'
+              : `${verifiedHumanCount.toLocaleString()} verified by a reviewer · ${verifiedAutoCount.toLocaleString()} auto-verified by rent pipeline approval`}
+          </p>
+        )}
 
         {/* Pending landlord quick filters */}
         {categoryFilter === 'pending' && (
@@ -2401,11 +2435,19 @@ export function LandlordOpsDashboard() {
                         <PhoneLinks phone={landlord.phone} name={landlord.name} />
                       </td>
                       <td className="px-3 py-2.5 hidden md:table-cell">
-                        {landlord.verified ? (
-                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-emerald-100 text-emerald-700 border-0">Verified</Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-red-100 text-red-700 border-0 font-semibold">Not Verified</Badge>
-                        )}
+                        {(() => {
+                          // Single source of truth: the state machine column.
+                          const status = (landlord.verification_status || (landlord.verified ? 'verified' : 'pending')) as LandlordVerificationStatus;
+                          const meta = VERIFICATION_STATUS_META[status] ?? VERIFICATION_STATUS_META.pending;
+                          return (
+                            <div className="flex flex-col gap-0.5">
+                              <Badge variant="outline" className={`text-[10px] px-1.5 py-0 border-0 font-semibold ${meta.chipClass}`}>{meta.label}</Badge>
+                              {status === 'verified' && landlord.verification_source && (
+                                <span className="text-[9px] text-muted-foreground">{verificationSourceLabel(landlord.verification_source)}</span>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td className="px-3 py-2.5 text-muted-foreground hidden md:table-cell">{tenantCount > 0 ? tenantCount : '—'}</td>
                       <td className="px-3 py-2.5 text-muted-foreground truncate max-w-[120px] hidden lg:table-cell">{landlord.agent_name || '—'}</td>
@@ -2940,7 +2982,7 @@ export function LandlordOpsDashboard() {
         {emptyLandlords.length > 0 && (
           <div className="rounded-xl border-2 border-destructive/30 p-3 flex items-start gap-3">
             <DoorOpen className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
-            <p className="text-sm font-semibold text-destructive">{emptyLandlords.length} empty — UGX {fmt(lostMonthlyRevenue)}/mo lost revenue</p>
+            <p className="text-sm font-semibold text-destructive">{emptyLandlords.length} empty — UGX {fmt(lostMonthlyRevenue ?? 0)}/mo lost revenue</p>
           </div>
         )}
         <DrilldownTable
@@ -3805,7 +3847,7 @@ export function LandlordOpsDashboard() {
         <div className="grid grid-cols-2 gap-2">
           <KPICard title="With Photos" value={withImages.length} icon={Image} loading={isLoading} color="bg-blue-500/10 text-blue-600" />
           <KPICard title="GPS Captured" value={withGPS.length} icon={MapPin} loading={isLoading} color="bg-purple-500/10 text-purple-600" />
-          <KPICard title="📱 Landlords" value={smartphoneLandlordsCount} icon={Smartphone} loading={isLoading} color="bg-teal-500/10 text-teal-600" subtitle={`of ${totalLandlordsCount}`} />
+          <KPICard title="📱 Landlords" value={kpi(smartphoneLandlordsCount)} icon={Smartphone} loading={totalsLoading} color="bg-teal-500/10 text-teal-600" subtitle={`of ${kpi(totalLandlordsCount)}`} />
           <KPICard title="Bonuses Pending" value={`${fmt(pendingHousesCount * 2000)}`} icon={Banknote} loading={isLoading} color="bg-orange-500/10 text-orange-600" subtitle="UGX to agents" />
         </div>
         <VacancyAnalytics listings={rows as any} />
@@ -3972,10 +4014,10 @@ export function LandlordOpsDashboard() {
 
       {/* KPIs — responsive card grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <KPICard title="Total Properties" value={totalLandlordsCount} icon={Home} loading={isLoading} onClick={() => setView('houses-by-landlord')} />
-        <KPICard title="Occupied" value={occupiedLandlordsCount} icon={UserCheck} loading={isLoading} color="bg-green-500/10 text-green-600" subtitle={`UGX ${fmt(totalMonthlyRevenue)}/mo`} onClick={() => setView('occupied')} />
-        <KPICard title="Empty" value={emptyLandlordsCount} icon={DoorOpen} loading={isLoading} color="bg-red-500/10 text-red-600" subtitle={`UGX ${fmt(lostMonthlyRevenue)}/mo lost`} onClick={() => setView('empty')} />
-        <KPICard title="Landlords" value={totalLandlordsCount} icon={Building2} loading={isLoading} color="bg-sky-500/10 text-sky-600" subtitle={`${verifiedLandlordsCount} verified`} onClick={() => setView('landlords')} />
+        <KPICard title="Total Properties" value={kpi(totalLandlordsCount)} icon={Home} loading={totalsLoading} onClick={() => setView('houses-by-landlord')} />
+        <KPICard title="Occupied" value={kpi(occupiedLandlordsCount)} icon={UserCheck} loading={totalsLoading} color="bg-green-500/10 text-green-600" subtitle={`UGX ${fmt(totalMonthlyRevenue ?? 0)}/mo`} onClick={() => setView('occupied')} />
+        <KPICard title="Empty" value={kpi(emptyLandlordsCount)} icon={DoorOpen} loading={totalsLoading} color="bg-red-500/10 text-red-600" subtitle={`UGX ${fmt(lostMonthlyRevenue ?? 0)}/mo lost`} onClick={() => setView('empty')} />
+        <KPICard title="Landlords" value={kpi(totalLandlordsCount)} icon={Building2} loading={totalsLoading} color="bg-sky-500/10 text-sky-600" subtitle={`${kpi(verifiedLandlordsCount)} verified · ${kpi(pendingLandlordsCount)} pending · ${kpi(rejectedLandlordsCount)} rejected`} onClick={() => setView('landlords')} />
         <KPICard title="Cities" value={cityGroups.length} icon={Globe} loading={isLoading} color="bg-teal-500/10 text-teal-600" subtitle="operating in" onClick={() => setView('cities')} />
         <KPICard title="No Landlord" value={noLandlordList.length} icon={UserX} loading={isLoading} color="bg-orange-500/10 text-orange-600" subtitle="need listing" onClick={() => setView('no-landlord')} />
       </div>
@@ -4037,7 +4079,7 @@ export function LandlordOpsDashboard() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {navItems.filter(n => n.priority).map(item => (
             <NavCard key={item.id} item={item} onClick={() => setView(item.id)} badge={
-              item.id === 'landlords' ? `${totalLandlordsCount}` :
+              item.id === 'landlords' ? (totalLandlordsCount !== undefined ? kpi(totalLandlordsCount) : undefined) :
               item.id === 'landlords-paid' ? (paidLandlordsCount !== undefined ? `${paidLandlordsCount}` : undefined) :
               item.id === 'locations' ? `${locationGroups.length}` :
               item.id === 'lc1' ? `${lc1Groups.length}` :
@@ -4058,8 +4100,8 @@ export function LandlordOpsDashboard() {
           {navItems.filter(n => !n.priority).map(item => (
             <NavCard key={item.id} item={item} onClick={() => setView(item.id)}
               badge={
-                item.id === 'empty' ? `${emptyLandlordsCount}` :
-                item.id === 'occupied' ? `${occupiedLandlordsCount}` :
+                item.id === 'empty' ? (emptyLandlordsCount !== undefined ? kpi(emptyLandlordsCount) : undefined) :
+                item.id === 'occupied' ? (occupiedLandlordsCount !== undefined ? kpi(occupiedLandlordsCount) : undefined) :
                 item.id === 'verify' ? (pendingHousesCount > 0 ? `${fmt(pendingHousesCount)}` : undefined) :
                 item.id === 'agents' ? `${agentSummary.length}` : undefined
               } />

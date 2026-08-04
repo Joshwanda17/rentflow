@@ -5,6 +5,10 @@ export interface LandlordOpsTotals {
   total: number;
   verified: number;
   pending: number;
+  rejected: number;
+  resubmitted: number;
+  verified_human: number;
+  verified_auto: number;
   has_tenants: number;
   no_tenants: number;
   smartphone: number;
@@ -12,11 +16,17 @@ export interface LandlordOpsTotals {
   empty_monthly_revenue: number;
 }
 
+export type LandlordVerificationStatus = 'pending' | 'verified' | 'rejected' | 'resubmitted';
+
 export interface LandlordOpsRow {
   id: string;
   name: string;
   phone: string;
   verified: boolean;
+  verification_status: LandlordVerificationStatus;
+  verification_source: string;
+  verification_reason: string | null;
+  verification_updated_at: string | null;
   has_smartphone: boolean | null;
   mobile_money_name: string | null;
   mobile_money_number: string | null;
@@ -46,7 +56,14 @@ export interface LandlordOpsRow {
   tenant_phone_profile: string | null;
 }
 
-export type LandlordCategory = 'all' | 'verified' | 'pending' | 'has_tenants' | 'no_tenants';
+export type LandlordCategory =
+  | 'all'
+  | 'verified'
+  | 'pending'
+  | 'rejected'
+  | 'resubmitted'
+  | 'has_tenants'
+  | 'no_tenants';
 export type LandlordPendingFilter = 'all' | 'has_address' | 'has_phone' | 'has_smartphone' | 'has_bank' | 'has_momo';
 export type LandlordSort = 'newest' | 'oldest' | 'highest_rent';
 

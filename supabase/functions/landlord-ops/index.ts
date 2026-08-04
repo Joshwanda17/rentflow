@@ -70,7 +70,15 @@ Deno.serve(async (req) => {
 
     const allowedSorts = new Set(["newest", "oldest", "highest_rent"]);
     if (!allowedSorts.has(sort)) sort = "newest";
-    const allowedCategories = new Set(["all", "verified", "pending", "has_tenants", "no_tenants"]);
+    const allowedCategories = new Set([
+      "all",
+      "verified",
+      "pending",
+      "rejected",
+      "resubmitted",
+      "has_tenants",
+      "no_tenants",
+    ]);
     if (!allowedCategories.has(category)) category = "all";
     const allowedPending = new Set([
       "all",
@@ -84,22 +92,27 @@ Deno.serve(async (req) => {
     limit = Math.max(1, Math.min(200, Math.floor(limit) || 20));
     offset = Math.max(0, Math.floor(offset) || 0);
 
+    // Single mapping so the totals action and the rows action can never expose
+    // two different shapes for the same numbers.
+    const mapTotals = (t: Record<string, unknown> = {}) => ({
+      total: Number(t.total ?? 0),
+      verified: Number(t.verified ?? 0),
+      pending: Number(t.pending ?? 0),
+      rejected: Number(t.rejected ?? 0),
+      resubmitted: Number(t.resubmitted ?? 0),
+      verified_human: Number(t.verified_human ?? 0),
+      verified_auto: Number(t.verified_auto ?? 0),
+      has_tenants: Number(t.has_tenants ?? 0),
+      no_tenants: Number(t.no_tenants ?? 0),
+      smartphone: Number(t.smartphone ?? 0),
+      occupied_monthly_revenue: Number(t.occupied_monthly_revenue ?? 0),
+      empty_monthly_revenue: Number(t.empty_monthly_revenue ?? 0),
+    });
+
     if (action === "totals") {
       const totalsRes = await adminClient.rpc("get_landlord_ops_totals");
       if (totalsRes.error) return json({ error: totalsRes.error.message }, 500);
-      const t = (totalsRes.data && totalsRes.data[0]) || {};
-      return json({
-        totals: {
-          total: Number(t.total ?? 0),
-          verified: Number(t.verified ?? 0),
-          pending: Number(t.pending ?? 0),
-          has_tenants: Number(t.has_tenants ?? 0),
-          no_tenants: Number(t.no_tenants ?? 0),
-          smartphone: Number(t.smartphone ?? 0),
-          occupied_monthly_revenue: Number(t.occupied_monthly_revenue ?? 0),
-          empty_monthly_revenue: Number(t.empty_monthly_revenue ?? 0),
-        },
-      }, 200);
+      return json({ totals: mapTotals((totalsRes.data && totalsRes.data[0]) || {}) }, 200);
     }
 
     // Default: rows + totals in parallel so the UI can render KPIs and the list from one call.
@@ -119,16 +132,7 @@ Deno.serve(async (req) => {
     if (rowsRes.error) return json({ error: rowsRes.error.message }, 500);
 
     const t = (totalsRes.data && totalsRes.data[0]) || {};
-    const totals = {
-      total: Number(t.total ?? 0),
-      verified: Number(t.verified ?? 0),
-      pending: Number(t.pending ?? 0),
-      has_tenants: Number(t.has_tenants ?? 0),
-      no_tenants: Number(t.no_tenants ?? 0),
-      smartphone: Number(t.smartphone ?? 0),
-      occupied_monthly_revenue: Number(t.occupied_monthly_revenue ?? 0),
-      empty_monthly_revenue: Number(t.empty_monthly_revenue ?? 0),
-    };
+    const totals = mapTotals(t);
 
     const raw = (rowsRes.data ?? []) as any[];
     const totalMatched = raw.length > 0 ? Number(raw[0].total_matched ?? 0) : 0;
@@ -137,6 +141,10 @@ Deno.serve(async (req) => {
       name: r.name,
       phone: r.phone,
       verified: !!r.verified,
+      verification_status: r.verification_status ?? "pending",
+      verification_source: r.verification_source ?? "unspecified",
+      verification_reason: r.verification_reason ?? null,
+      verification_updated_at: r.verification_updated_at ?? null,
       has_smartphone: !!r.has_smartphone,
       mobile_money_name: r.mobile_money_name,
       mobile_money_number: r.mobile_money_number,

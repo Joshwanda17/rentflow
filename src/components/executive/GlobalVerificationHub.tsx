@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { hapticTap } from '@/lib/haptics';
 import { invokeEdgeFunction } from '@/lib/invokeEdgeFunction';
+import { setLandlordVerification } from '@/lib/landlord-ops/verification';
 import {
   Globe, ShieldCheck, Building2, UserCheck, FileText, ChevronRight,
   ArrowLeft, Loader2, CheckCircle2, MapPin, Phone, RefreshCw, Sparkles,
@@ -241,11 +242,12 @@ function LandlordVerifyList({ country, canVerify, onChanged }: { country: string
     hapticTap();
     setBusy(id);
     try {
-      const { error } = await supabase
-        .from('landlords')
-        .update({ verified: true, verified_at: new Date().toISOString() })
-        .eq('id', id);
-      if (error) throw error;
+      await setLandlordVerification({
+        landlordId: id,
+        status: 'verified',
+        reason: 'Verified from the global verification hub queue after review',
+        source: 'global_hub',
+      });
       toast.success(`Landlord ${name || ''} verified`);
       refetch();
       onChanged();

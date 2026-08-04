@@ -11,6 +11,7 @@ import {
   ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { notifyVerificationResolved } from '@/lib/landlordVerificationNotify';
+import { setLandlordVerification } from '@/lib/landlord-ops/verification';
 
 interface VerificationRequest {
   id: string;
@@ -155,26 +156,12 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
     if (!user) return;
     setBusyId(req.id);
     try {
-      const { error: llErr } = await supabase
-        .from('landlords')
-        .update({ verified: true, verified_at: new Date().toISOString(), verified_by: user.id })
-        .eq('id', req.landlord_id);
-      if (llErr) throw llErr;
-      const { error: reqErr } = await supabase
-        .from('landlord_verification_requests')
-        .update({ status: 'verified', resolved_by: user.id, resolved_at: new Date().toISOString() })
-        .eq('id', req.id);
-      if (reqErr) throw reqErr;
-      await supabase.from('audit_logs').insert({
-        user_id: user.id,
-        action_type: 'landlord_verified',
-        table_name: 'landlords',
-        record_id: req.landlord_id,
-        metadata: {
-          landlord_name: req.landlord_name,
-          reason: `Verified from agent request (${req.agent_name || 'agent'})`,
-          verified_by: 'landlord_ops',
-        },
+      // Single authorized write path: state + request + audit + event + notify.
+      await setLandlordVerification({
+        landlordId: req.landlord_id,
+        status: 'verified',
+        reason: `Verified from agent verification request (${req.agent_name || 'agent'})`,
+        source: 'agent_request',
       });
       toast({ title: '✅ Landlord verified', description: `${req.landlord_name || 'Landlord'} is now verified.` });
       setRequests(prev => prev.filter(r => r.id !== req.id));
@@ -203,17 +190,13 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
     }
     setBusyId(req.id);
     try {
-      const { error } = await supabase
-        .from('landlord_verification_requests')
-        .update({ status: 'rejected', reject_comment: comment, resolved_by: user.id, resolved_at: new Date().toISOString() })
-        .eq('id', req.id);
-      if (error) throw error;
-      await supabase.from('audit_logs').insert({
-        user_id: user.id,
-        action_type: 'landlord_verification_rejected',
-        table_name: 'landlords',
-        record_id: req.landlord_id,
-        metadata: { landlord_name: req.landlord_name, reason: comment, rejected_by: 'landlord_ops' },
+      // Rejection now persists on the landlord too, so the record leaves the
+      // pending bucket and shows under Rejected.
+      await setLandlordVerification({
+        landlordId: req.landlord_id,
+        status: 'rejected',
+        reason: comment,
+        source: 'agent_request',
       });
       toast({ title: 'Request rejected', description: `${req.landlord_name || 'Landlord'} was rejected with a comment.` });
       setRequests(prev => prev.filter(r => r.id !== req.id));

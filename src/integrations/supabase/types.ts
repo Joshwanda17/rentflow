@@ -2730,6 +2730,13 @@ export type Database = {
             foreignKeyName: "agent_float_withdrawals_landlord_id_fkey"
             columns: ["landlord_id"]
             isOneToOne: false
+            referencedRelation: "v_landlord_ops_status"
+            referencedColumns: ["landlord_id"]
+          },
+          {
+            foreignKeyName: "agent_float_withdrawals_landlord_id_fkey"
+            columns: ["landlord_id"]
+            isOneToOne: false
             referencedRelation: "v_tenant_ops_landlord_base"
             referencedColumns: ["landlord_id"]
           },
@@ -3158,6 +3165,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "landlords_directory"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_landlord_assignments_landlord_id_fkey"
+            columns: ["landlord_id"]
+            isOneToOne: false
+            referencedRelation: "v_landlord_ops_status"
+            referencedColumns: ["landlord_id"]
           },
           {
             foreignKeyName: "agent_landlord_assignments_landlord_id_fkey"
@@ -10584,6 +10598,13 @@ export type Database = {
             foreignKeyName: "house_listings_landlord_id_fkey"
             columns: ["landlord_id"]
             isOneToOne: false
+            referencedRelation: "v_landlord_ops_status"
+            referencedColumns: ["landlord_id"]
+          },
+          {
+            foreignKeyName: "house_listings_landlord_id_fkey"
+            columns: ["landlord_id"]
+            isOneToOne: false
             referencedRelation: "v_tenant_ops_landlord_base"
             referencedColumns: ["landlord_id"]
           },
@@ -13602,6 +13623,13 @@ export type Database = {
             foreignKeyName: "landlord_onboarding_targets_landlord_id_fkey"
             columns: ["landlord_id"]
             isOneToOne: true
+            referencedRelation: "v_landlord_ops_status"
+            referencedColumns: ["landlord_id"]
+          },
+          {
+            foreignKeyName: "landlord_onboarding_targets_landlord_id_fkey"
+            columns: ["landlord_id"]
+            isOneToOne: true
             referencedRelation: "v_tenant_ops_landlord_base"
             referencedColumns: ["landlord_id"]
           },
@@ -14034,6 +14062,39 @@ export type Database = {
           },
         ]
       }
+      landlord_verification_events: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          from_status: string | null
+          id: string
+          landlord_id: string
+          reason: string | null
+          source: string
+          to_status: string
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          from_status?: string | null
+          id?: string
+          landlord_id: string
+          reason?: string | null
+          source?: string
+          to_status: string
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          from_status?: string | null
+          id?: string
+          landlord_id?: string
+          reason?: string | null
+          source?: string
+          to_status?: string
+        }
+        Relationships: []
+      }
       landlord_verification_requests: {
         Row: {
           agent_name: string | null
@@ -14097,6 +14158,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "landlords_directory"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "landlord_verification_requests_landlord_id_fkey"
+            columns: ["landlord_id"]
+            isOneToOne: false
+            referencedRelation: "v_landlord_ops_status"
+            referencedColumns: ["landlord_id"]
           },
           {
             foreignKeyName: "landlord_verification_requests_landlord_id_fkey"
@@ -14166,7 +14234,9 @@ export type Database = {
           verification_pin_1: string | null
           verification_pin_2: string | null
           verification_reason: string | null
+          verification_source: string | null
           verification_status: string
+          verification_updated_at: string | null
           verified: boolean | null
           verified_at: string | null
           verified_by: string | null
@@ -14231,7 +14301,9 @@ export type Database = {
           verification_pin_1?: string | null
           verification_pin_2?: string | null
           verification_reason?: string | null
+          verification_source?: string | null
           verification_status?: string
+          verification_updated_at?: string | null
           verified?: boolean | null
           verified_at?: string | null
           verified_by?: string | null
@@ -14296,7 +14368,9 @@ export type Database = {
           verification_pin_1?: string | null
           verification_pin_2?: string | null
           verification_reason?: string | null
+          verification_source?: string | null
           verification_status?: string
+          verification_updated_at?: string | null
           verified?: boolean | null
           verified_at?: string | null
           verified_by?: string | null
@@ -20129,6 +20203,13 @@ export type Database = {
             foreignKeyName: "profiles_borrower_landlord_id_fkey"
             columns: ["borrower_landlord_id"]
             isOneToOne: false
+            referencedRelation: "v_landlord_ops_status"
+            referencedColumns: ["landlord_id"]
+          },
+          {
+            foreignKeyName: "profiles_borrower_landlord_id_fkey"
+            columns: ["borrower_landlord_id"]
+            isOneToOne: false
             referencedRelation: "v_tenant_ops_landlord_base"
             referencedColumns: ["landlord_id"]
           },
@@ -20435,6 +20516,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "landlords_directory"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_viewings_landlord_id_fkey"
+            columns: ["landlord_id"]
+            isOneToOne: false
+            referencedRelation: "v_landlord_ops_status"
+            referencedColumns: ["landlord_id"]
           },
           {
             foreignKeyName: "property_viewings_landlord_id_fkey"
@@ -22503,6 +22591,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "landlords_directory"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rent_requests_landlord_id_fkey"
+            columns: ["landlord_id"]
+            isOneToOne: false
+            referencedRelation: "v_landlord_ops_status"
+            referencedColumns: ["landlord_id"]
           },
           {
             foreignKeyName: "rent_requests_landlord_id_fkey"
@@ -29004,6 +29099,13 @@ export type Database = {
             foreignKeyName: "house_listings_landlord_id_fkey"
             columns: ["landlord_id"]
             isOneToOne: false
+            referencedRelation: "v_landlord_ops_status"
+            referencedColumns: ["landlord_id"]
+          },
+          {
+            foreignKeyName: "house_listings_landlord_id_fkey"
+            columns: ["landlord_id"]
+            isOneToOne: false
             referencedRelation: "v_tenant_ops_landlord_base"
             referencedColumns: ["landlord_id"]
           },
@@ -29273,6 +29375,18 @@ export type Database = {
           },
         ]
       }
+      v_landlord_ops_status: {
+        Row: {
+          has_smartphone: boolean | null
+          has_tenant: boolean | null
+          landlord_id: string | null
+          monthly_rent: number | null
+          source: string | null
+          status: string | null
+          tenant_count: number | null
+        }
+        Relationships: []
+      }
       v_lc1_phone_duplicates: {
         Row: {
           created_at: string | null
@@ -29393,6 +29507,13 @@ export type Database = {
             foreignKeyName: "rent_requests_landlord_id_fkey"
             columns: ["landlord_id"]
             isOneToOne: false
+            referencedRelation: "v_landlord_ops_status"
+            referencedColumns: ["landlord_id"]
+          },
+          {
+            foreignKeyName: "rent_requests_landlord_id_fkey"
+            columns: ["landlord_id"]
+            isOneToOne: false
             referencedRelation: "v_tenant_ops_landlord_base"
             referencedColumns: ["landlord_id"]
           },
@@ -29471,6 +29592,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "landlords_directory"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "house_listings_landlord_id_fkey"
+            columns: ["landlord_id"]
+            isOneToOne: false
+            referencedRelation: "v_landlord_ops_status"
+            referencedColumns: ["landlord_id"]
           },
           {
             foreignKeyName: "house_listings_landlord_id_fkey"
@@ -32032,6 +32160,10 @@ export type Database = {
           tenant_id: string
           tin: string
           total_matched: number
+          verification_reason: string
+          verification_source: string
+          verification_status: string
+          verification_updated_at: string
           verified: boolean
           village: string
           water_meter_number: string
@@ -32045,9 +32177,23 @@ export type Database = {
           no_tenants: number
           occupied_monthly_revenue: number
           pending: number
+          rejected: number
+          resubmitted: number
           smartphone: number
           total: number
           verified: number
+          verified_auto: number
+          verified_human: number
+        }[]
+      }
+      get_landlord_verification_actors: {
+        Args: { p_from?: string; p_to?: string }
+        Returns: {
+          actor_id: string
+          actor_name: string
+          last_action_at: string
+          rejected_count: number
+          verified_count: number
         }[]
       }
       get_landlord_verification_status: {
@@ -34456,7 +34602,12 @@ export type Database = {
         }[]
       }
       set_landlord_verification: {
-        Args: { p_landlord_id: string; p_reason: string; p_status: string }
+        Args: {
+          p_landlord_id: string
+          p_reason: string
+          p_source?: string
+          p_status: string
+        }
         Returns: Json
       }
       set_lc1_verification: {
