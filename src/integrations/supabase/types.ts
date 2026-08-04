@@ -31095,6 +31095,20 @@ export type Database = {
           restricted: boolean
         }[]
       }
+      budget_release_preview: {
+        Args: { p_submission_id: string }
+        Returns: {
+          blocker: string
+          department: string
+          description: string
+          line_id: string
+          line_total: number
+          quantity: number
+          reference: string
+          submission_id: string
+          unit_amount: number
+        }[]
+      }
       build_funder_reference: {
         Args: { p_created_at: string; p_user_id: string }
         Returns: string
