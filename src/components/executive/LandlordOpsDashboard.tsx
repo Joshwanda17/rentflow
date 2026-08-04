@@ -1003,7 +1003,9 @@ export function LandlordOpsDashboard() {
         p_limit: 10000,
       });
       if (error) throw error;
-      const reportRows = ((data || []) as any[]).map(r => (r.row ?? r) as HouseReportRow);
+      const payload = (data || []) as any[];
+      const reportRows = payload.map(r => (r.row_data ?? r) as HouseReportRow);
+      const trueTotal = Number(payload[0]?.total_count ?? reportRows.length);
       if (!reportRows.length) {
         sonnerToast.error('No houses match these filters — nothing to export');
         return;
@@ -1014,7 +1016,7 @@ export function LandlordOpsDashboard() {
         search: serverSearchTerm,
         dateFrom: verifyDateFromIso,
         dateTo: verifyDateToIso,
-        totalMatches: reportRows.length,
+        totalMatches: trueTotal,
         generatedBy: user?.email ?? null,
       });
       const url = URL.createObjectURL(blob);
