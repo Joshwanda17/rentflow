@@ -1472,12 +1472,12 @@ export function LandlordOpsDashboard() {
     queryKey: ['landlord-ops-full-lc1'],
     queryFn: async () => {
       // 1. Fetch all LC1 chairpersons
-      const allLC1: { id: string; name: string; phone: string; village: string; created_at: string; verified: boolean | null; registered_by: string | null }[] = [];
+      const allLC1: { id: string; name: string; phone: string; village: string; created_at: string; verified: boolean | null; registered_by: string | null; verification_status: string | null; verification_reason: string | null }[] = [];
       let offset = 0;
       let hasMore = true;
       while (hasMore) {
         const { data, error } = await supabase.from('lc1_chairpersons')
-          .select('id, name, phone, village, created_at, verified, registered_by')
+          .select('id, name, phone, village, created_at, verified, registered_by, verification_status, verification_reason')
           .order('name').range(offset, offset + 999);
         if (error) { console.error('[LC1] fetch error', error); break; }
         if (data && data.length > 0) { allLC1.push(...data as any); offset += 1000; hasMore = data.length === 1000; }
