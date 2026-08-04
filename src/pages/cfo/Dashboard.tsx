@@ -35,6 +35,7 @@ import { RejectedRequestsQueue } from '@/components/executive/RejectedRequestsQu
 import { ListingBonusApprovalQueue } from '@/components/executive/ListingBonusApprovalQueue';
 import { FinancialAgentsPanel } from '@/components/cfo/FinancialAgentsPanel';
 import { PayrollPanel } from '@/components/cfo/PayrollPanel';
+import CfoPayrollPanel from '@/hr/pay/CfoPayrollPanel';
 import { CashoutAgentManager } from '@/components/cfo/CashoutAgentManager';
 import { HouseListingCommissionReport } from '@/components/cfo/HouseListingCommissionReport';
 import { CashoutAgentActivity } from '@/components/cfo/CashoutAgentActivity';
