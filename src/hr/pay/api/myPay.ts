@@ -3,9 +3,9 @@
  *
  * Payslip reads go through the `hr_pay_my_payslips` RPC, which resolves the
  * caller's own staff record server-side and returns only the rows the employee
- * is allowed to see. The client must not query `hr_pay_payslips`,
- * `hr_pay_runs` or `hr_pay_periods` directly because an ordinary employee has
- * no read access to the run and period tables.
+ * is allowed to see. The client must not query the payslip, run or period
+ * tables directly because an ordinary employee has no read access to the run
+ * and period tables.
  */
 import { supabase, unwrap } from '../../api/client';
 
