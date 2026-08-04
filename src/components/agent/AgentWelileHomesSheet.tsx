@@ -329,11 +329,53 @@ function EnrollDialog({ open, onOpenChange, agentId, onDone }: {
   const [landlordName, setLandlordName] = useState('');
   const [landlordPhone, setLandlordPhone] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  // Existing Welile Homes landlords, for quick reuse instead of retyping.
+  const [landlords, setLandlords] = useState<{ name: string; phone: string; count: number }[]>([]);
+  const [landlordQuery, setLandlordQuery] = useState('');
+  const [loadingLandlords, setLoadingLandlords] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    (async () => {
+      setLoadingLandlords(true);
+      try {
+        const { data } = await supabase
+          .from('welile_homes_subscriptions')
+          .select('landlord_name, landlord_phone')
+          .not('landlord_name', 'is', null)
+          .order('created_at', { ascending: false })
+          .limit(500);
+        if (cancelled) return;
+        const map = new Map<string, { name: string; phone: string; count: number }>();
+        (data || []).forEach((row: any) => {
+          const name = (row.landlord_name || '').trim();
+          const phone = (row.landlord_phone || '').trim();
+          if (!name) return;
+          const key = `${name.toLowerCase()}|${phone}`;
+          const existing = map.get(key);
+          if (existing) existing.count += 1;
+          else map.set(key, { name, phone, count: 1 });
+        });
+        setLandlords(Array.from(map.values()).sort((a, b) => b.count - a.count));
+      } finally {
+        if (!cancelled) setLoadingLandlords(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open]);
+
+  const filteredLandlords = landlords.filter((l) => {
+    const q = landlordQuery.trim().toLowerCase();
+    if (!q) return true;
+    return l.name.toLowerCase().includes(q) || l.phone.includes(q.replace(/\s/g, ''));
+  });
 
   const reset = () => {
     setPhone(''); setSearched(false); setTenant(null); setNewName(''); setNewNationalId('');
     setRent(''); setPayoutDay('5');
     setHasPhone(true); setLandlordUsesWallet(false); setLandlordName(''); setLandlordPhone('');
+    setLandlordQuery('');
   };
 
   const findTenant = async () => {
@@ -471,6 +513,50 @@ function EnrollDialog({ open, onOpenChange, agentId, onDone }: {
             <div><p className="text-sm font-medium">Landlord uses Welile wallet</p><p className="text-xs text-muted-foreground">Off = paid to your landlord float</p></div>
             <Switch checked={landlordUsesWallet} onCheckedChange={setLandlordUsesWallet} />
           </div>
+          {!landlordUsesWallet && (
+            <div className="space-y-2 rounded-lg border p-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium text-muted-foreground">Registered Welile Homes landlords</p>
+                {loadingLandlords && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+              </div>
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={landlordQuery}
+                  onChange={(e) => setLandlordQuery(e.target.value)}
+                  placeholder="Search landlord by name or phone"
+                  className="h-9 pl-8 text-sm"
+                />
+              </div>
+              <div className="max-h-40 space-y-1 overflow-y-auto">
+                {filteredLandlords.length === 0 && !loadingLandlords && (
+                  <p className="py-2 text-xs text-muted-foreground">
+                    {landlords.length === 0 ? 'No landlords enrolled yet — type the details below.' : 'No match. Type the details below.'}
+                  </p>
+                )}
+                {filteredLandlords.map((l) => {
+                  const selected = landlordName.trim().toLowerCase() === l.name.toLowerCase()
+                    && (landlordPhone.trim() === l.phone);
+                  return (
+                    <button
+                      key={`${l.name}|${l.phone}`}
+                      type="button"
+                      onClick={() => { setLandlordName(l.name); setLandlordPhone(l.phone); }}
+                      className={`flex w-full items-center justify-between rounded-md border px-2.5 py-1.5 text-left text-xs transition-colors ${selected ? 'border-primary bg-primary/10' : 'hover:bg-muted'}`}
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate font-medium">{l.name}</span>
+                        <span className="block truncate text-muted-foreground">{l.phone || 'No phone on file'}</span>
+                      </span>
+                      {selected
+                        ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-primary" />
+                        : <Badge variant="secondary" className="shrink-0 text-[10px]">{l.count}</Badge>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           {!landlordUsesWallet && (
             <div className="grid grid-cols-2 gap-2">
               <div><Label>Landlord name</Label><Input value={landlordName} onChange={(e) => setLandlordName(e.target.value)} /></div>
