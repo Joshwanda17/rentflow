@@ -2657,10 +2657,66 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                   <MiniKPI icon={<Wallet className="h-3.5 w-3.5" />} label="Wallet Balance" value={formatUGX(detailPartner.walletBalance)} variant="primary" />
                   <MiniKPI icon={<Banknote className="h-3.5 w-3.5" />} label="Principal" value={formatUGX(detailPartner.totalFunded)} variant="emerald" />
                   <MiniKPI icon={<TrendingUp className="h-3.5 w-3.5" />} label="Returns Earned" value={formatUGX(detailPartner.totalROIEarned)} variant="amber" />
-                  <MiniKPI icon={<Briefcase className="h-3.5 w-3.5" />} label="Portfolios" value={detailPartner.portfolios.length} variant="violet" />
+                  <MiniKPI icon={<Briefcase className="h-3.5 w-3.5" />} label="Portfolios" value={detailPartner.portfolios.length + detailSelfCommitments.length} variant="violet" />
                 </div>
 
                 <Separator />
+
+                {/* Self-managed portfolios (Self Portfolio Management) */}
+                {detailSelfCommitments.length > 0 && (
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground">Self-Managed Portfolios</h3>
+                      <Badge variant="outline" className="text-[10px] tabular-nums">{detailSelfCommitments.length} total</Badge>
+                    </div>
+                    <div className="space-y-2.5">
+                      {detailSelfCommitments.map(c => (
+                        <div key={c.id} className="rounded-xl border border-border bg-card p-3.5">
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="text-sm font-bold tabular-nums">{formatUGX(c.committed_amount)}</p>
+                              <p className="text-[11px] text-muted-foreground mt-0.5">
+                                {c.term_months} month term · {c.monthly_rate}% monthly · {c.lines_count} tenant{c.lines_count === 1 ? '' : 's'}
+                              </p>
+                            </div>
+                            <Badge variant="outline" className="text-[10px] capitalize">{String(c.status).replace(/_/g, ' ')}</Badge>
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3 text-[11px]">
+                            <div>
+                              <p className="text-muted-foreground">Earned</p>
+                              <p className="font-semibold tabular-nums">{formatUGX(c.total_earned)}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Paid out</p>
+                              <p className="font-semibold tabular-nums">{formatUGX(c.total_paid)}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Next payout</p>
+                              <p className="font-semibold">{c.next_payout_at ? formatDate(c.next_payout_at) : '—'}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Term ends</p>
+                              <p className="font-semibold">{c.term_end_at ? formatDate(c.term_end_at) : '—'}</p>
+                            </div>
+                          </div>
+                          {c.lines.length > 0 && (
+                            <div className="mt-3 space-y-1.5">
+                              {c.lines.map(l => (
+                                <div key={l.id} className="flex items-center justify-between gap-2 rounded-lg bg-muted/40 px-2.5 py-1.5">
+                                  <span className="text-[11px] font-medium truncate">{l.tenant_name || 'Tenant'}</span>
+                                  <span className="text-[11px] tabular-nums text-muted-foreground">
+                                    {formatUGX(l.principal)} · <span className="capitalize">{String(l.status).replace(/_/g, ' ')}</span>
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <Separator className="mt-5" />
+                  </div>
+                )}
 
                 {/* Portfolio Breakdown */}
                 <div>
