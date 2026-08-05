@@ -68,6 +68,12 @@ export function SubAgentDetailSheet({
   onTransfer: (s: ServiceCenterSubAgent, rentRequestId: string) => void;
   onUnlink: (s: ServiceCenterSubAgent) => void;
 }) {
+  const [entityTab, setEntityTab] = useState<'tenants' | 'landlords' | 'houses'>('tenants');
+
+  useEffect(() => {
+    if (open) setEntityTab('tenants');
+  }, [open, subAgent?.sub_agent_id]);
+
   const tenantRows = useMemo<EntityRow[]>(() => (subAgent?.tenant_list ?? []).map((t) => ({
     id: t.rent_request_id,
     state: tenantState(t.status, t.is_active),
