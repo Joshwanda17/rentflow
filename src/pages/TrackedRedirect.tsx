@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2 } from 'lucide-react';
 import NotFound from './NotFound';
+import ScreenLoader from '@/components/common/ScreenLoader';
 
 const CODE_RE = /^[A-Za-z0-9]{4,8}$/;
 
@@ -54,8 +54,6 @@ export default function TrackedRedirect() {
   if (!isValidCode || notFound) return <NotFound />;
 
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <Loader2 className="h-8 w-8 animate-spin text-primary" />
-    </div>
+    <ScreenLoader />
   );
 }

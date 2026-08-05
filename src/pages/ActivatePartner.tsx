@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Shield, TrendingUp, Loader2, CheckCircle, ArrowRight } from 'lucide-react';
+import ScreenLoader from '@/components/common/ScreenLoader';
 import { formatUGX } from '@/lib/rentCalculations';
 import { toast } from 'sonner';
 import { roleToSlug } from '@/lib/roleRoutes';
@@ -125,9 +126,7 @@ export default function ActivatePartner() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-primary/10 to-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      <ScreenLoader className="bg-gradient-to-b from-primary/10 to-background" />
     );
   }
 

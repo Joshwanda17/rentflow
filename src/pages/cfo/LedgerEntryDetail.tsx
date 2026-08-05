@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { formatDynamic as formatUGX } from '@/lib/currencyFormat';
 import { CATEGORY_DESCRIPTIONS } from '@/lib/ledgerConstants';
+import ScreenLoader from '@/components/common/ScreenLoader';
 
 type LedgerEntry = {
   id: string;
@@ -129,9 +130,7 @@ export default function LedgerEntryDetail() {
   }, [id]);
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center">
-      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-    </div>
+    <ScreenLoader />
   );
 
   if (notFound || !entry) return (

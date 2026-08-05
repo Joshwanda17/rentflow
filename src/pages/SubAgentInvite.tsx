@@ -12,6 +12,7 @@ import {
   clearPendingSubAgentInvite,
 } from '@/lib/pendingSubAgentInvite';
 import { Loader2, UsersRound, CheckCircle2, AlertTriangle, LogIn, Wallet, Users, TrendingUp, Info } from 'lucide-react';
+import ScreenLoader from '@/components/common/ScreenLoader';
 
 type Phase = 'idle' | 'accepting' | 'accepted' | 'error' | 'need-login' | 'already-sub-agent';
 
@@ -180,9 +181,7 @@ export default function SubAgentInvite() {
 
   if (loading || (!user && phase === 'idle')) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
+      <ScreenLoader />
     );
   }
 

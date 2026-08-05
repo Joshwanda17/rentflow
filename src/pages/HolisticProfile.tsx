@@ -24,6 +24,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { buildProfileShareUrl, shareProfileOnWhatsApp } from '@/lib/shareTrustProfile';
 import { isValidAiId } from '@/lib/welileAiId';
 import { toast } from 'sonner';
+import ScreenLoader from '@/components/common/ScreenLoader';
 
 interface Props {
   /** When true, uses get_public_trust_profile (PII hidden, no auth required) */
@@ -62,9 +63,7 @@ export default function HolisticProfile({ publicMode = false }: Props) {
 
   if (loading && !profile) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      <ScreenLoader />
     );
   }
 

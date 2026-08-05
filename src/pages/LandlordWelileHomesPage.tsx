@@ -27,6 +27,7 @@ import { WelileHomesLandlordLeaderboard } from '@/components/landlord/WelileHome
 import { ManageTenantSubscriptionDialog } from '@/components/landlord/ManageTenantSubscriptionDialog';
 import { WelileHomesLandlordBadge } from '@/components/landlord/WelileHomesLandlordBadge';
 import { SavingsGrowthChart } from '@/components/welile-homes/SavingsGrowthChart';
+import ScreenLoader from '@/components/common/ScreenLoader';
 
 interface TenantWithSavings {
   tenant_id: string;
@@ -112,9 +113,7 @@ export default function LandlordWelileHomesPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
-      </div>
+      <ScreenLoader />
     );
   }
 

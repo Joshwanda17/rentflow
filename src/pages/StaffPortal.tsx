@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { roleDashboardRoutes } from '@/components/layout/executiveSidebarConfig';
 import type { AppRole } from '@/hooks/auth/types';
+import ScreenLoader from '@/components/common/ScreenLoader';
 const STAFF_ROLES: AppRole[] = ['super_admin', 'manager', 'employee', 'ceo', 'coo', 'cfo', 'cto', 'cmo', 'crm', 'hr', 'operations'];
 
 export default function StaffPortal() {
@@ -79,9 +80,7 @@ export default function StaffPortal() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-      </div>
+      <ScreenLoader />
     );
   }
 

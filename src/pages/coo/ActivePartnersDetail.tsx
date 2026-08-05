@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import ScreenLoader from '@/components/common/ScreenLoader';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { roleToSlug } from '@/lib/roleRoutes';
@@ -451,7 +452,7 @@ export default function ActivePartnersDetail() {
     },
   ];
 
-  if (isLoading) return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
+  if (isLoading) return <ScreenLoader />;
   if (!data) return null;
 
   const status = data.activePartners > 3 ? 'green' as const : data.activePartners > 0 ? 'yellow' as const : 'red' as const;

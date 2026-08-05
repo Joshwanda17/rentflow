@@ -12,6 +12,7 @@ import { Loader2, ShieldCheck, ShieldAlert, CheckCircle2, PenLine, Trash2 } from
 import { toast } from 'sonner';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import ScreenLoader from '@/components/common/ScreenLoader';
 
 type Status = 'loading' | 'auth_required' | 'wrong_account' | 'invalid' | 'ready' | 'submitting' | 'done';
 
@@ -296,9 +297,7 @@ export default function PortfolioCompletion() {
 
   if (authLoading || status === 'loading') {
     return (
-      <div className="min-h-screen grid place-items-center bg-background">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-      </div>
+      <ScreenLoader />
     );
   }
 

@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, CheckCircle2, Eye, EyeOff, ArrowRight, AlertCircle, UserPlus, KeyRound, Copy, MessageCircle, MapPin, Navigation } from 'lucide-react';
 import WelileLogo from '@/components/WelileLogo';
+import ThreeBodyLoader from '@/components/common/ThreeBodyLoader';
 import { roleToSlug } from '@/lib/roleRoutes';
 
 type PageState = 'loading' | 'invalid' | 'activated-already' | 'ready' | 'profile-setup' | 'review' | 'success' | 'forgot-password' | 'password-reset';
@@ -804,7 +805,7 @@ export default function ActivateSupporter() {
     return (
       <div className="min-h-screen bg-gradient-to-b from-primary/5 to-background flex flex-col items-center justify-center p-4 gap-4">
         <WelileLogo linkToHome={false} />
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <ThreeBodyLoader size={32} />
         <p className="text-sm text-muted-foreground">Verifying your invitation...</p>
       </div>
     );

@@ -23,6 +23,7 @@ import { exportToCSV } from '@/lib/exportUtils';
 import { saveViewCache, loadViewCache } from '@/lib/offlineViewCache';
 import { useOffline } from '@/contexts/OfflineContext';
 import { WifiOff } from 'lucide-react';
+import ScreenLoader from '@/components/common/ScreenLoader';
 
 interface StatementEntry {
   id: string;
@@ -266,9 +267,7 @@ export default function FinancialStatement() {
 
   if (authLoading || (loading && entries.length === 0)) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      <ScreenLoader />
     );
   }
 

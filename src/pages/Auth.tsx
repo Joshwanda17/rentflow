@@ -29,6 +29,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { setCriticalFlowActive } from '@/lib/criticalFlowGuard';
 import { captureOAuthRedirectError } from '@/lib/oauthErrorLog';
 import { getStoredAttributionToken, restoreAttributionFromToken } from '@/lib/campaignAttribution';
+import ScreenLoader from '@/components/common/ScreenLoader';
 
 const VALID_SIGNUP_ROLES = ['tenant', 'agent', 'landlord', 'supporter'] as const;
 
@@ -401,12 +402,7 @@ export default function Auth() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-6 w-6 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">Just a moment...</p>
-        </div>
-      </div>
+      <ScreenLoader label="Just a moment..." />
     );
   }
 

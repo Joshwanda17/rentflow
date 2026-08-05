@@ -7,6 +7,7 @@ import { lazyWithRetry } from '@/lib/lazyWithRetry';
 import { MissionBanner } from '@/components/mission/MissionBanner';
 import { useStaffPermissions } from '@/hooks/useStaffPermissions';
 import NotFound from '@/pages/NotFound';
+import ScreenLoader from '@/components/common/ScreenLoader';
 
 // Only ONE of these dashboards is ever mounted per visit (the `?tab=` slug),
 // so each is code-split into its own chunk instead of being welded into one
@@ -84,9 +85,7 @@ export default function ExecutiveHub() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-      </div>
+      <ScreenLoader />
     );
   }
 

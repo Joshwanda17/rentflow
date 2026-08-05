@@ -23,6 +23,7 @@ import {
   Clock
 } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import ScreenLoader from '@/components/common/ScreenLoader';
 
 interface MonthlyDiscount {
   month: string;
@@ -170,9 +171,7 @@ export default function RentDiscountHistory() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      <ScreenLoader />
     );
   }
 

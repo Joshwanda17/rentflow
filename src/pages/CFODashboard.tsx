@@ -10,6 +10,7 @@ import {
   Receipt, Wallet, Bell, Layers, DollarSign, FileText, HandCoins, MessageSquare, Coins
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import ScreenLoader from '@/components/common/ScreenLoader';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 import { FinancialStatementsPanel } from '@/components/manager/FinancialStatementsPanel';
@@ -66,9 +67,7 @@ export default function CFODashboard() {
 
   if (authLoading || roleLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      <ScreenLoader />
     );
   }
 

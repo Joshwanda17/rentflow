@@ -19,6 +19,7 @@ import { Loader2 } from 'lucide-react';
 import RunBackupNowButton from '@/components/admin/RunBackupNowButton';
 import RentAccessLimitParamsPanel from '@/components/admin/RentAccessLimitParamsPanel';
 import RunGscVerifyButton from '@/components/admin/RunGscVerifyButton';
+import ScreenLoader from '@/components/common/ScreenLoader';
 
 interface DashboardCard {
   label: string;
@@ -82,9 +83,7 @@ export default function AdminDashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-      </div>
+      <ScreenLoader />
     );
   }
 

@@ -19,6 +19,7 @@ import {
   User as UserIcon,
 } from 'lucide-react';
 import { format } from 'date-fns';
+import ScreenLoader from '@/components/common/ScreenLoader';
 
 interface AuditEntry {
   id: string;
@@ -121,9 +122,7 @@ export default function DepositVerificationDetail() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      <ScreenLoader />
     );
   }
 

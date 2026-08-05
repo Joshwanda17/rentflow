@@ -6,6 +6,7 @@ import { getPreferredDefaultRole, isAgentAutoDefaultDisabled } from '@/hooks/use
 import { supabase } from '@/integrations/supabase/client';
 import { fetchServerRoutingPrefs } from '@/lib/routingPrefsServer';
 import { Loader2 } from 'lucide-react';
+import ScreenLoader from '@/components/common/ScreenLoader';
 import { toast } from 'sonner';
 
 /**
@@ -203,8 +204,6 @@ export default function DashboardRedirect() {
   // there is no flash of empty content.
   if (!loading && !user) return <Navigate to="/auth" replace />;
   return (
-    <div className="flex min-h-screen items-center justify-center">
-      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-    </div>
+    <ScreenLoader />
   );
 }
