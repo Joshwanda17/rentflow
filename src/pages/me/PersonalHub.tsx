@@ -85,8 +85,8 @@ const CARDS = [
   {
     icon: FolderOpen,
     title: 'My documents',
-    description: 'Coming soon',
-    disabled: true,
+    description: 'Your contracts, letters and certificates',
+    to: '/me/documents',
   },
 ];
 
