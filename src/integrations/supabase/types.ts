@@ -35095,6 +35095,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      psm_e2e_smoke: { Args: never; Returns: Json }
       psm_is_partner: { Args: { p_user: string }; Returns: boolean }
       purge_geo_coverage_cache: { Args: never; Returns: number }
       read_email_batch: {
