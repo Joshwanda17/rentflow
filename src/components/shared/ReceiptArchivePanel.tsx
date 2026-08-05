@@ -326,6 +326,15 @@ export function ReceiptArchivePanel() {
             </SelectContent>
           </Select>
 
+          <Select value={proofFilter} onValueChange={(v) => { setProofFilter(v); setPage(0); }}>
+            <SelectTrigger><SelectValue placeholder="Proof of payment" /></SelectTrigger>
+            <SelectContent>
+              {PROOF_FILTERS.map((p) => (
+                <SelectItem key={p.v} value={p.v}>{p.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
           <div className="grid grid-cols-2 gap-2">
             <Input
               inputMode="numeric"
