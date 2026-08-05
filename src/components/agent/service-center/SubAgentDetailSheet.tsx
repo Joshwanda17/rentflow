@@ -216,62 +216,41 @@ export function SubAgentDetailSheet({
               </div>
             </section>
 
-            <section className="space-y-2">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Tenants ({subAgent.tenant_list.length}
-                {subAgent.active_tenants > 0 ? ` · ${subAgent.active_tenants} active` : ''})
-              </h3>
-              {subAgent.tenant_list.length === 0 ? (
-                <p className="rounded-xl border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
-                  No tenants linked to this sub-agent yet.
-                </p>
-              ) : (
-                <>
-                <ul className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border/60">
-                  {subAgent.tenant_list.slice(0, visibleTenants).map((t) => (
-                    <li key={t.rent_request_id} className="flex items-center justify-between gap-2 px-3 py-2.5">
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-medium text-foreground">
-                          {t.tenant_name ?? 'Unnamed tenant'}
-                        </div>
-                        <div className="mt-0.5 flex items-center gap-2 text-xs">
-                          <span className="font-semibold text-foreground">
-                            {t.monthly_rent ? formatUGX(t.monthly_rent) : '—'}
-                          </span>
-                          <Badge
-                            variant={t.is_active ? 'default' : 'outline'}
-                            className="text-[10px] capitalize"
-                          >
-                            {t.status.replace(/_/g, ' ')}
-                          </Badge>
-                        </div>
-                      </div>
-                      {t.is_active && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="shrink-0"
-                          onClick={() => onTransfer(subAgent, t.rent_request_id)}
-                        >
-                          <ArrowLeftRight className="mr-1.5 h-3.5 w-3.5" /> Transfer
-                        </Button>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-                {subAgent.tenant_list.length > visibleTenants && (
+            <SubAgentEntityList
+              heading={`Tenants${subAgent.active_tenants > 0 ? ` · ${subAgent.active_tenants} active` : ''}`}
+              emptyLabel="No tenants linked to this sub-agent yet."
+              rows={tenantRows}
+              resetKey={`${subAgent.sub_agent_id}-tenants-${open}`}
+              renderRowAction={(r) => {
+                const t = subAgent.tenant_list.find((x) => x.rent_request_id === r.id);
+                if (!t?.is_active) return null;
+                return (
                   <Button
-                    variant="outline"
                     size="sm"
-                    className="w-full"
-                    onClick={() => setVisibleTenants((n) => n + 10)}
+                    variant="outline"
+                    className="w-full sm:w-auto"
+                    onClick={() => onTransfer(subAgent, t.rent_request_id)}
                   >
-                    Load more ({subAgent.tenant_list.length - visibleTenants} left)
+                    <ArrowLeftRight className="mr-1.5 h-3.5 w-3.5" /> Transfer tenant
                   </Button>
-                )}
-                </>
-              )}
-            </section>
+                );
+              }}
+            />
+
+            <SubAgentEntityList
+              heading="Houses"
+              emptyLabel="This sub-agent has not listed any houses yet."
+              rows={houseRows}
+              resetKey={`${subAgent.sub_agent_id}-houses-${open}`}
+            />
+
+            <SubAgentEntityList
+              heading="Landlords"
+              emptyLabel="No landlords registered or assigned to this sub-agent yet."
+              rows={landlordRows}
+              showAmountSort={false}
+              resetKey={`${subAgent.sub_agent_id}-landlords-${open}`}
+            />
 
             {subAgent.suspension?.reason && (
               <p className="rounded-xl bg-destructive/10 p-3 text-xs text-destructive">
