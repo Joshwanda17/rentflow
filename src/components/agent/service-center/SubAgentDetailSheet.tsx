@@ -3,13 +3,29 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
 import {
   ArrowLeftRight, Home, Mail, Phone, ShieldCheck, ShieldOff, Unlink, Users, Wallet,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
-import { ServiceCenterSubAgent } from '@/hooks/useAgentServiceCenter';
+import { ServiceCenterState, ServiceCenterSubAgent } from '@/hooks/useAgentServiceCenter';
 import { initialsOf, tintFor } from './subAgentVisuals';
+import { EntityRow, SubAgentEntityList } from './SubAgentEntityList';
+
+const dateLabel = (v?: string | null) =>
+  v
+    ? new Date(v).toLocaleDateString('en-GB', {
+        day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Africa/Kampala',
+      })
+    : '—';
+
+const ACTIVE_STATUSES = ['funded', 'repaying'];
+
+const tenantState = (status: string, isActive?: boolean): ServiceCenterState => {
+  if (isActive || ACTIVE_STATUSES.includes(status)) return 'verified';
+  if (/reject|cancel|declin|deleted/i.test(status)) return 'rejected';
+  return 'pending';
+};
 
 function Metric({
   label, value, tone, icon: Icon,
@@ -51,11 +67,59 @@ export function SubAgentDetailSheet({
   onTransfer: (s: ServiceCenterSubAgent, rentRequestId: string) => void;
   onUnlink: (s: ServiceCenterSubAgent) => void;
 }) {
-  const [visibleTenants, setVisibleTenants] = useState(10);
+  const tenantRows = useMemo<EntityRow[]>(() => (subAgent?.tenant_list ?? []).map((t) => ({
+    id: t.rent_request_id,
+    state: tenantState(t.status, t.is_active),
+    primary: t.tenant_name ?? 'Unnamed tenant',
+    secondary: t.status.replace(/_/g, ' '),
+    amountLabel: t.monthly_rent ? formatUGX(t.monthly_rent) : null,
+    amountValue: t.monthly_rent ?? 0,
+    createdAt: t.created_at ?? null,
+    details: [
+      { label: 'Rent plan status', value: t.status.replace(/_/g, ' ') },
+      { label: 'Monthly rent', value: t.monthly_rent ? formatUGX(t.monthly_rent) : '—' },
+      { label: 'Active plan', value: t.is_active ? 'Yes' : 'No' },
+      { label: 'Added', value: dateLabel(t.created_at) },
+    ],
+  })), [subAgent?.tenant_list]);
 
-  useEffect(() => {
-    setVisibleTenants(10);
-  }, [subAgent?.sub_agent_id, open]);
+  const houseRows = useMemo<EntityRow[]>(() => (subAgent?.house_list ?? []).map((h) => ({
+    id: h.id,
+    state: h.state,
+    primary: h.title || h.address || 'Untitled house',
+    secondary: [h.district, h.region].filter(Boolean).join(', ') || null,
+    amountLabel: h.monthly_rent ? formatUGX(h.monthly_rent) : null,
+    amountValue: h.monthly_rent ?? 0,
+    createdAt: h.created_at,
+    details: [
+      { label: 'Address', value: h.address || '—' },
+      { label: 'District', value: h.district || '—' },
+      { label: 'Region', value: h.region || '—' },
+      { label: 'Monthly rent', value: h.monthly_rent ? formatUGX(h.monthly_rent) : '—' },
+      { label: 'Listing status', value: (h.status || '—').replace(/_/g, ' ') },
+      { label: 'Occupancy', value: h.occupied ? 'Occupied' : 'Vacant' },
+      { label: 'Verified on', value: dateLabel(h.verified_at) },
+      { label: 'Listed on', value: dateLabel(h.created_at) },
+      ...(h.reason ? [{ label: 'Rejection reason', value: h.reason }] : []),
+    ],
+  })), [subAgent?.house_list]);
+
+  const landlordRows = useMemo<EntityRow[]>(() => (subAgent?.landlord_list ?? []).map((l) => ({
+    id: l.id,
+    state: l.state,
+    primary: l.name || 'Unnamed landlord',
+    secondary: [l.phone, l.district].filter(Boolean).join(' · ') || null,
+    createdAt: l.created_at,
+    details: [
+      { label: 'Phone', value: l.phone || '—' },
+      { label: 'District', value: l.district || '—' },
+      { label: 'Region', value: l.region || '—' },
+      { label: 'Link', value: l.link_source === 'assigned' ? 'Assigned' : 'Registered by sub-agent' },
+      { label: 'Verified on', value: dateLabel(l.verified_at) },
+      { label: 'Registered', value: dateLabel(l.created_at) },
+      ...(l.reason ? [{ label: 'Verification note', value: l.reason }] : []),
+    ],
+  })), [subAgent?.landlord_list]);
 
   if (!subAgent) return null;
 
@@ -152,62 +216,41 @@ export function SubAgentDetailSheet({
               </div>
             </section>
 
-            <section className="space-y-2">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Tenants ({subAgent.tenant_list.length}
-                {subAgent.active_tenants > 0 ? ` · ${subAgent.active_tenants} active` : ''})
-              </h3>
-              {subAgent.tenant_list.length === 0 ? (
-                <p className="rounded-xl border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
-                  No tenants linked to this sub-agent yet.
-                </p>
-              ) : (
-                <>
-                <ul className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border/60">
-                  {subAgent.tenant_list.slice(0, visibleTenants).map((t) => (
-                    <li key={t.rent_request_id} className="flex items-center justify-between gap-2 px-3 py-2.5">
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-medium text-foreground">
-                          {t.tenant_name ?? 'Unnamed tenant'}
-                        </div>
-                        <div className="mt-0.5 flex items-center gap-2 text-xs">
-                          <span className="font-semibold text-foreground">
-                            {t.monthly_rent ? formatUGX(t.monthly_rent) : '—'}
-                          </span>
-                          <Badge
-                            variant={t.is_active ? 'default' : 'outline'}
-                            className="text-[10px] capitalize"
-                          >
-                            {t.status.replace(/_/g, ' ')}
-                          </Badge>
-                        </div>
-                      </div>
-                      {t.is_active && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="shrink-0"
-                          onClick={() => onTransfer(subAgent, t.rent_request_id)}
-                        >
-                          <ArrowLeftRight className="mr-1.5 h-3.5 w-3.5" /> Transfer
-                        </Button>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-                {subAgent.tenant_list.length > visibleTenants && (
+            <SubAgentEntityList
+              heading={`Tenants${subAgent.active_tenants > 0 ? ` · ${subAgent.active_tenants} active` : ''}`}
+              emptyLabel="No tenants linked to this sub-agent yet."
+              rows={tenantRows}
+              resetKey={`${subAgent.sub_agent_id}-tenants-${open}`}
+              renderRowAction={(r) => {
+                const t = subAgent.tenant_list.find((x) => x.rent_request_id === r.id);
+                if (!t?.is_active) return null;
+                return (
                   <Button
-                    variant="outline"
                     size="sm"
-                    className="w-full"
-                    onClick={() => setVisibleTenants((n) => n + 10)}
+                    variant="outline"
+                    className="w-full sm:w-auto"
+                    onClick={() => onTransfer(subAgent, t.rent_request_id)}
                   >
-                    Load more ({subAgent.tenant_list.length - visibleTenants} left)
+                    <ArrowLeftRight className="mr-1.5 h-3.5 w-3.5" /> Transfer tenant
                   </Button>
-                )}
-                </>
-              )}
-            </section>
+                );
+              }}
+            />
+
+            <SubAgentEntityList
+              heading="Houses"
+              emptyLabel="This sub-agent has not listed any houses yet."
+              rows={houseRows}
+              resetKey={`${subAgent.sub_agent_id}-houses-${open}`}
+            />
+
+            <SubAgentEntityList
+              heading="Landlords"
+              emptyLabel="No landlords registered or assigned to this sub-agent yet."
+              rows={landlordRows}
+              showAmountSort={false}
+              resetKey={`${subAgent.sub_agent_id}-landlords-${open}`}
+            />
 
             {subAgent.suspension?.reason && (
               <p className="rounded-xl bg-destructive/10 p-3 text-xs text-destructive">
