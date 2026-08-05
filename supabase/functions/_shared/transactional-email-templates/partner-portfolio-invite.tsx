@@ -255,7 +255,15 @@ const footerCopyText: React.CSSProperties = { margin: 0, color: '#cbd5e1', fontS
 
 export const template = {
   component: PartnerPortfolioInvite,
-  subject: (data: Record<string, any>) => `Complete your new Welile portfolio${data?.portfolio_code ? ` ${data.portfolio_code}` : ''}`,
+  // Amount is included so a partner who receives two invites in the same
+  // session sees two clearly different subjects instead of one repeated line
+  // that mail clients collapse into a single thread.
+  subject: (data: Record<string, any>) => {
+    const amount = Number(data?.amount || 0)
+    const amountPart = amount > 0 ? ` — UGX ${amount.toLocaleString('en-US')}` : ''
+    const codePart = data?.portfolio_code ? ` ${data.portfolio_code}` : ''
+    return `Complete your new Welile portfolio${codePart}${amountPart}`
+  },
   displayName: 'Partner Portfolio Invite',
   previewData: {
     partner_name: 'Sarah Nakato',
