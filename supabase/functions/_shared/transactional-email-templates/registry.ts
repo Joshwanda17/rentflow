@@ -11,6 +11,7 @@ import { template as portfolioRenewalTemplate } from './portfolio-renewal.tsx'
 import { template as portfolioRenewalDaysRemainingTemplate } from './portfolio-renewal-days-remaining.tsx'
 import { template as portfolioMaturityTemplate } from './portfolio-maturity.tsx'
 import { template as partnershipMaturityNoticeTemplate } from './partnership-maturity-notice.tsx'
+import { template as partnerSelfManagedCycleEndedTemplate } from './partner-self-managed-cycle-ended.tsx'
 import { template as partnerAccountCreatedTemplate } from './partner-account-created.tsx'
 import { template as databaseBackupReadyTemplate } from './database-backup-ready.tsx'
 import { template as databaseBackupLinkTemplate } from './database-backup-link.tsx'
@@ -58,6 +59,7 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   'portfolio-renewal-days-remaining': portfolioRenewalDaysRemainingTemplate,
   'portfolio-maturity': portfolioMaturityTemplate,
   'partnership-maturity-notice': partnershipMaturityNoticeTemplate,
+  'partner-self-managed-cycle-ended': partnerSelfManagedCycleEndedTemplate,
   'partner-account-created': partnerAccountCreatedTemplate,
   'database-backup-ready': databaseBackupReadyTemplate,
   'database-backup-link': databaseBackupLinkTemplate,
