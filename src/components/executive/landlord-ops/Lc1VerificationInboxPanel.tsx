@@ -293,6 +293,17 @@ export function Lc1VerificationInboxPanel({ onResolved, standalone = false, init
         })}
       </div>
 
+      {/* Bucket explainer — keeps the registration backlog from being mistaken for agent work */}
+      <p className="text-[10px] text-muted-foreground leading-snug">
+        {status === 'agent_requested'
+          ? 'Chairpersons an agent explicitly raised for verification and is still waiting on. This is the real inbox.'
+          : status === 'rent_linked'
+          ? 'Chairpersons attached to a rent application still moving through approval — verifying these unblocks a tenant.'
+          : status === 'pending'
+          ? 'Every unverified chairperson in the register, including bulk field registrations nobody has requested. Large by design.'
+          : `Chairpersons already ${status === 'verified' ? 'approved' : 'rejected'}.`}
+      </p>
+
       {/* Search + export */}
       <div className="flex flex-col sm:flex-row gap-2">
         <div className="relative flex-1 min-w-0">
