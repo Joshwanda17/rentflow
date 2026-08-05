@@ -28,6 +28,30 @@ type OptionKey = 'managed' | 'direct' | 'angel';
 type ViewState = 'menu' | OptionKey;
 
 // Steps shown in the collapsible "How it works" explainer on Support Tenants Directly.
+const MANAGED_FUNDING_STEPS: HowItWorksStep[] = [
+  {
+    title: 'Sign your tenant-support contract',
+    description: 'You sign a managed tenant-support contract with Welile.',
+    icon: Handshake,
+  },
+  {
+    title: 'We deploy your capital',
+    description: 'Your funds are placed into verified tenant rent requests on your behalf.',
+    icon: Rocket,
+  },
+  {
+    title: 'Our agents collect repayments',
+    description: 'Welile field agents collect from tenants and reconcile every payment.',
+    icon: HandCoins,
+  },
+  {
+    title: 'Monthly returns to your wallet',
+    description: 'Returns are paid into your wallet every month, with full tracking.',
+    icon: Wallet,
+  },
+];
+
+// Steps shown in the collapsible "How it works" explainer on Support Tenants Directly.
 const DIRECT_FUNDING_STEPS: HowItWorksStep[] = [
   {
     title: 'Pick tenant rent plans',
@@ -312,13 +336,7 @@ export function FunderCapitalOpportunities() {
           subtitle="Managed tenant-support contract"
           onBack={() => setView('menu')}
         >
-          <div className="rounded-xl bg-muted/30 border border-border/50 p-3.5 space-y-2">
-            <p className="text-xs font-bold text-foreground">How it works</p>
-            <p className="text-[11px] text-muted-foreground leading-relaxed">
-              You sign a tenant-support contract with Welile. We deploy your capital into verified rent
-              requests, collect from tenants through our agent network, and pay returns to your wallet monthly.
-            </p>
-          </div>
+          <HowItWorksSteps steps={MANAGED_FUNDING_STEPS} />
 
           <div>
             <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-widest">Total Rent Demand</p>
