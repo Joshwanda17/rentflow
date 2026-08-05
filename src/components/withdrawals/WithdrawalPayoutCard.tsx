@@ -317,6 +317,7 @@ export function WithdrawalPayoutCard({
   function clearProof() {
     setProofFile(null);
     setProofUrl(null);
+    setProofPath(null);
   }
 
   // Upload the proof to Cloud storage under the agent's own folder (RLS gate).
