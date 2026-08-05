@@ -145,7 +145,10 @@ export default function Referrals() {
             <Card className="text-center h-full overflow-hidden">
               <CardContent className="p-3 flex flex-col items-center justify-center gap-1">
                 <TrendingUp className="h-4 w-4 text-warning" />
-                <p className="text-base font-bold text-warning leading-tight truncate max-w-full">{formatUGX(pendingFirstTxBonus).replace('UGX ', '')}</p>
+                <div className="flex flex-col items-center justify-center leading-tight min-w-0">
+                  <span className="text-[10px] text-muted-foreground">UGX</span>
+                  <span className="text-sm font-bold text-warning truncate max-w-full">{formatUGX(pendingFirstTxBonus).replace(/UGX\s*/, '')}</span>
+                </div>
                 <p className="text-[10px] text-muted-foreground leading-none">Potential</p>
               </CardContent>
             </Card>
