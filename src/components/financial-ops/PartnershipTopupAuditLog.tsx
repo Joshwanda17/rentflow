@@ -35,7 +35,6 @@ interface LedgerLeg {
   account: string | null;
   classification: string | null;
   currency: string | null;
-  running_balance: number | null;
   routing_source: string | null;
   idempotency_key: string | null;
   transaction_group_id: string | null;
@@ -91,7 +90,7 @@ export function PartnershipTopupAuditLog() {
         groupIds.length
           ? supabase
               .from('general_ledger')
-              .select('id, amount, direction, category, ledger_scope, recipient_type, wallet_bucket, user_id, linked_party, description, created_at, transaction_date, reference_id, source_table, source_id, account, classification, currency, running_balance, routing_source, idempotency_key, transaction_group_id')
+              .select('id, amount, direction, category, ledger_scope, recipient_type, wallet_bucket, user_id, linked_party, description, created_at, transaction_date, reference_id, source_table, source_id, account, classification, currency, routing_source, idempotency_key, transaction_group_id')
               .in('transaction_group_id', groupIds)
           : Promise.resolve({ data: [] as any[] }),
         portfolioIds.length
@@ -420,10 +419,6 @@ function TopupDetailModal({ row, onClose }: { row: TopupRow | null; onClose: () 
                               <Row label="Account" value={l.account} />
                               <Row label="Classification" value={l.classification} mono />
                               <Row label="Currency" value={l.currency} mono />
-                              <Row
-                                label="Running balance"
-                                value={l.running_balance != null ? formatUGX(Number(l.running_balance)) : null}
-                              />
                               <Row label="User ID" value={l.user_id} mono />
                               <Row label="Linked party" value={l.linked_party} mono />
                               <Row label="Reference ID" value={l.reference_id} mono />
