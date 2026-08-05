@@ -76,6 +76,7 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
     } else {
       const payload = (data ?? {}) as { plans?: FundablePlan[]; available_balance?: number };
       setPlans(payload.plans ?? []);
+      setPage(0);
       setAvailable(Number(payload.available_balance ?? 0));
     }
     setLoading(false);
