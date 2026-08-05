@@ -23,8 +23,12 @@ const isPreviewHost =
 
 // Show branded loader immediately — inline SVG spinner, no network requests at all
 root.innerHTML = `<div style="min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f8fafc;gap:12px">
-  <div style="width:20px;height:20px;border:2px solid #7c3aed;border-top-color:transparent;border-radius:50%;animation:s .6s linear infinite"></div>
-  <style>@keyframes s{to{transform:rotate(360deg)}}@media(prefers-color-scheme:dark){div[style*=f8fafc]{background:#0f172a!important}}</style>
+  <div style="display:flex;align-items:center;gap:6px">
+    <span style="width:9px;height:9px;border-radius:50%;background:#7c3aed;animation:wd 1s ease-in-out infinite"></span>
+    <span style="width:9px;height:9px;border-radius:50%;background:#7c3aed;animation:wd 1s ease-in-out .16s infinite"></span>
+    <span style="width:9px;height:9px;border-radius:50%;background:#7c3aed;animation:wd 1s ease-in-out .32s infinite"></span>
+  </div>
+  <style>@keyframes wd{0%,80%,100%{transform:scale(.6);opacity:.45}40%{transform:scale(1);opacity:1}}@media(prefers-color-scheme:dark){div[style*=f8fafc]{background:#0f172a!important}}</style>
 </div>`;
 
 // Detect devices prone to backdrop-filter GPU corruption (horizontal tearing on
