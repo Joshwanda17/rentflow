@@ -354,36 +354,16 @@ export default function Settings() {
         <meta property="og:url" content="https://welile.tech/settings" />
       </Helmet>
       <div className="container mx-auto px-4 py-4 max-w-2xl pb-24">
-        {/* Header */}
-        <div className="sticky top-0 z-30 bg-background -mx-4 px-4 border-b border-border/30 mb-2">
-          <div className="flex items-center gap-3 pt-2 pb-2">
+        {/* Header — centered title, back on the left, Home on the right */}
+        <div className="sticky top-0 z-30 bg-background -mx-4 px-4 border-b border-border/30 mb-3">
+          <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 pt-2 pb-2">
             <Button variant="ghost" size="icon" onClick={() => navigate(roleToSlug(role))} className="rounded-xl h-10 w-10 shrink-0">
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <div className="flex-1 min-w-0">
-              <h1 className="text-xl font-bold tracking-tight">Settings</h1>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => navigate(roleToSlug(role))} className="rounded-xl gap-1.5 text-xs shrink-0">
-              <Home className="h-3.5 w-3.5" /> Home
+            <h1 className="text-lg font-bold tracking-tight text-center truncate">Settings</h1>
+            <Button variant="ghost" size="icon" onClick={() => navigate(roleToSlug(role))} aria-label="Home" className="rounded-xl h-10 w-10 shrink-0">
+              <Home className="h-5 w-5" />
             </Button>
-          </div>
-
-          {/* Compact profile */}
-          <div className="flex items-center gap-3 pb-2">
-            <Avatar className="h-9 w-9 border border-primary/20">
-              <AvatarImage src={profile?.avatar_url || undefined} alt={fullName} />
-              <AvatarFallback className="text-xs bg-primary/10 text-primary font-bold">{getInitials(fullName || 'U')}</AvatarFallback>
-            </Avatar>
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-sm truncate">{fullName || 'Your Name'}</p>
-              <div className="flex flex-wrap gap-1">
-                {roles.slice(0, 2).map((role) => {
-                  const config = roleConfig[role];
-                  return <Badge key={role} className={`${config.color} text-[9px] px-1.5 py-0 border`}>{config.label}</Badge>;
-                })}
-                {roles.length > 2 && <Badge variant="outline" className="text-[9px] px-1.5 py-0">+{roles.length - 2}</Badge>}
-              </div>
-            </div>
           </div>
 
           {/* Tab bar */}
@@ -396,6 +376,25 @@ export default function Settings() {
                 <Icon className="h-3.5 w-3.5" />{label}
               </button>
             ))}
+          </div>
+        </div>
+
+        {/* Hero — profile summary */}
+        <div className="rounded-2xl border border-border/40 bg-card p-4 flex items-center gap-4">
+          <Avatar className="h-14 w-14 border-2 border-primary/20">
+            <AvatarImage src={profile?.avatar_url || undefined} alt={fullName} />
+            <AvatarFallback className="text-base bg-primary/10 text-primary font-bold">{getInitials(fullName || 'U')}</AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0">
+            <p className="font-bold truncate">{fullName || 'Your Name'}</p>
+            {profile?.email && <p className="text-xs text-muted-foreground truncate">{profile.email}</p>}
+            <div className="flex flex-wrap gap-1 mt-1.5">
+              {roles.slice(0, 3).map((r) => {
+                const config = roleConfig[r];
+                return config ? <Badge key={r} className={`${config.color} text-[9px] px-1.5 py-0 border`}>{config.label}</Badge> : null;
+              })}
+              {roles.length > 3 && <Badge variant="outline" className="text-[9px] px-1.5 py-0">+{roles.length - 3}</Badge>}
+            </div>
           </div>
         </div>
 
