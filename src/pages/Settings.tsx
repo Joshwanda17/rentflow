@@ -353,7 +353,7 @@ export default function Settings() {
         />
         <meta property="og:url" content="https://welile.tech/settings" />
       </Helmet>
-      <div className="container mx-auto px-4 py-4 max-w-2xl pb-24">
+      <div className="container mx-auto px-4 py-4 max-w-2xl pb-24 [padding-bottom:calc(6rem+env(safe-area-inset-bottom))]">
         {/* Header — centered title, back on the left, Home on the right */}
         <div className="sticky top-0 z-30 bg-background -mx-4 px-4 border-b border-border/30 mb-3">
           <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 pt-2 pb-2">
