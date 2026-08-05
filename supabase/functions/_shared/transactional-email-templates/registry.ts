@@ -11,6 +11,7 @@ import { template as portfolioRenewalTemplate } from './portfolio-renewal.tsx'
 import { template as portfolioRenewalDaysRemainingTemplate } from './portfolio-renewal-days-remaining.tsx'
 import { template as portfolioMaturityTemplate } from './portfolio-maturity.tsx'
 import { template as partnershipMaturityNoticeTemplate } from './partnership-maturity-notice.tsx'
+import { template as partnerSelfManagedCycleEndedTemplate } from './partner-self-managed-cycle-ended.tsx'
 import { template as partnerAccountCreatedTemplate } from './partner-account-created.tsx'
 import { template as databaseBackupReadyTemplate } from './database-backup-ready.tsx'
 import { template as databaseBackupLinkTemplate } from './database-backup-link.tsx'
@@ -40,7 +41,6 @@ import { template as smartphoneOrderReceiptTemplate } from './smartphone-order-r
 import { template as portfolioRenewalApologyTemplate } from './portfolio-renewal-apology.tsx'
 import { template as partnerPortfolioInviteTemplate } from './partner-portfolio-invite.tsx'
 import { template as performanceAssessmentReportTemplate } from './performance-assessment-report.tsx'
-import { template as partnerCapitalDeploymentConfirmationTemplate } from './partner-capital-deployment-confirmation.tsx'
 import type { TemplateEntry } from './types.ts'
 
 export const TEMPLATES: Record<string, TemplateEntry> = {
@@ -59,6 +59,7 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   'portfolio-renewal-days-remaining': portfolioRenewalDaysRemainingTemplate,
   'portfolio-maturity': portfolioMaturityTemplate,
   'partnership-maturity-notice': partnershipMaturityNoticeTemplate,
+  'partner-self-managed-cycle-ended': partnerSelfManagedCycleEndedTemplate,
   'partner-account-created': partnerAccountCreatedTemplate,
   'database-backup-ready': databaseBackupReadyTemplate,
   'database-backup-link': databaseBackupLinkTemplate,
@@ -86,5 +87,4 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   'portfolio-renewal-apology': portfolioRenewalApologyTemplate,
   'partner-portfolio-invite': partnerPortfolioInviteTemplate,
   'performance-assessment-report': performanceAssessmentReportTemplate,
-  'partner-capital-deployment-confirmation': partnerCapitalDeploymentConfirmationTemplate,
 }

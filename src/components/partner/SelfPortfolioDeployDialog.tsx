@@ -58,7 +58,6 @@ export function SelfPortfolioDeployDialog({
   onOpenChange,
   activeCommitmentId,
   selectedIds,
-  selectedTenants = [],
   total,
   onDeployed,
 }: {
@@ -66,7 +65,6 @@ export function SelfPortfolioDeployDialog({
   onOpenChange: (open: boolean) => void;
   activeCommitmentId: string | null;
   selectedIds: string[];
-  selectedTenants?: { name: string; amount: number; location?: string | null }[];
   total: number;
   onDeployed: () => void | Promise<void>;
 }) {
@@ -116,56 +114,6 @@ export function SelfPortfolioDeployDialog({
   const newProjection = fullMonthly;
   const canTopUp = !!eligibility?.allow_topup;
 
-  /**
-   * Deployment confirmation email. Fire-and-forget: a mail failure must never
-   * make a successful capital deployment look failed to the partner.
-   */
-  const sendConfirmationEmail = async (isTopup: boolean) => {
-    try {
-      const { data: auth } = await supabase.auth.getUser();
-      const user = auth?.user;
-      if (!user) return;
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('full_name, email')
-        .eq('id', user.id)
-        .maybeSingle();
-      const to = profile?.email || user.email;
-      if (!to) return;
-
-      const rate = Number(eligibility?.monthly_rate ?? 15);
-      await supabase.functions.invoke('send-transactional-email', {
-        body: {
-          recipientEmail: to,
-          templateName: 'partner-capital-deployment-confirmation',
-          templateData: {
-            partner_first_name: (profile?.full_name || 'Partner').split(/\s+/)[0],
-            total_amount: total,
-            tenant_count: selectedIds.length,
-            tenants: selectedTenants.map((t) => ({
-              tenant_name: t.name,
-              tenant_location: t.location || null,
-              allocated_amount: t.amount,
-            })),
-            portfolio_start_date: new Date().toLocaleDateString('en-GB', {
-              day: '2-digit',
-              month: 'long',
-              year: 'numeric',
-            }),
-            monthly_payout: Math.round((total * rate) / 100),
-            portfolio_reference: isTopup && eligibility
-              ? `WEL-PORT-${eligibility.commitment_id.slice(0, 8).toUpperCase()}`
-              : '',
-            portfolio_url: `${window.location.origin}/dashboard`,
-            support_email: 'partnership@welile.com',
-          },
-        },
-      });
-    } catch {
-      /* non-blocking */
-    }
-  };
-
   const deploy = async () => {
     if (selectedIds.length === 0) return;
     setBusy(true);
@@ -194,8 +142,6 @@ export function SelfPortfolioDeployDialog({
         if (error) throw error;
         toast.success('New monthly portfolio deployed and earning from today.');
       }
-
-      void sendConfirmationEmail(choice === 'topup' && !!eligibility);
 
       onOpenChange(false);
       await onDeployed();

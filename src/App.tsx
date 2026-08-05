@@ -279,7 +279,6 @@ const PortfolioCompletion = lazy(() => import('./pages/PortfolioCompletion'));
 // Admin queue used by COO / Partner Ops to approve self-registered funders.
 const PartnerOnboarding = lazy(() => import('./pages/PartnerOnboarding'));
 const PersonalHub = lazy(() => import('./pages/me/PersonalHub'));
-const MyDocuments = lazy(() => import('./pages/me/MyDocuments'));
 
 // Detect iOS standalone mode for cache settings
 const isIOSStandalone = (() => {
@@ -613,7 +612,6 @@ function AppRoutes() {
           <Route path="/me" element={<PersonalHub />} />
           <Route path="/me/payslips" element={<RoleGuard allowedRoles={['tenant', 'agent', 'landlord', 'supporter', 'manager', 'ceo', 'coo', 'cfo', 'cto', 'cmo', 'crm', 'employee', 'operations', 'super_admin', 'hr']}><MyPayslipsPage /></RoleGuard>} />
           <Route path="/me/work" element={<HRSignedInRoute><HRMyWorkPage /></HRSignedInRoute>} />
-          <Route path="/me/documents" element={<MyDocuments />} />
           <Route path="/approvals" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'ceo', 'cfo']}><ApprovalsPage /></RoleGuard>} />
           <Route path="/hr/dashboard/tasks" element={<RoleGuard allowedRoles={['hr', 'super_admin']} requiredPermission="hr"><HRTasksPage /></RoleGuard>} />
           <Route path="/hr/dashboard/staff" element={<RoleGuard allowedRoles={['hr', 'super_admin']} requiredPermission="hr"><HRStaffPage /></RoleGuard>} />

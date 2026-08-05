@@ -83,10 +83,10 @@ const CARDS = [
     description: 'Account preferences',
   },
   {
-    to: '/me/documents',
     icon: FolderOpen,
     title: 'My documents',
-    description: 'Your contracts, letters and certificates',
+    description: 'Coming soon',
+    disabled: true,
   },
 ];
 

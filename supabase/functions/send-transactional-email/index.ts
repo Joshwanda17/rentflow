@@ -34,6 +34,7 @@ const PARTNER_FUNDER_TEMPLATES = new Set<string>([
   'portfolio-renewal-days-remaining',
   'portfolio-maturity',
   'partnership-maturity-notice',
+  'partner-self-managed-cycle-ended',
   'partner-account-created',
   'angel-pool-share-purchase',
   'proxy-managed-payout-notice',
@@ -41,7 +42,6 @@ const PARTNER_FUNDER_TEMPLATES = new Set<string>([
   'tenant-partnership-agreement',
   'portfolio-renewal-apology',
   'partner-portfolio-invite',
-  'partner-capital-deployment-confirmation',
 ])
 
 // Generate a cryptographically random 32-byte hex token
