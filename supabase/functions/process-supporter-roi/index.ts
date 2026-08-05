@@ -654,7 +654,11 @@ Deno.serve(async (req) => {
                 .eq('id', partnerId)
                 .maybeSingle();
               if (partnerProfile?.email) {
-                const contributedPrev = await getContributedPrincipal(supabase, portfolio.id, currentAmount);
+                // `currentAmount` is the portfolio's real capital before the
+                // merge (including compounded returns), and `newAmount` is what
+                // the portfolio now shows. Using contributed principal here made
+                // the emailed new total lower than the actual portfolio value.
+                const previousValue = Number(currentAmount) || 0;
                 dispatchTransactionalEmail(
                   supabaseUrl,
                   supabaseServiceKey,
@@ -664,8 +668,8 @@ Deno.serve(async (req) => {
                     partnerId,
                     txGroupId: mergeGroupId, // unique per auto-merge batch
                     topupAmount: totalPending,
-                    previousPortfolioValue: contributedPrev,
-                    newTotalPartnershipValue: contributedPrev + totalPending,
+                    previousPortfolioValue: previousValue,
+                    newTotalPartnershipValue: Number(newAmount) || previousValue + totalPending,
                     roiPercentage: Number((portfolio as any).roi_percentage) || undefined,
                   }),
                   "process-supporter-roi",
