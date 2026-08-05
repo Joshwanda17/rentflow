@@ -1,5 +1,6 @@
 import ExecutiveDashboardLayout from '@/components/layout/ExecutiveDashboardLayout';
 import COOReportPage from '@/components/coo/COOReportPage';
+import PartnerOpsBreakdown from '@/components/coo/PartnerOpsBreakdown';
 import { usePartnerOpsReportData } from '@/components/coo/useCOOReportData';
 import { usePersistedActiveTab } from '@/hooks/usePersistedActiveTab';
 import { useQuery } from '@tanstack/react-query';
@@ -56,6 +57,7 @@ export default function PartnerOpsReportPage() {
         icon={Handshake}
         loading={isLoading}
         onGenerate={async () => { await Promise.all([refetch(), refetchTotals()]); }}
+        belowKpis={({ from, to }) => <PartnerOpsBreakdown from={from} to={to} />}
         statusOptions={['Verified', 'Pending', 'Rejected', 'pending', 'approved', 'rejected']}
         activityTypeOptions={['New portfolio', 'Withdrawal request']}
         departmentOptions={['Partner Ops', 'Financial Ops']}
