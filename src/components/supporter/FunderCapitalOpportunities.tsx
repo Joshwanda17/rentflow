@@ -22,9 +22,34 @@ import { InvestmentWithdrawButton } from './InvestmentWithdrawButton';
 import { useAuth } from '@/hooks/useAuth';
 import { useFunderApprovalStatus } from '@/hooks/useFunderApprovalStatus';
 import { SelfPortfolioFundingCard } from '@/components/partner/SelfPortfolioFundingCard';
+import { HowItWorksSteps, type HowItWorksStep } from './HowItWorksSteps';
 
 type OptionKey = 'managed' | 'direct' | 'angel';
 type ViewState = 'menu' | OptionKey;
+
+// Steps shown in the collapsible "How it works" explainer on Support Tenants Directly.
+const DIRECT_FUNDING_STEPS: HowItWorksStep[] = [
+  {
+    title: 'Pick tenant rent plans',
+    description: 'Choose one or more approved tenant rent plans from the list below.',
+    icon: Home,
+  },
+  {
+    title: 'Your capital funds the landlord',
+    description: 'The amount you commit is sent straight to the landlord for that tenant.',
+    icon: HandCoins,
+  },
+  {
+    title: 'Welile tracks repayments',
+    description: 'Daily tenant repayments are recorded and reconciled for you automatically.',
+    icon: BadgeCheck,
+  },
+  {
+    title: 'Returns land in your dashboard',
+    description: 'Monthly returns and repayment progress appear in your funder dashboard.',
+    icon: TrendingUp,
+  },
+];
 
 // ─── Reusable amount input ───
 function AmountInput({
@@ -390,13 +415,7 @@ export function FunderCapitalOpportunities() {
           </ol>
         </nav>
 
-        <div className="rounded-xl bg-primary/5 border border-primary/20 p-3.5 space-y-2">
-          <p className="text-xs font-bold text-foreground">How it works</p>
-          <p className="text-[11px] text-muted-foreground leading-relaxed">
-            Pick one or more approved tenant rent plans below. Your capital funds the landlord
-            directly and Welile tracks repayments and monthly returns in your dashboard.
-          </p>
-        </div>
+        <HowItWorksSteps steps={DIRECT_FUNDING_STEPS} />
 
         {/* Tenant rent plans awaiting funding — stacked cards with bulk selection */}
         <div className="pt-2 space-y-3">
