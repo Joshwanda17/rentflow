@@ -3,8 +3,11 @@
 // stores PDF + XLSX to the finops-reports bucket, records a row in
 // public.daily_wallet_reports, and emails PDF+XLSX via Mailgun.
 //
-// Cron: 21:00 UTC = 00:00 EAT (covers the just-ended EAT day).
-// Manual POST body: { "date": "YYYY-MM-DD", "recipients": [ ... ], "regenerate": true }
+// Crons: 21:00 UTC = 00:00 EAT (full_day — the just-ended EAT day),
+//        03:00 UTC = 06:00 EAT (morning checkpoint — today so far),
+//        09:00 UTC = 12:00 EAT (midday checkpoint — today so far).
+// Manual POST body: { "window": "full_day|morning|midday|evening",
+//                     "date": "YYYY-MM-DD", "recipients": [ ... ], "regenerate": true }
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 import { PDFDocument, StandardFonts, rgb } from 'https://esm.sh/pdf-lib@1.17.1';
@@ -26,6 +29,15 @@ const DEFAULT_RECIPIENTS = [
 const fmt = (n: number) =>
   `UGX ${Math.round(Number(n) || 0).toLocaleString('en-UG')}`;
 
+type ReportWindow = 'full_day' | 'morning' | 'midday' | 'evening';
+
+const WINDOW_LABEL: Record<ReportWindow, string> = {
+  full_day: 'Daily Wallet Financial Summary Report',
+  morning: 'Wallet Morning Checkpoint (06:00 EAT)',
+  midday: 'Wallet Midday Checkpoint (12:00 EAT)',
+  evening: 'Wallet Evening Checkpoint (18:00 EAT)',
+};
+
 function eatDayToUtcRange(dateStr: string) {
   const startUtc = new Date(`${dateStr}T00:00:00.000+03:00`);
   const endUtc = new Date(startUtc.getTime() + 24 * 60 * 60 * 1000);
@@ -36,6 +48,13 @@ function yesterdayEat(): string {
   const nowEatMs = Date.now() + 3 * 60 * 60 * 1000;
   const d = new Date(nowEatMs - 24 * 60 * 60 * 1000);
   return d.toISOString().slice(0, 10);
+}
+
+function todaySoFarEatRange(): { startIso: string; endIso: string; dateStr: string } {
+  const nowEatMs = Date.now() + 3 * 60 * 60 * 1000;
+  const todayEat = new Date(nowEatMs).toISOString().slice(0, 10);
+  const { startIso } = eatDayToUtcRange(todayEat);
+  return { startIso, endIso: new Date().toISOString(), dateStr: todayEat };
 }
 
 function eatNowLabel(): string {
