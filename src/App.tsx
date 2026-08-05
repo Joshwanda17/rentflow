@@ -278,6 +278,7 @@ const FunderOnboarding = lazy(() => import('./pages/Onboarding'));
 const PortfolioCompletion = lazy(() => import('./pages/PortfolioCompletion'));
 // Admin queue used by COO / Partner Ops to approve self-registered funders.
 const PartnerOnboarding = lazy(() => import('./pages/PartnerOnboarding'));
+const PersonalHub = lazy(() => import('./pages/me/PersonalHub'));
 
 // Detect iOS standalone mode for cache settings
 const isIOSStandalone = (() => {
