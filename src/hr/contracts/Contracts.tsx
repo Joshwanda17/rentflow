@@ -1,6 +1,4 @@
 /**
- * Contracts and MOUs.
- *
  * A contract is a legal record, so there is no delete control on this screen.
  * A contract that has ended is marked `expired` or `terminated`.
  */
