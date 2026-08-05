@@ -36,6 +36,9 @@ export interface WithdrawalPayoutCardProps {
     sms?: string;
     proofUrl?: string;
     proofType?: string;
+    proofPath?: string;
+    proofBucket?: string;
+    proofUploadedBy?: string;
   }) => void | Promise<any>;
   /** ID of the withdrawal currently being claimed (for per-request loading) */
   claimingId?: string | null;
@@ -66,6 +69,7 @@ export function WithdrawalPayoutCard({
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [proofUploading, setProofUploading] = useState(false);
   const [proofUrl, setProofUrl] = useState<string | null>(null);
+  const [proofPath, setProofPath] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   // Specific, inline reason the LAST confirmation attempt was rejected by the
   // server (amount mismatch / TID mismatch / unreadable). Drives the retry
@@ -313,11 +317,14 @@ export function WithdrawalPayoutCard({
   function clearProof() {
     setProofFile(null);
     setProofUrl(null);
+    setProofPath(null);
   }
 
   // Upload the proof to Cloud storage under the agent's own folder (RLS gate).
   // Returns the public URL and stored path, or throws with a friendly message.
-  async function uploadProofFile(file: File): Promise<{ url: string; type: string }> {
+  async function uploadProofFile(file: File): Promise<{
+    url: string; type: string; path: string; bucket: string; uploadedBy: string;
+  }> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user?.id) throw new Error('You must be signed in to upload proof.');
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
@@ -327,15 +334,22 @@ export function WithdrawalPayoutCard({
       .upload(path, file, { upsert: false, contentType: file.type || undefined });
     if (upErr) throw new Error(upErr.message || 'Failed to upload proof.');
     // `payment-proofs` is a PRIVATE bucket — public URLs return object-not-found
-    // when auditors/CFOs later try to open the proof. Persist a long-lived
-    // signed URL instead (matches the pattern used by every other uploader).
+    // when auditors/CFOs later try to open the proof. We persist the storage
+    // PATH as the authoritative reference (never expires) and keep a long-lived
+    // signed URL only for backward compatibility with older readers.
     const { data: signed, error: signErr } = await supabase.storage
       .from('payment-proofs')
       .createSignedUrl(path, 60 * 60 * 24 * 365); // 1 year
     if (signErr || !signed?.signedUrl) {
       throw new Error(signErr?.message || 'Failed to generate proof link.');
     }
-    return { url: signed.signedUrl, type: file.type || `image/${ext}` };
+    return {
+      url: signed.signedUrl,
+      type: file.type || `image/${ext}`,
+      path,
+      bucket: 'payment-proofs',
+      uploadedBy: user.id,
+    };
   }
 
   // Submit the payout and, on server-side rejection, surface the SPECIFIC reason
@@ -350,12 +364,21 @@ export function WithdrawalPayoutCard({
         setCompleteError('Please upload a photo of the payment proof (bank slip, receipt, etc.) before confirming.');
         return;
       }
-      let uploaded = proofUrl ? { url: proofUrl, type: proofFile?.type || 'image/jpeg' } : null;
+      let uploaded = proofUrl
+        ? {
+            url: proofUrl,
+            type: proofFile?.type || 'image/jpeg',
+            path: proofPath ?? undefined,
+            bucket: proofPath ? 'payment-proofs' : undefined,
+            uploadedBy: undefined as string | undefined,
+          }
+        : null;
       if (proofFile && !proofUrl) {
         setProofUploading(true);
         try {
           uploaded = await uploadProofFile(proofFile);
           setProofUrl(uploaded.url);
+          setProofPath(uploaded.path);
         } finally {
           setProofUploading(false);
         }
@@ -367,6 +390,9 @@ export function WithdrawalPayoutCard({
         sms: pastedSms.trim() || undefined,
         proofUrl: uploaded?.url,
         proofType: uploaded?.type,
+        proofPath: uploaded?.path,
+        proofBucket: uploaded?.bucket,
+        proofUploadedBy: uploaded?.uploadedBy,
       });
       clearProof();
     } catch (e: any) {

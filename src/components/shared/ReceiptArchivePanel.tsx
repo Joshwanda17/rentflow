@@ -10,8 +10,12 @@ import { format } from 'date-fns';
 import {
   Search, Loader2, X, Receipt as ReceiptIcon,
   ChevronLeft, ChevronRight, ExternalLink, Copy, Check, FileText, Archive,
+  Image as ImageIcon, FileWarning, ShieldAlert,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { classifyProof } from '@/lib/payoutProof';
+import { PayoutProofDialog, type ProofDialogRow } from '@/components/shared/PayoutProofDialog';
+import { PayoutProofIntegrityPanel } from '@/components/shared/PayoutProofIntegrityPanel';
 
 /**
  * Receipt Archive — CFO / Financial Ops surface for the platform-of-record
@@ -33,10 +37,17 @@ type Row = {
   receipt_token: string | null;
   assigned_cashout_agent_id: string | null;
   dispatch_claimed_by: string | null;
+  payout_proof: string | null;
+  payout_proof_type: string | null;
+  payout_proof_path: string | null;
+  payout_proof_bucket: string | null;
+  payout_proof_uploaded_at: string | null;
+  payout_proof_uploaded_by: string | null;
   user_name?: string | null;
   user_phone?: string | null;
   agent_name?: string | null;
   agent_phone?: string | null;
+  uploaded_by_name?: string | null;
 };
 
 const PAGE_SIZE = 25;
@@ -59,6 +70,12 @@ const METHODS = [
   { v: 'cash', label: 'Cash' },
 ];
 
+const PROOF_FILTERS = [
+  { v: 'all', label: 'Any proof state' },
+  { v: 'with', label: 'With proof' },
+  { v: 'without', label: 'Missing proof' },
+];
+
 const statusTone = (s: string) => {
   const k = s.toLowerCase();
   if (['completed', 'approved', 'paid', 'fin_ops_approved'].includes(k))
@@ -76,6 +93,7 @@ export function ReceiptArchivePanel() {
   const [committedSearch, setCommittedSearch] = useState('');
   const [status, setStatus] = useState('completed');
   const [method, setMethod] = useState('all');
+  const [proofFilter, setProofFilter] = useState('all');
   const [amountMin, setAmountMin] = useState('');
   const [amountMax, setAmountMax] = useState('');
   const [dateFrom, setDateFrom] = useState('');
@@ -89,6 +107,7 @@ export function ReceiptArchivePanel() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [proofRow, setProofRow] = useState<ProofDialogRow | null>(null);
 
   const fetchRows = useCallback(async () => {
     setLoading(true);
@@ -97,7 +116,7 @@ export function ReceiptArchivePanel() {
       let q = supabase
         .from('withdrawal_requests')
         .select(
-          'id,user_id,amount,status,payout_method,transaction_id,reason,created_at,processed_at,receipt_token,assigned_cashout_agent_id,dispatch_claimed_by',
+          'id,user_id,amount,status,payout_method,transaction_id,reason,created_at,processed_at,receipt_token,assigned_cashout_agent_id,dispatch_claimed_by,payout_proof,payout_proof_type,payout_proof_path,payout_proof_bucket,payout_proof_uploaded_at,payout_proof_uploaded_by',
           { count: 'exact' },
         )
         .not('receipt_token', 'is', null)
@@ -106,6 +125,8 @@ export function ReceiptArchivePanel() {
 
       if (status !== 'all') q = q.eq('status', status);
       if (method !== 'all') q = q.eq('payout_method', method);
+      if (proofFilter === 'with') q = q.not('payout_proof', 'is', null);
+      if (proofFilter === 'without') q = q.is('payout_proof', null);
       if (committedAmounts.min !== null) q = q.gte('amount', committedAmounts.min);
       if (committedAmounts.max !== null) q = q.lte('amount', committedAmounts.max);
       if (committedDates.from) q = q.gte('created_at', committedDates.from);
@@ -132,6 +153,7 @@ export function ReceiptArchivePanel() {
         if (r.user_id) ids.add(r.user_id);
         const agentId = r.assigned_cashout_agent_id || r.dispatch_claimed_by;
         if (agentId) ids.add(agentId);
+        if (r.payout_proof_uploaded_by) ids.add(r.payout_proof_uploaded_by);
       });
       let profilesById: Record<string, { full_name: string | null; phone: string | null }> = {};
       if (ids.size > 0) {
@@ -153,6 +175,9 @@ export function ReceiptArchivePanel() {
           user_phone: r.user_id ? profilesById[r.user_id]?.phone ?? null : null,
           agent_name: agentId ? profilesById[agentId]?.full_name ?? null : null,
           agent_phone: agentId ? profilesById[agentId]?.phone ?? null : null,
+          uploaded_by_name: r.payout_proof_uploaded_by
+            ? profilesById[r.payout_proof_uploaded_by]?.full_name ?? null
+            : null,
         };
       });
 
@@ -186,7 +211,7 @@ export function ReceiptArchivePanel() {
     } finally {
       setLoading(false);
     }
-  }, [status, method, committedAmounts, committedDates, committedSearch, page]);
+  }, [status, method, proofFilter, committedAmounts, committedDates, committedSearch, page]);
 
   useEffect(() => {
     fetchRows();
@@ -205,6 +230,7 @@ export function ReceiptArchivePanel() {
   const clearFilters = () => {
     setSearch(''); setCommittedSearch('');
     setStatus('completed'); setMethod('all');
+    setProofFilter('all');
     setAmountMin(''); setAmountMax('');
     setDateFrom(''); setDateTo('');
     setCommittedAmounts({ min: null, max: null });
@@ -231,12 +257,15 @@ export function ReceiptArchivePanel() {
     if (committedSearch) n++;
     if (status !== 'completed') n++;
     if (method !== 'all') n++;
+    if (proofFilter !== 'all') n++;
     if (committedAmounts.min !== null || committedAmounts.max !== null) n++;
     if (committedDates.from || committedDates.to) n++;
     return n;
-  }, [committedSearch, status, method, committedAmounts, committedDates]);
+  }, [committedSearch, status, method, proofFilter, committedAmounts, committedDates]);
 
   return (
+    <div className="space-y-4">
+    <PayoutProofIntegrityPanel />
     <Card className="border-border">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -299,6 +328,15 @@ export function ReceiptArchivePanel() {
             </SelectContent>
           </Select>
 
+          <Select value={proofFilter} onValueChange={(v) => { setProofFilter(v); setPage(0); }}>
+            <SelectTrigger><SelectValue placeholder="Proof of payment" /></SelectTrigger>
+            <SelectContent>
+              {PROOF_FILTERS.map((p) => (
+                <SelectItem key={p.v} value={p.v}>{p.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
           <div className="grid grid-cols-2 gap-2">
             <Input
               inputMode="numeric"
@@ -347,7 +385,7 @@ export function ReceiptArchivePanel() {
           </div>
         ) : (
           <div className="overflow-x-auto -mx-4 sm:mx-0">
-            <table className="w-full text-sm min-w-[900px]">
+            <table className="w-full text-sm min-w-[1000px]">
               <thead className="border-b bg-muted/40">
                 <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
                   <th className="px-3 py-2 font-semibold">Receipt</th>
@@ -356,6 +394,7 @@ export function ReceiptArchivePanel() {
                   <th className="px-3 py-2 font-semibold">Merchant Agent</th>
                   <th className="px-3 py-2 font-semibold text-right">Amount</th>
                   <th className="px-3 py-2 font-semibold">Status</th>
+                  <th className="px-3 py-2 font-semibold">Proof</th>
                   <th className="px-3 py-2 font-semibold">Date</th>
                   <th className="px-3 py-2 font-semibold text-right">Actions</th>
                 </tr>
@@ -376,6 +415,7 @@ export function ReceiptArchivePanel() {
                     : reasonType.includes('advance')
                     ? 'Credit Draw'
                     : 'Wallet Cash-Out';
+                  const proofState = classifyProof(r);
                   return (
                     <tr key={r.id} className="hover:bg-muted/30 transition-colors">
                       <td className="px-3 py-2 font-mono text-[11px]">
@@ -400,6 +440,32 @@ export function ReceiptArchivePanel() {
                         <Badge variant="outline" className={`text-[10px] font-semibold ${statusTone(r.status)}`}>
                           {r.status}
                         </Badge>
+                      </td>
+                      <td className="px-3 py-2">
+                        {proofState === 'attached' ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2 text-[10px] gap-1"
+                            onClick={() => setProofRow(r as ProofDialogRow)}
+                            title="View proof of payment"
+                          >
+                            <ImageIcon className="h-3.5 w-3.5" /> View
+                          </Button>
+                        ) : proofState === 'legacy' ? (
+                          <button
+                            type="button"
+                            onClick={() => setProofRow(r as ProofDialogRow)}
+                            className="inline-flex items-center gap-1 text-[10px] text-amber-700"
+                            title="Legacy text-only reference"
+                          >
+                            <FileWarning className="h-3.5 w-3.5" /> Legacy
+                          </button>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+                            <ShieldAlert className="h-3.5 w-3.5" /> None
+                          </span>
+                        )}
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap">
                         <div className="tabular-nums">{format(new Date(ts), 'MMM d, yyyy')}</div>
@@ -487,6 +553,12 @@ export function ReceiptArchivePanel() {
         </div>
       </CardContent>
     </Card>
+    <PayoutProofDialog
+      row={proofRow}
+      open={!!proofRow}
+      onOpenChange={(v) => { if (!v) setProofRow(null); }}
+    />
+    </div>
   );
 }
 
