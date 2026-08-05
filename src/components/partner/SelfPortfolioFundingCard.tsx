@@ -9,6 +9,7 @@ import { formatDynamic } from '@/lib/currencyFormat';
 import { toast } from 'sonner';
 import { CalendarClock, Loader2, Lock, MapPin, RefreshCw, ShieldCheck, Wallet } from 'lucide-react';
 import { SelfPortfolioDeployDialog } from './SelfPortfolioDeployDialog';
+import { SelfPortfolioPlanDetailSheet } from './SelfPortfolioPlanDetailSheet';
 
 const MIN_FUNDING = 50000;
 
@@ -34,8 +35,11 @@ interface FundablePlan {
   projected_end_date: string | null;
   repayment_cadence: string | null;
   tenant_first_name: string | null;
+  tenant_full_name: string | null;
+  tenant_location: string | null;
   tenant_avatar_url: string | null;
   landlord_name: string | null;
+  house_image_urls: string[] | null;
   held_by: string | null;
   hold_expires_at: string | null;
 }
@@ -56,6 +60,7 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
   const [earnings, setEarnings] = useState<EarningsSummary | null>(null);
   const [activeCommitmentId, setActiveCommitmentId] = useState<string | null>(null);
   const [deployOpen, setDeployOpen] = useState(false);
+  const [detailPlan, setDetailPlan] = useState<FundablePlan | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -280,20 +285,29 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
         return (
           <Card
             key={plan.rent_request_id}
-            className={`p-4 rounded-2xl transition-colors ${isSelected ? 'ring-2 ring-primary/60 bg-primary/5' : ''}`}
+            role="button"
+            tabIndex={0}
+            onClick={() => setDetailPlan(plan)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setDetailPlan(plan);
+              }
+            }}
+            className={`p-4 rounded-2xl transition-colors cursor-pointer hover:bg-muted/30 ${isSelected ? 'ring-2 ring-primary/60 bg-primary/5' : ''}`}
           >
             <div className="flex items-start gap-3">
               <div className="relative w-12 h-12 rounded-full overflow-hidden bg-muted shrink-0">
                 {plan.tenant_avatar_url ? (
                   <img
                     src={plan.tenant_avatar_url}
-                    alt={`${plan.tenant_first_name ?? 'Tenant'} profile photo`}
+                    alt="Tenant profile photo"
                     loading="lazy"
                     className={isFunded ? 'w-full h-full object-cover' : 'w-full h-full object-cover blur-md scale-110'}
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-sm font-bold text-muted-foreground">
-                    {(plan.tenant_first_name ?? 'T').charAt(0)}
+                    {(plan.tenant_full_name ?? plan.tenant_first_name ?? 'T').charAt(0)}
                   </div>
                 )}
                 {!isFunded && (
@@ -305,7 +319,9 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <p className="font-bold text-sm truncate">{plan.tenant_first_name ?? 'Tenant'}</p>
+                  <p className="font-bold text-sm truncate">
+                    {plan.tenant_full_name || plan.tenant_first_name || 'Tenant'}
+                  </p>
                   {isFunded && (
                     <Badge variant="secondary" className="text-[10px]">
                       Funded by you
@@ -318,7 +334,7 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
                 <div className="flex items-center gap-1 text-[11px] text-muted-foreground mt-0.5">
                   <MapPin className="h-3 w-3" />
                   <span className="truncate">
-                    {plan.request_city ?? 'Uganda'}
+                    {plan.tenant_location || plan.request_city || 'Uganda'}
                     {plan.house_category ? ` · ${plan.house_category}` : ''}
                   </span>
                 </div>
@@ -329,8 +345,9 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
                   className="mt-1"
                   checked={isSelected}
                   disabled={heldByOther || busy || unaffordable}
+                  onClick={(e) => e.stopPropagation()}
                   onCheckedChange={() => toggle(plan.rent_request_id)}
-                  aria-label={`Select plan for ${plan.tenant_first_name ?? 'tenant'}`}
+                  aria-label={`Select plan for ${plan.tenant_full_name ?? plan.tenant_first_name ?? 'tenant'}`}
                 />
               )}
             </div>
@@ -416,6 +433,13 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
         selectedIds={selected}
         total={total}
         onDeployed={handleDeployed}
+      />
+
+      <SelfPortfolioPlanDetailSheet
+        plan={detailPlan}
+        open={!!detailPlan}
+        onOpenChange={(v) => !v && setDetailPlan(null)}
+        isFunded={!!detailPlan && fundedIds.includes(detailPlan.rent_request_id)}
       />
     </div>
   );
