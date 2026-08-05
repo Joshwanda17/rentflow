@@ -367,15 +367,17 @@ export default function Settings() {
           </div>
 
           {/* Tab bar */}
-          <div className="flex gap-1 overflow-x-auto scrollbar-hide -mx-4 px-4 pb-2">
-            {visibleSections.map(({ id, label, icon: Icon }) => (
-              <button key={id} onClick={() => setActiveSection(id)} className={cn(
-                "flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all min-h-[40px] shrink-0 touch-manipulation active:scale-95",
-                activeSection === id ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground bg-muted/30 hover:bg-muted"
-              )}>
-                <Icon className="h-3.5 w-3.5" />{label}
-              </button>
-            ))}
+          <div className="overflow-x-auto scrollbar-hide -mx-4 px-4 pb-2">
+            <div className="inline-flex items-center gap-1 rounded-2xl bg-muted/50 p-1">
+              {visibleSections.map(({ id, label, icon: Icon }) => (
+                <button key={id} onClick={() => setActiveSection(id)} className={cn(
+                  "flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all min-h-[36px] shrink-0 touch-manipulation active:scale-95",
+                  activeSection === id ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-background/70"
+                )}>
+                  <Icon className="h-3.5 w-3.5" />{label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -405,16 +407,16 @@ export default function Settings() {
               <div className="flex flex-col sm:flex-row gap-4">
                 {/* Vertical tab rail */}
                 <div className="sm:w-44 shrink-0">
-                  <div className="flex sm:flex-col gap-2 overflow-x-auto sm:overflow-visible scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0 pb-2 sm:pb-0">
+                  <div className="flex sm:flex-col gap-1 overflow-x-auto sm:overflow-visible scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0 pb-2 sm:pb-0 sm:rounded-2xl sm:bg-muted/50 sm:p-1">
                     {ACCOUNT_TABS.map(({ id, label, icon: Icon }) => (
                       <button
                         key={id}
                         onClick={() => setAccountTab(id)}
                         className={cn(
-                          "flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all text-left shrink-0 touch-manipulation active:scale-95",
+                          "flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all text-left min-h-[36px] shrink-0 touch-manipulation active:scale-95",
                           accountTab === id
                             ? "bg-primary text-primary-foreground shadow-sm"
-                            : "text-muted-foreground bg-muted/30 hover:bg-muted"
+                            : "text-muted-foreground bg-muted/40 sm:bg-transparent hover:bg-background/70"
                         )}
                       >
                         <Icon className="h-3.5 w-3.5 shrink-0" />
