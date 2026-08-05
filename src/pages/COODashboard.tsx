@@ -9,6 +9,7 @@ import {
   Activity, Handshake, Loader2, SmartphoneNfc, UserCheck, User
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import ScreenLoader from '@/components/common/ScreenLoader';
 
 import { formatUGX } from '@/lib/rentCalculations';
 import { formatDistanceToNow } from 'date-fns';
@@ -365,10 +366,7 @@ export default function COODashboard() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-3">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-        <p className="text-xs text-muted-foreground">Loading COO Dashboard...</p>
-      </div>
+      <ScreenLoader label="Loading COO Dashboard..." />
     );
   }
 

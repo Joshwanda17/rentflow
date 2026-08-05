@@ -32,6 +32,7 @@ import AppBreadcrumb from '@/components/AppBreadcrumb';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import WelileLogo from '@/components/WelileLogo';
 import { toast } from 'sonner';
+import ScreenLoader from '@/components/common/ScreenLoader';
 
 type OrderStatus = 'pending' | 'processing' | 'shipped' | 'delivered' | 'completed';
 
@@ -201,9 +202,7 @@ export default function OrderHistory() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      <ScreenLoader />
     );
   }
 

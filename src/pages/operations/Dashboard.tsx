@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, Users, Home, Building2, Handshake, Banknote, Briefcase } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import ScreenLoader from '@/components/common/ScreenLoader';
 
 const departmentConfig = {
   financial: { label: 'Financial Ops', icon: Banknote, route: '/admin/financial-ops' },
@@ -50,9 +51,7 @@ export default function OperationsDashboard() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-      </div>
+      <ScreenLoader />
     );
   }
 

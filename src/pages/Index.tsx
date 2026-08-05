@@ -1,6 +1,7 @@
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { roleToSlug } from '@/lib/roleRoutes';
+import ScreenLoader from '@/components/common/ScreenLoader';
 
 export default function Index() {
   const { user, loading, role: authRole } = useAuth();
@@ -12,9 +13,7 @@ export default function Index() {
   // While auth is loading: show spinner before making any redirect decision
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-      </div>
+      <ScreenLoader />
     );
   }
 

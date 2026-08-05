@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { cleanPhoneNumber, isValidPhoneNumber } from '@/lib/phoneUtils';
 import { useNavigate } from 'react-router-dom';
+import ScreenLoader from '@/components/common/ScreenLoader';
 
 interface Props {
   children: ReactNode;
@@ -124,9 +125,7 @@ export default function PhoneVerificationGate({ children }: Props) {
 
   if (checking) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-      </div>
+      <ScreenLoader />
     );
   }
 

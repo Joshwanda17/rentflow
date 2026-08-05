@@ -56,6 +56,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { exportToCSV, formatDateForExport } from '@/lib/exportUtils';
 import { cn } from '@/lib/utils';
 import { AuditLogViewer } from '@/components/manager/AuditLogViewer';
+import ScreenLoader from '@/components/common/ScreenLoader';
 
 interface DepositRequest {
   id: string;
@@ -464,9 +465,7 @@ export default function DepositsManagement() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      <ScreenLoader />
     );
   }
 

@@ -20,6 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useConfetti } from '@/components/Confetti';
 import { Button } from '@/components/ui/button';
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
+import ScreenLoader from '@/components/common/ScreenLoader';
 import { schedulePreloadOtherRoles } from '@/lib/preloadRoleDashboards';
 // Lazy load dashboards for faster initial load
 const TenantDashboard = lazyWithRetry(() => import('@/components/dashboards/TenantDashboard'));
@@ -30,12 +31,7 @@ const ManagerDashboard = lazyWithRetry(() => import('@/components/dashboards/Man
 import { DashboardErrorBoundary } from '@/components/dashboards/DashboardErrorBoundary';
 
 // Minimal loading skeleton - memoized for performance
-const DashboardLoadingFallback = memo(() => (
-  <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-3 p-4">
-    <Loader2 className="h-6 w-6 animate-spin text-primary" />
-    <p className="text-xs text-muted-foreground">Loading...</p>
-  </div>
-));
+const DashboardLoadingFallback = memo(() => <ScreenLoader label="Loading..." />);
 DashboardLoadingFallback.displayName = 'DashboardLoadingFallback';
 
 // Offline fallback when dashboard can't load

@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { calculateRentAccessLimit, TIER_META } from '@/lib/rentAccessLimit';
 import { formatUGX } from '@/lib/rentCalculations';
 import { Loader2, TrendingUp, TrendingDown, Sparkles } from 'lucide-react';
+import ScreenLoader from '@/components/common/ScreenLoader';
 
 /**
  * Public landing page resolved from short links: /limit/:tenantId  (or  /limit?t=…)
@@ -49,9 +50,7 @@ export default function RentAccessLimitPublic() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
+      <ScreenLoader />
     );
   }
 

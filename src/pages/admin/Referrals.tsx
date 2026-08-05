@@ -21,6 +21,7 @@ import {
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import ScreenLoader from '@/components/common/ScreenLoader';
 
 type ReferralRow = {
   id: string;
@@ -203,9 +204,7 @@ export default function AdminReferralsPage() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <RefreshCw className="h-6 w-6 animate-spin text-primary" />
-      </div>
+      <ScreenLoader />
     );
   }
 

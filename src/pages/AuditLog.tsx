@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, ClipboardList } from "lucide-react";
 import { AuditLogViewer } from "@/components/manager/AuditLogViewer";
+import ScreenLoader from "@/components/common/ScreenLoader";
 
 export default function AuditLog() {
   const { user, loading: authLoading, role } = useAuth();
@@ -28,9 +29,7 @@ export default function AuditLog() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-      </div>
+      <ScreenLoader />
     );
   }
 

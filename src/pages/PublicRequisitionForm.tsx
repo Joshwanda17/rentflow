@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { Loader2, Upload, CheckCircle2, AlertCircle } from 'lucide-react';
+import ScreenLoader from '@/components/common/ScreenLoader';
 
 type Validation =
   | { state: 'loading' }
@@ -152,9 +153,7 @@ export default function PublicRequisitionForm() {
 
   if (validation.state === 'loading') {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
+      <ScreenLoader />
     );
   }
 
