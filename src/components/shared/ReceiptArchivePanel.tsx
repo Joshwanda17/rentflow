@@ -264,6 +264,8 @@ export function ReceiptArchivePanel() {
   }, [committedSearch, status, method, proofFilter, committedAmounts, committedDates]);
 
   return (
+    <div className="space-y-4">
+    <PayoutProofIntegrityPanel />
     <Card className="border-border">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -551,6 +553,12 @@ export function ReceiptArchivePanel() {
         </div>
       </CardContent>
     </Card>
+    <PayoutProofDialog
+      row={proofRow}
+      open={!!proofRow}
+      onOpenChange={(v) => { if (!v) setProofRow(null); }}
+    />
+    </div>
   );
 }
 
