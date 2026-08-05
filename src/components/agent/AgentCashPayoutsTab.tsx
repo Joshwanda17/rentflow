@@ -401,6 +401,13 @@ export function AgentCashPayoutsTab() {
       toast.error(`Not authorized: you can't process "${cat.label}" payouts. Ask the CFO to enable this category.`);
       return;
     }
+    // Channel + provider gate: the exact bank / mobile-money network must be
+    // assigned to this merchant, not just the parent payment channel.
+    if (row && !isWithdrawalChannelAuthorized(agentConfig, row)) {
+      const provider = row.payout_method === 'bank_transfer' ? (row.bank_name || 'this bank') : (row.mobile_money_provider || 'this channel');
+      toast.error(`Not authorized: ${provider} payouts are not assigned to you. Ask the CFO to enable it.`);
+      return;
+    }
     // One claim at a time: block claiming a NEW request while another is open.
     const alreadyMine = myActiveClaims.some((w: any) => w.id === id);
     if (!alreadyMine && myActiveClaims.length > 0) {
