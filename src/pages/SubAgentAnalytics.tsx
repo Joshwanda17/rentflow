@@ -89,6 +89,7 @@ import {
   Pie,
   Cell
 } from 'recharts';
+import ScreenLoader from '@/components/common/ScreenLoader';
 
 interface SubAgent {
   id: string;
