@@ -31358,6 +31358,7 @@ export type Database = {
       budget_has_authority: { Args: { _fn: string }; Returns: boolean }
       budget_is_approver: { Args: never; Returns: boolean }
       budget_is_releaser: { Args: never; Returns: boolean }
+      budget_probe_one: { Args: never; Returns: string }
       budget_release_preview: {
         Args: { p_submission_id: string }
         Returns: {
