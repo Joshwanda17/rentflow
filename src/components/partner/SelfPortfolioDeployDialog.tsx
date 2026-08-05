@@ -58,6 +58,7 @@ export function SelfPortfolioDeployDialog({
   onOpenChange,
   activeCommitmentId,
   selectedIds,
+  selectedTenants = [],
   total,
   onDeployed,
 }: {
@@ -65,6 +66,7 @@ export function SelfPortfolioDeployDialog({
   onOpenChange: (open: boolean) => void;
   activeCommitmentId: string | null;
   selectedIds: string[];
+  selectedTenants?: { name: string; amount: number; location?: string | null }[];
   total: number;
   onDeployed: () => void | Promise<void>;
 }) {
@@ -114,6 +116,58 @@ export function SelfPortfolioDeployDialog({
   const newProjection = fullMonthly;
   const canTopUp = !!eligibility?.allow_topup;
 
+  /**
+   * Deployment confirmation email. Fire-and-forget: a mail failure must never
+   * make a successful capital deployment look failed to the partner.
+   */
+  const sendConfirmationEmail = async (isTopup: boolean) => {
+    try {
+      const { data: auth } = await supabase.auth.getUser();
+      const user = auth?.user;
+      if (!user) return;
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name, email')
+        .eq('id', user.id)
+        .maybeSingle();
+      const to = profile?.email || user.email;
+      if (!to) return;
+
+      const rate = Number(eligibility?.monthly_rate ?? 15);
+      await supabase.functions.invoke('send-transactional-email', {
+        body: {
+          recipientEmail: to,
+          templateName: 'partner-capital-deployment-confirmation',
+          templateData: {
+            partner_name: profile?.full_name || 'Partner',
+            deployed_amount: total,
+            tenants: selectedTenants.map((t) => ({
+              name: t.name,
+              amount: t.amount,
+              location: t.location || undefined,
+              status: 'Active',
+            })),
+            tenant_count: selectedIds.length,
+            portfolio_total: isTopup
+              ? Number(eligibility?.committed_amount ?? 0) + total
+              : total,
+            monthly_rate: rate,
+            monthly_return: Math.round((total * rate) / 100),
+            term_months: 1,
+            deployed_on: shortDate(new Date().toISOString()),
+            next_payout: isTopup ? shortDate(eligibility?.next_payout_at ?? null) : undefined,
+            term_ends: isTopup ? shortDate(eligibility?.term_end_at ?? null) : undefined,
+            is_topup: isTopup,
+            currency: 'UGX',
+            dashboard_url: `${window.location.origin}/dashboard`,
+          },
+        },
+      });
+    } catch {
+      /* non-blocking */
+    }
+  };
+
   const deploy = async () => {
     if (selectedIds.length === 0) return;
     setBusy(true);
@@ -142,6 +196,8 @@ export function SelfPortfolioDeployDialog({
         if (error) throw error;
         toast.success('New monthly portfolio deployed and earning from today.');
       }
+
+      void sendConfirmationEmail(choice === 'topup' && !!eligibility);
 
       onOpenChange(false);
       await onDeployed();

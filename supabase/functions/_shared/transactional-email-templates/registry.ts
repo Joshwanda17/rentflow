@@ -40,6 +40,7 @@ import { template as smartphoneOrderReceiptTemplate } from './smartphone-order-r
 import { template as portfolioRenewalApologyTemplate } from './portfolio-renewal-apology.tsx'
 import { template as partnerPortfolioInviteTemplate } from './partner-portfolio-invite.tsx'
 import { template as performanceAssessmentReportTemplate } from './performance-assessment-report.tsx'
+import { template as partnerCapitalDeploymentConfirmationTemplate } from './partner-capital-deployment-confirmation.tsx'
 import type { TemplateEntry } from './types.ts'
 
 export const TEMPLATES: Record<string, TemplateEntry> = {
@@ -85,4 +86,5 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   'portfolio-renewal-apology': portfolioRenewalApologyTemplate,
   'partner-portfolio-invite': partnerPortfolioInviteTemplate,
   'performance-assessment-report': performanceAssessmentReportTemplate,
+  'partner-capital-deployment-confirmation': partnerCapitalDeploymentConfirmationTemplate,
 }
