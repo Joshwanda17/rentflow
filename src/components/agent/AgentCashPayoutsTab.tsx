@@ -992,9 +992,10 @@ export function AgentCashPayoutsTab() {
 
   // Complete withdrawal via edge function (ledger-backed)
   const completeWithdrawal = useMutation({
-    mutationFn: async ({ id, reference, method, sms, proofUrl, proofType }: {
+    mutationFn: async ({ id, reference, method, sms, proofUrl, proofType, proofPath, proofBucket, proofUploadedBy }: {
       id: string; reference: string; method: string; sms?: string;
       proofUrl?: string; proofType?: string;
+      proofPath?: string; proofBucket?: string; proofUploadedBy?: string;
     }) => {
       const { data, error } = await supabase.functions.invoke('approve-withdrawal', {
         // `acting_as_merchant` tells the server this payout is being settled by a
@@ -1011,6 +1012,11 @@ export function AgentCashPayoutsTab() {
           paste_sms: sms ?? null,
           payout_proof: proofUrl ?? null,
           payout_proof_type: proofType ?? null,
+          // Authoritative, non-expiring storage reference for the FinOps
+          // Receipt Archive. Signed URLs above stay for backward compat only.
+          payout_proof_path: proofPath ?? null,
+          payout_proof_bucket: proofBucket ?? (proofPath ? 'payment-proofs' : null),
+          payout_proof_uploaded_by: proofUploadedBy ?? null,
         },
       });
       if (error || data?.error) {

@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, User, Phone, Mail, Save, Loader2, Camera, Shield, Home, Users, Wallet, Building2, Check, Type, Vibrate, RotateCcw, LogIn, Volume2, RefreshCw, Scale, Lock, Eye, EyeOff, LayoutDashboard, Unlock, Settings as SettingsIcon, Palette, ShieldCheck, Globe, DollarSign, Zap, Smartphone, Clock, Wind, Bell, ChevronRight } from 'lucide-react';
+import { ArrowLeft, User, Phone, Mail, Save, Loader2, Camera, Shield, Home, Users, Wallet, Building2, Check, Type, Vibrate, RotateCcw, LogIn, Volume2, RefreshCw, Scale, Lock, Eye, EyeOff, LayoutDashboard, Unlock, Settings as SettingsIcon, Palette, ShieldCheck, Globe, DollarSign, Zap, Smartphone, Clock, Wind, Bell, ChevronRight, ChevronDown } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useCurrency, currencies as ALL_CURRENCIES } from '@/hooks/useCurrency';
 import { Language, languageNames, languageFlags } from '@/i18n/translations';
@@ -220,6 +221,11 @@ export default function Settings() {
   const [activeSection, setActiveSection] = useState<SettingsSection>('account');
   const [accountTab, setAccountTab] = useState<AccountTab>('profile');
   const [deferredReady, setDeferredReady] = useState(false);
+  const [pushOpen, setPushOpen] = useState(false);
+  const [themeOpen, setThemeOpen] = useState(false);
+  const [textSizeOpen, setTextSizeOpen] = useState(false);
+
+
 
   useEffect(() => { if (!authLoading && !user) navigate('/auth'); }, [user, authLoading, navigate]);
   useEffect(() => { if (user) fetchProfile(); }, [user]);
@@ -649,13 +655,30 @@ export default function Settings() {
               <div className="space-y-4">
                 <Card className="border-border/40 rounded-2xl">
                   <CardContent className="pt-5 space-y-5">
-                  <SettingsRow label="Dark / Light" description="Change the look"><ThemeToggle /></SettingsRow>
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2"><Type className="h-4 w-4 text-primary" /><p className="font-medium text-sm">Text Size</p></div>
-                    <RadioGroup value={fontSize} onValueChange={(v) => setFontSize(v as any)} className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      {fontSizeOptions.map((opt) => (<Label key={opt.value} htmlFor={opt.value} className={cn("flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer text-sm", fontSize === opt.value ? 'border-primary bg-primary/10' : 'border-border/50')}><RadioGroupItem value={opt.value} id={opt.value} /><div><p className="font-medium text-xs">{opt.label}</p><p className="text-[10px] text-muted-foreground">{opt.description}</p></div></Label>))}
-                    </RadioGroup>
-                  </div>
+                  <Collapsible open={themeOpen} onOpenChange={setThemeOpen} className="space-y-2">
+                    <CollapsibleTrigger className="flex w-full items-center justify-between gap-2 rounded-lg border border-border/50 p-2.5 text-left">
+                      <span className="flex items-center gap-2"><Palette className="h-4 w-4 text-primary" /><span className="font-medium text-sm">Dark / Light</span></span>
+                      <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", themeOpen && "rotate-180")} />
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="space-y-2 pt-1">
+                      <p className="text-[11px] text-muted-foreground">Change the look of the app across light and dark modes.</p>
+                      <ThemeToggle />
+                    </CollapsibleContent>
+                  </Collapsible>
+
+                  <Collapsible open={textSizeOpen} onOpenChange={setTextSizeOpen} className="space-y-2">
+                    <CollapsibleTrigger className="flex w-full items-center justify-between gap-2 rounded-lg border border-border/50 p-2.5 text-left">
+                      <span className="flex items-center gap-2"><Type className="h-4 w-4 text-primary" /><span className="font-medium text-sm">Text Size</span></span>
+                      <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", textSizeOpen && "rotate-180")} />
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="space-y-2 pt-1">
+                      <p className="text-[11px] text-muted-foreground">Adjust the size of text throughout the app.</p>
+                      <RadioGroup value={fontSize} onValueChange={(v) => setFontSize(v as any)} className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {fontSizeOptions.map((opt) => (<Label key={opt.value} htmlFor={opt.value} className={cn("flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer text-sm", fontSize === opt.value ? 'border-primary bg-primary/10' : 'border-border/50')}><RadioGroupItem value={opt.value} id={opt.value} /><div><p className="font-medium text-xs">{opt.label}</p><p className="text-[10px] text-muted-foreground">{opt.description}</p></div></Label>))}
+                      </RadioGroup>
+                    </CollapsibleContent>
+                  </Collapsible>
+
                   <div className="space-y-3">
                     <div className="flex items-center gap-2"><Vibrate className="h-4 w-4 text-primary" /><p className="font-medium text-sm">Vibration</p></div>
                     <RadioGroup value={hapticIntensity} onValueChange={(v) => { setHapticIntensity(v as any); if (v !== 'off') setTimeout(() => hapticSelection(), 100); }} className="grid grid-cols-2 gap-2">
@@ -677,13 +700,18 @@ export default function Settings() {
                       </div>
                     )}
                   </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2"><Bell className="h-4 w-4 text-primary" /><p className="font-medium text-sm">Push Notifications</p></div>
-                    <p className="text-[11px] text-muted-foreground">Get instant alerts on this device for deposits, withdrawals, payouts and rent updates — even when Welile is closed.</p>
-                    <Suspense fallback={<Skeleton className="h-10 w-48 rounded-md" />}>
-                      <PushNotificationButton className="w-full sm:w-auto gap-2" />
-                    </Suspense>
-                  </div>
+                  <Collapsible open={pushOpen} onOpenChange={setPushOpen} className="space-y-2">
+                    <CollapsibleTrigger className="flex w-full items-center justify-between gap-2 rounded-lg border border-border/50 p-2.5 text-left">
+                      <span className="flex items-center gap-2"><Bell className="h-4 w-4 text-primary" /><span className="font-medium text-sm">Push Notifications</span></span>
+                      <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", pushOpen && "rotate-180")} />
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="space-y-2 pt-1">
+                      <p className="text-[11px] text-muted-foreground">Get instant alerts on this device for deposits, withdrawals, payouts and rent updates — even when Welile is closed.</p>
+                      <Suspense fallback={<Skeleton className="h-10 w-48 rounded-md" />}>
+                        <PushNotificationButton className="w-full sm:w-auto gap-2" />
+                      </Suspense>
+                    </CollapsibleContent>
+                  </Collapsible>
                   <SettingsRow label="Stay Logged In" description="Don't ask to sign in every time" icon={LogIn}><Switch checked={preferences.rememberLogin} onCheckedChange={(c) => { updatePreference('rememberLogin', c); toast.success(c ? 'Login remembered' : 'Login not remembered'); }} /></SettingsRow>
                   <SettingsRow label="Reduce Graphics" description="Fix screen tearing on older phones" icon={Zap}>
                     <Switch

@@ -19436,6 +19436,48 @@ export type Database = {
           },
         ]
       }
+      payout_proof_integrity_alerts: {
+        Row: {
+          created_at: string
+          details: Json
+          id: string
+          issue_type: string
+          resolved: boolean
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          storage_path: string | null
+          updated_at: string
+          withdrawal_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          details?: Json
+          id?: string
+          issue_type: string
+          resolved?: boolean
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          storage_path?: string | null
+          updated_at?: string
+          withdrawal_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          details?: Json
+          id?: string
+          issue_type?: string
+          resolved?: boolean
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          storage_path?: string | null
+          updated_at?: string
+          withdrawal_id?: string | null
+        }
+        Relationships: []
+      }
       payroll_batches: {
         Row: {
           approved_at: string | null
@@ -29185,7 +29227,11 @@ export type Database = {
           payout_code: string | null
           payout_method: string
           payout_proof: string | null
+          payout_proof_bucket: string | null
+          payout_proof_path: string | null
           payout_proof_type: string | null
+          payout_proof_uploaded_at: string | null
+          payout_proof_uploaded_by: string | null
           preferred_cashout_agent_id: string | null
           priority_level: string | null
           processed_at: string | null
@@ -29242,7 +29288,11 @@ export type Database = {
           payout_code?: string | null
           payout_method?: string
           payout_proof?: string | null
+          payout_proof_bucket?: string | null
+          payout_proof_path?: string | null
           payout_proof_type?: string | null
+          payout_proof_uploaded_at?: string | null
+          payout_proof_uploaded_by?: string | null
           preferred_cashout_agent_id?: string | null
           priority_level?: string | null
           processed_at?: string | null
@@ -29299,7 +29349,11 @@ export type Database = {
           payout_code?: string | null
           payout_method?: string
           payout_proof?: string | null
+          payout_proof_bucket?: string | null
+          payout_proof_path?: string | null
           payout_proof_type?: string | null
+          payout_proof_uploaded_at?: string | null
+          payout_proof_uploaded_by?: string | null
           preferred_cashout_agent_id?: string | null
           priority_level?: string | null
           processed_at?: string | null
@@ -31934,6 +31988,7 @@ export type Database = {
         Args: { p_since_hours?: number }
         Returns: number
       }
+      detect_payout_proof_integrity: { Args: never; Returns: Json }
       detect_sms_failure_alerts: { Args: never; Returns: Json }
       detect_sms_verification_failures: { Args: never; Returns: Json }
       detect_stale_withdrawal_holds: { Args: never; Returns: Json }
@@ -33458,6 +33513,7 @@ export type Database = {
           wallet_transaction_id: string
         }[]
       }
+      get_payout_proof_integrity_report: { Args: never; Returns: Json }
       get_payout_receipt: { Args: { p_withdrawal_id: string }; Returns: Json }
       get_payout_receipt_by_token: { Args: { p_token: string }; Returns: Json }
       get_pending_wallet_ops: {
