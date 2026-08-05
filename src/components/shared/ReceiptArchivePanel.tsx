@@ -93,6 +93,7 @@ export function ReceiptArchivePanel() {
   const [committedSearch, setCommittedSearch] = useState('');
   const [status, setStatus] = useState('completed');
   const [method, setMethod] = useState('all');
+  const [proofFilter, setProofFilter] = useState('all');
   const [amountMin, setAmountMin] = useState('');
   const [amountMax, setAmountMax] = useState('');
   const [dateFrom, setDateFrom] = useState('');
@@ -106,6 +107,7 @@ export function ReceiptArchivePanel() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [proofRow, setProofRow] = useState<ProofDialogRow | null>(null);
 
   const fetchRows = useCallback(async () => {
     setLoading(true);
@@ -114,7 +116,7 @@ export function ReceiptArchivePanel() {
       let q = supabase
         .from('withdrawal_requests')
         .select(
-          'id,user_id,amount,status,payout_method,transaction_id,reason,created_at,processed_at,receipt_token,assigned_cashout_agent_id,dispatch_claimed_by',
+          'id,user_id,amount,status,payout_method,transaction_id,reason,created_at,processed_at,receipt_token,assigned_cashout_agent_id,dispatch_claimed_by,payout_proof,payout_proof_type,payout_proof_path,payout_proof_bucket,payout_proof_uploaded_at,payout_proof_uploaded_by',
           { count: 'exact' },
         )
         .not('receipt_token', 'is', null)
@@ -123,6 +125,8 @@ export function ReceiptArchivePanel() {
 
       if (status !== 'all') q = q.eq('status', status);
       if (method !== 'all') q = q.eq('payout_method', method);
+      if (proofFilter === 'with') q = q.not('payout_proof', 'is', null);
+      if (proofFilter === 'without') q = q.is('payout_proof', null);
       if (committedAmounts.min !== null) q = q.gte('amount', committedAmounts.min);
       if (committedAmounts.max !== null) q = q.lte('amount', committedAmounts.max);
       if (committedDates.from) q = q.gte('created_at', committedDates.from);
@@ -149,6 +153,7 @@ export function ReceiptArchivePanel() {
         if (r.user_id) ids.add(r.user_id);
         const agentId = r.assigned_cashout_agent_id || r.dispatch_claimed_by;
         if (agentId) ids.add(agentId);
+        if (r.payout_proof_uploaded_by) ids.add(r.payout_proof_uploaded_by);
       });
       let profilesById: Record<string, { full_name: string | null; phone: string | null }> = {};
       if (ids.size > 0) {
@@ -170,6 +175,9 @@ export function ReceiptArchivePanel() {
           user_phone: r.user_id ? profilesById[r.user_id]?.phone ?? null : null,
           agent_name: agentId ? profilesById[agentId]?.full_name ?? null : null,
           agent_phone: agentId ? profilesById[agentId]?.phone ?? null : null,
+          uploaded_by_name: r.payout_proof_uploaded_by
+            ? profilesById[r.payout_proof_uploaded_by]?.full_name ?? null
+            : null,
         };
       });
 
@@ -203,7 +211,7 @@ export function ReceiptArchivePanel() {
     } finally {
       setLoading(false);
     }
-  }, [status, method, committedAmounts, committedDates, committedSearch, page]);
+  }, [status, method, proofFilter, committedAmounts, committedDates, committedSearch, page]);
 
   useEffect(() => {
     fetchRows();
@@ -222,6 +230,7 @@ export function ReceiptArchivePanel() {
   const clearFilters = () => {
     setSearch(''); setCommittedSearch('');
     setStatus('completed'); setMethod('all');
+    setProofFilter('all');
     setAmountMin(''); setAmountMax('');
     setDateFrom(''); setDateTo('');
     setCommittedAmounts({ min: null, max: null });
@@ -248,10 +257,11 @@ export function ReceiptArchivePanel() {
     if (committedSearch) n++;
     if (status !== 'completed') n++;
     if (method !== 'all') n++;
+    if (proofFilter !== 'all') n++;
     if (committedAmounts.min !== null || committedAmounts.max !== null) n++;
     if (committedDates.from || committedDates.to) n++;
     return n;
-  }, [committedSearch, status, method, committedAmounts, committedDates]);
+  }, [committedSearch, status, method, proofFilter, committedAmounts, committedDates]);
 
   return (
     <Card className="border-border">
