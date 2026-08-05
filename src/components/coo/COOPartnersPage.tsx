@@ -196,6 +196,34 @@ interface PartnerDetail {
  }
 
 /**
+ * Self-managed (Self Portfolio Management) commitment. These live in
+ * `partner_self_commitments` / `partner_self_funding_lines`, NOT in
+ * `investor_portfolios`, so Partner Ops has to read them separately or a
+ * partner who supported tenants directly looks like they hold nothing.
+ */
+interface SelfCommitmentRow {
+  id: string;
+  committed_amount: number;
+  term_months: number;
+  monthly_rate: number;
+  lines_count: number;
+  status: string;
+  payout_day: number | null;
+  next_payout_at: string | null;
+  term_end_at: string | null;
+  total_earned: number;
+  total_paid: number;
+  created_at: string;
+  lines: {
+    id: string;
+    rent_request_id: string;
+    principal: number;
+    status: string;
+    tenant_name?: string | null;
+  }[];
+}
+
+/**
  * A partner is CLEARED to receive portfolio top-ups / wallet→portfolio
  * transfers when they are EITHER explicitly verified (`funder_verified_at`)
  * OR they are a legacy partner who predates the self-registration
