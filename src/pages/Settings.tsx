@@ -576,17 +576,21 @@ export default function Settings() {
             {activeSection === 'roles' && (
               <div className="space-y-4">
                 <LazySection name="StaffAccess"><StaffAccessCard /></LazySection>
-                <Card className="border-border/40 rounded-2xl">
-                  <CardContent className="py-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2 flex-1 min-w-0">
-                        {preferences.unlockAllRoles ? <Unlock className="h-5 w-5 text-success shrink-0" /> : <Lock className="h-5 w-5 text-primary shrink-0" />}
-                        <div className="min-w-0"><p className="font-bold text-sm">Open All Dashboards</p><p className="text-xs text-muted-foreground">Use all role views</p></div>
-                      </div>
-                      <Switch checked={preferences.unlockAllRoles} onCheckedChange={(c) => { updatePreference('unlockAllRoles', c); toast.success(c ? 'All dashboards open!' : 'Back to default'); }} className="shrink-0" />
-                    </div>
-                  </CardContent>
-                </Card>
+                <SettingsGroup>
+                  <SettingsLinkRow
+                    icon={preferences.unlockAllRoles ? Unlock : Lock}
+                    label="Open All Dashboards"
+                    helper="Use all role views"
+                    chevron={false}
+                    trailing={
+                      <Switch
+                        checked={preferences.unlockAllRoles}
+                        onCheckedChange={(c) => { updatePreference('unlockAllRoles', c); toast.success(c ? 'All dashboards open!' : 'Back to default'); }}
+                        className="shrink-0"
+                      />
+                    }
+                  />
+                </SettingsGroup>
                 <Card className="border-border/40 rounded-2xl">
                   <CardHeader className="pb-2"><CardTitle className="text-sm">Your Roles</CardTitle></CardHeader>
                   <CardContent>
