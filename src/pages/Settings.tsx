@@ -223,6 +223,8 @@ export default function Settings() {
   const [deferredReady, setDeferredReady] = useState(false);
   const [pushOpen, setPushOpen] = useState(false);
   const [themeOpen, setThemeOpen] = useState(false);
+  const [textSizeOpen, setTextSizeOpen] = useState(false);
+
 
 
   useEffect(() => { if (!authLoading && !user) navigate('/auth'); }, [user, authLoading, navigate]);
