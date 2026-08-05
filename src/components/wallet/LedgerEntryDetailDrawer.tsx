@@ -91,8 +91,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   rent_payment_for_tenant: 'Rent Payment (Tenant)',
 };
 
-export function LedgerEntryDetailDrawer({ entryId, open, onOpenChange, showRunningBalance }: LedgerEntryDetailDrawerProps) {
-  const { role, roles } = useAuth();
+export function LedgerEntryDetailDrawer({ entryId, open, onOpenChange }: LedgerEntryDetailDrawerProps) {
   const [loading, setLoading] = useState(true);
   const [entry, setEntry] = useState<FullLedgerEntry | null>(null);
   const [ownerProfile, setOwnerProfile] = useState<ProfileInfo | null>(null);
@@ -156,14 +155,6 @@ export function LedgerEntryDetailDrawer({ entryId, open, onOpenChange, showRunni
   const categoryLabel = entry ? (CATEGORY_LABELS[entry.category] || entry.category.replace(/_/g, ' ')) : '';
   const sourceLabel = entry ? (SOURCE_TABLE_LABELS[entry.source_table] || entry.source_table.replace(/_/g, ' ')) : '';
 
-  // Presentation-only gate. Running balance is internal accounting data: it is
-  // shown ONLY on internal reconciliation surfaces that explicitly opt in
-  // (showRunningBalance) AND only when the viewer holds a finance/audit role.
-  // Every user-facing wallet surface omits the prop, so it stays hidden.
-  const hasFinanceRole = RUNNING_BALANCE_ROLES.includes(role ?? '') ||
-    roles.some((r) => RUNNING_BALANCE_ROLES.includes(r));
-  const canSeeRunningBalance = showRunningBalance === true && hasFinanceRole;
-
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[85vh] rounded-t-2xl">
@@ -222,9 +213,6 @@ export function LedgerEntryDetailDrawer({ entryId, open, onOpenChange, showRunni
               <DetailRow label="Direction" value={isIn ? 'Cash In' : 'Cash Out'} />
               <DetailRow label="Amount" value={formatUGX(entry.amount)} bold />
               {entry.account && <DetailRow label="Account" value={entry.account} />}
-              {canSeeRunningBalance && entry.running_balance !== null && entry.running_balance !== undefined && (
-                <DetailRow label="Running Balance" value={formatUGX(entry.running_balance)} />
-              )}
               {entry.description && <DetailRow label="Description" value={entry.description} />}
             </DetailSection>
 
