@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { roleToSlug } from '@/lib/roleRoutes';
 import { ProductCard } from '@/components/marketplace/ProductCard';
+import ScreenLoader from '@/components/common/ScreenLoader';
 
 interface Product {
   id: string;
@@ -116,9 +117,7 @@ export default function Wishlist() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
+      <ScreenLoader />
     );
   }
 
