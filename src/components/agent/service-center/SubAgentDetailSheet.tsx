@@ -3,10 +3,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  ArrowLeftRight, Home, Mail, Phone, ShieldCheck, ShieldOff, Unlink, Users, Wallet,
+  ArrowLeftRight, Building2, Home, KeyRound, Mail, Phone, ShieldCheck, ShieldOff, Unlink, Users, Wallet,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { formatUGX } from '@/lib/rentCalculations';
 import { ServiceCenterState, ServiceCenterSubAgent } from '@/hooks/useAgentServiceCenter';
 import { initialsOf, tintFor } from './subAgentVisuals';
@@ -67,6 +68,12 @@ export function SubAgentDetailSheet({
   onTransfer: (s: ServiceCenterSubAgent, rentRequestId: string) => void;
   onUnlink: (s: ServiceCenterSubAgent) => void;
 }) {
+  const [entityTab, setEntityTab] = useState<'tenants' | 'landlords' | 'houses'>('tenants');
+
+  useEffect(() => {
+    if (open) setEntityTab('tenants');
+  }, [open, subAgent?.sub_agent_id]);
+
   const tenantRows = useMemo<EntityRow[]>(() => (subAgent?.tenant_list ?? []).map((t) => ({
     id: t.rent_request_id,
     state: tenantState(t.status, t.is_active),
@@ -216,41 +223,77 @@ export function SubAgentDetailSheet({
               </div>
             </section>
 
-            <SubAgentEntityList
-              heading={`Tenants${subAgent.active_tenants > 0 ? ` · ${subAgent.active_tenants} active` : ''}`}
-              emptyLabel="No tenants linked to this sub-agent yet."
-              rows={tenantRows}
-              resetKey={`${subAgent.sub_agent_id}-tenants-${open}`}
-              renderRowAction={(r) => {
-                const t = subAgent.tenant_list.find((x) => x.rent_request_id === r.id);
-                if (!t?.is_active) return null;
-                return (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="w-full sm:w-auto"
-                    onClick={() => onTransfer(subAgent, t.rent_request_id)}
+            <section className="space-y-3">
+              <div className="flex gap-1 rounded-xl bg-muted/50 p-1">
+                {([
+                  { key: 'tenants', label: 'Tenants', icon: Users, count: tenantRows.length },
+                  { key: 'landlords', label: 'Landlords', icon: KeyRound, count: landlordRows.length },
+                  { key: 'houses', label: 'Houses', icon: Building2, count: houseRows.length },
+                ] as const).map((t) => (
+                  <button
+                    key={t.key}
+                    type="button"
+                    onClick={() => setEntityTab(t.key)}
+                    className={cn(
+                      'flex min-h-[36px] flex-1 items-center justify-center gap-1.5 rounded-lg text-xs font-semibold transition-colors',
+                      entityTab === t.key
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground',
+                    )}
+                    aria-pressed={entityTab === t.key}
                   >
-                    <ArrowLeftRight className="mr-1.5 h-3.5 w-3.5" /> Transfer tenant
-                  </Button>
-                );
-              }}
-            />
+                    <t.icon className="h-3.5 w-3.5" />
+                    <span className="truncate">{t.label}</span>
+                    <span className="tabular-nums opacity-70">{t.count}</span>
+                  </button>
+                ))}
+              </div>
 
-            <SubAgentEntityList
-              heading="Houses"
-              emptyLabel="This sub-agent has not listed any houses yet."
-              rows={houseRows}
-              resetKey={`${subAgent.sub_agent_id}-houses-${open}`}
-            />
+              {entityTab === 'tenants' && (
+                <SubAgentEntityList
+                  hideHeading
+                  heading="Tenants"
+                  emptyLabel="No tenants linked to this sub-agent yet."
+                  rows={tenantRows}
+                  resetKey={`${subAgent.sub_agent_id}-tenants-${open}`}
+                  renderRowAction={(r) => {
+                    const t = subAgent.tenant_list.find((x) => x.rent_request_id === r.id);
+                    if (!t?.is_active) return null;
+                    return (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full sm:w-auto"
+                        onClick={() => onTransfer(subAgent, t.rent_request_id)}
+                      >
+                        <ArrowLeftRight className="mr-1.5 h-3.5 w-3.5" /> Transfer tenant
+                      </Button>
+                    );
+                  }}
+                />
+              )}
 
-            <SubAgentEntityList
-              heading="Landlords"
-              emptyLabel="No landlords registered or assigned to this sub-agent yet."
-              rows={landlordRows}
-              showAmountSort={false}
-              resetKey={`${subAgent.sub_agent_id}-landlords-${open}`}
-            />
+              {entityTab === 'landlords' && (
+                <SubAgentEntityList
+                  hideHeading
+                  heading="Landlords"
+                  emptyLabel="No landlords registered or assigned to this sub-agent yet."
+                  rows={landlordRows}
+                  showAmountSort={false}
+                  resetKey={`${subAgent.sub_agent_id}-landlords-${open}`}
+                />
+              )}
+
+              {entityTab === 'houses' && (
+                <SubAgentEntityList
+                  hideHeading
+                  heading="Houses"
+                  emptyLabel="This sub-agent has not listed any houses yet."
+                  rows={houseRows}
+                  resetKey={`${subAgent.sub_agent_id}-houses-${open}`}
+                />
+              )}
+            </section>
 
             {subAgent.suspension?.reason && (
               <p className="rounded-xl bg-destructive/10 p-3 text-xs text-destructive">
