@@ -457,7 +457,18 @@ export function ReceiptArchivePanel() {
                         <div className="text-[11px] text-muted-foreground">{r.user_phone || ''}</div>
                       </td>
                       <td className="px-3 py-2">
-                        <div className="font-medium truncate max-w-[160px]">{r.agent_name || '—'}</div>
+                        {r.resolved_agent_profile_id && r.agent_name ? (
+                          <button
+                            type="button"
+                            onClick={() => setDrillAgentId(r.resolved_agent_profile_id!)}
+                            className="font-medium truncate max-w-[160px] text-left text-primary hover:underline"
+                            title="Open merchant agent profile"
+                          >
+                            {r.agent_name}
+                          </button>
+                        ) : (
+                          <div className="font-medium truncate max-w-[160px]">{r.agent_name || '—'}</div>
+                        )}
                         <div className="text-[11px] text-muted-foreground">{r.agent_phone || ''}</div>
                       </td>
                       <td className="px-3 py-2 text-right font-bold tabular-nums whitespace-nowrap">
@@ -584,6 +595,12 @@ export function ReceiptArchivePanel() {
       row={proofRow}
       open={!!proofRow}
       onOpenChange={(v) => { if (!v) setProofRow(null); }}
+    />
+    <UserDrilldownDrawer
+      open={!!drillAgentId}
+      onOpenChange={(v) => { if (!v) setDrillAgentId(null); }}
+      agentId={drillAgentId}
+      defaultTab="agent"
     />
     </div>
   );
