@@ -1366,8 +1366,10 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         .filter(p => p.status == null || PRINCIPAL_STATUSES.has(p.status))
         .reduce((s, p) => s + (p.investment_amount || 0), 0);
       // Fall back to the ledger only for imported partners with no portfolio rows.
-      const totalFunded = portfolios.length > 0 ? portfolioFunded : ledgerFunded;
-      const totalDeals = portfolios.length > 0 ? portfolios.length : ledgerDeals;
+      const baseFunded = portfolios.length > 0 ? portfolioFunded : (selfCommitments.length > 0 ? 0 : ledgerFunded);
+      const totalFunded = baseFunded + selfPrincipal;
+      const baseDeals = portfolios.length > 0 ? portfolios.length : (selfCommitments.length > 0 ? 0 : ledgerDeals);
+      const totalDeals = baseDeals + selfCommitments.length;
 
       setDetailPartner({
         profile: profileRes.data as any,
