@@ -36,6 +36,9 @@ export interface WithdrawalPayoutCardProps {
     sms?: string;
     proofUrl?: string;
     proofType?: string;
+    proofPath?: string;
+    proofBucket?: string;
+    proofUploadedBy?: string;
   }) => void | Promise<any>;
   /** ID of the withdrawal currently being claimed (for per-request loading) */
   claimingId?: string | null;
