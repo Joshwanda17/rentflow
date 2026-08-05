@@ -1255,6 +1255,64 @@ html.lite-mode .agent-dashboard-main {
   z-index: 30;
 }
 
+/* ============================================
+   INSTALLED APP (iOS home screen) SAFE AREAS
+   The app declares viewport-fit=cover +
+   apple-mobile-web-app-status-bar-style=black-translucent, so in standalone
+   mode the web view spans the FULL screen — content would otherwise render
+   underneath the iPhone status bar (clock / battery / signal) and the home
+   indicator. These rules inset the app shell once, globally, instead of
+   relying on each screen to remember a safe-area class.
+   ============================================ */
+@media (display-mode: standalone), (display-mode: fullscreen), (display-mode: minimal-ui) {
+  /* App shell: push all in-flow content below the status bar and inside the
+     notch cut-outs in landscape. Portalled overlays (dialogs / sheets) live
+     outside #root and keep their own safe-area handling. */
+  #root {
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+
+  /* Sticky / fixed bars are positioned against the viewport, so the #root
+     padding above does not protect them — offset them explicitly. */
+  #root .sticky.top-0,
+  #root .fixed.top-0 {
+    top: env(safe-area-inset-top, 0px);
+  }
+
+  /* Avoid double insets for screens that already opted in manually. */
+  #root .safe-area-top,
+  #root .safe-top,
+  #root .ios-status-bar-padding,
+  #root .ios-standalone-padding {
+    padding-top: 0;
+  }
+  #root .sticky-top-safe {
+    top: 0;
+  }
+}
+
+/* Same treatment for the iOS standalone class set at boot, for older iOS
+   versions that do not report display-mode reliably. */
+html.ios-standalone #root {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+html.ios-standalone #root .sticky.top-0,
+html.ios-standalone #root .fixed.top-0 {
+  top: env(safe-area-inset-top, 0px);
+}
+html.ios-standalone #root .safe-area-top,
+html.ios-standalone #root .safe-top,
+html.ios-standalone #root .ios-status-bar-padding {
+  padding-top: 0;
+}
+html.ios-standalone #root .sticky-top-safe {
+  top: 0;
+}
+
 /* Minimum 44x44 thumb-friendly tap target (WCAG / Apple HIG) */
 .min-tap { min-height: 44px; min-width: 44px; }
 
