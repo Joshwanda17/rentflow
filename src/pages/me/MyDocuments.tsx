@@ -118,17 +118,8 @@ export default function MyDocuments() {
                     <TableCell>{row.version ?? '—'}</TableCell>
                     <TableCell>{formatDate(row.uploaded_at)}</TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={openingId === row.id}
-                        onClick={() => void handleOpen(row)}
-                      >
-                        {openingId === row.id ? (
-                          <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <ExternalLink className="mr-1 h-3.5 w-3.5" />
-                        )}
+                      <Button size="sm" variant="outline" onClick={() => handleOpen(row)}>
+                        <Eye className="mr-1 h-3.5 w-3.5" />
                         Open
                       </Button>
                     </TableCell>
@@ -139,6 +130,14 @@ export default function MyDocuments() {
           )}
         </CardContent>
       </Card>
+
+      <DocumentViewer
+        open={viewerDoc !== null}
+        onClose={() => setViewerDoc(null)}
+        bucket={DOCUMENTS_BUCKET}
+        path={viewerDoc?.storage_path?.replace(/^\/+/, '') ?? ''}
+        title={viewerDoc?.title ?? 'Document'}
+      />
     </PersonalLayout>
   );
 }
