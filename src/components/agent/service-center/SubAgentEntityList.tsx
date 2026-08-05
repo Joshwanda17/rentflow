@@ -1,7 +1,13 @@
 import { useMemo, useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, ArrowUpDown, SlidersHorizontal, Check } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { ServiceCenterState } from '@/hooks/useAgentServiceCenter';
 
@@ -52,6 +58,7 @@ export function SubAgentEntityList({
   showAmountSort = true,
   resetKey,
   renderRowAction,
+  hideHeading = false,
 }: {
   heading: string;
   emptyLabel: string;
@@ -59,6 +66,7 @@ export function SubAgentEntityList({
   showAmountSort?: boolean;
   resetKey?: string;
   renderRowAction?: (row: EntityRow) => React.ReactNode;
+  hideHeading?: boolean;
 }) {
   const [filter, setFilter] = useState<'all' | ServiceCenterState>('all');
   const [sort, setSort] = useState<SortKey>('newest');
@@ -102,9 +110,11 @@ export function SubAgentEntityList({
 
   return (
     <section className="space-y-2">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        {heading} ({rows.length})
-      </h3>
+      {!hideHeading && (
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {heading} ({rows.length})
+        </h3>
+      )}
 
       {rows.length === 0 ? (
         <p className="rounded-xl border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
@@ -112,41 +122,59 @@ export function SubAgentEntityList({
         </p>
       ) : (
         <>
-          <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
-            {chips.map((c) => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => setFilter(c)}
-                className={cn(
-                  'shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors',
-                  filter === c
-                    ? 'border-primary bg-primary text-primary-foreground'
-                    : 'border-border bg-background text-muted-foreground',
-                )}
-              >
-                {c === 'all' ? 'All' : STATE_LABEL[c]} · {counts[c]}
-              </button>
-            ))}
-          </div>
+          <div className="flex items-center gap-1.5">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={cn(
+                    'h-8 min-w-0 flex-1 justify-start gap-1.5 rounded-full px-3 text-[11px] font-medium',
+                    filter !== 'all' && 'border-primary/40 bg-primary/10 text-primary',
+                  )}
+                >
+                  <SlidersHorizontal className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">
+                    {filter === 'all' ? 'All' : STATE_LABEL[filter]} · {counts[filter]}
+                  </span>
+                  <ChevronDown className="ml-auto h-3.5 w-3.5 shrink-0 opacity-60" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="min-w-[10rem]">
+                {chips.map((c) => (
+                  <DropdownMenuItem
+                    key={c}
+                    onSelect={() => setFilter(c)}
+                    className="text-xs"
+                  >
+                    <span className="flex-1">{c === 'all' ? 'All' : STATE_LABEL[c]}</span>
+                    <span className="ml-2 tabular-nums text-muted-foreground">{counts[c]}</span>
+                    {filter === c && <Check className="ml-2 h-3.5 w-3.5 text-primary" />}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-          <div className="-mx-1 flex items-center gap-1.5 overflow-x-auto px-1">
-            <span className="shrink-0 text-[10px] uppercase tracking-wide text-muted-foreground">Sort</span>
-            {sorts.map((s) => (
-              <button
-                key={s.key}
-                type="button"
-                onClick={() => setSort(s.key)}
-                className={cn(
-                  'shrink-0 rounded-md border px-2 py-0.5 text-[11px] transition-colors',
-                  sort === s.key
-                    ? 'border-foreground/30 bg-accent font-semibold text-accent-foreground'
-                    : 'border-border bg-background text-muted-foreground',
-                )}
-              >
-                {s.label}
-              </button>
-            ))}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 shrink-0 gap-1.5 rounded-full px-3 text-[11px] font-medium"
+                >
+                  <ArrowUpDown className="h-3.5 w-3.5" />
+                  {sorts.find((s) => s.key === sort)?.label}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-[8rem]">
+                {sorts.map((s) => (
+                  <DropdownMenuItem key={s.key} onSelect={() => setSort(s.key)} className="text-xs">
+                    <span className="flex-1">{s.label}</span>
+                    {sort === s.key && <Check className="ml-2 h-3.5 w-3.5 text-primary" />}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           {sorted.length === 0 ? (
