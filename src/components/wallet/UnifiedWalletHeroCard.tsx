@@ -120,14 +120,23 @@ export function UnifiedWalletHeroCard({
 
   useEffect(() => { setReduceMotion(prefersReducedMotion()); }, []);
 
-  // Auto re-collapse when the user scrolls down while the card is expanded.
+  // Auto re-collapse when the user scrolls down, or reaches the bottom of the page.
   const scrollAnchor = useRef(0);
   useEffect(() => {
     if (collapsed || typeof window === 'undefined') return;
     const getY = () => window.scrollY || document.documentElement.scrollTop || 0;
     scrollAnchor.current = getY();
+    const atBottom = () => {
+      const doc = document.documentElement;
+      const scrollHeight = Math.max(doc.scrollHeight, document.body.scrollHeight);
+      return getY() + window.innerHeight >= scrollHeight - 24;
+    };
     const onScroll = () => {
       const y = getY();
+      if (atBottom()) {
+        setCollapsed(true);
+        return;
+      }
       if (y > scrollAnchor.current + 48) {
         setCollapsed(true);
       } else if (y < scrollAnchor.current) {
@@ -135,7 +144,11 @@ export function UnifiedWalletHeroCard({
       }
     };
     window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
+    window.addEventListener('touchmove', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('touchmove', onScroll);
+    };
   }, [collapsed]);
 
   const toggleCollapsed = () => {
