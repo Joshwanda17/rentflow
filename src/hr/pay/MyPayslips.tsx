@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
-import HRPlaceholderPage from '@/hr/pages/HRPlaceholderPage';
+import PersonalLayout from '@/components/layout/PersonalLayout';
 import {
   Table,
   TableBody,
