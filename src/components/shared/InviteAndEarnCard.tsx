@@ -77,10 +77,10 @@ export function InviteAndEarnCard({ variant = 'default', compact = false }: Invi
   const shareLink = variant === 'landlord' && shortLink ? shortLink : longShareLink;
 
   const messages: Record<string, string> = {
-    tenant: `🏠 Struggling with rent? I use Welile to get my rent paid upfront!\n\n💰 Get your full rent today\n📅 Pay back in small daily amounts\n✅ Quick signup - just 2 minutes\n🎁 We BOTH get 500 UGX bonus!\n\nJoin now: ${shareLink}`,
+    tenant: `🏠 Struggling with rent? I use Welile to get my rent paid upfront!\n\n💰 Get your full rent today\n📅 Pay back in small daily amounts\n✅ Quick signup - just 2 minutes\n🎁 We BOTH get 100 UGX bonus!\n\nJoin now: ${shareLink}`,
     landlord: `🏡 Tired of chasing rent? Welile guarantees your monthly rent!\n\n✅ Get rent on time, every month\n🛡️ Zero risk to you\n📲 Free to join\n\nRegister now: ${shareLink}`,
     supporter: `💰 Want to earn passive income? I'm earning returns with Welile!\n\n📈 Competitive monthly returns\n🛡️ Backed by real rent payments\n📲 Easy to start\n🎁 Join through my link!\n\nStart now: ${shareLink}`,
-    default: `📲 Join Welile - the smartest way to manage rent!\n\n🎁 We BOTH get 500 UGX bonus!\n\nJoin now: ${shareLink}`,
+    default: `📲 Join Welile - the smartest way to manage rent!\n\n🎁 We BOTH get 100 UGX bonus!\n\nJoin now: ${shareLink}`,
   };
 
   const shareMessage = messages[variant] || messages.default;
@@ -131,7 +131,7 @@ export function InviteAndEarnCard({ variant = 'default', compact = false }: Invi
               <p className="text-[10px] sm:text-[11px] text-muted-foreground leading-tight mt-0.5 truncate">
                 {referralCount > 0
                   ? `${referralCount} joined · ${formatUGX(totalEarned)}`
-                  : 'UGX 500 per friend'}
+                  : 'UGX 100 per friend'}
               </p>
             </div>
             <Button
@@ -162,7 +162,7 @@ export function InviteAndEarnCard({ variant = 'default', compact = false }: Invi
               <Gift className="h-5 w-5 text-primary-foreground" />
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="font-bold text-sm leading-tight">Invite & Earn UGX 500</h3>
+              <h3 className="font-bold text-sm leading-tight">Invite & Earn UGX 100</h3>
               <p className="text-xs text-muted-foreground">
                 Share your link. Earn for every friend who joins.
               </p>
