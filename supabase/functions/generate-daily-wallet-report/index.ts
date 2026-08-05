@@ -3,8 +3,11 @@
 // stores PDF + XLSX to the finops-reports bucket, records a row in
 // public.daily_wallet_reports, and emails PDF+XLSX via Mailgun.
 //
-// Cron: 21:00 UTC = 00:00 EAT (covers the just-ended EAT day).
-// Manual POST body: { "date": "YYYY-MM-DD", "recipients": [ ... ], "regenerate": true }
+// Crons: 21:00 UTC = 00:00 EAT (full_day — the just-ended EAT day),
+//        03:00 UTC = 06:00 EAT (morning checkpoint — today so far),
+//        09:00 UTC = 12:00 EAT (midday checkpoint — today so far).
+// Manual POST body: { "window": "full_day|morning|midday|evening",
+//                     "date": "YYYY-MM-DD", "recipients": [ ... ], "regenerate": true }
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 import { PDFDocument, StandardFonts, rgb } from 'https://esm.sh/pdf-lib@1.17.1';
@@ -26,6 +29,15 @@ const DEFAULT_RECIPIENTS = [
 const fmt = (n: number) =>
   `UGX ${Math.round(Number(n) || 0).toLocaleString('en-UG')}`;
 
+type ReportWindow = 'full_day' | 'morning' | 'midday' | 'evening';
+
+const WINDOW_LABEL: Record<ReportWindow, string> = {
+  full_day: 'Daily Wallet Financial Summary Report',
+  morning: 'Wallet Morning Checkpoint (06:00 EAT)',
+  midday: 'Wallet Midday Checkpoint (12:00 EAT)',
+  evening: 'Wallet Evening Checkpoint (18:00 EAT)',
+};
+
 function eatDayToUtcRange(dateStr: string) {
   const startUtc = new Date(`${dateStr}T00:00:00.000+03:00`);
   const endUtc = new Date(startUtc.getTime() + 24 * 60 * 60 * 1000);
@@ -36,6 +48,13 @@ function yesterdayEat(): string {
   const nowEatMs = Date.now() + 3 * 60 * 60 * 1000;
   const d = new Date(nowEatMs - 24 * 60 * 60 * 1000);
   return d.toISOString().slice(0, 10);
+}
+
+function todaySoFarEatRange(): { startIso: string; endIso: string; dateStr: string } {
+  const nowEatMs = Date.now() + 3 * 60 * 60 * 1000;
+  const todayEat = new Date(nowEatMs).toISOString().slice(0, 10);
+  const { startIso } = eatDayToUtcRange(todayEat);
+  return { startIso, endIso: new Date().toISOString(), dateStr: todayEat };
 }
 
 function eatNowLabel(): string {
@@ -74,6 +93,7 @@ const PAYOUT_LABEL: Record<string, string> = {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
+  let windowParam: ReportWindow = 'full_day';
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -87,17 +107,30 @@ Deno.serve(async (req) => {
     }
 
     const body = req.method === 'POST' ? await req.json().catch(() => ({})) : {};
-    const dateStr: string =
-      typeof body?.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.date)
-        ? body.date
-        : yesterdayEat();
+    windowParam =
+      body?.window === 'morning' || body?.window === 'midday' || body?.window === 'evening'
+        ? body.window
+        : 'full_day';
+
+    let startIso: string;
+    let endIso: string;
+    let dateStr: string;
+    if (windowParam === 'full_day') {
+      dateStr =
+        typeof body?.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.date)
+          ? body.date
+          : yesterdayEat();
+      ({ startIso, endIso } = eatDayToUtcRange(dateStr));
+    } else {
+      ({ startIso, endIso, dateStr } = todaySoFarEatRange());
+    }
+    const title = WINDOW_LABEL[windowParam];
     const recipients: string[] =
       Array.isArray(body?.recipients) && body.recipients.length > 0
         ? body.recipients.filter((r: unknown) => typeof r === 'string' && (r as string).includes('@'))
         : DEFAULT_RECIPIENTS;
     const skipEmail = body?.skipEmail === true;
 
-    const { startIso, endIso } = eatDayToUtcRange(dateStr);
     const supabase = createClient(supabaseUrl, serviceKey);
 
     const { data: rpcData, error: rpcErr } = await supabase.rpc('compute_wallet_report', {
@@ -119,10 +152,13 @@ Deno.serve(async (req) => {
     };
 
     const generatedAtLabel = eatNowLabel();
-    const pdfBytes = await buildPdf({ dateStr, generatedAtLabel, m });
-    const xlsxBytes = buildXlsx({ dateStr, generatedAtLabel, m });
+    const pdfBytes = await buildPdf({ dateStr, generatedAtLabel, m, title });
+    const xlsxBytes = buildXlsx({ dateStr, generatedAtLabel, m, title });
 
-    const baseName = `welile-wallet-summary-${dateStr}`;
+    const baseName =
+      windowParam === 'full_day'
+        ? `welile-wallet-summary-${dateStr}`
+        : `welile-wallet-summary-${dateStr}-${windowParam}`;
     const pdfPath = `${dateStr}/${baseName}.pdf`;
     const xlsxPath = `${dateStr}/${baseName}.xlsx`;
 
@@ -138,6 +174,7 @@ Deno.serve(async (req) => {
 
     const row = {
       report_date: dateStr,
+      run_window: windowParam,
       period_start: m.period_start,
       period_end: m.period_end,
       deposits_by_source: m.deposits_by_source,
@@ -154,19 +191,19 @@ Deno.serve(async (req) => {
     };
     const { data: saved, error: saveErr } = await supabase
       .from('daily_wallet_reports')
-      .upsert(row, { onConflict: 'report_date' })
+      .upsert(row, { onConflict: 'report_date,run_window' })
       .select()
       .single();
     if (saveErr) throw saveErr;
 
     if (!skipEmail) {
-      const htmlBody = renderEmailHtml(dateStr, m);
-      const textBody = renderEmailText(dateStr, m);
+      const htmlBody = renderEmailHtml(dateStr, m, title);
+      const textBody = renderEmailText(dateStr, m, title);
 
       const form = new FormData();
       form.set('from', FROM);
       recipients.forEach((r) => form.append('to', r));
-      form.set('subject', `Daily Wallet Financial Summary Report – ${dateStr}`);
+      form.set('subject', `${title} – ${dateStr}`);
       form.set('text', textBody);
       form.set('html', htmlBody);
       form.set('o:tag', 'daily-wallet-summary');
@@ -212,6 +249,7 @@ Deno.serve(async (req) => {
       JSON.stringify({
         ok: true,
         date: dateStr,
+        window: windowParam,
         id: saved.id,
         total_deposited: m.total_deposited,
         total_paid_out: m.total_paid_out,
@@ -220,14 +258,31 @@ Deno.serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   } catch (err) {
-    console.error('generate-daily-wallet-report failed', err);
+    console.error('generate-daily-wallet-report failed', windowParam, err);
+    try {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL');
+      const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+      if (supabaseUrl && serviceKey) {
+        const admin = createClient(supabaseUrl, serviceKey);
+        await admin.from('system_events').insert({
+          event_type: 'report_generation_failed',
+          metadata: {
+            report: 'daily_wallet_summary',
+            window: windowParam,
+            error: String((err as any)?.message ?? err),
+          },
+        });
+      }
+    } catch (logErr) {
+      console.error('failed to record report_generation_failed event', logErr);
+    }
     return new Response(JSON.stringify({ error: String((err as any)?.message ?? err) }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 });
 
-function renderEmailHtml(dateStr: string, m: Metrics) {
+function renderEmailHtml(dateStr: string, m: Metrics, title: string) {
   const depRows = Object.entries(m.deposits_by_source)
     .map(([k, v]) => `<tr><td style="padding:4px 12px">${DEPOSIT_LABEL[k] ?? k}</td><td style="padding:4px 12px;text-align:right">${v.count.toLocaleString()}</td><td style="padding:4px 12px;text-align:right">${fmt(v.amount)}</td></tr>`)
     .join('');
@@ -236,7 +291,7 @@ function renderEmailHtml(dateStr: string, m: Metrics) {
     .join('');
   return `
   <div style="font-family:-apple-system,Segoe UI,Arial,sans-serif;color:#111">
-    <h2 style="margin:0 0 4px">Daily Wallet Financial Summary Report</h2>
+    <h2 style="margin:0 0 4px">${title}</h2>
     <p style="color:#666;margin:0 0 16px">Reporting Period: ${dateStr} (EAT) • Currency: UGX</p>
 
     <h3 style="margin:16px 0 4px">Deposits</h3>
@@ -255,9 +310,9 @@ function renderEmailHtml(dateStr: string, m: Metrics) {
   </div>`;
 }
 
-function renderEmailText(dateStr: string, m: Metrics) {
+function renderEmailText(dateStr: string, m: Metrics, title: string) {
   return [
-    `Daily Wallet Financial Summary Report`,
+    title,
     `Reporting Period: ${dateStr} (EAT)`,
     `Total Amount Deposited: ${fmt(m.total_deposited)}`,
     `Total Amount Paid Out: ${fmt(m.total_paid_out)}`,
@@ -267,10 +322,10 @@ function renderEmailText(dateStr: string, m: Metrics) {
   ].join('\n');
 }
 
-function buildXlsx(a: { dateStr: string; generatedAtLabel: string; m: Metrics }): Uint8Array {
-  const { dateStr, generatedAtLabel, m } = a;
+function buildXlsx(a: { dateStr: string; generatedAtLabel: string; m: Metrics; title: string }): Uint8Array {
+  const { dateStr, generatedAtLabel, m, title } = a;
   const rows: (string | number)[][] = [];
-  rows.push(['Daily Wallet Financial Summary Report']);
+  rows.push([title]);
   rows.push([`Reporting Period`, `${dateStr} (EAT)`]);
   rows.push([`Generated At`, generatedAtLabel]);
   rows.push([`Generated By`, 'System']);
@@ -298,8 +353,8 @@ function buildXlsx(a: { dateStr: string; generatedAtLabel: string; m: Metrics })
   return new Uint8Array(out);
 }
 
-async function buildPdf(a: { dateStr: string; generatedAtLabel: string; m: Metrics }): Promise<Uint8Array> {
-  const { dateStr, generatedAtLabel, m } = a;
+async function buildPdf(a: { dateStr: string; generatedAtLabel: string; m: Metrics; title: string }): Promise<Uint8Array> {
+  const { dateStr, generatedAtLabel, m, title } = a;
   const doc = await PDFDocument.create();
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
@@ -317,7 +372,7 @@ async function buildPdf(a: { dateStr: string; generatedAtLabel: string; m: Metri
   page.drawText('WELILE — Financial Operations', {
     x: margin, y: PAGE_H - 34, size: 10, font: bold, color: col(255, 255, 255),
   });
-  page.drawText('Daily Wallet Financial Summary Report', {
+  page.drawText(title, {
     x: margin, y: PAGE_H - 58, size: 17, font: bold, color: col(255, 255, 255),
   });
   page.drawText(`Reporting Period: ${dateStr} (EAT)`, {
