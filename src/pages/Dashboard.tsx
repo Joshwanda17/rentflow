@@ -19,7 +19,6 @@ import { useDeployedCapital } from '@/hooks/useDeployedCapital';
 import { useToast } from '@/hooks/use-toast';
 import { useConfetti } from '@/components/Confetti';
 import { Button } from '@/components/ui/button';
-import InstallAppCard from '@/components/InstallAppCard';
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
 import { schedulePreloadOtherRoles } from '@/lib/preloadRoleDashboards';
 // Lazy load dashboards for faster initial load
