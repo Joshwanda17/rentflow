@@ -3,13 +3,29 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
 import {
   ArrowLeftRight, Home, Mail, Phone, ShieldCheck, ShieldOff, Unlink, Users, Wallet,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
-import { ServiceCenterSubAgent } from '@/hooks/useAgentServiceCenter';
+import { ServiceCenterState, ServiceCenterSubAgent } from '@/hooks/useAgentServiceCenter';
 import { initialsOf, tintFor } from './subAgentVisuals';
+import { EntityRow, SubAgentEntityList } from './SubAgentEntityList';
+
+const dateLabel = (v?: string | null) =>
+  v
+    ? new Date(v).toLocaleDateString('en-GB', {
+        day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Africa/Kampala',
+      })
+    : '—';
+
+const ACTIVE_STATUSES = ['funded', 'repaying'];
+
+const tenantState = (status: string, isActive?: boolean): ServiceCenterState => {
+  if (isActive || ACTIVE_STATUSES.includes(status)) return 'verified';
+  if (/reject|cancel|declin|deleted/i.test(status)) return 'rejected';
+  return 'pending';
+};
 
 function Metric({
   label, value, tone, icon: Icon,
@@ -51,11 +67,59 @@ export function SubAgentDetailSheet({
   onTransfer: (s: ServiceCenterSubAgent, rentRequestId: string) => void;
   onUnlink: (s: ServiceCenterSubAgent) => void;
 }) {
-  const [visibleTenants, setVisibleTenants] = useState(10);
+  const tenantRows = useMemo<EntityRow[]>(() => (subAgent?.tenant_list ?? []).map((t) => ({
+    id: t.rent_request_id,
+    state: tenantState(t.status, t.is_active),
+    primary: t.tenant_name ?? 'Unnamed tenant',
+    secondary: t.status.replace(/_/g, ' '),
+    amountLabel: t.monthly_rent ? formatUGX(t.monthly_rent) : null,
+    amountValue: t.monthly_rent ?? 0,
+    createdAt: t.created_at ?? null,
+    details: [
+      { label: 'Rent plan status', value: t.status.replace(/_/g, ' ') },
+      { label: 'Monthly rent', value: t.monthly_rent ? formatUGX(t.monthly_rent) : '—' },
+      { label: 'Active plan', value: t.is_active ? 'Yes' : 'No' },
+      { label: 'Added', value: dateLabel(t.created_at) },
+    ],
+  })), [subAgent?.tenant_list]);
 
-  useEffect(() => {
-    setVisibleTenants(10);
-  }, [subAgent?.sub_agent_id, open]);
+  const houseRows = useMemo<EntityRow[]>(() => (subAgent?.house_list ?? []).map((h) => ({
+    id: h.id,
+    state: h.state,
+    primary: h.title || h.address || 'Untitled house',
+    secondary: [h.district, h.region].filter(Boolean).join(', ') || null,
+    amountLabel: h.monthly_rent ? formatUGX(h.monthly_rent) : null,
+    amountValue: h.monthly_rent ?? 0,
+    createdAt: h.created_at,
+    details: [
+      { label: 'Address', value: h.address || '—' },
+      { label: 'District', value: h.district || '—' },
+      { label: 'Region', value: h.region || '—' },
+      { label: 'Monthly rent', value: h.monthly_rent ? formatUGX(h.monthly_rent) : '—' },
+      { label: 'Listing status', value: (h.status || '—').replace(/_/g, ' ') },
+      { label: 'Occupancy', value: h.occupied ? 'Occupied' : 'Vacant' },
+      { label: 'Verified on', value: dateLabel(h.verified_at) },
+      { label: 'Listed on', value: dateLabel(h.created_at) },
+      ...(h.reason ? [{ label: 'Rejection reason', value: h.reason }] : []),
+    ],
+  })), [subAgent?.house_list]);
+
+  const landlordRows = useMemo<EntityRow[]>(() => (subAgent?.landlord_list ?? []).map((l) => ({
+    id: l.id,
+    state: l.state,
+    primary: l.name || 'Unnamed landlord',
+    secondary: [l.phone, l.district].filter(Boolean).join(' · ') || null,
+    createdAt: l.created_at,
+    details: [
+      { label: 'Phone', value: l.phone || '—' },
+      { label: 'District', value: l.district || '—' },
+      { label: 'Region', value: l.region || '—' },
+      { label: 'Link', value: l.link_source === 'assigned' ? 'Assigned' : 'Registered by sub-agent' },
+      { label: 'Verified on', value: dateLabel(l.verified_at) },
+      { label: 'Registered', value: dateLabel(l.created_at) },
+      ...(l.reason ? [{ label: 'Verification note', value: l.reason }] : []),
+    ],
+  })), [subAgent?.landlord_list]);
 
   if (!subAgent) return null;
 
