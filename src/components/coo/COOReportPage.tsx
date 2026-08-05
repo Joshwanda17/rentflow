@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import {
   Calendar as CalendarIcon, Download, FileSpreadsheet, FileText, RefreshCw, Search,
-  AlertTriangle, TrendingUp, Clock, Sparkles, ChevronRight, ArrowLeft, Loader2, type LucideIcon
+  AlertTriangle, TrendingUp, Clock, Sparkles, ChevronRight, ChevronLeft, ArrowLeft, Loader2, type LucideIcon
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -106,6 +106,28 @@ export interface COOReportPageProps {
 const ugx = (n?: number | null) =>
   n == null ? '—' : `UGX ${new Intl.NumberFormat('en-UG').format(Math.round(n))}`;
 
+/** Rows rendered per page in the activity table. */
+const PAGE_SIZE = 15;
+
+/** Coerce any incoming amount to a finite number (or null) so totals never NaN. */
+const safeAmount = (n?: number | null): number | null => {
+  if (n == null) return null;
+  const v = Number(n);
+  return Number.isFinite(v) ? v : null;
+};
+
+/** Parse a date defensively — invalid dates must not crash the table. */
+const safeDate = (iso?: string): Date | null => {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? null : d;
+};
+
+const fmtDate = (iso: string, pattern: string) => {
+  const d = safeDate(iso);
+  return d ? format(d, pattern) : '—';
+};
+
 const SEVERITY_BG: Record<Severity, string> = {
   neutral:     'bg-muted/40 border-border',
   success:     'bg-success/8 border-success/30',
@@ -162,15 +184,23 @@ export default function COOReportPage(props: COOReportPageProps) {
 
   const [generating, setGenerating] = useState(false);
   const [drawer, setDrawer] = useState<ReportActivity | null>(null);
+  const [page, setPage] = useState(0);
 
   // ── Derived rows ──────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
     const qq = q.trim().toLowerCase();
     const fromTs = from ? from.getTime() : -Infinity;
     const toTs = to ? to.getTime() + 24 * 3600 * 1000 - 1 : Infinity;
-    return activities.filter((a) => {
-      const ts = new Date(a.date).getTime();
-      if (ts < fromTs || ts > toTs) return false;
+    const seen = new Set<string>();
+    return activities
+      .filter((a) => {
+        // Data integrity: drop duplicate ids so a row is never counted twice.
+        if (seen.has(a.id)) return false;
+        seen.add(a.id);
+        const d = safeDate(a.date);
+        if (!d) return false;
+        const ts = d.getTime();
+        if (ts < fromTs || ts > toTs) return false;
       if (status !== 'all' && a.status !== status) return false;
       if (type   !== 'all' && a.type   !== type)   return false;
       if (dept   !== 'all' && (a.details?.department ?? '') !== dept) return false;
@@ -180,15 +210,36 @@ export default function COOReportPage(props: COOReportPageProps) {
         if (!hay.includes(qq)) return false;
       }
       return true;
-    });
+      })
+      .sort((a, b) => {
+        const diff = (safeDate(b.date)?.getTime() ?? 0) - (safeDate(a.date)?.getTime() ?? 0);
+        return diff !== 0 ? diff : a.id.localeCompare(b.id);
+      });
   }, [activities, q, status, type, dept, staff, from, to]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const pageRows = useMemo(
+    () => filtered.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE),
+    [filtered, safePage],
+  );
+  // Keep the page index valid whenever the filtered set shrinks.
+  useEffect(() => { setPage(0); }, [q, status, type, dept, staff, from, to, activities]);
+
+  const filteredTotal = useMemo(
+    () => filtered.reduce((s, a) => s + (safeAmount(a.amount) ?? 0), 0),
+    [filtered],
+  );
 
   // ── Actions ───────────────────────────────────────────────────────────────
   async function handleGenerate() {
     setGenerating(true);
     try {
       await onGenerate?.({ from, to });
-      toast.success('Report regenerated', { description: `${filtered.length} matching activities.` });
+      setPage(0);
+      toast.success('Report regenerated from live data', {
+        description: `Range ${from ? format(from, 'PP') : '—'} → ${to ? format(to, 'PP') : '—'}. Figures re-fetched from the server.`,
+      });
     } catch (e: any) {
       toast.error('Could not generate report', { description: e?.message ?? 'Unknown error' });
     } finally {
@@ -197,14 +248,18 @@ export default function COOReportPage(props: COOReportPageProps) {
   }
 
   function exportCsv() {
+    if (filtered.length === 0) {
+      toast.error('Nothing to export', { description: 'No activities match the current filters.' });
+      return;
+    }
     const head = ['ID', 'Type', 'Person', 'Amount UGX', 'Status', 'Date', 'Staff', 'Reference'];
     const lines = [head.join(',')].concat(
       filtered.map((a) =>
-        [a.id, a.type, a.person, a.amount ?? '', a.status, a.date, a.staff ?? '', a.reference ?? '']
+        [a.id, a.type, a.person, safeAmount(a.amount) ?? '', a.status, a.date, a.staff ?? '', a.reference ?? '']
           .map((v) => `"${String(v).replace(/"/g, '""')}"`)
           .join(','),
       ),
-    );
+    ).concat([`"TOTAL","","","${Math.round(filteredTotal)}","","","",""`]);
     const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -217,6 +272,10 @@ export default function COOReportPage(props: COOReportPageProps) {
 
   function exportPdf() {
     try {
+      if (filtered.length === 0) {
+        toast.error('Nothing to export', { description: 'No activities match the current filters.' });
+        return;
+      }
       const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
       const pageWidth = doc.internal.pageSize.getWidth();
       const generatedAt = format(new Date(), 'PPpp');
@@ -255,14 +314,16 @@ export default function COOReportPage(props: COOReportPageProps) {
         startY: afterKpi + 30,
         head: [['Date', 'Type', 'Person', 'Amount (UGX)', 'Status', 'Staff', 'Reference']],
         body: filtered.map((a) => [
-          format(new Date(a.date), 'dd MMM yy HH:mm'),
+          fmtDate(a.date, 'dd MMM yy HH:mm'),
           a.type,
           a.person,
-          a.amount == null ? '—' : new Intl.NumberFormat('en-UG').format(Math.round(a.amount)),
+          safeAmount(a.amount) == null ? '—' : new Intl.NumberFormat('en-UG').format(Math.round(safeAmount(a.amount)!)),
           a.status,
           a.staff ?? '—',
           a.reference ?? '—',
         ]),
+        foot: [['TOTAL', '', '', new Intl.NumberFormat('en-UG').format(Math.round(filteredTotal)), '', '', '']],
+        footStyles: { fillColor: [240, 240, 245], textColor: 20, fontStyle: 'bold', fontSize: 8.5 },
         theme: 'striped',
         headStyles: { fillColor: [30, 30, 35], textColor: 255, fontStyle: 'bold', fontSize: 9 },
         styles: { fontSize: 8, cellPadding: 3.5 },
@@ -454,6 +515,7 @@ export default function COOReportPage(props: COOReportPageProps) {
         <p className="text-[11px] text-muted-foreground mt-2">
           Showing <span className="font-bold tabular-nums">{filtered.length}</span> of {activities.length} activities
           {(from || to) && <> · {from && format(from, 'PP')} → {to && format(to, 'PP')}</>}
+          {' · Total '}<span className="font-bold tabular-nums">{ugx(filteredTotal)}</span>
         </p>
       </div>
 
@@ -477,10 +539,10 @@ export default function COOReportPage(props: COOReportPageProps) {
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 && (
+              {pageRows.length === 0 && (
                 <tr><td colSpan={7} className="text-center py-12 text-sm text-muted-foreground">No activities match the current filters.</td></tr>
               )}
-              {filtered.map((a) => {
+              {pageRows.map((a) => {
                 const sev = a.statusKind ?? 'neutral';
                 return (
                   <tr
@@ -490,14 +552,14 @@ export default function COOReportPage(props: COOReportPageProps) {
                   >
                     <td className="px-3 py-3 font-medium">{a.type}</td>
                     <td className="px-3 py-3 text-muted-foreground">{a.person}</td>
-                    <td className="px-3 py-3 text-right font-mono tabular-nums">{ugx(a.amount)}</td>
+                    <td className="px-3 py-3 text-right font-mono tabular-nums">{ugx(safeAmount(a.amount))}</td>
                     <td className="px-3 py-3">
                       <span className={cn('text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border', STATUS_BADGE[sev])}>
                         {a.status}
                       </span>
                     </td>
                     <td className="px-3 py-3 text-muted-foreground hidden md:table-cell whitespace-nowrap">
-                      {format(new Date(a.date), 'PP p')}
+                      {fmtDate(a.date, 'PP p')}
                     </td>
                     <td className="px-3 py-3 text-muted-foreground hidden lg:table-cell">{a.staff ?? '—'}</td>
                     <td className="px-3 py-3 text-right">
@@ -509,6 +571,38 @@ export default function COOReportPage(props: COOReportPageProps) {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination — 15 rows per page */}
+        {filtered.length > 0 && (
+          <div className="px-4 py-3 border-t border-border flex items-center justify-between gap-2">
+            <p className="text-[11px] text-muted-foreground">
+              Rows <span className="font-bold tabular-nums">{safePage * PAGE_SIZE + 1}</span>–
+              <span className="font-bold tabular-nums">{Math.min((safePage + 1) * PAGE_SIZE, filtered.length)}</span>
+              {' of '}<span className="font-bold tabular-nums">{filtered.length}</span>
+              {' · Page '}{safePage + 1}/{totalPages}
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1"
+                disabled={safePage === 0}
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+              >
+                <ChevronLeft className="h-4 w-4" /> Prev
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1"
+                disabled={safePage >= totalPages - 1}
+                onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+              >
+                Next <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Insights */}
