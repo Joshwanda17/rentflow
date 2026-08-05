@@ -7,12 +7,13 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDynamic } from '@/lib/currencyFormat';
 import { toast } from 'sonner';
-import { CalendarClock, Home, Loader2, MapPin, RefreshCw, ShieldCheck, Wallet } from 'lucide-react';
+import { CalendarClock, ChevronLeft, ChevronRight, Home, Loader2, MapPin, RefreshCw, ShieldCheck, Wallet } from 'lucide-react';
 
 import { SelfPortfolioDeployDialog } from './SelfPortfolioDeployDialog';
 import { SelfPortfolioPlanDetailSheet } from './SelfPortfolioPlanDetailSheet';
 
 const MIN_FUNDING = 50000;
+const PLANS_PER_PAGE = 4;
 
 interface EarningsSummary {
   nextPayoutDate: string | null;
@@ -62,6 +63,7 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
   const [activeCommitmentId, setActiveCommitmentId] = useState<string | null>(null);
   const [deployOpen, setDeployOpen] = useState(false);
   const [detailPlan, setDetailPlan] = useState<FundablePlan | null>(null);
+  const [page, setPage] = useState(0);
 
   const load = useCallback(async () => {
     setLoading(true);
