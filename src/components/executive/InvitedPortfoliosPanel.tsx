@@ -19,7 +19,7 @@ import { toast } from '@/components/ui/sonner';
 import { formatUGX } from '@/lib/rentCalculations';
 import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import { formatDistanceToNow, format } from 'date-fns';
-import { Loader2, Search, Mail, MailWarning, ShieldCheck, RefreshCw, Inbox, Eye, Phone, Upload } from 'lucide-react';
+import { Loader2, Search, Mail, MailWarning, ShieldCheck, RefreshCw, Inbox, Eye, Phone, Upload, Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
@@ -55,6 +55,7 @@ export function InvitedPortfoliosPanel() {
   const [filter, setFilter] = useState<Filter>('all');
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [approvalError, setApprovalError] = useState<string | null>(null);
+  const [resendingId, setResendingId] = useState<string | null>(null);
   const [reviewRow, setReviewRow] = useState<Row | null>(null);
   const queryClient = useQueryClient();
 
@@ -210,6 +211,35 @@ export function InvitedPortfoliosPanel() {
     new Date(row.token_expires_at) < new Date() &&
     !row.token_consumed_at;
 
+  // Re-sends the completion invite with a brand-new 7-day link. Needed because
+  // the original link silently dies after 7 days while the partner wallet has
+  // already been debited, leaving the portfolio stranded.
+  const handleResend = async (row: Row) => {
+    if (!row.partner_email) {
+      toast.error('No email on file', {
+        description: `Add an email to ${row.partner_name}'s profile before resending the invite.`,
+      });
+      return;
+    }
+    setResendingId(row.id);
+    try {
+      const { data: res, error } = await supabase.functions.invoke('resend-portfolio-invite', {
+        body: { portfolio_id: row.id },
+      });
+      if (error) throw error;
+      if (res?.error) throw new Error(res.error);
+      toast.success('Invite resent', {
+        description: `A fresh completion link for ${row.portfolio_code} was sent to ${row.partner_email}. It is valid for 7 days.`,
+      });
+      await queryClient.invalidateQueries({ queryKey: ['invited-portfolios'] });
+    } catch (err: unknown) {
+      const message = await extractFromErrorObject(err, 'Could not resend the invite. Please try again.');
+      toast.error('Resend failed', { description: message });
+    } finally {
+      setResendingId(null);
+    }
+  };
+
   return (
     <div className="space-y-3">
       {/* Header + refresh */}
@@ -342,6 +372,20 @@ export function InvitedPortfoliosPanel() {
                   </div>
 
                   <div className="flex justify-end pt-1 border-t">
+                    {row.status === 'awaiting_partner_details' && (
+                      <Button
+                        size="sm"
+                        variant={expired ? 'default' : 'ghost'}
+                        className="h-8 text-xs gap-1.5 mr-auto"
+                        onClick={() => handleResend(row)}
+                        disabled={resendingId === row.id}
+                      >
+                        {resendingId === row.id
+                          ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          : <Send className="h-3.5 w-3.5" />}
+                        {expired ? 'Resend new link' : 'Resend invite'}
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       variant="outline"
