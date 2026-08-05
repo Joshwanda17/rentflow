@@ -114,6 +114,6 @@ export default function MyPayslips() {
           </p>
         </CardContent>
       </Card>
-    </HRPlaceholderPage>
+    </PersonalLayout>
   );
 }
