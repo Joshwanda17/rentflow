@@ -523,31 +523,12 @@ export default function Settings() {
                           })()}
                         </CardContent>
                       </Card>
-                      <Card className="rounded-2xl">
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-base flex items-center gap-2">
-                            <Globe className="h-4 w-4 text-primary" /> Profile details
-                          </CardTitle>
-                          <CardDescription>
-                            Update your location, role, occupation, or referring agent.
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <Button
-                            variant="outline"
-                            className="w-full rounded-xl gap-2"
-                            onClick={() => window.dispatchEvent(new CustomEvent('open-profile-editor'))}
-                          >
-                            <User className="h-4 w-4" /> Edit profile details
-                          </Button>
-                        </CardContent>
-                      </Card>
                     </div>
                   )}
 
                   {accountTab === 'contact' && (
                     <div className="space-y-4">
-                      <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Contact</h2>
+                      <SectionHeading>Contact</SectionHeading>
                       {user && profile && (
                         <LazySection name="EmailEditor">
                           <EmailEditor mode="self" userId={user.id} currentEmail={profile.email} onSaved={(e) => setProfile({ ...profile, email: e })} />
@@ -561,7 +542,7 @@ export default function Settings() {
 
                   {accountTab === 'withdrawal' && (
                     <div className="space-y-4">
-                      <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Withdrawal account</h2>
+                      <SectionHeading>Withdrawal account</SectionHeading>
                       {user && (
                         <LazySection name="MobileMoneyName">
                           <MobileMoneyNameCard userId={user.id} />
@@ -573,7 +554,7 @@ export default function Settings() {
 
                   {accountTab === 'access' && (
                     <div className="space-y-4">
-                      <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Sign-in methods</h2>
+                      <SectionHeading>Sign-in methods</SectionHeading>
                       {user && (
                         <LazySection name="AccountLinking">
                           <AccountLinkingCard />
@@ -584,7 +565,7 @@ export default function Settings() {
 
                   {accountTab === 'vault' && (
                     <div className="space-y-4">
-                      <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Offline PDF vault</h2>
+                      <SectionHeading>Offline PDF vault</SectionHeading>
                       <LazySection name="ArchivedPdfs"><ArchivedPdfsCard /></LazySection>
                     </div>
                   )}
