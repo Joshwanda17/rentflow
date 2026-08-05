@@ -16,6 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { classifyProof } from '@/lib/payoutProof';
 import { PayoutProofDialog, type ProofDialogRow } from '@/components/shared/PayoutProofDialog';
 import { PayoutProofIntegrityPanel } from '@/components/shared/PayoutProofIntegrityPanel';
+import { UserDrilldownDrawer } from '@/components/ops/UserDrilldownDrawer';
 
 /**
  * Receipt Archive — CFO / Financial Ops surface for the platform-of-record
@@ -47,6 +48,7 @@ type Row = {
   user_phone?: string | null;
   agent_name?: string | null;
   agent_phone?: string | null;
+  resolved_agent_profile_id?: string | null;
   uploaded_by_name?: string | null;
 };
 
@@ -108,6 +110,7 @@ export function ReceiptArchivePanel() {
   const [error, setError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [proofRow, setProofRow] = useState<ProofDialogRow | null>(null);
+  const [drillAgentId, setDrillAgentId] = useState<string | null>(null);
 
   const fetchRows = useCallback(async () => {
     setLoading(true);
@@ -147,14 +150,33 @@ export function ReceiptArchivePanel() {
       const base = (data ?? []) as Row[];
       setTotal(count ?? 0);
 
-      // Hydrate profile names/phones for user + agent in a single roundtrip
+      // Hydrate profile names/phones for user + agent.
+      // dispatch_claimed_by is already profiles.id (set at claim time, never
+      // cleared). assigned_cashout_agent_id is cashout_agents.id and must be
+      // translated via cashout_agents.agent_id before it maps to a profile —
+      // mixing the two id spaces in one .in() lookup is why the Merchant
+      // Agent column always showed "—".
       const ids = new Set<string>();
+      const cashoutAgentIds = new Set<string>();
       base.forEach((r) => {
         if (r.user_id) ids.add(r.user_id);
-        const agentId = r.assigned_cashout_agent_id || r.dispatch_claimed_by;
-        if (agentId) ids.add(agentId);
         if (r.payout_proof_uploaded_by) ids.add(r.payout_proof_uploaded_by);
+        if (r.dispatch_claimed_by) ids.add(r.dispatch_claimed_by);
+        else if (r.assigned_cashout_agent_id) cashoutAgentIds.add(r.assigned_cashout_agent_id);
       });
+
+      const cashoutAgentToProfile: Record<string, string> = {};
+      if (cashoutAgentIds.size > 0) {
+        const { data: cashoutAgents } = await supabase
+          .from('cashout_agents')
+          .select('id, agent_id')
+          .in('id', Array.from(cashoutAgentIds));
+        (cashoutAgents ?? []).forEach((ca: any) => {
+          cashoutAgentToProfile[ca.id] = ca.agent_id;
+          if (ca.agent_id) ids.add(ca.agent_id);
+        });
+      }
+
       let profilesById: Record<string, { full_name: string | null; phone: string | null }> = {};
       if (ids.size > 0) {
         const { data: profs } = await supabase
@@ -168,11 +190,16 @@ export function ReceiptArchivePanel() {
 
       // Client-side phone/name search — after primary DB query, so counts stay honest
       let hydrated = base.map((r) => {
-        const agentId = r.assigned_cashout_agent_id || r.dispatch_claimed_by;
+        const agentId =
+          r.dispatch_claimed_by ||
+          (r.assigned_cashout_agent_id
+            ? cashoutAgentToProfile[r.assigned_cashout_agent_id] ?? null
+            : null);
         return {
           ...r,
           user_name: r.user_id ? profilesById[r.user_id]?.full_name ?? null : null,
           user_phone: r.user_id ? profilesById[r.user_id]?.phone ?? null : null,
+          resolved_agent_profile_id: agentId,
           agent_name: agentId ? profilesById[agentId]?.full_name ?? null : null,
           agent_phone: agentId ? profilesById[agentId]?.phone ?? null : null,
           uploaded_by_name: r.payout_proof_uploaded_by
@@ -430,7 +457,18 @@ export function ReceiptArchivePanel() {
                         <div className="text-[11px] text-muted-foreground">{r.user_phone || ''}</div>
                       </td>
                       <td className="px-3 py-2">
-                        <div className="font-medium truncate max-w-[160px]">{r.agent_name || '—'}</div>
+                        {r.resolved_agent_profile_id && r.agent_name ? (
+                          <button
+                            type="button"
+                            onClick={() => setDrillAgentId(r.resolved_agent_profile_id!)}
+                            className="font-medium truncate max-w-[160px] text-left text-primary hover:underline"
+                            title="Open merchant agent profile"
+                          >
+                            {r.agent_name}
+                          </button>
+                        ) : (
+                          <div className="font-medium truncate max-w-[160px]">{r.agent_name || '—'}</div>
+                        )}
                         <div className="text-[11px] text-muted-foreground">{r.agent_phone || ''}</div>
                       </td>
                       <td className="px-3 py-2 text-right font-bold tabular-nums whitespace-nowrap">
@@ -557,6 +595,12 @@ export function ReceiptArchivePanel() {
       row={proofRow}
       open={!!proofRow}
       onOpenChange={(v) => { if (!v) setProofRow(null); }}
+    />
+    <UserDrilldownDrawer
+      open={!!drillAgentId}
+      onOpenChange={(v) => { if (!v) setDrillAgentId(null); }}
+      agentId={drillAgentId}
+      defaultTab="agent"
     />
     </div>
   );
