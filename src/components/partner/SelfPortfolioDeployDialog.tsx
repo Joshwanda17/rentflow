@@ -144,6 +144,7 @@ export function SelfPortfolioDeployDialog({
             tenant_count: selectedIds.length,
             tenants: selectedTenants.map((t) => ({
               tenant_name: t.name,
+              tenant_location: t.location || null,
               allocated_amount: t.amount,
             })),
             portfolio_start_date: new Date().toLocaleDateString('en-GB', {
