@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { formatDynamic } from '@/lib/currencyFormat';
 import { toast } from 'sonner';
 import { CalendarClock, Home, Loader2, MapPin, RefreshCw, ShieldCheck, Wallet } from 'lucide-react';
-import tenantPhotoPlaceholder from '@/assets/tenant-photo-placeholder.jpg';
+
 import { SelfPortfolioDeployDialog } from './SelfPortfolioDeployDialog';
 import { SelfPortfolioPlanDetailSheet } from './SelfPortfolioPlanDetailSheet';
 
@@ -49,8 +49,7 @@ interface FundablePlan {
 /**
  * Self Portfolio Management — Phase Two
  * Partner funds approved rent plans straight from their withdrawable balance.
- * Privacy: tenant first name only, avatar blurred until the plan is funded,
- * landlord name shown, no contact details ever leave the server.
+ * Privacy: tenant first name only, landlord name shown, no contact details ever leave the server.
  */
 export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
   const [plans, setPlans] = useState<FundablePlan[]>([]);
@@ -341,23 +340,6 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
                 </div>
               )}
 
-              <div className="absolute bottom-2 left-2 rounded-xl bg-background/85 p-1 backdrop-blur">
-                {/* Privacy: tenant photo URLs are never sent to partners for
-                    this queue, so nothing can be un-blurred via devtools. */}
-                <div
-                  aria-label="Tenant photo protected"
-                  className="relative h-9 w-9 overflow-hidden rounded-lg bg-muted"
-                >
-                  <img
-                    src={tenantPhotoPlaceholder}
-                    alt="Tenant photo hidden for privacy"
-                    loading="lazy"
-                    width={512}
-                    height={640}
-                    className="h-full w-full scale-110 object-cover blur-[4px]"
-                  />
-                </div>
-              </div>
 
               {images.length > 1 && (
                 <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1">
