@@ -383,7 +383,7 @@ export function ReceiptArchivePanel() {
           </div>
         ) : (
           <div className="overflow-x-auto -mx-4 sm:mx-0">
-            <table className="w-full text-sm min-w-[900px]">
+            <table className="w-full text-sm min-w-[1000px]">
               <thead className="border-b bg-muted/40">
                 <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
                   <th className="px-3 py-2 font-semibold">Receipt</th>
@@ -392,6 +392,7 @@ export function ReceiptArchivePanel() {
                   <th className="px-3 py-2 font-semibold">Merchant Agent</th>
                   <th className="px-3 py-2 font-semibold text-right">Amount</th>
                   <th className="px-3 py-2 font-semibold">Status</th>
+                  <th className="px-3 py-2 font-semibold">Proof</th>
                   <th className="px-3 py-2 font-semibold">Date</th>
                   <th className="px-3 py-2 font-semibold text-right">Actions</th>
                 </tr>
@@ -412,6 +413,7 @@ export function ReceiptArchivePanel() {
                     : reasonType.includes('advance')
                     ? 'Credit Draw'
                     : 'Wallet Cash-Out';
+                  const proofState = classifyProof(r);
                   return (
                     <tr key={r.id} className="hover:bg-muted/30 transition-colors">
                       <td className="px-3 py-2 font-mono text-[11px]">
@@ -436,6 +438,32 @@ export function ReceiptArchivePanel() {
                         <Badge variant="outline" className={`text-[10px] font-semibold ${statusTone(r.status)}`}>
                           {r.status}
                         </Badge>
+                      </td>
+                      <td className="px-3 py-2">
+                        {proofState === 'attached' ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2 text-[10px] gap-1"
+                            onClick={() => setProofRow(r as ProofDialogRow)}
+                            title="View proof of payment"
+                          >
+                            <ImageIcon className="h-3.5 w-3.5" /> View
+                          </Button>
+                        ) : proofState === 'legacy' ? (
+                          <button
+                            type="button"
+                            onClick={() => setProofRow(r as ProofDialogRow)}
+                            className="inline-flex items-center gap-1 text-[10px] text-amber-700"
+                            title="Legacy text-only reference"
+                          >
+                            <FileWarning className="h-3.5 w-3.5" /> Legacy
+                          </button>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+                            <ShieldAlert className="h-3.5 w-3.5" /> None
+                          </span>
+                        )}
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap">
                         <div className="tabular-nums">{format(new Date(ts), 'MMM d, yyyy')}</div>
