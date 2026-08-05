@@ -37,6 +37,16 @@ root.innerHTML = `<div style="min-height:100vh;min-height:100dvh;display:flex;fl
 try {
   const ua = navigator.userAgent || '';
   const isAndroid = /Android/i.test(ua);
+  // Installed-to-home-screen iOS web app: flag the document so global CSS can
+  // inset the app shell below the status bar / above the home indicator on
+  // iOS versions that do not report display-mode reliably.
+  const isIOS = /iPad|iPhone|iPod/i.test(ua) || (/Macintosh/i.test(ua) && (navigator as any).maxTouchPoints > 1);
+  const isStandalone =
+    (navigator as any).standalone === true ||
+    window.matchMedia?.('(display-mode: standalone)').matches === true;
+  if (isIOS && isStandalone) {
+    document.documentElement.classList.add('ios-standalone');
+  }
   const userForced = localStorage.getItem('welile-no-blur') === '1';
   if (userForced || isAndroid) {
     document.documentElement.classList.add('no-backdrop-blur');
