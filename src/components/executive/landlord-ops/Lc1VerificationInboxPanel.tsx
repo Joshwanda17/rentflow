@@ -511,7 +511,7 @@ export function Lc1VerificationInboxPanel({ onResolved, standalone = false, init
             {headerCount > 0 && <Badge className="bg-amber-600 text-white hover:bg-amber-600">{headerCount.toLocaleString()}</Badge>}
           </p>
           <p className="text-[11px] text-muted-foreground leading-snug">
-            Every LC1 chairperson awaiting review lands here — approved ones move to LC1 Chairpersons.
+            Agent-raised requests come first; the full unverified register is on the Pending tab.
           </p>
         </div>
         <div className="ml-auto shrink-0 p-1.5 rounded-md hover:bg-amber-500/10 transition-colors">
