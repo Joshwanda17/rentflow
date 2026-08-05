@@ -136,9 +136,9 @@ export function SelfPortfolioDeployDialog({
       const rate = Number(eligibility?.monthly_rate ?? 15);
       await supabase.functions.invoke('send-transactional-email', {
         body: {
-          to,
-          template: 'partner-capital-deployment-confirmation',
-          data: {
+          recipientEmail: to,
+          templateName: 'partner-capital-deployment-confirmation',
+          templateData: {
             partner_name: profile?.full_name || 'Partner',
             deployed_amount: total,
             tenants: selectedTenants.map((t) => ({
