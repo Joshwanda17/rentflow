@@ -143,6 +143,131 @@ export const SUPPORTED_BANKS: { id: string; label: string }[] = [
   { id: 'housing_finance', label: 'Housing Finance' },
 ];
 
+// ===========================================================================
+// Provider-level payout routing
+// ---------------------------------------------------------------------------
+// A merchant is only eligible for a withdrawal when BOTH the parent channel
+// (momo / bank / cash) AND the specific provider (MTN / Airtel, or the exact
+// bank) are enabled on their permission matrix. `bank_name` is free text in
+// the wild ("EQUITY BANK", "equity bank", "Equity Bank Uganda"), so it is
+// normalized to a SUPPORTED_BANKS id before the check.
+// ===========================================================================
+
+/** Normalize a free-text bank name to a SUPPORTED_BANKS id, or null if unknown. */
+export function normalizeBankId(raw: unknown): string | null {
+  const s = String(raw ?? '').toLowerCase().replace(/[^a-z]+/g, ' ').trim();
+  if (!s) return null;
+  if (s.includes('stanbic')) return 'stanbic';
+  if (s.includes('centenary') || s.includes('centinary') || s.includes('cente')) return 'centenary';
+  if (s.includes('dfcu')) return 'dfcu';
+  if (s.includes('equity')) return 'equity';
+  if (s.includes('post bank') || s.includes('postbank')) return 'postbank';
+  if (s.includes('housing finance') || s.includes('housingfinance')) return 'housing_finance';
+  return null;
+}
+
+export type PayoutChannel = 'momo' | 'bank' | 'cash';
+
+export interface PayoutRoute {
+  channel: PayoutChannel;
+  /** 'mtn' | 'airtel' for momo, a SUPPORTED_BANKS id for bank, null when unknown */
+  provider: string | null;
+}
+
+/** Resolve the channel + specific provider of a withdrawal_requests row. */
+export function getWithdrawalPayoutRoute(w: any): PayoutRoute {
+  const method = String(w?.payout_method ?? '').toLowerCase();
+  if (method === 'bank_transfer' || method === 'bank') {
+    return { channel: 'bank', provider: normalizeBankId(w?.bank_name) };
+  }
+  if (method === 'cash') return { channel: 'cash', provider: null };
+  const prov = String(w?.mobile_money_provider ?? '').toLowerCase();
+  return {
+    channel: 'momo',
+    provider: prov.includes('mtn') ? 'mtn' : prov.includes('airtel') ? 'airtel' : null,
+  };
+}
+
+/**
+ * Channel + provider gate. Returns false when the merchant is not assigned the
+ * exact provider/bank of the withdrawal, even if the parent channel is on.
+ * Unknown providers (bank names outside SUPPORTED_BANKS, missing momo network)
+ * fall back to the parent channel flag so those payouts are never stranded.
+ */
+export function isWithdrawalChannelAuthorized(config: CashoutAgentConfig | null, withdrawal: any): boolean {
+  if (!config) return true; // matrix not loaded yet — don't block
+  const { channel, provider } = getWithdrawalPayoutRoute(withdrawal);
+  if (!config.channels[channel]) return false;
+  if (!provider) return true; // channel enabled, provider unknown
+  if (channel === 'momo') return !!config.networks[provider as 'mtn' | 'airtel'];
+  if (channel === 'bank') return !!config.banks[provider];
+  return true;
+}
+
+/** Full eligibility: category matrix AND channel/provider assignment. */
+export function isWithdrawalRoutableToMerchant(config: CashoutAgentConfig | null, withdrawal: any): boolean {
+  return isWithdrawalCategoryAuthorized(config, withdrawal) && isWithdrawalChannelAuthorized(config, withdrawal);
+}
+
+const BANK_MATCH_PATTERNS: Record<string, string[]> = {
+  stanbic: ['stanbic'],
+  centenary: ['centenary', 'centinary'],
+  dfcu: ['dfcu'],
+  equity: ['equity'],
+  postbank: ['postbank', 'post bank'],
+  housing_finance: ['housing finance', 'housingfinance'],
+};
+
+const ALL_BANK_PATTERNS = Object.values(BANK_MATCH_PATTERNS).flat();
+
+/**
+ * Build a PostgREST `.or()` clause restricting withdrawal_requests to the exact
+ * channels AND providers/banks assigned to this merchant. Returns null when no
+ * restriction is needed (everything enabled, or matrix not loaded).
+ */
+export function buildChannelProviderOrClause(config: CashoutAgentConfig | null): string | null {
+  if (!config) return null;
+  const { channels, networks, banks } = config;
+  const allBanksOn = SUPPORTED_BANKS.every((b) => !!banks[b.id]);
+  if (channels.momo && channels.bank && channels.cash && networks.mtn && networks.airtel && allBanksOn) {
+    return null;
+  }
+
+  const parts: string[] = [];
+
+  if (channels.momo) {
+    const momoBase = 'or(payout_method.eq.mobile_money,payout_method.is.null,payout_method.ilike.*momo*,payout_method.ilike.*mobile*)';
+    if (networks.mtn && networks.airtel) {
+      parts.push(`and(${momoBase})`);
+    } else {
+      if (networks.mtn) parts.push(`and(${momoBase},mobile_money_provider.ilike.*mtn*)`);
+      if (networks.airtel) parts.push(`and(${momoBase},mobile_money_provider.ilike.*airtel*)`);
+      // Momo rows with no provider recorded still route on the channel flag.
+      parts.push(`and(${momoBase},mobile_money_provider.is.null)`);
+    }
+  }
+
+  if (channels.bank) {
+    const bankBase = 'payout_method.ilike.*bank*';
+    for (const b of SUPPORTED_BANKS) {
+      if (!banks[b.id]) continue;
+      const pats = BANK_MATCH_PATTERNS[b.id] || [b.id];
+      parts.push(`and(${bankBase},or(${pats.map((p) => `bank_name.ilike.*${p}*`).join(',')}))`);
+    }
+    // Banks outside the supported list are not provider-gated — keep them
+    // routable to any bank-enabled merchant so they are never stranded.
+    const negations = ALL_BANK_PATTERNS.map((p) => `bank_name.not.ilike.*${p}*`).join(',');
+    parts.push(`and(${bankBase},or(bank_name.is.null,and(${negations})))`);
+  }
+
+  if (channels.cash) {
+    parts.push('and(or(payout_method.ilike.*cash*,payout_method.ilike.*pickup*))');
+  }
+
+  if (parts.length === 0) return 'id.eq.00000000-0000-0000-0000-000000000000';
+  return parts.join(',');
+}
+
 export interface CashoutAgentConfig {
   channels: { momo: boolean; bank: boolean; cash: boolean };
   networks: { mtn: boolean; airtel: boolean };

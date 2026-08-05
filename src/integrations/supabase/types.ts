@@ -34519,6 +34519,15 @@ export type Database = {
         Args: { p_invitee_id: string }
         Returns: number
       }
+      merchant_handles_payout: {
+        Args: {
+          p_agent_id: string
+          p_bank_name: string
+          p_payout_method: string
+          p_provider: string
+        }
+        Returns: boolean
+      }
       merchant_set_online: { Args: { p_online: boolean }; Returns: boolean }
       merge_lc1_duplicates: {
         Args: { p_canonical_id: string; p_duplicate_ids: string[] }
@@ -34537,6 +34546,7 @@ export type Database = {
       normalize_district_name: { Args: { p_input: string }; Returns: string }
       normalize_e164_phone: { Args: { raw: string }; Returns: string }
       normalize_momo_tid: { Args: { p_tid: string }; Returns: string }
+      normalize_payout_bank_id: { Args: { p_name: string }; Returns: string }
       normalize_phone: { Args: { p: string }; Returns: string }
       normalize_phone_9: { Args: { p_phone: string }; Returns: string }
       normalize_phone_last9: { Args: { phone: string }; Returns: string }

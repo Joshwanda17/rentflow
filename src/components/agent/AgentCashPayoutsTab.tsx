@@ -34,6 +34,8 @@ import {
   normalizeCashoutAgentConfig,
   buildQueueCategoryOrClause,
   isWithdrawalCategoryAuthorized,
+  isWithdrawalChannelAuthorized,
+  buildChannelProviderOrClause,
   authorizedQueueCategoryLabels,
   getWithdrawalQueueCategory,
   type CashoutAgentConfig,
@@ -121,6 +123,12 @@ interface QueueFilterOpts {
    */
   categoryOrClause: string | null;
   /**
+   * PostgREST `.or()` clause restricting the queue to the exact payment
+   * channels AND providers/banks assigned to this Cash-Out Agent. `null` = no
+   * restriction.
+   */
+  channelProviderOrClause?: string | null;
+  /**
    * User ids whose accounts are currently frozen. Their withdrawal requests are
    * excluded from the queue entirely — a frozen account must never be payable.
    */
@@ -142,6 +150,11 @@ function applyQueueFilters(q: any, o: QueueFilterOpts) {
   // Authorized payout categories (CFO permission matrix). Only surface rows in
   // the categories mapped to this agent.
   if (o.categoryOrClause) q = q.or(o.categoryOrClause);
+
+  // Assigned channels + exact providers/banks. A merchant must never see (or be
+  // able to claim) a payout for a bank or mobile-money network the CFO has not
+  // assigned to them, even when the parent channel is enabled.
+  if (o.channelProviderOrClause) q = q.or(o.channelProviderOrClause);
 
   // Frozen accounts must vanish from the payout queue — never payable.
   if (o.frozenUserIds && o.frozenUserIds.length) {
@@ -388,6 +401,13 @@ export function AgentCashPayoutsTab() {
       toast.error(`Not authorized: you can't process "${cat.label}" payouts. Ask the CFO to enable this category.`);
       return;
     }
+    // Channel + provider gate: the exact bank / mobile-money network must be
+    // assigned to this merchant, not just the parent payment channel.
+    if (row && !isWithdrawalChannelAuthorized(agentConfig, row)) {
+      const provider = row.payout_method === 'bank_transfer' ? (row.bank_name || 'this bank') : (row.mobile_money_provider || 'this channel');
+      toast.error(`Not authorized: ${provider} payouts are not assigned to you. Ask the CFO to enable it.`);
+      return;
+    }
     // One claim at a time: block claiming a NEW request while another is open.
     const alreadyMine = myActiveClaims.some((w: any) => w.id === id);
     if (!alreadyMine && myActiveClaims.length > 0) {
@@ -449,6 +469,8 @@ export function AgentCashPayoutsTab() {
     [isCashoutAgent],
   );
   const categoryOrClause = useMemo(() => buildQueueCategoryOrClause(agentConfig), [agentConfig]);
+  // Exact channel + provider/bank restriction from the same matrix.
+  const channelProviderOrClause = useMemo(() => buildChannelProviderOrClause(agentConfig), [agentConfig]);
   const authorizedCategoryLabels = useMemo(() => authorizedQueueCategoryLabels(agentConfig), [agentConfig]);
 
   // Release ONLY this agent's own expired claims. Never touch another merchant's
@@ -510,7 +532,7 @@ export function AgentCashPayoutsTab() {
   // Unfiltered count of all available (unclaimed/expired) requests — powers the
   // "action required" badge and live banner regardless of active filters.
   const { data: availableTotal = 0 } = useQuery({
-    queryKey: ['cashout-queue-available-total', isCashoutAgent?.id, categoryOrClause, frozenUserIds],
+    queryKey: ['cashout-queue-available-total', isCashoutAgent?.id, categoryOrClause, channelProviderOrClause, frozenUserIds],
     queryFn: async () => {
       const cutoffIso = new Date(Date.now() - CLAIM_WINDOW_MS).toISOString();
       let q = supabase
@@ -519,6 +541,7 @@ export function AgentCashPayoutsTab() {
         .in('status', CASHOUT_QUEUE_STATUSES)
         .or(`assigned_cashout_agent_id.is.null,dispatched_at.lt.${cutoffIso}`);
       if (categoryOrClause) q = q.or(categoryOrClause);
+      if (channelProviderOrClause) q = q.or(channelProviderOrClause);
       if (frozenUserIds.length) {
         const list = `(${frozenUserIds.join(',')})`;
         q = q.not('user_id', 'in', list);
@@ -534,13 +557,13 @@ export function AgentCashPayoutsTab() {
 
   // Per-channel filtered counts (All / MoMo / Cash) for the tab badges.
   const { data: queueCounts } = useQuery({
-    queryKey: ['cashout-queue-counts', isCashoutAgent?.id, queueStatus, queueMerchant, minAmount, maxAmount, fromIso, toIso, debouncedSearch, categoryOrClause, frozenUserIds],
+    queryKey: ['cashout-queue-counts', isCashoutAgent?.id, queueStatus, queueMerchant, minAmount, maxAmount, fromIso, toIso, debouncedSearch, categoryOrClause, channelProviderOrClause, frozenUserIds],
     queryFn: async () => {
       const cutoffIso = new Date(Date.now() - CLAIM_WINDOW_MS).toISOString();
       const searchUserIds = debouncedSearch.trim() ? await resolveSearchUserIds(debouncedSearch) : null;
       const base = {
         cutoffIso, status: queueStatus, merchant: queueMerchant,
-        minAmount, maxAmount, fromIso, toIso, searchUserIds, searchTerm: debouncedSearch.trim(), categoryOrClause, frozenUserIds,
+        minAmount, maxAmount, fromIso, toIso, searchUserIds, searchTerm: debouncedSearch.trim(), categoryOrClause, channelProviderOrClause, frozenUserIds,
       };
       const mk = (channel: 'all' | 'momo' | 'cash' | 'bank') =>
         applyQueueFilters(
@@ -557,7 +580,7 @@ export function AgentCashPayoutsTab() {
 
   // The current, server-paginated page of the Pending Queue for the active tab.
   const { data: queuePage, isLoading: loadingAll, isFetching: fetchingQueue, isError: queueError, refetch: refetchQueue } = useQuery({
-    queryKey: ['cashout-queue-page', isCashoutAgent?.id, channelTab, queueStatus, queueMerchant, minAmount, maxAmount, fromIso, toIso, debouncedSearch, queueSort, page, categoryOrClause, frozenUserIds],
+    queryKey: ['cashout-queue-page', isCashoutAgent?.id, channelTab, queueStatus, queueMerchant, minAmount, maxAmount, fromIso, toIso, debouncedSearch, queueSort, page, categoryOrClause, channelProviderOrClause, frozenUserIds],
     queryFn: async () => {
       // NOTE: we intentionally do NOT release other agents' expired claims here.
       // Cross-agent releases from the browser caused paid-out withdrawals to
@@ -568,7 +591,7 @@ export function AgentCashPayoutsTab() {
       const opts: QueueFilterOpts = {
         cutoffIso, status: queueStatus, merchant: queueMerchant,
         minAmount, maxAmount, fromIso, toIso, channel: channelTab,
-        searchUserIds, searchTerm: debouncedSearch.trim(), categoryOrClause, frozenUserIds,
+        searchUserIds, searchTerm: debouncedSearch.trim(), categoryOrClause, channelProviderOrClause, frozenUserIds,
       };
       let q = applyQueueFilters(
         supabase.from('withdrawal_requests').select('*', { count: 'exact' }),
