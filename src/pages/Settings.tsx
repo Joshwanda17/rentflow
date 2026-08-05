@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, User, Phone, Mail, Save, Loader2, Camera, Shield, Home, Users, Wallet, Building2, Check, Type, Vibrate, RotateCcw, LogIn, Volume2, RefreshCw, Scale, Lock, Eye, EyeOff, LayoutDashboard, Unlock, Settings as SettingsIcon, Palette, ShieldCheck, Globe, DollarSign, Zap, Smartphone, Clock, Wind, Bell } from 'lucide-react';
+import { ArrowLeft, User, Phone, Mail, Save, Loader2, Camera, Shield, Home, Users, Wallet, Building2, Check, Type, Vibrate, RotateCcw, LogIn, Volume2, RefreshCw, Scale, Lock, Eye, EyeOff, LayoutDashboard, Unlock, Settings as SettingsIcon, Palette, ShieldCheck, Globe, DollarSign, Zap, Smartphone, Clock, Wind, Bell, ChevronRight } from 'lucide-react';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useCurrency, currencies as ALL_CURRENCIES } from '@/hooks/useCurrency';
 import { Language, languageNames, languageFlags } from '@/i18n/translations';
@@ -97,6 +97,58 @@ function LazySection({ children, name }: { children: ReactNode; name: string }) 
       <Suspense fallback={<SectionSkeleton />}>{children}</Suspense>
     </SectionBoundary>
   );
+}
+
+/** iOS-style grouped container: rows separated by hairline dividers. */
+function SettingsGroup({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <div className={cn('rounded-2xl border border-border/40 bg-card overflow-hidden divide-y divide-border/40', className)}>
+      {children}
+    </div>
+  );
+}
+
+/** A single tappable (or static) row inside a SettingsGroup. */
+function SettingsRow({
+  icon: Icon,
+  label,
+  helper,
+  onClick,
+  trailing,
+  chevron,
+}: {
+  icon?: typeof User;
+  label: string;
+  helper?: string;
+  onClick?: () => void;
+  trailing?: ReactNode;
+  chevron?: boolean;
+}) {
+  const inner = (
+    <>
+      {Icon && <Icon className="h-4 w-4 text-primary shrink-0" />}
+      <div className="flex-1 min-w-0 text-left">
+        <p className="text-sm font-semibold truncate">{label}</p>
+        {helper && <p className="text-xs text-muted-foreground truncate">{helper}</p>}
+      </div>
+      {trailing}
+      {(chevron ?? !!onClick) && <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
+    </>
+  );
+  const base = 'w-full flex items-center gap-3 px-4 py-3 min-h-[48px]';
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className={cn(base, 'transition-colors hover:bg-muted/40 active:bg-muted/60 touch-manipulation')}>
+        {inner}
+      </button>
+    );
+  }
+  return <div className={base}>{inner}</div>;
+}
+
+/** Section heading used above grouped rows. */
+function SectionHeading({ children }: { children: ReactNode }) {
+  return <h2 className="px-1 text-base font-semibold tracking-tight">{children}</h2>;
 }
 
 interface Profile { id: string; full_name: string; email: string; phone: string; avatar_url: string | null; }
