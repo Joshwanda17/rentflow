@@ -423,8 +423,6 @@ export default function SupporterDashboard({
     ]);
   };
 
-  const handleOpenMenu = () => { hapticTap(); setMenuOpen(true); };
-
   const menuItems = [
     { icon: CreditCard, label: 'Add Investment', onClick: () => setShowPaymentPartners(true) },
   ];
