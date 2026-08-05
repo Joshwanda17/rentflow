@@ -20,9 +20,9 @@ function sinceISO(days = WINDOW_DAYS) {
   return startOfDay(subDays(new Date(), days)).toISOString();
 }
 
-function nameOf(p?: { full_name?: string | null; phone_number?: string | null } | null): string {
+function nameOf(p?: { full_name?: string | null; phone?: string | null } | null): string {
   if (!p) return 'Unknown';
-  return p.full_name || p.phone_number || 'Unknown';
+  return p.full_name || p.phone || 'Unknown';
 }
 
 function statusKindFor(status: string): Severity {
@@ -58,7 +58,7 @@ export function usePartnerOpsReportData() {
       const [portfoliosRes, withdrawalsRes] = await Promise.all([
         supabase
           .from('investor_portfolios')
-          .select('id, portfolio_code, investment_amount, status, cfo_verified, cfo_rejection_reason, created_at, investor_id, agent_id, payment_method')
+          .select('id, portfolio_code, investment_amount, status, cfo_verified, cfo_rejection_reason, created_at, investor_id, agent_id, payment_method, account_name, bank_account_name')
           .gte('created_at', since)
           .order('created_at', { ascending: false })
           .limit(MAX_ROWS),
@@ -81,13 +81,14 @@ export function usePartnerOpsReportData() {
           ] as string[],
         ),
       );
-      const profilesMap: Record<string, { full_name: string | null; phone_number: string | null }> = {};
+      const profilesMap: Record<string, { full_name: string | null; phone: string | null }> = {};
       if (userIds.length) {
-        const { data: profiles } = await supabase
+        const { data: profiles, error: profilesErr } = await supabase
           .from('profiles')
-          .select('id, full_name, phone_number')
+          .select('id, full_name, phone')
           .in('id', userIds);
-        (profiles ?? []).forEach((p: any) => (profilesMap[p.id] = { full_name: p.full_name, phone_number: p.phone_number }));
+        if (profilesErr) throw profilesErr;
+        (profiles ?? []).forEach((p: any) => (profilesMap[p.id] = { full_name: p.full_name, phone: p.phone }));
       }
 
       const activities: ReportActivity[] = [
@@ -96,7 +97,14 @@ export function usePartnerOpsReportData() {
           return {
             id: `PRT-${p.id.slice(0, 8)}`,
             type: 'New portfolio',
-            person: nameOf(profilesMap[p.investor_id]),
+            // Profile name first; fall back to the payout account name captured
+            // on the portfolio itself so a row is never labelled "Unknown".
+            person:
+              profilesMap[p.investor_id]?.full_name ||
+              p.account_name ||
+              p.bank_account_name ||
+              profilesMap[p.investor_id]?.phone ||
+              'Unknown',
             amount: Number(p.investment_amount ?? 0),
             status,
             statusKind: statusKindFor(status),
@@ -195,7 +203,7 @@ export function useAgentOpsReportData() {
       );
       const profilesMap: Record<string, any> = {};
       if (ids.length) {
-        const { data } = await supabase.from('profiles').select('id, full_name, phone_number').in('id', ids);
+        const { data } = await supabase.from('profiles').select('id, full_name, phone').in('id', ids);
         (data ?? []).forEach((p: any) => (profilesMap[p.id] = p));
       }
 
@@ -300,7 +308,7 @@ export function useTenantOpsReportData() {
       );
       const profilesMap: Record<string, any> = {};
       if (ids.length) {
-        const { data } = await supabase.from('profiles').select('id, full_name, phone_number').in('id', ids);
+        const { data } = await supabase.from('profiles').select('id, full_name, phone').in('id', ids);
         (data ?? []).forEach((p: any) => (profilesMap[p.id] = p));
       }
 
@@ -394,7 +402,7 @@ export function useFinancialOpsReportData() {
       );
       const profilesMap: Record<string, any> = {};
       if (ids.length) {
-        const { data } = await supabase.from('profiles').select('id, full_name, phone_number').in('id', ids);
+        const { data } = await supabase.from('profiles').select('id, full_name, phone').in('id', ids);
         (data ?? []).forEach((p: any) => (profilesMap[p.id] = p));
       }
 
