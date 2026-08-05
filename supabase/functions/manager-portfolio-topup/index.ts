@@ -438,11 +438,9 @@ Deno.serve(async (req) => {
       const { data: partnerEmailRow } = await supabase
         .from("profiles").select("email, full_name").eq("id", partnerId).maybeSingle();
       if (partnerEmailRow?.email) {
-        const previousValue = await getContributedPrincipal(
-          supabase,
-          portfolio_id,
-          Number(portfolio.investment_amount) || 0,
-        );
+        // Actual portfolio capital before the top-up (includes compounded
+        // returns) so the emailed new total matches the portfolio figure.
+        const previousValue = Number(portfolio.investment_amount) || 0;
         dispatchTransactionalEmail(
           supabaseUrl,
           serviceKey,
