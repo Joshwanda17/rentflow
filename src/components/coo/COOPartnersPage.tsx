@@ -196,6 +196,34 @@ interface PartnerDetail {
  }
 
 /**
+ * Self-managed (Self Portfolio Management) commitment. These live in
+ * `partner_self_commitments` / `partner_self_funding_lines`, NOT in
+ * `investor_portfolios`, so Partner Ops has to read them separately or a
+ * partner who supported tenants directly looks like they hold nothing.
+ */
+interface SelfCommitmentRow {
+  id: string;
+  committed_amount: number;
+  term_months: number;
+  monthly_rate: number;
+  lines_count: number;
+  status: string;
+  payout_day: number | null;
+  next_payout_at: string | null;
+  term_end_at: string | null;
+  total_earned: number;
+  total_paid: number;
+  created_at: string;
+  lines: {
+    id: string;
+    rent_request_id: string;
+    principal: number;
+    status: string;
+    tenant_name?: string | null;
+  }[];
+}
+
+/**
  * A partner is CLEARED to receive portfolio top-ups / wallet→portfolio
  * transfers when they are EITHER explicitly verified (`funder_verified_at`)
  * OR they are a legacy partner who predates the self-registration
@@ -433,6 +461,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
 
   // Partner Detail view
   const [detailPartner, setDetailPartner] = useState<PartnerDetail | null>(null);
+  const [detailSelfCommitments, setDetailSelfCommitments] = useState<SelfCommitmentRow[]>([]);
   const [detailLoading, setDetailLoading] = useState(false);
   const [editingPortfolioId, setEditingPortfolioId] = useState<string | null>(null);
   const [editingPayoutDay, setEditingPayoutDay] = useState('');
@@ -1170,8 +1199,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   async function openPartnerDetail(partnerId: string) {
     setDetailLoading(true);
     setDetailPartner(null);
+    setDetailSelfCommitments([]);
     try {
-      const [profileRes, walletRes, portfolioRes, ledgerRes] = await Promise.all([
+      const [profileRes, walletRes, portfolioRes, ledgerRes, selfCommitRes, selfLinesRes] = await Promise.all([
         supabase.from('profiles').select('id, full_name, phone, email, created_at, frozen_at, frozen_reason, funder_verified_at, signup_source').eq('id', partnerId).single(),
         supabase.from('wallets').select('balance, withdrawable_balance, float_balance').eq('user_id', partnerId).single(),
         supabase.from('investor_portfolios')
@@ -1182,13 +1212,71 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           .select('amount, direction, category')
           .eq('user_id', partnerId)
           .in('category', ['supporter_rent_fund', 'supporter_facilitation_capital', 'coo_proxy_investment']),
+        // Self-managed commitments (Self Portfolio Management) — these never
+        // create an investor_portfolios row, so read them directly.
+        supabase.from('partner_self_commitments')
+          .select('id, committed_amount, term_months, monthly_rate, lines_count, status, payout_day, next_payout_at, term_end_at, total_earned, total_paid, created_at')
+          .eq('partner_id', partnerId)
+          .order('created_at', { ascending: false }),
+        supabase.from('partner_self_funding_lines')
+          .select('id, commitment_id, rent_request_id, principal, status')
+          .eq('partner_id', partnerId)
+          .order('created_at', { ascending: false }),
       ]);
 
       const ledgerData = ledgerRes.data || [];
       const ledgerFunded = ledgerData.filter(e => e.direction === 'cash_out').reduce((s, e) => s + (e.amount || 0), 0);
       const ledgerDeals = ledgerData.filter(e => e.direction === 'cash_out').length;
       const portfolios = (portfolioRes.data || []) as PortfolioRow[];
-      const totalROIEarned = portfolios.reduce((s, p) => s + (p.total_roi_earned || 0), 0);
+      const portfolioROIEarned = portfolios.reduce((s, p) => s + (p.total_roi_earned || 0), 0);
+
+      // ── Self-managed commitments: attach lines + tenant names ─────────────
+      const selfLines = (selfLinesRes.data || []) as any[];
+      const rentRequestIds = Array.from(new Set(selfLines.map(l => l.rent_request_id).filter(Boolean)));
+      const tenantNameByRequest: Record<string, string> = {};
+      if (rentRequestIds.length > 0) {
+        const { data: rrRows } = await supabase
+          .from('rent_requests')
+          .select('id, tenant_id')
+          .in('id', rentRequestIds);
+        const tenantIds = Array.from(new Set((rrRows || []).map((r: any) => r.tenant_id).filter(Boolean)));
+        const nameById: Record<string, string> = {};
+        if (tenantIds.length > 0) {
+          const { data: tenantRows } = await supabase
+            .from('profiles')
+            .select('id, full_name')
+            .in('id', tenantIds);
+          (tenantRows || []).forEach((t: any) => { nameById[t.id] = t.full_name; });
+        }
+        (rrRows || []).forEach((r: any) => {
+          if (r.tenant_id && nameById[r.tenant_id]) tenantNameByRequest[r.id] = nameById[r.tenant_id];
+        });
+      }
+      const selfCommitments: SelfCommitmentRow[] = ((selfCommitRes.data || []) as any[]).map(c => ({
+        ...c,
+        committed_amount: Number(c.committed_amount || 0),
+        total_earned: Number(c.total_earned || 0),
+        total_paid: Number(c.total_paid || 0),
+        lines: selfLines
+          .filter(l => l.commitment_id === c.id)
+          .map(l => ({
+            id: l.id,
+            rent_request_id: l.rent_request_id,
+            principal: Number(l.principal || 0),
+            status: l.status,
+            tenant_name: tenantNameByRequest[l.rent_request_id] || null,
+          })),
+      }));
+      setDetailSelfCommitments(selfCommitments);
+
+      // Self-managed principal is live partner capital and must count towards
+      // Principal / Returns, otherwise a self-managed partner reads as empty.
+      const SELF_ACTIVE = new Set(['active', 'matured', 'pending_payout']);
+      const selfPrincipal = selfCommitments
+        .filter(c => SELF_ACTIVE.has(c.status))
+        .reduce((s, c) => s + c.committed_amount, 0);
+      const selfEarned = selfCommitments.reduce((s, c) => s + c.total_earned, 0);
+      const totalROIEarned = portfolioROIEarned + selfEarned;
 
       // Fetch renewal counts and pending top-ups for these portfolios
       const portfolioIds = portfolios.map(p => p.id);
@@ -1278,8 +1366,10 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         .filter(p => p.status == null || PRINCIPAL_STATUSES.has(p.status))
         .reduce((s, p) => s + (p.investment_amount || 0), 0);
       // Fall back to the ledger only for imported partners with no portfolio rows.
-      const totalFunded = portfolios.length > 0 ? portfolioFunded : ledgerFunded;
-      const totalDeals = portfolios.length > 0 ? portfolios.length : ledgerDeals;
+      const baseFunded = portfolios.length > 0 ? portfolioFunded : (selfCommitments.length > 0 ? 0 : ledgerFunded);
+      const totalFunded = baseFunded + selfPrincipal;
+      const baseDeals = portfolios.length > 0 ? portfolios.length : (selfCommitments.length > 0 ? 0 : ledgerDeals);
+      const totalDeals = baseDeals + selfCommitments.length;
 
       setDetailPartner({
         profile: profileRes.data as any,
@@ -2567,10 +2657,66 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                   <MiniKPI icon={<Wallet className="h-3.5 w-3.5" />} label="Wallet Balance" value={formatUGX(detailPartner.walletBalance)} variant="primary" />
                   <MiniKPI icon={<Banknote className="h-3.5 w-3.5" />} label="Principal" value={formatUGX(detailPartner.totalFunded)} variant="emerald" />
                   <MiniKPI icon={<TrendingUp className="h-3.5 w-3.5" />} label="Returns Earned" value={formatUGX(detailPartner.totalROIEarned)} variant="amber" />
-                  <MiniKPI icon={<Briefcase className="h-3.5 w-3.5" />} label="Portfolios" value={detailPartner.portfolios.length} variant="violet" />
+                  <MiniKPI icon={<Briefcase className="h-3.5 w-3.5" />} label="Portfolios" value={detailPartner.portfolios.length + detailSelfCommitments.length} variant="violet" />
                 </div>
 
                 <Separator />
+
+                {/* Self-managed portfolios (Self Portfolio Management) */}
+                {detailSelfCommitments.length > 0 && (
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground">Self-Managed Portfolios</h3>
+                      <Badge variant="outline" className="text-[10px] tabular-nums">{detailSelfCommitments.length} total</Badge>
+                    </div>
+                    <div className="space-y-2.5">
+                      {detailSelfCommitments.map(c => (
+                        <div key={c.id} className="rounded-xl border border-border bg-card p-3.5">
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="text-sm font-bold tabular-nums">{formatUGX(c.committed_amount)}</p>
+                              <p className="text-[11px] text-muted-foreground mt-0.5">
+                                {c.term_months} month term · {c.monthly_rate}% monthly · {c.lines_count} tenant{c.lines_count === 1 ? '' : 's'}
+                              </p>
+                            </div>
+                            <Badge variant="outline" className="text-[10px] capitalize">{String(c.status).replace(/_/g, ' ')}</Badge>
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3 text-[11px]">
+                            <div>
+                              <p className="text-muted-foreground">Earned</p>
+                              <p className="font-semibold tabular-nums">{formatUGX(c.total_earned)}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Paid out</p>
+                              <p className="font-semibold tabular-nums">{formatUGX(c.total_paid)}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Next payout</p>
+                              <p className="font-semibold">{c.next_payout_at ? formatDate(c.next_payout_at) : '—'}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Term ends</p>
+                              <p className="font-semibold">{c.term_end_at ? formatDate(c.term_end_at) : '—'}</p>
+                            </div>
+                          </div>
+                          {c.lines.length > 0 && (
+                            <div className="mt-3 space-y-1.5">
+                              {c.lines.map(l => (
+                                <div key={l.id} className="flex items-center justify-between gap-2 rounded-lg bg-muted/40 px-2.5 py-1.5">
+                                  <span className="text-[11px] font-medium truncate">{l.tenant_name || 'Tenant'}</span>
+                                  <span className="text-[11px] tabular-nums text-muted-foreground">
+                                    {formatUGX(l.principal)} · <span className="capitalize">{String(l.status).replace(/_/g, ' ')}</span>
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <Separator className="mt-5" />
+                  </div>
+                )}
 
                 {/* Portfolio Breakdown */}
                 <div>
