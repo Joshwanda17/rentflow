@@ -677,13 +677,18 @@ export default function Settings() {
                       </div>
                     )}
                   </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2"><Bell className="h-4 w-4 text-primary" /><p className="font-medium text-sm">Push Notifications</p></div>
-                    <p className="text-[11px] text-muted-foreground">Get instant alerts on this device for deposits, withdrawals, payouts and rent updates — even when Welile is closed.</p>
-                    <Suspense fallback={<Skeleton className="h-10 w-48 rounded-md" />}>
-                      <PushNotificationButton className="w-full sm:w-auto gap-2" />
-                    </Suspense>
-                  </div>
+                  <Collapsible open={pushOpen} onOpenChange={setPushOpen} className="space-y-2">
+                    <CollapsibleTrigger className="flex w-full items-center justify-between gap-2 rounded-lg border border-border/50 p-2.5 text-left">
+                      <span className="flex items-center gap-2"><Bell className="h-4 w-4 text-primary" /><span className="font-medium text-sm">Push Notifications</span></span>
+                      <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", pushOpen && "rotate-180")} />
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="space-y-2 pt-1">
+                      <p className="text-[11px] text-muted-foreground">Get instant alerts on this device for deposits, withdrawals, payouts and rent updates — even when Welile is closed.</p>
+                      <Suspense fallback={<Skeleton className="h-10 w-48 rounded-md" />}>
+                        <PushNotificationButton className="w-full sm:w-auto gap-2" />
+                      </Suspense>
+                    </CollapsibleContent>
+                  </Collapsible>
                   <SettingsRow label="Stay Logged In" description="Don't ask to sign in every time" icon={LogIn}><Switch checked={preferences.rememberLogin} onCheckedChange={(c) => { updatePreference('rememberLogin', c); toast.success(c ? 'Login remembered' : 'Login not remembered'); }} /></SettingsRow>
                   <SettingsRow label="Reduce Graphics" description="Fix screen tearing on older phones" icon={Zap}>
                     <Switch
