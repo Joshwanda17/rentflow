@@ -5151,6 +5151,47 @@ export type Database = {
         }
         Relationships: []
       }
+      budget_authorities: {
+        Row: {
+          changed_by: string | null
+          created_at: string
+          effective_from: string
+          effective_to: string | null
+          function_code: string
+          id: string
+          position_id: string
+          reason: string
+        }
+        Insert: {
+          changed_by?: string | null
+          created_at?: string
+          effective_from?: string
+          effective_to?: string | null
+          function_code: string
+          id?: string
+          position_id: string
+          reason: string
+        }
+        Update: {
+          changed_by?: string | null
+          created_at?: string
+          effective_from?: string
+          effective_to?: string | null
+          function_code?: string
+          id?: string
+          position_id?: string
+          reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_authorities_position_id_fkey"
+            columns: ["position_id"]
+            isOneToOne: false
+            referencedRelation: "hr_positions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       budget_calls: {
         Row: {
           created_at: string
@@ -5191,7 +5232,15 @@ export type Database = {
           title?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "budget_calls_issued_by_position_fkey"
+            columns: ["issued_by_position_id"]
+            isOneToOne: false
+            referencedRelation: "hr_positions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       budget_disbursements: {
         Row: {
@@ -5273,6 +5322,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "budget_submission_events_actor_position_fkey"
+            columns: ["actor_position_id"]
+            isOneToOne: false
+            referencedRelation: "hr_positions"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "budget_submission_events_submission_id_fkey"
             columns: ["submission_id"]
             isOneToOne: false
@@ -5287,7 +5343,7 @@ export type Database = {
           created_at: string
           description: string
           id: string
-          line_total: number
+          line_total: number | null
           quantity: number
           sort_order: number
           submission_id: string
@@ -5298,7 +5354,7 @@ export type Database = {
           created_at?: string
           description: string
           id?: string
-          line_total: number
+          line_total?: number | null
           quantity?: number
           sort_order?: number
           submission_id: string
@@ -5309,7 +5365,7 @@ export type Database = {
           created_at?: string
           description?: string
           id?: string
-          line_total?: number
+          line_total?: number | null
           quantity?: number
           sort_order?: number
           submission_id?: string
@@ -5329,8 +5385,11 @@ export type Database = {
         Row: {
           call_id: string | null
           created_at: string
-          department: string
+          department_id: string
           id: string
+          period_end: string
+          period_start: string
+          period_type: string
           purpose: string | null
           reference: string
           status: string
@@ -5343,8 +5402,11 @@ export type Database = {
         Insert: {
           call_id?: string | null
           created_at?: string
-          department: string
+          department_id: string
           id?: string
+          period_end: string
+          period_start: string
+          period_type?: string
           purpose?: string | null
           reference: string
           status?: string
@@ -5357,8 +5419,11 @@ export type Database = {
         Update: {
           call_id?: string | null
           created_at?: string
-          department?: string
+          department_id?: string
           id?: string
+          period_end?: string
+          period_start?: string
+          period_type?: string
           purpose?: string | null
           reference?: string
           status?: string
@@ -5374,6 +5439,20 @@ export type Database = {
             columns: ["call_id"]
             isOneToOne: false
             referencedRelation: "budget_calls"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budget_submissions_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "hr_departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budget_submissions_submitted_by_position_fkey"
+            columns: ["submitted_by_position_id"]
+            isOneToOne: false
+            referencedRelation: "hr_positions"
             referencedColumns: ["id"]
           },
         ]
@@ -31222,6 +31301,9 @@ export type Database = {
           restricted: boolean
         }[]
       }
+      budget_has_authority: { Args: { _fn: string }; Returns: boolean }
+      budget_is_approver: { Args: never; Returns: boolean }
+      budget_is_releaser: { Args: never; Returns: boolean }
       budget_release_preview: {
         Args: { p_submission_id: string }
         Returns: {
