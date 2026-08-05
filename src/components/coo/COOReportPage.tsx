@@ -272,6 +272,10 @@ export default function COOReportPage(props: COOReportPageProps) {
 
   function exportPdf() {
     try {
+      if (filtered.length === 0) {
+        toast.error('Nothing to export', { description: 'No activities match the current filters.' });
+        return;
+      }
       const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
       const pageWidth = doc.internal.pageSize.getWidth();
       const generatedAt = format(new Date(), 'PPpp');
@@ -310,14 +314,16 @@ export default function COOReportPage(props: COOReportPageProps) {
         startY: afterKpi + 30,
         head: [['Date', 'Type', 'Person', 'Amount (UGX)', 'Status', 'Staff', 'Reference']],
         body: filtered.map((a) => [
-          format(new Date(a.date), 'dd MMM yy HH:mm'),
+          fmtDate(a.date, 'dd MMM yy HH:mm'),
           a.type,
           a.person,
-          a.amount == null ? '—' : new Intl.NumberFormat('en-UG').format(Math.round(a.amount)),
+          safeAmount(a.amount) == null ? '—' : new Intl.NumberFormat('en-UG').format(Math.round(safeAmount(a.amount)!)),
           a.status,
           a.staff ?? '—',
           a.reference ?? '—',
         ]),
+        foot: [['TOTAL', '', '', new Intl.NumberFormat('en-UG').format(Math.round(filteredTotal)), '', '', '']],
+        footStyles: { fillColor: [240, 240, 245], textColor: 20, fontStyle: 'bold', fontSize: 8.5 },
         theme: 'striped',
         headStyles: { fillColor: [30, 30, 35], textColor: 255, fontStyle: 'bold', fontSize: 9 },
         styles: { fontSize: 8, cellPadding: 3.5 },
