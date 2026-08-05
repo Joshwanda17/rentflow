@@ -7,7 +7,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDynamic } from '@/lib/currencyFormat';
 import { toast } from 'sonner';
-import { CalendarClock, Home, Loader2, Lock, MapPin, RefreshCw, ShieldCheck, User, Wallet } from 'lucide-react';
+import { CalendarClock, Home, Loader2, MapPin, RefreshCw, ShieldCheck, Wallet } from 'lucide-react';
+import tenantPhotoPlaceholder from '@/assets/tenant-photo-placeholder.jpg';
 import { SelfPortfolioDeployDialog } from './SelfPortfolioDeployDialog';
 import { SelfPortfolioPlanDetailSheet } from './SelfPortfolioPlanDetailSheet';
 
@@ -347,12 +348,14 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
                   aria-label="Tenant photo protected"
                   className="relative h-9 w-9 overflow-hidden rounded-lg bg-muted"
                 >
-                  <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-muted to-muted-foreground/25 blur-[2px]">
-                    <User className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                  <div className="absolute inset-0 flex items-center justify-center bg-background/30">
-                    <Lock className="h-3 w-3 text-foreground" />
-                  </div>
+                  <img
+                    src={tenantPhotoPlaceholder}
+                    alt="Tenant photo hidden for privacy"
+                    loading="lazy"
+                    width={512}
+                    height={640}
+                    className="h-full w-full scale-110 object-cover blur-[4px]"
+                  />
                 </div>
               </div>
 

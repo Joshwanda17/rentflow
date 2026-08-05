@@ -1,6 +1,7 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { formatDynamic } from '@/lib/currencyFormat';
-import { Home, Lock, MapPin, ShieldCheck, User } from 'lucide-react';
+import { Home, MapPin, ShieldCheck } from 'lucide-react';
+import tenantPhotoPlaceholder from '@/assets/tenant-photo-placeholder.jpg';
 
 export interface PlanDetail {
   rent_request_id: string;
@@ -112,12 +113,14 @@ export function SelfPortfolioPlanDetailSheet({
               aria-label="Tenant photo protected"
               className="relative w-12 h-12 rounded-full overflow-hidden bg-muted flex-none"
             >
-              <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-muted to-muted-foreground/25 blur-[2px]">
-                <User className="h-6 w-6 text-muted-foreground" />
-              </div>
-              <div className="absolute inset-0 flex items-center justify-center bg-background/30">
-                <Lock className="h-4 w-4 text-foreground" />
-              </div>
+              <img
+                src={tenantPhotoPlaceholder}
+                alt="Tenant photo hidden for privacy"
+                loading="lazy"
+                width={512}
+                height={640}
+                className="h-full w-full scale-110 object-cover blur-[5px]"
+              />
             </div>
             <div className="min-w-0">
               <p className="font-bold text-sm truncate">Plan for {name}</p>
