@@ -515,6 +515,7 @@ export default function COOReportPage(props: COOReportPageProps) {
         <p className="text-[11px] text-muted-foreground mt-2">
           Showing <span className="font-bold tabular-nums">{filtered.length}</span> of {activities.length} activities
           {(from || to) && <> · {from && format(from, 'PP')} → {to && format(to, 'PP')}</>}
+          {' · Total '}<span className="font-bold tabular-nums">{ugx(filteredTotal)}</span>
         </p>
       </div>
 
@@ -538,10 +539,10 @@ export default function COOReportPage(props: COOReportPageProps) {
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 && (
+              {pageRows.length === 0 && (
                 <tr><td colSpan={7} className="text-center py-12 text-sm text-muted-foreground">No activities match the current filters.</td></tr>
               )}
-              {filtered.map((a) => {
+              {pageRows.map((a) => {
                 const sev = a.statusKind ?? 'neutral';
                 return (
                   <tr
@@ -551,14 +552,14 @@ export default function COOReportPage(props: COOReportPageProps) {
                   >
                     <td className="px-3 py-3 font-medium">{a.type}</td>
                     <td className="px-3 py-3 text-muted-foreground">{a.person}</td>
-                    <td className="px-3 py-3 text-right font-mono tabular-nums">{ugx(a.amount)}</td>
+                    <td className="px-3 py-3 text-right font-mono tabular-nums">{ugx(safeAmount(a.amount))}</td>
                     <td className="px-3 py-3">
                       <span className={cn('text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border', STATUS_BADGE[sev])}>
                         {a.status}
                       </span>
                     </td>
                     <td className="px-3 py-3 text-muted-foreground hidden md:table-cell whitespace-nowrap">
-                      {format(new Date(a.date), 'PP p')}
+                      {fmtDate(a.date, 'PP p')}
                     </td>
                     <td className="px-3 py-3 text-muted-foreground hidden lg:table-cell">{a.staff ?? '—'}</td>
                     <td className="px-3 py-3 text-right">
@@ -570,6 +571,38 @@ export default function COOReportPage(props: COOReportPageProps) {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination — 15 rows per page */}
+        {filtered.length > 0 && (
+          <div className="px-4 py-3 border-t border-border flex items-center justify-between gap-2">
+            <p className="text-[11px] text-muted-foreground">
+              Rows <span className="font-bold tabular-nums">{safePage * PAGE_SIZE + 1}</span>–
+              <span className="font-bold tabular-nums">{Math.min((safePage + 1) * PAGE_SIZE, filtered.length)}</span>
+              {' of '}<span className="font-bold tabular-nums">{filtered.length}</span>
+              {' · Page '}{safePage + 1}/{totalPages}
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1"
+                disabled={safePage === 0}
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+              >
+                <ChevronLeft className="h-4 w-4" /> Prev
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1"
+                disabled={safePage >= totalPages - 1}
+                onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+              >
+                Next <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Insights */}
