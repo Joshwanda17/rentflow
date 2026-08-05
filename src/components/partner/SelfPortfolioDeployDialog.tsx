@@ -22,10 +22,10 @@ import { CalendarClock, CheckCircle2, Info, Loader2, PlusCircle, Sparkles } from
  *
  *   A. Add to the existing portfolio — earns immediately, pro-rata for the rest
  *      of the current month, then the full monthly rate. Inherits the parent
- *      portfolio's maturity date, so a top-up never extends the 12-month term.
- *   B. Start a new 12-month portfolio — fresh anchor date, full 12 monthly cycles.
+ *      portfolio's maturity date, so a top-up never extends the monthly term.
+ *   B. Start a new monthly portfolio — fresh anchor date, one monthly cycle.
  *
- * Guard: inside the final 90 days of a portfolio, option A is closed. That window
+ * Guard: inside the final days of a portfolio, option A is closed. That window
  * is the principal-return runway, so new capital must start its own term.
  * The server enforces the same guard; this UI only explains it early.
  */
@@ -111,7 +111,7 @@ export function SelfPortfolioDeployDialog({
 
   const cyclesRemaining = Number(eligibility?.cycles_remaining ?? 0);
   const topupProjection = prorata + fullMonthly * cyclesRemaining;
-  const newProjection = fullMonthly * 12;
+  const newProjection = fullMonthly;
   const canTopUp = !!eligibility?.allow_topup;
 
   const deploy = async () => {
@@ -137,10 +137,10 @@ export function SelfPortfolioDeployDialog({
       } else {
         const { error } = await supabase.rpc('partner_self_confirm_commitment', {
           p_rent_request_ids: selectedIds,
-          p_term_months: 12,
+          p_term_months: 1,
         });
         if (error) throw error;
-        toast.success('New 12-month portfolio deployed and earning from today.');
+        toast.success('New monthly portfolio deployed and earning from today.');
       }
 
       onOpenChange(false);
@@ -247,10 +247,10 @@ export function SelfPortfolioDeployDialog({
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <Sparkles className="h-4 w-4 text-primary shrink-0" />
-                    <p className="text-sm font-bold truncate">Start a new 12-month portfolio</p>
+                    <p className="text-sm font-bold truncate">Start a new monthly portfolio</p>
                   </div>
                   <p className="text-[11px] text-muted-foreground mt-1">
-                    Fresh start date, full 12 monthly payouts on its own anniversary date.
+                    Fresh start date, one monthly payout on its own anniversary date.
                   </p>
                 </div>
                 {(!eligibility || !canTopUp || cyclesRemaining < 3) && (
@@ -262,8 +262,8 @@ export function SelfPortfolioDeployDialog({
               <div className="mt-2 grid grid-cols-3 gap-2">
                 {[
                   { label: 'Per month', value: formatDynamic(fullMonthly) },
-                  { label: 'Cycles', value: '12' },
-                  { label: 'Over 12 cycles', value: formatDynamic(newProjection) },
+                  { label: 'Cycles', value: '1' },
+                  { label: 'Over the term', value: formatDynamic(newProjection) },
                 ].map((f) => (
                   <div key={f.label} className="rounded-xl bg-muted/40 px-2 py-1.5 min-w-0">
                     <p className="text-[9px] uppercase tracking-wide font-semibold text-muted-foreground truncate">
@@ -279,8 +279,8 @@ export function SelfPortfolioDeployDialog({
               <CalendarClock className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
               <p className="text-[10px] text-muted-foreground">
                 Returns pay monthly into your withdrawable balance and are never compounded
-                automatically. At the end of the 12-month term, principal is returned over the
-                standard 90-day settlement window.
+                automatically. At the end of the monthly term, principal is returned over the
+                standard settlement window.
               </p>
             </div>
 
