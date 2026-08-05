@@ -123,8 +123,24 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
     [plans, selected],
   );
 
-  const toggle = (id: string) =>
-    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  const remaining = Math.max(0, available - total);
+  const overBudget = total > available;
+
+  const toggle = (id: string) => {
+    if (selected.includes(id)) {
+      setSelected((prev) => prev.filter((x) => x !== id));
+      return;
+    }
+    const plan = plans.find((p) => p.rent_request_id === id);
+    const cost = Number(plan?.funding_amount || 0);
+    if (cost > remaining) {
+      toast.error(
+        `Not enough withdrawable balance. This plan needs ${formatDynamic(cost)} and you have ${formatDynamic(remaining)} left to fund.`,
+      );
+      return;
+    }
+    setSelected((prev) => [...prev, id]);
+  };
 
   const openDeploy = () => {
     if (total < MIN_FUNDING) {
@@ -161,6 +177,10 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
             <p className="text-lg font-black text-foreground">{formatDynamic(available)}</p>
             <p className="text-[10px] text-muted-foreground mt-0.5">
               Minimum {formatDynamic(MIN_FUNDING)} per plan
+            </p>
+            <p className="text-[10px] font-semibold text-muted-foreground mt-0.5">
+              You can only select plans up to your withdrawable balance —{' '}
+              {formatDynamic(remaining)} left to fund
             </p>
           </div>
           <Button variant="ghost" size="sm" onClick={() => void load()} disabled={busy}>
@@ -224,13 +244,30 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
             className="h-7 text-[11px]"
             disabled={busy}
             onClick={() => {
-              const selectable = plans
-                .filter((p) => !fundedIds.includes(p.rent_request_id) && (!p.held_by || p.held_by === partnerId))
-                .map((p) => p.rent_request_id);
-              setSelected((prev) => (prev.length === selectable.length ? [] : selectable));
+              if (selected.length > 0) {
+                setSelected([]);
+                return;
+              }
+              let budget = available;
+              const picked: string[] = [];
+              let skipped = 0;
+              for (const p of plans) {
+                if (fundedIds.includes(p.rent_request_id)) continue;
+                if (p.held_by && p.held_by !== partnerId) continue;
+                const cost = Number(p.funding_amount || 0);
+                if (cost > budget) { skipped += 1; continue; }
+                budget -= cost;
+                picked.push(p.rent_request_id);
+              }
+              setSelected(picked);
+              if (skipped > 0) {
+                toast.info(
+                  `Selected what your withdrawable balance of ${formatDynamic(available)} covers. ${skipped} plan${skipped > 1 ? 's' : ''} skipped — add funds to include ${skipped > 1 ? 'them' : 'it'}.`,
+                );
+              }
             }}
           >
-            {selected.length > 0 ? 'Clear selection' : 'Select all'}
+            {selected.length > 0 ? 'Clear selection' : 'Select what I can afford'}
           </Button>
         </div>
       )}
@@ -239,6 +276,7 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
         const isFunded = fundedIds.includes(plan.rent_request_id);
         const heldByOther = !!plan.held_by && plan.held_by !== partnerId;
         const isSelected = selected.includes(plan.rent_request_id);
+        const unaffordable = !isSelected && Number(plan.funding_amount || 0) > remaining;
         return (
           <Card
             key={plan.rent_request_id}
@@ -290,7 +328,7 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
                 <Checkbox
                   className="mt-1"
                   checked={isSelected}
-                  disabled={heldByOther || busy}
+                  disabled={heldByOther || busy || unaffordable}
                   onCheckedChange={() => toggle(plan.rent_request_id)}
                   aria-label={`Select plan for ${plan.tenant_first_name ?? 'tenant'}`}
                 />
@@ -330,6 +368,12 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
                 Another partner is confirming this plan right now.
               </p>
             )}
+            {unaffordable && !heldByOther && (
+              <p className="text-[10px] font-semibold text-destructive mt-2">
+                Needs {formatDynamic(plan.funding_amount)} — more than the {formatDynamic(remaining)}{' '}
+                you have left in your withdrawable balance.
+              </p>
+            )}
           </Card>
         );
       })}
@@ -343,11 +387,21 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
               </p>
               <p className="text-base font-black">{formatDynamic(total)}</p>
             </div>
-            <Button onClick={openDeploy} disabled={busy || total < MIN_FUNDING}>
+            <Button onClick={openDeploy} disabled={busy || total < MIN_FUNDING || overBudget}>
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
               <span className="ml-2">{activeCommitmentId ? 'Deploy or top up' : 'Fund now'}</span>
             </Button>
           </div>
+          {overBudget ? (
+            <p className="text-[10px] font-semibold text-destructive mt-2">
+              This selection is {formatDynamic(total - available)} more than your withdrawable balance
+              of {formatDynamic(available)}. Remove a plan or add funds.
+            </p>
+          ) : (
+            <p className="text-[10px] text-muted-foreground mt-1">
+              {formatDynamic(remaining)} of your withdrawable balance still unused.
+            </p>
+          )}
           <p className="text-[10px] text-muted-foreground mt-2">
             Money leaves your withdrawable balance and funds the company landlord float pool. Your
             capital starts earning from the day you deploy. Tenant contact stays with the agent.
