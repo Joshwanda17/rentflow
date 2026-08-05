@@ -9,6 +9,7 @@ import { useAuth } from '@/hooks/useAuth';
 import {
   ShieldQuestion, CheckCircle2, XCircle, Phone, Loader2, UserCircle, MapPin,
   ChevronDown, ChevronUp, Search, FileDown, Clock, BadgeCheck, RefreshCw, X,
+  Inbox, FileClock,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -18,9 +19,16 @@ import {
   type Lc1ReportScope,
 } from '@/lib/generateLc1VerificationReportPdf';
 
-export type Lc1InboxStatus = 'pending' | 'verified' | 'rejected';
+/** Inbox buckets. `agent_requested` / `rent_linked` are focused slices of `pending`. */
+export type Lc1InboxStatus = 'agent_requested' | 'rent_linked' | 'pending' | 'verified' | 'rejected';
 
-export interface Lc1InboxRow extends Lc1ReportRow {}
+export interface Lc1InboxRow extends Lc1ReportRow {
+  agent_request_open?: boolean | null;
+  has_open_rent_request?: boolean | null;
+  open_rent_requests?: number | null;
+}
+
+const TABS: Lc1InboxStatus[] = ['agent_requested', 'rent_linked', 'pending', 'verified', 'rejected'];
 
 interface Props {
   onResolved?: () => void;
@@ -33,10 +41,19 @@ interface Props {
 const PAGE = 25;
 
 const TAB_META: Record<Lc1InboxStatus, { label: string; icon: typeof Clock; cls: string }> = {
+  agent_requested: { label: 'Agent requested', icon: Inbox, cls: 'bg-blue-100 text-blue-700 border-blue-300' },
+  rent_linked: { label: 'Rent application waiting', icon: FileClock, cls: 'bg-teal-100 text-teal-700 border-teal-300' },
   pending: { label: 'Pending', icon: Clock, cls: 'bg-amber-100 text-amber-700 border-amber-300' },
   verified: { label: 'Approved', icon: BadgeCheck, cls: 'bg-emerald-100 text-emerald-700 border-emerald-300' },
   rejected: { label: 'Rejected', icon: XCircle, cls: 'bg-rose-100 text-rose-700 border-rose-300' },
 };
+
+/** Applies the bucket filter to a `v_lc1_verification_inbox` query. */
+function applyBucket(q: any, bucket: Lc1InboxStatus) {
+  if (bucket === 'agent_requested') return q.eq('status', 'pending').eq('agent_request_open', true);
+  if (bucket === 'rent_linked') return q.eq('status', 'pending').eq('has_open_rent_request', true);
+  return q.eq('status', bucket);
+}
 
 function StatusBadge({ status }: { status: string | null }) {
   if (status === 'verified') {
@@ -63,13 +80,15 @@ function StatusBadge({ status }: { status: string | null }) {
  * `verified` flag, request trail, audit log, borrower notification and the
  * agent rejection penalty always move together.
  */
-export function Lc1VerificationInboxPanel({ onResolved, standalone = false, initialStatus = 'pending' }: Props) {
+export function Lc1VerificationInboxPanel({ onResolved, standalone = false, initialStatus = 'agent_requested' }: Props) {
   const { user } = useAuth();
   const { toast } = useToast();
 
   const [status, setStatus] = useState<Lc1InboxStatus>(initialStatus);
   const [rows, setRows] = useState<Lc1InboxRow[]>([]);
-  const [counts, setCounts] = useState<Record<Lc1InboxStatus, number>>({ pending: 0, verified: 0, rejected: 0 });
+  const [counts, setCounts] = useState<Record<Lc1InboxStatus, number>>({
+    agent_requested: 0, rent_linked: 0, pending: 0, verified: 0, rejected: 0,
+  });
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -105,12 +124,14 @@ export function Lc1VerificationInboxPanel({ onResolved, standalone = false, init
   }, [debounced]);
 
   const loadCounts = useCallback(async () => {
-    const next: Record<Lc1InboxStatus, number> = { pending: 0, verified: 0, rejected: 0 };
-    await Promise.all((['pending', 'verified', 'rejected'] as Lc1InboxStatus[]).map(async (s) => {
+    const next: Record<Lc1InboxStatus, number> = {
+      agent_requested: 0, rent_linked: 0, pending: 0, verified: 0, rejected: 0,
+    };
+    await Promise.all(TABS.map(async (s) => {
       let q = (supabase as any)
         .from('v_lc1_verification_inbox')
-        .select('lc1_id', { count: 'exact', head: true })
-        .eq('status', s);
+        .select('lc1_id', { count: 'exact', head: true });
+      q = applyBucket(q, s);
       q = applySearch(q);
       const { count } = await q;
       next[s] = count || 0;
@@ -122,14 +143,14 @@ export function Lc1VerificationInboxPanel({ onResolved, standalone = false, init
     setLoading(true);
     let q = (supabase as any)
       .from('v_lc1_verification_inbox')
-      .select('*', { count: 'exact' })
-      .eq('status', status);
+      .select('*', { count: 'exact' });
+    q = applyBucket(q, status);
     q = applySearch(q);
-    // Pending: agent-raised requests first (they are blocking a rent request),
+    // Open buckets: agent-raised requests first (they block a rent application),
     // then oldest registrations. Decided buckets: newest decision first.
-    q = status === 'pending'
-      ? q.order('request_id', { ascending: false, nullsFirst: false }).order('requested_at', { ascending: true })
-      : q.order('verified_at', { ascending: false, nullsFirst: false }).order('resolved_at', { ascending: false, nullsFirst: false });
+    q = (status === 'verified' || status === 'rejected')
+      ? q.order('verified_at', { ascending: false, nullsFirst: false }).order('resolved_at', { ascending: false, nullsFirst: false })
+      : q.order('request_id', { ascending: false, nullsFirst: false }).order('requested_at', { ascending: true });
     const { data, error, count } = await q.range(page * pageSize, page * pageSize + pageSize - 1);
     if (error) {
       console.error('[LC1 inbox] load failed', error);
@@ -224,7 +245,7 @@ export function Lc1VerificationInboxPanel({ onResolved, standalone = false, init
         search: debounced.length >= 2 ? debounced : null,
         totalMatches: scope === 'all'
           ? counts.pending + counts.verified + counts.rejected
-          : counts[scope as Lc1InboxStatus],
+          : counts[scope as Lc1InboxStatus] ?? 0,
         generatedBy: (user as any)?.email ?? null,
       });
       const url = URL.createObjectURL(blob);
@@ -242,13 +263,14 @@ export function Lc1VerificationInboxPanel({ onResolved, standalone = false, init
   };
 
   const pages = Math.max(1, Math.ceil(total / pageSize));
-  const headerCount = counts.pending;
+  // The section badge counts real agent-raised work, not the registration backlog.
+  const headerCount = counts.agent_requested;
 
   const body = (
     <div className="space-y-3">
       {/* Status tabs */}
       <div className="flex flex-wrap gap-1.5">
-        {(['pending', 'verified', 'rejected'] as Lc1InboxStatus[]).map(s => {
+        {TABS.map(s => {
           const meta = TAB_META[s];
           const Icon = meta.icon;
           const active = status === s;
@@ -270,6 +292,17 @@ export function Lc1VerificationInboxPanel({ onResolved, standalone = false, init
           );
         })}
       </div>
+
+      {/* Bucket explainer — keeps the registration backlog from being mistaken for agent work */}
+      <p className="text-[10px] text-muted-foreground leading-snug">
+        {status === 'agent_requested'
+          ? 'Chairpersons an agent explicitly raised for verification and is still waiting on. This is the real inbox.'
+          : status === 'rent_linked'
+          ? 'Chairpersons attached to a rent application still moving through approval — verifying these unblocks a tenant.'
+          : status === 'pending'
+          ? 'Every unverified chairperson in the register, including bulk field registrations nobody has requested. Large by design.'
+          : `Chairpersons already ${status === 'verified' ? 'approved' : 'rejected'}.`}
+      </p>
 
       {/* Search + export */}
       <div className="flex flex-col sm:flex-row gap-2">
@@ -336,8 +369,15 @@ export function Lc1VerificationInboxPanel({ onResolved, standalone = false, init
                 </div>
                 <div className="shrink-0 flex flex-col items-end gap-1">
                   <StatusBadge status={row.status} />
-                  {row.source === 'agent_request' && status === 'pending' && (
+                  {row.agent_request_open && row.status === 'pending' && (
                     <Badge variant="outline" className="text-[9px] border-amber-500/40 text-amber-700">Agent raised</Badge>
+                  )}
+                  {row.has_open_rent_request && row.status === 'pending' && (
+                    <Badge variant="outline" className="text-[9px] border-teal-500/40 text-teal-700">
+                      {(row.open_rent_requests ?? 1) > 1
+                        ? `${row.open_rent_requests} rent applications waiting`
+                        : 'Rent application waiting'}
+                    </Badge>
                   )}
                 </div>
               </div>
@@ -471,7 +511,7 @@ export function Lc1VerificationInboxPanel({ onResolved, standalone = false, init
             {headerCount > 0 && <Badge className="bg-amber-600 text-white hover:bg-amber-600">{headerCount.toLocaleString()}</Badge>}
           </p>
           <p className="text-[11px] text-muted-foreground leading-snug">
-            Every LC1 chairperson awaiting review lands here — approved ones move to LC1 Chairpersons.
+            Agent-raised requests come first; the full unverified register is on the Pending tab.
           </p>
         </div>
         <div className="ml-auto shrink-0 p-1.5 rounded-md hover:bg-amber-500/10 transition-colors">
