@@ -10,7 +10,7 @@ import BottomRoleSwitcher from '@/components/BottomRoleSwitcher';
 
 import { ISOLATED_ROLES, roleDashboardRoutes } from '@/components/layout/executiveSidebarConfig';
 
-import { Loader2, WifiOff, RefreshCw, ShieldAlert } from 'lucide-react';
+import { WifiOff, RefreshCw, ShieldAlert } from 'lucide-react';
 
 import { getCachedUserRoles, cacheUserRoles } from '@/lib/offlineDataStorage';
 import { getPreloadedRoles } from '@/lib/sessionCache';
