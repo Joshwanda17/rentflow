@@ -1,6 +1,13 @@
 import { Home, Wallet, Users, TrendingUp, Store } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { hapticTap } from '@/lib/haptics';
+import {
+  FLOATING_NAV_ITEM,
+  FLOATING_NAV_LABEL,
+  FloatingNavRow,
+  SlidingIndicator,
+  useSlidingIndicator,
+} from '@/components/ui/floating-nav';
 
 export type AgentHubTab = 'home' | 'money' | 'tenants' | 'grow' | 'subagents';
 
@@ -22,44 +29,44 @@ const tabs: { id: AgentHubTab; icon: typeof Home; label: string }[] = [
 export function AgentHubTabs({ active, onChange, restricted = false }: AgentHubTabsProps) {
   // Merchant Agents are locked to the Home tab only — all operational tabs are hidden.
   const visibleTabs = restricted ? tabs.filter((t) => t.id === 'home') : tabs;
-  const colsClass =
-    visibleTabs.length === 1
-      ? 'grid-cols-1'
-      : visibleTabs.length === 4
-        ? 'grid-cols-4'
-        : 'grid-cols-5';
+  const activeIndex = visibleTabs.findIndex((t) => t.id === active);
+  const { containerRef, setItemRef, indicatorStyle } = useSlidingIndicator(activeIndex, [
+    visibleTabs.length,
+  ]);
   return (
     <div
-      className="sticky z-20 -mx-4 px-4 pb-2 bg-background/95 backdrop-blur-md border-b border-border/40"
+      className="sticky z-20 -mx-4 px-3 pb-2"
       style={{ top: 0, paddingTop: 'calc(0.5rem + env(safe-area-inset-top, 0px))' }}
       role="tablist"
       aria-label="Agent hub sections"
     >
       <div
-        className={cn('grid gap-1 p-1 rounded-2xl bg-muted/60', colsClass)}
+        className="rounded-full border border-border/60 bg-background/90 backdrop-blur-xl shadow-[0_10px_34px_-8px_hsl(var(--foreground)/0.3)]"
       >
-        {visibleTabs.map((t) => {
+        <FloatingNavRow containerRef={containerRef}>
+          <SlidingIndicator style={indicatorStyle} />
+          {visibleTabs.map((t, i) => {
           const isActive = active === t.id;
           return (
             <button
               key={t.id}
+              ref={setItemRef(i)}
               role="tab"
               aria-selected={isActive}
               aria-label={t.label}
               onClick={() => { hapticTap(); onChange(t.id); }}
               className={cn(
-                'flex flex-col items-center justify-center gap-0.5 py-2.5 rounded-xl transition-all touch-manipulation min-h-[56px]',
-                isActive
-                  ? 'bg-background text-primary shadow-sm font-bold'
-                  : 'text-muted-foreground active:scale-95'
+                FLOATING_NAV_ITEM,
+                isActive ? 'text-primary font-bold' : 'text-muted-foreground'
               )}
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
               <t.icon className={cn('h-5 w-5', isActive && 'scale-110')} strokeWidth={isActive ? 2.5 : 2} />
-              <span className="text-[10px] font-semibold tracking-tight leading-tight text-center">{t.label}</span>
+              <span className={FLOATING_NAV_LABEL}>{t.label}</span>
             </button>
           );
-        })}
+          })}
+        </FloatingNavRow>
       </div>
     </div>
   );
