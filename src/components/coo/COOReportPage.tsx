@@ -184,15 +184,23 @@ export default function COOReportPage(props: COOReportPageProps) {
 
   const [generating, setGenerating] = useState(false);
   const [drawer, setDrawer] = useState<ReportActivity | null>(null);
+  const [page, setPage] = useState(0);
 
   // ── Derived rows ──────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
     const qq = q.trim().toLowerCase();
     const fromTs = from ? from.getTime() : -Infinity;
     const toTs = to ? to.getTime() + 24 * 3600 * 1000 - 1 : Infinity;
-    return activities.filter((a) => {
-      const ts = new Date(a.date).getTime();
-      if (ts < fromTs || ts > toTs) return false;
+    const seen = new Set<string>();
+    return activities
+      .filter((a) => {
+        // Data integrity: drop duplicate ids so a row is never counted twice.
+        if (seen.has(a.id)) return false;
+        seen.add(a.id);
+        const d = safeDate(a.date);
+        if (!d) return false;
+        const ts = d.getTime();
+        if (ts < fromTs || ts > toTs) return false;
       if (status !== 'all' && a.status !== status) return false;
       if (type   !== 'all' && a.type   !== type)   return false;
       if (dept   !== 'all' && (a.details?.department ?? '') !== dept) return false;
@@ -202,15 +210,36 @@ export default function COOReportPage(props: COOReportPageProps) {
         if (!hay.includes(qq)) return false;
       }
       return true;
-    });
+      })
+      .sort((a, b) => {
+        const diff = (safeDate(b.date)?.getTime() ?? 0) - (safeDate(a.date)?.getTime() ?? 0);
+        return diff !== 0 ? diff : a.id.localeCompare(b.id);
+      });
   }, [activities, q, status, type, dept, staff, from, to]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const pageRows = useMemo(
+    () => filtered.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE),
+    [filtered, safePage],
+  );
+  // Keep the page index valid whenever the filtered set shrinks.
+  useEffect(() => { setPage(0); }, [q, status, type, dept, staff, from, to, activities]);
+
+  const filteredTotal = useMemo(
+    () => filtered.reduce((s, a) => s + (safeAmount(a.amount) ?? 0), 0),
+    [filtered],
+  );
 
   // ── Actions ───────────────────────────────────────────────────────────────
   async function handleGenerate() {
     setGenerating(true);
     try {
       await onGenerate?.({ from, to });
-      toast.success('Report regenerated', { description: `${filtered.length} matching activities.` });
+      setPage(0);
+      toast.success('Report regenerated from live data', {
+        description: `Range ${from ? format(from, 'PP') : '—'} → ${to ? format(to, 'PP') : '—'}. Figures re-fetched from the server.`,
+      });
     } catch (e: any) {
       toast.error('Could not generate report', { description: e?.message ?? 'Unknown error' });
     } finally {
@@ -219,14 +248,18 @@ export default function COOReportPage(props: COOReportPageProps) {
   }
 
   function exportCsv() {
+    if (filtered.length === 0) {
+      toast.error('Nothing to export', { description: 'No activities match the current filters.' });
+      return;
+    }
     const head = ['ID', 'Type', 'Person', 'Amount UGX', 'Status', 'Date', 'Staff', 'Reference'];
     const lines = [head.join(',')].concat(
       filtered.map((a) =>
-        [a.id, a.type, a.person, a.amount ?? '', a.status, a.date, a.staff ?? '', a.reference ?? '']
+        [a.id, a.type, a.person, safeAmount(a.amount) ?? '', a.status, a.date, a.staff ?? '', a.reference ?? '']
           .map((v) => `"${String(v).replace(/"/g, '""')}"`)
           .join(','),
       ),
-    );
+    ).concat([`"TOTAL","","","${Math.round(filteredTotal)}","","","",""`]);
     const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
