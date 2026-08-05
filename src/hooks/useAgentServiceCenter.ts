@@ -13,6 +13,37 @@ export interface ServiceCenterTenant {
   monthly_rent: number | null;
   /** True only for funded/repaying rent plans; transfers are limited to these. */
   is_active?: boolean;
+  created_at?: string | null;
+}
+
+export type ServiceCenterState = 'verified' | 'pending' | 'rejected';
+
+export interface ServiceCenterHouse {
+  id: string;
+  title: string | null;
+  address: string | null;
+  district: string | null;
+  region: string | null;
+  monthly_rent: number | null;
+  state: ServiceCenterState;
+  status: string | null;
+  occupied: boolean;
+  reason: string | null;
+  verified_at: string | null;
+  created_at: string | null;
+}
+
+export interface ServiceCenterLandlord {
+  id: string;
+  name: string | null;
+  phone: string | null;
+  district: string | null;
+  region: string | null;
+  state: ServiceCenterState;
+  link_source: string | null;
+  reason: string | null;
+  verified_at: string | null;
+  created_at: string | null;
 }
 
 export interface ServiceCenterSubAgent {
@@ -33,8 +64,14 @@ export interface ServiceCenterSubAgent {
   nested_subagents: number;
   landlords_registered: number;
   landlords_verified: number;
+  landlords_pending?: number;
+  landlords_rejected?: number;
+  landlord_list?: ServiceCenterLandlord[];
   houses_listed?: number;
   houses_verified?: number;
+  houses_pending?: number;
+  houses_rejected?: number;
+  house_list?: ServiceCenterHouse[];
   wallet: { withdrawable: number; float: number; advance: number };
   suspension: { blocked_until: string | null; reason: string | null; scope: string | null } | null;
   pending_transfers: number;
