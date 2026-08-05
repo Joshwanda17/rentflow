@@ -44,9 +44,15 @@ export interface Lc1ReportRow {
   linked_landlords: number | null;
 }
 
-export type Lc1ReportScope = 'verified' | 'rejected' | 'pending' | 'all';
+export type Lc1ReportScope =
+  | 'verified'
+  | 'rejected'
+  | 'pending'
+  | 'agent_requested'
+  | 'rent_linked'
+  | 'all';
 
-type SectionScope = Exclude<Lc1ReportScope, 'all'>;
+type SectionScope = 'verified' | 'rejected' | 'pending';
 
 const SECTION_ORDER: SectionScope[] = ['verified', 'rejected', 'pending'];
 
@@ -66,6 +72,8 @@ const ACCENT: Record<Lc1ReportScope, [number, number, number]> = {
   verified: [16, 163, 74],
   rejected: [220, 38, 38],
   pending: [217, 119, 6],
+  agent_requested: [37, 99, 235],
+  rent_linked: [13, 148, 136],
   all: [146, 52, 234],
 };
 
@@ -73,6 +81,8 @@ const SCOPE_TITLE: Record<Lc1ReportScope, string> = {
   verified: 'Approved LC1 Chairpersons',
   rejected: 'Rejected LC1 Chairpersons',
   pending: 'LC1 Chairpersons Awaiting Verification',
+  agent_requested: 'LC1 Verifications Requested by Agents',
+  rent_linked: 'LC1 Verifications Blocking a Rent Application',
   all: 'LC1 Chairperson Verification Register',
 };
 
