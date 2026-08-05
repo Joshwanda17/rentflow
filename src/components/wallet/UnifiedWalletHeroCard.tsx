@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Wallet, ChevronRight, ChevronDown, Shield, Home, TrendingUp, Rocket, PiggyBank, Coins, Sparkles, Clock } from 'lucide-react';
 import { hapticTap } from '@/lib/haptics';
@@ -119,6 +119,24 @@ export function UnifiedWalletHeroCard({
   const [reduceMotion, setReduceMotion] = useState(false);
 
   useEffect(() => { setReduceMotion(prefersReducedMotion()); }, []);
+
+  // Auto re-collapse when the user scrolls down while the card is expanded.
+  const scrollAnchor = useRef(0);
+  useEffect(() => {
+    if (collapsed || typeof window === 'undefined') return;
+    const getY = () => window.scrollY || document.documentElement.scrollTop || 0;
+    scrollAnchor.current = getY();
+    const onScroll = () => {
+      const y = getY();
+      if (y > scrollAnchor.current + 48) {
+        setCollapsed(true);
+      } else if (y < scrollAnchor.current) {
+        scrollAnchor.current = y;
+      }
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [collapsed]);
 
   const toggleCollapsed = () => {
     hapticTap();
