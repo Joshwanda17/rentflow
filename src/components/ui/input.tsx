@@ -12,6 +12,8 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
           "flex h-14 w-full rounded-lg border border-input bg-background px-4 py-3 text-base file:border-0 file:bg-transparent file:text-base file:font-medium file:text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-0 focus:border-primary active:border-primary disabled:cursor-not-allowed disabled:opacity-50",
           // Stability: prevent transform animations and layout shifts
           "touch-manipulation transform-none will-change-auto",
+          // Spacing below every input instance
+          "mb-[5px]",
           className,
         )}
         ref={ref}
