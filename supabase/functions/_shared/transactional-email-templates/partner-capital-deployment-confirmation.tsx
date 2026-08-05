@@ -14,6 +14,7 @@ import type { TemplateEntry } from './types.ts'
 interface TenantAllocation {
   tenant_name?: string
   tenant_initials?: string
+  tenant_location?: string | null
   allocated_amount?: string | number
 }
 
@@ -219,7 +220,7 @@ export function PartnerCapitalDeploymentConfirmation({
                                             <div style={{ fontSize: '15px', fontWeight: 700, color: NAVY, wordBreak: 'break-word' }}>
                                               {t?.tenant_name || 'Tenant'}
                                             </div>
-                                            <div style={{ fontSize: '12.5px', color: SECONDARY, marginTop: '2px' }}>Rent request support</div>
+                                            <div style={{ fontSize: '12.5px', color: SECONDARY, marginTop: '2px' }}>{t?.tenant_location || 'Location not provided'}</div>
                                           </td>
                                           <td align="right" valign="middle" className="td-block text-right-mobile-left" style={{ whiteSpace: 'nowrap' }}>
                                             <span style={{ fontSize: '15px', fontWeight: 700, color: NAVY }}>UGX {money(t?.allocated_amount)}</span>
@@ -417,9 +418,9 @@ export const template = {
     total_amount: 5_000_000,
     tenant_count: 3,
     tenants: [
-      { tenant_name: 'Mukasa Gerald', tenant_initials: 'MG', allocated_amount: 2_000_000 },
-      { tenant_name: 'Nakato Sarah', tenant_initials: 'NS', allocated_amount: 1_800_000 },
-      { tenant_name: 'Ochen Emmanuel', tenant_initials: 'OE', allocated_amount: 1_200_000 },
+      { tenant_name: 'Mukasa Gerald', tenant_initials: 'MG', tenant_location: 'Kireka, Wakiso', allocated_amount: 2_000_000 },
+      { tenant_name: 'Nakato Sarah', tenant_initials: 'NS', tenant_location: 'Ntinda, Kampala', allocated_amount: 1_800_000 },
+      { tenant_name: 'Ochen Emmanuel', tenant_initials: 'OE', tenant_location: 'Bweyogerere, Wakiso', allocated_amount: 1_200_000 },
     ],
     portfolio_start_date: '05 August 2026',
     monthly_payout: 750_000,
