@@ -43,7 +43,7 @@ const PersonalLayout = ({ children, title }: PersonalLayoutProps) => {
         <div className="max-w-3xl mx-auto px-4 py-3">
           <div className="flex items-center gap-2 min-w-0">
             <p className="font-bold truncate">{displayName || 'Your Name'}</p>
-            <span className="text-xs text-muted-foreground shrink-0">My space</span>
+            <span className="text-xs text-muted-foreground flex-none">My space</span>
           </div>
           <nav className="mt-3 -mx-1 flex items-center gap-1 overflow-x-auto no-scrollbar">
             {LINKS.map((link) => {
@@ -53,7 +53,7 @@ const PersonalLayout = ({ children, title }: PersonalLayoutProps) => {
                   key={link.to}
                   to={link.to}
                   className={cn(
-                    'shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
+                    'rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
                     active
                       ? 'bg-primary text-primary-foreground'
                       : 'text-muted-foreground hover:bg-muted'
