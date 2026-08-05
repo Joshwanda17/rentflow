@@ -287,7 +287,7 @@ async function handleWallets(ctx: { user: AnyClient }, url: URL): Promise<Respon
     loadWallet(admin, userId),
     admin
       .from("general_ledger")
-      .select("id, transaction_date, amount, direction, category, description, reference_id, running_balance", { count: "exact" })
+      .select("id, transaction_date, amount, direction, category, description, reference_id", { count: "exact" })
       .eq("user_id", userId)
       .eq("ledger_scope", "wallet")
       .neq("classification", "admin_correction")
@@ -304,7 +304,6 @@ async function handleWallets(ctx: { user: AnyClient }, url: URL): Promise<Respon
     category: t.category,
     description: t.description,
     reference_id: t.reference_id,
-    running_balance: t.running_balance != null ? Math.round(Number(t.running_balance)) : null,
   }));
 
   const total = txRes.count ?? transactions.length;
