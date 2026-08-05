@@ -114,7 +114,7 @@ export default function Referrals() {
             <Card className="text-center h-full overflow-hidden">
               <CardContent className="p-3 flex flex-col items-center justify-center gap-1">
                 <Users className="h-4 w-4 text-primary" />
-                <p className="text-base font-bold leading-tight truncate max-w-full">{snapshot.referralCount || referrals.length}</p>
+                <p className="text-sm font-bold leading-tight truncate max-w-full">{snapshot.referralCount || referrals.length}</p>
                 <p className="text-[10px] text-muted-foreground leading-none">Friends</p>
               </CardContent>
             </Card>
