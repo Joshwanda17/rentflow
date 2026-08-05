@@ -140,28 +140,48 @@ const DashboardHeader = memo(function DashboardHeader({
                       <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest px-2 pt-1 pb-1.5">
                         Switch Role
                       </p>
-                      {availableRoles.map((role) => {
-                        const config = getRoleConfig(role);
-                        const isActive = role === currentRole;
-                        return (
+                      {availableRoles
+                        .filter((role) => role in roleConfigMap)
+                        .map((role) => {
+                          const config = getRoleConfig(role);
+                          const isActive = role === currentRole;
+                          return (
+                            <button
+                              key={role}
+                              onClick={() => handleRoleSwitch(role)}
+                              className={cn(
+                                "w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl text-sm font-medium transition-all touch-manipulation min-h-[44px]",
+                                isActive
+                                  ? "bg-primary/10 text-primary font-semibold"
+                                  : "text-foreground hover:bg-muted active:scale-[0.98]"
+                              )}
+                            >
+                              <span className="text-base">{config.emoji}</span>
+                              <span>{config.label}</span>
+                              {isActive && (
+                                <Check className="ml-auto h-4 w-4 text-white" />
+                              )}
+                            </button>
+                          );
+                        })}
+                      {availableRoles.some((role) => !PUBLIC_ROLES.includes(role)) && (
+                        <>
+                          <div className="h-px bg-border my-1.5" />
                           <button
-                            key={role}
-                            onClick={() => handleRoleSwitch(role)}
+                            onClick={() => {
+                              setRolePickerOpen(false);
+                              navigate('/me');
+                            }}
                             className={cn(
                               "w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl text-sm font-medium transition-all touch-manipulation min-h-[44px]",
-                              isActive
-                                ? "bg-primary/10 text-primary font-semibold"
-                                : "text-foreground hover:bg-muted active:scale-[0.98]"
+                              "text-foreground hover:bg-muted active:scale-[0.98]"
                             )}
                           >
-                            <span className="text-base">{config.emoji}</span>
-                            <span>{config.label}</span>
-                            {isActive && (
-                              <Check className="ml-auto h-4 w-4 text-white" />
-                            )}
+                            <UserRound className="h-4 w-4 text-muted-foreground" />
+                            <span>My space</span>
                           </button>
-                        );
-                      })}
+                        </>
+                      )}
                     </PopoverContent>
                   </Popover>
                 </>
