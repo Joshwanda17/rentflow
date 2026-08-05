@@ -1,10 +1,10 @@
-import HRPlaceholderPage from './HRPlaceholderPage';
+import PersonalLayout from '@/components/layout/PersonalLayout';
 import MyWork from '../components/MyWork';
 
 export default function MyWorkPage() {
   return (
-    <HRPlaceholderPage heading="My Work" subtitle="Your tasks and your numbers">
+    <PersonalLayout title="My work">
       <MyWork />
-    </HRPlaceholderPage>
+    </PersonalLayout>
   );
 }
