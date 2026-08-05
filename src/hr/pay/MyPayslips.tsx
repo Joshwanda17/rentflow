@@ -48,7 +48,7 @@ export default function MyPayslips() {
   }, []);
 
   return (
-    <HRPlaceholderPage heading="My payslips" subtitle="Your own pay records.">
+    <PersonalLayout title="My payslips">
       <Card>
         <CardContent className="pt-6">
           {loading && (
