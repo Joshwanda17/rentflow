@@ -461,6 +461,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
 
   // Partner Detail view
   const [detailPartner, setDetailPartner] = useState<PartnerDetail | null>(null);
+  const [detailSelfCommitments, setDetailSelfCommitments] = useState<SelfCommitmentRow[]>([]);
   const [detailLoading, setDetailLoading] = useState(false);
   const [editingPortfolioId, setEditingPortfolioId] = useState<string | null>(null);
   const [editingPayoutDay, setEditingPayoutDay] = useState('');
