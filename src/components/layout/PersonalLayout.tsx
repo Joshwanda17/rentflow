@@ -53,7 +53,7 @@ const PersonalLayout = ({ children, title }: PersonalLayoutProps) => {
                   key={link.to}
                   to={link.to}
                   className={cn(
-                    'rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
+                    'flex-none rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
                     active
                       ? 'bg-primary text-primary-foreground'
                       : 'text-muted-foreground hover:bg-muted'
