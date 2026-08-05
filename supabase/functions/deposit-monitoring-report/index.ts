@@ -349,7 +349,7 @@ Deno.serve(async (req) => {
 
       const processor = dep
         ? (dep.auto_approved || args.autoMatchMethod
-            ? `gmail-poll-transactions → auto_create_deposits_from_gmail${args.autoMatchMethod ? ` (${args.autoMatchMethod})` : ''}`
+            ? `gmail-poll-transactions -> auto_create_deposits_from_gmail${args.autoMatchMethod ? ` (${args.autoMatchMethod})` : ''}`
             : 'approve-deposit')
         : '—';
 
@@ -435,7 +435,7 @@ Deno.serve(async (req) => {
       awaitingAmount: sum(pending) + sum(unmatched) + sum(failed),
     };
 
-    const periodLabel = `${slotLabel(new Date(start.getTime()))} → ${slotLabel(end)}`;
+    const periodLabel = `${slotLabel(new Date(start.getTime()))} -> ${slotLabel(end)}`;
 
     let logoBytes: Uint8Array | null = null;
     try {
@@ -559,7 +559,8 @@ async function buildPdf(a: PdfArgs): Promise<Uint8Array> {
 
   const truncate = (s: string, w: number, size: number, f: any) => {
     if (!s) return '';
-    let out = s;
+    // WinAnsi-safe: drop characters the standard PDF font cannot encode.
+    let out = String(s).replace(/[^\x20-\x7E\xA0-\xFF\u2013\u2014\u2018\u2019\u201C\u201D\u2022\u2026]/g, '?');
     while (out.length > 0 && f.widthOfTextAtSize(out, size) > w - 5) out = out.slice(0, -1);
     if (out.length < s.length && out.length > 1) out = out.slice(0, -1) + '…';
     return out;
