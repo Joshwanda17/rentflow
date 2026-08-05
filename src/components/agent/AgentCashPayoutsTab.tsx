@@ -34,6 +34,8 @@ import {
   normalizeCashoutAgentConfig,
   buildQueueCategoryOrClause,
   isWithdrawalCategoryAuthorized,
+  isWithdrawalChannelAuthorized,
+  buildChannelProviderOrClause,
   authorizedQueueCategoryLabels,
   getWithdrawalQueueCategory,
   type CashoutAgentConfig,
@@ -121,6 +123,12 @@ interface QueueFilterOpts {
    */
   categoryOrClause: string | null;
   /**
+   * PostgREST `.or()` clause restricting the queue to the exact payment
+   * channels AND providers/banks assigned to this Cash-Out Agent. `null` = no
+   * restriction.
+   */
+  channelProviderOrClause?: string | null;
+  /**
    * User ids whose accounts are currently frozen. Their withdrawal requests are
    * excluded from the queue entirely — a frozen account must never be payable.
    */
@@ -142,6 +150,11 @@ function applyQueueFilters(q: any, o: QueueFilterOpts) {
   // Authorized payout categories (CFO permission matrix). Only surface rows in
   // the categories mapped to this agent.
   if (o.categoryOrClause) q = q.or(o.categoryOrClause);
+
+  // Assigned channels + exact providers/banks. A merchant must never see (or be
+  // able to claim) a payout for a bank or mobile-money network the CFO has not
+  // assigned to them, even when the parent channel is enabled.
+  if (o.channelProviderOrClause) q = q.or(o.channelProviderOrClause);
 
   // Frozen accounts must vanish from the payout queue — never payable.
   if (o.frozenUserIds && o.frozenUserIds.length) {
