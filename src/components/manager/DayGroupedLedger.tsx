@@ -16,7 +16,6 @@ interface LedgerEntry {
   category: string;
   debit: number;
   credit: number;
-  balance: number;
   reference: string;
   party: string;
 }
@@ -145,7 +144,6 @@ export function DayGroupedLedger({ entries, page, onRemoveEntry }: DayGroupedLed
                         <TableHead>Ref</TableHead>
                         <TableHead className="text-right">Debit</TableHead>
                         <TableHead className="text-right">Credit</TableHead>
-                        <TableHead className="text-right">Balance</TableHead>
                         {onRemoveEntry && <TableHead className="w-10"></TableHead>}
                       </TableRow>
                     </TableHeader>
@@ -166,9 +164,6 @@ export function DayGroupedLedger({ entries, page, onRemoveEntry }: DayGroupedLed
                           </TableCell>
                           <TableCell className="text-right text-xs font-medium text-success">
                             {entry.credit > 0 ? formatUGX(entry.credit) : '-'}
-                          </TableCell>
-                          <TableCell className={cn("text-right text-xs font-bold", entry.balance >= 0 ? 'text-foreground' : 'text-destructive')}>
-                            {formatUGX(entry.balance)}
                           </TableCell>
                           {onRemoveEntry && (
                             <TableCell>
