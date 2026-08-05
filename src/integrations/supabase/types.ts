@@ -35006,6 +35006,10 @@ export type Database = {
             }
             Returns: Json
           }
+      partner_ops_report_breakdown: {
+        Args: { p_from?: string; p_to?: string }
+        Returns: Json
+      }
       partner_ops_report_totals: { Args: never; Returns: Json }
       partner_self_claim_plans: {
         Args: { p_idempotency_key?: string; p_rent_request_ids: string[] }
