@@ -69,6 +69,7 @@ export function WithdrawalPayoutCard({
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [proofUploading, setProofUploading] = useState(false);
   const [proofUrl, setProofUrl] = useState<string | null>(null);
+  const [proofPath, setProofPath] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   // Specific, inline reason the LAST confirmation attempt was rejected by the
   // server (amount mismatch / TID mismatch / unreadable). Drives the retry
