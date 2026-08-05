@@ -7528,6 +7528,7 @@ export type Database = {
           period_end: string
           period_start: string
           report_date: string
+          run_window: string
           total_deposited: number
           total_paid_out: number
           updated_at: string
@@ -7547,6 +7548,7 @@ export type Database = {
           period_end: string
           period_start: string
           report_date: string
+          run_window?: string
           total_deposited?: number
           total_paid_out?: number
           updated_at?: string
@@ -7566,6 +7568,7 @@ export type Database = {
           period_end?: string
           period_start?: string
           report_date?: string
+          run_window?: string
           total_deposited?: number
           total_paid_out?: number
           updated_at?: string
@@ -36712,6 +36715,7 @@ export type Database = {
         | "agent_advances_daily_report"
         | "sms_verification_failure_alert_raised"
         | "merchant_cashout_daily_report"
+        | "report_generation_failed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -37061,6 +37065,7 @@ export const Constants = {
         "agent_advances_daily_report",
         "sms_verification_failure_alert_raised",
         "merchant_cashout_daily_report",
+        "report_generation_failed",
       ],
     },
   },
