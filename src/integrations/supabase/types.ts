@@ -30316,6 +30316,8 @@ export type Database = {
           request_city: string | null
           tenant_avatar_url: string | null
           tenant_first_name: string | null
+          tenant_full_name: string | null
+          tenant_location: string | null
           total_repayment: number | null
         }
         Relationships: []
