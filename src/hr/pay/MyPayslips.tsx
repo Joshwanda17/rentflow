@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
-import HRPlaceholderPage from '@/hr/pages/HRPlaceholderPage';
+import PersonalLayout from '@/components/layout/PersonalLayout';
 import {
   Table,
   TableBody,
@@ -48,7 +48,7 @@ export default function MyPayslips() {
   }, []);
 
   return (
-    <HRPlaceholderPage heading="My payslips" subtitle="Your own pay records.">
+    <PersonalLayout title="My payslips">
       <Card>
         <CardContent className="pt-6">
           {loading && (
@@ -114,6 +114,6 @@ export default function MyPayslips() {
           </p>
         </CardContent>
       </Card>
-    </HRPlaceholderPage>
+    </PersonalLayout>
   );
 }
