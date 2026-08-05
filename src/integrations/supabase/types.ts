@@ -34221,8 +34221,29 @@ export type Database = {
           title: string
         }[]
       }
+      hr_contracts_register: {
+        Args: never
+        Returns: {
+          contract_type: string
+          counterparty: string
+          days_remaining: number
+          end_date: string
+          has_document: boolean
+          id: string
+          notice_period_days: number
+          signature_status: string
+          staff_name: string
+          staff_ref: string
+          start_date: string
+          title: string
+        }[]
+      }
       hr_is_admin: { Args: never; Returns: boolean }
       hr_is_executive: { Args: never; Returns: boolean }
+      hr_is_named_officer: {
+        Args: { _role: Database["public"]["Enums"]["app_role"] }
+        Returns: boolean
+      }
       hr_manages: { Args: { _staff_id: string }; Returns: boolean }
       hr_my_approvals: {
         Args: never
