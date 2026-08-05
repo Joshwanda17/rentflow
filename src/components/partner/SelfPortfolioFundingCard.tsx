@@ -463,6 +463,13 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
         onOpenChange={setDeployOpen}
         activeCommitmentId={activeCommitmentId}
         selectedIds={selected}
+        selectedTenants={plans
+          .filter((p) => selected.includes(p.rent_request_id))
+          .map((p) => ({
+            name: p.tenant_full_name || p.tenant_first_name || 'Tenant',
+            amount: Number(p.funding_amount || 0),
+            location: p.tenant_location || p.request_city,
+          }))}
         total={total}
         onDeployed={handleDeployed}
       />
