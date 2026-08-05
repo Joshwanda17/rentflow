@@ -31355,9 +31355,51 @@ export type Database = {
           restricted: boolean
         }[]
       }
+      budget_add_line: {
+        Args: {
+          _category?: string
+          _description: string
+          _quantity?: number
+          _sort_order?: number
+          _submission_id: string
+          _unit_amount: number
+        }
+        Returns: string
+      }
+      budget_approve: {
+        Args: { _note?: string; _submission_id: string }
+        Returns: undefined
+      }
+      budget_create_call: {
+        Args: {
+          _deadline?: string
+          _period_end: string
+          _period_start: string
+          _period_type: string
+          _title: string
+        }
+        Returns: string
+      }
+      budget_create_submission: {
+        Args: {
+          _call_id?: string
+          _department_id: string
+          _period_end?: string
+          _period_start?: string
+          _period_type?: string
+          _purpose: string
+          _title: string
+        }
+        Returns: string
+      }
       budget_has_authority: { Args: { _fn: string }; Returns: boolean }
       budget_is_approver: { Args: never; Returns: boolean }
       budget_is_releaser: { Args: never; Returns: boolean }
+      budget_my_position_in_department: {
+        Args: { _department_id: string }
+        Returns: string
+      }
+      budget_position_for: { Args: { _fn: string }; Returns: string }
       budget_probe_one: { Args: never; Returns: string }
       budget_release_preview: {
         Args: { p_submission_id: string }
@@ -31372,6 +31414,15 @@ export type Database = {
           submission_id: string
           unit_amount: number
         }[]
+      }
+      budget_remove_line: { Args: { _line_id: string }; Returns: undefined }
+      budget_return: {
+        Args: { _note: string; _submission_id: string }
+        Returns: undefined
+      }
+      budget_submit: {
+        Args: { _note?: string; _submission_id: string }
+        Returns: undefined
       }
       build_funder_reference: {
         Args: { p_created_at: string; p_user_id: string }
