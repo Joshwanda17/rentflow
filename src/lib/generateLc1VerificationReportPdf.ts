@@ -521,7 +521,10 @@ export function generateLc1VerificationReportPdf(rows: Lc1ReportRow[], meta: Lc1
       drawSectionBody(sec, sectionRows);
     });
   } else {
-    drawSectionBody(meta.scope, rows);
+    drawSectionBody(
+      meta.scope === 'verified' || meta.scope === 'rejected' ? meta.scope : 'pending',
+      rows,
+    );
   }
 
   // ─── Footer on every page ───
