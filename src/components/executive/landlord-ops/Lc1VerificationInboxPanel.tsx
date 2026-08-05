@@ -80,7 +80,7 @@ function StatusBadge({ status }: { status: string | null }) {
  * `verified` flag, request trail, audit log, borrower notification and the
  * agent rejection penalty always move together.
  */
-export function Lc1VerificationInboxPanel({ onResolved, standalone = false, initialStatus = 'pending' }: Props) {
+export function Lc1VerificationInboxPanel({ onResolved, standalone = false, initialStatus = 'agent_requested' }: Props) {
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -263,13 +263,14 @@ export function Lc1VerificationInboxPanel({ onResolved, standalone = false, init
   };
 
   const pages = Math.max(1, Math.ceil(total / pageSize));
-  const headerCount = counts.pending;
+  // The section badge counts real agent-raised work, not the registration backlog.
+  const headerCount = counts.agent_requested;
 
   const body = (
     <div className="space-y-3">
       {/* Status tabs */}
       <div className="flex flex-wrap gap-1.5">
-        {(['pending', 'verified', 'rejected'] as Lc1InboxStatus[]).map(s => {
+        {TABS.map(s => {
           const meta = TAB_META[s];
           const Icon = meta.icon;
           const active = status === s;
