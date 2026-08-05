@@ -58,7 +58,7 @@ export function usePartnerOpsReportData() {
       const [portfoliosRes, withdrawalsRes] = await Promise.all([
         supabase
           .from('investor_portfolios')
-          .select('id, portfolio_code, investment_amount, status, cfo_verified, cfo_rejection_reason, created_at, investor_id, agent_id, payment_method')
+          .select('id, portfolio_code, investment_amount, status, cfo_verified, cfo_rejection_reason, created_at, investor_id, agent_id, payment_method, account_name, bank_account_name')
           .gte('created_at', since)
           .order('created_at', { ascending: false })
           .limit(MAX_ROWS),
@@ -83,10 +83,11 @@ export function usePartnerOpsReportData() {
       );
       const profilesMap: Record<string, { full_name: string | null; phone: string | null }> = {};
       if (userIds.length) {
-        const { data: profiles } = await supabase
+        const { data: profiles, error: profilesErr } = await supabase
           .from('profiles')
           .select('id, full_name, phone')
           .in('id', userIds);
+        if (profilesErr) throw profilesErr;
         (profiles ?? []).forEach((p: any) => (profilesMap[p.id] = { full_name: p.full_name, phone: p.phone }));
       }
 
@@ -96,7 +97,14 @@ export function usePartnerOpsReportData() {
           return {
             id: `PRT-${p.id.slice(0, 8)}`,
             type: 'New portfolio',
-            person: nameOf(profilesMap[p.investor_id]),
+            // Profile name first; fall back to the payout account name captured
+            // on the portfolio itself so a row is never labelled "Unknown".
+            person:
+              profilesMap[p.investor_id]?.full_name ||
+              p.account_name ||
+              p.bank_account_name ||
+              profilesMap[p.investor_id]?.phone ||
+              'Unknown',
             amount: Number(p.investment_amount ?? 0),
             status,
             statusKind: statusKindFor(status),
