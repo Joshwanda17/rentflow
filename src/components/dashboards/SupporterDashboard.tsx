@@ -563,15 +563,6 @@ export default function SupporterDashboard({
                 <>
                   <FunderApprovalBanner className="mb-3" />
                   <FunderCapitalOpportunities />
-                  <div className="mt-4 space-y-3">
-                    <div className="flex items-center gap-2 px-1">
-                      <div className="w-1 h-5 rounded-full bg-success" />
-                      <h3 className="text-sm font-black text-foreground tracking-tight">
-                        Self Portfolio Management
-                      </h3>
-                    </div>
-                    <SelfPortfolioFundingCard partnerId={user.id} />
-                  </div>
                 </>
               )}
             </WidgetErrorBoundary>
