@@ -62,6 +62,15 @@ const roleConfigMap: Record<string, { label: string; emoji: string; icon: React.
 const defaultRoleConfig = { label: 'Unknown', emoji: '👤', icon: <Users className="h-4 w-4" /> };
 const getRoleConfig = (role: string) => roleConfigMap[role] || defaultRoleConfig;
 
+const PUBLIC_ROLES: readonly string[] = [
+  'tenant',
+  'agent',
+  'landlord',
+  'supporter',
+  'senior_agent',
+  'sub_agent',
+];
+
 const DashboardHeader = memo(function DashboardHeader({
   currentRole,
   availableRoles,
