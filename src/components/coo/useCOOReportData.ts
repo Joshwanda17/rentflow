@@ -20,9 +20,9 @@ function sinceISO(days = WINDOW_DAYS) {
   return startOfDay(subDays(new Date(), days)).toISOString();
 }
 
-function nameOf(p?: { full_name?: string | null; phone_number?: string | null } | null): string {
+function nameOf(p?: { full_name?: string | null; phone?: string | null } | null): string {
   if (!p) return 'Unknown';
-  return p.full_name || p.phone_number || 'Unknown';
+  return p.full_name || p.phone || 'Unknown';
 }
 
 function statusKindFor(status: string): Severity {
@@ -81,13 +81,13 @@ export function usePartnerOpsReportData() {
           ] as string[],
         ),
       );
-      const profilesMap: Record<string, { full_name: string | null; phone_number: string | null }> = {};
+      const profilesMap: Record<string, { full_name: string | null; phone: string | null }> = {};
       if (userIds.length) {
         const { data: profiles } = await supabase
           .from('profiles')
-          .select('id, full_name, phone_number')
+          .select('id, full_name, phone')
           .in('id', userIds);
-        (profiles ?? []).forEach((p: any) => (profilesMap[p.id] = { full_name: p.full_name, phone_number: p.phone_number }));
+        (profiles ?? []).forEach((p: any) => (profilesMap[p.id] = { full_name: p.full_name, phone: p.phone }));
       }
 
       const activities: ReportActivity[] = [
@@ -195,7 +195,7 @@ export function useAgentOpsReportData() {
       );
       const profilesMap: Record<string, any> = {};
       if (ids.length) {
-        const { data } = await supabase.from('profiles').select('id, full_name, phone_number').in('id', ids);
+        const { data } = await supabase.from('profiles').select('id, full_name, phone').in('id', ids);
         (data ?? []).forEach((p: any) => (profilesMap[p.id] = p));
       }
 
@@ -300,7 +300,7 @@ export function useTenantOpsReportData() {
       );
       const profilesMap: Record<string, any> = {};
       if (ids.length) {
-        const { data } = await supabase.from('profiles').select('id, full_name, phone_number').in('id', ids);
+        const { data } = await supabase.from('profiles').select('id, full_name, phone').in('id', ids);
         (data ?? []).forEach((p: any) => (profilesMap[p.id] = p));
       }
 
@@ -394,7 +394,7 @@ export function useFinancialOpsReportData() {
       );
       const profilesMap: Record<string, any> = {};
       if (ids.length) {
-        const { data } = await supabase.from('profiles').select('id, full_name, phone_number').in('id', ids);
+        const { data } = await supabase.from('profiles').select('id, full_name, phone').in('id', ids);
         (data ?? []).forEach((p: any) => (profilesMap[p.id] = p));
       }
 
