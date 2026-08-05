@@ -312,6 +312,10 @@ const DashboardHeader = memo(function DashboardHeader({
         </div>
       </header>
 
+      {/* Install prompt sits directly below the top nav so it is fully visible
+          on every screen size instead of floating above the header. */}
+      <InstallAppCard className="mx-auto w-full max-w-md px-4 pt-3 sm:px-0" />
+
     </>
   );
 });
