@@ -80,7 +80,7 @@ export function ReferralBonusProgress() {
           </div>
         </div>
         <p className="text-xs text-muted-foreground mt-1">
-          Each referral earns UGX 500. The bonus unlocks only after your invite completes all platform milestones below.
+          Each referral earns UGX 100. The bonus unlocks only after your invite completes all platform milestones below.
         </p>
       </CardHeader>
       <CardContent className="space-y-3">
