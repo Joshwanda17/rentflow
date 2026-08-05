@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, CheckCircle2, ShieldCheck, Phone, Store } from 'lucide-react';
+import ScreenLoader from '@/components/common/ScreenLoader';
 
 /**
  * Landing page for invited Merchant Agents. Shows onboarding status and
@@ -53,9 +54,7 @@ export default function MerchantAgentOnboarding() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
+      <ScreenLoader />
     );
   }
 
