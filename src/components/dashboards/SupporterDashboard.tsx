@@ -7,7 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useOffline } from '@/contexts/OfflineContext';
 import { Button } from '@/components/ui/button';
 import { 
-  CreditCard, Calculator, FileText, Menu, ChevronDown, BadgeCheck, Wallet, ChevronRight
+  CreditCard, Calculator, FileText, ChevronDown, BadgeCheck, Wallet, ChevronRight
 } from 'lucide-react';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
@@ -423,8 +423,6 @@ export default function SupporterDashboard({
     ]);
   };
 
-  const handleOpenMenu = () => { hapticTap(); setMenuOpen(true); };
-
   const menuItems = [
     { icon: CreditCard, label: 'Add Investment', onClick: () => setShowPaymentPartners(true) },
   ];
@@ -538,12 +536,6 @@ export default function SupporterDashboard({
               ROI
             </button>
 
-            <button
-              onClick={handleOpenMenu}
-              className="flex items-center justify-center px-4 py-3.5 rounded-2xl bg-card border-2 border-border/60 text-muted-foreground shadow-sm active:scale-[0.96] transition-transform touch-manipulation min-h-[48px]"
-            >
-              <Menu className="h-5 w-5" />
-            </button>
           </div>
 
           {/* ═══ SECTION: OPPORTUNITIES ═══ */}
