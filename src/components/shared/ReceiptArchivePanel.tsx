@@ -10,8 +10,12 @@ import { format } from 'date-fns';
 import {
   Search, Loader2, X, Receipt as ReceiptIcon,
   ChevronLeft, ChevronRight, ExternalLink, Copy, Check, FileText, Archive,
+  Image as ImageIcon, FileWarning, ShieldAlert,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { classifyProof } from '@/lib/payoutProof';
+import { PayoutProofDialog, type ProofDialogRow } from '@/components/shared/PayoutProofDialog';
+import { PayoutProofIntegrityPanel } from '@/components/shared/PayoutProofIntegrityPanel';
 
 /**
  * Receipt Archive — CFO / Financial Ops surface for the platform-of-record
@@ -33,10 +37,17 @@ type Row = {
   receipt_token: string | null;
   assigned_cashout_agent_id: string | null;
   dispatch_claimed_by: string | null;
+  payout_proof: string | null;
+  payout_proof_type: string | null;
+  payout_proof_path: string | null;
+  payout_proof_bucket: string | null;
+  payout_proof_uploaded_at: string | null;
+  payout_proof_uploaded_by: string | null;
   user_name?: string | null;
   user_phone?: string | null;
   agent_name?: string | null;
   agent_phone?: string | null;
+  uploaded_by_name?: string | null;
 };
 
 const PAGE_SIZE = 25;
@@ -57,6 +68,12 @@ const METHODS = [
   { v: 'airtel_money', label: 'Airtel Money' },
   { v: 'bank_transfer', label: 'Bank Transfer' },
   { v: 'cash', label: 'Cash' },
+];
+
+const PROOF_FILTERS = [
+  { v: 'all', label: 'Any proof state' },
+  { v: 'with', label: 'With proof' },
+  { v: 'without', label: 'Missing proof' },
 ];
 
 const statusTone = (s: string) => {
