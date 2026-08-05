@@ -30255,6 +30255,8 @@ export type Database = {
           agent_name: string | null
           agent_note: string | null
           agent_phone: string | null
+          agent_request_open: boolean | null
+          has_open_rent_request: boolean | null
           lc1_created_at: string | null
           lc1_district: string | null
           lc1_id: string | null
@@ -30265,6 +30267,7 @@ export type Database = {
           lc1_sub_county: string | null
           lc1_village: string | null
           linked_landlords: number | null
+          open_rent_requests: number | null
           reason: string | null
           reject_comment: string | null
           request_id: string | null
@@ -34643,6 +34646,8 @@ export type Database = {
           agent_name: string | null
           agent_note: string | null
           agent_phone: string | null
+          agent_request_open: boolean | null
+          has_open_rent_request: boolean | null
           lc1_created_at: string | null
           lc1_district: string | null
           lc1_id: string | null
@@ -34653,6 +34658,7 @@ export type Database = {
           lc1_sub_county: string | null
           lc1_village: string | null
           linked_landlords: number | null
+          open_rent_requests: number | null
           reason: string | null
           reject_comment: string | null
           request_id: string | null
