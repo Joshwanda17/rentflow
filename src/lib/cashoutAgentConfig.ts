@@ -209,6 +209,65 @@ export function isWithdrawalRoutableToMerchant(config: CashoutAgentConfig | null
   return isWithdrawalCategoryAuthorized(config, withdrawal) && isWithdrawalChannelAuthorized(config, withdrawal);
 }
 
+const BANK_MATCH_PATTERNS: Record<string, string[]> = {
+  stanbic: ['stanbic'],
+  centenary: ['centenary', 'centinary'],
+  dfcu: ['dfcu'],
+  equity: ['equity'],
+  postbank: ['postbank', 'post bank'],
+  housing_finance: ['housing finance', 'housingfinance'],
+};
+
+const ALL_BANK_PATTERNS = Object.values(BANK_MATCH_PATTERNS).flat();
+
+/**
+ * Build a PostgREST `.or()` clause restricting withdrawal_requests to the exact
+ * channels AND providers/banks assigned to this merchant. Returns null when no
+ * restriction is needed (everything enabled, or matrix not loaded).
+ */
+export function buildChannelProviderOrClause(config: CashoutAgentConfig | null): string | null {
+  if (!config) return null;
+  const { channels, networks, banks } = config;
+  const allBanksOn = SUPPORTED_BANKS.every((b) => !!banks[b.id]);
+  if (channels.momo && channels.bank && channels.cash && networks.mtn && networks.airtel && allBanksOn) {
+    return null;
+  }
+
+  const parts: string[] = [];
+
+  if (channels.momo) {
+    const momoBase = 'or(payout_method.eq.mobile_money,payout_method.is.null,payout_method.ilike.*momo*,payout_method.ilike.*mobile*)';
+    if (networks.mtn && networks.airtel) {
+      parts.push(`and(${momoBase})`);
+    } else {
+      if (networks.mtn) parts.push(`and(${momoBase},mobile_money_provider.ilike.*mtn*)`);
+      if (networks.airtel) parts.push(`and(${momoBase},mobile_money_provider.ilike.*airtel*)`);
+      // Momo rows with no provider recorded still route on the channel flag.
+      parts.push(`and(${momoBase},mobile_money_provider.is.null)`);
+    }
+  }
+
+  if (channels.bank) {
+    const bankBase = 'payout_method.ilike.*bank*';
+    for (const b of SUPPORTED_BANKS) {
+      if (!banks[b.id]) continue;
+      const pats = BANK_MATCH_PATTERNS[b.id] || [b.id];
+      parts.push(`and(${bankBase},or(${pats.map((p) => `bank_name.ilike.*${p}*`).join(',')}))`);
+    }
+    // Banks outside the supported list are not provider-gated — keep them
+    // routable to any bank-enabled merchant so they are never stranded.
+    const negations = ALL_BANK_PATTERNS.map((p) => `bank_name.not.ilike.*${p}*`).join(',');
+    parts.push(`and(${bankBase},or(bank_name.is.null,and(${negations})))`);
+  }
+
+  if (channels.cash) {
+    parts.push('and(or(payout_method.ilike.*cash*,payout_method.ilike.*pickup*))');
+  }
+
+  if (parts.length === 0) return 'id.eq.00000000-0000-0000-0000-000000000000';
+  return parts.join(',');
+}
+
 export interface CashoutAgentConfig {
   channels: { momo: boolean; bank: boolean; cash: boolean };
   networks: { mtn: boolean; airtel: boolean };
