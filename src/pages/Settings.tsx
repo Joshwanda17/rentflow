@@ -222,6 +222,8 @@ export default function Settings() {
   const [accountTab, setAccountTab] = useState<AccountTab>('profile');
   const [deferredReady, setDeferredReady] = useState(false);
   const [pushOpen, setPushOpen] = useState(false);
+  const [themeOpen, setThemeOpen] = useState(false);
+
 
   useEffect(() => { if (!authLoading && !user) navigate('/auth'); }, [user, authLoading, navigate]);
   useEffect(() => { if (user) fetchProfile(); }, [user]);
