@@ -245,7 +245,7 @@ export function Lc1VerificationInboxPanel({ onResolved, standalone = false, init
         search: debounced.length >= 2 ? debounced : null,
         totalMatches: scope === 'all'
           ? counts.pending + counts.verified + counts.rejected
-          : counts[scope as Lc1InboxStatus],
+          : counts[scope as Lc1InboxStatus] ?? 0,
         generatedBy: (user as any)?.email ?? null,
       });
       const url = URL.createObjectURL(blob);
@@ -358,8 +358,15 @@ export function Lc1VerificationInboxPanel({ onResolved, standalone = false, init
                 </div>
                 <div className="shrink-0 flex flex-col items-end gap-1">
                   <StatusBadge status={row.status} />
-                  {row.source === 'agent_request' && status === 'pending' && (
+                  {row.agent_request_open && row.status === 'pending' && (
                     <Badge variant="outline" className="text-[9px] border-amber-500/40 text-amber-700">Agent raised</Badge>
+                  )}
+                  {row.has_open_rent_request && row.status === 'pending' && (
+                    <Badge variant="outline" className="text-[9px] border-teal-500/40 text-teal-700">
+                      {(row.open_rent_requests ?? 1) > 1
+                        ? `${row.open_rent_requests} rent applications waiting`
+                        : 'Rent application waiting'}
+                    </Badge>
                   )}
                 </div>
               </div>
