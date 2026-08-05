@@ -451,6 +451,7 @@ function ContractDocuments({
   const [title, setTitle] = useState('');
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [viewerDoc, setViewerDoc] = useState<DocumentRow | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -472,13 +473,8 @@ function ContractDocuments({
     void refresh();
   }, [refresh]);
 
-  const view = async (storagePath: string) => {
-    try {
-      const url = await getDocumentUrl(storagePath);
-      window.open(url, '_blank', 'noopener,noreferrer');
-    } catch (err) {
-      toast.error((err as Error).message);
-    }
+  const view = (doc: DocumentRow) => {
+    setViewerDoc(doc);
   };
 
   const attach = async () => {
