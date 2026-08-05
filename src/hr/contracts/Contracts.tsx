@@ -552,13 +552,21 @@ function ContractDocuments({
                   {d.id === contract.document_id ? ' · linked' : ''}
                 </span>
               </span>
-              <Button size="sm" variant="outline" onClick={() => void view(d.storage_path)}>
+              <Button size="sm" variant="outline" onClick={() => view(d)}>
                 View
               </Button>
             </li>
           ))}
         </ul>
       )}
+
+      <DocumentViewer
+        open={viewerDoc !== null}
+        onClose={() => setViewerDoc(null)}
+        bucket="hr-documents"
+        path={viewerDoc?.storage_path?.replace(/^\/+/,'') ?? ''}
+        title={viewerDoc?.title ?? 'Document'}
+      />
 
       <div className="space-y-2 rounded border p-2">
         <Label htmlFor="doc-file" className="text-xs">
