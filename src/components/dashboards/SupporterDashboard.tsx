@@ -7,7 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useOffline } from '@/contexts/OfflineContext';
 import { Button } from '@/components/ui/button';
 import { 
-  CreditCard, Calculator, FileText, Menu, ChevronDown, BadgeCheck, Wallet, ChevronRight
+  CreditCard, Calculator, FileText, ChevronDown, BadgeCheck, Wallet, ChevronRight
 } from 'lucide-react';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
