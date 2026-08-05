@@ -222,6 +222,8 @@ export default function Settings() {
   const [accountTab, setAccountTab] = useState<AccountTab>('profile');
   const [deferredReady, setDeferredReady] = useState(false);
   const [pushOpen, setPushOpen] = useState(false);
+  const [themeOpen, setThemeOpen] = useState(false);
+
 
   useEffect(() => { if (!authLoading && !user) navigate('/auth'); }, [user, authLoading, navigate]);
   useEffect(() => { if (user) fetchProfile(); }, [user]);
@@ -651,7 +653,17 @@ export default function Settings() {
               <div className="space-y-4">
                 <Card className="border-border/40 rounded-2xl">
                   <CardContent className="pt-5 space-y-5">
-                  <SettingsRow label="Dark / Light" description="Change the look"><ThemeToggle /></SettingsRow>
+                  <Collapsible open={themeOpen} onOpenChange={setThemeOpen} className="space-y-2">
+                    <CollapsibleTrigger className="flex w-full items-center justify-between gap-2 rounded-lg border border-border/50 p-2.5 text-left">
+                      <span className="flex items-center gap-2"><Palette className="h-4 w-4 text-primary" /><span className="font-medium text-sm">Dark / Light</span></span>
+                      <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", themeOpen && "rotate-180")} />
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="space-y-2 pt-1">
+                      <p className="text-[11px] text-muted-foreground">Change the look of the app across light and dark modes.</p>
+                      <ThemeToggle />
+                    </CollapsibleContent>
+                  </Collapsible>
+
                   <div className="space-y-3">
                     <div className="flex items-center gap-2"><Type className="h-4 w-4 text-primary" /><p className="font-medium text-sm">Text Size</p></div>
                     <RadioGroup value={fontSize} onValueChange={(v) => setFontSize(v as any)} className="grid grid-cols-2 sm:grid-cols-4 gap-2">
