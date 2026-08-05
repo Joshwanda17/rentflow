@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Loader2, ExternalLink } from 'lucide-react';
+import { Loader2, Eye } from 'lucide-react';
 import PersonalLayout from '@/components/layout/PersonalLayout';
 import { supabase } from '@/integrations/supabase/client';
-import { getSignedUrl } from '@/lib/storageUtils';
+import DocumentViewer from '@/components/documents/DocumentViewer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
