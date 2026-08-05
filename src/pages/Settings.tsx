@@ -109,7 +109,7 @@ function SettingsGroup({ children, className }: { children: ReactNode; className
 }
 
 /** A single tappable (or static) row inside a SettingsGroup. */
-function SettingsRow({
+function SettingsLinkRow({
   icon: Icon,
   label,
   helper,
