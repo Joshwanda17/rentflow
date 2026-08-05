@@ -1199,8 +1199,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   async function openPartnerDetail(partnerId: string) {
     setDetailLoading(true);
     setDetailPartner(null);
+    setDetailSelfCommitments([]);
     try {
-      const [profileRes, walletRes, portfolioRes, ledgerRes] = await Promise.all([
+      const [profileRes, walletRes, portfolioRes, ledgerRes, selfCommitRes, selfLinesRes] = await Promise.all([
         supabase.from('profiles').select('id, full_name, phone, email, created_at, frozen_at, frozen_reason, funder_verified_at, signup_source').eq('id', partnerId).single(),
         supabase.from('wallets').select('balance, withdrawable_balance, float_balance').eq('user_id', partnerId).single(),
         supabase.from('investor_portfolios')
@@ -1211,13 +1212,71 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           .select('amount, direction, category')
           .eq('user_id', partnerId)
           .in('category', ['supporter_rent_fund', 'supporter_facilitation_capital', 'coo_proxy_investment']),
+        // Self-managed commitments (Self Portfolio Management) — these never
+        // create an investor_portfolios row, so read them directly.
+        supabase.from('partner_self_commitments')
+          .select('id, committed_amount, term_months, monthly_rate, lines_count, status, payout_day, next_payout_at, term_end_at, total_earned, total_paid, created_at')
+          .eq('partner_id', partnerId)
+          .order('created_at', { ascending: false }),
+        supabase.from('partner_self_funding_lines')
+          .select('id, commitment_id, rent_request_id, principal, status')
+          .eq('partner_id', partnerId)
+          .order('created_at', { ascending: false }),
       ]);
 
       const ledgerData = ledgerRes.data || [];
       const ledgerFunded = ledgerData.filter(e => e.direction === 'cash_out').reduce((s, e) => s + (e.amount || 0), 0);
       const ledgerDeals = ledgerData.filter(e => e.direction === 'cash_out').length;
       const portfolios = (portfolioRes.data || []) as PortfolioRow[];
-      const totalROIEarned = portfolios.reduce((s, p) => s + (p.total_roi_earned || 0), 0);
+      const portfolioROIEarned = portfolios.reduce((s, p) => s + (p.total_roi_earned || 0), 0);
+
+      // ── Self-managed commitments: attach lines + tenant names ─────────────
+      const selfLines = (selfLinesRes.data || []) as any[];
+      const rentRequestIds = Array.from(new Set(selfLines.map(l => l.rent_request_id).filter(Boolean)));
+      const tenantNameByRequest: Record<string, string> = {};
+      if (rentRequestIds.length > 0) {
+        const { data: rrRows } = await supabase
+          .from('rent_requests')
+          .select('id, tenant_id')
+          .in('id', rentRequestIds);
+        const tenantIds = Array.from(new Set((rrRows || []).map((r: any) => r.tenant_id).filter(Boolean)));
+        const nameById: Record<string, string> = {};
+        if (tenantIds.length > 0) {
+          const { data: tenantRows } = await supabase
+            .from('profiles')
+            .select('id, full_name')
+            .in('id', tenantIds);
+          (tenantRows || []).forEach((t: any) => { nameById[t.id] = t.full_name; });
+        }
+        (rrRows || []).forEach((r: any) => {
+          if (r.tenant_id && nameById[r.tenant_id]) tenantNameByRequest[r.id] = nameById[r.tenant_id];
+        });
+      }
+      const selfCommitments: SelfCommitmentRow[] = ((selfCommitRes.data || []) as any[]).map(c => ({
+        ...c,
+        committed_amount: Number(c.committed_amount || 0),
+        total_earned: Number(c.total_earned || 0),
+        total_paid: Number(c.total_paid || 0),
+        lines: selfLines
+          .filter(l => l.commitment_id === c.id)
+          .map(l => ({
+            id: l.id,
+            rent_request_id: l.rent_request_id,
+            principal: Number(l.principal || 0),
+            status: l.status,
+            tenant_name: tenantNameByRequest[l.rent_request_id] || null,
+          })),
+      }));
+      setDetailSelfCommitments(selfCommitments);
+
+      // Self-managed principal is live partner capital and must count towards
+      // Principal / Returns, otherwise a self-managed partner reads as empty.
+      const SELF_ACTIVE = new Set(['active', 'matured', 'pending_payout']);
+      const selfPrincipal = selfCommitments
+        .filter(c => SELF_ACTIVE.has(c.status))
+        .reduce((s, c) => s + c.committed_amount, 0);
+      const selfEarned = selfCommitments.reduce((s, c) => s + c.total_earned, 0);
+      const totalROIEarned = portfolioROIEarned + selfEarned;
 
       // Fetch renewal counts and pending top-ups for these portfolios
       const portfolioIds = portfolios.map(p => p.id);
