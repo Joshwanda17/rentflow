@@ -8,6 +8,7 @@ import welileWordmark from '@/assets/welile-wordmark.png';
 import { downloadPayoutReceiptPdf, receiptMethodLabel, receiptQrValue, type PayoutReceiptData as ReceiptData } from '@/lib/payoutReceiptPdf';
 import { verifyReceiptChecksum } from '@/lib/receiptVerification';
 import { WelileStamp } from '@/components/receipts/WelileStamp';
+import ScreenLoader from '@/components/common/ScreenLoader';
 
 /**
  * Public proof-of-payment receipt. Opens instantly from the SMS link a customer
@@ -62,9 +63,7 @@ export default function PayoutReceipt() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-muted/30">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
+      <ScreenLoader className="bg-muted/30" />
     );
   }
 
