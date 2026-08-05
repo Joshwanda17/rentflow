@@ -55,7 +55,7 @@ export function CTOLedgerExport() {
       while (true) {
         const { data, error } = await supabase
           .from('general_ledger')
-          .select('id, created_at, transaction_date, ledger_scope, classification, category, direction, amount, currency, account, reference_id, linked_party, source_table, source_id, transaction_group_id, description, running_balance')
+          .select('id, created_at, transaction_date, ledger_scope, classification, category, direction, amount, currency, account, reference_id, linked_party, source_table, source_id, transaction_group_id, description')
           .eq('user_id', profile.id)
           .order('created_at', { ascending: true })
           .range(from, from + pageSize - 1);
@@ -72,7 +72,7 @@ export function CTOLedgerExport() {
       }
 
       const headers = [
-        'created_at','transaction_date','ledger_scope','classification','category','direction','amount','currency','account','reference_id','linked_party','source_table','source_id','transaction_group_id','description','running_balance','id',
+        'created_at','transaction_date','ledger_scope','classification','category','direction','amount','currency','account','reference_id','linked_party','source_table','source_id','transaction_group_id','description','id',
       ];
       const lines = [headers.join(',')];
       for (const r of all) {
@@ -104,14 +104,14 @@ export function CTOLedgerExport() {
       const pageSize = 1000;
       let from = 0;
       const headers = [
-        'created_at','transaction_date','ledger_scope','classification','category','direction','amount','currency','account','user_id','reference_id','linked_party','source_table','source_id','transaction_group_id','description','running_balance','id',
+        'created_at','transaction_date','ledger_scope','classification','category','direction','amount','currency','account','user_id','reference_id','linked_party','source_table','source_id','transaction_group_id','description','id',
       ];
       const lines: string[] = [headers.join(',')];
       let total = 0;
       while (true) {
         const { data, error } = await supabase
           .from('general_ledger')
-          .select('id, created_at, transaction_date, ledger_scope, classification, category, direction, amount, currency, account, user_id, reference_id, linked_party, source_table, source_id, transaction_group_id, description, running_balance')
+          .select('id, created_at, transaction_date, ledger_scope, classification, category, direction, amount, currency, account, user_id, reference_id, linked_party, source_table, source_id, transaction_group_id, description')
           .order('created_at', { ascending: true })
           .range(from, from + pageSize - 1);
         if (error) throw error;

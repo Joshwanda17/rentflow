@@ -34,7 +34,6 @@ interface LedgerEntry {
   category: string;
   debit: number;
   credit: number;
-  balance: number;
   reference: string;
   party: string;
 }
@@ -121,7 +120,7 @@ export function GeneralLedger() {
   const buildQuery = useCallback(() => {
     let query = supabase
       .from('general_ledger')
-      .select('id, transaction_date, amount, direction, category, description, reference_id, linked_party, running_balance, ledger_scope');
+      .select('id, transaction_date, amount, direction, category, description, reference_id, linked_party, ledger_scope');
 
     if (startDate) query = query.gte('transaction_date', startDate.toISOString());
     if (endDate) query = query.lte('transaction_date', endDate.toISOString());
@@ -155,7 +154,6 @@ export function GeneralLedger() {
         category: row.category || 'Other',
         debit: row.direction === 'cash_out' ? Number(row.amount) : 0,
         credit: row.direction === 'cash_in' ? Number(row.amount) : 0,
-        balance: Number(row.running_balance) || 0,
         reference: row.reference_id || '-',
         party: row.linked_party || '-',
       }));
@@ -292,7 +290,7 @@ export function GeneralLedger() {
           <div class="summary-item"><div class="summary-label">Net Balance</div><div class="summary-value">UGX ${(summary.totalCredits - summary.totalDebits).toLocaleString()}</div></div>
           <div class="summary-item"><div class="summary-label">Entries</div><div class="summary-value">${summary.entryCount.toLocaleString()}</div></div>
         </div><br/>
-        <table><thead><tr><th>#</th><th>Date</th><th>Description</th><th>Category</th><th>Reference</th><th>Debit (UGX)</th><th>Credit (UGX)</th><th>Balance (UGX)</th></tr></thead>
+        <table><thead><tr><th>#</th><th>Date</th><th>Description</th><th>Category</th><th>Reference</th><th>Debit (UGX)</th><th>Credit (UGX)</th></tr></thead>
         <tbody>
           ${entries.map((e, i) => `<tr>
             <td>${page * PAGE_SIZE + i + 1}</td>
@@ -300,7 +298,6 @@ export function GeneralLedger() {
             <td>${e.description}</td><td>${e.category}</td><td>${e.reference}</td>
             <td class="debit">${e.debit > 0 ? e.debit.toLocaleString() : '-'}</td>
             <td class="credit">${e.credit > 0 ? e.credit.toLocaleString() : '-'}</td>
-            <td>${e.balance.toLocaleString()}</td>
           </tr>`).join('')}
         </tbody></table></body></html>
     `);
@@ -310,12 +307,12 @@ export function GeneralLedger() {
 
   const handleExportCSV = () => {
     exportToCSV({
-      headers: ['#', 'Date', 'Description', 'Category', 'Reference', 'Party', 'Debit', 'Credit', 'Balance'],
+      headers: ['#', 'Date', 'Description', 'Category', 'Reference', 'Party', 'Debit', 'Credit'],
       rows: entries.map((e, i) => [
         page * PAGE_SIZE + i + 1,
         format(new Date(e.date), 'dd/MM/yyyy'),
         e.description, e.category, e.reference, e.party,
-        e.debit, e.credit, e.balance,
+        e.debit, e.credit,
       ]),
     }, 'general_ledger');
     toast.success('CSV exported successfully');
@@ -367,7 +364,7 @@ export function GeneralLedger() {
       pdf.setFontSize(8);
       pdf.setFont('helvetica', 'bold');
       pdf.setTextColor(80, 80, 80);
-      ['#', 'Date', 'Description', 'Category', 'Reference', 'Debit (UGX)', 'Credit (UGX)', 'Balance (UGX)'].forEach((h, i) => {
+      ['#', 'Date', 'Description', 'Category', 'Reference', 'Debit (UGX)', 'Credit (UGX)'].forEach((h, i) => {
         pdf.text(h, cols[i], y);
       });
       y += 2;
@@ -395,7 +392,6 @@ export function GeneralLedger() {
         pdf.setTextColor(22, 163, 74);
         pdf.text(e.credit > 0 ? e.credit.toLocaleString() : '-', cols[6], y);
         pdf.setTextColor(0, 0, 0);
-        pdf.text(e.balance.toLocaleString(), cols[7], y);
         y += 5;
       }
 

@@ -18,7 +18,6 @@ type LedgerRow = {
   wallet_bucket: string | null;
   user_id: string | null;
   linked_party: string | null;
-  running_balance: number | null;
   classification: string | null;
   recipient_type: string | null;
 };
@@ -35,7 +34,7 @@ type WalletRow = {
 async function fetchLedgerForCollection(collectionId: string): Promise<LedgerRow[]> {
   const { data, error } = await supabase
     .from('general_ledger')
-    .select('id, created_at, transaction_date, transaction_group_id, amount, direction, category, description, account, ledger_scope, wallet_bucket, user_id, linked_party, running_balance, classification, recipient_type')
+    .select('id, created_at, transaction_date, transaction_group_id, amount, direction, category, description, account, ledger_scope, wallet_bucket, user_id, linked_party, classification, recipient_type')
     .eq('source_table', 'agent_collections')
     .eq('source_id', collectionId)
     .order('created_at', { ascending: true });
