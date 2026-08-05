@@ -35,7 +35,6 @@ import {
 } from '@/components/ui/table';
 import {
   createContract,
-  getDocumentUrl,
   listContracts,
   listDocTypes,
   listDocuments,
@@ -48,6 +47,7 @@ import {
 } from './api';
 import { getStaffDirectory } from '@/hr/api/people';
 import { supabase } from '@/hr/api/client';
+import DocumentViewer from '@/components/documents/DocumentViewer';
 
 const CONTRACT_TYPES = [
   { value: 'employment', label: 'Employment' },
