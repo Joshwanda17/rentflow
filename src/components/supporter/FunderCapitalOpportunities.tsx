@@ -75,6 +75,30 @@ const DIRECT_FUNDING_STEPS: HowItWorksStep[] = [
   },
 ];
 
+// Steps shown in the collapsible "How it works" explainer on the Angel Pool view.
+const ANGEL_POOL_STEPS: HowItWorksStep[] = [
+  {
+    title: 'Buy Welile shares',
+    description: `Each share costs UGX 20,000 and is bought straight from your wallet balance.`,
+    icon: Coins,
+  },
+  {
+    title: 'You own equity in the pool',
+    description: `Your shares grant you a stake in the ${POOL_PERCENT}% Welile Angel Pool.`,
+    icon: BadgeCheck,
+  },
+  {
+    title: 'Capital builds the platform',
+    description: 'Angel capital funds Welile growth — agents, technology and tenant coverage.',
+    icon: Rocket,
+  },
+  {
+    title: 'Value grows with Welile',
+    description: 'Your shareholding is revalued as the company grows, tracked in your dashboard.',
+    icon: TrendingUp,
+  },
+];
+
 // ─── Reusable amount input ───
 function AmountInput({
   amount, onAmountChange, onSliderChange, walletBalance, formatAmountCompact, exceedsBalance,
@@ -458,13 +482,7 @@ export function FunderCapitalOpportunities() {
       subtitle={`Buy a Welile share — up to ${POOL_PERCENT}% equity pool`}
       onBack={() => setView('menu')}
     >
-      <div className="rounded-xl bg-primary/5 border border-primary/20 p-3.5 space-y-2">
-        <p className="text-xs font-bold text-foreground">Own shares in Welile's future</p>
-        <p className="text-[11px] text-muted-foreground leading-relaxed">
-          Invest in the long-term Welile vision. Each share is {formatAmountCompact(PRICE_PER_SHARE)} and grants
-          you equity in the Welile Angel Pool.
-        </p>
-      </div>
+      <HowItWorksSteps steps={ANGEL_POOL_STEPS} label="Own shares in Welile's future" />
 
       <AmountInput
         amount={angelAmount}
