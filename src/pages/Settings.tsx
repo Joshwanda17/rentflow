@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, User, Phone, Mail, Save, Loader2, Camera, Shield, Home, Users, Wallet, Building2, Check, Type, Vibrate, RotateCcw, LogIn, Volume2, RefreshCw, Scale, Lock, Eye, EyeOff, LayoutDashboard, Unlock, Settings as SettingsIcon, Palette, ShieldCheck, Globe, DollarSign, Zap, Smartphone, Clock, Wind, Bell } from 'lucide-react';
+import { ArrowLeft, User, Phone, Mail, Save, Loader2, Camera, Shield, Home, Users, Wallet, Building2, Check, Type, Vibrate, RotateCcw, LogIn, Volume2, RefreshCw, Scale, Lock, Eye, EyeOff, LayoutDashboard, Unlock, Settings as SettingsIcon, Palette, ShieldCheck, Globe, DollarSign, Zap, Smartphone, Clock, Wind, Bell, ChevronRight } from 'lucide-react';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useCurrency, currencies as ALL_CURRENCIES } from '@/hooks/useCurrency';
 import { Language, languageNames, languageFlags } from '@/i18n/translations';
@@ -97,6 +97,58 @@ function LazySection({ children, name }: { children: ReactNode; name: string }) 
       <Suspense fallback={<SectionSkeleton />}>{children}</Suspense>
     </SectionBoundary>
   );
+}
+
+/** iOS-style grouped container: rows separated by hairline dividers. */
+function SettingsGroup({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <div className={cn('rounded-2xl border border-border/40 bg-card overflow-hidden divide-y divide-border/40', className)}>
+      {children}
+    </div>
+  );
+}
+
+/** A single tappable (or static) row inside a SettingsGroup. */
+function SettingsLinkRow({
+  icon: Icon,
+  label,
+  helper,
+  onClick,
+  trailing,
+  chevron,
+}: {
+  icon?: typeof User;
+  label: string;
+  helper?: string;
+  onClick?: () => void;
+  trailing?: ReactNode;
+  chevron?: boolean;
+}) {
+  const inner = (
+    <>
+      {Icon && <Icon className="h-4 w-4 text-primary shrink-0" />}
+      <div className="flex-1 min-w-0 text-left">
+        <p className="text-sm font-semibold truncate">{label}</p>
+        {helper && <p className="text-xs text-muted-foreground truncate">{helper}</p>}
+      </div>
+      {trailing}
+      {(chevron ?? !!onClick) && <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
+    </>
+  );
+  const base = 'w-full flex items-center gap-3 px-4 py-3 min-h-[48px]';
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className={cn(base, 'transition-colors hover:bg-muted/40 active:bg-muted/60 touch-manipulation')}>
+        {inner}
+      </button>
+    );
+  }
+  return <div className={base}>{inner}</div>;
+}
+
+/** Section heading used above grouped rows. */
+function SectionHeading({ children }: { children: ReactNode }) {
+  return <h2 className="px-1 text-base font-semibold tracking-tight">{children}</h2>;
 }
 
 interface Profile { id: string; full_name: string; email: string; phone: string; avatar_url: string | null; }
@@ -301,37 +353,17 @@ export default function Settings() {
         />
         <meta property="og:url" content="https://welile.tech/settings" />
       </Helmet>
-      <div className="container mx-auto px-4 py-4 max-w-2xl pb-24">
-        {/* Header */}
-        <div className="sticky top-0 z-30 bg-background -mx-4 px-4 border-b border-border/30 mb-2">
-          <div className="flex items-center gap-3 pt-2 pb-2">
+      <div className="container mx-auto px-4 py-4 max-w-2xl pb-24 [padding-bottom:calc(6rem+env(safe-area-inset-bottom))]">
+        {/* Header — centered title, back on the left, Home on the right */}
+        <div className="sticky top-0 z-30 bg-background -mx-4 px-4 border-b border-border/30 mb-3">
+          <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 pt-2 pb-2">
             <Button variant="ghost" size="icon" onClick={() => navigate(roleToSlug(role))} className="rounded-xl h-10 w-10 shrink-0">
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <div className="flex-1 min-w-0">
-              <h1 className="text-xl font-bold tracking-tight">Settings</h1>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => navigate(roleToSlug(role))} className="rounded-xl gap-1.5 text-xs shrink-0">
-              <Home className="h-3.5 w-3.5" /> Home
+            <h1 className="text-lg font-bold tracking-tight text-center truncate">Settings</h1>
+            <Button variant="ghost" size="icon" onClick={() => navigate(roleToSlug(role))} aria-label="Home" className="rounded-xl h-10 w-10 shrink-0">
+              <Home className="h-5 w-5" />
             </Button>
-          </div>
-
-          {/* Compact profile */}
-          <div className="flex items-center gap-3 pb-2">
-            <Avatar className="h-9 w-9 border border-primary/20">
-              <AvatarImage src={profile?.avatar_url || undefined} alt={fullName} />
-              <AvatarFallback className="text-xs bg-primary/10 text-primary font-bold">{getInitials(fullName || 'U')}</AvatarFallback>
-            </Avatar>
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-sm truncate">{fullName || 'Your Name'}</p>
-              <div className="flex flex-wrap gap-1">
-                {roles.slice(0, 2).map((role) => {
-                  const config = roleConfig[role];
-                  return <Badge key={role} className={`${config.color} text-[9px] px-1.5 py-0 border`}>{config.label}</Badge>;
-                })}
-                {roles.length > 2 && <Badge variant="outline" className="text-[9px] px-1.5 py-0">+{roles.length - 2}</Badge>}
-              </div>
-            </div>
           </div>
 
           {/* Tab bar */}
@@ -344,6 +376,25 @@ export default function Settings() {
                 <Icon className="h-3.5 w-3.5" />{label}
               </button>
             ))}
+          </div>
+        </div>
+
+        {/* Hero — profile summary */}
+        <div className="rounded-2xl border border-border/40 bg-card p-4 flex items-center gap-4">
+          <Avatar className="h-14 w-14 border-2 border-primary/20">
+            <AvatarImage src={profile?.avatar_url || undefined} alt={fullName} />
+            <AvatarFallback className="text-base bg-primary/10 text-primary font-bold">{getInitials(fullName || 'U')}</AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0">
+            <p className="font-bold truncate">{fullName || 'Your Name'}</p>
+            {profile?.email && <p className="text-xs text-muted-foreground truncate">{profile.email}</p>}
+            <div className="flex flex-wrap gap-1 mt-1.5">
+              {roles.slice(0, 3).map((r) => {
+                const config = roleConfig[r];
+                return config ? <Badge key={r} className={`${config.color} text-[9px] px-1.5 py-0 border`}>{config.label}</Badge> : null;
+              })}
+              {roles.length > 3 && <Badge variant="outline" className="text-[9px] px-1.5 py-0">+{roles.length - 3}</Badge>}
+            </div>
           </div>
         </div>
 
@@ -377,20 +428,23 @@ export default function Settings() {
                 <div className="flex-1 min-w-0 space-y-4">
                   {accountTab === 'profile' && (
                     <div className="space-y-4">
-                      <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Profile</h2>
-                      <div className="flex items-center gap-4 p-4 rounded-2xl border border-border/40 bg-card">
-                        <div className="relative">
-                          <Avatar className="h-16 w-16 border-2 border-primary/20">
-                            <AvatarImage src={profile?.avatar_url || undefined} alt={fullName} />
-                            <AvatarFallback className="text-lg bg-primary/10 text-primary font-bold">{getInitials(fullName || 'U')}</AvatarFallback>
-                          </Avatar>
-                          <Button size="icon" variant="secondary" className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full shadow border-2 border-background" onClick={() => fileInputRef.current?.click()} disabled={uploadingAvatar}>
-                            {uploadingAvatar ? <Loader2 className="h-3 w-3 animate-spin" /> : <Camera className="h-3 w-3" />}
-                          </Button>
-                          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
-                        </div>
-                        <div className="min-w-0"><p className="font-bold truncate">{fullName || 'Your Name'}</p><p className="text-xs text-muted-foreground truncate">{profile?.email}</p></div>
-                      </div>
+                      <SectionHeading>Profile</SectionHeading>
+                      <SettingsGroup>
+                        <SettingsLinkRow
+                          icon={Camera}
+                          label={uploadingAvatar ? 'Uploading photo…' : 'Profile photo'}
+                          helper="Tap to upload a new picture"
+                          onClick={() => fileInputRef.current?.click()}
+                          trailing={uploadingAvatar ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> : undefined}
+                        />
+                        <SettingsLinkRow
+                          icon={Globe}
+                          label="Profile details"
+                          helper="Location, role, occupation, referring agent"
+                          onClick={() => window.dispatchEvent(new CustomEvent('open-profile-editor'))}
+                        />
+                      </SettingsGroup>
+                      <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
                       <Card className="border-border/40 rounded-2xl">
                         <CardContent className="pt-5 space-y-3">
                           <div className="space-y-1.5">
@@ -469,31 +523,12 @@ export default function Settings() {
                           })()}
                         </CardContent>
                       </Card>
-                      <Card className="rounded-2xl">
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-base flex items-center gap-2">
-                            <Globe className="h-4 w-4 text-primary" /> Profile details
-                          </CardTitle>
-                          <CardDescription>
-                            Update your location, role, occupation, or referring agent.
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <Button
-                            variant="outline"
-                            className="w-full rounded-xl gap-2"
-                            onClick={() => window.dispatchEvent(new CustomEvent('open-profile-editor'))}
-                          >
-                            <User className="h-4 w-4" /> Edit profile details
-                          </Button>
-                        </CardContent>
-                      </Card>
                     </div>
                   )}
 
                   {accountTab === 'contact' && (
                     <div className="space-y-4">
-                      <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Contact</h2>
+                      <SectionHeading>Contact</SectionHeading>
                       {user && profile && (
                         <LazySection name="EmailEditor">
                           <EmailEditor mode="self" userId={user.id} currentEmail={profile.email} onSaved={(e) => setProfile({ ...profile, email: e })} />
@@ -507,7 +542,7 @@ export default function Settings() {
 
                   {accountTab === 'withdrawal' && (
                     <div className="space-y-4">
-                      <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Withdrawal account</h2>
+                      <SectionHeading>Withdrawal account</SectionHeading>
                       {user && (
                         <LazySection name="MobileMoneyName">
                           <MobileMoneyNameCard userId={user.id} />
@@ -519,7 +554,7 @@ export default function Settings() {
 
                   {accountTab === 'access' && (
                     <div className="space-y-4">
-                      <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Sign-in methods</h2>
+                      <SectionHeading>Sign-in methods</SectionHeading>
                       {user && (
                         <LazySection name="AccountLinking">
                           <AccountLinkingCard />
@@ -530,7 +565,7 @@ export default function Settings() {
 
                   {accountTab === 'vault' && (
                     <div className="space-y-4">
-                      <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Offline PDF vault</h2>
+                      <SectionHeading>Offline PDF vault</SectionHeading>
                       <LazySection name="ArchivedPdfs"><ArchivedPdfsCard /></LazySection>
                     </div>
                   )}
@@ -541,17 +576,21 @@ export default function Settings() {
             {activeSection === 'roles' && (
               <div className="space-y-4">
                 <LazySection name="StaffAccess"><StaffAccessCard /></LazySection>
-                <Card className="border-border/40 rounded-2xl">
-                  <CardContent className="py-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2 flex-1 min-w-0">
-                        {preferences.unlockAllRoles ? <Unlock className="h-5 w-5 text-success shrink-0" /> : <Lock className="h-5 w-5 text-primary shrink-0" />}
-                        <div className="min-w-0"><p className="font-bold text-sm">Open All Dashboards</p><p className="text-xs text-muted-foreground">Use all role views</p></div>
-                      </div>
-                      <Switch checked={preferences.unlockAllRoles} onCheckedChange={(c) => { updatePreference('unlockAllRoles', c); toast.success(c ? 'All dashboards open!' : 'Back to default'); }} className="shrink-0" />
-                    </div>
-                  </CardContent>
-                </Card>
+                <SettingsGroup>
+                  <SettingsLinkRow
+                    icon={preferences.unlockAllRoles ? Unlock : Lock}
+                    label="Open All Dashboards"
+                    helper="Use all role views"
+                    chevron={false}
+                    trailing={
+                      <Switch
+                        checked={preferences.unlockAllRoles}
+                        onCheckedChange={(c) => { updatePreference('unlockAllRoles', c); toast.success(c ? 'All dashboards open!' : 'Back to default'); }}
+                        className="shrink-0"
+                      />
+                    }
+                  />
+                </SettingsGroup>
                 <Card className="border-border/40 rounded-2xl">
                   <CardHeader className="pb-2"><CardTitle className="text-sm">Your Roles</CardTitle></CardHeader>
                   <CardContent>
