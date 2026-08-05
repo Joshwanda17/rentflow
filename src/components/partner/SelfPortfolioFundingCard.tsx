@@ -280,7 +280,9 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
         </div>
       )}
 
-      {plans.map((plan) => {
+      {plans
+        .slice(page * PLANS_PER_PAGE, page * PLANS_PER_PAGE + PLANS_PER_PAGE)
+        .map((plan) => {
         const isFunded = fundedIds.includes(plan.rent_request_id);
         const heldByOther = !!plan.held_by && plan.held_by !== partnerId;
         const isSelected = selected.includes(plan.rent_request_id);
@@ -395,6 +397,34 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
           </Card>
         );
       })}
+
+      {plans.length > PLANS_PER_PAGE && (
+        <div className="flex items-center justify-between gap-2 px-1 pt-1">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-[11px]"
+            disabled={page === 0}
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+          >
+            <ChevronLeft className="h-3.5 w-3.5" />
+            <span className="ml-1">Previous</span>
+          </Button>
+          <p className="text-[11px] font-semibold text-muted-foreground">
+            Page {page + 1} of {Math.ceil(plans.length / PLANS_PER_PAGE)}
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-[11px]"
+            disabled={page >= Math.ceil(plans.length / PLANS_PER_PAGE) - 1}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            <span className="mr-1">Next</span>
+            <ChevronRight className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      )}
 
       {selected.length > 0 && (
         <Card className="p-4 rounded-2xl sticky bottom-4 shadow-lg">
