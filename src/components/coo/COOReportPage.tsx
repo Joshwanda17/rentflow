@@ -97,6 +97,12 @@ export interface COOReportPageProps {
 
   /** Show a loading state over the page while parent is fetching. */
   loading?: boolean;
+
+  /**
+   * Optional section rendered directly below the KPI grid. Receives the active
+   * date range so the section can scope its own live queries to the selection.
+   */
+  belowKpis?: (range: { from?: Date; to?: Date }) => React.ReactNode;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -166,6 +172,7 @@ export default function COOReportPage(props: COOReportPageProps) {
     title, description, icon: Icon,
     statusOptions = [], activityTypeOptions = [], departmentOptions = [], staffOptions = [],
     kpis, charts, activities, insights, onGenerate, loading = false,
+    belowKpis,
   } = props;
 
   const navigate = useNavigate();
