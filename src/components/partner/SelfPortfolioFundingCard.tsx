@@ -7,12 +7,13 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDynamic } from '@/lib/currencyFormat';
 import { toast } from 'sonner';
-import { CalendarClock, Home, Loader2, MapPin, RefreshCw, ShieldCheck, Wallet } from 'lucide-react';
+import { CalendarClock, ChevronLeft, ChevronRight, Home, Loader2, MapPin, RefreshCw, ShieldCheck, Wallet } from 'lucide-react';
 
 import { SelfPortfolioDeployDialog } from './SelfPortfolioDeployDialog';
 import { SelfPortfolioPlanDetailSheet } from './SelfPortfolioPlanDetailSheet';
 
 const MIN_FUNDING = 50000;
+const PLANS_PER_PAGE = 4;
 
 interface EarningsSummary {
   nextPayoutDate: string | null;
@@ -62,6 +63,7 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
   const [activeCommitmentId, setActiveCommitmentId] = useState<string | null>(null);
   const [deployOpen, setDeployOpen] = useState(false);
   const [detailPlan, setDetailPlan] = useState<FundablePlan | null>(null);
+  const [page, setPage] = useState(0);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -74,6 +76,7 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
     } else {
       const payload = (data ?? {}) as { plans?: FundablePlan[]; available_balance?: number };
       setPlans(payload.plans ?? []);
+      setPage(0);
       setAvailable(Number(payload.available_balance ?? 0));
     }
     setLoading(false);
@@ -278,7 +281,9 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
         </div>
       )}
 
-      {plans.map((plan) => {
+      {plans
+        .slice(page * PLANS_PER_PAGE, page * PLANS_PER_PAGE + PLANS_PER_PAGE)
+        .map((plan) => {
         const isFunded = fundedIds.includes(plan.rent_request_id);
         const heldByOther = !!plan.held_by && plan.held_by !== partnerId;
         const isSelected = selected.includes(plan.rent_request_id);
@@ -393,6 +398,34 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
           </Card>
         );
       })}
+
+      {plans.length > PLANS_PER_PAGE && (
+        <div className="flex items-center justify-between gap-2 px-1 pt-1">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-[11px]"
+            disabled={page === 0}
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+          >
+            <ChevronLeft className="h-3.5 w-3.5" />
+            <span className="ml-1">Previous</span>
+          </Button>
+          <p className="text-[11px] font-semibold text-muted-foreground">
+            Page {page + 1} of {Math.ceil(plans.length / PLANS_PER_PAGE)}
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-[11px]"
+            disabled={page >= Math.ceil(plans.length / PLANS_PER_PAGE) - 1}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            <span className="mr-1">Next</span>
+            <ChevronRight className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      )}
 
       {selected.length > 0 && (
         <Card className="p-4 rounded-2xl sticky bottom-4 shadow-lg">
