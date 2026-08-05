@@ -793,13 +793,7 @@ export default function Contracts() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h3 className="text-base font-semibold text-foreground">Contracts and MOUs</h3>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Contracts are a legal record. Nothing here is ever deleted — mark it expired or
-            terminated instead.
-          </p>
-        </div>
+        <div />
         <Button size="sm" onClick={() => setDialogOpen(true)}>
           <Plus className="mr-1 h-3.5 w-3.5" />
           New contract
