@@ -7,7 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDynamic } from '@/lib/currencyFormat';
 import { toast } from 'sonner';
-import { CalendarClock, Home, Loader2, Lock, MapPin, RefreshCw, ShieldCheck, Wallet } from 'lucide-react';
+import { CalendarClock, Home, Loader2, Lock, MapPin, RefreshCw, ShieldCheck, User, Wallet } from 'lucide-react';
 import { SelfPortfolioDeployDialog } from './SelfPortfolioDeployDialog';
 import { SelfPortfolioPlanDetailSheet } from './SelfPortfolioPlanDetailSheet';
 
@@ -38,6 +38,7 @@ interface FundablePlan {
   tenant_full_name: string | null;
   tenant_location: string | null;
   tenant_avatar_url: string | null;
+  tenant_has_photo?: boolean | null;
   landlord_name: string | null;
   house_image_urls: string[] | null;
   held_by: string | null;
@@ -340,24 +341,18 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
               )}
 
               <div className="absolute bottom-2 left-2 rounded-xl bg-background/85 p-1 backdrop-blur">
-                <div className="relative h-9 w-9 overflow-hidden rounded-lg bg-muted">
-                  {plan.tenant_avatar_url ? (
-                    <img
-                      src={plan.tenant_avatar_url}
-                      alt="Tenant profile photo"
-                      loading="lazy"
-                      className={isFunded ? 'h-full w-full object-cover' : 'h-full w-full object-cover blur-md scale-110'}
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-sm font-bold text-muted-foreground">
-                      {(plan.tenant_full_name ?? plan.tenant_first_name ?? 'T').charAt(0)}
-                    </div>
-                  )}
-                  {!isFunded && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-background/30">
-                      <Lock className="h-3 w-3 text-foreground" />
-                    </div>
-                  )}
+                {/* Privacy: tenant photo URLs are never sent to partners for
+                    this queue, so nothing can be un-blurred via devtools. */}
+                <div
+                  aria-label="Tenant photo protected"
+                  className="relative h-9 w-9 overflow-hidden rounded-lg bg-muted"
+                >
+                  <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-muted to-muted-foreground/25 blur-[2px]">
+                    <User className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div className="absolute inset-0 flex items-center justify-center bg-background/30">
+                    <Lock className="h-3 w-3 text-foreground" />
+                  </div>
                 </div>
               </div>
 
