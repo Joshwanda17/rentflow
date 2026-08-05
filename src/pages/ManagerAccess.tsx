@@ -68,6 +68,7 @@ import { format, startOfDay, endOfDay, subDays, isWithinInterval } from 'date-fn
 import { cn } from '@/lib/utils';
 import { Home, Banknote as BanknoteIcon } from 'lucide-react';
 import { WelileHomesWithdrawalsManager } from '@/components/manager/WelileHomesWithdrawalsManager';
+import ScreenLoader from '@/components/common/ScreenLoader';
 
 interface SearchResult {
   type: 'user' | 'rent_request' | 'order' | 'loan';
@@ -350,9 +351,7 @@ export default function ManagerAccess() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      <ScreenLoader />
     );
   }
 
