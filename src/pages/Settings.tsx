@@ -428,20 +428,23 @@ export default function Settings() {
                 <div className="flex-1 min-w-0 space-y-4">
                   {accountTab === 'profile' && (
                     <div className="space-y-4">
-                      <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Profile</h2>
-                      <div className="flex items-center gap-4 p-4 rounded-2xl border border-border/40 bg-card">
-                        <div className="relative">
-                          <Avatar className="h-16 w-16 border-2 border-primary/20">
-                            <AvatarImage src={profile?.avatar_url || undefined} alt={fullName} />
-                            <AvatarFallback className="text-lg bg-primary/10 text-primary font-bold">{getInitials(fullName || 'U')}</AvatarFallback>
-                          </Avatar>
-                          <Button size="icon" variant="secondary" className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full shadow border-2 border-background" onClick={() => fileInputRef.current?.click()} disabled={uploadingAvatar}>
-                            {uploadingAvatar ? <Loader2 className="h-3 w-3 animate-spin" /> : <Camera className="h-3 w-3" />}
-                          </Button>
-                          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
-                        </div>
-                        <div className="min-w-0"><p className="font-bold truncate">{fullName || 'Your Name'}</p><p className="text-xs text-muted-foreground truncate">{profile?.email}</p></div>
-                      </div>
+                      <SectionHeading>Profile</SectionHeading>
+                      <SettingsGroup>
+                        <SettingsLinkRow
+                          icon={Camera}
+                          label={uploadingAvatar ? 'Uploading photo…' : 'Profile photo'}
+                          helper="Tap to upload a new picture"
+                          onClick={() => fileInputRef.current?.click()}
+                          trailing={uploadingAvatar ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> : undefined}
+                        />
+                        <SettingsLinkRow
+                          icon={Globe}
+                          label="Profile details"
+                          helper="Location, role, occupation, referring agent"
+                          onClick={() => window.dispatchEvent(new CustomEvent('open-profile-editor'))}
+                        />
+                      </SettingsGroup>
+                      <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
                       <Card className="border-border/40 rounded-2xl">
                         <CardContent className="pt-5 space-y-3">
                           <div className="space-y-1.5">
