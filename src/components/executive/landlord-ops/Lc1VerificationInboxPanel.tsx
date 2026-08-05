@@ -86,7 +86,9 @@ export function Lc1VerificationInboxPanel({ onResolved, standalone = false, init
 
   const [status, setStatus] = useState<Lc1InboxStatus>(initialStatus);
   const [rows, setRows] = useState<Lc1InboxRow[]>([]);
-  const [counts, setCounts] = useState<Record<Lc1InboxStatus, number>>({ pending: 0, verified: 0, rejected: 0 });
+  const [counts, setCounts] = useState<Record<Lc1InboxStatus, number>>({
+    agent_requested: 0, rent_linked: 0, pending: 0, verified: 0, rejected: 0,
+  });
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -122,12 +124,14 @@ export function Lc1VerificationInboxPanel({ onResolved, standalone = false, init
   }, [debounced]);
 
   const loadCounts = useCallback(async () => {
-    const next: Record<Lc1InboxStatus, number> = { pending: 0, verified: 0, rejected: 0 };
-    await Promise.all((['pending', 'verified', 'rejected'] as Lc1InboxStatus[]).map(async (s) => {
+    const next: Record<Lc1InboxStatus, number> = {
+      agent_requested: 0, rent_linked: 0, pending: 0, verified: 0, rejected: 0,
+    };
+    await Promise.all(TABS.map(async (s) => {
       let q = (supabase as any)
         .from('v_lc1_verification_inbox')
-        .select('lc1_id', { count: 'exact', head: true })
-        .eq('status', s);
+        .select('lc1_id', { count: 'exact', head: true });
+      q = applyBucket(q, s);
       q = applySearch(q);
       const { count } = await q;
       next[s] = count || 0;
@@ -139,14 +143,14 @@ export function Lc1VerificationInboxPanel({ onResolved, standalone = false, init
     setLoading(true);
     let q = (supabase as any)
       .from('v_lc1_verification_inbox')
-      .select('*', { count: 'exact' })
-      .eq('status', status);
+      .select('*', { count: 'exact' });
+    q = applyBucket(q, status);
     q = applySearch(q);
-    // Pending: agent-raised requests first (they are blocking a rent request),
+    // Open buckets: agent-raised requests first (they block a rent application),
     // then oldest registrations. Decided buckets: newest decision first.
-    q = status === 'pending'
-      ? q.order('request_id', { ascending: false, nullsFirst: false }).order('requested_at', { ascending: true })
-      : q.order('verified_at', { ascending: false, nullsFirst: false }).order('resolved_at', { ascending: false, nullsFirst: false });
+    q = (status === 'verified' || status === 'rejected')
+      ? q.order('verified_at', { ascending: false, nullsFirst: false }).order('resolved_at', { ascending: false, nullsFirst: false })
+      : q.order('request_id', { ascending: false, nullsFirst: false }).order('requested_at', { ascending: true });
     const { data, error, count } = await q.range(page * pageSize, page * pageSize + pageSize - 1);
     if (error) {
       console.error('[LC1 inbox] load failed', error);
