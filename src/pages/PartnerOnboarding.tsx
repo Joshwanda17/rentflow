@@ -29,6 +29,7 @@ import { useToast } from '@/hooks/use-toast';
 import PartnerAgreementSignOff, { type SignOffPartner } from '@/components/partner/PartnerAgreementSignOff';
 import PartnerCompanyDefaultsDialog from '@/components/partner/PartnerCompanyDefaultsDialog';
 import { InvitedPortfoliosPanel } from '@/components/executive/InvitedPortfoliosPanel';
+import ScreenLoader from '@/components/common/ScreenLoader';
 
 interface FunderProfileRow {
   id: string;
@@ -337,9 +338,7 @@ export default function FunderOnboarding() {
         <link rel="canonical" href="https://welile.tech/partner-onboarding" />
         <meta property="og:url" content="https://welile.tech/partner-onboarding" />
       </Helmet>
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-      </div>
+      <ScreenLoader />
       </>
     );
   }
