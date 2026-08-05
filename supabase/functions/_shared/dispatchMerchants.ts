@@ -13,6 +13,8 @@
 // Used by both notify-merchants-new-withdrawal (round 1) and
 // redispatch-withdrawals (rounds 2..N).
 
+import { merchantHandlesPayout, getWithdrawalPayoutRoute } from "./payoutRouting.ts";
+
 export const DISPATCH_TTL_SECONDS = 60;
 export const MAX_DISPATCH_ROUNDS = 3;
 
@@ -44,7 +46,7 @@ export async function dispatchWithdrawal(
   const { data: w } = await admin
     .from("withdrawal_requests")
     .select(
-      "id, user_id, amount, payout_method, reason, status, created_at, dispatch_claimed_by, metadata",
+      "id, user_id, amount, payout_method, bank_name, mobile_money_provider, reason, status, created_at, dispatch_claimed_by, metadata",
     )
     .eq("id", withdrawalId)
     .maybeSingle();
@@ -82,20 +84,34 @@ export async function dispatchWithdrawal(
   // 2. Active + online merchant agents.
   const { data: agents } = await admin
     .from("cashout_agents")
-    .select("agent_id, config")
+    .select("agent_id, config, handles_cash, handles_bank, handles_mtn, handles_airtel")
     .eq("is_active", true)
     .eq("is_online", true);
   const allOnline = (agents || []).filter((a: any) => a.agent_id);
+
+  // 2a. Channel + exact provider/bank gate. A merchant must NEVER be routed a
+  // payout for a bank or mobile-money network the CFO has not assigned to them,
+  // even when the parent channel (e.g. Bank Transfer) is enabled.
+  const routeEligible = allOnline.filter((a: any) => merchantHandlesPayout(a, w));
   let agentIds: string[] = Array.from(
-    new Set(allOnline.map((a: any) => a.agent_id)),
+    new Set(routeEligible.map((a: any) => a.agent_id)),
   );
+  if (agentIds.length === 0) {
+    const route = getWithdrawalPayoutRoute(w);
+    return {
+      ok: true,
+      round,
+      eligible: 0,
+      skipped: `no_agent_for_${route.channel}_${route.provider ?? "unknown"}`,
+    };
+  }
 
   // For Partner Returns / ROI proxy payouts, prefer agents who have the
   // `proxy_partner_withdrawal` category explicitly enabled. If none of
   // those are online, fall back to the full online pool so the payout
   // is not stranded.
   if (isPartnerReturns) {
-    const categoryEnabled = allOnline
+    const categoryEnabled = routeEligible
       .filter((a: any) => {
         const cats = (a.config?.categories ?? {}) as Record<string, unknown>;
         return cats.proxy_partner_withdrawal === true;
