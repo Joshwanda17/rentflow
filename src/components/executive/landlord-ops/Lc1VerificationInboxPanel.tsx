@@ -9,6 +9,7 @@ import { useAuth } from '@/hooks/useAuth';
 import {
   ShieldQuestion, CheckCircle2, XCircle, Phone, Loader2, UserCircle, MapPin,
   ChevronDown, ChevronUp, Search, FileDown, Clock, BadgeCheck, RefreshCw, X,
+  Inbox, FileClock,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -18,9 +19,16 @@ import {
   type Lc1ReportScope,
 } from '@/lib/generateLc1VerificationReportPdf';
 
-export type Lc1InboxStatus = 'pending' | 'verified' | 'rejected';
+/** Inbox buckets. `agent_requested` / `rent_linked` are focused slices of `pending`. */
+export type Lc1InboxStatus = 'agent_requested' | 'rent_linked' | 'pending' | 'verified' | 'rejected';
 
-export interface Lc1InboxRow extends Lc1ReportRow {}
+export interface Lc1InboxRow extends Lc1ReportRow {
+  agent_request_open?: boolean | null;
+  has_open_rent_request?: boolean | null;
+  open_rent_requests?: number | null;
+}
+
+const TABS: Lc1InboxStatus[] = ['agent_requested', 'rent_linked', 'pending', 'verified', 'rejected'];
 
 interface Props {
   onResolved?: () => void;
@@ -33,10 +41,19 @@ interface Props {
 const PAGE = 25;
 
 const TAB_META: Record<Lc1InboxStatus, { label: string; icon: typeof Clock; cls: string }> = {
+  agent_requested: { label: 'Agent requested', icon: Inbox, cls: 'bg-blue-100 text-blue-700 border-blue-300' },
+  rent_linked: { label: 'Rent application waiting', icon: FileClock, cls: 'bg-teal-100 text-teal-700 border-teal-300' },
   pending: { label: 'Pending', icon: Clock, cls: 'bg-amber-100 text-amber-700 border-amber-300' },
   verified: { label: 'Approved', icon: BadgeCheck, cls: 'bg-emerald-100 text-emerald-700 border-emerald-300' },
   rejected: { label: 'Rejected', icon: XCircle, cls: 'bg-rose-100 text-rose-700 border-rose-300' },
 };
+
+/** Applies the bucket filter to a `v_lc1_verification_inbox` query. */
+function applyBucket(q: any, bucket: Lc1InboxStatus) {
+  if (bucket === 'agent_requested') return q.eq('status', 'pending').eq('agent_request_open', true);
+  if (bucket === 'rent_linked') return q.eq('status', 'pending').eq('has_open_rent_request', true);
+  return q.eq('status', bucket);
+}
 
 function StatusBadge({ status }: { status: string | null }) {
   if (status === 'verified') {
