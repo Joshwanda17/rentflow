@@ -403,7 +403,11 @@ Deno.serve(async (req) => {
         const { data: partnerEmailRow } = await supabase
           .from("profiles").select("email, full_name").eq("id", partnerId).maybeSingle();
         if (partnerEmailRow?.email) {
-          const contributedPrincipal = await getContributedPrincipal(supabase, portfolio_id, currentInvestment);
+          // Use the portfolio's ACTUAL capital (which includes any compounded
+          // returns) as the "previous value" so the email total matches the
+          // figure the partner sees on their portfolio. Contributed principal
+          // excludes compounding and made the emailed new total too low.
+          const previousValue = Number(currentInvestment) || 0;
           dispatchTransactionalEmail(
             Deno.env.get("SUPABASE_URL")!,
             Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -413,8 +417,8 @@ Deno.serve(async (req) => {
               partnerId,
               txGroupId: portfolio_id,  // approval batch keyed by portfolio
               topupAmount: totalAmount,
-              previousPortfolioValue: contributedPrincipal,
-              newTotalPartnershipValue: contributedPrincipal + totalAmount,
+              previousPortfolioValue: previousValue,
+              newTotalPartnershipValue: previousValue + totalAmount,
               roiPercentage: Number((portfolio as any).roi_percentage) || undefined,
             }),
             "approve-portfolio-topup",
