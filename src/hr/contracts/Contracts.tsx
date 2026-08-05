@@ -35,7 +35,6 @@ import {
 } from '@/components/ui/table';
 import {
   createContract,
-  getDocumentUrl,
   listContracts,
   listDocTypes,
   listDocuments,
@@ -48,6 +47,7 @@ import {
 } from './api';
 import { getStaffDirectory } from '@/hr/api/people';
 import { supabase } from '@/hr/api/client';
+import DocumentViewer from '@/components/documents/DocumentViewer';
 
 const CONTRACT_TYPES = [
   { value: 'employment', label: 'Employment' },
@@ -451,6 +451,7 @@ function ContractDocuments({
   const [title, setTitle] = useState('');
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [viewerDoc, setViewerDoc] = useState<DocumentRow | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -472,13 +473,8 @@ function ContractDocuments({
     void refresh();
   }, [refresh]);
 
-  const view = async (storagePath: string) => {
-    try {
-      const url = await getDocumentUrl(storagePath);
-      window.open(url, '_blank', 'noopener,noreferrer');
-    } catch (err) {
-      toast.error((err as Error).message);
-    }
+  const view = (doc: DocumentRow) => {
+    setViewerDoc(doc);
   };
 
   const attach = async () => {
@@ -556,13 +552,21 @@ function ContractDocuments({
                   {d.id === contract.document_id ? ' · linked' : ''}
                 </span>
               </span>
-              <Button size="sm" variant="outline" onClick={() => void view(d.storage_path)}>
+              <Button size="sm" variant="outline" onClick={() => view(d)}>
                 View
               </Button>
             </li>
           ))}
         </ul>
       )}
+
+      <DocumentViewer
+        open={viewerDoc !== null}
+        onClose={() => setViewerDoc(null)}
+        bucket="hr-documents"
+        path={viewerDoc?.storage_path?.replace(/^\/+/,'') ?? ''}
+        title={viewerDoc?.title ?? 'Document'}
+      />
 
       <div className="space-y-2 rounded border p-2">
         <Label htmlFor="doc-file" className="text-xs">
