@@ -139,27 +139,24 @@ export function SelfPortfolioDeployDialog({
           recipientEmail: to,
           templateName: 'partner-capital-deployment-confirmation',
           templateData: {
-            partner_name: profile?.full_name || 'Partner',
-            deployed_amount: total,
-            tenants: selectedTenants.map((t) => ({
-              name: t.name,
-              amount: t.amount,
-              location: t.location || undefined,
-              status: 'Active',
-            })),
+            partner_first_name: (profile?.full_name || 'Partner').split(/\s+/)[0],
+            total_amount: total,
             tenant_count: selectedIds.length,
-            portfolio_total: isTopup
-              ? Number(eligibility?.committed_amount ?? 0) + total
-              : total,
-            monthly_rate: rate,
-            monthly_return: Math.round((total * rate) / 100),
-            term_months: 1,
-            deployed_on: shortDate(new Date().toISOString()),
-            next_payout: isTopup ? shortDate(eligibility?.next_payout_at ?? null) : undefined,
-            term_ends: isTopup ? shortDate(eligibility?.term_end_at ?? null) : undefined,
-            is_topup: isTopup,
-            currency: 'UGX',
-            dashboard_url: `${window.location.origin}/dashboard`,
+            tenants: selectedTenants.map((t) => ({
+              tenant_name: t.name,
+              allocated_amount: t.amount,
+            })),
+            portfolio_start_date: new Date().toLocaleDateString('en-GB', {
+              day: '2-digit',
+              month: 'long',
+              year: 'numeric',
+            }),
+            monthly_payout: Math.round((total * rate) / 100),
+            portfolio_reference: isTopup && eligibility
+              ? `WEL-PORT-${eligibility.commitment_id.slice(0, 8).toUpperCase()}`
+              : '',
+            portfolio_url: `${window.location.origin}/dashboard`,
+            support_email: 'partnership@welile.com',
           },
         },
       });
