@@ -2008,6 +2008,20 @@ Deno.serve(async (req) => {
               payout_proof_type: (body as any)?.payout_proof_type
                 ? String((body as any).payout_proof_type)
                 : 'image',
+              // Authoritative permanent reference — signed URLs expire, paths
+              // do not. The Receipt Archive re-signs from this path on demand.
+              ...((body as any)?.payout_proof_path
+                ? {
+                    payout_proof_path: String((body as any).payout_proof_path),
+                    payout_proof_bucket: (body as any)?.payout_proof_bucket
+                      ? String((body as any).payout_proof_bucket)
+                      : 'payment-proofs',
+                  }
+                : {}),
+              payout_proof_uploaded_at: new Date().toISOString(),
+              ...((body as any)?.payout_proof_uploaded_by
+                ? { payout_proof_uploaded_by: String((body as any).payout_proof_uploaded_by) }
+                : { payout_proof_uploaded_by: user.id }),
             }
           : {}),
         // Re-stamp the settling merchant onto the row. The 15-min stale-claim
