@@ -111,6 +111,16 @@ const SECTIONS: { id: SettingsSection; label: string; icon: typeof User }[] = [
   { id: 'advanced', label: 'More', icon: SettingsIcon },
 ];
 
+type AccountTab = 'profile' | 'contact' | 'withdrawal' | 'access' | 'vault';
+
+const ACCOUNT_TABS: { id: AccountTab; label: string; icon: typeof User }[] = [
+  { id: 'profile', label: 'Profile', icon: User },
+  { id: 'contact', label: 'Contact', icon: Mail },
+  { id: 'withdrawal', label: 'Withdrawal', icon: Wallet },
+  { id: 'access', label: 'Sign-in', icon: ShieldCheck },
+  { id: 'vault', label: 'Vault', icon: Lock },
+];
+
 export default function Settings() {
   const navigate = useNavigate();
   const { user, roles, loading: authLoading, role } = useAuth();
