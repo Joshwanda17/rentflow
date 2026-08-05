@@ -351,141 +351,193 @@ export default function Settings() {
         <div className="mt-3">
           <SectionBoundary name={activeSection}>
             {activeSection === 'account' && (
-              <div className="space-y-4">
-                <div className="flex items-center gap-4 p-4 rounded-2xl border border-border/40 bg-card">
-                  <div className="relative">
-                    <Avatar className="h-16 w-16 border-2 border-primary/20">
-                      <AvatarImage src={profile?.avatar_url || undefined} alt={fullName} />
-                      <AvatarFallback className="text-lg bg-primary/10 text-primary font-bold">{getInitials(fullName || 'U')}</AvatarFallback>
-                    </Avatar>
-                    <Button size="icon" variant="secondary" className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full shadow border-2 border-background" onClick={() => fileInputRef.current?.click()} disabled={uploadingAvatar}>
-                      {uploadingAvatar ? <Loader2 className="h-3 w-3 animate-spin" /> : <Camera className="h-3 w-3" />}
-                    </Button>
-                    <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
+              <div className="flex flex-col sm:flex-row gap-4">
+                {/* Vertical tab rail */}
+                <div className="sm:w-44 shrink-0">
+                  <div className="flex sm:flex-col gap-2 overflow-x-auto sm:overflow-visible scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0 pb-2 sm:pb-0">
+                    {ACCOUNT_TABS.map(({ id, label, icon: Icon }) => (
+                      <button
+                        key={id}
+                        onClick={() => setAccountTab(id)}
+                        className={cn(
+                          "flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all text-left shrink-0 touch-manipulation active:scale-95",
+                          accountTab === id
+                            ? "bg-primary text-primary-foreground shadow-sm"
+                            : "text-muted-foreground bg-muted/30 hover:bg-muted"
+                        )}
+                      >
+                        <Icon className="h-3.5 w-3.5 shrink-0" />
+                        {label}
+                      </button>
+                    ))}
                   </div>
-                  <div className="min-w-0"><p className="font-bold truncate">{fullName || 'Your Name'}</p><p className="text-xs text-muted-foreground truncate">{profile?.email}</p></div>
                 </div>
-                <Card className="border-border/40 rounded-2xl">
-                  <CardContent className="pt-5 space-y-3">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="fullName" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Your Name</Label>
-                      <div className="relative"><User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Full name" className="pl-10 h-12 rounded-xl" /></div>
-                    </div>
-                    {/* Email is now editable via dedicated EmailEditor below */}
-                    <div className="space-y-1.5">
-                      <Label htmlFor="phone" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Phone</Label>
-                      <div className="relative"><Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="phone" type="tel" value={phone} onChange={(e) => { setPhone(e.target.value); if (otp.otpVerified || otp.otpSent) otp.resetOtp(); }} placeholder="e.g. 0783673998" className="pl-10 h-12 rounded-xl" /></div>
-                      {normalizedPreview && (
-                        <div className="flex items-center gap-2 mt-1">
-                          <Check className="h-3 w-3 text-success" />
-                          <span className="text-[11px] text-muted-foreground">Will be saved as</span>
-                          <code className="text-[11px] font-semibold text-foreground bg-primary/10 px-1.5 py-0.5 rounded-md font-mono tracking-tight">
-                            {formatPhonePreview(normalizedPreview)}
-                          </code>
+
+                {/* Active account tab content */}
+                <div className="flex-1 min-w-0 space-y-4">
+                  {accountTab === 'profile' && (
+                    <div className="space-y-4">
+                      <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Profile</h2>
+                      <div className="flex items-center gap-4 p-4 rounded-2xl border border-border/40 bg-card">
+                        <div className="relative">
+                          <Avatar className="h-16 w-16 border-2 border-primary/20">
+                            <AvatarImage src={profile?.avatar_url || undefined} alt={fullName} />
+                            <AvatarFallback className="text-lg bg-primary/10 text-primary font-bold">{getInitials(fullName || 'U')}</AvatarFallback>
+                          </Avatar>
+                          <Button size="icon" variant="secondary" className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full shadow border-2 border-background" onClick={() => fileInputRef.current?.click()} disabled={uploadingAvatar}>
+                            {uploadingAvatar ? <Loader2 className="h-3 w-3 animate-spin" /> : <Camera className="h-3 w-3" />}
+                          </Button>
+                          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
                         </div>
-                      )}
-                      {phoneInvalid && (
-                        <p className="text-[11px] text-destructive mt-1">
-                          That doesn't look like a valid phone number. Use a Ugandan number (e.g. 0771234567 / +256771234567) or an international number as +&lt;country code&gt;&lt;number&gt;.
-                        </p>
-                      )}
-                      {profile && phone.trim() !== (profile.phone ?? '').trim() && phone.trim() && !phoneInvalid && (
-                        <div className="pt-2">
-                          <OtpVerificationStep
-                            phone={phone.trim()}
-                            otpSent={otp.otpSent}
-                            otpVerified={otp.otpVerified}
-                            otpLoading={otp.otpLoading}
-                            otpError={otp.otpError}
-                            sendStatus={otp.sendStatus}
-                            cooldownSeconds={otp.cooldownSeconds}
-                            onSendOtp={() => otp.sendOtp(phone.trim())}
-                            onVerifyOtp={(code) => otp.verifyOtp(phone.trim(), code)}
-                            onResendOtp={() => otp.sendOtp(phone.trim())}
-                          />
-                          <p className="text-[11px] text-muted-foreground mt-2">We'll send a 6-digit code to confirm this number before it replaces your current login phone.</p>
-                        </div>
-                      )}
-                    </div>
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Password</Label>
-                        <Button variant="link" size="sm" className="h-auto p-0 text-xs text-primary" onClick={() => setShowPasswordForm(!showPasswordForm)}>{showPasswordForm ? 'Cancel' : 'Change'}</Button>
+                        <div className="min-w-0"><p className="font-bold truncate">{fullName || 'Your Name'}</p><p className="text-xs text-muted-foreground truncate">{profile?.email}</p></div>
                       </div>
-                      {!showPasswordForm ? (
-                        <div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input value="••••••••" disabled className="pl-10 h-12 rounded-xl bg-muted/50" /></div>
-                      ) : (
-                        <div className="space-y-2 p-3 rounded-xl bg-muted/30 border border-border/50">
-                          <div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input type={showCurrentPassword ? 'text' : 'password'} value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="Current password" className="pl-10 pr-10 h-11 rounded-xl" /><Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8" onClick={() => setShowCurrentPassword(!showCurrentPassword)}>{showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</Button></div>
-                          <div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input type={showNewPassword ? 'text' : 'password'} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="New password (min 6 chars)" className="pl-10 pr-10 h-11 rounded-xl" /><Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8" onClick={() => setShowNewPassword(!showNewPassword)}>{showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</Button></div>
-                          <div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input type="password" value={confirmNewPassword} onChange={(e) => setConfirmNewPassword(e.target.value)} placeholder="Confirm new password" className="pl-10 h-11 rounded-xl" /></div>
-                          <Button size="sm" className="w-full gap-2 h-11 rounded-xl" disabled={changingPassword || !currentPassword || !newPassword || !confirmNewPassword} onClick={async () => {
-                            if (newPassword.length < 6) { toast.error('Min 6 characters'); return; }
-                            if (newPassword !== confirmNewPassword) { toast.error("Passwords don't match"); return; }
-                            setChangingPassword(true);
-                            try {
-                              const { error: signInError } = await supabase.auth.signInWithPassword({ email: profile?.email || '', password: currentPassword });
-                              if (signInError) { toast.error('Current password is incorrect'); setChangingPassword(false); return; }
-                              const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
-                              if (updateError) toast.error('Failed: ' + updateError.message);
-                              else { toast.success('Password updated!'); setCurrentPassword(''); setNewPassword(''); setConfirmNewPassword(''); setShowPasswordForm(false); }
-                            } catch { toast.error('An error occurred'); }
-                            setChangingPassword(false);
-                          }}>{changingPassword ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />} Update Password</Button>
-                        </div>
+                      <Card className="border-border/40 rounded-2xl">
+                        <CardContent className="pt-5 space-y-3">
+                          <div className="space-y-1.5">
+                            <Label htmlFor="fullName" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Your Name</Label>
+                            <div className="relative"><User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Full name" className="pl-10 h-12 rounded-xl" /></div>
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label htmlFor="phone" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Phone</Label>
+                            <div className="relative"><Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="phone" type="tel" value={phone} onChange={(e) => { setPhone(e.target.value); if (otp.otpVerified || otp.otpSent) otp.resetOtp(); }} placeholder="e.g. 0783673998" className="pl-10 h-12 rounded-xl" /></div>
+                            {normalizedPreview && (
+                              <div className="flex items-center gap-2 mt-1">
+                                <Check className="h-3 w-3 text-success" />
+                                <span className="text-[11px] text-muted-foreground">Will be saved as</span>
+                                <code className="text-[11px] font-semibold text-foreground bg-primary/10 px-1.5 py-0.5 rounded-md font-mono tracking-tight">
+                                  {formatPhonePreview(normalizedPreview)}
+                                </code>
+                              </div>
+                            )}
+                            {phoneInvalid && (
+                              <p className="text-[11px] text-destructive mt-1">
+                                That doesn't look like a valid phone number. Use a Ugandan number (e.g. 0771234567 / +256771234567) or an international number as +&lt;country code&gt;&lt;number&gt;.
+                              </p>
+                            )}
+                            {profile && phone.trim() !== (profile.phone ?? '').trim() && phone.trim() && !phoneInvalid && (
+                              <div className="pt-2">
+                                <OtpVerificationStep
+                                  phone={phone.trim()}
+                                  otpSent={otp.otpSent}
+                                  otpVerified={otp.otpVerified}
+                                  otpLoading={otp.otpLoading}
+                                  otpError={otp.otpError}
+                                  sendStatus={otp.sendStatus}
+                                  cooldownSeconds={otp.cooldownSeconds}
+                                  onSendOtp={() => otp.sendOtp(phone.trim())}
+                                  onVerifyOtp={(code) => otp.verifyOtp(phone.trim(), code)}
+                                  onResendOtp={() => otp.sendOtp(phone.trim())}
+                                />
+                                <p className="text-[11px] text-muted-foreground mt-2">We'll send a 6-digit code to confirm this number before it replaces your current login phone.</p>
+                              </div>
+                            )}
+                          </div>
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Password</Label>
+                              <Button variant="link" size="sm" className="h-auto p-0 text-xs text-primary" onClick={() => setShowPasswordForm(!showPasswordForm)}>{showPasswordForm ? 'Cancel' : 'Change'}</Button>
+                            </div>
+                            {!showPasswordForm ? (
+                              <div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input value="••••••••" disabled className="pl-10 h-12 rounded-xl bg-muted/50" /></div>
+                            ) : (
+                              <div className="space-y-2 p-3 rounded-xl bg-muted/30 border border-border/50">
+                                <div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input type={showCurrentPassword ? 'text' : 'password'} value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="Current password" className="pl-10 pr-10 h-11 rounded-xl" /><Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8" onClick={() => setShowCurrentPassword(!showCurrentPassword)}>{showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</Button></div>
+                                <div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input type={showNewPassword ? 'text' : 'password'} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="New password (min 6 chars)" className="pl-10 pr-10 h-11 rounded-xl" /><Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8" onClick={() => setShowNewPassword(!showNewPassword)}>{showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</Button></div>
+                                <div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input type="password" value={confirmNewPassword} onChange={(e) => setConfirmNewPassword(e.target.value)} placeholder="Confirm new password" className="pl-10 h-11 rounded-xl" /></div>
+                                <Button size="sm" className="w-full gap-2 h-11 rounded-xl" disabled={changingPassword || !currentPassword || !newPassword || !confirmNewPassword} onClick={async () => {
+                                  if (newPassword.length < 6) { toast.error('Min 6 characters'); return; }
+                                  if (newPassword !== confirmNewPassword) { toast.error("Passwords don't match"); return; }
+                                  setChangingPassword(true);
+                                  try {
+                                    const { error: signInError } = await supabase.auth.signInWithPassword({ email: profile?.email || '', password: currentPassword });
+                                    if (signInError) { toast.error('Current password is incorrect'); setChangingPassword(false); return; }
+                                    const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+                                    if (updateError) toast.error('Failed: ' + updateError.message);
+                                    else { toast.success('Password updated!'); setCurrentPassword(''); setNewPassword(''); setConfirmNewPassword(''); setShowPasswordForm(false); }
+                                  } catch { toast.error('An error occurred'); }
+                                  setChangingPassword(false);
+                                }}>{changingPassword ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />} Update Password</Button>
+                              </div>
+                            )}
+                          </div>
+                          {(() => {
+                            const phoneChanged = !!profile && phone.trim() !== (profile.phone ?? '').trim();
+                            const blocked = phoneChanged && !otp.otpVerified;
+                            return (
+                              <Button onClick={handleSave} disabled={saving || blocked} className="w-full gap-2 h-12 rounded-xl text-sm font-bold">{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {blocked ? 'Verify phone to save' : 'Save Changes'}</Button>
+                            );
+                          })()}
+                        </CardContent>
+                      </Card>
+                      <Card className="rounded-2xl">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-base flex items-center gap-2">
+                            <Globe className="h-4 w-4 text-primary" /> Profile details
+                          </CardTitle>
+                          <CardDescription>
+                            Update your location, role, occupation, or referring agent.
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <Button
+                            variant="outline"
+                            className="w-full rounded-xl gap-2"
+                            onClick={() => window.dispatchEvent(new CustomEvent('open-profile-editor'))}
+                          >
+                            <User className="h-4 w-4" /> Edit profile details
+                          </Button>
+                        </CardContent>
+                      </Card>
+                      {user && (
+                        <LazySection name="ProfileChangeHistory"><ProfileChangeHistory userId={user.id} /></LazySection>
                       )}
                     </div>
-                    {(() => {
-                      const phoneChanged = !!profile && phone.trim() !== (profile.phone ?? '').trim();
-                      const blocked = phoneChanged && !otp.otpVerified;
-                      return (
-                        <Button onClick={handleSave} disabled={saving || blocked} className="w-full gap-2 h-12 rounded-xl text-sm font-bold">{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {blocked ? 'Verify phone to save' : 'Save Changes'}</Button>
-                      );
-                    })()}
-                  </CardContent>
-                </Card>
-                {user && profile && (
-                  <LazySection name="EmailEditor">
-                    <EmailEditor mode="self" userId={user.id} currentEmail={profile.email} onSaved={(e) => setProfile({ ...profile, email: e })} />
-                  </LazySection>
-                )}
-                {user && (
-                  <LazySection name="ResidenceAddress"><ResidenceAddressForm userId={user.id} /></LazySection>
-                )}
-                {user && (
-                  <LazySection name="MobileMoneyName">
-                    <MobileMoneyNameCard userId={user.id} />
-                  </LazySection>
-                )}
-                {user && (
-                  <LazySection name="AccountLinking">
-                    <AccountLinkingCard />
-                  </LazySection>
-                )}
-                <Card className="rounded-2xl">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <Globe className="h-4 w-4 text-primary" /> Profile details
-                    </CardTitle>
-                    <CardDescription>
-                      Update your location, role, occupation, or referring agent.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Button
-                      variant="outline"
-                      className="w-full rounded-xl gap-2"
-                      onClick={() => window.dispatchEvent(new CustomEvent('open-profile-editor'))}
-                    >
-                      <User className="h-4 w-4" /> Edit profile details
-                    </Button>
-                  </CardContent>
-                </Card>
-                {user && (
-                  <LazySection name="ProfileChangeHistory"><ProfileChangeHistory userId={user.id} /></LazySection>
-                )}
-                <LazySection name="Wallet"><WalletCard /></LazySection>
-                <LazySection name="ArchivedPdfs"><ArchivedPdfsCard /></LazySection>
+                  )}
+
+                  {accountTab === 'contact' && (
+                    <div className="space-y-4">
+                      <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Contact</h2>
+                      {user && profile && (
+                        <LazySection name="EmailEditor">
+                          <EmailEditor mode="self" userId={user.id} currentEmail={profile.email} onSaved={(e) => setProfile({ ...profile, email: e })} />
+                        </LazySection>
+                      )}
+                      {user && (
+                        <LazySection name="ResidenceAddress"><ResidenceAddressForm userId={user.id} /></LazySection>
+                      )}
+                    </div>
+                  )}
+
+                  {accountTab === 'withdrawal' && (
+                    <div className="space-y-4">
+                      <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Withdrawal account</h2>
+                      {user && (
+                        <LazySection name="MobileMoneyName">
+                          <MobileMoneyNameCard userId={user.id} />
+                        </LazySection>
+                      )}
+                      <LazySection name="Wallet"><WalletCard /></LazySection>
+                    </div>
+                  )}
+
+                  {accountTab === 'access' && (
+                    <div className="space-y-4">
+                      <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Sign-in methods</h2>
+                      {user && (
+                        <LazySection name="AccountLinking">
+                          <AccountLinkingCard />
+                        </LazySection>
+                      )}
+                    </div>
+                  )}
+
+                  {accountTab === 'vault' && (
+                    <div className="space-y-4">
+                      <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Offline PDF vault</h2>
+                      <LazySection name="ArchivedPdfs"><ArchivedPdfsCard /></LazySection>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
