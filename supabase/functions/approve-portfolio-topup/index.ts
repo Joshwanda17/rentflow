@@ -1,6 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildPartnershipTopupRequest, dispatchTransactionalEmail } from "../_shared/partnership-emails.ts";
-import { getContributedPrincipal } from "../_shared/contributed-principal.ts";
 import { logSystemEvent } from "../_shared/eventLogger.ts";
 import { checkTreasuryGuard } from "../_shared/treasuryGuard.ts";
 
