@@ -437,9 +437,7 @@ function DashboardContent() {
 
   return (
     <>
-      {/* In-flow: the install card pushes the dashboard down instead of
-          covering the header greeting. */}
-      <InstallAppCard className="mx-auto w-[calc(100%-2rem)] max-w-md pt-4" />
+      {/* Install card now renders inside DashboardHeader, directly below the top nav. */}
       <Suspense fallback={<DashboardLoadingFallback />}>
         {renderDashboard()}
       </Suspense>
