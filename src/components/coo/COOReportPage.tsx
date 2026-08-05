@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import {
   Calendar as CalendarIcon, Download, FileSpreadsheet, FileText, RefreshCw, Search,
-  AlertTriangle, TrendingUp, Clock, Sparkles, ChevronRight, ArrowLeft, Loader2, type LucideIcon
+  AlertTriangle, TrendingUp, Clock, Sparkles, ChevronRight, ChevronLeft, ArrowLeft, Loader2, type LucideIcon
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -105,6 +105,28 @@ export interface COOReportPageProps {
 
 const ugx = (n?: number | null) =>
   n == null ? '—' : `UGX ${new Intl.NumberFormat('en-UG').format(Math.round(n))}`;
+
+/** Rows rendered per page in the activity table. */
+const PAGE_SIZE = 15;
+
+/** Coerce any incoming amount to a finite number (or null) so totals never NaN. */
+const safeAmount = (n?: number | null): number | null => {
+  if (n == null) return null;
+  const v = Number(n);
+  return Number.isFinite(v) ? v : null;
+};
+
+/** Parse a date defensively — invalid dates must not crash the table. */
+const safeDate = (iso?: string): Date | null => {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? null : d;
+};
+
+const fmtDate = (iso: string, pattern: string) => {
+  const d = safeDate(iso);
+  return d ? format(d, pattern) : '—';
+};
 
 const SEVERITY_BG: Record<Severity, string> = {
   neutral:     'bg-muted/40 border-border',
