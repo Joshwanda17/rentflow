@@ -1,6 +1,6 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { formatDynamic } from '@/lib/currencyFormat';
-import { Home, Lock, MapPin, ShieldCheck } from 'lucide-react';
+import { Home, Lock, MapPin, ShieldCheck, User } from 'lucide-react';
 
 export interface PlanDetail {
   rent_request_id: string;
@@ -15,6 +15,7 @@ export interface PlanDetail {
   tenant_first_name: string | null;
   tenant_location: string | null;
   tenant_avatar_url: string | null;
+  tenant_has_photo?: boolean | null;
   landlord_name: string | null;
   house_image_urls: string[] | null;
 }
@@ -105,19 +106,15 @@ export function SelfPortfolioPlanDetailSheet({
 
           {/* Tenant row */}
           <div className="mt-6 border-t border-border pt-4 flex items-center gap-3">
-            <div className="relative w-12 h-12 rounded-full overflow-hidden bg-muted flex-none">
-              {plan.tenant_avatar_url ? (
-                <img
-                  src={plan.tenant_avatar_url}
-                  alt="Tenant profile photo"
-                  loading="lazy"
-                  className="w-full h-full object-cover blur-md scale-110"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-sm font-bold text-muted-foreground">
-                  {name.charAt(0)}
-                </div>
-              )}
+            {/* Privacy: the tenant photo is never sent to the client for this
+                view, so there is no image URL to reveal via devtools. */}
+            <div
+              aria-label="Tenant photo protected"
+              className="relative w-12 h-12 rounded-full overflow-hidden bg-muted flex-none"
+            >
+              <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-muted to-muted-foreground/25 blur-[2px]">
+                <User className="h-6 w-6 text-muted-foreground" />
+              </div>
               <div className="absolute inset-0 flex items-center justify-center bg-background/30">
                 <Lock className="h-4 w-4 text-foreground" />
               </div>
