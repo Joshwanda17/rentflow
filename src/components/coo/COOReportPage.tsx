@@ -450,6 +450,9 @@ export default function COOReportPage(props: COOReportPageProps) {
         })}
       </div>
 
+      {/* Breakdown section (below KPIs) */}
+      {belowKpis && belowKpis({ from, to })}
+
       {/* Charts */}
       {charts.length > 0 && (
         <div className={cn('grid gap-3', charts.length === 1 ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-2')}>
