@@ -111,11 +111,11 @@ export default function Referrals() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
           >
-            <Card className="text-center">
-              <CardContent className="pt-4 pb-3">
-                <Users className="h-6 w-6 mx-auto text-primary mb-2" />
-                <p className="text-2xl font-bold">{snapshot.referralCount || referrals.length}</p>
-                <p className="text-xs text-muted-foreground">Friends</p>
+            <Card className="text-center h-full overflow-hidden">
+              <CardContent className="p-3 flex flex-col items-center justify-center gap-1">
+                <Users className="h-4 w-4 text-primary" />
+                <p className="text-base font-bold leading-tight truncate max-w-full">{snapshot.referralCount || referrals.length}</p>
+                <p className="text-[10px] text-muted-foreground leading-none">Friends</p>
               </CardContent>
             </Card>
           </motion.div>
@@ -125,11 +125,11 @@ export default function Referrals() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
           >
-            <Card className="text-center">
-              <CardContent className="pt-4 pb-3">
-                <Coins className="h-6 w-6 mx-auto text-success mb-2" />
-                <p className="text-2xl font-bold text-success">{formatUGX(totalEarned).replace('UGX ', '')}</p>
-                <p className="text-xs text-muted-foreground">Earned</p>
+            <Card className="text-center h-full overflow-hidden">
+              <CardContent className="p-3 flex flex-col items-center justify-center gap-1">
+                <Coins className="h-4 w-4 text-success" />
+                <p className="text-base font-bold text-success leading-tight truncate max-w-full">{formatUGX(totalEarned).replace('UGX ', '')}</p>
+                <p className="text-[10px] text-muted-foreground leading-none">Earned</p>
               </CardContent>
             </Card>
           </motion.div>
@@ -139,11 +139,11 @@ export default function Referrals() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
           >
-            <Card className="text-center">
-              <CardContent className="pt-4 pb-3">
-                <TrendingUp className="h-6 w-6 mx-auto text-warning mb-2" />
-                <p className="text-2xl font-bold text-warning">{formatUGX(pendingFirstTxBonus).replace('UGX ', '')}</p>
-                <p className="text-xs text-muted-foreground">Potential</p>
+            <Card className="text-center h-full overflow-hidden">
+              <CardContent className="p-3 flex flex-col items-center justify-center gap-1">
+                <TrendingUp className="h-4 w-4 text-warning" />
+                <p className="text-base font-bold text-warning leading-tight truncate max-w-full">{formatUGX(pendingFirstTxBonus).replace('UGX ', '')}</p>
+                <p className="text-[10px] text-muted-foreground leading-none">Potential</p>
               </CardContent>
             </Card>
           </motion.div>
@@ -165,7 +165,7 @@ export default function Referrals() {
             <CardContent className="space-y-4">
               <div className="flex items-center justify-center gap-4 p-3 bg-muted/30 rounded-lg">
                 <div className="text-center">
-                  <p className="text-lg font-bold text-primary">UGX 500</p>
+                  <p className="text-lg font-bold text-primary">UGX 100</p>
                   <p className="text-xs text-muted-foreground">On signup</p>
                 </div>
                 <span className="text-xl text-muted-foreground">+</span>
@@ -175,7 +175,7 @@ export default function Referrals() {
                 </div>
                 <span className="text-xl text-muted-foreground">=</span>
                 <div className="text-center">
-                  <p className="text-lg font-bold text-warning">UGX 700</p>
+                  <p className="text-lg font-bold text-warning">UGX 300</p>
                   <p className="text-xs text-muted-foreground">Per friend</p>
                 </div>
               </div>
