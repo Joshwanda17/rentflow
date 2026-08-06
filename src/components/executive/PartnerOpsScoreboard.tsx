@@ -60,7 +60,7 @@ interface PartnerOpsScoreboardProps {
 }
 
 export function PartnerOpsScoreboard({ hideTargetEditor = false }: PartnerOpsScoreboardProps = {}) {
-  const { data, refetch, isLoading } = useQuery({
+  const { data, refetch, isLoading, isError, error } = useQuery({
     queryKey: ['partner-ops-scoreboard', monthStart()],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('partner_ops_scoreboard', { p_month: monthStart() });
@@ -98,8 +98,13 @@ export function PartnerOpsScoreboard({ hideTargetEditor = false }: PartnerOpsSco
   }
   return (
     <div className="space-y-3">
+      {isError && (
+        <div className="rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive">
+          Scoreboard failed to load: {error?.message}
+        </div>
+      )}
       <PartnerNoteRateEditor />
-      {!rows.length ? (
+      {!isError && !rows.length ? (
         <p className="text-sm text-muted-foreground">
           No leads attached yet. Attach a proxy agent to a lead above to start tracking.
         </p>
