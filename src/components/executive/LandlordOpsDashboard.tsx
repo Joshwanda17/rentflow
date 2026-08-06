@@ -262,8 +262,8 @@ function ListPropertyCTA({ phone, name, role }: { phone: string; name?: string; 
   const intlPhone = cleanPhone.startsWith('0') ? `+256${cleanPhone.slice(1)}` : cleanPhone.startsWith('+') ? cleanPhone : `+256${cleanPhone}`;
   const waNumber = intlPhone.replace('+', '');
   const message = role === 'tenant'
-    ? `Hello ${name || ''}, this is Welile Landlord Operations. We noticed your property isn't listed yet. Please list your landlord's property on Welile and earn UGX 5,000 listing bonus! 🏠💰 Ask your agent for help or contact us.`
-    : `Hello ${name || ''}, this is Welile Landlord Operations. You have tenants without landlord property listings. Please help them list their landlord's properties on Welile — each listing earns UGX 5,000 bonus! 🏠💰`;
+    ? `Hello ${name || ''}, this is Welile Landlord Operations. We noticed your property isn't listed yet. Please list your landlord's property on Welile and earn UGX 2,000 listing bonus! 🏠💰 Ask your agent for help or contact us.`
+    : `Hello ${name || ''}, this is Welile Landlord Operations. You have tenants without landlord property listings. Please help them list their landlord's properties on Welile — each listing earns UGX 2,000 bonus! 🏠💰`;
 
   return (
     <div className="flex items-center gap-1.5">
@@ -275,7 +275,7 @@ function ListPropertyCTA({ phone, name, role }: { phone: string; name?: string; 
         target="_blank"
         rel="noopener noreferrer"
         className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-[#25D366]/15 text-[#25D366] hover:bg-[#25D366]/25 transition-colors text-xs font-medium min-h-[32px]"
-        title="WhatsApp: List property & earn UGX 5,000"
+        title="WhatsApp: List property & earn UGX 2,000"
       >
         <MessageCircle className="h-3.5 w-3.5" />
         List & Earn 5K
@@ -1561,8 +1561,8 @@ export function LandlordOpsDashboard() {
       return next;
     });
     toast({
-      title: '✅ Verified → UGX 5,000 Credited',
-      description: `${listing.title} verified. UGX 5,000 credited to the agent's commission wallet.`,
+      title: '✅ Verified → UGX 2,000 Credited',
+      description: `${listing.title} verified. UGX 2,000 credited to the agent's commission wallet.`,
     });
     try {
       const { data, error } = await supabase.functions.invoke('credit-listing-bonus', {
@@ -1589,11 +1589,22 @@ export function LandlordOpsDashboard() {
         if (!Array.isArray(old)) return old;
         return old.filter(l => l.id !== listing.id);
       });
-      setOptimisticallyVerifiedIds(prev => {
-        const next = new Set(prev);
-        next.delete(listing.id);
-        return next;
+      // Drop the row from the server-side verification queue pages immediately so
+      // the card disappears without a manual page refresh. The id stays in the
+      // optimistic set as a belt-and-braces guard until the refetch lands.
+      queryClient.setQueriesData<any>({ queryKey: ['ops-house-search'] }, (old: any) => {
+        if (!old?.pages) return old;
+        return {
+          ...old,
+          pages: old.pages.map((p: any) => ({
+            ...p,
+            listings: (p.listings || []).filter((l: any) => l.id !== listing.id),
+            total: Math.max(0, Number(p.total || 0) - 1),
+          })),
+        };
       });
+      queryClient.invalidateQueries({ queryKey: ['ops-house-search'] });
+      queryClient.invalidateQueries({ queryKey: ['ops-house-status-counts'] });
       // Persist the operator's inline note (if any) for audit/attribution.
       if (note && note.trim()) {
         await supabase.from('audit_logs').insert({
@@ -1837,7 +1848,7 @@ export function LandlordOpsDashboard() {
       toast({ title: 'Nothing to verify', description: 'All selected houses are already verified.' });
       return;
     }
-    if (!window.confirm(`Verify ${targets.length} house${targets.length === 1 ? '' : 's'}? Each unpaid listing credits the agent UGX 5,000.`)) return;
+    if (!window.confirm(`Verify ${targets.length} house${targets.length === 1 ? '' : 's'}? Each unpaid listing credits the agent UGX 2,000.`)) return;
     setBulkBusy('verify');
     const ids = targets.map(h => h.id);
     const titleById = new Map(targets.map(h => [h.id, h.title] as const));
@@ -3029,7 +3040,7 @@ export function LandlordOpsDashboard() {
               📢 {noLandlordList.length} tenants have no landlord property listed
             </p>
             <p className="text-[11px] text-orange-700 dark:text-orange-400">
-              Contact them or their agents to list the property and earn UGX 5,000 bonus!
+              Contact them or their agents to list the property and earn UGX 2,000 bonus!
             </p>
           </div>
         )}
@@ -3790,7 +3801,7 @@ export function LandlordOpsDashboard() {
                 </div>
                 <InlineModerationActions
                   approveHidden={!!house.verified}
-                  approveLabel="Verify → UGX 5K"
+                  approveLabel="Verify → UGX 2K"
                   rejectLabel="Reject"
                   onApprove={(note) => handleVerifyListing(house, note)}
                   onReject={(note) => handleRejectListing(house, note)}
@@ -4233,7 +4244,7 @@ export function LandlordOpsDashboard() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-sm leading-tight">{noLandlordList.length} tenants without landlord</p>
-            <p className="text-[10px] text-muted-foreground leading-snug">Contact them to list property &amp; earn UGX 5,000</p>
+            <p className="text-[10px] text-muted-foreground leading-snug">Contact them to list property &amp; earn UGX 2,000</p>
           </div>
           <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
         </button>
