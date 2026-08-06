@@ -394,3 +394,40 @@ export async function getAssignmentsForPeriod(
   const names = await departmentNameMap();
   return rows.map((r) => mapAssignment(r, names[r.department_id] ?? ''));
 }
+
+/**
+ * Hands one open position from its current holder to another staff member.
+ * The database ends the source assignment and opens the new one atomically;
+ * errors are thrown verbatim so the caller can show the database message.
+ */
+export async function transferPosition(input: {
+  fromAssignmentId: string;
+  toStaffId: string;
+  reason: string;
+}): Promise<string> {
+  return unwrap(
+    await supabase.rpc('hr_transfer_position', {
+      p_from_assignment: input.fromAssignmentId,
+      p_to_staff_id: input.toStaffId,
+      p_reason: input.reason,
+    }),
+  ) as string;
+}
+
+/**
+ * Moves one open assignment to a different department.
+ * Returns the id of the newly opened assignment. Throws on error.
+ */
+export async function changeDepartment(input: {
+  assignmentId: string;
+  departmentId: string;
+  reason: string;
+}): Promise<string> {
+  return unwrap(
+    await supabase.rpc('hr_change_department', {
+      p_assignment: input.assignmentId,
+      p_department_id: input.departmentId,
+      p_reason: input.reason,
+    }),
+  ) as string;
+}
