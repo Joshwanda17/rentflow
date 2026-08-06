@@ -1,3 +1,4 @@
+import { cn } from '@/lib/utils';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Search, ShoppingBag, Store, Users } from 'lucide-react';
