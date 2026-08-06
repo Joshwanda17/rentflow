@@ -122,16 +122,24 @@ function rowToSelection(r: SearchRow): UgLocationSelection {
 }
 
 /** One debounced RPC returning villages with their full chain already joined. */
-export function useUgVillageSearch(query: string, limit = 20) {
+export function useUgVillageSearch(
+  query: string,
+  limit = 20,
+  scope?: { districtId?: number | null; districtName?: string | null },
+) {
   const debounced = useUgDebounced(query.trim(), 300);
+  const districtId = scope?.districtId ?? null;
+  const districtName = (scope?.districtName ?? '').trim() || null;
   return useQuery({
-    queryKey: ['ug', 'village-search', debounced, limit],
+    queryKey: ['ug', 'village-search', debounced, limit, districtId, districtName],
     enabled: debounced.length >= 2,
     staleTime: 10 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase.rpc('ug_search_villages' as any, {
         p_query: debounced,
         p_limit: limit,
+        p_district_id: districtId,
+        p_district_name: districtId != null ? null : districtName,
       });
       if (error) throw error;
       return ((data ?? []) as SearchRow[]).map(rowToSelection);

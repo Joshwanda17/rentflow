@@ -4793,6 +4793,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     label="Official village (government list)"
                     value={ugLoc}
                     onChange={applyUgLocation}
+                    districtName={propertyDistrict}
                     className="pb-1"
                   />
                   <p className="text-xs text-muted-foreground leading-snug">The village, road or area people use to find it.</p>
