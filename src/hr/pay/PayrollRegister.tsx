@@ -132,7 +132,7 @@ export default function PayrollRegister({ runId }: { runId: string }) {
   const provisional = doc.rule_status_at_run === 'provisional';
 
   return (
-    <Card>
+    <Card className="print-root">
       <CardContent className="space-y-4 py-5">
         <div className="flex items-start justify-between gap-3">
           <div>
