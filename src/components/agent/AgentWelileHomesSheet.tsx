@@ -90,6 +90,14 @@ interface EnrollmentAuditRow {
   editor_name?: string;
 }
 
+interface RecentRentPayment {
+  id: string;
+  period_month: string;
+  amount: number;
+  created_at: string;
+  tenant_name: string;
+}
+
 type PreviewDelta<T> = { old: T; new: T };
 interface EditPreview {
   success: boolean;
@@ -139,6 +147,7 @@ export function AgentWelileHomesSheet({ open, onOpenChange }: AgentWelileHomesSh
   const [subs, setSubs] = useState<WHSubscription[]>([]);
   const [earned, setEarned] = useState(0);
   const [pendingPayouts, setPendingPayouts] = useState(0);
+  const [recentPayments, setRecentPayments] = useState<RecentRentPayment[]>([]);
   const [enrollOpen, setEnrollOpen] = useState(false);
   const [allocFor, setAllocFor] = useState<WHSubscription | null>(null);
   const [editFor, setEditFor] = useState<WHSubscription | null>(null);
@@ -186,6 +195,23 @@ export function AgentWelileHomesSheet({ open, onOpenChange }: AgentWelileHomesSh
       });
       setEarned(e);
       setPendingPayouts(p);
+
+      // Recent rent payments (collected dues) with their month
+      const { data: paid } = await supabase
+        .from('welile_homes_monthly_dues')
+        .select('id, tenant_id, period_month, amount_collected, amount_due, updated_at')
+        .eq('agent_id', user.id)
+        .eq('collection_status', 'collected')
+        .order('updated_at', { ascending: false })
+        .limit(10);
+      const nameById = new Map(list.map((s) => [s.tenant_id, s.tenant_name ?? 'Tenant']));
+      setRecentPayments((paid ?? []).map((d: any) => ({
+        id: d.id,
+        period_month: d.period_month,
+        amount: Number(d.amount_collected) || Number(d.amount_due) || 0,
+        created_at: d.updated_at,
+        tenant_name: nameById.get(d.tenant_id) ?? 'Tenant',
+      })));
     } catch (err: any) {
       toast({ title: 'Failed to load Welile Homes', description: err.message, variant: 'destructive' });
     } finally {
@@ -262,6 +288,37 @@ export function AgentWelileHomesSheet({ open, onOpenChange }: AgentWelileHomesSh
                 <p className="text-lg font-bold text-orange-600">{formatUGX(pendingPayouts)}</p>
               </CardContent></Card>
             </div>
+
+            {/* Recent rent payments */}
+            <Card>
+              <CardContent className="p-3 space-y-2.5">
+                <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  <History className="h-3.5 w-3.5" /> Recent rent payments
+                </div>
+                {recentPayments.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No rent collected yet.</p>
+                ) : (
+                  <div className="divide-y divide-border/60">
+                    {recentPayments.map((p) => (
+                      <div key={p.id} className="flex items-center justify-between gap-2 py-2 first:pt-0 last:pb-0">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{p.tenant_name}</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            {new Date(p.period_month).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })} rent
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-sm font-semibold text-emerald-600">{formatUGX(p.amount)}</p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {new Date(p.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
             {pendingConfirmation > 0 && (
               <div className="flex items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700">
