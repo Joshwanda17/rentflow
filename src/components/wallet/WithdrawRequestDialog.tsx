@@ -229,6 +229,8 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
   const [amount, setAmount] = useState<number>(0);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [partnerName, setPartnerName] = useState<string | null>(null);
   const withdrawCtx = useWithdrawContext(user?.id);
   const withdrawalsPaused = withdrawCtx.gates.withdrawalsPaused;
   const { restrictedHeld } = withdrawCtx.wallet;
@@ -295,6 +297,27 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
   useEffect(() => {
     if (open) setWorkingHoursStatus(checkWorkingHours());
   }, [open]);
+
+  // Reset the confirmation gate whenever the dialog opens/closes.
+  useEffect(() => {
+    setConfirming(false);
+  }, [open]);
+
+  // Proxy mode: resolve who this withdrawal is actually for, so the agent sees
+  // the partner's real name in the header and in the confirmation step.
+  useEffect(() => {
+    if (!open || !linkedParty) { setPartnerName(null); return; }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', linkedParty)
+        .maybeSingle();
+      if (!cancelled) setPartnerName((data as any)?.full_name ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [open, linkedParty]);
 
   // Restore any in-flight idempotency key for this partner on (re)open, so a
   // close-and-reopen after a network failure retries with the SAME key.
@@ -567,6 +590,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
               );
               setLoading(false);
               isSubmittingRef.current = false;
+              setConfirming(false);
               clientRequestIdRef.current = null;
               if (linkedParty) clearPendingClientRequestId(user.id, linkedParty);
               return;
@@ -640,17 +664,30 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
     setLoading(false);
     isSubmittingRef.current = false;
     // Keep clientRequestIdRef so a manual retry by the user re-uses the same key
+    setConfirming(false);
   };
 
   const handleClose = () => {
     setAmount(0);
     setReason('');
     setSuccess(false);
+    setConfirming(false);
     setSelectedCashAgent(null);
     onOpenChange(false);
   };
 
   const selectedOption = PAYOUT_OPTIONS.find(o => o.value === payoutMode);
+  const isProxyMode = !!linkedParty;
+  const recipientLabel = partnerName || 'this partner';
+  // Same destination facts as the transfer preview card, masked for confirmation.
+  const maskTail = (v: string) => v && v.length > 4 ? `${'•'.repeat(Math.max(0, v.length - 4))}${v.slice(-4)}` : (v || '');
+  const destinationLine = (payoutMode === 'mtn' || payoutMode === 'airtel')
+    ? `${selectedOption?.label ?? 'Mobile Money'} · ${maskTail(momoNumber.trim())}`
+    : payoutMode === 'bank'
+      ? `${bankName || 'Bank'} · ${maskTail(bankAccountNumber.trim())}`
+      : payoutMode === 'cash'
+        ? `Cash · ${selectedCashAgent?.agent_name || 'Cash at agent'}`
+        : '—';
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -668,7 +705,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
               </div>
               <div>
                 <DialogTitle className="text-white text-lg font-bold tracking-tight">
-                  Withdraw Money
+                  {isProxyMode ? `Withdraw for ${recipientLabel}` : 'Withdraw Money'}
                 </DialogTitle>
                 <p className="text-white/70 text-xs mt-0.5">Fast · Secure · Instant notifications</p>
               </div>
@@ -736,6 +773,48 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
               <Button onClick={handleClose} className="w-full h-12 rounded-xl text-base font-bold">
                 Done
               </Button>
+            </div>
+          ) : confirming ? (
+            <div className="space-y-5 py-2 animate-scale-in">
+              <div className="text-center space-y-1">
+                <h3 className="text-lg font-bold text-foreground">Confirm this withdrawal</h3>
+                <p className="text-xs text-muted-foreground">
+                  Check the amount and the recipient before sending.
+                </p>
+              </div>
+
+              <div className="p-4 rounded-2xl border border-primary/20 bg-primary/5 text-center space-y-2">
+                <p className="text-3xl font-black text-primary tracking-tight">{formatCurrency(amount)}</p>
+                <p className="text-sm font-semibold text-foreground">to {recipientLabel}</p>
+                <p className="text-xs text-muted-foreground">via {destinationLine}</p>
+              </div>
+
+              <div className="p-3 rounded-xl bg-warning/10 border border-warning/20 text-[11px] text-muted-foreground">
+                ⚠️ This moves <strong className="text-foreground">{recipientLabel}</strong>'s money on their behalf.
+                Once sent, it goes to Financial Ops for approval.
+              </div>
+
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setConfirming(false)}
+                  disabled={loading}
+                  className="flex-1 h-12 rounded-xl font-bold border-border/50"
+                >
+                  Go back
+                </Button>
+                <Button
+                  onClick={handleSubmit}
+                  disabled={loading}
+                  className="flex-1 gap-2 h-12 rounded-xl font-bold bg-gradient-to-r from-primary to-primary/80 shadow-lg shadow-primary/20"
+                >
+                  {loading ? (
+                    <><Loader2 className="h-4 w-4 animate-spin" /> Processing…</>
+                  ) : (
+                    <><ArrowDownToLine className="h-4 w-4" /> Confirm &amp; Send</>
+                  )}
+                </Button>
+              </div>
             </div>
           ) : (
             <>
@@ -1047,7 +1126,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
                 </Button>
                 {isFormValid ? (
                   <Button
-                    onClick={handleSubmit}
+                    onClick={() => { if (isProxyMode) setConfirming(true); else handleSubmit(); }}
                     disabled={loading}
                     className="flex-1 gap-2 h-12 rounded-xl font-bold bg-gradient-to-r from-primary to-primary/80 shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-shadow"
                   >
