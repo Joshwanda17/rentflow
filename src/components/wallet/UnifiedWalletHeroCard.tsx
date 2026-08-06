@@ -16,6 +16,7 @@ interface UnifiedWalletHeroCardProps {
   secondaryLabel?: string;
   secondaryValue?: string;
   houses?: number;
+  housesLabel?: string;
   returnPerMonth?: string;
   deployed?: string;
   /** Agent-specific: float (locked) and commission (earned) */
