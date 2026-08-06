@@ -14,6 +14,32 @@ import { humanizeWithdrawalError } from '@/lib/withdrawalErrorText';
 
 type PayoutMode = 'mobile_money' | 'bank_transfer' | 'cash';
 
+/**
+ * Deterministic, name-based UUID (v5-style) derived from the CONTENT of the
+ * request, bucketed to a 10-minute window. A retry of the same submission
+ * (reload, reopened dialog, flaky network) reproduces the same key and
+ * collides with itself; a genuinely new request later still gets through.
+ */
+async function computeProxyWithdrawalKey(input: {
+  agentId: string;
+  funderId: string;
+  amount: number;
+  routeKey: string;
+  reason: string;
+}): Promise<string> {
+  const bucket = Math.floor(Date.now() / (10 * 60 * 1000));
+  const canonical = [
+    input.agentId, input.funderId, input.amount,
+    input.routeKey, input.reason.trim(), bucket,
+  ].join('|');
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(canonical));
+  const bytes = new Uint8Array(digest).slice(0, 16);
+  bytes[6] = (bytes[6] & 0x0f) | 0x50; // version 5
+  bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant
+  const hex = [...bytes].map(b => b.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
 interface PayoutRoute {
   key: string;
   source: 'saved' | 'portfolio';
@@ -52,13 +78,11 @@ export function AgentProxyWithdrawalDialog({
   const [routes, setRoutes] = useState<PayoutRoute[]>([]);
   const [selectedRouteKey, setSelectedRouteKey] = useState<string | null>(null);
   const isSubmittingRef = useRef(false);
-  const clientRequestIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
     setAmount(0);
     setReason('');
-    clientRequestIdRef.current = null;
     setRoutes([]);
     setSelectedRouteKey(null);
     if (!funderId) return;
@@ -155,14 +179,14 @@ export function AgentProxyWithdrawalDialog({
     isSubmittingRef.current = true;
     setLoading(true);
     try {
-      if (!clientRequestIdRef.current) {
-        clientRequestIdRef.current =
-          (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
-            ? crypto.randomUUID()
-            : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      }
-      const clientRequestId = clientRequestIdRef.current;
       const route = selectedRoute!;
+      const clientRequestId = await computeProxyWithdrawalKey({
+        agentId: user.id,
+        funderId,
+        amount,
+        routeKey: route.key,
+        reason,
+      });
       const routeMeta = route.source === 'portfolio'
         ? ` | Route: portfolio ${route.portfolio_code ?? route.portfolio_id}`
         : ` | Route: saved method "${route.label}"`;
@@ -211,6 +235,26 @@ export function AgentProxyWithdrawalDialog({
         // agent doesn't keep tapping.
         if ((error as any).code === '23505') {
           const msg = String((error as any).message || '');
+          // Same content, same 10-minute window: this is a retry of an
+          // already-submitted request. The row IS the claim — nothing
+          // financial has happened yet — so treat it as success. Pressing
+          // send twice must be harmless, not merely a nicer error.
+          const { data: existingSame } = await supabase
+            .from('withdrawal_requests')
+            .select('id')
+            .eq('user_id', funderId)
+            .eq('client_request_id', clientRequestId)
+            .maybeSingle();
+          if (existingSame?.id) {
+            toast.success('Withdrawal request submitted', {
+              description: `${formatUGX(amount)} withdrawal for ${funderName} is pending Financial Ops approval`,
+            });
+            onOpenChange(false);
+            onSuccess?.();
+            isSubmittingRef.current = false;
+            setLoading(false);
+            return;
+          }
           if (msg.includes('DUPLICATE_WITHDRAWAL_INTENT')) {
             toast.error(
               `This exact payout for ${funderName} (${formatUGX(amount)}) has already been requested for this cycle. ${msg.split('DUPLICATE_WITHDRAWAL_INTENT:')[1]?.trim() ?? ''}`,
@@ -231,10 +275,9 @@ export function AgentProxyWithdrawalDialog({
           }
           if (msg.includes('DUPLICATE_PENDING_WITHDRAWAL')) {
             toast.error(
-              `A withdrawal of ${formatUGX(amount)} for ${funderName} was just submitted a few minutes ago. Wait about 15 minutes (or for it to be settled) before submitting the same amount again.`,
+              `A withdrawal of ${formatUGX(amount)} for ${funderName} was already submitted recently. Wait about an hour, or check whether it's already pending, before submitting the same amount again.`,
               { duration: 8000 },
             );
-            clientRequestIdRef.current = null;
             isSubmittingRef.current = false;
             setLoading(false);
             return;
@@ -279,7 +322,6 @@ export function AgentProxyWithdrawalDialog({
       });
       onOpenChange(false);
       onSuccess?.();
-      clientRequestIdRef.current = null;
     } catch (err: any) {
       toast.error('Failed to submit', {
         description: humanizeWithdrawalError(err?.message, funderName),
