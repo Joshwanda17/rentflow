@@ -56,6 +56,7 @@ const CashoutSettlementTimeline = lz(() => import('./CashoutSettlementTimeline')
 const MerchantClaimsLog = lz(() => import('./MerchantClaimsLog'), 'MerchantClaimsLog');
 const CashoutAgentManager = lz(() => import('@/components/cfo/CashoutAgentManager'), 'CashoutAgentManager');
 const MerchantFloatRequestsPanel = lz(() => import('@/components/cfo/MerchantFloatRequestsPanel'), 'MerchantFloatRequestsPanel');
+const MerchantFloatRequisitionPanel = lz(() => import('./MerchantFloatRequisitionPanel'), 'MerchantFloatRequisitionPanel');
 const ReceiptArchivePanel = lz(() => import('@/components/shared/ReceiptArchivePanel'), 'ReceiptArchivePanel');
 const EarningsExplainer = lz(() => import('@/components/shared/EarningsExplainer'), 'EarningsExplainer');
 const DepositBridgeHealthPanel = lz(() => import('@/components/bridge/DepositBridgeHealthPanel'), 'DepositBridgeHealthPanel');
@@ -89,7 +90,7 @@ type Tool =
   | 'topup_audit'
   | 'float_to_withdrawable' | 'momo_sms_template' | 'cash_codes' | 'user_statements'
   | 'withdrawal_notif_log' | 'cashout_settlement' | 'merchant_claims' | 'sms_delivery_log'
-  | 'merchant_agents' | 'merchant_float' | 'receipt_archive'
+  | 'merchant_agents' | 'merchant_float' | 'merchant_float_requisition' | 'receipt_archive'
   | 'employee_requisition_links' | 'employee_requisition_queue'
   | 'bridge_health' | 'manual_float_credit'
   | 'earnings_explainer'
@@ -116,6 +117,7 @@ const moreActions: MoreAction[] = [
   { kind: 'tool', id: 'receipt_archive', label: 'Receipt Archive', desc: 'Permanent record of every payout receipt — searchable, one URL per receipt', icon: Archive },
   { kind: 'tool', id: 'merchant_agents', label: 'Merchant Agents', desc: 'Manage cash-out (merchant) agents — same module as the CFO Dashboard', icon: Store },
   { kind: 'tool', id: 'merchant_float', label: 'Merchant Float', desc: 'Fund or reject merchant agent operational float requests', icon: HandCoins },
+  { kind: 'tool', id: 'merchant_float_requisition', label: 'Merchant Float Requisition', desc: 'Raise a merchant float funding requisition and send it to the CFO for approval', icon: HandCoins },
   { kind: 'tool', id: 'user_statements', label: 'User Wallet Statements', desc: 'Search a user — see withdrawable, float, landlord float & advance statements + full profile', icon: ReceiptText },
   { kind: 'tool', id: 'email_tx', label: 'Email Transactions', desc: 'Live transactions extracted from connected Gmail', icon: Mail },
   { kind: 'tool', id: 'auto_credit_review', label: 'Auto-Credit Review', desc: 'Confirm or reverse best-guess auto-credited deposits', icon: AlertTriangle },
@@ -357,6 +359,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
             <MerchantFloatRequestsPanel />
           </div>
         )}
+        {activeTool === 'merchant_float_requisition' && <MerchantFloatRequisitionPanel mode="finops" />}
         </Suspense>
       </div>
     );
@@ -402,7 +405,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
     {
       title: 'Merchant Network',
       items: moreActions.filter(a => [
-        'merchant_agents','merchant_float',
+        'merchant_agents','merchant_float','merchant_float_requisition',
       ].includes(a.id as string)),
     },
     {

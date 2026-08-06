@@ -17520,6 +17520,63 @@ export type Database = {
         }
         Relationships: []
       }
+      merchant_float_requisitions: {
+        Row: {
+          approver_name: string | null
+          cfo_comment: string | null
+          coverage_notes: string | null
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          id: string
+          reason: string
+          requested_amount: number
+          requested_by: string | null
+          requester_name: string | null
+          requester_role: string | null
+          requisition_code: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          approver_name?: string | null
+          cfo_comment?: string | null
+          coverage_notes?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          reason: string
+          requested_amount: number
+          requested_by?: string | null
+          requester_name?: string | null
+          requester_role?: string | null
+          requisition_code?: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          approver_name?: string | null
+          cfo_comment?: string | null
+          coverage_notes?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          reason?: string
+          requested_amount?: number
+          requested_by?: string | null
+          requester_name?: string | null
+          requester_role?: string | null
+          requisition_code?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           content: string

@@ -13,6 +13,7 @@ import { CFOROIRequests } from '@/components/cfo/CFOROIRequests';
 import { CFOOverviewDashboard } from '@/components/cfo/CFOOverviewDashboard';
 import { DirectCreditTool } from '@/components/cfo/DirectCreditTool';
 import { MerchantFloatRequestsPanel } from '@/components/cfo/MerchantFloatRequestsPanel';
+import { MerchantFloatRequisitionPanel } from '@/components/financial-ops/MerchantFloatRequisitionPanel';
 import { CFOPayoutsShareButton } from '@/components/cfo/CFOPayoutsShareButton';
 import { RevenueExpenseDashboard } from '@/components/cfo/RevenueExpenseDashboard';
 import { DirectorRequisitionsPanel } from '@/components/requisitions/DirectorRequisitionsPanel';
@@ -406,6 +407,8 @@ export default function CFODashboardPage() {
             <MerchantFloatRequestsPanel />
           </div>
         );
+      case 'merchant-float-requisitions':
+        return <MerchantFloatRequisitionPanel mode="cfo" />;
       case 'ledger-health':
         return <LedgerHealthPanel />;
       case 'capital-opportunities':
