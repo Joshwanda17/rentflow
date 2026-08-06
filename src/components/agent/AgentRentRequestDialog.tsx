@@ -82,8 +82,6 @@ import { notifyVerificationCreated } from '@/lib/landlordVerificationNotify';
 import { formatUGX, calculateRentRepayment } from '@/lib/rentCalculations';
 import { hapticSuccess } from '@/lib/haptics';
 import { normalizeDistrict, districtWarning } from '@/lib/ugandaDistricts';
-import { UgLocationPicker } from '@/components/location/UgLocationPicker';
-import type { UgLocationSelection } from '@/hooks/useUgLocations';
 import { validateUgandaPhone } from '@/lib/ugandaPhone';
 import { generateRentRequestFormPdf } from '@/lib/rentRequestFormPdf';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -743,6 +741,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setPropertyCity((c) => c || sel.subcounty || sel.county || '');
     setLc1Village((v) => v || sel.village);
     setPropertyAddress((a) => a || sel.fullPath);
+  };
   };
   const [houseCategory, setHouseCategory] = useState('');
   const [landlordPayoutDay, setLandlordPayoutDay] = useState<string>('1');
