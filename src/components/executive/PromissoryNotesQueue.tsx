@@ -24,9 +24,12 @@ import { cn } from '@/lib/utils';
 import { formatLocation, locationHaystack } from '@/lib/locationText';
 import { CompactAmount } from '@/components/ui/CompactAmount';
 import { toast } from 'sonner';
+import { useAuth } from '@/hooks/useAuth';
 
 export function PromissoryNotesQueue() {
   const queryClient = useQueryClient();
+  const { roles } = useAuth();
+  const canReverseBonus = (roles || []).some((r: string) => ['ceo', 'coo', 'cfo', 'super_admin'].includes(r));
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedNote, setSelectedNote] = useState<any>(null);
@@ -36,6 +39,47 @@ export function PromissoryNotesQueue() {
   const [approveTarget, setApproveTarget] = useState<any>(null);
   const [approveReason, setApproveReason] = useState('');
   const [approving, setApproving] = useState(false);
+  const [rejectTarget, setRejectTarget] = useState<any>(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [rejecting, setRejecting] = useState(false);
+
+  const handleReverseBonus = async () => {
+    if (!rejectTarget) return;
+    const reason = rejectReason.trim();
+    if (reason.length < 20) {
+      toast.error('Please provide a reason of at least 20 characters.');
+      return;
+    }
+    setRejecting(true);
+    try {
+      const { data, error } = await supabase.rpc('reverse_promissory_note_bonus' as any, {
+        p_note_id: rejectTarget.id,
+        p_reason: reason,
+      });
+      if (error) throw error;
+      const res = data as any;
+      if (res?.status === 'error') throw new Error(res.message);
+      if (res?.status === 'reversed') {
+        const legs = Array.isArray(res?.legs) ? res.legs : [];
+        const summary = legs.length
+          ? legs
+              .map((l: any) => `${l.role || l.payee_role || 'payee'}: ${l.recovered ?? l.amount ?? 0}${l.arrears ? ` (arrears ${l.arrears})` : ''}`)
+              .join(' · ')
+          : 'No wallet legs recovered.';
+        toast.success(`Bonus reversed — ${summary}`);
+      } else {
+        toast.info(res?.message || `Reversal returned status: ${res?.status ?? 'unknown'}`);
+      }
+      setRejectTarget(null);
+      setRejectReason('');
+      setSelectedNote(null);
+      queryClient.invalidateQueries({ queryKey: ['promissory-notes-queue'] });
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to reverse promissory note bonus.');
+    } finally {
+      setRejecting(false);
+    }
+  };
 
   const handleApprove = async () => {
     if (!approveTarget) return;
