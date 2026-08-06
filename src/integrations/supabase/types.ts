@@ -19189,6 +19189,12 @@ export type Database = {
           partner_id: string
           prorata_amount: number
           prorata_days: number
+          rejection_reason: string | null
+          rent_request_ids: string[]
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
           updated_at: string
         }
         Insert: {
@@ -19205,6 +19211,12 @@ export type Database = {
           partner_id: string
           prorata_amount?: number
           prorata_days?: number
+          rejection_reason?: string | null
+          rent_request_ids?: string[]
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
           updated_at?: string
         }
         Update: {
@@ -19221,6 +19233,12 @@ export type Database = {
           partner_id?: string
           prorata_amount?: number
           prorata_days?: number
+          rejection_reason?: string | null
+          rent_request_ids?: string[]
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
           updated_at?: string
         }
         Relationships: [
@@ -35629,6 +35647,18 @@ export type Database = {
         Args: { p_at: string; p_role: string }
         Returns: number
       }
+      partner_ops_approve_self_topup: {
+        Args: { p_notes?: string; p_topup_id: string }
+        Returns: Json
+      }
+      partner_ops_list_self_topup_reviews: {
+        Args: { p_limit?: number; p_status?: string }
+        Returns: Json
+      }
+      partner_ops_reject_self_topup: {
+        Args: { p_reason: string; p_topup_id: string }
+        Returns: Json
+      }
       partner_ops_report_breakdown: {
         Args: { p_from?: string; p_to?: string }
         Returns: Json
@@ -35739,6 +35769,7 @@ export type Database = {
         Returns: undefined
       }
       psm_is_partner: { Args: { p_user: string }; Returns: boolean }
+      psm_is_topup_reviewer: { Args: { p_uid: string }; Returns: boolean }
       purge_geo_coverage_cache: { Args: never; Returns: number }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }

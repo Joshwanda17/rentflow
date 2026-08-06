@@ -129,11 +129,12 @@ export function SelfPortfolioDeployDialog({
           p_rent_request_ids: selectedIds,
         });
         if (error) throw error;
-        toast.success(
-          prorata > 0
-            ? `Top-up deployed. It starts earning today — ${formatDynamic(prorata)} for the rest of this month.`
-            : 'Top-up deployed and now earning.',
-        );
+        toast.success('Top-up submitted successfully', {
+          description:
+            prorata > 0
+              ? `Partner Ops will confirm it shortly. Your ${formatDynamic(total)} stays in your wallet until then, and earns ${formatDynamic(prorata)} for the rest of this month once confirmed.`
+              : `Partner Ops will confirm it shortly. Your ${formatDynamic(total)} stays in your wallet until then.`,
+        });
       } else {
         const { error } = await supabase.rpc('partner_self_confirm_commitment', {
           p_rent_request_ids: selectedIds,
