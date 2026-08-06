@@ -1190,12 +1190,13 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       const caretakerName = form.caretaker_type === 'other' ? form.caretaker_name : (isAgentCaretaker ? null : null);
       const caretakerPhone = form.caretaker_type === 'other' ? form.caretaker_phone : null;
 
+      const listingRegion = DISTRICT_TO_BACKEND_REGION[ugLoc.district] ?? 'Central';
       const { data: listing, error } = await supabase
         .from('house_listings')
         .insert({
           agent_id: user.id,
           landlord_id: landlordId,
-          title: form.title || `${HOUSE_CATEGORIES.find(c => c.value === form.house_category)?.label} in ${form.region}`,
+          title: form.title || `${HOUSE_CATEGORIES.find(c => c.value === form.house_category)?.label} in ${listingRegion}`,
           description: form.description || null,
           house_category: form.house_category,
           number_of_rooms: form.number_of_rooms,
@@ -1204,9 +1205,9 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           access_fee: pricing.accessFee,
           platform_fee: pricing.platformFee,
           total_monthly_cost: pricing.totalMonthlyCost,
-          region: form.region,
-          district: form.district || null,
-          address: form.address,
+          region: listingRegion,
+          district: ugLoc.district,
+          address: ugLoc.village,
           latitude: geo?.lat ?? null,
           longitude: geo?.lng ?? null,
           has_water: form.has_water,
@@ -1223,7 +1224,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           // LC1 fields
           lc1_chairperson_name: lc1Selection?.name ?? null,
           lc1_chairperson_phone: lc1Selection?.phone ?? null,
-          lc1_chairperson_village: lc1Selection?.village || form.village || null,
+          lc1_chairperson_village: lc1Selection?.village || ugLoc.village,
         } as any)
         .select('id')
         .single();
