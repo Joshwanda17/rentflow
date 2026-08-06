@@ -172,14 +172,43 @@ export default function FunderOnboarding() {
 
   const trimmedSearch = search.trim();
 
-  const { data, isLoading, isFetching } = useQuery({
-    queryKey: ['funder-onboarding-self-registered', page, trimmedSearch, sourceFilter],
+  // Partners with an agreement still awaiting the company countersign.
+  // These must always be visible in this queue even when the profile was
+  // not created through the funder-onboarding signup flow (e.g. legacy or
+  // ops-created partners), otherwise the countersign step is unreachable.
+  const { data: awaitingSignOffIds } = useQuery({
+    queryKey: ['partner-agreements-awaiting-countersign-ids'],
     enabled: !!user && roles.includes('manager'),
     queryFn: async () => {
+      const { data: ags, error } = await (supabase.from('partner_agreements') as any)
+        .select('partner_id, status, countersigned_at')
+        .is('countersigned_at', null)
+        .limit(500);
+      if (error) throw error;
+      const ids = Array.from(
+        new Set(((ags || []) as Array<{ partner_id: string | null }>)
+          .map((a) => a.partner_id)
+          .filter((id): id is string => !!id)),
+      );
+      return ids;
+    },
+    staleTime: 30_000,
+  });
+
+  const awaitingIdsKey = (awaitingSignOffIds || []).join(',');
+
+  const { data, isLoading, isFetching } = useQuery({
+    queryKey: ['funder-onboarding-self-registered', page, trimmedSearch, sourceFilter, awaitingIdsKey],
+    enabled: !!user && roles.includes('manager'),
+    queryFn: async () => {
+      const extraIds = awaitingSignOffIds || [];
       let query = supabase
         .from('profiles')
-        .select('id, full_name, phone, email, created_at, frozen_at, verified, funder_verified_at, funder_rejected_at, funder_rejection_reason, referrer_id', { count: 'exact' })
-        .eq('signup_source', 'funder-onboarding');
+        .select('id, full_name, phone, email, created_at, frozen_at, verified, funder_verified_at, funder_rejected_at, funder_rejection_reason, referrer_id', { count: 'exact' });
+
+      query = extraIds.length
+        ? query.or(`signup_source.eq.funder-onboarding,id.in.(${extraIds.join(',')})`)
+        : query.eq('signup_source', 'funder-onboarding');
 
       if (sourceFilter === 'referred') query = query.not('referrer_id', 'is', null);
       if (sourceFilter === 'direct') query = query.is('referrer_id', null);
