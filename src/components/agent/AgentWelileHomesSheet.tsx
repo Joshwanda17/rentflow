@@ -90,6 +90,14 @@ interface EnrollmentAuditRow {
   editor_name?: string;
 }
 
+interface RecentRentPayment {
+  id: string;
+  period_month: string;
+  amount: number;
+  created_at: string;
+  tenant_name: string;
+}
+
 type PreviewDelta<T> = { old: T; new: T };
 interface EditPreview {
   success: boolean;
