@@ -188,9 +188,7 @@ Deno.serve(async (req) => {
     if (amount < 500) {
       return json(400, { error: "amount_too_small", message: "Minimum cash deposit is UGX 500" });
     }
-    if (amount > 50_000_000) {
-      return json(400, { error: "amount_too_large", message: "Amount exceeds the cash deposit limit" });
-    }
+    // No upper cash deposit limit — deposits of any size are accepted.
     const phone9 = last9(agentPhoneRaw);
     if (phone9.length !== 9) {
       return json(400, { error: "invalid_phone", message: "Enter a valid agent phone number" });
