@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { formatUGX } from '@/lib/rentCalculations';
 import { PartnerOpsTargetEditor } from './PartnerOpsTargetEditor';
+import { PartnerNoteRateEditor } from './PartnerNoteRateEditor';
 
 interface ScoreboardRow {
   lead_user_id: string;
@@ -81,6 +82,7 @@ export function PartnerOpsScoreboard() {
 
   return (
     <div className="space-y-3">
+      <PartnerNoteRateEditor />
       <h3 className="text-sm font-semibold text-foreground">Lead scoreboard — this month</h3>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {rows.map((r) => (
