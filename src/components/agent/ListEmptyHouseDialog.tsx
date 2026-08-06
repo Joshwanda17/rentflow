@@ -2508,9 +2508,9 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           <Lc1ChairpersonPicker
             value={lc1Selection}
             onChange={setLc1Selection}
-            defaultRegion={form.region}
-            defaultDistrict={form.district}
-            defaultVillage={form.village}
+            defaultRegion={ugLoc ? (DISTRICT_TO_BACKEND_REGION[ugLoc.district] ?? 'Central') : ''}
+            defaultDistrict={ugLoc?.district ?? ''}
+            defaultVillage={ugLoc?.village ?? ''}
             attempted={attempted}
           />
 
