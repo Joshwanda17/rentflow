@@ -290,6 +290,40 @@ export function AgentWelileHomesSheet({ open, onOpenChange }: AgentWelileHomesSh
             </div>
 
             {pendingConfirmation > 0 && (
+              <></>
+            )}
+            {/* Recent rent payments */}
+            <Card>
+              <CardContent className="p-3 space-y-2.5">
+                <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  <History className="h-3.5 w-3.5" /> Recent rent payments
+                </div>
+                {recentPayments.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No rent collected yet.</p>
+                ) : (
+                  <div className="divide-y divide-border/60">
+                    {recentPayments.map((p) => (
+                      <div key={p.id} className="flex items-center justify-between gap-2 py-2 first:pt-0 last:pb-0">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{p.tenant_name}</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            {new Date(p.period_month).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })} rent
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-sm font-semibold text-emerald-600">{formatUGX(p.amount)}</p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {new Date(p.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {pendingConfirmation > 0 && (
               <div className="flex items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700">
                 <Clock className="h-3.5 w-3.5 shrink-0" />
                 {pendingConfirmation} {pendingConfirmation === 1 ? 'tenant is' : 'tenants are'} unverified. Tap Verify to send them a verification SMS.
