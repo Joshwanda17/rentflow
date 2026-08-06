@@ -120,7 +120,51 @@ Deno.serve(async (req) => {
     const candidate = new Date(firstPayoutMs);
     const firstPayoutDate = `${candidate.getFullYear()}-${String(candidate.getMonth() + 1).padStart(2, "0")}-${String(candidate.getDate()).padStart(2, "0")}`;
 
-    // Reduce the opportunity summary
+    // Partner capital is no longer activated instantly: create an INACTIVE
+    // portfolio awaiting Partner Ops approval. No ledger legs, no wallet
+    // movement until approval.
+    const { data: pending, error: pendingErr } = await userClient.rpc(
+      "funder_create_pending_portfolio",
+      { p_amount: amount, p_summary_id: summary_id ?? null, p_term_months: 12 },
+    );
+
+    if (pendingErr) {
+      const msg = pendingErr.message?.includes("AGREEMENT_REQUIRED")
+        ? "Sign your partner agreement before creating a portfolio."
+        : pendingErr.message || "Could not submit your portfolio for approval.";
+      return new Response(
+        JSON.stringify({ error: msg }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    await adminClient.from("notifications").insert({
+      user_id: user.id,
+      title: "Portfolio submitted for approval",
+      message: `Your commitment of UGX ${amount.toLocaleString()} has been submitted to Partner Operations for review. Your money stays in your wallet until it is approved.`,
+      type: "info",
+      metadata: { amount, reference_id: referenceId, status: "pending_ops_approval", pending: pending },
+    });
+
+    fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
+      body: JSON.stringify({ title: "Portfolio awaiting approval", body: "A partner submitted a new portfolio for review", url: "/dashboard/partner-ops" }),
+    }).catch(() => {});
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        pending: true,
+        status: "pending_ops_approval",
+        reference_id: referenceId,
+        portfolio: pending,
+        message: "Submitted to Partner Operations for approval. Your funds stay in your wallet until approved.",
+      }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+
+    // Legacy instant-activation path (retained below, unreachable)
     if (summary_id) {
       const { error: summaryErr } = await adminClient.rpc('decrement_rent_requested', {
         p_summary_id: summary_id,
