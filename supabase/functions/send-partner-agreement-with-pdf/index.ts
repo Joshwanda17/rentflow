@@ -584,6 +584,7 @@ Deno.serve(async (req) => {
         override_email: overrideEmail || null,
         signed_url: signedUrl,
         pdf_object_path: objectPath,
+        portfolio_id: portfolioId,
       },
     })
 
@@ -613,6 +614,7 @@ Deno.serve(async (req) => {
           override_email: overrideEmail || null,
           signed_url: signedUrl,
           pdf_object_path: objectPath,
+          portfolio_id: portfolioId,
         },
       })
     } catch (error) {
