@@ -46,6 +46,9 @@ interface Row {
   partner_email: string | null;
   token_expires_at: string | null;
   token_consumed_at: string | null;
+  sent_count: number;
+  last_sent_at: string | null;
+  last_send_status: string | null;
 }
 
 type Filter = 'all' | InviteStatus;
@@ -76,21 +79,44 @@ export function InvitedPortfoliosPanel() {
       const partnerIds = Array.from(new Set(portfolios.map(p => p.investor_id).filter(Boolean)));
       const portfolioIds = portfolios.map(p => p.id);
 
-      const [{ data: profiles }, { data: tokens }] = await Promise.all([
+      const codes = portfolios.map(p => p.portfolio_code).filter(Boolean);
+
+      const [{ data: profiles }, { data: tokens }, { data: sendLog }] = await Promise.all([
         (supabase.from('profiles') as any)
           .select('id, full_name, phone, email')
           .in('id', partnerIds),
         (supabase.from('portfolio_completion_tokens') as any)
           .select('portfolio_id, expires_at, consumed_at')
           .in('portfolio_id', portfolioIds),
+        // Delivery history for the invite email so Ops can see which invites
+        // actually went out, how many times, and when the last one was sent.
+        (supabase.from('email_send_log') as any)
+          .select('recipient_email, status, created_at, metadata')
+          .eq('template_name', 'partner-portfolio-invite')
+          .order('created_at', { ascending: false })
+          .limit(1000),
       ]);
 
       const nameMap = new Map<string, any>((profiles || []).map((p: any) => [p.id, p]));
       const tokenMap = new Map<string, any>((tokens || []).map((t: any) => [t.portfolio_id, t]));
 
+      // Group send-log rows by portfolio code (kept in metadata.template_data).
+      const sendMap = new Map<string, { count: number; last_at: string; last_status: string }>();
+      for (const log of (sendLog || []) as any[]) {
+        const code = log?.metadata?.template_data?.portfolio_code;
+        if (!code || !codes.includes(code)) continue;
+        const existing = sendMap.get(code);
+        if (existing) {
+          existing.count += 1;
+        } else {
+          sendMap.set(code, { count: 1, last_at: log.created_at, last_status: log.status });
+        }
+      }
+
       return portfolios.map((p): Row => {
         const prof = nameMap.get(p.investor_id) || {};
         const tok = tokenMap.get(p.id) || {};
+        const send = sendMap.get(p.portfolio_code);
         return {
           id: p.id,
           portfolio_code: p.portfolio_code,
@@ -106,6 +132,9 @@ export function InvitedPortfoliosPanel() {
           partner_email: prof.email || null,
           token_expires_at: tok.expires_at || null,
           token_consumed_at: tok.consumed_at || null,
+          sent_count: send?.count || 0,
+          last_sent_at: send?.last_at || null,
+          last_send_status: send?.last_status || null,
         };
       });
     },
