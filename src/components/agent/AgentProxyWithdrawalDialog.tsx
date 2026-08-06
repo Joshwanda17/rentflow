@@ -14,6 +14,12 @@ import { humanizeWithdrawalError } from '@/lib/withdrawalErrorText';
 
 type PayoutMode = 'mobile_money' | 'bank_transfer' | 'cash';
 
+/** Mask all but the last 4 digits of a phone / account number in free text. */
+function maskDestination(text: string): string {
+  if (!text) return '—';
+  return text.replace(/\d{5,}/g, (d) => `${'•'.repeat(Math.max(0, d.length - 4))}${d.slice(-4)}`);
+}
+
 /**
  * Deterministic, name-based UUID (v5-style) derived from the CONTENT of the
  * request, bucketed to a 10-minute window. A retry of the same submission
@@ -77,6 +83,7 @@ export function AgentProxyWithdrawalDialog({
   const [loadingRoutes, setLoadingRoutes] = useState(false);
   const [routes, setRoutes] = useState<PayoutRoute[]>([]);
   const [selectedRouteKey, setSelectedRouteKey] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
   const isSubmittingRef = useRef(false);
 
   useEffect(() => {
@@ -85,6 +92,7 @@ export function AgentProxyWithdrawalDialog({
     setReason('');
     setRoutes([]);
     setSelectedRouteKey(null);
+    setConfirming(false);
     if (!funderId) return;
 
     let cancelled = false;
@@ -330,6 +338,7 @@ export function AgentProxyWithdrawalDialog({
     } finally {
       setLoading(false);
       isSubmittingRef.current = false;
+      setConfirming(false);
     }
   };
 
