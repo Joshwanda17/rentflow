@@ -60,6 +60,7 @@ export function SubAgentDetailSheet({
   onSuspend,
   onTransfer,
   onUnlink,
+  actionsDisabled = false,
 }: {
   subAgent: ServiceCenterSubAgent | null;
   open: boolean;
@@ -67,6 +68,8 @@ export function SubAgentDetailSheet({
   onSuspend: (s: ServiceCenterSubAgent) => void;
   onTransfer: (s: ServiceCenterSubAgent, rentRequestId: string) => void;
   onUnlink: (s: ServiceCenterSubAgent) => void;
+  /** True while one of the action dialogs is open / a mutation is running. */
+  actionsDisabled?: boolean;
 }) {
   const [entityTab, setEntityTab] = useState<'tenants' | 'landlords' | 'houses'>('tenants');
 
@@ -286,6 +289,7 @@ export function SubAgentDetailSheet({
                         size="sm"
                         variant="outline"
                         className="w-full sm:w-auto"
+                        disabled={actionsDisabled}
                         onClick={() => onTransfer(subAgent, t.rent_request_id)}
                       >
                         <ArrowLeftRight className="mr-1.5 h-3.5 w-3.5" /> Transfer tenant
@@ -327,6 +331,7 @@ export function SubAgentDetailSheet({
               <Button
                 variant="outline"
                 className="flex-1"
+                disabled={actionsDisabled}
                 onClick={() => onUnlink(subAgent)}
               >
                 <Unlink className="mr-1.5 h-4 w-4" /> Unlink sub-agent
@@ -334,6 +339,7 @@ export function SubAgentDetailSheet({
               <Button
                 variant={suspended ? 'secondary' : 'destructive'}
                 className="flex-1"
+                disabled={actionsDisabled}
                 onClick={() => onSuspend(subAgent)}
               >
                 <ShieldOff className="mr-1.5 h-4 w-4" /> {suspended ? 'Restore access' : 'Suspend'}
