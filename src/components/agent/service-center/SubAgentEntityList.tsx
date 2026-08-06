@@ -78,6 +78,11 @@ export function SubAgentEntityList({
   const [sort, setSort] = useState<SortKey>('newest');
   const [visible, setVisible] = useState(PAGE);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [lightbox, setLightbox] = useState<{ images: string[]; startIndex: number; open: boolean }>({
+    images: [],
+    startIndex: 0,
+    open: false,
+  });
 
   useEffect(() => {
     setFilter('all');
