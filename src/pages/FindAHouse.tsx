@@ -53,7 +53,13 @@ const CATEGORIES = [
   { value: 'two_bedroom', label: '2 Bedrooms' },
   { value: 'three_bedroom', label: '3 Bedrooms' },
   { value: 'studio', label: 'Studio' },
-  { value: 'shop', label: 'Shop' },
+  { value: 'shop', label: 'Shop / Lock-up Shop' },
+  { value: 'market_stall', label: 'Market Stall' },
+  { value: 'kiosk', label: 'Kiosk / Container' },
+  { value: 'salon_workshop', label: 'Salon / Workshop' },
+  { value: 'office_space', label: 'Office Space' },
+  { value: 'warehouse_store', label: 'Warehouse / Store' },
+  { value: 'commercial_premises', label: 'Other Commercial Premises' },
 ];
 
 const SITE_URL = 'https://welile.tech';

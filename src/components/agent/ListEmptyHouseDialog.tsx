@@ -50,14 +50,20 @@ interface ListEmptyHouseDialogProps {
 }
 
 const HOUSE_CATEGORIES = [
-  { value: 'single_room', label: 'Single Room', emoji: '🚪' },
-  { value: 'double_room', label: 'Double Room', emoji: '🚪🚪' },
-  { value: 'bedsitter', label: 'Bedsitter', emoji: '🛏️' },
-  { value: 'one_bedroom', label: '1 Bedroom', emoji: '🏠' },
-  { value: 'two_bedroom', label: '2 Bedrooms', emoji: '🏡' },
-  { value: 'three_bedroom', label: '3 Bedrooms', emoji: '🏘️' },
-  { value: 'studio', label: 'Studio', emoji: '🎨' },
-  { value: 'shop', label: 'Shop', emoji: '🏪' },
+  { value: 'single_room', label: 'Single Room' },
+  { value: 'double_room', label: 'Double Room' },
+  { value: 'bedsitter', label: 'Bedsitter' },
+  { value: 'one_bedroom', label: '1 Bedroom' },
+  { value: 'two_bedroom', label: '2 Bedrooms' },
+  { value: 'three_bedroom', label: '3 Bedrooms' },
+  { value: 'studio', label: 'Studio' },
+  { value: 'shop', label: 'Shop / Lock-up Shop' },
+  { value: 'market_stall', label: 'Market Stall' },
+  { value: 'kiosk', label: 'Kiosk / Container' },
+  { value: 'salon_workshop', label: 'Salon / Workshop' },
+  { value: 'office_space', label: 'Office Space' },
+  { value: 'warehouse_store', label: 'Warehouse / Store' },
+  { value: 'commercial_premises', label: 'Other Commercial Premises' },
 ];
 
 import { normalizeDistrict, UGANDA_REGION_GROUPS } from '@/lib/ugandaDistricts';
