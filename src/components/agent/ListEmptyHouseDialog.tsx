@@ -68,6 +68,9 @@ const REGIONS = [
 ];
 
 import { normalizeDistrict, districtWarning, regionLabel, UGANDA_DISTRICT_AREAS, UGANDA_REGION_GROUPS } from '@/lib/ugandaDistricts';
+import { UgLocationPicker } from '@/components/location/UgLocationPicker';
+import { normalizeDistrict as _normDistrictUnused } from '@/lib/ugandaDistricts';
+import type { UgLocationSelection } from '@/hooks/useUgLocations';
 
 // Flattened, searchable index of every curated administrative area across all
 // districts. Lets agents type any place (e.g. "Bwaise", "Ntinda") and jump
