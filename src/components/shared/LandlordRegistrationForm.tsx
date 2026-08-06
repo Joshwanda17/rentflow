@@ -31,7 +31,9 @@ import { validateFullName } from '@/lib/authValidation';
 
 const HOUSE_CATEGORIES = [
   'Single Room', 'Double Room', 'Bedsitter', 'One Bedroom',
-  'Two Bedroom', 'Three Bedroom', 'Commercial', 'Mixed',
+  'Two Bedroom', 'Three Bedroom', 'Shop / Lock-up Shop', 'Market Stall',
+  'Kiosk / Container', 'Salon / Workshop', 'Office Space', 'Warehouse / Store',
+  'Other Commercial Premises', 'Mixed',
 ];
 
 interface LandlordRegistrationFormProps {

@@ -21,15 +21,21 @@ type IncomeType = 'daily' | 'weekly-monthly';
 type RepaymentPeriod = '7' | '14' | '21' | '30' | '120';
 
 const HOUSE_CATEGORIES = [
-  { value: 'single-room', label: 'Single Room', emoji: '🚪' },
-  { value: 'double-room', label: 'Double Room', emoji: '🛏️' },
-  { value: '1-bed', label: '1 Bed House', emoji: '🏠' },
-  { value: '2-bed', label: '2 Bedroom House', emoji: '🏡' },
-  { value: '2-bed-full', label: '2 Bed + Sitting Room, Kitchen & 2 Toilets', emoji: '🏘️' },
-  { value: '3-bed', label: '3 Bedroom Apartment', emoji: '🏢' },
-  { value: '3-bed-luxury', label: '3 Bed Luxury + Boys Quarter', emoji: '🏰' },
-  { value: '4-bed', label: '4+ Bedroom Villa', emoji: '🏛️' },
-  { value: 'commercial', label: 'Commercial Property', emoji: '🏪' },
+  { value: 'single-room', label: 'Single Room' },
+  { value: 'double-room', label: 'Double Room' },
+  { value: '1-bed', label: '1 Bed House' },
+  { value: '2-bed', label: '2 Bedroom House' },
+  { value: '2-bed-full', label: '2 Bed + Sitting Room, Kitchen & 2 Toilets' },
+  { value: '3-bed', label: '3 Bedroom Apartment' },
+  { value: '3-bed-luxury', label: '3 Bed Luxury + Boys Quarter' },
+  { value: '4-bed', label: '4+ Bedroom Villa' },
+  { value: 'shop', label: 'Shop / Lock-up Shop' },
+  { value: 'market-stall', label: 'Market Stall' },
+  { value: 'kiosk', label: 'Kiosk / Container' },
+  { value: 'salon-workshop', label: 'Salon / Workshop' },
+  { value: 'office', label: 'Office Space' },
+  { value: 'warehouse', label: 'Warehouse / Store' },
+  { value: 'commercial', label: 'Other Commercial Premises' },
 ];
 
 function AgentFooter({ agentInfo }: { agentInfo: { name: string; phone: string } | null }) {
@@ -482,7 +488,7 @@ export default function RegisterTenantPublic() {
             <SelectTrigger><SelectValue placeholder="Select house type" /></SelectTrigger>
             <SelectContent>
               {HOUSE_CATEGORIES.map(cat => (
-                <SelectItem key={cat.value} value={cat.value}>{cat.emoji} {cat.label}</SelectItem>
+                <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
               ))}
             </SelectContent>
           </Select>
