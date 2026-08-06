@@ -23072,6 +23072,10 @@ export type Database = {
           schedule_status: string | null
           self_funding_line_id: string | null
           self_funding_partner_id: string | null
+          service_center_comment: string | null
+          service_center_manager_id: string | null
+          service_center_reviewed_at: string | null
+          service_center_reviewed_by: string | null
           status: string | null
           supporter_id: string | null
           tenancy_continuity: string | null
@@ -23187,6 +23191,10 @@ export type Database = {
           schedule_status?: string | null
           self_funding_line_id?: string | null
           self_funding_partner_id?: string | null
+          service_center_comment?: string | null
+          service_center_manager_id?: string | null
+          service_center_reviewed_at?: string | null
+          service_center_reviewed_by?: string | null
           status?: string | null
           supporter_id?: string | null
           tenancy_continuity?: string | null
@@ -23302,6 +23310,10 @@ export type Database = {
           schedule_status?: string | null
           self_funding_line_id?: string | null
           self_funding_partner_id?: string | null
+          service_center_comment?: string | null
+          service_center_manager_id?: string | null
+          service_center_reviewed_at?: string | null
+          service_center_reviewed_by?: string | null
           status?: string | null
           supporter_id?: string | null
           tenancy_continuity?: string | null
@@ -24312,6 +24324,54 @@ export type Database = {
           resubmitted?: boolean
           sitemap_hash?: string
           url_count?: number | null
+        }
+        Relationships: []
+      }
+      service_center_managers: {
+        Row: {
+          agent_id: string
+          created_at: string
+          id: string
+          personal_active_tenants: number
+          qualifying_sub_agents: number
+          revoke_reason: string | null
+          revoked_at: string | null
+          rule_version: string | null
+          source: string
+          status: string
+          tagged_at: string
+          tagged_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string
+          id?: string
+          personal_active_tenants?: number
+          qualifying_sub_agents?: number
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          rule_version?: string | null
+          source?: string
+          status?: string
+          tagged_at?: string
+          tagged_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string
+          id?: string
+          personal_active_tenants?: number
+          qualifying_sub_agents?: number
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          rule_version?: string | null
+          source?: string
+          status?: string
+          tagged_at?: string
+          tagged_by?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
@@ -31118,6 +31178,10 @@ export type Database = {
           schedule_status: string | null
           self_funding_line_id: string | null
           self_funding_partner_id: string | null
+          service_center_comment: string | null
+          service_center_manager_id: string | null
+          service_center_reviewed_at: string | null
+          service_center_reviewed_by: string | null
           status: string | null
           supporter_id: string | null
           tenancy_continuity: string | null
@@ -33704,6 +33768,10 @@ export type Database = {
         Args: { p_agent_id?: string }
         Returns: Json
       }
+      get_service_center_rent_queue: {
+        Args: { p_manager_id?: string }
+        Returns: Json
+      }
       get_shadow_match_rate: {
         Args: { p_hours?: number }
         Returns: {
@@ -34500,6 +34568,10 @@ export type Database = {
         Returns: boolean
       }
       is_sensitive_field_editor: { Args: { _uid: string }; Returns: boolean }
+      is_service_center_manager: {
+        Args: { p_agent_id: string }
+        Returns: boolean
+      }
       is_service_center_reviewer: {
         Args: { _user_id: string }
         Returns: boolean
@@ -35703,6 +35775,10 @@ export type Database = {
         Args: { p_short_code: string }
         Returns: Json
       }
+      resolve_service_center_manager_for_agent: {
+        Args: { p_agent_id: string }
+        Returns: string
+      }
       resolve_short_link: {
         Args: { p_code: string }
         Returns: {
@@ -35918,6 +35994,10 @@ export type Database = {
           withdrawable_balance: number
         }[]
       }
+      service_center_review_rent_request: {
+        Args: { p_comment?: string; p_decision: string; p_request_id: string }
+        Returns: Json
+      }
       set_landlord_verification: {
         Args: {
           p_landlord_id: string
@@ -36028,6 +36108,7 @@ export type Database = {
         Args: { p_listing: string }
         Returns: undefined
       }
+      sync_service_center_manager_tags: { Args: never; Returns: Json }
       tenant_ops_correct_rent_request: {
         Args: {
           p_access_fee?: number
