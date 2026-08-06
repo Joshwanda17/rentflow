@@ -127,7 +127,7 @@ export default function AgentServiceCenter() {
             <Card key={s.label}>
               <CardContent className="p-3">
                 <div className="text-[11px] text-muted-foreground">{s.label}</div>
-                <div className={cn('text-base font-bold break-words', s.placeholder ? 'text-muted-foreground' : 'text-foreground')}>
+                <div className={cn('text-base font-bold break-words', s.value === '0' ? 'text-muted-foreground' : 'text-foreground')}>
                   {s.value}
                 </div>
               </CardContent>
