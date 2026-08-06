@@ -44,6 +44,11 @@ export interface EntityRow {
   amountValue?: number | null;
   createdAt?: string | null;
   details: { label: string; value: string }[];
+  /** Optional photo URLs rendered as thumbnails inside the expanded row. */
+  images?: string[];
+  /** Optional progress bar (0-100) rendered inside the expanded row. */
+  progressPercent?: number | null;
+  progressLabel?: string | null;
 }
 
 /**
@@ -210,6 +215,35 @@ export function SubAgentEntityList({
 
                     {isOpen && (
                       <div className="space-y-2 border-t border-border/60 bg-muted/40 px-3 py-3">
+                        {r.images && r.images.length > 0 && (
+                          <div className="flex gap-2 overflow-x-auto pb-1">
+                            {r.images.map((src, i) => (
+                              <img
+                                key={`${r.id}-img-${i}`}
+                                src={src}
+                                alt={`${r.primary} photo ${i + 1}`}
+                                loading="lazy"
+                                className="h-20 w-28 shrink-0 rounded-lg border border-border/60 object-cover"
+                              />
+                            ))}
+                          </div>
+                        )}
+                        {typeof r.progressPercent === 'number' && (
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                              <span>Repayment progress</span>
+                              <span className="tabular-nums font-medium text-foreground">
+                                {r.progressLabel ?? `${Math.round(r.progressPercent)}%`}
+                              </span>
+                            </div>
+                            <div className="h-1.5 w-full overflow-hidden rounded-full bg-border">
+                              <div
+                                className="h-full rounded-full bg-success"
+                                style={{ width: `${Math.min(100, Math.max(0, r.progressPercent))}%` }}
+                              />
+                            </div>
+                          </div>
+                        )}
                         <dl className="grid grid-cols-1 gap-x-4 gap-y-1.5 sm:grid-cols-2">
                           {r.details.map((d) => (
                             <div key={d.label} className="min-w-0">
