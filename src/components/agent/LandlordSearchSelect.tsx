@@ -313,6 +313,15 @@ export function LandlordSearchSelect({
   // response can never land after a newer one (no out-of-order results).
   useEffect(() => {
     if (!panelOpen) return;
+    // Search-only list: nothing is fetched until the agent has typed at least
+    // MIN_QUERY_CHARS characters (same behaviour as the LC1 chairperson search).
+    if (debounced.trim().length < MIN_QUERY_CHARS) {
+      reqIdRef.current++;
+      setResults([]);
+      setTotalCount(null);
+      setLoading(false);
+      return;
+    }
     const myId = ++reqIdRef.current;
     const controller = new AbortController();
     const { signal } = controller;
