@@ -7,7 +7,7 @@
 // and emails the partner a download link. This guarantees the stored/emailed
 // PDF is pixel-identical to the on-screen preview.
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { renderContractPdf, decodeDataUrlToBytes } from '../_shared/partnerContractPdf.ts';
+import { renderContractPdf, decodeDataUrlToBytes, resolveAgreementDate } from '../_shared/partnerContractPdf.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -136,6 +136,7 @@ Deno.serve(async (req) => {
       try {
         const amountNum = Math.max(0, Math.floor(Number(row.partnership_amount) || 0));
         let fallbackReturnLabel = '15%';
+        let fallbackPortfolioDate: string | null = null;
         try {
           const { data: portfolio } = await admin
             .from('investor_portfolios')
@@ -149,6 +150,7 @@ Deno.serve(async (req) => {
           if (Number.isFinite(pct) && pct > 0) {
             fallbackReturnLabel = `${Number.isInteger(pct) ? pct : pct.toFixed(2).replace(/\.?0+$/, '')}%`;
           }
+          fallbackPortfolioDate = portfolio?.created_at ?? null;
         } catch { /* keep default */ }
 
         const fallbackBytes = await renderContractPdf({
@@ -168,7 +170,7 @@ Deno.serve(async (req) => {
           payoutMode: row.payout_mode === 'momo' ? 'momo' : 'bank',
           reference,
           partnerSignaturePngBytes: decodeDataUrlToBytes(row.partner_signature_data_url),
-          agreementDate: new Date(row.created_at || Date.now()),
+          agreementDate: resolveAgreementDate(row, fallbackPortfolioDate),
         });
         objectPath = `${partnerId}/partnership-agreement-${reference}.pdf`;
         const { error: fbUpErr } = await admin.storage

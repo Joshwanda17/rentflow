@@ -26,6 +26,36 @@ export function numberToWords(v: number): string {
   return words.join(' ').replace(/\s+/g,' ').trim()
 }
 
+// ── Agreement date resolution ──────────────────────────────────────────────
+// partner_agreements holds ONE row per partner, created the first time that
+// partner ever started a contract. Its created_at is therefore the date of the
+// partner's FIRST agreement, not the one being issued now — using it stamps
+// old dates onto later contracts. Resolve the date the agreement was actually
+// executed instead, most specific source first.
+export function resolveAgreementDate(
+  row: {
+    countersigned_at?: string | null
+    agreement_date?: string | null
+    created_at?: string | null
+  },
+  portfolioCreatedAt?: string | null,
+): Date {
+  const candidates = [
+    portfolioCreatedAt,
+    row?.countersigned_at,
+    row?.agreement_date,
+    row?.created_at,
+  ]
+  for (const candidate of candidates) {
+    if (!candidate) continue
+    // A bare date ("2026-08-03") parses as UTC midnight, which is what we want
+    // for a date-only stamp — no timezone shift back a day.
+    const parsed = new Date(/^\d{4}-\d{2}-\d{2}$/.test(candidate) ? `${candidate}T12:00:00Z` : candidate)
+    if (!Number.isNaN(parsed.getTime())) return parsed
+  }
+  return new Date()
+}
+
 // ── Server-side PDF renderer ───────────────────────────────────────────────
 // Text-only, 4-page A4 contract using pdf-lib standard fonts (Helvetica).
 // No third-party fonts, no HTML — safe on Deno edge runtime.
