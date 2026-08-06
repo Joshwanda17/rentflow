@@ -9,10 +9,19 @@ export interface ServiceCenterTenant {
   rent_request_id: string;
   tenant_id: string | null;
   tenant_name: string | null;
+  tenant_phone?: string | null;
   status: string;
   monthly_rent: number | null;
+  total_repayment?: number | null;
+  amount_repaid?: number | null;
+  daily_repayment?: number | null;
+  landlord_name?: string | null;
+  landlord_phone?: string | null;
+  location?: string | null;
   /** True only for funded/repaying rent plans; transfers are limited to these. */
   is_active?: boolean;
+  /** True when the rent plan itself belongs to this sub-agent (not just a referral). */
+  owned_by_subagent?: boolean;
   created_at?: string | null;
 }
 
@@ -29,6 +38,8 @@ export interface ServiceCenterHouse {
   status: string | null;
   occupied: boolean;
   reason: string | null;
+  photos?: string[];
+  photo_count?: number;
   verified_at: string | null;
   created_at: string | null;
 }
