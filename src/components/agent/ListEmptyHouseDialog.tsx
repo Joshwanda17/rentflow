@@ -60,42 +60,17 @@ const HOUSE_CATEGORIES = [
   { value: 'shop', label: 'Shop', emoji: '🏪' },
 ];
 
-const REGIONS = [
-  'Central', 'Eastern', 'Northern', 'Western',
-  'Kampala', 'Wakiso', 'Mukono', 'Jinja', 'Mbale',
-  'Mbarara', 'Gulu', 'Lira', 'Fort Portal', 'Masaka',
-  'Entebbe', 'Nansana', 'Kira', 'Bweyogerere',
-];
-
-import { normalizeDistrict, districtWarning, regionLabel, UGANDA_DISTRICT_AREAS, UGANDA_REGION_GROUPS } from '@/lib/ugandaDistricts';
+import { normalizeDistrict, UGANDA_REGION_GROUPS } from '@/lib/ugandaDistricts';
 import { UgLocationPicker } from '@/components/location/UgLocationPicker';
 import type { UgLocationSelection } from '@/hooks/useUgLocations';
 
-// Flattened, searchable index of every curated administrative area across all
-// districts. Lets agents type any place (e.g. "Bwaise", "Ntinda") and jump
-// straight to it — region + district + village all auto-filled from one tap.
-interface LocationOption {
-  area: string;
-  district: string;
-  region: string;
-  label: string;
-}
+// Map a selected village's district back to the backend region enum.
 const DISTRICT_TO_BACKEND_REGION: Record<string, string> = (() => {
   const m: Record<string, string> = {};
   for (const g of UGANDA_REGION_GROUPS) {
     for (const d of g.districts) m[d.name] = d.backendRegion;
   }
   return m;
-})();
-const LOCATION_OPTIONS: LocationOption[] = (() => {
-  const out: LocationOption[] = [];
-  for (const [district, areas] of Object.entries(UGANDA_DISTRICT_AREAS)) {
-    const region = DISTRICT_TO_BACKEND_REGION[district] ?? 'Central';
-    for (const area of areas) {
-      out.push({ area, district, region, label: `${area} · ${district}` });
-    }
-  }
-  return out;
 })();
 
 export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLandlordName, initialLandlordPhone, initialLc1Name, initialLc1Phone, initialLc1Village, fromPromoBanner = false }: ListEmptyHouseDialogProps) {
@@ -222,9 +197,6 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   // Human-readable place name resolved from the pinned coordinates.
   const [resolvedPlace, setResolvedPlace] = useState<string | null>(null);
   const [resolvingPlace, setResolvingPlace] = useState(false);
-  // Location quick-search (search & choose a specific known area).
-  const [locQuery, setLocQuery] = useState('');
-  const [locFocused, setLocFocused] = useState(false);
   // ─── Draft persistence (survives a camera-triggered page reload on mobile) ───
   // When true, the form was restored from a saved draft, so we show a banner.
   const [draftRestored, setDraftRestored] = useState(false);
@@ -965,25 +937,15 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   // Validate just the current step before moving forward. Returns true if OK.
   const validateStep = (s: number): boolean => {
     if (s === 1) {
-      // Essentials: rent, region, address, village.
+      // Essentials: rent, village (which drives region/district), GPS.
       if (!monthlyRent || monthlyRent < 10000) {
         toast.error('Monthly rent must be at least UGX 10,000');
         showFormMessage('error', 'Monthly rent must be at least UGX 10,000');
         return false;
       }
-      if (!form.region) {
-        toast.error('Please select a region');
-        showFormMessage('error', 'Please select a region');
-        return false;
-      }
-      if (!form.address.trim()) {
-        toast.error('Address is required');
-        showFormMessage('error', 'Address is required');
-        return false;
-      }
-      if (!form.village.trim()) {
-        toast.error('Village / Zone is required');
-        showFormMessage('error', 'Village / Zone is required');
+      if (!ugLoc) {
+        toast.error('Search and select the village where the house is located');
+        showFormMessage('error', 'Search and select the village where the house is located');
         return false;
       }
       // Every listed house MUST carry its own GPS pin.
@@ -1065,10 +1027,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   const lc1PartialErr = validateLc1Selection(lc1Selection);
   const preflightGates: PreflightGate[] = [
     { label: 'Monthly rent (min UGX 10,000)', ok: !!monthlyRent && monthlyRent >= 10000, hint: 'Enter a monthly rent of at least UGX 10,000', step: 1 },
-    { label: 'Region selected', ok: !!form.region, hint: 'Choose the region', step: 1 },
+    { label: 'Village selected', ok: !!ugLoc, hint: 'Search and select the village where the house is located', step: 1 },
   ];
-  preflightGates.push({ label: 'Address', ok: !!form.address.trim(), hint: 'Enter the property address', step: 1 });
-  preflightGates.push({ label: 'Village / Zone', ok: !!form.village.trim(), hint: 'Enter the village or zone', step: 1 });
   preflightGates.push({ label: 'GPS location pinned', ok: !!geo, hint: 'Stand at the house and pin its exact GPS coordinates', step: 1 });
   preflightGates.push({ label: 'GPS location confirmed', ok: !!geo && geoConfirmed, hint: 'Tick the box confirming the pin sits on the house', step: 1 });
   preflightGates.push({ label: 'At least 3 photos', ok: images.length >= 3, hint: 'Take at least 3 photos of the house', step: 2 });
@@ -1125,16 +1085,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       failWith('Monthly rent must be at least UGX 10,000');
       return;
     }
-    if (!form.region) {
-      failWith('Please select a region');
-      return;
-    }
-    if (!form.address.trim()) {
-      failWith('Address is required');
-      return;
-    }
-    if (!form.village.trim()) {
-      failWith('Village / Zone is required');
+    if (!ugLoc) {
+      failWith('Search and select the village where the house is located');
       return;
     }
     if (images.length < 3) {
@@ -1199,10 +1151,10 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               name: form.landlord_name.trim(),
               phone: canonicalPhone,
               has_smartphone: form.landlord_has_smartphone,
-              property_address: form.address || null,
-              village: form.village || null,
-              district: form.district || null,
-              region: form.region || null,
+              property_address: ugLoc.village,
+              village: ugLoc.village,
+              district: ugLoc.district,
+              region: DISTRICT_TO_BACKEND_REGION[ugLoc.district] ?? 'Central',
               // Stamp ownership so (a) the RLS RETURNING select below is visible
               // to this agent (user_can_access_landlord matches registered_by /
               // managed_by_agent_id) and (b) the landlord is properly linked to
@@ -1238,12 +1190,13 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       const caretakerName = form.caretaker_type === 'other' ? form.caretaker_name : (isAgentCaretaker ? null : null);
       const caretakerPhone = form.caretaker_type === 'other' ? form.caretaker_phone : null;
 
+      const listingRegion = DISTRICT_TO_BACKEND_REGION[ugLoc.district] ?? 'Central';
       const { data: listing, error } = await supabase
         .from('house_listings')
         .insert({
           agent_id: user.id,
           landlord_id: landlordId,
-          title: form.title || `${HOUSE_CATEGORIES.find(c => c.value === form.house_category)?.label} in ${form.region}`,
+          title: form.title || `${HOUSE_CATEGORIES.find(c => c.value === form.house_category)?.label} in ${listingRegion}`,
           description: form.description || null,
           house_category: form.house_category,
           number_of_rooms: form.number_of_rooms,
@@ -1252,9 +1205,9 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           access_fee: pricing.accessFee,
           platform_fee: pricing.platformFee,
           total_monthly_cost: pricing.totalMonthlyCost,
-          region: form.region,
-          district: form.district || null,
-          address: form.address,
+          region: listingRegion,
+          district: ugLoc.district,
+          address: ugLoc.village,
           latitude: geo?.lat ?? null,
           longitude: geo?.lng ?? null,
           has_water: form.has_water,
@@ -1271,7 +1224,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           // LC1 fields
           lc1_chairperson_name: lc1Selection?.name ?? null,
           lc1_chairperson_phone: lc1Selection?.phone ?? null,
-          lc1_chairperson_village: lc1Selection?.village || form.village || null,
+          lc1_chairperson_village: lc1Selection?.village || ugLoc.village,
         } as any)
         .select('id')
         .single();
@@ -1391,11 +1344,12 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         .eq('id', listing.id)
         .maybeSingle();
 
+      const successRegion = ugLoc ? (DISTRICT_TO_BACKEND_REGION[ugLoc.district] ?? 'Central') : ((created as any)?.region || '');
       setSuccessListing({
         id: listing.id,
         shortCode: (created as any)?.short_code ?? null,
-        title: (created as any)?.title || form.title || `${HOUSE_CATEGORIES.find(c => c.value === form.house_category)?.label} in ${form.region}`,
-        region: form.region,
+        title: (created as any)?.title || form.title || `${HOUSE_CATEGORIES.find(c => c.value === form.house_category)?.label} in ${successRegion}`,
+        region: successRegion,
         dailyRate: pricing.dailyRate,
       });
       setAttempted(false);
@@ -2295,77 +2249,14 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               )}
             </div>
 
-            {/* Search & choose a specific location — auto-fills region/district/village */}
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                value={locQuery}
-                onChange={(e) => setLocQuery(e.target.value)}
-                onFocus={() => setLocFocused(true)}
-                onBlur={() => setTimeout(() => setLocFocused(false), 150)}
-                placeholder="Search a place e.g. Bwaise, Ntinda, Nateete…"
-                className="h-11 pl-8 pr-8 text-base"
-              />
-              {locQuery && (
-                <button
-                  type="button"
-                  onClick={() => setLocQuery('')}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  aria-label="Clear search"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-              {locFocused && locQuery.trim().length >= 2 && (() => {
-                const q = locQuery.trim().toLowerCase();
-                const matches = LOCATION_OPTIONS
-                  .filter((o) => o.label.toLowerCase().includes(q))
-                  .slice(0, 8);
-                return (
-                  <div className="mt-1 w-full max-h-48 overflow-y-auto overscroll-contain rounded-lg border border-border bg-popover shadow-lg [-webkit-overflow-scrolling:touch]">
-                    {matches.length === 0 ? (
-                      <p className="px-3 py-3 text-xs text-muted-foreground">
-                        No match — just type the area below to add a new location.
-                      </p>
-                    ) : (
-                      matches.map((o) => (
-                        <button
-                          key={o.label}
-                          type="button"
-                          onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => {
-                            setForm((f) => ({
-                              ...f,
-                              region: o.region,
-                              district: o.district,
-                              village: o.area,
-                              lc1_village: o.area,
-                            }));
-                            setLocQuery('');
-                            setLocFocused(false);
-                          }}
-                          className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm hover:bg-muted/60"
-                        >
-                          <MapPin className="h-3.5 w-3.5 shrink-0 text-primary" />
-                          <span className="font-medium">{o.area}</span>
-                          <span className="ml-auto text-[11px] text-muted-foreground">{o.district}</span>
-                        </button>
-                      ))
-                    )}
-                  </div>
-                );
-              })()}
-            </div>
-            <p className="text-[11px] text-muted-foreground -mt-1">
-              Can't find it? Just type the area in the fields below to add a new location.
-            </p>
-
-            {/* Official government location list (district → county → sub-county
-                → parish → village), shared with the rent request form. */}
+            {/* Village search — the single source of truth for location.
+                Region and district are derived automatically from the selected village. */}
             <UgLocationPicker
-              label="Official village (government list)"
+              label="Village"
               value={ugLoc}
               onChange={applyUgLocation}
+              required
+              error={attempted && !ugLoc ? 'Search and select the village where the house is located' : null}
             />
 
             {/* Unique GPS pin for THIS house */}
@@ -2449,63 +2340,6 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-sm font-medium">Region *</Label>
-                <Select value={form.region} onValueChange={v => setForm(f => ({ ...f, region: v }))}>
-                  <SelectTrigger className={`h-12 text-base ${attempted && !form.region ? 'border-destructive focus:ring-destructive' : ''}`}><SelectValue placeholder="Select" /></SelectTrigger>
-                  <SelectContent>
-                    {REGIONS.map(r => (
-                      <SelectItem key={r} value={r}>{regionLabel(r)}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {attempted && !form.region && (
-                  <FieldError message="Choose the region where the house is." />
-                )}
-              </div>
-              <div>
-                <Label className="text-sm font-medium">District</Label>
-                <Input
-                  placeholder="District"
-                  className="h-12 text-base"
-                  value={form.district}
-                  onChange={e => setForm(f => ({ ...f, district: e.target.value }))}
-                  onBlur={e => {
-                    const normalized = normalizeDistrict(e.target.value);
-                    if (normalized && normalized !== e.target.value.trim()) {
-                      setForm(f => ({ ...f, district: normalized }));
-                    }
-                  }}
-                />
-                {districtWarning(form.district) && (
-                  <p className="text-[10px] text-warning leading-tight mt-1">
-                    {districtWarning(form.district)}
-                  </p>
-                )}
-              </div>
-            </div>
-            <div>
-              <Label className="text-sm font-medium">Address <span className="text-destructive">*</span></Label>
-              <Input
-                placeholder="e.g. Plot 12, Nansana Road"
-                className="h-12 text-base"
-                value={form.address}
-                onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
-              />
-            </div>
-            <div>
-              <Label className="text-sm font-medium">Village / Zone <span className="text-destructive">*</span></Label>
-              <Input
-                placeholder="e.g. Kikaya Zone B"
-                className="h-12 text-base"
-                value={form.village}
-                onChange={e => {
-                  const val = e.target.value;
-                  setForm(f => ({ ...f, village: val, lc1_village: val }));
-                }}
-              />
-            </div>
           </div>
           </>
           )}
@@ -2536,9 +2370,9 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                 setImages(newImages);
                 setPreviewIndex((prev) => Math.min(prev, Math.max(0, newImages.length - 1)));
               }}
-              region={form.region}
-              district={form.district}
-              village={form.village}
+              region={ugLoc ? (DISTRICT_TO_BACKEND_REGION[ugLoc.district] ?? 'Central') : ''}
+              district={ugLoc?.district ?? ''}
+              village={ugLoc?.village ?? ''}
               maxImages={14}
               minImages={3}
               cameraOnly
@@ -2675,9 +2509,9 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           <Lc1ChairpersonPicker
             value={lc1Selection}
             onChange={setLc1Selection}
-            defaultRegion={form.region}
-            defaultDistrict={form.district}
-            defaultVillage={form.village}
+            defaultRegion={ugLoc ? (DISTRICT_TO_BACKEND_REGION[ugLoc.district] ?? 'Central') : ''}
+            defaultDistrict={ugLoc?.district ?? ''}
+            defaultVillage={ugLoc?.village ?? ''}
             attempted={attempted}
           />
 
