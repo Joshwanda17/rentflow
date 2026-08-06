@@ -35804,18 +35804,6 @@ export type Database = {
         Args: { p_limit?: number; p_status?: string }
         Returns: Json
       }
-      partner_ops_pending_summary: {
-        Args: { p_month: string }
-        Returns: {
-          approved_no_lead: number
-          avg_pending_days: number
-          notes_pending: number
-          oldest_pending_days: number
-          override_saved: number
-          pending_over_7_days: number
-          scope: string
-        }[]
-      }
       partner_ops_reject_self_topup: {
         Args: { p_reason: string; p_topup_id: string }
         Returns: Json
