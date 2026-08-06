@@ -2360,6 +2360,14 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               Can't find it? Just type the area in the fields below to add a new location.
             </p>
 
+            {/* Official government location list (district → county → sub-county
+                → parish → village), shared with the rent request form. */}
+            <UgLocationPicker
+              label="Official village (government list)"
+              value={ugLoc}
+              onChange={applyUgLocation}
+            />
+
             {/* Unique GPS pin for THIS house */}
             <div className={`rounded-lg border bg-background p-3 ${attempted && !geo ? 'border-destructive bg-destructive/5' : 'border-border'}`}>
               <div className="flex items-center justify-between gap-2">
