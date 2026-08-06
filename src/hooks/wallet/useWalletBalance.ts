@@ -84,7 +84,6 @@ function baseUserLedgerQuery(userId: string) {
     .from("general_ledger")
     .select(
       "id, transaction_date, amount, direction, category, description, reference_id, linked_party, source_table, source_id, classification",
-      { count: "exact" },
     )
     .eq("user_id", userId)
     .in("ledger_scope", ["wallet", "bridge"]);
@@ -104,21 +103,33 @@ export async function fetchRecentWalletTransactions(
   return ((data ?? []) as WalletTxRow[]).filter(isCustomerWalletLedgerEntryVisible);
 }
 
-/** Shared pagination fetcher — used by `useWalletTransactions`. */
+/**
+ * Shared pagination fetcher — used by `useWalletTransactions`.
+ *
+ * NOTE: we deliberately do NOT ask PostgREST for an exact count. An exact
+ * count forces the whole filtered set (RLS visibility function included) to
+ * be scanned on every page load, which was hitting the 8s statement timeout
+ * on a busy database and surfacing as "Couldn't load your wallet statement".
+ * Instead we over-fetch a single extra row to know whether a next page exists.
+ */
 export async function fetchWalletTransactionsPage(
   userId: string,
   opts: { page: number; pageSize: number; direction?: "all" | "in" | "out" },
-): Promise<{ rows: WalletTxRow[]; total: number }> {
+): Promise<{ rows: WalletTxRow[]; total: number; hasMore: boolean }> {
   trackRequest("db", "wallet_transactions_page");
   const from = opts.page * opts.pageSize;
-  const to = from + opts.pageSize - 1;
+  // One extra row acts as the "is there a next page?" probe.
+  const to = from + opts.pageSize;
   let q = baseUserLedgerQuery(userId).order("transaction_date", { ascending: false });
   if (opts.direction === "in") q = q.eq("direction", "cash_in");
   if (opts.direction === "out") q = q.eq("direction", "cash_out");
-  const { data, error, count } = await q.range(from, to);
+  const { data, error } = await q.range(from, to);
   if (error) throw error;
-  const rows = ((data ?? []) as WalletTxRow[]).filter(isCustomerWalletLedgerEntryVisible);
-  return { rows, total: count ?? rows.length };
+  const fetched = (data ?? []) as WalletTxRow[];
+  const hasMore = fetched.length > opts.pageSize;
+  const rows = fetched.slice(0, opts.pageSize).filter(isCustomerWalletLedgerEntryVisible);
+  // `total` is a floor, not an exact count: enough for page math, cheap to get.
+  return { rows, total: from + rows.length + (hasMore ? 1 : 0), hasMore };
 }
 
 /** Called by every wallet mutation to invalidate BOTH balance and preview. */
