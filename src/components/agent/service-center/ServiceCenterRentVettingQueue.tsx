@@ -59,7 +59,9 @@ export function ServiceCenterRentVettingQueue() {
     );
   }
 
-  if (!data?.is_service_center_manager) {
+  // Managers see the queue. A non-tagged agent still sees anything already routed
+  // to them (e.g. tagged then revoked) so nothing is ever stranded.
+  if (!data?.is_service_center_manager && !(data?.pending_count ?? 0)) {
     return (
       <Card><CardContent className="space-y-1 p-6 text-center">
         <p className="text-sm font-semibold text-foreground">Not a Service Center manager yet</p>
