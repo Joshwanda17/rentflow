@@ -2366,6 +2366,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               label="Official village (government list)"
               value={ugLoc}
               onChange={applyUgLocation}
+              districtName={form.district}
             />
 
             {/* Unique GPS pin for THIS house */}
