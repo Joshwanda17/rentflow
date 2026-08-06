@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { formatUGX } from '@/lib/rentCalculations';
+import { PartnerOpsTargetEditor } from './PartnerOpsTargetEditor';
 
 interface ScoreboardRow {
   lead_user_id: string;
@@ -88,6 +89,9 @@ export function PartnerOpsScoreboard() {
               <p className="text-sm font-semibold text-foreground truncate">
                 {data?.names?.[r.lead_user_id] || r.lead_user_id}
               </p>
+              <div className="flex justify-end">
+                <PartnerOpsTargetEditor leadUserId={r.lead_user_id} onSaved={() => refetch()} />
+              </div>
               <div className="grid grid-cols-3 gap-3">
                 <Stat label="Agents" value={Number(r.agents_attached || 0)} />
                 <Stat label="Pending" value={Number(r.notes_pending || 0)} />
