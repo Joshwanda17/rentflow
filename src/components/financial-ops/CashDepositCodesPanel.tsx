@@ -297,7 +297,23 @@ export function CashDepositCodesPanel() {
                           </div>
                         ) : (
                           <div className="flex flex-col gap-1">
-                            <span className="text-xs text-muted-foreground">Code not stored (issued before codes were retained)</span>
+                            <span className="text-xs text-muted-foreground">Code not stored</span>
+                            {r.status !== 'verified' && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 w-fit gap-1 text-xs"
+                                disabled={reissuing === r.verification_id}
+                                onClick={() => reissue(r.verification_id)}
+                              >
+                                {reissuing === r.verification_id ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <KeyRound className="h-3 w-3" />
+                                )}
+                                Reissue code
+                              </Button>
+                            )}
                             <Countdown expiresAt={r.expires_at} inline />
                           </div>
                         )}
