@@ -743,7 +743,7 @@ export function LandlordSearchSelect({
             </div>
           )}
 
-          {!loading && !isSystemEmpty && !isSearchEmpty && results.length === 0 && debounced.length === 0 && (
+          {!loading && !needsMoreChars && !isSystemEmpty && !isSearchEmpty && results.length === 0 && debounced.length === 0 && (
             <div className="px-3 py-4 text-center text-xs text-muted-foreground">
               Start typing to search landlords.
             </div>
