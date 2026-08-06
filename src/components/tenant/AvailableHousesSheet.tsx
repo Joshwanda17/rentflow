@@ -47,16 +47,6 @@ const CATEGORIES = [
   { value: 'shop', label: 'Shop' },
 ];
 
-// Daily-rate quick chips (UGX). Rent on Welile is quoted per day, so we express
-// price ranges as daily rates. Monthly equivalents are ~ daily × 30.
-const PRICE_CHIPS: { label: string; min?: number; max?: number }[] = [
-  { label: 'Any price' },
-  { label: 'Under 3k/day', max: 3000 },
-  { label: '3k – 5k/day', min: 3000, max: 5000 },
-  { label: '5k – 10k/day', min: 5000, max: 10000 },
-  { label: '10k – 20k/day', min: 10000, max: 20000 },
-  { label: '20k+/day', min: 20000 },
-];
 
 const SORT_OPTIONS = [
   { value: 'newest', label: 'Newest first' },
