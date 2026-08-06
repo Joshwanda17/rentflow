@@ -2251,6 +2251,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setLc1Village('');
     setPropertyCity('');
     setPropertyDistrict('');
+    setUgLoc(null);
     setLc1Mode('search');
     setLc1Selected(false);
     setLc1Query('');
