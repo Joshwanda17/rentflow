@@ -18,6 +18,10 @@ interface ScoreboardRow {
   attainment_pct: number;
   pace_pct: number;
   state: string;
+  agents_attached_month?: number;
+  agents_target?: number;
+  agents_attainment_pct?: number;
+  agents_state?: string;
 }
 
 const monthStart = () => {
@@ -31,6 +35,15 @@ const borderForState = (state: string) => {
     case 'amber': return 'border-l-4 border-l-amber-500';
     case 'red': return 'border-l-4 border-l-destructive';
     default: return 'border-l-4 border-l-muted';
+  }
+};
+
+const textForState = (state?: string) => {
+  switch (state) {
+    case 'on_track': return 'text-emerald-600';
+    case 'amber': return 'text-amber-600';
+    case 'red': return 'text-destructive';
+    default: return 'text-muted-foreground';
   }
 };
 
@@ -83,11 +96,15 @@ export function PartnerOpsScoreboard({ hideTargetEditor = false }: PartnerOpsSco
   if (isLoading) {
     return <p className="text-sm text-muted-foreground">Loading scoreboard…</p>;
   }
-  if (!rows.length) return null;
-
   return (
     <div className="space-y-3">
       <PartnerNoteRateEditor />
+      {!rows.length ? (
+        <p className="text-sm text-muted-foreground">
+          No leads attached yet. Attach a proxy agent to a lead above to start tracking.
+        </p>
+      ) : (
+      <>
       <h3 className="text-sm font-semibold text-foreground">Lead scoreboard — this month</h3>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {rows.map((r) => (
@@ -111,10 +128,23 @@ export function PartnerOpsScoreboard({ hideTargetEditor = false }: PartnerOpsSco
                 <Stat label="Attainment" value={`${Number(r.attainment_pct || 0).toFixed(1)}%`} />
                 <Stat label="Pace" value={`${Number(r.pace_pct || 0).toFixed(1)}%`} />
               </div>
+              <div className="rounded-md border p-3 space-y-1">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                  Proxy agents onboarded
+                </p>
+                <p className={cn('text-sm font-semibold', textForState(r.agents_state))}>
+                  {Number(r.agents_attached_month || 0)} / {Number(r.agents_target || 0)}
+                  <span className="ml-2 text-xs font-normal">
+                    {Number(r.agents_attainment_pct || 0).toFixed(1)}%
+                  </span>
+                </p>
+              </div>
             </CardContent>
           </Card>
         ))}
       </div>
+      </>
+      )}
     </div>
   );
 }

@@ -15,6 +15,13 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Target } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface PartnerOpsTargetEditorProps {
   leadUserId: string;
@@ -31,6 +38,7 @@ export function PartnerOpsTargetEditor({ leadUserId, onSaved }: PartnerOpsTarget
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [month, setMonth] = useState(currentMonthValue());
+  const [metricKey, setMetricKey] = useState<'notes_approved' | 'agents_onboarded'>('notes_approved');
   const [targetValue, setTargetValue] = useState('');
   const [amberLag, setAmberLag] = useState('10');
   const [redLag, setRedLag] = useState('20');
@@ -56,7 +64,7 @@ export function PartnerOpsTargetEditor({ leadUserId, onSaved }: PartnerOpsTarget
       .upsert(
         {
           lead_user_id: leadUserId,
-          metric_key: 'notes_approved',
+          metric_key: metricKey,
           period_month: `${month}-01`,
           target_value: target,
           amber_lag_points: Number(amberLag) || 0,
@@ -93,11 +101,25 @@ export function PartnerOpsTargetEditor({ leadUserId, onSaved }: PartnerOpsTarget
         </DialogHeader>
         <div className="space-y-3">
           <div className="space-y-1">
+            <Label htmlFor="pot-metric">Metric</Label>
+            <Select value={metricKey} onValueChange={(v) => setMetricKey(v as typeof metricKey)}>
+              <SelectTrigger id="pot-metric">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="notes_approved">Approved notes</SelectItem>
+                <SelectItem value="agents_onboarded">Proxy agents onboarded</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
             <Label htmlFor="pot-month">Month</Label>
             <Input id="pot-month" type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="pot-target">Target (approved notes)</Label>
+            <Label htmlFor="pot-target">
+              Target ({metricKey === 'agents_onboarded' ? 'proxy agents onboarded' : 'approved notes'})
+            </Label>
             <Input
               id="pot-target"
               type="number"
