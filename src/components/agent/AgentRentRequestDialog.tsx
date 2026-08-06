@@ -330,26 +330,8 @@ function AgentCapacityBanner({ agentId }: { agentId?: string }) {
   return (
     <>
       {dailyBanner}
-      <div className={`rounded-xl border p-3 ${tone}`}>
-        <div className="flex items-center justify-between text-xs font-semibold mb-1.5">
-          <span>Your Active Rent Exposure</span>
-          <span>
-            {loading ? '…' : `${formatUGX(used)} / ${formatUGX(AGENT_RENT_CAP_UGX)}`}
-          </span>
-        </div>
-        <div className="h-1.5 w-full rounded-full bg-background/40 overflow-hidden">
-          <div
-            className="h-full bg-current transition-all"
-            style={{ width: `${pct}%` }}
-          />
-        </div>
-        <p className="text-[11px] mt-1.5 leading-snug opacity-90">
-          Headroom available for new rent requests:{' '}
-          <strong className="font-mono">{formatUGX(headroom)}</strong>.
-          Per-tenant rent limits scale with each tenant's repayment rate.
-          Collect on existing rent to grow your headroom.
-        </p>
-      </div>
+      {/* "Your Active Rent Exposure" card removed — it confused agents. The
+          daily rating banner above is the only capacity signal shown here. */}
     </>
   );
 }
