@@ -32859,6 +32859,25 @@ export type Database = {
         Returns: boolean
       }
       funder_pending_committed: { Args: { p_user_id: string }; Returns: number }
+      funder_supported_tenants: {
+        Args: never
+        Returns: {
+          city: string
+          created_at: string
+          duration_days: number
+          funded_at: string
+          funding_mode: string
+          house_category: string
+          rent_amount: number
+          rent_request_id: string
+          status: string
+          tenant_address: string
+          tenant_avatar_url: string
+          tenant_id: string
+          tenant_name: string
+          tenant_phone: string
+        }[]
+      }
       generate_campaign_short_code: { Args: never; Returns: string }
       generate_daily_merchant_commission_report: {
         Args: { p_date?: string }
