@@ -61,6 +61,7 @@ import {
   Calendar,
   Banknote,
   Users,
+  Upload,
   Share2,
   Copy,
   MessageCircle,
