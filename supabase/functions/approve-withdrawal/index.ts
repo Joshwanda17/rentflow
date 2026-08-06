@@ -2435,6 +2435,30 @@ Deno.serve(async (req) => {
     // both is intentional). Pool-funded settlements already debit float in the
     // main block, so they stay excluded to avoid a double debit.
     let merchantFloatConsumed = 0;
+    // Reconciliation logger: a failed float leg must never stay invisible.
+    // The merchant has already handed the cash to the customer in the real
+    // world, so we do NOT throw — we record the unmatched leg for CFO/FinOps
+    // (surfaced in the Settlement Reconciliation ledger tab).
+    const logSettlementGap = async (
+      channel: string,
+      gapAmount: number,
+      detail: string,
+    ) => {
+      try {
+        await admin.from("settlement_reconciliation_ledger").insert({
+          channel,
+          period_date: new Date().toISOString().slice(0, 10),
+          external_reference: withdrawal_id,
+          external_amount: gapAmount,
+          system_amount: 0,
+          discrepancy_amount: gapAmount,
+          status: "pending",
+          notes: `agent_id=${user.id} withdrawal_id=${withdrawal_id} :: ${detail}`,
+        });
+      } catch (e) {
+        console.error("[approve-withdrawal] settlement reconciliation insert failed:", e);
+      }
+    };
     if (
       actingAsMerchant &&
       !poolFunded &&
@@ -2464,11 +2488,21 @@ Deno.serve(async (req) => {
         });
         if (floatErr) {
           console.error("[approve-withdrawal] Merchant float consume RPC error:", floatErr);
+          await logSettlementGap(
+            "merchant_float_consume",
+            amount,
+            `float debit failed: ${String((floatErr as any)?.message ?? floatErr)}`,
+          );
         } else {
           merchantFloatConsumed = amount;
         }
       } catch (e) {
         console.error("[approve-withdrawal] Merchant float consume exception:", e);
+        await logSettlementGap(
+          "merchant_float_consume",
+          amount,
+          `float debit exception: ${String((e as any)?.message ?? e)}`,
+        );
       }
     }
 
@@ -2514,11 +2548,21 @@ Deno.serve(async (req) => {
           });
           if (telErr) {
             console.error("[approve-withdrawal] Merchant telecom charge RPC error:", telErr);
+            await logSettlementGap(
+              "merchant_telecom_charge",
+              telecomCharge,
+              `telecom charge debit failed: ${String((telErr as any)?.message ?? telErr)}`,
+            );
           } else {
             merchantTelecomCharge = telecomCharge;
           }
         } catch (e) {
           console.error("[approve-withdrawal] Merchant telecom charge exception:", e);
+          await logSettlementGap(
+            "merchant_telecom_charge",
+            telecomCharge,
+            `telecom charge exception: ${String((e as any)?.message ?? e)}`,
+          );
         }
       }
     }
@@ -2545,7 +2589,18 @@ Deno.serve(async (req) => {
     // withdrawable wallet bucket (recipient_type: "user" guarantees withdrawable
     // routing), then we SMS the agent to confirm the earning.
     let cashoutCommission = 0;
-    if (actingAsMerchant) {
+    // Commission may only post when its offsetting float debit actually landed.
+    // Pool-funded settlements debit float in the main block above, so they are
+    // still eligible. Otherwise the gap is logged for CFO reconciliation.
+    const floatLegSettled = poolFunded || merchantFloatConsumed > 0;
+    if (actingAsMerchant && !floatLegSettled) {
+      await logSettlementGap(
+        "commission_paid_float_pending",
+        Math.round(amount * 0.005),
+        "commission withheld because the merchant float debit did not land",
+      );
+    }
+    if (actingAsMerchant && floatLegSettled) {
       cashoutCommission = Math.round(amount * 0.005);
       if (cashoutCommission > 0) {
         try {
@@ -2568,6 +2623,7 @@ Deno.serve(async (req) => {
                 currency: "UGX", reference_id: `${withdrawal_id}-cashout-commission`, transaction_date: txDate,
               },
             ],
+            idempotency_key: `approve-withdrawal-cashout-commission-${withdrawal_id}`,
           });
           if (commErr) {
             console.error("[approve-withdrawal] Cashout commission RPC error:", commErr);
