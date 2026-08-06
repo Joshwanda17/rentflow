@@ -316,6 +316,22 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     lc1_village: '',
   });
 
+  // Official Uganda administrative location (village → district) chosen through
+  // the shared picker. One tap fills region / district / village consistently.
+  const [ugLoc, setUgLoc] = useState<UgLocationSelection | null>(null);
+  const applyUgLocation = (sel: UgLocationSelection | null) => {
+    setUgLoc(sel);
+    if (!sel) return;
+    const normalizedDistrict = normalizeDistrict(sel.district) || sel.district;
+    setForm((f) => ({
+      ...f,
+      region: DISTRICT_TO_BACKEND_REGION[normalizedDistrict] ?? f.region,
+      district: normalizedDistrict,
+      village: sel.village,
+      lc1_village: f.lc1_village || sel.village,
+    }));
+  };
+
   // Pre-fill landlord details when the dialog opens from the landlord form.
   useEffect(() => {
     if (open && (initialLandlordName || initialLandlordPhone)) {
