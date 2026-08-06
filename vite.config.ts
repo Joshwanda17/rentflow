@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
@@ -6,11 +6,20 @@ import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/supabase/vite";
 
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
-  define: {
-    __APP_VERSION__: JSON.stringify('2026-05-31-safari-recovery-steps'),
-    __CACHE_VERSION__: JSON.stringify('2026-05-31-safari-recovery-steps'),
-  },
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), "");
+  const supabaseUrl = env.VITE_SUPABASE_URL || "https://wirntoujqoyjobfhyelc.supabase.co";
+  const supabasePublishableKey = env.VITE_SUPABASE_PUBLISHABLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indpcm50b3VqcW95am9iZmh5ZWxjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1NjE1MTYsImV4cCI6MjA4MjEzNzUxNn0.5-zxcRPVxvpxNiXhoo5VHpIuvbtuOLfiI3ph8jPIod8";
+  const supabaseProjectId = env.VITE_SUPABASE_PROJECT_ID || "wirntoujqoyjobfhyelc";
+
+  return {
+    define: {
+      __APP_VERSION__: JSON.stringify('2026-05-31-safari-recovery-steps'),
+      __CACHE_VERSION__: JSON.stringify('2026-05-31-safari-recovery-steps'),
+      "import.meta.env.VITE_SUPABASE_URL": JSON.stringify(supabaseUrl),
+      "import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY": JSON.stringify(supabasePublishableKey),
+      "import.meta.env.VITE_SUPABASE_PROJECT_ID": JSON.stringify(supabaseProjectId),
+    },
   server: {
     host: "::",
     port: 8080,
@@ -79,4 +88,5 @@ export default defineConfig(({ mode }) => ({
   esbuild: {
     drop: ['console', 'debugger'],
   },
-}));
+  };
+});
