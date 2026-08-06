@@ -42,6 +42,20 @@ export function PromissoryNotesQueue() {
   const [rejectTarget, setRejectTarget] = useState<any>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [rejecting, setRejecting] = useState(false);
+  const [leadSearch, setLeadSearch] = useState('');
+  const [selectedLead, setSelectedLead] = useState<any>(null);
+
+  const { data: leadCandidates = [], isFetching: leadLoading } = useQuery({
+    queryKey: ['partner-lead-candidates', leadSearch],
+    enabled: !!approveTarget && leadSearch.trim().length >= 2,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('partner_lead_candidates' as any, {
+        p_search: leadSearch.trim(),
+      });
+      if (error) throw error;
+      return (data as any[]) || [];
+    },
+  });
 
   const handleReverseBonus = async () => {
     if (!rejectTarget) return;
@@ -90,6 +104,19 @@ export function PromissoryNotesQueue() {
     }
     setApproving(true);
     try {
+      if (selectedLead?.user_id && approveTarget.agent_id) {
+        const { error: assignError } = await supabase
+          .from('partner_lead_assignments' as any)
+          .insert({
+            lead_user_id: selectedLead.user_id,
+            agent_id: approveTarget.agent_id,
+            reason,
+          } as any);
+        // 23505 = unique violation: an active assignment already exists. Continue.
+        if (assignError && (assignError as any).code !== '23505') {
+          throw assignError;
+        }
+      }
       const { data, error } = await supabase.rpc('approve_promissory_note', {
         p_note_id: approveTarget.id,
         p_reason: reason,
@@ -104,6 +131,8 @@ export function PromissoryNotesQueue() {
       }
       setApproveTarget(null);
       setApproveReason('');
+      setSelectedLead(null);
+      setLeadSearch('');
       setSelectedNote(null);
       queryClient.invalidateQueries({ queryKey: ['promissory-notes-queue'] });
     } catch (err: any) {
@@ -564,7 +593,7 @@ export function PromissoryNotesQueue() {
       </AlertDialog>
 
       {/* Approve confirmation with mandatory reason */}
-      <AlertDialog open={!!approveTarget} onOpenChange={(open) => { if (!open && !approving) { setApproveTarget(null); setApproveReason(''); } }}>
+      <AlertDialog open={!!approveTarget} onOpenChange={(open) => { if (!open && !approving) { setApproveTarget(null); setApproveReason(''); setSelectedLead(null); setLeadSearch(''); } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Approve promissory note?</AlertDialogTitle>
@@ -572,6 +601,53 @@ export function PromissoryNotesQueue() {
               This marks {approveTarget?.partner_name}'s promissory note as verified and credits UGX 1,500 to {approveTarget?.agent_name}'s wallet. A reason is required and this action is recorded in the audit trail.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="approve-lead">Lead partner growth (optional)</Label>
+            {selectedLead ? (
+              <div className="flex items-center justify-between gap-2 rounded-md border p-2">
+                <div>
+                  <p className="text-sm font-medium">{selectedLead.display_name}</p>
+                  {selectedLead.position_title && (
+                    <p className="text-xs text-muted-foreground">{selectedLead.position_title}</p>
+                  )}
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => { setSelectedLead(null); setLeadSearch(''); }}>Clear</Button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Input
+                  id="approve-lead"
+                  value={leadSearch}
+                  onChange={(e) => setLeadSearch(e.target.value)}
+                  placeholder="Search enrolled employees by name"
+                />
+                {leadSearch.trim().length >= 2 && (
+                  <div className="max-h-40 overflow-y-auto rounded-md border divide-y">
+                    {leadLoading && <p className="p-2 text-xs text-muted-foreground">Searching…</p>}
+                    {!leadLoading && leadCandidates.length === 0 && (
+                      <p className="p-2 text-xs text-muted-foreground">No enrolled employees match that search.</p>
+                    )}
+                    {leadCandidates.map((c: any) => (
+                      <button
+                        key={c.user_id}
+                        type="button"
+                        className="w-full px-2 py-1.5 text-left hover:bg-muted"
+                        onClick={() => setSelectedLead(c)}
+                      >
+                        <span className="block text-sm font-medium">{c.display_name}</span>
+                        {c.position_title && (
+                          <span className="block text-xs text-muted-foreground">{c.position_title}</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Leave empty to approve without a lead. The agent is still paid; no override is paid to anyone.
+            </p>
+          </div>
           <div className="space-y-2">
             <Label htmlFor="approve-reason">Reason for approval (min 20 characters)</Label>
             <Textarea
