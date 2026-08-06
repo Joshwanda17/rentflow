@@ -352,7 +352,7 @@ export function AgentTenantCollectDialog({
   };
 
   const handleSaveOfflineDraft = async () => {
-    if (!user || !tenant || amount < 100) return;
+    if (!user || !tenant || amount < minAllowed) return;
     setLoading(true);
     try {
       const draft = await captureOfflineDraft({
@@ -661,7 +661,7 @@ export function AgentTenantCollectDialog({
                 placeholder="e.g. 13000"
                 value={amount || ''}
                 onChange={e => setAmount(Number(e.target.value))}
-                min={100}
+                min={minAllowed}
                 max={outstandingBalance || undefined}
                 className="h-12 text-lg font-mono font-bold"
               />
@@ -683,7 +683,7 @@ export function AgentTenantCollectDialog({
               </Button>
               <Button
                 onClick={handleSaveOfflineDraft}
-                disabled={amount < 100 || loading}
+                disabled={amount < minAllowed || loading}
                 className="flex-1 h-11 font-bold"
               >
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save Draft'}
@@ -871,7 +871,7 @@ export function AgentTenantCollectDialog({
               <p className="text-xl font-bold text-destructive font-mono">{formatUGX(outstandingBalance)}</p>
             </div>
 
-            {!canAllocate && floatBalance < 100 && (
+            {!canAllocate && floatBalance < minAllowed && (
               <div className="flex items-center gap-2 bg-destructive/10 border border-destructive/20 rounded-xl p-3">
                 <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
                 <p className="text-xs text-destructive">Your wallet float is empty. Top up Agent Float Allocation before paying tenant rent.</p>
@@ -895,7 +895,7 @@ export function AgentTenantCollectDialog({
                 placeholder="e.g. 13000"
                 value={amount || ''}
                 onChange={e => setAmount(Number(e.target.value))}
-                min={100}
+                min={minAllowed}
                 max={maxAllowable}
                 className="h-12 text-lg font-mono font-bold"
                 style={{ fontSize: '18px' }}
@@ -933,7 +933,7 @@ export function AgentTenantCollectDialog({
                 Math.min(maxAllowable, 20000),
                 Math.min(maxAllowable, 50000),
               ]))
-                .filter(v => v >= 100)
+                .filter(v => v >= minAllowed)
                 .slice(0, 4)
                 .map(val => (
                   <button
