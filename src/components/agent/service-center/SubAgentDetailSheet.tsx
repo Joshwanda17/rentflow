@@ -293,20 +293,25 @@ export function SubAgentDetailSheet({
                   heading="Tenants"
                   emptyLabel="No tenants linked to this sub-agent yet."
                   rows={tenantRows}
+                  showStatusFilter
                   resetKey={`${subAgent.sub_agent_id}-tenants-${open}`}
                   renderRowAction={(r) => {
                     const t = subAgent.tenant_list.find((x) => x.rent_request_id === r.id);
-                    if (!t?.is_active) return null;
                     return (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full sm:w-auto"
-                        disabled={actionsDisabled}
-                        onClick={() => onTransfer(subAgent, t.rent_request_id)}
-                      >
-                        <ArrowLeftRight className="mr-1.5 h-3.5 w-3.5" /> Transfer tenant
-                      </Button>
+                      <div className="space-y-3">
+                        <ServiceCenterTenantPayments rentRequestId={r.id} />
+                        {t?.is_active && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="w-full sm:w-auto"
+                            disabled={actionsDisabled}
+                            onClick={() => onTransfer(subAgent, t.rent_request_id)}
+                          >
+                            <ArrowLeftRight className="mr-1.5 h-3.5 w-3.5" /> Transfer tenant
+                          </Button>
+                        )}
+                      </div>
                     );
                   }}
                 />
