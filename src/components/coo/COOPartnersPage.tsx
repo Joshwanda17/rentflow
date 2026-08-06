@@ -5711,7 +5711,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                     <SelectItem value="all">All</SelectItem>
                   </SelectContent>
                 </Select>
-                <DropdownMenu>
+                <DropdownMenu modal={false}>
                   <DropdownMenuTrigger asChild>
                     <Button
                       type="button"
@@ -5729,7 +5729,13 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                       PDF
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-64 max-h-80 overflow-y-auto">
+                  <DropdownMenuContent
+                    align="end"
+                    side="bottom"
+                    sideOffset={6}
+                    collisionPadding={8}
+                    className="z-[200] w-64 max-h-[min(20rem,60vh)] overflow-y-auto"
+                  >
                     <DropdownMenuItem onClick={() => handleExportPdf('all')} className="text-xs">
                       All payment modes
                       <span className="ml-auto tabular-nums text-muted-foreground">{filtered.length}</span>
