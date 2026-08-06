@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { formatUGX } from '@/lib/rentCalculations';
 import { PartnerOpsTargetEditor } from './PartnerOpsTargetEditor';
+import { PartnerNoteRateEditor } from './PartnerNoteRateEditor';
 
 interface ScoreboardRow {
   lead_user_id: string;
@@ -75,12 +76,18 @@ export function PartnerOpsScoreboard() {
   const rows = data?.rows || [];
 
   if (isLoading) {
-    return <p className="text-sm text-muted-foreground">Loading scoreboard…</p>;
+    return (
+      <div className="space-y-3">
+        <PartnerNoteRateEditor />
+        <p className="text-sm text-muted-foreground">Loading scoreboard…</p>
+      </div>
+    );
   }
-  if (!rows.length) return null;
+  if (!rows.length) return <PartnerNoteRateEditor />;
 
   return (
     <div className="space-y-3">
+      <PartnerNoteRateEditor />
       <h3 className="text-sm font-semibold text-foreground">Lead scoreboard — this month</h3>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {rows.map((r) => (
