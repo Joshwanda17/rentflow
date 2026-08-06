@@ -375,6 +375,11 @@ export function InvitedPortfoliosPanel() {
                           <MailWarning className="h-3 w-3" /> Invite expired
                         </Badge>
                       )}
+                      {row.sent_count > 0 && (
+                        <Badge variant="outline" className="text-[10px] gap-1 border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
+                          <Send className="h-3 w-3" /> Sent{row.sent_count > 1 ? ` ×${row.sent_count}` : ''}
+                        </Badge>
+                      )}
                     </div>
                   </div>
 
@@ -400,6 +405,35 @@ export function InvitedPortfoliosPanel() {
                     </div>
                   </div>
 
+                  {/* Invite delivery + link validity */}
+                  {row.status === 'awaiting_partner_details' && (
+                    <div className="rounded-md bg-muted/40 px-2.5 py-2 text-[11px] space-y-0.5">
+                      <p className="text-muted-foreground">
+                        {row.last_sent_at ? (
+                          <>
+                            Last invite sent{' '}
+                            <span className="font-semibold text-foreground" title={format(new Date(row.last_sent_at), 'PPpp')}>
+                              {formatDistanceToNow(new Date(row.last_sent_at), { addSuffix: true })}
+                            </span>
+                            {row.partner_email ? <> to <span className="font-medium text-foreground">{row.partner_email}</span></> : null}
+                            {row.last_send_status && row.last_send_status !== 'sent' ? ` · ${row.last_send_status}` : ''}
+                          </>
+                        ) : (
+                          'No invite email recorded for this portfolio yet.'
+                        )}
+                      </p>
+                      <p className={cn('font-medium', expired ? 'text-destructive' : 'text-muted-foreground')}>
+                        {row.token_consumed_at
+                          ? 'Link already used by the partner.'
+                          : row.token_expires_at
+                            ? expired
+                              ? `Link expired ${formatDistanceToNow(new Date(row.token_expires_at), { addSuffix: true })} — resend to mint a new 7-day link.`
+                              : `Link valid until ${format(new Date(row.token_expires_at), 'PPp')} (${formatDistanceToNow(new Date(row.token_expires_at), { addSuffix: true })})`
+                            : 'No completion link on file.'}
+                      </p>
+                    </div>
+                  )}
+
                   <div className="flex justify-end pt-1 border-t">
                     {row.status === 'awaiting_partner_details' && (
                       <Button
@@ -412,7 +446,7 @@ export function InvitedPortfoliosPanel() {
                         {resendingId === row.id
                           ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
                           : <Send className="h-3.5 w-3.5" />}
-                        {expired ? 'Resend new link' : 'Resend invite'}
+                        {expired ? 'Resend — new 7-day link' : 'Resend invite (new 7-day link)'}
                       </Button>
                     )}
                     <Button
