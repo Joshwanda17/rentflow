@@ -18636,6 +18636,45 @@ export type Database = {
         }
         Relationships: []
       }
+      partner_note_overrides: {
+        Row: {
+          agent_id: string
+          amount: number
+          approved_at: string
+          created_at: string
+          detail: string | null
+          id: string
+          lead_user_id: string | null
+          ledger_group_id: string | null
+          note_id: string
+          status: string
+        }
+        Insert: {
+          agent_id: string
+          amount?: number
+          approved_at: string
+          created_at?: string
+          detail?: string | null
+          id?: string
+          lead_user_id?: string | null
+          ledger_group_id?: string | null
+          note_id: string
+          status: string
+        }
+        Update: {
+          agent_id?: string
+          amount?: number
+          approved_at?: string
+          created_at?: string
+          detail?: string | null
+          id?: string
+          lead_user_id?: string | null
+          ledger_group_id?: string | null
+          note_id?: string
+          status?: string
+        }
+        Relationships: []
+      }
       partner_note_rates: {
         Row: {
           amount: number

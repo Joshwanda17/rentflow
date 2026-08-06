@@ -5711,7 +5711,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                     <SelectItem value="all">All</SelectItem>
                   </SelectContent>
                 </Select>
-                <DropdownMenu modal={false}>
+                <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
                       type="button"
