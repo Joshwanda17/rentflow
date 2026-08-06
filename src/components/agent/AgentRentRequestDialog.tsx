@@ -2184,6 +2184,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   };
 
   const resetForm = () => {
+    // (LC letter cleared above with the rest of the tenant fields.)
     setIncomeType(null);
     setTenantName('');
     setLcLetter(null);
