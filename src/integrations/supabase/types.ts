@@ -33424,6 +33424,7 @@ export type Database = {
         Args: { p_range_end?: string; p_range_start: string }
         Returns: Json
       }
+      get_agent_ops_receivables_report: { Args: never; Returns: Json }
       get_agent_ops_top_agents: {
         Args: { p_days?: number; p_limit?: number }
         Returns: Json
