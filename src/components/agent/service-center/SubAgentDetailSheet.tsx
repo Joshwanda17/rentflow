@@ -248,16 +248,16 @@ export function SubAgentDetailSheet({
                   tone="primary"
                   icon={Home}
                 />
-                <Metric label="Own subs" value={String(subAgent.nested_subagents)} tone="accent" icon={Users} />
+                <Metric label="Own subs" value={String(subAgent.nested_subagents ?? 0)} tone="accent" icon={Users} />
               </div>
             </section>
 
             <section className="space-y-2">
               <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Wallet</h3>
               <div className="grid grid-cols-3 gap-2">
-                <Metric label="Withdrawable" value={formatUGX(subAgent.wallet.withdrawable)} tone="success" icon={Wallet} />
-                <Metric label="Float" value={formatUGX(subAgent.wallet.float)} tone="primary" icon={Wallet} />
-                <Metric label="Advance" value={formatUGX(subAgent.wallet.advance)} tone="warning" icon={Wallet} />
+                <Metric label="Withdrawable" value={formatUGX(subAgent.wallet?.withdrawable ?? 0)} tone="success" icon={Wallet} />
+                <Metric label="Float" value={formatUGX(subAgent.wallet?.float ?? 0)} tone="primary" icon={Wallet} />
+                <Metric label="Advance" value={formatUGX(subAgent.wallet?.advance ?? 0)} tone="warning" icon={Wallet} />
               </div>
             </section>
 

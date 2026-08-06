@@ -130,7 +130,15 @@ export function useServiceCenterOverview() {
       const rows = (raw.sub_agents ?? []).map((s) => {
         const row = s as ServiceCenterSubAgent & { name?: string | null };
         // The RPC emits the display name as `name`; the UI reads `full_name`.
-        return { ...row, full_name: row.full_name ?? row.name ?? null };
+        // Fall back to phone/email so an incomplete profile never renders as
+        // "Unnamed sub-agent", and always guarantee a wallet object so the
+        // detail sheet can open even when balances are missing.
+        return {
+          ...row,
+          full_name: row.full_name ?? row.name ?? row.phone ?? row.email ?? null,
+          wallet: row.wallet ?? { withdrawable: 0, float: 0, advance: 0 },
+          nested_subagents: row.nested_subagents ?? 0,
+        };
       });
 
       // The RPC does not return avatars — hydrate them from profiles.
