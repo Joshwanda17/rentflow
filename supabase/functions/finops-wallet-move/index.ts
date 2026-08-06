@@ -304,19 +304,8 @@ Deno.serve(async (req) => {
     let approvalRow: { id: string; status: string; amount: number; bucket: string; requested_by: string } | null = null;
 
     if (mode === "error_correction") {
-      // 1 ── Mandatory structured justification
-      if (businessJustification.length < 20) {
-        return json({
-          error: "A business justification of at least 20 characters is required.",
-          field: "business_justification",
-        }, 400);
-      }
-      if (referenceNumber.length < 3) {
-        return json({
-          error: "A ticket number or investigation reference is required.",
-          field: "reference_number",
-        }, 400);
-      }
+      // 1 ── Structured justification is optional for wallet → platform moves;
+      // the reason note + reason code remain mandatory.
       if (reasonCode === "other" && reasonNote.length < 30) {
         return json({
           error: "When the reason is “Other”, a detailed explanation of at least 30 characters is required.",
