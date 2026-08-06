@@ -772,6 +772,48 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
                 Done
               </Button>
             </div>
+          ) : confirming ? (
+            <div className="space-y-5 py-2 animate-scale-in">
+              <div className="text-center space-y-1">
+                <h3 className="text-lg font-bold text-foreground">Confirm this withdrawal</h3>
+                <p className="text-xs text-muted-foreground">
+                  Check the amount and the recipient before sending.
+                </p>
+              </div>
+
+              <div className="p-4 rounded-2xl border border-primary/20 bg-primary/5 text-center space-y-2">
+                <p className="text-3xl font-black text-primary tracking-tight">{formatCurrency(amount)}</p>
+                <p className="text-sm font-semibold text-foreground">to {recipientLabel}</p>
+                <p className="text-xs text-muted-foreground">via {destinationLine}</p>
+              </div>
+
+              <div className="p-3 rounded-xl bg-warning/10 border border-warning/20 text-[11px] text-muted-foreground">
+                ⚠️ This moves <strong className="text-foreground">{recipientLabel}</strong>'s money on their behalf.
+                Once sent, it goes to Financial Ops for approval.
+              </div>
+
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setConfirming(false)}
+                  disabled={loading}
+                  className="flex-1 h-12 rounded-xl font-bold border-border/50"
+                >
+                  Go back
+                </Button>
+                <Button
+                  onClick={handleSubmit}
+                  disabled={loading}
+                  className="flex-1 gap-2 h-12 rounded-xl font-bold bg-gradient-to-r from-primary to-primary/80 shadow-lg shadow-primary/20"
+                >
+                  {loading ? (
+                    <><Loader2 className="h-4 w-4 animate-spin" /> Processing…</>
+                  ) : (
+                    <><ArrowDownToLine className="h-4 w-4" /> Confirm &amp; Send</>
+                  )}
+                </Button>
+              </div>
+            </div>
           ) : (
             <>
               {/* Alerts */}
@@ -1082,7 +1124,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
                 </Button>
                 {isFormValid ? (
                   <Button
-                    onClick={handleSubmit}
+                    onClick={() => { if (isProxyMode) setConfirming(true); else handleSubmit(); }}
                     disabled={loading}
                     className="flex-1 gap-2 h-12 rounded-xl font-bold bg-gradient-to-r from-primary to-primary/80 shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-shadow"
                   >
