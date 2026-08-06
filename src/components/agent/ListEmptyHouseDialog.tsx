@@ -1151,10 +1151,10 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               name: form.landlord_name.trim(),
               phone: canonicalPhone,
               has_smartphone: form.landlord_has_smartphone,
-              property_address: form.address || null,
-              village: form.village || null,
-              district: form.district || null,
-              region: form.region || null,
+              property_address: ugLoc.village,
+              village: ugLoc.village,
+              district: ugLoc.district,
+              region: DISTRICT_TO_BACKEND_REGION[ugLoc.district] ?? 'Central',
               // Stamp ownership so (a) the RLS RETURNING select below is visible
               // to this agent (user_can_access_landlord matches registered_by /
               // managed_by_agent_id) and (b) the landlord is properly linked to
