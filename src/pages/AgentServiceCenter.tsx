@@ -88,12 +88,16 @@ export default function AgentServiceCenter() {
             { label: 'Team commissions', value: formatUGX(totals.commissions + totals.bonuses) },
             { label: 'Landlords registered', value: String(totals.landlords) },
             { label: 'Houses listed', value: String(totals.houses) },
+            { label: 'Houses pending verification', value: '—', placeholder: true },
+            { label: 'Tenants pending verification', value: '—', placeholder: true },
             { label: 'Pending transfers', value: String(totals.pending) },
           ].map((s) => (
             <Card key={s.label}>
               <CardContent className="p-3">
                 <div className="text-[11px] text-muted-foreground">{s.label}</div>
-                <div className="text-base font-bold text-foreground break-words">{s.value}</div>
+                <div className={cn('text-base font-bold break-words', s.placeholder ? 'text-muted-foreground' : 'text-foreground')}>
+                  {s.value}
+                </div>
               </CardContent>
             </Card>
           ))}
