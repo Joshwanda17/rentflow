@@ -2,26 +2,17 @@
  * Shared Uganda location picker — used by the house listing form and the
  * post rent request form (and any future form needing an address).
  *
- * Two ways in, one output:
- *  1. Type a village name → single debounced RPC returns matches with the full
- *     district/county/sub-county/parish chain, so one tap fills everything.
- *  2. Cascade the official hierarchy when the agent prefers to drill down.
+ * Type a village name → single debounced RPC returns matches with the full
+ * district/county/sub-county/parish chain, so one tap fills everything.
  *
- * All data comes from the cached hooks in useUgLocations, so switching between
- * search and cascade — or reopening the dialog — fires no extra requests.
+ * All data comes from the cached hooks in useUgLocations, so reopening the
+ * dialog fires no extra requests.
  */
 import { useState } from 'react';
-import { Search, MapPin, X, Check, ChevronDown, Loader2 } from 'lucide-react';
+import { Search, MapPin, X, Check, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
-import {
-  useUgDistricts, useUgCounties, useUgSubcounties, useUgParishes, useUgVillages,
-  useUgVillageSearch, type UgLocationSelection, type UgOption,
-} from '@/hooks/useUgLocations';
+import { useUgVillageSearch, type UgLocationSelection } from '@/hooks/useUgLocations';
 
 interface Props {
   value: UgLocationSelection | null;
@@ -34,86 +25,16 @@ interface Props {
   districtName?: string | null;
 }
 
-function LevelSelect({
-  label, options, value, onValueChange, disabled, loading, placeholder,
-}: {
-  label: string;
-  options: UgOption[];
-  value: number | null;
-  onValueChange: (id: number) => void;
-  disabled?: boolean;
-  loading?: boolean;
-  placeholder: string;
-}) {
-  return (
-    <div className="space-y-1">
-      <Label className="text-[11px] font-medium text-muted-foreground">{label}</Label>
-      <Select
-        value={value != null ? String(value) : undefined}
-        onValueChange={(v) => onValueChange(Number(v))}
-        disabled={disabled || loading}
-      >
-        <SelectTrigger className="h-10 text-sm">
-          <SelectValue placeholder={loading ? 'Loading…' : placeholder} />
-        </SelectTrigger>
-        <SelectContent className="max-h-64">
-          {options.map((o) => (
-            <SelectItem key={o.id} value={String(o.id)}>{o.name}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
-  );
-}
-
 export function UgLocationPicker({
   value, onChange, label = 'Official location', required, error, className, districtName,
 }: Props) {
   const [query, setQuery] = useState('');
   const [focused, setFocused] = useState(false);
-  const [showCascade, setShowCascade] = useState(false);
 
-  // Cascade state
-  const [districtId, setDistrictId] = useState<number | null>(null);
-  const [countyId, setCountyId] = useState<number | null>(null);
-  const [subcountyId, setSubcountyId] = useState<number | null>(null);
-  const [parishId, setParishId] = useState<number | null>(null);
-
-  const districts = useUgDistricts();
-  const counties = useUgCounties(districtId);
-  const subcounties = useUgSubcounties(countyId);
-  const parishes = useUgParishes(subcountyId);
-  const villages = useUgVillages(parishId);
-  // The village search is always relative to the district in play: the one
-  // picked in the cascade wins, otherwise the district typed in the form.
   const scopeDistrictName = (districtName ?? '').trim();
   const search = useUgVillageSearch(query, 20, {
-    districtId: districtId,
-    districtName: districtId == null ? scopeDistrictName : null,
+    districtName: scopeDistrictName || null,
   });
-  const activeScopeLabel = districtId != null
-    ? (districts.data?.find((d) => d.id === districtId)?.name ?? '')
-    : scopeDistrictName;
-
-  const names = {
-    district: districts.data?.find((d) => d.id === districtId)?.name ?? '',
-    county: counties.data?.find((c) => c.id === countyId)?.name ?? '',
-    subcounty: subcounties.data?.find((s) => s.id === subcountyId)?.name ?? '',
-    parish: parishes.data?.find((p) => p.id === parishId)?.name ?? '',
-  };
-
-  const pickVillageFromCascade = (villageId: number) => {
-    const village = villages.data?.find((v) => v.id === villageId);
-    if (!village || districtId == null || countyId == null || subcountyId == null || parishId == null) return;
-    onChange({
-      villageId, village: village.name,
-      parishId, parish: names.parish,
-      subcountyId, subcounty: names.subcounty,
-      countyId, county: names.county,
-      districtId, district: names.district,
-      fullPath: [village.name, names.parish, names.subcounty, names.county, names.district].filter(Boolean).join(', '),
-    });
-  };
 
   return (
     <div className={`space-y-2 ${className ?? ''}`}>
@@ -157,9 +78,9 @@ export function UgLocationPicker({
               <div className="absolute z-50 mt-1 max-h-56 w-full overflow-y-auto overscroll-contain rounded-lg border border-border bg-popover shadow-lg [-webkit-overflow-scrolling:touch]">
                 {(search.data ?? []).length === 0 ? (
                   <p className="px-3 py-3 text-xs text-muted-foreground">
-                    {activeScopeLabel
-                      ? `No village matched in ${activeScopeLabel} district. Check the district, or use the official list below.`
-                      : 'No village matched. Use the official list below instead.'}
+                    {scopeDistrictName
+                      ? `No village matched in ${scopeDistrictName} district. Try a different spelling.`
+                      : 'No village matched. Try a different spelling.'}
                   </p>
                 ) : (
                   (search.data ?? []).map((hit) => (
@@ -186,57 +107,10 @@ export function UgLocationPicker({
               Could not search locations: {(search.error as Error).message}
             </p>
           )}
-          {activeScopeLabel && (
+          {scopeDistrictName && (
             <p className="text-[11px] text-muted-foreground">
-              Searching villages in <span className="font-medium text-foreground">{activeScopeLabel}</span> district only.
+              Searching villages in <span className="font-medium text-foreground">{scopeDistrictName}</span> district only.
             </p>
-          )}
-
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-7 px-1 text-[11px] text-muted-foreground"
-            onClick={() => setShowCascade((s) => !s)}
-          >
-            <ChevronDown className={`mr-1 h-3 w-3 transition-transform ${showCascade ? 'rotate-180' : ''}`} />
-            {showCascade ? 'Hide official list' : 'Or pick district → village'}
-          </Button>
-
-          {showCascade && (
-            <div className="grid grid-cols-1 gap-2 rounded-lg border border-border bg-muted/30 p-2.5 sm:grid-cols-2">
-              <LevelSelect
-                label="District" placeholder="Select district"
-                options={districts.data ?? []} value={districtId} loading={districts.isLoading}
-                onValueChange={(id) => { setDistrictId(id); setCountyId(null); setSubcountyId(null); setParishId(null); }}
-              />
-              <LevelSelect
-                label="County" placeholder="Select county"
-                options={counties.data ?? []} value={countyId} loading={counties.isLoading}
-                disabled={districtId == null}
-                onValueChange={(id) => { setCountyId(id); setSubcountyId(null); setParishId(null); }}
-              />
-              <LevelSelect
-                label="Sub-county" placeholder="Select sub-county"
-                options={subcounties.data ?? []} value={subcountyId} loading={subcounties.isLoading}
-                disabled={countyId == null}
-                onValueChange={(id) => { setSubcountyId(id); setParishId(null); }}
-              />
-              <LevelSelect
-                label="Parish" placeholder="Select parish"
-                options={parishes.data ?? []} value={parishId} loading={parishes.isLoading}
-                disabled={subcountyId == null}
-                onValueChange={(id) => setParishId(id)}
-              />
-              <div className="sm:col-span-2">
-                <LevelSelect
-                  label="Village" placeholder="Select village"
-                  options={villages.data ?? []} value={null} loading={villages.isLoading}
-                  disabled={parishId == null}
-                  onValueChange={pickVillageFromCascade}
-                />
-              </div>
-            </div>
           )}
         </>
       )}
