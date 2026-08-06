@@ -29295,6 +29295,7 @@ export type Database = {
           payout_proof_type: string | null
           payout_proof_uploaded_at: string | null
           payout_proof_uploaded_by: string | null
+          pool_funded: boolean
           preferred_cashout_agent_id: string | null
           priority_level: string | null
           processed_at: string | null
@@ -29356,6 +29357,7 @@ export type Database = {
           payout_proof_type?: string | null
           payout_proof_uploaded_at?: string | null
           payout_proof_uploaded_by?: string | null
+          pool_funded?: boolean
           preferred_cashout_agent_id?: string | null
           priority_level?: string | null
           processed_at?: string | null
@@ -29417,6 +29419,7 @@ export type Database = {
           payout_proof_type?: string | null
           payout_proof_uploaded_at?: string | null
           payout_proof_uploaded_by?: string | null
+          pool_funded?: boolean
           preferred_cashout_agent_id?: string | null
           priority_level?: string | null
           processed_at?: string | null
