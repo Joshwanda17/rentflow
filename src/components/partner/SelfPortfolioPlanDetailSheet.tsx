@@ -1,4 +1,13 @@
+import { useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from '@/components/ui/carousel';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { formatDynamic } from '@/lib/currencyFormat';
 import { Home, MapPin, ShieldCheck } from 'lucide-react';
 import tenantPhotoPlaceholder from '@/assets/tenant-photo-placeholder.jpg';
@@ -41,8 +50,6 @@ export function SelfPortfolioPlanDetailSheet({
   if (!plan) return null;
   const photos = (plan.house_image_urls ?? []).filter(Boolean);
   const name = plan.tenant_full_name || plan.tenant_first_name || 'Tenant';
-  const hero = photos[0];
-  const restPhotos = photos.slice(1);
   const endLabel = plan.projected_end_date
     ? new Date(plan.projected_end_date).toLocaleDateString('en-GB', {
         day: 'numeric',
