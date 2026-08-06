@@ -722,6 +722,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [lc1Name, setLc1Name] = useState('');
   const [lc1Phone, setLc1Phone] = useState('');
   const [lc1Village, setLc1Village] = useState('');
+  // LC letter — one image (JPG/PNG/JPEG, max 10 MB) stored in the private
+  // `lc-letters` bucket and referenced on the rent request.
+  const [lcLetter, setLcLetter] = useState<{ file: File; preview: string } | null>(null);
   // Town/City + District for the property location. City is required so the
   // tenant rolls up under a real location in ops dashboards instead of
   // landing in the "needs verification" bucket.
