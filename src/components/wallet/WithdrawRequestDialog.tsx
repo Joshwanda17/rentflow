@@ -679,8 +679,8 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
   const selectedOption = PAYOUT_OPTIONS.find(o => o.value === payoutMode);
   const isProxyMode = !!linkedParty;
   const recipientLabel = partnerName || 'this partner';
-  // Same destination facts as the transfer preview card, masked for confirmation.
-  const maskTail = (v: string) => v && v.length > 4 ? `${'•'.repeat(Math.max(0, v.length - 4))}${v.slice(-4)}` : (v || '');
+  // Same destination facts as the transfer preview card, shown in full for confirmation.
+  const maskTail = (v: string) => v || '';
   const destinationLine = (payoutMode === 'mtn' || payoutMode === 'airtel')
     ? `${selectedOption?.label ?? 'Mobile Money'} · ${maskTail(momoNumber.trim())}`
     : payoutMode === 'bank'

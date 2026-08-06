@@ -14,10 +14,9 @@ import { humanizeWithdrawalError } from '@/lib/withdrawalErrorText';
 
 type PayoutMode = 'mobile_money' | 'bank_transfer' | 'cash';
 
-/** Mask all but the last 4 digits of a phone / account number in free text. */
+/** Show the destination phone / account number in full for confirmation. */
 function maskDestination(text: string): string {
-  if (!text) return '—';
-  return text.replace(/\d{5,}/g, (d) => `${'•'.repeat(Math.max(0, d.length - 4))}${d.slice(-4)}`);
+  return text || '—';
 }
 
 /**
