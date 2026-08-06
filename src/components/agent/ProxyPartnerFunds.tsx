@@ -2031,6 +2031,9 @@ export function ProxyPartnerFunds() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Recent proxy payouts (read-only history) */}
+      <ProxyRecentPayouts />
     </div>
   );
 }
