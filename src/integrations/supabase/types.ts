@@ -13016,7 +13016,7 @@ export type Database = {
       hr_position_access: {
         Row: {
           created_at: string
-          created_by: string
+          created_by: string | null
           dashboard_key: string | null
           id: string
           position_id: string
@@ -13025,7 +13025,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          created_by?: string
+          created_by?: string | null
           dashboard_key?: string | null
           id?: string
           position_id: string
@@ -13034,7 +13034,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          created_by?: string
+          created_by?: string | null
           dashboard_key?: string | null
           id?: string
           position_id?: string
