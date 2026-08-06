@@ -494,6 +494,9 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
           : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     }
     const clientRequestId = clientRequestIdRef.current;
+    // Persist BEFORE the insert attempt so an unmount (network hang, dialog
+    // closed by the user) can't lose the key.
+    if (linkedParty) writePendingClientRequestId(user.id, linkedParty, clientRequestId);
     const MAX_RETRIES = 2;
     let lastError: any = null;
 
@@ -538,6 +541,9 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
             ? `[Proxy initiated by agent ${user.id}] ${reason.trim()}`
             : reason.trim(),
           client_request_id: clientRequestId,
+          payout_route_ref: isProxy && linkedParty
+            ? derivePayoutRouteRef(reason, linkedParty)
+            : null,
         } as any).select('id').maybeSingle();
         submittedWithdrawalId = insertedWithdrawal?.id ?? null;
         if (error) {
@@ -562,6 +568,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
               setLoading(false);
               isSubmittingRef.current = false;
               clientRequestIdRef.current = null;
+              if (linkedParty) clearPendingClientRequestId(user.id, linkedParty);
               return;
             }
             console.info('[WithdrawRequestDialog] Duplicate suppressed by idempotency key');
@@ -614,6 +621,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
         setLoading(false);
         isSubmittingRef.current = false;
         clientRequestIdRef.current = null;
+        if (linkedParty) clearPendingClientRequestId(user.id, linkedParty);
         return;
       } catch (error: any) {
         lastError = error;
