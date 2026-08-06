@@ -19,6 +19,7 @@ import DashboardHeader from '@/components/DashboardHeader';
 
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
+import { ProfileSummaryPopover } from '@/components/profile/ProfileSummaryPopover';
 import { TenantDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { ListSectionSkeleton } from '@/components/skeletons/SectionSkeletons';
 import { PayLandlordDialog } from '@/components/wallet/PayLandlordDialog';
@@ -329,9 +330,16 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
 
           {/* Profile Row */}
           <div className="animate-fade-in flex items-center gap-3">
-            <button onClick={() => navigate('/settings')} className="shrink-0">
-              <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="md" />
-            </button>
+            <ProfileSummaryPopover
+              avatarUrl={profile?.avatar_url}
+              fullName={profile?.full_name}
+              phone={(profile as any)?.phone}
+              email={(profile as any)?.email}
+              location={(profile as any)?.location}
+              verified={profile?.verified}
+              roleLabel="Tenant"
+              triggerSize="md"
+            />
             <div className="flex-1 min-w-0">
               <p className="text-[11px] text-muted-foreground font-medium">Welcome back</p>
               <h1 className="font-bold text-lg leading-tight flex items-center gap-1.5 flex-wrap">

@@ -19,6 +19,7 @@ import DashboardHeader from '@/components/DashboardHeader';
 
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
+import { ProfileSummaryPopover } from '@/components/profile/ProfileSummaryPopover';
 import { SupporterDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { useWallet } from '@/hooks/useWallet';
 import { useAvailableBalance } from '@/hooks/useAvailableBalance';
@@ -453,9 +454,18 @@ export default function SupporterDashboard({
 
           {/* ═══ INLINE GREETING BAR ═══ */}
           <div className="flex flex-col items-center gap-2 py-2">
-            <button onClick={() => navigate('/settings')} className="shrink-0 min-h-[44px] min-w-[44px]">
-              <UserAvatar avatarUrl={profile?.avatar_url} fullName={displayFullName} size="lg" />
-            </button>
+            <ProfileSummaryPopover
+              className="min-h-[44px] min-w-[44px]"
+              align="center"
+              avatarUrl={profile?.avatar_url}
+              fullName={displayFullName}
+              phone={(profile as any)?.phone}
+              email={(profile as any)?.email}
+              location={(profile as any)?.location}
+              verified={profile?.verified}
+              roleLabel="Funder"
+              triggerSize="lg"
+            />
             <div className="flex flex-col items-center gap-0.5">
               <h1 className="font-bold text-lg leading-tight flex items-center gap-1.5">
                 <span className="break-words">{displayFirstName}</span>

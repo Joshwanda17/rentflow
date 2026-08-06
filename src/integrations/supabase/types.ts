@@ -18562,6 +18562,39 @@ export type Database = {
         }
         Relationships: []
       }
+      partner_lead_assignments: {
+        Row: {
+          agent_id: string
+          attached_at: string
+          attached_by: string
+          detached_at: string | null
+          detached_by: string | null
+          id: string
+          lead_user_id: string
+          reason: string
+        }
+        Insert: {
+          agent_id: string
+          attached_at?: string
+          attached_by?: string
+          detached_at?: string | null
+          detached_by?: string | null
+          id?: string
+          lead_user_id: string
+          reason: string
+        }
+        Update: {
+          agent_id?: string
+          attached_at?: string
+          attached_by?: string
+          detached_at?: string | null
+          detached_by?: string | null
+          id?: string
+          lead_user_id?: string
+          reason?: string
+        }
+        Relationships: []
+      }
       partner_self_audit: {
         Row: {
           action: string
