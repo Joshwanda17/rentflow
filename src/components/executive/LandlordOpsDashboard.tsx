@@ -899,6 +899,8 @@ export function LandlordOpsDashboard() {
         .select(HOUSE_LISTING_SELECT)
         .eq('verified', false)
         .not('status', 'in', '(rejected,delisted)')
+        // Houses still sitting with a Service Centre manager are not yet ours to verify.
+        .in('service_center_status', ['not_required', 'passed'])
         .order('created_at', { ascending: false })
         .limit(2000);
       const rows = (data ?? []) as any[];
@@ -918,7 +920,8 @@ export function LandlordOpsDashboard() {
         .from('house_listings')
         .select('id', { count: 'exact', head: true })
         .eq('verified', false)
-        .not('status', 'in', '(rejected,delisted)');
+        .not('status', 'in', '(rejected,delisted)')
+        .in('service_center_status', ['not_required', 'passed']);
       return count || 0;
     },
   });
