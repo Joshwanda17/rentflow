@@ -2992,6 +2992,17 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         }
       }
 
+      // LC letter (optional) — private bucket, path stamped on the request.
+      if (lcLetter && rentReq?.id) {
+        const letter = await uploadLcLetter(rentReq.id);
+        if (letter) {
+          await supabase
+            .from('rent_requests')
+            .update({ lc_letter_path: letter.path, lc_letter_bucket: letter.bucket } as any)
+            .eq('id', rentReq.id);
+        }
+      }
+
       // Tenant passport photo already uploaded + stamped on the row above,
       // before the insert, to satisfy the DB tenant-photo enforcement trigger.
 
