@@ -5711,22 +5711,79 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                     <SelectItem value="all">All</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleExportPdf}
-                  disabled={exportingPdf || filtered.length === 0}
-                  className="h-9 gap-1.5 text-xs whitespace-nowrap"
-                  title={`Export ${filtered.length} filtered portfolio${filtered.length === 1 ? '' : 's'} as PDF`}
-                >
-                  {exportingPdf ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Download className="h-3.5 w-3.5" />
-                  )}
-                  PDF
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={exportingPdf || filtered.length === 0}
+                      className="h-9 gap-1.5 text-xs whitespace-nowrap"
+                      title="Export as PDF by payment mode"
+                    >
+                      {exportingPdf ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Download className="h-3.5 w-3.5" />
+                      )}
+                      PDF
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-64 max-h-80 overflow-y-auto">
+                    <DropdownMenuItem onClick={() => handleExportPdf('all')} className="text-xs">
+                      All payment modes
+                      <span className="ml-auto tabular-nums text-muted-foreground">{filtered.length}</span>
+                    </DropdownMenuItem>
+                    {payMethodGroups.banks.length > 0 && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuLabel className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                          Bank transfer
+                        </DropdownMenuLabel>
+                        {payMethodGroups.banks.map(([bank, count]) => (
+                          <DropdownMenuItem key={`bank:${bank}`} onClick={() => handleExportPdf(`bank:${bank}`)} className="text-xs">
+                            <span className="truncate">{bank}</span>
+                            <span className="ml-auto pl-2 tabular-nums text-muted-foreground">{count}</span>
+                          </DropdownMenuItem>
+                        ))}
+                      </>
+                    )}
+                    {payMethodGroups.momo.length > 0 && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuLabel className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                          Mobile money
+                        </DropdownMenuLabel>
+                        {payMethodGroups.momo.map(([net, count]) => (
+                          <DropdownMenuItem key={`momo:${net}`} onClick={() => handleExportPdf(`momo:${net}`)} className="text-xs">
+                            <span className="truncate">{net}</span>
+                            <span className="ml-auto pl-2 tabular-nums text-muted-foreground">{count}</span>
+                          </DropdownMenuItem>
+                        ))}
+                      </>
+                    )}
+                    {(payMethodGroups.cash > 0 || payMethodGroups.unset > 0) && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuLabel className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                          Other
+                        </DropdownMenuLabel>
+                        {payMethodGroups.cash > 0 && (
+                          <DropdownMenuItem onClick={() => handleExportPdf('cash')} className="text-xs">
+                            Cash
+                            <span className="ml-auto pl-2 tabular-nums text-muted-foreground">{payMethodGroups.cash}</span>
+                          </DropdownMenuItem>
+                        )}
+                        {payMethodGroups.unset > 0 && (
+                          <DropdownMenuItem onClick={() => handleExportPdf('unset')} className="text-xs">
+                            No payout method set
+                            <span className="ml-auto pl-2 tabular-nums text-muted-foreground">{payMethodGroups.unset}</span>
+                          </DropdownMenuItem>
+                        )}
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
             <div className="overflow-y-auto max-h-[calc(90vh-160px)] px-4 pb-4 sm:px-5 sm:pb-5 space-y-2">
