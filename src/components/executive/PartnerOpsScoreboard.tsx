@@ -41,7 +41,12 @@ const Stat = ({ label, value }: { label: string; value: string | number }) => (
   </div>
 );
 
-export function PartnerOpsScoreboard() {
+interface PartnerOpsScoreboardProps {
+  /** Read-only mode: hides the "Set target" action on each card. */
+  hideTargetEditor?: boolean;
+}
+
+export function PartnerOpsScoreboard({ hideTargetEditor = false }: PartnerOpsScoreboardProps = {}) {
   const { data, refetch, isLoading } = useQuery({
     queryKey: ['partner-ops-scoreboard', monthStart()],
     queryFn: async () => {
@@ -91,9 +96,11 @@ export function PartnerOpsScoreboard() {
               <p className="text-sm font-semibold text-foreground truncate">
                 {data?.names?.[r.lead_user_id] || r.lead_user_id}
               </p>
-              <div className="flex justify-end">
-                <PartnerOpsTargetEditor leadUserId={r.lead_user_id} onSaved={() => refetch()} />
-              </div>
+              {!hideTargetEditor && (
+                <div className="flex justify-end">
+                  <PartnerOpsTargetEditor leadUserId={r.lead_user_id} onSaved={() => refetch()} />
+                </div>
+              )}
               <div className="grid grid-cols-3 gap-3">
                 <Stat label="Agents" value={Number(r.agents_attached || 0)} />
                 <Stat label="Pending" value={Number(r.notes_pending || 0)} />
