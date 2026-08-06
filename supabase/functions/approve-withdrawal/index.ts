@@ -2035,11 +2035,58 @@ Deno.serve(async (req) => {
         ...(actingAsMerchant && agentRow?.id
           ? { assigned_cashout_agent_id: agentRow.id }
           : {}),
+        // Persist the pool/bulk-funded nature of this settlement at the DB
+        // layer. One SKYBUBBLES bulk-bank transfer legitimately covers many
+        // proxy payouts that share a single bank reference, so these rows are
+        // exempt from `withdrawal_requests_fin_ops_reference_uq`.
+        ...(poolFunded ? { pool_funded: true } : {}),
       } as any)
       .eq("id", withdrawal_id);
 
     if (updateErr) {
       console.error("[approve-withdrawal] Update error:", updateErr);
+      // ── Double-payout backstop: `withdrawal_requests_fin_ops_reference_uq`
+      //    is a partial UNIQUE index on fin_ops_reference across settled,
+      //    non-pool-funded rows. Unlike the earlier SELECT check (safeguard #1)
+      //    and unlike the time-windowed insert trigger, it is unconditional and
+      //    atomic: if two approvals race, or if the same physical transfer is
+      //    re-used hours later, the second write fails here with 23505.
+      //    Surface the SAME DUPLICATE_REFERENCE 409 the early check returns so
+      //    the ops/UI experience is unchanged.
+      const isDupReference =
+        (updateErr as any)?.code === "23505" &&
+        String((updateErr as any)?.message ?? "").includes(
+          "withdrawal_requests_fin_ops_reference_uq",
+        );
+      if (isDupReference) {
+        const refUpper = reference.trim().toUpperCase();
+        const { data: conflictRow } = await admin
+          .from("withdrawal_requests")
+          .select("id, status")
+          .eq("fin_ops_reference", refUpper)
+          .neq("id", withdrawal_id)
+          .in("status", ["completed", "processing", "paid", "disbursed"])
+          .limit(1)
+          .maybeSingle();
+        console.error(
+          "[approve-withdrawal] DUPLICATE_REFERENCE blocked by unique index",
+          { withdrawal_id, reference: refUpper, conflict_id: (conflictRow as any)?.id ?? null },
+        );
+        return new Response(
+          JSON.stringify({
+            error: "DUPLICATE_REFERENCE",
+            message:
+              `MoMo/bank reference "${refUpper}" is already recorded on another settled withdrawal` +
+              `${(conflictRow as any)?.id ? ` (${(conflictRow as any).id}, status: ${(conflictRow as any).status})` : ""}. ` +
+              `The same physical payment cannot settle two requests. If this is a new payout, enter the new TID; ` +
+              `if the original request is wrong, reject it instead.`,
+            existing_withdrawal_id: (conflictRow as any)?.id ?? null,
+            existing_status: (conflictRow as any)?.status ?? null,
+            code: "duplicate_reference",
+          }),
+          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
       // Ledger entry already exists — log but don't fail the user
     }
 
