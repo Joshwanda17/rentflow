@@ -266,6 +266,20 @@ export function TenantOpsDashboard() {
         if (v < 0) outstandingByTenant.set(k, 0);
       }
 
+      // Fallback: tenants whose plans predate ledger posting have no
+      // rent_obligation legs, so the ledger sum reads 0 even though the plan
+      // still owes. Use the plan figures (total_repayment − amount_repaid)
+      // whenever they show more outstanding than the ledger does.
+      const planOutstandingByTenant = new Map<string, number>();
+      for (const r of (rentReqRes.data || []) as any[]) {
+        if (!r.tenant_id) continue;
+        const rem = Math.max(0, Number(r.total_repayment || 0) - Number(r.amount_repaid || 0));
+        planOutstandingByTenant.set(r.tenant_id, (planOutstandingByTenant.get(r.tenant_id) || 0) + rem);
+      }
+      for (const [tid, rem] of planOutstandingByTenant) {
+        if (rem > (outstandingByTenant.get(tid) || 0)) outstandingByTenant.set(tid, rem);
+      }
+
       // Referrer-as-agent fallback: only count referrers who actually hold the agent role.
       const referrerIds = [...new Set(
         (tenantRes.data || [])
