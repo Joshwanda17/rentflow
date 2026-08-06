@@ -62,24 +62,6 @@ const HL_CLASS = {
   typo: 'bg-transparent font-bold text-[#1a73e8] dark:text-[#8ab4f8] underline decoration-dotted decoration-current/60 underline-offset-2',
 } as const;
 
-/** Google's four brand colours, used for the little wordmark dots. */
-const GOOGLE_COLORS = ['#4285F4', '#EA4335', '#FBBC05', '#34A853'] as const;
-
-/** A tiny "Welile" wordmark rendered in Google's signature colour sequence. */
-function GoogleWordmark() {
-  const letters = 'Welile'.split('');
-  return (
-    <span className="select-none text-lg font-medium tracking-tight" aria-label="Welile landlord search">
-      {letters.map((ch, i) => (
-        <span key={i} style={{ color: GOOGLE_COLORS[i % GOOGLE_COLORS.length] }}>
-          {ch}
-        </span>
-      ))}
-      <span className="ml-1 align-middle text-xs font-normal text-muted-foreground">Landlords</span>
-    </span>
-  );
-}
-
 type HighlightMode = keyof typeof HL_CLASS;
 
 /** Character indices in `text` covered by any case-insensitive occurrence of a term. */
@@ -217,7 +199,6 @@ export function LandlordSearchSelect({
   const [debounced, setDebounced] = useState('');
   const [results, setResults] = useState<LandlordOption[]>([]);
   const [loading, setLoading] = useState(false);
-  const [totalCount, setTotalCount] = useState<number | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   // Configurable fuzzy-match precision (clamped to the RPC's valid range).
   const [threshold, setThreshold] = useState(() =>
