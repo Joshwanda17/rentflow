@@ -525,6 +525,14 @@ export function CashoutAgentManager() {
       };
       const { error } = await supabase.from('cashout_agents').update(patch as any).eq('id', editAgent.id);
       if (error) throw error;
+      // Enforce the new matrix immediately: release any still-open payout this
+      // merchant holds that the updated channels / categories no longer allow.
+      let revoked = 0;
+      const { data: revokeData, error: revokeErr } = await supabase.rpc(
+        'revoke_nonconforming_merchant_claims' as any,
+        { p_agent_id: editAgent.id, p_reason: 'CFO updated merchant permission matrix' } as any,
+      );
+      if (!revokeErr) revoked = Number((revokeData as any)?.count || 0);
       await supabase.from('audit_logs').insert({
         user_id: user!.id,
         action_type: 'cfo_merchant_agent_updated',
@@ -544,10 +552,20 @@ export function CashoutAgentManager() {
           reason: 'CFO updated merchant agent permission matrix',
         } as any,
       } as any);
+      return { revoked };
     },
-    onSuccess: () => {
-      toast({ title: '✅ Merchant Agent updated' });
+    onSuccess: (res: any) => {
+      const revoked = Number(res?.revoked || 0);
+      toast({
+        title: '✅ Merchant Agent updated',
+        description: revoked > 0
+          ? `Enforced immediately — ${revoked} open payout${revoked === 1 ? '' : 's'} outside the new permissions returned to the open pool.`
+          : 'New payment channels & authorized categories are enforced immediately.',
+      });
       qc.invalidateQueries({ queryKey: ['merchant-agents'] });
+      qc.invalidateQueries({ queryKey: ['merchant-agent-active-claims'] });
+      qc.invalidateQueries({ queryKey: ['merchant-agent-active-claims-rows'] });
+      qc.invalidateQueries({ queryKey: ['cfo-pending-withdrawals'] });
       // Refresh the drill-down view if it's open on the same agent
       if (selectedAgent && editAgent && selectedAgent.id === editAgent.id) {
         setSelectedAgent({

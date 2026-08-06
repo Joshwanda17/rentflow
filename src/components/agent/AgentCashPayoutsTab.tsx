@@ -460,7 +460,29 @@ export function AgentCashPayoutsTab() {
       return data;
     },
     enabled: !!user,
+    // Permission edits by the CFO must take effect for this merchant right away.
+    staleTime: 0,
+    refetchInterval: 20_000,
+    refetchOnWindowFocus: true,
   });
+
+  // Live enforcement: when the CFO changes this merchant's channels / categories,
+  // refresh the matrix and the queue immediately.
+  useEffect(() => {
+    if (!user?.id) return;
+    const ch = supabase
+      .channel(`cashout-agent-config-${user.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'cashout_agents', filter: `agent_id=eq.${user.id}` },
+        () => {
+          qc.invalidateQueries({ queryKey: ['is-cashout-agent', user.id] });
+          invalidateQueue();
+        },
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [user?.id]);
 
   // The CFO permission matrix for THIS agent, and the derived category filter
   // clause that limits the queue to only the payout categories mapped to them.
