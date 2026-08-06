@@ -194,7 +194,11 @@ Deno.serve(async (req) => {
     if (countersign) {
       patch.status = 'countersigned';
       patch.countersigned_by = callerId;
-      patch.countersigned_at = new Date().toISOString();
+      // Ops can stamp an explicit execution date (YYYY-MM-DD) so the stored
+      // record matches the date printed on the contract/stamp.
+      const rawStamp = typeof body?.countersignAt === 'string' ? body.countersignAt.trim() : '';
+      const stampDate = /^\d{4}-\d{2}-\d{2}$/.test(rawStamp) ? new Date(`${rawStamp}T12:00:00Z`) : null;
+      patch.countersigned_at = (stampDate && !Number.isNaN(stampDate.getTime()) ? stampDate : new Date()).toISOString();
     }
     if (Object.keys(patch).length > 0) {
       await admin.from('partner_agreements').update(patch).eq('id', row.id);
