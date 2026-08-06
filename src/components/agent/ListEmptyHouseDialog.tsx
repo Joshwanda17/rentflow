@@ -1344,11 +1344,12 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         .eq('id', listing.id)
         .maybeSingle();
 
+      const successRegion = ugLoc ? (DISTRICT_TO_BACKEND_REGION[ugLoc.district] ?? 'Central') : ((created as any)?.region || '');
       setSuccessListing({
         id: listing.id,
         shortCode: (created as any)?.short_code ?? null,
-        title: (created as any)?.title || form.title || `${HOUSE_CATEGORIES.find(c => c.value === form.house_category)?.label} in ${form.region}`,
-        region: form.region,
+        title: (created as any)?.title || form.title || `${HOUSE_CATEGORIES.find(c => c.value === form.house_category)?.label} in ${successRegion}`,
+        region: successRegion,
         dailyRate: pricing.dailyRate,
       });
       setAttempted(false);
