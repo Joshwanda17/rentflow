@@ -32676,6 +32676,10 @@ export type Database = {
           verification_id: string
         }[]
       }
+      fin_ops_reissue_cash_code: {
+        Args: { p_verification_id: string }
+        Returns: string
+      }
       finance_alert_rank_severity: { Args: { p_rank: number }; Returns: string }
       finance_alert_severity_rank: {
         Args: { p_severity: string }

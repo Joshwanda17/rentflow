@@ -82,6 +82,7 @@ export function CashDepositCodesPanel() {
   const [realtimeHealthy, setRealtimeHealthy] = useState(false);
   const [secondsToRefresh, setSecondsToRefresh] = useState<number>(3);
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [reissuing, setReissuing] = useState<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -185,6 +186,20 @@ export function CashDepositCodesPanel() {
 
   if (denied) return null;
 
+  const reissue = async (verificationId: string) => {
+    setReissuing(verificationId);
+    const { data, error } = await (supabase.rpc as any)('fin_ops_reissue_cash_code', {
+      p_verification_id: verificationId,
+    });
+    setReissuing(null);
+    if (error) {
+      toast({ title: 'Could not reissue code', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({ title: `New code: ${data}`, description: 'Valid for 10 minutes. Read it back to the depositor.' });
+    load();
+  };
+
   const activeRows = rows.filter(
     (r) => r.status === 'awaiting_code' && r.expires_at && new Date(r.expires_at).getTime() > Date.now(),
   );
@@ -282,7 +297,23 @@ export function CashDepositCodesPanel() {
                           </div>
                         ) : (
                           <div className="flex flex-col gap-1">
-                            <span className="text-xs text-muted-foreground">Code not stored (issued before codes were retained)</span>
+                            <span className="text-xs text-muted-foreground">Code not stored</span>
+                            {r.status !== 'verified' && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 w-fit gap-1 text-xs"
+                                disabled={reissuing === r.verification_id}
+                                onClick={() => reissue(r.verification_id)}
+                              >
+                                {reissuing === r.verification_id ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <KeyRound className="h-3 w-3" />
+                                )}
+                                Reissue code
+                              </Button>
+                            )}
                             <Countdown expiresAt={r.expires_at} inline />
                           </div>
                         )}
