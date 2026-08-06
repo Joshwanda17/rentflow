@@ -669,11 +669,23 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
     setAmount(0);
     setReason('');
     setSuccess(false);
+    setConfirming(false);
     setSelectedCashAgent(null);
     onOpenChange(false);
   };
 
   const selectedOption = PAYOUT_OPTIONS.find(o => o.value === payoutMode);
+  const isProxyMode = !!linkedParty;
+  const recipientLabel = partnerName || 'this partner';
+  // Same destination facts as the transfer preview card, masked for confirmation.
+  const maskTail = (v: string) => v && v.length > 4 ? `${'•'.repeat(Math.max(0, v.length - 4))}${v.slice(-4)}` : (v || '');
+  const destinationLine = (payoutMode === 'mtn' || payoutMode === 'airtel')
+    ? `${selectedOption?.label ?? 'Mobile Money'} · ${maskTail(momoNumber.trim())}`
+    : payoutMode === 'bank'
+      ? `${bankName || 'Bank'} · ${maskTail(bankAccountNumber.trim())}`
+      : payoutMode === 'cash'
+        ? `Cash · ${selectedCashAgent?.agent_name || 'Cash at agent'}`
+        : '—';
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -691,7 +703,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
               </div>
               <div>
                 <DialogTitle className="text-white text-lg font-bold tracking-tight">
-                  Withdraw Money
+                  {isProxyMode ? `Withdraw for ${recipientLabel}` : 'Withdraw Money'}
                 </DialogTitle>
                 <p className="text-white/70 text-xs mt-0.5">Fast · Secure · Instant notifications</p>
               </div>
