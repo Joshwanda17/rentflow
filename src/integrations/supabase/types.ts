@@ -18482,6 +18482,47 @@ export type Database = {
         }
         Relationships: []
       }
+      partner_bonus_arrears: {
+        Row: {
+          amount_outstanding: number
+          closed_at: string | null
+          id: string
+          last_recovery_at: string | null
+          opened_at: string
+          payee_role: string
+          reversal_id: string
+          subject_user_id: string
+        }
+        Insert: {
+          amount_outstanding: number
+          closed_at?: string | null
+          id?: string
+          last_recovery_at?: string | null
+          opened_at?: string
+          payee_role: string
+          reversal_id: string
+          subject_user_id: string
+        }
+        Update: {
+          amount_outstanding?: number
+          closed_at?: string | null
+          id?: string
+          last_recovery_at?: string | null
+          opened_at?: string
+          payee_role?: string
+          reversal_id?: string
+          subject_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_bonus_arrears_reversal_id_fkey"
+            columns: ["reversal_id"]
+            isOneToOne: false
+            referencedRelation: "partner_note_reversals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       partner_escalations: {
         Row: {
           created_at: string
@@ -18619,6 +18660,87 @@ export type Database = {
           payee_role?: string
           reason?: string
           set_by?: string | null
+        }
+        Relationships: []
+      }
+      partner_note_reversals: {
+        Row: {
+          amount: number
+          arrears_amount: number
+          debited_amount: number
+          id: string
+          ledger_group_id: string | null
+          note_id: string
+          payee_role: string
+          payee_user_id: string
+          reason: string
+          reversed_at: string
+          reversed_by: string
+        }
+        Insert: {
+          amount: number
+          arrears_amount?: number
+          debited_amount?: number
+          id?: string
+          ledger_group_id?: string | null
+          note_id: string
+          payee_role: string
+          payee_user_id: string
+          reason: string
+          reversed_at?: string
+          reversed_by?: string
+        }
+        Update: {
+          amount?: number
+          arrears_amount?: number
+          debited_amount?: number
+          id?: string
+          ledger_group_id?: string | null
+          note_id?: string
+          payee_role?: string
+          payee_user_id?: string
+          reason?: string
+          reversed_at?: string
+          reversed_by?: string
+        }
+        Relationships: []
+      }
+      partner_ops_targets: {
+        Row: {
+          amber_lag_points: number
+          id: string
+          lead_user_id: string | null
+          metric_key: string
+          note: string | null
+          period_month: string
+          red_lag_points: number
+          set_at: string
+          set_by: string
+          target_value: number
+        }
+        Insert: {
+          amber_lag_points?: number
+          id?: string
+          lead_user_id?: string | null
+          metric_key: string
+          note?: string | null
+          period_month: string
+          red_lag_points?: number
+          set_at?: string
+          set_by?: string
+          target_value: number
+        }
+        Update: {
+          amber_lag_points?: number
+          id?: string
+          lead_user_id?: string | null
+          metric_key?: string
+          note?: string | null
+          period_month?: string
+          red_lag_points?: number
+          set_at?: string
+          set_by?: string
+          target_value?: number
         }
         Relationships: []
       }
