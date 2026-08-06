@@ -17,6 +17,7 @@ import * as React from 'npm:react@18.3.1'
 import { renderAsync } from 'npm:@react-email/components@0.0.22'
 import { PDFDocument, StandardFonts, rgb } from 'https://esm.sh/pdf-lib@1.17.1'
 import { template as tenantPartnershipAgreementTemplate } from '../_shared/transactional-email-templates/tenant-partnership-agreement.tsx'
+import { resolveAgreementDate } from '../_shared/partnerContractPdf.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -450,12 +451,13 @@ Deno.serve(async (req) => {
     const baseReference = row.reference || `PA-${partnerId.slice(0, 8).toUpperCase()}`
     let amountNum = Math.max(0, Math.floor(Number(row.partnership_amount) || 0))
     let reference = baseReference
-    let scopedPortfolio: { portfolio_code: string; roi_percentage: number | null } | null = null
+    let scopedPortfolio: { portfolio_code: string; roi_percentage: number | null; created_at: string | null } | null = null
+    let portfolioDate: string | null = null
 
     if (portfolioId) {
       const { data: scoped, error: scopedErr } = await admin
         .from('investor_portfolios')
-        .select('id, investor_id, portfolio_code, investment_amount, roi_percentage')
+        .select('id, investor_id, portfolio_code, investment_amount, roi_percentage, created_at')
         .eq('id', portfolioId)
         .maybeSingle()
       if (scopedErr) return json({ error: scopedErr.message }, 500)
@@ -468,7 +470,9 @@ Deno.serve(async (req) => {
       scopedPortfolio = {
         portfolio_code: scoped.portfolio_code,
         roi_percentage: scoped.roi_percentage === null ? null : Number(scoped.roi_percentage),
+        created_at: scoped.created_at ?? null,
       }
+      portfolioDate = scoped.created_at ?? null
     }
 
     // Resolve real ROI% from the newest portfolio if available.
@@ -491,6 +495,7 @@ Deno.serve(async (req) => {
       if (Number.isFinite(pct) && pct > 0) {
         monthlyReturnLabel = `${Number.isInteger(pct) ? pct : pct.toFixed(2).replace(/\.?0+$/, '')}%`
       }
+      portfolioDate = portfolio?.created_at ?? null
     } catch (e) {
       console.warn('roi_percentage lookup failed:', e)
     }
@@ -517,7 +522,7 @@ Deno.serve(async (req) => {
       payoutMode: row.payout_mode === 'momo' ? 'momo' : 'bank',
       reference,
       partnerSignaturePngBytes,
-      agreementDate: new Date(row.created_at || Date.now()),
+      agreementDate: resolveAgreementDate(row, portfolioDate),
     })
 
     // Upload to storage + sign URL.
