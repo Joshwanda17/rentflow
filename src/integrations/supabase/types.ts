@@ -6297,6 +6297,7 @@ export type Database = {
           amount: number
           attempts: number
           code_hash: string
+          code_plain: string | null
           created_at: string
           deposit_request_id: string
           emailed_to: string | null
@@ -6311,6 +6312,7 @@ export type Database = {
           amount: number
           attempts?: number
           code_hash: string
+          code_plain?: string | null
           created_at?: string
           deposit_request_id: string
           emailed_to?: string | null
@@ -6325,6 +6327,7 @@ export type Database = {
           amount?: number
           attempts?: number
           code_hash?: string
+          code_plain?: string | null
           created_at?: string
           deposit_request_id?: string
           emailed_to?: string | null

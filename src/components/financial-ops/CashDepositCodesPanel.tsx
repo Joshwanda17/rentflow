@@ -282,7 +282,7 @@ export function CashDepositCodesPanel() {
                           </div>
                         ) : (
                           <div className="flex flex-col gap-1">
-                            <span className="font-mono text-muted-foreground">••••</span>
+                            <span className="text-xs text-muted-foreground">Code not stored (issued before codes were retained)</span>
                             <Countdown expiresAt={r.expires_at} inline />
                           </div>
                         )}
