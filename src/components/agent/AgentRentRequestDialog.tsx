@@ -2186,6 +2186,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const resetForm = () => {
     setIncomeType(null);
     setTenantName('');
+    setLcLetter(null);
     setTenantPhone('');
     setTenantNationalId('');
     setRentAmount('');
