@@ -112,11 +112,7 @@ Deno.serve(async (req) => {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    if (amount > 50_000_000) {
-      return new Response(JSON.stringify({ error: "amount_too_large", message: "Amount exceeds the cash deposit limit" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    // No upper cash deposit limit — deposits of any size are accepted.
     const allowedPurposes = ["personal_deposit", "operational_float", "other"];
     const depositPurpose = allowedPurposes.includes(String(body?.deposit_purpose))
       ? String(body.deposit_purpose) : "personal_deposit";
