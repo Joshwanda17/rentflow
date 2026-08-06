@@ -657,14 +657,26 @@ export function LandlordSearchSelect({
           {/* Instant feedback: show "Searching…" the moment the agent types,
               through the debounce window and the fetch. Keep prior results
               visible while re-searching so the list never flickers empty. */}
-          {busy && results.length === 0 && (
+          {needsMoreChars && (
+            <div className="px-3 py-5 text-center">
+              <Search className="mx-auto h-5 w-5 text-muted-foreground" />
+              <p className="mt-2 text-xs font-medium text-foreground">
+                Type at least {MIN_QUERY_CHARS} letters to search
+              </p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground leading-snug">
+                Search a landlord by name or phone number — results appear as you type.
+              </p>
+            </div>
+          )}
+
+          {!needsMoreChars && busy && results.length === 0 && (
             <div className="flex items-center justify-center gap-2 py-4 text-xs text-muted-foreground">
               <Loader2 className="h-3.5 w-3.5 animate-spin" /> Searching…
             </div>
           )}
 
           {/* Prominent fallback warning when the system has zero landlords */}
-          {!loading && isSystemEmpty && (
+          {!loading && !needsMoreChars && isSystemEmpty && (
             <div className="px-3 py-4 space-y-3">
               <div className="rounded-xl border border-warning/40 bg-warning/10 p-3 flex items-start gap-2.5">
                 <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
