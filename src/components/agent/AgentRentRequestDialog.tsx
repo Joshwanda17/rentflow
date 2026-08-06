@@ -2398,6 +2398,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       if (!lc1Village.trim()) errors.push('Type the LC1 village');
       if (!propertyCity.trim()) errors.push('Type the town / city');
       if (!houseCategory) errors.push('Choose the house type');
+      if (!gpsLocation) errors.push('Capture the property GPS at the house');
     }
 
     // ===== Block duplicate phone numbers across roles =====
