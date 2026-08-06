@@ -186,6 +186,20 @@ export function CashDepositCodesPanel() {
 
   if (denied) return null;
 
+  const reissue = async (verificationId: string) => {
+    setReissuing(verificationId);
+    const { data, error } = await (supabase.rpc as any)('fin_ops_reissue_cash_code', {
+      p_verification_id: verificationId,
+    });
+    setReissuing(null);
+    if (error) {
+      toast({ title: 'Could not reissue code', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({ title: `New code: ${data}`, description: 'Valid for 10 minutes. Read it back to the depositor.' });
+    load();
+  };
+
   const activeRows = rows.filter(
     (r) => r.status === 'awaiting_code' && r.expires_at && new Date(r.expires_at).getTime() > Date.now(),
   );
