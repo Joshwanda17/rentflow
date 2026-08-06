@@ -373,9 +373,7 @@ export function FinOpsWalletMovePanel() {
     : amountNum >= dualThreshold ? 2 : amountNum >= cfoThreshold ? 1 : 0;
   const governanceComplete =
     !isCorrection ||
-    (justification.trim().length >= 20 &&
-      referenceNumber.trim().length >= 3 &&
-      (reasonCode !== 'other' || reason.trim().length >= 30) &&
+    ((reasonCode !== 'other' || reason.trim().length >= 30) &&
       (!removesEarnedIncome || ackEarnedIncome));
   // Visible float after the move: without acknowledgement the incoming amount is
   // swallowed by the hidden hole, so visible float stays floored at 0.
@@ -554,8 +552,8 @@ export function FinOpsWalletMovePanel() {
         reason: reason.trim(),
         reason_code: reasonCode,
         confirm_full_history: fullHistorySweep ? true : undefined,
-        business_justification: isCorrection ? justification.trim() : undefined,
-        reference_number: isCorrection ? referenceNumber.trim() : undefined,
+        business_justification: isCorrection && justification.trim() ? justification.trim() : undefined,
+        reference_number: isCorrection && referenceNumber.trim() ? referenceNumber.trim() : undefined,
         related_transaction_id: isCorrection && relatedTxnId.trim() ? relatedTxnId.trim() : undefined,
         acknowledge_earned_income: isCorrection && ackEarnedIncome ? true : undefined,
         confirm_high_value: isCorrection && isHighValue ? true : undefined,
@@ -973,7 +971,7 @@ export function FinOpsWalletMovePanel() {
             {isCorrection && (
               <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-3">
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Mandatory justification
+                  Justification (optional)
                 </p>
                 {reasonCode === 'other' && reason.trim().length < 30 && (
                   <p className="text-xs text-destructive">
@@ -983,7 +981,7 @@ export function FinOpsWalletMovePanel() {
                 )}
                 <div>
                   <Label htmlFor="fwm-justification" className="text-xs">
-                    Business justification (min 20 characters)
+                    Business justification (optional)
                   </Label>
                   <Textarea
                     id="fwm-justification"
@@ -997,7 +995,7 @@ export function FinOpsWalletMovePanel() {
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div>
                     <Label htmlFor="fwm-ref" className="text-xs">
-                      Ticket / investigation reference (required)
+                      Ticket / investigation reference (optional)
                     </Label>
                     <Input
                       id="fwm-ref"
