@@ -2358,63 +2358,6 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-sm font-medium">Region *</Label>
-                <Select value={form.region} onValueChange={v => setForm(f => ({ ...f, region: v }))}>
-                  <SelectTrigger className={`h-12 text-base ${attempted && !form.region ? 'border-destructive focus:ring-destructive' : ''}`}><SelectValue placeholder="Select" /></SelectTrigger>
-                  <SelectContent>
-                    {REGIONS.map(r => (
-                      <SelectItem key={r} value={r}>{regionLabel(r)}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {attempted && !form.region && (
-                  <FieldError message="Choose the region where the house is." />
-                )}
-              </div>
-              <div>
-                <Label className="text-sm font-medium">District</Label>
-                <Input
-                  placeholder="District"
-                  className="h-12 text-base"
-                  value={form.district}
-                  onChange={e => setForm(f => ({ ...f, district: e.target.value }))}
-                  onBlur={e => {
-                    const normalized = normalizeDistrict(e.target.value);
-                    if (normalized && normalized !== e.target.value.trim()) {
-                      setForm(f => ({ ...f, district: normalized }));
-                    }
-                  }}
-                />
-                {districtWarning(form.district) && (
-                  <p className="text-[10px] text-warning leading-tight mt-1">
-                    {districtWarning(form.district)}
-                  </p>
-                )}
-              </div>
-            </div>
-            <div>
-              <Label className="text-sm font-medium">Address <span className="text-destructive">*</span></Label>
-              <Input
-                placeholder="e.g. Plot 12, Nansana Road"
-                className="h-12 text-base"
-                value={form.address}
-                onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
-              />
-            </div>
-            <div>
-              <Label className="text-sm font-medium">Village / Zone <span className="text-destructive">*</span></Label>
-              <Input
-                placeholder="e.g. Kikaya Zone B"
-                className="h-12 text-base"
-                value={form.village}
-                onChange={e => {
-                  const val = e.target.value;
-                  setForm(f => ({ ...f, village: val, lc1_village: val }));
-                }}
-              />
-            </div>
           </div>
           </>
           )}
