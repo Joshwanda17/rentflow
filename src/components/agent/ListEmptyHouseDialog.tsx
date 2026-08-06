@@ -197,9 +197,6 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   // Human-readable place name resolved from the pinned coordinates.
   const [resolvedPlace, setResolvedPlace] = useState<string | null>(null);
   const [resolvingPlace, setResolvingPlace] = useState(false);
-  // Location quick-search (search & choose a specific known area).
-  const [locQuery, setLocQuery] = useState('');
-  const [locFocused, setLocFocused] = useState(false);
   // ─── Draft persistence (survives a camera-triggered page reload on mobile) ───
   // When true, the form was restored from a saved draft, so we show a banner.
   const [draftRestored, setDraftRestored] = useState(false);
