@@ -62,24 +62,6 @@ const HL_CLASS = {
   typo: 'bg-transparent font-bold text-[#1a73e8] dark:text-[#8ab4f8] underline decoration-dotted decoration-current/60 underline-offset-2',
 } as const;
 
-/** Google's four brand colours, used for the little wordmark dots. */
-const GOOGLE_COLORS = ['#4285F4', '#EA4335', '#FBBC05', '#34A853'] as const;
-
-/** A tiny "Welile" wordmark rendered in Google's signature colour sequence. */
-function GoogleWordmark() {
-  const letters = 'Welile'.split('');
-  return (
-    <span className="select-none text-lg font-medium tracking-tight" aria-label="Welile landlord search">
-      {letters.map((ch, i) => (
-        <span key={i} style={{ color: GOOGLE_COLORS[i % GOOGLE_COLORS.length] }}>
-          {ch}
-        </span>
-      ))}
-      <span className="ml-1 align-middle text-xs font-normal text-muted-foreground">Landlords</span>
-    </span>
-  );
-}
-
 type HighlightMode = keyof typeof HL_CLASS;
 
 /** Character indices in `text` covered by any case-insensitive occurrence of a term. */
@@ -217,7 +199,6 @@ export function LandlordSearchSelect({
   const [debounced, setDebounced] = useState('');
   const [results, setResults] = useState<LandlordOption[]>([]);
   const [loading, setLoading] = useState(false);
-  const [totalCount, setTotalCount] = useState<number | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   // Configurable fuzzy-match precision (clamped to the RPC's valid range).
   const [threshold, setThreshold] = useState(() =>
@@ -321,7 +302,6 @@ export function LandlordSearchSelect({
     if (debounced.trim().length < MIN_QUERY_CHARS) {
       reqIdRef.current++;
       setResults([]);
-      setTotalCount(null);
       setLoading(false);
       return;
     }
@@ -394,28 +374,13 @@ export function LandlordSearchSelect({
     if (!query.trim()) setCancelledInfo(null);
   }, [query]);
 
-
-  // One-time fetch of total landlord count so we can show a system-empty warning
-  useEffect(() => {
-    if (!panelOpen) return;
-    let cancelled = false;
-    (async () => {
-      const { count, error } = await supabase
-        .from('landlords_directory')
-        .select('*', { count: 'exact', head: true });
-      if (!cancelled && !error && count !== null && count !== undefined) {
-        setTotalCount(count);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [panelOpen]);
-
   const triggerLabel = useMemo(() => {
     if (!value) return placeholder;
     return `${value.name} • ${value.phone}`;
   }, [value, placeholder]);
 
-  const isSystemEmpty = totalCount === 0;
+  // No standalone count round-trip: the search RPC is the only query.
+  const isSystemEmpty = false;
   // True while a keystroke is still waiting out the debounce window — lets us
   // show "Searching…" the instant the agent types, before the fetch even fires.
   const isTyping = panelOpen && query.trim().length > 0 && query.trim() !== debounced;
@@ -520,10 +485,7 @@ export function LandlordSearchSelect({
   const panel = (
     <>
         <div className="px-4 pt-3.5 pb-2.5">
-          <div className="mb-2.5 flex justify-center">
-            <GoogleWordmark />
-          </div>
-          {/* Google-style pill search bar */}
+          {/* Simple debounced search input */}
           <div className="relative flex items-center rounded-full border border-border/70 bg-background px-4 h-11 shadow-sm transition-shadow focus-within:shadow-[0_1px_6px_rgba(32,33,36,0.28)] hover:shadow-[0_1px_6px_rgba(32,33,36,0.18)]">
             <Search className="h-4 w-4 shrink-0 text-[#4285F4]" />
             <input
@@ -589,9 +551,6 @@ export function LandlordSearchSelect({
                 {debounced
                   ? `About ${results.length} landlord${results.length === 1 ? '' : 's'} matching "${debounced}"`
                   : `Showing ${results.length} registered landlord${results.length === 1 ? '' : 's'}`}
-                {typeof totalCount === 'number' && totalCount > 0 && (
-                  <span className="opacity-70"> · {totalCount} total</span>
-                )}
               </p>
               <button
                 type="button"
@@ -657,18 +616,6 @@ export function LandlordSearchSelect({
           {/* Instant feedback: show "Searching…" the moment the agent types,
               through the debounce window and the fetch. Keep prior results
               visible while re-searching so the list never flickers empty. */}
-          {needsMoreChars && (
-            <div className="px-3 py-5 text-center">
-              <Search className="mx-auto h-5 w-5 text-muted-foreground" />
-              <p className="mt-2 text-xs font-medium text-foreground">
-                Type at least {MIN_QUERY_CHARS} letters to search
-              </p>
-              <p className="mt-0.5 text-[11px] text-muted-foreground leading-snug">
-                Search a landlord by name or phone number — results appear as you type.
-              </p>
-            </div>
-          )}
-
           {!needsMoreChars && busy && results.length === 0 && (
             <div className="flex items-center justify-center gap-2 py-4 text-xs text-muted-foreground">
               <Loader2 className="h-3.5 w-3.5 animate-spin" /> Searching…
