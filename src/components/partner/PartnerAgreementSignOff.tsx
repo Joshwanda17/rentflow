@@ -50,6 +50,8 @@ export default function PartnerAgreementSignOff({
   const [repPosition, setRepPosition] = useState('');
   const [repContact, setRepContact] = useState('');
   const [sigDataUrl, setSigDataUrl] = useState<string | undefined>();
+  // Editable stamp / execution date shown on the contract and the Welile stamp.
+  const [stampDate, setStampDate] = useState<string>('');
 
   useEffect(() => {
     if (!open || !partner) return;
@@ -93,6 +95,10 @@ export default function PartnerAgreementSignOff({
           setRepPosition(def?.rep_position || '');
           setRepContact(def?.rep_contact || '');
           setSigDataUrl(undefined);
+          const base = ag?.countersigned_at ? new Date(ag.countersigned_at) : new Date();
+          setStampDate(
+            `${base.getFullYear()}-${String(base.getMonth() + 1).padStart(2, '0')}-${String(base.getDate()).padStart(2, '0')}`,
+          );
         }
       } catch (e: any) {
         if (!cancelled) setMissing(e?.message || 'Could not load the agreement.');
@@ -125,7 +131,13 @@ export default function PartnerAgreementSignOff({
       momoName: agreement.momo_name || '',
       kinName: agreement.kin_name || '',
       kinContact: agreement.kin_contact || '',
-      agreementDate: agreement.countersigned_at ? new Date(agreement.countersigned_at) : new Date(),
+      agreementDate: (() => {
+        if (stampDate) {
+          const [y, m, d] = stampDate.split('-').map(Number);
+          if (y && m && d) return new Date(y, m - 1, d);
+        }
+        return agreement.countersigned_at ? new Date(agreement.countersigned_at) : new Date();
+      })(),
       welileRepName: repName,
       welileRepPosition: repPosition,
       welileRepContact: repContact,
@@ -136,7 +148,7 @@ export default function PartnerAgreementSignOff({
       partnerSignatureDataUrl: agreement.partner_signature_data_url || undefined,
       includeStamp: true,
     };
-  }, [agreement, partner, repSigUrl, repName, repPosition, repContact, sigDataUrl]);
+  }, [agreement, partner, repSigUrl, repName, repPosition, repContact, sigDataUrl, stampDate]);
 
   const onSignatureFile = (file?: File) => {
     if (!file) return;
