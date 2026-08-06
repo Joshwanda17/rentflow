@@ -224,13 +224,26 @@ export function SubAgentEntityList({
                         {r.images && r.images.length > 0 && (
                           <div className="flex gap-2 overflow-x-auto pb-1">
                             {r.images.map((src, i) => (
-                              <img
+                              <button
                                 key={`${r.id}-img-${i}`}
-                                src={src}
-                                alt={`${r.primary} photo ${i + 1}`}
-                                loading="lazy"
-                                className="h-20 w-28 shrink-0 rounded-lg border border-border/60 object-cover"
-                              />
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setLightbox({ images: r.images ?? [], startIndex: i, open: true });
+                                }}
+                                className="relative shrink-0 overflow-hidden rounded-lg border border-border/60 transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-primary"
+                                aria-label={`View ${r.primary} photo ${i + 1} in full`}
+                              >
+                                <img
+                                  src={src}
+                                  alt={`${r.primary} photo ${i + 1}`}
+                                  loading="lazy"
+                                  className="h-20 w-28 object-cover"
+                                />
+                                <div className="absolute inset-0 flex items-center justify-center bg-black/0 hover:bg-black/20 transition">
+                                  <span className="sr-only">Open full photo</span>
+                                </div>
+                              </button>
                             ))}
                           </div>
                         )}
