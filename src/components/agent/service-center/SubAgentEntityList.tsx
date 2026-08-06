@@ -287,6 +287,14 @@ export function SubAgentEntityList({
           )}
         </>
       )}
+
+      <ImageZoomLightbox
+        images={lightbox.images}
+        startIndex={lightbox.open ? lightbox.startIndex : null}
+        open={lightbox.open}
+        onClose={() => setLightbox((s) => ({ ...s, open: false }))}
+        altPrefix="House"
+      />
     </section>
   );
 }
