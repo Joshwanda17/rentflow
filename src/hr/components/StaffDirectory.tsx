@@ -546,7 +546,283 @@ export default function StaffDirectory() {
         }}
         onAdded={() => void load()}
       />
+
+      <TransferPositionDialog
+        staff={transferFor}
+        assignments={transferFor ? (assignments[transferFor.id] ?? []) : []}
+        allStaff={staff}
+        onOpenChange={(v) => {
+          if (!v) setTransferFor(null);
+        }}
+        onDone={() => void load()}
+      />
+
+      <ChangeDepartmentDialog
+        staff={deptChangeFor}
+        assignments={deptChangeFor ? (assignments[deptChangeFor.id] ?? []) : []}
+        departments={departments}
+        onOpenChange={(v) => {
+          if (!v) setDeptChangeFor(null);
+        }}
+        onDone={() => void load()}
+      />
     </div>
+  );
+}
+
+function TransferPositionDialog({
+  staff,
+  assignments,
+  allStaff,
+  onOpenChange,
+  onDone,
+}: {
+  staff: Employee | null;
+  assignments: ActiveAssignment[];
+  allStaff: Employee[];
+  onOpenChange: (open: boolean) => void;
+  onDone: () => void;
+}) {
+  const open = staff !== null;
+  const [assignmentId, setAssignmentId] = useState('');
+  const [toStaffId, setToStaffId] = useState('');
+  const [reason, setReason] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setAssignmentId(assignments.length === 1 ? assignments[0].id : '');
+    setToStaffId('');
+    setReason('');
+    setError(null);
+  }, [open, staff?.id]);
+
+  const destinations = allStaff.filter((s) => s.id !== staff?.id && s.status === 'active');
+  const canSave = !!assignmentId && !!toStaffId && reason.trim().length >= 10 && !saving;
+
+  const submit = async () => {
+    if (!canSave) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await transferPosition({
+        fromAssignmentId: assignmentId,
+        toStaffId,
+        reason: reason.trim(),
+      });
+      toast.success('Position transferred');
+      onOpenChange(false);
+      onDone();
+    } catch (e) {
+      // Show the database message verbatim — one of them explains that the
+      // destination position already has an open holder.
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Transfer position</DialogTitle>
+          <DialogDescription>
+            Hands one of {staff?.full_name || 'this person'}&apos;s open positions to another
+            enrolled staff member.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Position to transfer</Label>
+            {assignments.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                This person has no open positions to transfer.
+              </p>
+            ) : (
+              <Select value={assignmentId} onValueChange={setAssignmentId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a position" />
+                </SelectTrigger>
+                <SelectContent>
+                  {assignments.map((a) => (
+                    <SelectItem key={a.id} value={a.id}>
+                      {(a.position_title || 'Untitled position') +
+                        (a.department_name ? ` · ${a.department_name}` : '')}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs">Transfer to</Label>
+            <Select value={toStaffId} onValueChange={setToStaffId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a staff member" />
+              </SelectTrigger>
+              <SelectContent>
+                {destinations.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.full_name || s.staff_number || s.id}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs">Reason</Label>
+            <Textarea
+              rows={3}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Why is this position moving? At least 10 characters."
+            />
+            <p className="text-[11px] text-muted-foreground">{reason.trim().length}/10</p>
+          </div>
+        </div>
+
+        <DialogFooter className="flex-col gap-2 sm:flex-col sm:space-x-0">
+          {error && <p className="w-full text-xs text-destructive whitespace-pre-wrap">{error}</p>}
+          <Button className="w-full" disabled={!canSave} onClick={() => void submit()}>
+            {saving ? 'Transferring…' : 'Transfer position'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ChangeDepartmentDialog({
+  staff,
+  assignments,
+  departments,
+  onOpenChange,
+  onDone,
+}: {
+  staff: Employee | null;
+  assignments: ActiveAssignment[];
+  departments: Department[];
+  onOpenChange: (open: boolean) => void;
+  onDone: () => void;
+}) {
+  const open = staff !== null;
+  const [assignmentId, setAssignmentId] = useState('');
+  const [departmentId, setDepartmentId] = useState('');
+  const [reason, setReason] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [fallbackDepartments, setFallbackDepartments] = useState<Department[]>([]);
+
+  useEffect(() => {
+    if (!open) return;
+    setAssignmentId(assignments.length === 1 ? assignments[0].id : '');
+    setDepartmentId('');
+    setReason('');
+    setError(null);
+  }, [open, staff?.id]);
+
+  useEffect(() => {
+    if (!open || departments.length > 0) return;
+    getDepartments()
+      .then(setFallbackDepartments)
+      .catch((e) => setError(e instanceof Error ? e.message : String(e)));
+  }, [open, departments.length]);
+
+  const departmentOptions = departments.length > 0 ? departments : fallbackDepartments;
+  const canSave = !!assignmentId && !!departmentId && reason.trim().length >= 10 && !saving;
+
+  const submit = async () => {
+    if (!canSave) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await changeDepartment({ assignmentId, departmentId, reason: reason.trim() });
+      toast.success('Department changed');
+      onOpenChange(false);
+      onDone();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Change department</DialogTitle>
+          <DialogDescription>
+            Moves one of {staff?.full_name || 'this person'}&apos;s open positions to another
+            department.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Position</Label>
+            {assignments.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                This person has no open positions to move.
+              </p>
+            ) : (
+              <Select value={assignmentId} onValueChange={setAssignmentId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a position" />
+                </SelectTrigger>
+                <SelectContent>
+                  {assignments.map((a) => (
+                    <SelectItem key={a.id} value={a.id}>
+                      {(a.position_title || 'Untitled position') +
+                        (a.department_name ? ` · ${a.department_name}` : '')}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs">New department</Label>
+            <Select value={departmentId} onValueChange={setDepartmentId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a department" />
+              </SelectTrigger>
+              <SelectContent>
+                {departmentOptions.map((d) => (
+                  <SelectItem key={d.id} value={d.id}>
+                    {d.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs">Reason</Label>
+            <Textarea
+              rows={3}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Why is this position changing department? At least 10 characters."
+            />
+            <p className="text-[11px] text-muted-foreground">{reason.trim().length}/10</p>
+          </div>
+        </div>
+
+        <DialogFooter className="flex-col gap-2 sm:flex-col sm:space-x-0">
+          {error && <p className="w-full text-xs text-destructive whitespace-pre-wrap">{error}</p>}
+          <Button className="w-full" disabled={!canSave} onClick={() => void submit()}>
+            {saving ? 'Saving…' : 'Change department'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
