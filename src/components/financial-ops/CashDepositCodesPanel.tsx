@@ -76,6 +76,7 @@ export function CashDepositCodesPanel() {
   const [rows, setRows] = useState<CashCodeRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [denied, setDenied] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<number>(Date.now());
   const [realtimeHealthy, setRealtimeHealthy] = useState(false);
@@ -93,9 +94,11 @@ export function CashDepositCodesPanel() {
     const { data, error } = await (supabase.rpc as any)('fin_ops_recent_cash_codes', { p_limit: 50 });
     if (error) {
       if (/not_authorized/i.test(error.message)) setDenied(true);
+      else setLoadError(error.message);
       setLoading(false);
       return;
     }
+    setLoadError(null);
     setRows((data ?? []) as CashCodeRow[]);
     setLoading(false);
     setLastRefreshedAt(Date.now());
@@ -242,6 +245,10 @@ export function CashDepositCodesPanel() {
             <div className="flex items-center gap-2 text-sm text-muted-foreground py-6 justify-center">
               <Loader2 className="h-4 w-4 animate-spin" /> Loading codes…
             </div>
+          ) : loadError ? (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+              Could not load cash deposit codes: {loadError}
+            </div>
           ) : displayRows.length === 0 ? (
             <div className="text-sm text-muted-foreground py-6 text-center">No cash deposit codes yet.</div>
           ) : (
@@ -274,7 +281,10 @@ export function CashDepositCodesPanel() {
                             <Countdown expiresAt={r.expires_at} inline />
                           </div>
                         ) : (
-                          <span className="font-mono text-muted-foreground">••••</span>
+                          <div className="flex flex-col gap-1">
+                            <span className="font-mono text-muted-foreground">••••</span>
+                            <Countdown expiresAt={r.expires_at} inline />
+                          </div>
                         )}
                       </td>
                       <td className="py-2 px-2 font-medium whitespace-nowrap">{fmtUgx(r.amount)}</td>
