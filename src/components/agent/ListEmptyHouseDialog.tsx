@@ -1027,10 +1027,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   const lc1PartialErr = validateLc1Selection(lc1Selection);
   const preflightGates: PreflightGate[] = [
     { label: 'Monthly rent (min UGX 10,000)', ok: !!monthlyRent && monthlyRent >= 10000, hint: 'Enter a monthly rent of at least UGX 10,000', step: 1 },
-    { label: 'Region selected', ok: !!form.region, hint: 'Choose the region', step: 1 },
+    { label: 'Village selected', ok: !!ugLoc, hint: 'Search and select the village where the house is located', step: 1 },
   ];
-  preflightGates.push({ label: 'Address', ok: !!form.address.trim(), hint: 'Enter the property address', step: 1 });
-  preflightGates.push({ label: 'Village / Zone', ok: !!form.village.trim(), hint: 'Enter the village or zone', step: 1 });
   preflightGates.push({ label: 'GPS location pinned', ok: !!geo, hint: 'Stand at the house and pin its exact GPS coordinates', step: 1 });
   preflightGates.push({ label: 'GPS location confirmed', ok: !!geo && geoConfirmed, hint: 'Tick the box confirming the pin sits on the house', step: 1 });
   preflightGates.push({ label: 'At least 3 photos', ok: images.length >= 3, hint: 'Take at least 3 photos of the house', step: 2 });
