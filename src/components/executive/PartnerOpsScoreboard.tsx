@@ -86,10 +86,10 @@ export function PartnerOpsScoreboard() {
         {rows.map((r) => (
           <Card key={r.lead_user_id} className={cn('overflow-hidden', borderForState(r.state))}>
             <CardContent className="p-4 space-y-3">
-              <div className="flex items-start justify-between gap-2">
-                <p className="text-sm font-semibold text-foreground truncate">
-                  {data?.names?.[r.lead_user_id] || r.lead_user_id}
-                </p>
+              <p className="text-sm font-semibold text-foreground truncate">
+                {data?.names?.[r.lead_user_id] || r.lead_user_id}
+              </p>
+              <div className="flex justify-end">
                 <PartnerOpsTargetEditor leadUserId={r.lead_user_id} onSaved={() => refetch()} />
               </div>
               <div className="grid grid-cols-3 gap-3">
