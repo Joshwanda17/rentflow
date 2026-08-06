@@ -1785,6 +1785,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       const missingHousePhotos = HOUSE_PHOTO_SLOTS.some((_, i) => !housePhotos[i]);
       if (missingHousePhotos) map['housePhotos'] = 'Take all 4 house photos (front, back, left and right)';
       if (!tenantPhoto) map['tenantPhoto'] = "Take the tenant's passport photo";
+      if (!gpsLocation) map['gpsLocation'] = 'Capture the property GPS at the house';
     } else if (idx === 3) {
       if (!lc1Name.trim()) map['lc1Name'] = "Type the LC1 chairperson's name";
       if (!lc1Phone.trim()) map['lc1Phone'] = 'Type the LC1 phone number';
