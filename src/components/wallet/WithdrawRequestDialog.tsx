@@ -590,6 +590,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
               );
               setLoading(false);
               isSubmittingRef.current = false;
+              setConfirming(false);
               clientRequestIdRef.current = null;
               if (linkedParty) clearPendingClientRequestId(user.id, linkedParty);
               return;
@@ -663,6 +664,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
     setLoading(false);
     isSubmittingRef.current = false;
     // Keep clientRequestIdRef so a manual retry by the user re-uses the same key
+    setConfirming(false);
   };
 
   const handleClose = () => {
