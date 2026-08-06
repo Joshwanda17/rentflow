@@ -78,14 +78,34 @@ export function SubAgentDetailSheet({
     id: t.rent_request_id,
     state: tenantState(t.status, t.is_active),
     primary: t.tenant_name ?? 'Unnamed tenant',
-    secondary: t.status.replace(/_/g, ' '),
+    secondary: [t.tenant_phone, t.location].filter(Boolean).join(' · ') || t.status.replace(/_/g, ' '),
     amountLabel: t.monthly_rent ? formatUGX(t.monthly_rent) : null,
     amountValue: t.monthly_rent ?? 0,
     createdAt: t.created_at ?? null,
+    progressPercent: t.total_repayment
+      ? Math.min(100, ((t.amount_repaid ?? 0) / Number(t.total_repayment)) * 100)
+      : null,
+    progressLabel: t.total_repayment
+      ? `${formatUGX(t.amount_repaid ?? 0)} of ${formatUGX(Number(t.total_repayment))}`
+      : null,
     details: [
+      { label: 'Phone', value: t.tenant_phone || '—' },
+      { label: 'Location', value: t.location || '—' },
+      { label: 'Landlord', value: t.landlord_name || '—' },
+      { label: 'Landlord phone', value: t.landlord_phone || '—' },
       { label: 'Rent plan status', value: t.status.replace(/_/g, ' ') },
       { label: 'Monthly rent', value: t.monthly_rent ? formatUGX(t.monthly_rent) : '—' },
+      { label: 'Daily amount', value: t.daily_repayment ? formatUGX(Number(t.daily_repayment)) : '—' },
+      { label: 'Repaid so far', value: formatUGX(t.amount_repaid ?? 0) },
+      { label: 'Plan total', value: t.total_repayment ? formatUGX(Number(t.total_repayment)) : '—' },
+      {
+        label: 'Balance',
+        value: t.total_repayment
+          ? formatUGX(Math.max(0, Number(t.total_repayment) - (t.amount_repaid ?? 0)))
+          : '—',
+      },
       { label: 'Active plan', value: t.is_active ? 'Yes' : 'No' },
+      { label: 'Plan owner', value: t.owned_by_subagent ? 'This sub-agent' : 'Referral only' },
       { label: 'Added', value: dateLabel(t.created_at) },
     ],
   })), [subAgent?.tenant_list]);
@@ -98,6 +118,7 @@ export function SubAgentDetailSheet({
     amountLabel: h.monthly_rent ? formatUGX(h.monthly_rent) : null,
     amountValue: h.monthly_rent ?? 0,
     createdAt: h.created_at,
+    images: h.photos ?? [],
     details: [
       { label: 'Address', value: h.address || '—' },
       { label: 'District', value: h.district || '—' },
@@ -105,6 +126,7 @@ export function SubAgentDetailSheet({
       { label: 'Monthly rent', value: h.monthly_rent ? formatUGX(h.monthly_rent) : '—' },
       { label: 'Listing status', value: (h.status || '—').replace(/_/g, ' ') },
       { label: 'Occupancy', value: h.occupied ? 'Occupied' : 'Vacant' },
+      { label: 'Photos', value: String(h.photo_count ?? (h.photos?.length ?? 0)) },
       { label: 'Verified on', value: dateLabel(h.verified_at) },
       { label: 'Listed on', value: dateLabel(h.created_at) },
       ...(h.reason ? [{ label: 'Rejection reason', value: h.reason }] : []),
