@@ -102,6 +102,7 @@ export default function SupporterDashboard({
   const displayFullName = profile?.full_name?.trim() || metaFullName || emailLocal;
   const displayFirstName = displayFullName ? displayFullName.split(' ')[0] : (profileLoading ? '' : 'Supporter');
   const { isOnline } = useOffline();
+  const { count: supportedTenantCount } = useSupportedTenants();
   const [loading, setLoading] = useState(false);
   const [hasCachedData, setHasCachedData] = useState(() => {
     try { return !!localStorage.getItem(`supporter_houses_${user.id}`); } catch { return false; }
