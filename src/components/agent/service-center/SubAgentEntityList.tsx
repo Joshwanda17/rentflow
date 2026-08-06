@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { ServiceCenterState } from '@/hooks/useAgentServiceCenter';
+import { ImageZoomLightbox } from '@/components/executive/landlord-ops/ImageZoomLightbox';
 
 const PAGE = 10;
 
