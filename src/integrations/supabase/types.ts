@@ -35017,6 +35017,26 @@ export type Database = {
         Args: { p_invitee_id: string }
         Returns: number
       }
+      merchant_agent_allows_withdrawal: {
+        Args: {
+          p_agent_id: string
+          p_bank_name: string
+          p_momo_provider: string
+          p_payout_method: string
+          p_reason: string
+        }
+        Returns: boolean
+      }
+      merchant_config_allows_payout: {
+        Args: {
+          p_bank_name: string
+          p_config: Json
+          p_momo_provider: string
+          p_payout_method: string
+          p_reason: string
+        }
+        Returns: boolean
+      }
       merchant_handles_payout: {
         Args: {
           p_agent_id: string
@@ -36131,6 +36151,10 @@ export type Database = {
       }
       reverse_promissory_note_bonus: {
         Args: { p_note_id: string; p_reason: string }
+        Returns: Json
+      }
+      revoke_nonconforming_merchant_claims: {
+        Args: { p_agent_id: string; p_reason?: string }
         Returns: Json
       }
       run_email_auto_match_retry: {
