@@ -742,7 +742,6 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setLc1Village((v) => v || sel.village);
     setPropertyAddress((a) => a || sel.fullPath);
   };
-  };
   const [houseCategory, setHouseCategory] = useState('');
   const [landlordPayoutDay, setLandlordPayoutDay] = useState<string>('1');
   const [noSmartphone, setNoSmartphone] = useState(false);
