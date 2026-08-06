@@ -607,6 +607,28 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const perTenantMax = unlimitedPosting
     ? Number.MAX_SAFE_INTEGER
     : (myCap?.per_tenant_max ?? 500_000);
+  /**
+   * Posting gate at the door: an agent blocked by the Daily Eligibility Law
+   * (graduated agent who missed yesterday's collection target) must never see
+   * this form at all. We close immediately and explain why with a toast
+   * instead of letting them fill in five steps only to be rejected on submit.
+   */
+  const postingBlockedToday =
+    !!myCap && !myCap.is_new_agent && !unlimitedPosting && !myCap.can_post_rent_today;
+  useEffect(() => {
+    if (!open || capLoading || !postingBlockedToday || !myCap) return;
+    const threshold = Math.round(DAILY_ELIGIBILITY_THRESHOLD * 100);
+    const ypct = Math.round((myCap.yesterday_response_pct ?? 0) * 100);
+    onOpenChange(false);
+    toast.error('You cannot post a rent request today', {
+      description:
+        `Yesterday you collected ${ypct}% of your expected daily rent ` +
+        `(UGX ${formatUGX(myCap.paid_yesterday)} of UGX ${formatUGX(myCap.expected_daily)}). ` +
+        `Collect at least ${threshold}% today to be unblocked tomorrow.`,
+      duration: 9000,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, capLoading, postingBlockedToday]);
   const [savingDraft, setSavingDraft] = useState(false);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
