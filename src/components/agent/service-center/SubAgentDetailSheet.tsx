@@ -136,22 +136,30 @@ export function SubAgentDetailSheet({
     ],
   })), [subAgent?.house_list]);
 
-  const landlordRows = useMemo<EntityRow[]>(() => (subAgent?.landlord_list ?? []).map((l) => ({
+  const landlordRows = useMemo<EntityRow[]>(() => (subAgent?.landlord_list ?? []).map((l) => {
+    const district = l.district || null;
+    const addressBits = [l.address, l.village, l.county].filter(Boolean) as string[];
+    const regionSeed = l.region || district || l.county || l.village || l.address || null;
+    const normalized = regionSeed ? normalizeUgandaRegion(regionSeed) : null;
+    const region = normalized && normalized !== 'Unknown region' ? normalized : null;
+    return {
     id: l.id,
     state: l.state,
     primary: l.name || 'Unnamed landlord',
-    secondary: [l.phone, l.district].filter(Boolean).join(' · ') || null,
+    secondary: [l.phone, district || addressBits[0], region].filter(Boolean).join(' · ') || null,
     createdAt: l.created_at,
     details: [
       { label: 'Phone', value: l.phone || '—' },
-      { label: 'District', value: l.district || '—' },
-      { label: 'Region', value: l.region || '—' },
+      { label: 'Address', value: addressBits.join(', ') || '—' },
+      { label: 'District', value: district || '—' },
+      { label: 'Region', value: region || '—' },
       { label: 'Link', value: l.link_source === 'assigned' ? 'Assigned' : 'Registered by sub-agent' },
       { label: 'Verified on', value: dateLabel(l.verified_at) },
       { label: 'Registered', value: dateLabel(l.created_at) },
       ...(l.reason ? [{ label: 'Verification note', value: l.reason }] : []),
     ],
-  })), [subAgent?.landlord_list]);
+    };
+  }), [subAgent?.landlord_list]);
 
   if (!subAgent) return null;
 
