@@ -35,7 +35,14 @@ export function ServiceCenterTenantPayments({ rentRequestId }: { rentRequestId: 
   }
 
   if (error) {
-    return <p className="text-xs text-destructive">Could not load payment history.</p>;
+    return (
+      <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-2.5">
+        <p className="text-xs font-semibold text-destructive">Could not load payment history</p>
+        <p className="mt-1 break-words text-[11px] text-destructive/90">
+          {error instanceof Error ? error.message : String(error)}
+        </p>
+      </div>
+    );
   }
 
   return (

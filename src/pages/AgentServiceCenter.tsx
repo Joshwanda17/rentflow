@@ -18,6 +18,7 @@ import {
 import { SubAgentRosterCard } from '@/components/agent/service-center/SubAgentRosterCard';
 import { SubAgentDetailSheet } from '@/components/agent/service-center/SubAgentDetailSheet';
 import { ServiceCenterRentVettingQueue } from '@/components/agent/service-center/ServiceCenterRentVettingQueue';
+import { ServiceCenterListingVettingQueue } from '@/components/agent/service-center/ServiceCenterListingVettingQueue';
 import { ServiceCenterPipelineTracker } from '@/components/agent/service-center/ServiceCenterPipelineTracker';
 import { useServiceCenterRentQueue } from '@/hooks/useServiceCenterRentQueue';
 import {
@@ -154,6 +155,7 @@ export default function AgentServiceCenter() {
 
           <TabsContent value="vetting" className="mt-3 space-y-3">
             <ServiceCenterRentVettingQueue />
+            <ServiceCenterListingVettingQueue />
           </TabsContent>
 
           <TabsContent value="followup" className="mt-3 space-y-3">

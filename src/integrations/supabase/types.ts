@@ -11195,6 +11195,11 @@ export type Database = {
           region: string
           reserved_at: string | null
           reserved_by: string | null
+          service_center_comment: string | null
+          service_center_manager_id: string | null
+          service_center_reviewed_at: string | null
+          service_center_reviewed_by: string | null
+          service_center_status: string
           short_code: string | null
           status: string
           sub_county: string | null
@@ -11253,6 +11258,11 @@ export type Database = {
           region: string
           reserved_at?: string | null
           reserved_by?: string | null
+          service_center_comment?: string | null
+          service_center_manager_id?: string | null
+          service_center_reviewed_at?: string | null
+          service_center_reviewed_by?: string | null
+          service_center_status?: string
           short_code?: string | null
           status?: string
           sub_county?: string | null
@@ -11311,6 +11321,11 @@ export type Database = {
           region?: string
           reserved_at?: string | null
           reserved_by?: string | null
+          service_center_comment?: string | null
+          service_center_manager_id?: string | null
+          service_center_reviewed_at?: string | null
+          service_center_reviewed_by?: string | null
+          service_center_status?: string
           short_code?: string | null
           status?: string
           sub_county?: string | null
@@ -23496,6 +23511,8 @@ export type Database = {
           last_resubmitted_at: string | null
           latest_rent_receipt_uploaded_at: string | null
           latest_rent_receipt_url: string | null
+          lc_letter_bucket: string | null
+          lc_letter_path: string | null
           lc1_id: string | null
           manager_verified: boolean | null
           manager_verified_at: string | null
@@ -23615,6 +23632,8 @@ export type Database = {
           last_resubmitted_at?: string | null
           latest_rent_receipt_uploaded_at?: string | null
           latest_rent_receipt_url?: string | null
+          lc_letter_bucket?: string | null
+          lc_letter_path?: string | null
           lc1_id?: string | null
           manager_verified?: boolean | null
           manager_verified_at?: string | null
@@ -23734,6 +23753,8 @@ export type Database = {
           last_resubmitted_at?: string | null
           latest_rent_receipt_uploaded_at?: string | null
           latest_rent_receipt_url?: string | null
+          lc_letter_bucket?: string | null
+          lc_letter_path?: string | null
           lc1_id?: string | null
           manager_verified?: boolean | null
           manager_verified_at?: string | null
@@ -31533,6 +31554,10 @@ export type Database = {
         Args: { p_reason: string; p_sub_agent_id: string }
         Returns: Json
       }
+      agent_resubmit_listing_to_service_center: {
+        Args: { p_listing_id: string }
+        Returns: Json
+      }
       agent_resubmit_rent_request: {
         Args: { p_agent_note: string; p_patch: Json; p_request_id: string }
         Returns: string
@@ -31611,6 +31636,8 @@ export type Database = {
           last_resubmitted_at: string | null
           latest_rent_receipt_uploaded_at: string | null
           latest_rent_receipt_url: string | null
+          lc_letter_bucket: string | null
+          lc_letter_path: string | null
           lc1_id: string | null
           manager_verified: boolean | null
           manager_verified_at: string | null
@@ -34279,6 +34306,10 @@ export type Database = {
       get_public_trust_profile: { Args: { p_ai_id: string }; Returns: Json }
       get_referral_progress: { Args: { p_referred_id: string }; Returns: Json }
       get_rent_requests_summary: { Args: never; Returns: Json }
+      get_service_center_listing_queue: {
+        Args: { p_manager_id?: string }
+        Returns: Json
+      }
       get_service_center_pipeline: {
         Args: {
           p_limit?: number
@@ -36639,6 +36670,10 @@ export type Database = {
           user_id: string
           withdrawable_balance: number
         }[]
+      }
+      service_center_review_house_listing: {
+        Args: { p_comment?: string; p_decision: string; p_listing_id: string }
+        Returns: Json
       }
       service_center_review_rent_request: {
         Args: { p_comment?: string; p_decision: string; p_request_id: string }

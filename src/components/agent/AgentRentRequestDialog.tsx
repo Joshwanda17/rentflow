@@ -61,6 +61,7 @@ import {
   Calendar,
   Banknote,
   Users,
+  Upload,
   Share2,
   Copy,
   MessageCircle,
@@ -722,6 +723,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [lc1Name, setLc1Name] = useState('');
   const [lc1Phone, setLc1Phone] = useState('');
   const [lc1Village, setLc1Village] = useState('');
+  // LC letter — one image (JPG/PNG/JPEG, max 10 MB) stored in the private
+  // `lc-letters` bucket and referenced on the rent request.
+  const [lcLetter, setLcLetter] = useState<{ file: File; preview: string } | null>(null);
   // Town/City + District for the property location. City is required so the
   // tenant rolls up under a real location in ops dashboards instead of
   // landing in the "needs verification" bucket.
@@ -2180,9 +2184,45 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     return urls;
   };
 
+  /** Pick the LC letter — one image only, JPG/PNG/JPEG, max 10 MB. */
+  const handleLcLetter = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const okType = ['image/jpeg', 'image/jpg', 'image/png'].includes(file.type.toLowerCase());
+    if (!okType) {
+      toast.error('Only JPG, JPEG or PNG images are allowed for the LC letter');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('The LC letter must be 10 MB or smaller');
+      return;
+    }
+    setLcLetter({ file, preview: URL.createObjectURL(file) });
+  };
+
+  /** Store the LC letter in the private `lc-letters` bucket for this request. */
+  const uploadLcLetter = async (requestId: string): Promise<{ path: string; bucket: string } | null> => {
+    if (!user || !lcLetter) return null;
+    try {
+      const ext = (lcLetter.file.name.split('.').pop() || 'jpg').toLowerCase();
+      const path = `${user.id}/${requestId}/lc_letter.${ext}`;
+      const { error } = await supabase.storage
+        .from('lc-letters')
+        .upload(path, lcLetter.file, { cacheControl: '86400', upsert: true, contentType: lcLetter.file.type });
+      if (error) throw error;
+      return { path, bucket: 'lc-letters' };
+    } catch (err) {
+      console.warn('LC letter upload failed:', err);
+      return null;
+    }
+  };
+
   const resetForm = () => {
+    // (LC letter cleared above with the rest of the tenant fields.)
     setIncomeType(null);
     setTenantName('');
+    setLcLetter(null);
     setTenantPhone('');
     setTenantNationalId('');
     setRentAmount('');
@@ -2949,6 +2989,17 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
           await supabase
             .from('rent_requests')
             .update({ house_image_urls: photoUrls })
+            .eq('id', rentReq.id);
+        }
+      }
+
+      // LC letter (optional) — private bucket, path stamped on the request.
+      if (lcLetter && rentReq?.id) {
+        const letter = await uploadLcLetter(rentReq.id);
+        if (letter) {
+          await supabase
+            .from('rent_requests')
+            .update({ lc_letter_path: letter.path, lc_letter_bucket: letter.bucket } as any)
             .eq('id', rentReq.id);
         }
       }
@@ -4903,6 +4954,42 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
               {detailStep === 3 && (
               <>
+              {/* ===== LC LETTER UPLOAD ===== */}
+              <div className="space-y-2">
+                <h4 className="text-base font-bold text-foreground flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4" />
+                  LC Letter
+                </h4>
+                {lcLetter ? (
+                  <div className="flex items-center gap-3 rounded-xl border border-border p-2.5">
+                    <img src={lcLetter.preview} alt="LC letter" className="h-16 w-16 rounded-lg object-cover" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-foreground">{lcLetter.file.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {(lcLetter.file.size / (1024 * 1024)).toFixed(1)} MB
+                      </p>
+                    </div>
+                    <Button type="button" size="sm" variant="outline" onClick={() => setLcLetter(null)}>
+                      Remove
+                    </Button>
+                  </div>
+                ) : (
+                  <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border p-4 text-sm text-muted-foreground hover:border-primary/50">
+                    <Upload className="h-4 w-4" />
+                    Upload the LC letter
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png,.jpg,.jpeg,.png"
+                      className="hidden"
+                      onChange={handleLcLetter}
+                    />
+                  </label>
+                )}
+                <p className="text-[10px] leading-relaxed text-muted-foreground">
+                  One image only — JPG, JPEG or PNG, up to 10 MB. Kept private and visible to Welile operations.
+                </p>
+              </div>
+
               {/* ===== 5. LC1 DETAILS ===== */}
               <div ref={lc1SectionRef} className="space-y-3">
                 <h4 className="text-base font-bold text-foreground flex items-center gap-2">
