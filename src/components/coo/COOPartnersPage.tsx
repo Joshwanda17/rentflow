@@ -4836,20 +4836,75 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
     }
   })();
 
+  // Build the payment-mode breakdown for the PDF dropdown from the rows that
+  // are currently visible. Bank rows are grouped by the actual bank name
+  // (e.g. "EQUITY BANK") and mobile money by network, so Ops picks the real
+  // destination rather than a generic "bank".
+  const payMethodGroups = useMemo(() => {
+    const banks = new Map<string, number>();
+    const momo = new Map<string, number>();
+    let cash = 0;
+    let unset = 0;
+    for (const p of filtered) {
+      if (p.paymentMethod === 'bank_transfer') {
+        const key = (p.bankName || '').trim().toUpperCase() || 'BANK (NAME NOT SET)';
+        banks.set(key, (banks.get(key) || 0) + 1);
+      } else if (p.paymentMethod === 'mobile_money') {
+        const key = (p.mobileNetwork || '').trim().toUpperCase() || 'MOBILE MONEY (NETWORK NOT SET)';
+        momo.set(key, (momo.get(key) || 0) + 1);
+      } else if (p.paymentMethod === 'cash') {
+        cash += 1;
+      } else {
+        unset += 1;
+      }
+    }
+    const sortEntries = (m: Map<string, number>) =>
+      Array.from(m.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+    return { banks: sortEntries(banks), momo: sortEntries(momo), cash, unset };
+  }, [filtered]);
+
+  // Does a visible row match the chosen payout destination?
+  const matchesPayMethod = (p: NearingPayoutPortfolio, key: string) => {
+    if (key === 'all') return true;
+    if (key === 'cash') return p.paymentMethod === 'cash';
+    if (key === 'unset') return !p.paymentMethod;
+    if (key.startsWith('bank:')) {
+      if (p.paymentMethod !== 'bank_transfer') return false;
+      const name = (p.bankName || '').trim().toUpperCase() || 'BANK (NAME NOT SET)';
+      return name === key.slice(5);
+    }
+    if (key.startsWith('momo:')) {
+      if (p.paymentMethod !== 'mobile_money') return false;
+      const net = (p.mobileNetwork || '').trim().toUpperCase() || 'MOBILE MONEY (NETWORK NOT SET)';
+      return net === key.slice(5);
+    }
+    return true;
+  };
+
+  const payMethodLabel = (key: string) => {
+    if (key === 'all') return 'All payment modes';
+    if (key === 'cash') return 'Cash';
+    if (key === 'unset') return 'No payout method set';
+    if (key.startsWith('bank:')) return `${key.slice(5)} (bank transfer)`;
+    if (key.startsWith('momo:')) return `${key.slice(5)} (mobile money)`;
+    return key;
+  };
+
   const [exportingPdf, setExportingPdf] = useState(false);
-  const handleExportPdf = async () => {
+  const handleExportPdf = async (methodKey: string = 'all') => {
     if (exportingPdf) return;
-    if (filtered.length === 0) {
+    const rows = filtered.filter(p => matchesPayMethod(p, methodKey));
+    if (rows.length === 0) {
       toast.info('Nothing to export', { description: 'The current filter has no matching portfolios.' });
       return;
     }
     setExportingPdf(true);
     try {
       const blob = await generateNearingPayoutsPdf({
-        filterLabel: rangeFilterLabel,
+        filterLabel: methodKey === 'all' ? rangeFilterLabel : `${rangeFilterLabel} · ${payMethodLabel(methodKey)}`,
         searchQuery: search.trim() || undefined,
         totalCount: localPortfolios.length,
-        rows: filtered.map((p) => ({
+        rows: rows.map((p) => ({
           investorId: p.investorId,
           portfolioId: p.portfolioId,
           name: p.name,
@@ -4869,8 +4924,11 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         })),
       });
       const stamp = new Date().toISOString().slice(0, 10);
-      downloadNearingBlob(blob, `welile-nearing-payouts-${rangeFilter}-${stamp}.pdf`);
-      toast.success('PDF exported', { description: `${filtered.length} portfolio${filtered.length === 1 ? '' : 's'} included.` });
+      const methodSlug = methodKey === 'all'
+        ? 'all-modes'
+        : methodKey.replace(/^bank:|^momo:/, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      downloadNearingBlob(blob, `welile-nearing-payouts-${rangeFilter}-${methodSlug}-${stamp}.pdf`);
+      toast.success('PDF exported', { description: `${rows.length} portfolio${rows.length === 1 ? '' : 's'} · ${payMethodLabel(methodKey)}.` });
     } catch (err: any) {
       console.error('Nearing payouts PDF export error:', err);
       toast.error('Export failed', { description: err?.message || 'Could not generate the PDF.' });
