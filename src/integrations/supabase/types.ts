@@ -13013,6 +13013,105 @@ export type Database = {
           },
         ]
       }
+      hr_position_access: {
+        Row: {
+          created_at: string
+          created_by: string
+          dashboard_key: string | null
+          id: string
+          position_id: string
+          reason: string
+          role: Database["public"]["Enums"]["app_role"] | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string
+          dashboard_key?: string | null
+          id?: string
+          position_id: string
+          reason: string
+          role?: Database["public"]["Enums"]["app_role"] | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          dashboard_key?: string | null
+          id?: string
+          position_id?: string
+          reason?: string
+          role?: Database["public"]["Enums"]["app_role"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_position_access_position_id_fkey"
+            columns: ["position_id"]
+            isOneToOne: false
+            referencedRelation: "hr_positions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_position_access_grants: {
+        Row: {
+          assignment_id: string
+          dashboard_key: string | null
+          granted_at: string
+          id: string
+          position_id: string
+          revoke_reason: string | null
+          revoked_at: string | null
+          role: Database["public"]["Enums"]["app_role"] | null
+          staff_id: string
+          user_id: string
+        }
+        Insert: {
+          assignment_id: string
+          dashboard_key?: string | null
+          granted_at?: string
+          id?: string
+          position_id: string
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          role?: Database["public"]["Enums"]["app_role"] | null
+          staff_id: string
+          user_id: string
+        }
+        Update: {
+          assignment_id?: string
+          dashboard_key?: string | null
+          granted_at?: string
+          id?: string
+          position_id?: string
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          role?: Database["public"]["Enums"]["app_role"] | null
+          staff_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_position_access_grants_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "hr_assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_position_access_grants_position_id_fkey"
+            columns: ["position_id"]
+            isOneToOne: false
+            referencedRelation: "hr_positions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_position_access_grants_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "hr_staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_positions: {
         Row: {
           active: boolean

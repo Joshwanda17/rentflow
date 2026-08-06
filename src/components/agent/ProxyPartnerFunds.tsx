@@ -1164,9 +1164,13 @@ export function ProxyPartnerFunds() {
     // Refresh immediately for snappy UX, then again shortly after to catch
     // any trigger-side updates (audit log, status forwarding, etc.) that
     // commit a beat after the insert.
-    loadProxyFunds();
-    setTimeout(() => loadProxyFunds(), 800);
-    setTimeout(() => loadProxyFunds(), 2500);
+    // IMPORTANT: refresh WITHOUT the spinner. `loadProxyFunds(true)` flips
+    // `loading`, which makes this component early-return a skeleton — that
+    // unmounts <WithdrawRequestDialog/> and destroys its "Request Submitted!"
+    // confirmation screen (plus its idempotency ref) mid-success.
+    loadProxyFunds(false);
+    setTimeout(() => loadProxyFunds(false), 800);
+    setTimeout(() => loadProxyFunds(false), 2500);
     // Release the optimistic lock after a generous window — by then DB
     // realtime + settlement insert has resolved the card.
     setTimeout(() => {
@@ -1401,7 +1405,7 @@ export function ProxyPartnerFunds() {
     return null;
   };
 
-  if (loading) {
+  if (loading && !withdrawOpen) {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -1409,7 +1413,7 @@ export function ProxyPartnerFunds() {
     );
   }
 
-  if (partnerBalances.length === 0) {
+  if (partnerBalances.length === 0 && !withdrawOpen) {
     return (
       <Card className="border-border/50">
         <CardContent className="py-10 text-center text-muted-foreground">

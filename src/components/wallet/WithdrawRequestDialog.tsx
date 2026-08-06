@@ -152,6 +152,59 @@ function formatRelativeMinutes(submittedAt: number): string {
   return minutes === 1 ? '1 minute ago' : `${minutes} minutes ago`;
 }
 
+// --- Pending idempotency key persistence -------------------------------
+// The parent may unmount this dialog on close (or while refreshing), which
+// would discard the in-flight `client_request_id` and let a nervous agent
+// generate a brand-new key for what is really the SAME submission after a
+// network error. Persist the in-flight key in sessionStorage keyed by
+// (user, linkedParty) — same mechanism as the recipient session guard — so
+// a close + reopen + resubmit replays the original key and collapses into
+// one row via the (user_id, client_request_id) unique index.
+const pendingKeyStorageKey = (userId: string, linkedParty: string) =>
+  `welile:withdraw:pendingkey:${userId}:${linkedParty}`;
+
+function readPendingClientRequestId(userId: string, linkedParty: string): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = sessionStorage.getItem(pendingKeyStorageKey(userId, linkedParty));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { key: string; at: number };
+    if (!parsed?.key || typeof parsed.at !== 'number') return null;
+    if (Date.now() - parsed.at > RECENT_WINDOW_MS) return null;
+    return parsed.key;
+  } catch {
+    return null;
+  }
+}
+
+function writePendingClientRequestId(userId: string, linkedParty: string, key: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.setItem(
+      pendingKeyStorageKey(userId, linkedParty),
+      JSON.stringify({ key, at: Date.now() }),
+    );
+  } catch { /* non-fatal */ }
+}
+
+function clearPendingClientRequestId(userId: string, linkedParty: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.removeItem(pendingKeyStorageKey(userId, linkedParty));
+  } catch { /* non-fatal */ }
+}
+
+// The proxy prefill reason carries a machine-readable route token
+// ("| Route: portfolio <uuid>") stamped by ProxyPartnerFunds. Recover it so
+// the server-side intent_key can pin to that portfolio's payout cycle, the
+// same shape AgentProxyWithdrawalDialog sends. Falls back to a partner route,
+// which compute_withdrawal_intent_key handles via its month-bucketed branch.
+function derivePayoutRouteRef(reason: string, linkedParty: string): string {
+  const match = /Route:\s*portfolio\s+([0-9a-fA-F-]{36})/.exec(reason || '');
+  if (match) return `portfolio:${match[1]}`;
+  return `partner:${linkedParty}`;
+}
+
 // Normalise a Ugandan MoMo number into the strict local 0XXXXXXXXX form the
 // payout validator expects. Prefilled numbers (from portfolios / saved
 // methods / profiles) come in many shapes — "+256 779 007902", "256779007902",
@@ -242,6 +295,15 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
   useEffect(() => {
     if (open) setWorkingHoursStatus(checkWorkingHours());
   }, [open]);
+
+  // Restore any in-flight idempotency key for this partner on (re)open, so a
+  // close-and-reopen after a network failure retries with the SAME key.
+  useEffect(() => {
+    if (!open || !user || !linkedParty) return;
+    if (clientRequestIdRef.current) return;
+    const pending = readPendingClientRequestId(user.id, linkedParty);
+    if (pending) clientRequestIdRef.current = pending;
+  }, [open, user, linkedParty]);
 
   // Fetch pending withdrawal amounts to prevent over-requesting
   useEffect(() => {
@@ -432,6 +494,9 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
           : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     }
     const clientRequestId = clientRequestIdRef.current;
+    // Persist BEFORE the insert attempt so an unmount (network hang, dialog
+    // closed by the user) can't lose the key.
+    if (linkedParty) writePendingClientRequestId(user.id, linkedParty, clientRequestId);
     const MAX_RETRIES = 2;
     let lastError: any = null;
 
@@ -476,6 +541,9 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
             ? `[Proxy initiated by agent ${user.id}] ${reason.trim()}`
             : reason.trim(),
           client_request_id: clientRequestId,
+          payout_route_ref: isProxy && linkedParty
+            ? derivePayoutRouteRef(reason, linkedParty)
+            : null,
         } as any).select('id').maybeSingle();
         submittedWithdrawalId = insertedWithdrawal?.id ?? null;
         if (error) {
@@ -500,6 +568,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
               setLoading(false);
               isSubmittingRef.current = false;
               clientRequestIdRef.current = null;
+              if (linkedParty) clearPendingClientRequestId(user.id, linkedParty);
               return;
             }
             console.info('[WithdrawRequestDialog] Duplicate suppressed by idempotency key');
@@ -552,6 +621,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
         setLoading(false);
         isSubmittingRef.current = false;
         clientRequestIdRef.current = null;
+        if (linkedParty) clearPendingClientRequestId(user.id, linkedParty);
         return;
       } catch (error: any) {
         lastError = error;
