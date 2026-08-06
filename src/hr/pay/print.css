@@ -4,71 +4,72 @@
 }
 
 @media print {
-  aside,
-  nav,
-  header,
-  header nav,
-  button,
-  .no-print {
-    display: none !important;
-  }
-
   html,
-  body {
-    background: #ffffff !important;
-    color: #000000 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-
-  html,
-  body {
-    font-size: 9pt !important;
-    line-height: 1.25 !important;
-  }
-
-  main,
-  [class*="max-w"],
-  .container {
-    max-width: none !important;
-    width: 100% !important;
-    padding: 0 !important;
-    margin: 0 !important;
+  body,
+  #root {
+    height: auto !important;
+    max-height: none !important;
     overflow: visible !important;
   }
 
-  table {
-    table-layout: fixed !important;
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    background: #fff !important;
+    font-size: 9pt;
+    line-height: 1.25;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .print-root,
+  .print-root * {
+    visibility: visible;
+  }
+
+  .print-root {
+    position: absolute;
+    left: 0;
+    top: 0;
     width: 100% !important;
-    border-collapse: collapse !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    box-shadow: none;
+    border: none;
+    background: transparent;
+  }
+
+  .print-root .no-print,
+  .print-root button {
+    display: none !important;
+  }
+
+  table {
+    width: 100% !important;
+    table-layout: fixed;
+    border-collapse: collapse;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  tr {
+    page-break-inside: avoid;
+    break-inside: avoid;
   }
 
   th,
   td {
-    padding: 2px 4px !important;
-    border-bottom: 0.5pt solid #000000 !important;
-    vertical-align: top !important;
-    font-size: 8pt !important;
-    overflow-wrap: break-word !important;
-    white-space: normal !important;
-  }
-
-  thead {
-    display: table-header-group !important;
-  }
-
-  tfoot {
-    display: table-footer-group !important;
-  }
-
-  tr {
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
-  }
-
-  [class*="card"] {
-    box-shadow: none !important;
-    border: none !important;
-    background: transparent !important;
+    font-size: 8pt;
+    padding: 2px 3px;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    white-space: normal;
   }
 }
