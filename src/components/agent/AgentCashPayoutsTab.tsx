@@ -477,7 +477,7 @@ export function AgentCashPayoutsTab() {
         { event: 'UPDATE', schema: 'public', table: 'cashout_agents', filter: `agent_id=eq.${user.id}` },
         () => {
           qc.invalidateQueries({ queryKey: ['is-cashout-agent', user.id] });
-          refreshQueues();
+          invalidateQueue();
         },
       )
       .subscribe();
