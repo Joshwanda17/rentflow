@@ -35786,6 +35786,10 @@ export type Database = {
         Args: { p_month: string }
         Returns: {
           agents_attached: number
+          agents_attached_month: number
+          agents_attainment_pct: number
+          agents_state: string
+          agents_target: number
           attainment_pct: number
           lead_user_id: string
           notes_approved: number
