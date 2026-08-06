@@ -74,9 +74,13 @@ export function UgLocationPicker({
             {search.isFetching && (
               <Loader2 className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
             )}
-            {focused && query.trim().length >= 2 && !search.isFetching && (
-              <div className="absolute z-50 mt-1 max-h-56 w-full overflow-y-auto overscroll-contain rounded-lg border border-border bg-popover shadow-lg [-webkit-overflow-scrolling:touch]">
-                {(search.data ?? []).length === 0 ? (
+          </div>
+
+          {query.trim().length >= 2 && (
+            <div className="mt-1 max-h-56 w-full overflow-y-auto overscroll-contain rounded-lg border border-border bg-popover shadow-sm [-webkit-overflow-scrolling:touch]">
+              {search.isFetching && (search.data ?? []).length === 0 ? (
+                <p className="px-3 py-3 text-xs text-muted-foreground">Searching villages…</p>
+              ) : (search.data ?? []).length === 0 ? (
                   <p className="px-3 py-3 text-xs text-muted-foreground">
                     {scopeDistrictName
                       ? `No village matched in ${scopeDistrictName} district. Try a different spelling.`
@@ -99,9 +103,8 @@ export function UgLocationPicker({
                     </button>
                   ))
                 )}
-              </div>
-            )}
-          </div>
+            </div>
+          )}
           {search.isError && (
             <p className="text-[11px] text-destructive">
               Could not search locations: {(search.error as Error).message}
