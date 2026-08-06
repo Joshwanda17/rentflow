@@ -2183,6 +2183,40 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     return urls;
   };
 
+  /** Pick the LC letter — one image only, JPG/PNG/JPEG, max 10 MB. */
+  const handleLcLetter = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const okType = ['image/jpeg', 'image/jpg', 'image/png'].includes(file.type.toLowerCase());
+    if (!okType) {
+      toast.error('Only JPG, JPEG or PNG images are allowed for the LC letter');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('The LC letter must be 10 MB or smaller');
+      return;
+    }
+    setLcLetter({ file, preview: URL.createObjectURL(file) });
+  };
+
+  /** Store the LC letter in the private `lc-letters` bucket for this request. */
+  const uploadLcLetter = async (requestId: string): Promise<{ path: string; bucket: string } | null> => {
+    if (!user || !lcLetter) return null;
+    try {
+      const ext = (lcLetter.file.name.split('.').pop() || 'jpg').toLowerCase();
+      const path = `${user.id}/${requestId}/lc_letter.${ext}`;
+      const { error } = await supabase.storage
+        .from('lc-letters')
+        .upload(path, lcLetter.file, { cacheControl: '86400', upsert: true, contentType: lcLetter.file.type });
+      if (error) throw error;
+      return { path, bucket: 'lc-letters' };
+    } catch (err) {
+      console.warn('LC letter upload failed:', err);
+      return null;
+    }
+  };
+
   const resetForm = () => {
     // (LC letter cleared above with the rest of the tenant fields.)
     setIncomeType(null);
