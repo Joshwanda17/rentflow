@@ -29,7 +29,7 @@ export function UgLocationPicker({
   value, onChange, label = 'Official location', required, error, className, districtName,
 }: Props) {
   const [query, setQuery] = useState('');
-  const [focused, setFocused] = useState(false);
+  // no focus gating — results stay visible while typing so they can't be hidden
 
   const scopeDistrictName = (districtName ?? '').trim();
   const search = useUgVillageSearch(query, 20, {
