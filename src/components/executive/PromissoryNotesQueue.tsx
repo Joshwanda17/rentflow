@@ -42,6 +42,20 @@ export function PromissoryNotesQueue() {
   const [rejectTarget, setRejectTarget] = useState<any>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [rejecting, setRejecting] = useState(false);
+  const [leadSearch, setLeadSearch] = useState('');
+  const [selectedLead, setSelectedLead] = useState<any>(null);
+
+  const { data: leadCandidates = [], isFetching: leadLoading } = useQuery({
+    queryKey: ['partner-lead-candidates', leadSearch],
+    enabled: !!approveTarget && leadSearch.trim().length >= 2,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('partner_lead_candidates' as any, {
+        p_search: leadSearch.trim(),
+      });
+      if (error) throw error;
+      return (data as any[]) || [];
+    },
+  });
 
   const handleReverseBonus = async () => {
     if (!rejectTarget) return;
@@ -90,6 +104,19 @@ export function PromissoryNotesQueue() {
     }
     setApproving(true);
     try {
+      if (selectedLead?.user_id && approveTarget.agent_id) {
+        const { error: assignError } = await supabase
+          .from('partner_lead_assignments' as any)
+          .insert({
+            lead_user_id: selectedLead.user_id,
+            agent_id: approveTarget.agent_id,
+            reason,
+          } as any);
+        // 23505 = unique violation: an active assignment already exists. Continue.
+        if (assignError && (assignError as any).code !== '23505') {
+          throw assignError;
+        }
+      }
       const { data, error } = await supabase.rpc('approve_promissory_note', {
         p_note_id: approveTarget.id,
         p_reason: reason,
@@ -104,6 +131,8 @@ export function PromissoryNotesQueue() {
       }
       setApproveTarget(null);
       setApproveReason('');
+      setSelectedLead(null);
+      setLeadSearch('');
       setSelectedNote(null);
       queryClient.invalidateQueries({ queryKey: ['promissory-notes-queue'] });
     } catch (err: any) {
