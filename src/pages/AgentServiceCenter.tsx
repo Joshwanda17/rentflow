@@ -1,7 +1,7 @@
 import { cn } from '@/lib/utils';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Search, ShoppingBag, Store, Users } from 'lucide-react';
+import { ArrowLeft, ClipboardCheck, Search, ShoppingBag, Store, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -17,6 +17,8 @@ import {
 } from '@/hooks/useAgentServiceCenter';
 import { SubAgentRosterCard } from '@/components/agent/service-center/SubAgentRosterCard';
 import { SubAgentDetailSheet } from '@/components/agent/service-center/SubAgentDetailSheet';
+import { ServiceCenterRentVettingQueue } from '@/components/agent/service-center/ServiceCenterRentVettingQueue';
+import { useServiceCenterRentQueue } from '@/hooks/useServiceCenterRentQueue';
 import {
   SuspendSubAgentDialog,
   TransferTenantDialog,
@@ -28,6 +30,7 @@ export default function AgentServiceCenter() {
   const { data, isLoading, error } = useServiceCenterOverview();
   const { data: transfers = [] } = useServiceCenterTransfers();
   const { data: catalog = [], isLoading: loadingCatalog } = useServiceCenterCatalog();
+  const { data: vetting } = useServiceCenterRentQueue();
 
   const [query, setQuery] = useState('');
   const [visible, setVisible] = useState(20);
@@ -89,6 +92,7 @@ export default function AgentServiceCenter() {
             { label: 'Team commissions', value: formatUGX(totals.commissions + totals.bonuses) },
             { label: 'Landlords registered', value: String(totals.landlords) },
             { label: 'Houses listed', value: String(totals.houses) },
+            { label: 'Rent requests to vet', value: String(vetting?.pending_count ?? 0) },
             { label: 'Houses pending verification', value: '—', placeholder: true },
             { label: 'Tenants pending verification', value: '—', placeholder: true },
             { label: 'Pending transfers', value: String(totals.pending) },
@@ -105,15 +109,22 @@ export default function AgentServiceCenter() {
         </div>
 
         <Tabs defaultValue="team">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="team" className="text-xs sm:text-sm">
               <Users className="mr-1.5 h-4 w-4" /> Team
+            </TabsTrigger>
+            <TabsTrigger value="vetting" className="text-xs sm:text-sm">
+              <ClipboardCheck className="mr-1.5 h-4 w-4" /> Vetting
             </TabsTrigger>
             <TabsTrigger value="transfers" className="text-xs sm:text-sm">Transfers</TabsTrigger>
             <TabsTrigger value="shop" className="text-xs sm:text-sm">
               <ShoppingBag className="mr-1.5 h-4 w-4" /> Shop
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="vetting" className="mt-3 space-y-3">
+            <ServiceCenterRentVettingQueue />
+          </TabsContent>
 
           <TabsContent value="team" className="mt-3 space-y-3">
             <div className="relative">
