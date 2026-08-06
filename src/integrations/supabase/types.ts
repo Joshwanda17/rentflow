@@ -10612,6 +10612,65 @@ export type Database = {
         }
         Relationships: []
       }
+      funder_pending_portfolios: {
+        Row: {
+          amount: number
+          commitment_id: string | null
+          created_at: string
+          funder_id: string
+          id: string
+          portfolio_id: string
+          review_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          source: string
+          status: string
+          summary_id: string | null
+          term_months: number
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          commitment_id?: string | null
+          created_at?: string
+          funder_id: string
+          id?: string
+          portfolio_id: string
+          review_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          source: string
+          status?: string
+          summary_id?: string | null
+          term_months?: number
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          commitment_id?: string | null
+          created_at?: string
+          funder_id?: string
+          id?: string
+          portfolio_id?: string
+          review_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          source?: string
+          status?: string
+          summary_id?: string | null
+          term_months?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "funder_pending_portfolios_portfolio_id_fkey"
+            columns: ["portfolio_id"]
+            isOneToOne: true
+            referencedRelation: "investor_portfolios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       general_ledger: {
         Row: {
           account: string | null
@@ -32787,6 +32846,19 @@ export type Database = {
         Args: { p_type: string; p_value: string }
         Returns: string
       }
+      funder_create_pending_portfolio: {
+        Args: {
+          p_amount: number
+          p_summary_id?: string
+          p_term_months?: number
+        }
+        Returns: Json
+      }
+      funder_has_signed_agreement: {
+        Args: { p_user_id: string }
+        Returns: boolean
+      }
+      funder_pending_committed: { Args: { p_user_id: string }; Returns: number }
       generate_campaign_short_code: { Args: never; Returns: string }
       generate_daily_merchant_commission_report: {
         Args: { p_date?: string }
@@ -35804,6 +35876,32 @@ export type Database = {
         Args: { p_limit?: number; p_status?: string }
         Returns: Json
       }
+      partner_ops_pending_portfolio_summary: {
+        Args: never
+        Returns: {
+          oldest_wait_days: number
+          pending_count: number
+          pending_value: number
+        }[]
+      }
+      partner_ops_pending_portfolios: {
+        Args: never
+        Returns: {
+          amount: number
+          created_at: string
+          funder_email: string
+          funder_id: string
+          funder_name: string
+          funder_phone: string
+          lines_count: number
+          pending_id: string
+          portfolio_code: string
+          portfolio_id: string
+          source: string
+          term_months: number
+          waiting_days: number
+        }[]
+      }
       partner_ops_reject_self_topup: {
         Args: { p_reason: string; p_topup_id: string }
         Returns: Json
@@ -36172,6 +36270,10 @@ export type Database = {
       reject_merchandise_purchase: {
         Args: { p_reason: string; p_sale_id: string }
         Returns: Json
+      }
+      reject_pending_portfolio: {
+        Args: { p_portfolio_id: string; p_reason: string }
+        Returns: string
       }
       reject_self_registered_funder: {
         Args: { _reason: string; _target_user: string }
