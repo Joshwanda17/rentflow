@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { formatUGX } from '@/lib/rentCalculations';
 import { PartnerOpsTargetEditor } from './PartnerOpsTargetEditor';
 import { PartnerNoteRateEditor } from './PartnerNoteRateEditor';
+import { PartnerOpsPendingSummary } from './PartnerOpsPendingSummary';
 
 interface ScoreboardRow {
   lead_user_id: string;
@@ -103,6 +104,7 @@ export function PartnerOpsScoreboard({ hideTargetEditor = false }: PartnerOpsSco
           Scoreboard failed to load: {error?.message}
         </div>
       )}
+      <PartnerOpsPendingSummary />
       <PartnerNoteRateEditor />
       {!isError && !rows.length ? (
         <p className="text-sm text-muted-foreground">
