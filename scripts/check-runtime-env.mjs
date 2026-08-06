@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -9,10 +9,15 @@ const requiredPublicBuildVars = [
   "VITE_SUPABASE_PUBLISHABLE_KEY",
   "VITE_SUPABASE_PROJECT_ID",
 ];
-const envText = readFileSync(path.join(root, ".env"), "utf8");
+const envPath = path.join(root, ".env");
+const envText = existsSync(envPath) ? readFileSync(envPath, "utf8") : "";
 const configured = new Set(
   [...envText.matchAll(/^([A-Z][A-Z0-9_]*)=/gm)].map((match) => match[1]),
 );
+// In build containers the public values are injected as env vars, not a .env file.
+for (const name of requiredPublicBuildVars) {
+  if (process.env[name]) configured.add(name);
+}
 const missing = requiredPublicBuildVars.filter((name) => !configured.has(name));
 
 if (missing.length) {
