@@ -4788,6 +4788,12 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   <Label className="text-sm font-semibold flex items-center gap-1">
                     <MapPin className="h-4 w-4 text-primary" /> Where is the house?
                   </Label>
+                  <UgLocationPicker
+                    label="Official village (government list)"
+                    value={ugLoc}
+                    onChange={applyUgLocation}
+                    className="pb-1"
+                  />
                   <p className="text-xs text-muted-foreground leading-snug">The village, road or area people use to find it.</p>
                   <p className="text-[11px] text-muted-foreground">e.g. Kira Town, near Total petrol station</p>
                   <Input
