@@ -1,6 +1,6 @@
 import { ReactNode, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Wallet, ChevronRight, ChevronDown, Shield, Home, TrendingUp, Rocket, PiggyBank, Coins, Sparkles, Clock } from 'lucide-react';
+import { Wallet, ChevronRight, ChevronDown, Shield, Home, TrendingUp, Rocket, PiggyBank, Coins, Sparkles, Clock, Users } from 'lucide-react';
 import { hapticTap } from '@/lib/haptics';
 import { useCurrency } from '@/hooks/useCurrency';
 import { useAuth } from '@/hooks/useAuth';
@@ -69,6 +69,7 @@ export function UnifiedWalletHeroCard({
   secondaryLabel,
   secondaryValue,
   houses,
+  housesLabel,
   returnPerMonth,
   deployed,
   floatBalance,
@@ -346,8 +347,10 @@ export function UnifiedWalletHeroCard({
               onClick={() => { hapticTap(); onHousesTap?.(); }}
               className="bg-primary-foreground/15 rounded-xl p-2.5 text-center active:scale-[0.95] transition-transform"
             >
-              <Home className="h-3.5 w-3.5 text-primary-foreground/60 mx-auto mb-1" />
-              <p className="text-[9px] uppercase tracking-wider text-primary-foreground/50 font-medium">Houses</p>
+              {housesLabel
+                ? <Users className="h-3.5 w-3.5 text-primary-foreground/60 mx-auto mb-1" />
+                : <Home className="h-3.5 w-3.5 text-primary-foreground/60 mx-auto mb-1" />}
+              <p className="text-[9px] uppercase tracking-wider text-primary-foreground/50 font-medium">{housesLabel ?? 'Houses'}</p>
               <p className="text-sm font-black text-primary-foreground mt-0.5 font-mono tabular-nums">{houses ?? 0}</p>
             </button>
             <button
