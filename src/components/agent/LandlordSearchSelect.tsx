@@ -197,6 +197,9 @@ function highlightPhone(text: string | null | undefined, query: string): ReactNo
  * Supports keyboard navigation, query highlighting, a live result count, and a
  * prominent fallback warning when no registered landlords are found.
  */
+// Minimum keystrokes before the landlord search runs — mirrors the LC1 search.
+const MIN_QUERY_CHARS = 3;
+
 export function LandlordSearchSelect({
   value,
   onChange,
