@@ -125,7 +125,16 @@ export function useServiceCenterOverview() {
     queryFn: async () => {
       const { data, error } = await db.rpc('get_agent_service_center');
       if (error) throw error;
-      return (data as ServiceCenterOverview) ?? { parent_agent_id: '', sub_agents: [] };
+      const raw = (data as (ServiceCenterOverview & { sub_agents?: (ServiceCenterSubAgent & { name?: string | null })[] }) | null) ?? null;
+      if (!raw) return { parent_agent_id: '', sub_agents: [] };
+      return {
+        ...raw,
+        sub_agents: (raw.sub_agents ?? []).map((s) => {
+          const row = s as ServiceCenterSubAgent & { name?: string | null };
+          // The RPC emits the display name as `name`; the UI reads `full_name`.
+          return { ...row, full_name: row.full_name ?? row.name ?? null };
+        }),
+      };
     },
     staleTime: 60_000,
   });
