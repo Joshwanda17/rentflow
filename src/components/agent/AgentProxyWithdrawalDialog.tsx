@@ -352,7 +352,38 @@ export function AgentProxyWithdrawalDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-3">
+        {confirming && selectedRoute && (
+          <div className="space-y-4 py-2 animate-scale-in">
+            <div className="text-center space-y-1">
+              <h3 className="text-base font-bold">Confirm this withdrawal</h3>
+              <p className="text-xs text-muted-foreground">Check the amount and the recipient before sending.</p>
+            </div>
+
+            <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 space-y-2 text-center">
+              <p className="text-2xl font-black text-primary tracking-tight">{formatUGX(amount)}</p>
+              <p className="text-sm font-semibold">to {funderName}</p>
+              <p className="text-xs text-muted-foreground">
+                via {selectedRoute.label} · {maskDestination(selectedRoute.sublabel)}
+              </p>
+            </div>
+
+            <div className="rounded-lg bg-warning/10 p-2.5 text-[10px] text-warning">
+              ⚠️ This moves <strong>{funderName}</strong>'s money. Once sent it goes to Financial Ops for approval.
+            </div>
+
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => setConfirming(false)} disabled={loading}>
+                Go back
+              </Button>
+              <Button className="flex-1" onClick={handleSubmit} disabled={loading}>
+                {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Confirm &amp; Send
+              </Button>
+            </div>
+          </div>
+        )}
+
+        <div className={cn('space-y-3', confirming && 'hidden')}>
           {/* Balance */}
           <div className="rounded-lg bg-muted/50 p-3 text-center">
             <p className="text-xs text-muted-foreground">Available Balance</p>
@@ -457,7 +488,7 @@ export function AgentProxyWithdrawalDialog({
 
           <Button
             className="w-full"
-            onClick={handleSubmit}
+            onClick={() => setConfirming(true)}
             disabled={!isValid || loading || walletBalance < 500}
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
