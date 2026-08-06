@@ -50,6 +50,8 @@ export default function PartnerAgreementSignOff({
   const [repPosition, setRepPosition] = useState('');
   const [repContact, setRepContact] = useState('');
   const [sigDataUrl, setSigDataUrl] = useState<string | undefined>();
+  // Editable stamp / execution date shown on the contract and the Welile stamp.
+  const [stampDate, setStampDate] = useState<string>('');
 
   useEffect(() => {
     if (!open || !partner) return;
@@ -93,6 +95,10 @@ export default function PartnerAgreementSignOff({
           setRepPosition(def?.rep_position || '');
           setRepContact(def?.rep_contact || '');
           setSigDataUrl(undefined);
+          const base = ag?.countersigned_at ? new Date(ag.countersigned_at) : new Date();
+          setStampDate(
+            `${base.getFullYear()}-${String(base.getMonth() + 1).padStart(2, '0')}-${String(base.getDate()).padStart(2, '0')}`,
+          );
         }
       } catch (e: any) {
         if (!cancelled) setMissing(e?.message || 'Could not load the agreement.');
@@ -125,7 +131,13 @@ export default function PartnerAgreementSignOff({
       momoName: agreement.momo_name || '',
       kinName: agreement.kin_name || '',
       kinContact: agreement.kin_contact || '',
-      agreementDate: agreement.countersigned_at ? new Date(agreement.countersigned_at) : new Date(),
+      agreementDate: (() => {
+        if (stampDate) {
+          const [y, m, d] = stampDate.split('-').map(Number);
+          if (y && m && d) return new Date(y, m - 1, d);
+        }
+        return agreement.countersigned_at ? new Date(agreement.countersigned_at) : new Date();
+      })(),
       welileRepName: repName,
       welileRepPosition: repPosition,
       welileRepContact: repContact,
@@ -136,7 +148,7 @@ export default function PartnerAgreementSignOff({
       partnerSignatureDataUrl: agreement.partner_signature_data_url || undefined,
       includeStamp: true,
     };
-  }, [agreement, partner, repSigUrl, repName, repPosition, repContact, sigDataUrl]);
+  }, [agreement, partner, repSigUrl, repName, repPosition, repContact, sigDataUrl, stampDate]);
 
   const onSignatureFile = (file?: File) => {
     if (!file) return;
@@ -168,7 +180,13 @@ export default function PartnerAgreementSignOff({
     try {
       // Render the executed PDF from the EXACT same HTML shown in the preview so
       // the stored/emailed document is pixel-identical to what the admin saw.
-      if (alreadySigned) {
+      const storedStamp = agreement?.countersigned_at
+        ? new Date(agreement.countersigned_at).toISOString().slice(0, 10)
+        : '';
+      // A changed stamp date must land in the stored/emailed PDF, so re-render
+      // instead of resending the previously stored file.
+      const stampChanged = !!stampDate && stampDate !== storedStamp;
+      if (alreadySigned && !stampChanged) {
         const { data, error } = await supabase.functions.invoke('resend-partner-agreement-email', {
           body: { partnerId: partner.id },
         });
@@ -191,6 +209,7 @@ export default function PartnerAgreementSignOff({
             partnerId: partner.id,
             countersign: true,
             pdfBase64,
+            countersignAt: stampDate || undefined,
             rep: {
               name: repName.trim(),
               position: repPosition.trim(),
@@ -288,6 +307,18 @@ export default function PartnerAgreementSignOff({
                   <div className="space-y-1">
                     <Label className="text-[11px]">Contact</Label>
                     <Input value={repContact} onChange={(e) => setRepContact(e.target.value)} placeholder="Phone or email" className="h-8 text-xs" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px]">Stamp / execution date</Label>
+                    <Input
+                      type="date"
+                      value={stampDate}
+                      onChange={(e) => setStampDate(e.target.value)}
+                      className="h-8 text-xs"
+                    />
+                    <p className="text-[10px] text-muted-foreground">
+                      Sets the date printed on the contract and the Welile stamp. Changing it re-renders and re-sends the executed PDF.
+                    </p>
                   </div>
                   <div className="space-y-1">
                     <Label className="text-[11px]">Signature image</Label>
