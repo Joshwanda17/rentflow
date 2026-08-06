@@ -129,11 +129,11 @@ export function useServiceCenterOverview() {
       if (!raw) return { parent_agent_id: '', sub_agents: [] };
       return {
         ...raw,
-        sub_agents: (raw.sub_agents ?? []).map((s) => ({
-          ...s,
+        sub_agents: (raw.sub_agents ?? []).map((s) => {
+          const row = s as ServiceCenterSubAgent & { name?: string | null };
           // The RPC emits the display name as `name`; the UI reads `full_name`.
-          full_name: s.full_name ?? s.name ?? null,
-        })),
+          return { ...row, full_name: row.full_name ?? row.name ?? null };
+        }),
       };
     },
     staleTime: 60_000,
