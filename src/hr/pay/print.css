@@ -1,8 +1,12 @@
-/* Payslip print stylesheet. Every rule lives inside @media print so no
-   on-screen style is affected. */
+@page {
+  size: A4 landscape;
+  margin: 10mm;
+}
+
 @media print {
   aside,
   nav,
+  header,
   header nav,
   button,
   .no-print {
@@ -13,13 +17,58 @@
   body {
     background: #ffffff !important;
     color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
-  tr,
-  thead,
-  tbody,
+  html,
+  body {
+    font-size: 9pt !important;
+    line-height: 1.25 !important;
+  }
+
+  main,
+  [class*="max-w"],
+  .container {
+    max-width: none !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+  }
+
+  table {
+    table-layout: fixed !important;
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  th,
+  td {
+    padding: 2px 4px !important;
+    border-bottom: 0.5pt solid #000000 !important;
+    vertical-align: top !important;
+    font-size: 8pt !important;
+    overflow-wrap: break-word !important;
+    white-space: normal !important;
+  }
+
+  thead {
+    display: table-header-group !important;
+  }
+
   tfoot {
-    page-break-inside: avoid;
-    break-inside: avoid;
+    display: table-footer-group !important;
+  }
+
+  tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  [class*="card"] {
+    box-shadow: none !important;
+    border: none !important;
+    background: transparent !important;
   }
 }
