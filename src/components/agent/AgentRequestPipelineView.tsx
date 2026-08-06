@@ -79,6 +79,7 @@ const PAGE_SIZE = 10;
 
 export const SUBMITTED_STATUSES = [
   'pending',
+  'service_center_review',
   'tenant_ops_approved',
   'agent_verified',
   'agent_ops_approved',
@@ -89,6 +90,7 @@ export const SUBMITTED_STATUSES = [
 export const APPROVED_STATUSES = ['funded', 'disbursed'];
 
 const STAGE_LABEL: Record<string, string> = {
+  service_center_review: 'Service Center review',
   pending: 'Agent Ops review',
   agent_ops_approved: 'Tenant Ops review',
   agent_verified: 'Tenant Ops review',
@@ -100,6 +102,7 @@ const STAGE_LABEL: Record<string, string> = {
 };
 
 const STAGE_NEXT: Record<string, string> = {
+  service_center_review: 'Next: Agent Ops review',
   pending: 'Next: Tenant Ops review',
   agent_verified: 'Next: Landlord Ops review',
   agent_ops_approved: 'Next: Landlord Ops review',
@@ -121,6 +124,7 @@ const EVENT_LABEL: Record<string, string> = {
 };
 
 const STAGE_ICON: Record<string, typeof Eye> = {
+  service_center_review: ClipboardCheck,
   pending: Eye,
   agent_ops_approved: FileCheck,
   agent_verified: FileCheck,
@@ -133,6 +137,7 @@ const STAGE_ICON: Record<string, typeof Eye> = {
 };
 
 const STAGE_STRIP: Record<string, { bg: string; text: string; iconBg: string }> = {
+  service_center_review: { bg: 'bg-orange-500', text: 'text-white', iconBg: 'bg-white/20' },
   pending: { bg: 'bg-amber-500', text: 'text-white', iconBg: 'bg-white/20' },
   agent_ops_approved: { bg: 'bg-sky-500', text: 'text-white', iconBg: 'bg-white/20' },
   agent_verified: { bg: 'bg-sky-500', text: 'text-white', iconBg: 'bg-white/20' },
