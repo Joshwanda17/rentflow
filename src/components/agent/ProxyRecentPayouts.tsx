@@ -3,10 +3,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Clock, CheckCircle2, XCircle, AlertCircle, Receipt } from 'lucide-react';
+import { Loader2, Clock, CheckCircle2, XCircle, AlertCircle, Receipt, Download } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrency } from '@/hooks/useCurrency';
+import { toast } from 'sonner';
+import { generateProxyRecentPayoutsPdf } from '@/lib/proxyRecentPayoutsPdf';
 
 const PAGE_SIZE = 20;
 
@@ -65,6 +67,7 @@ export function ProxyRecentPayouts() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   const load = useCallback(async (offset: number) => {
     if (!user?.id) return;
@@ -143,6 +146,41 @@ export function ProxyRecentPayouts() {
     setLoadingMore(false);
   };
 
+  const handleExportPdf = async () => {
+    if (!rows.length) return;
+    setExporting(true);
+    try {
+      const blob = await generateProxyRecentPayoutsPdf({
+        agentName: (user as any)?.user_metadata?.full_name || undefined,
+        rows: rows.map((row) => {
+          const profile = row.partnerId ? profiles[row.partnerId] : undefined;
+          return {
+            name: profile?.full_name || 'Name not available',
+            phone: profile?.phone || '',
+            destinationLabel: row.destinationLabel,
+            destinationValue: row.destinationValue,
+            amount: row.amount,
+            status: row.status,
+            date: row.processed_at || row.created_at,
+          };
+        }),
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `welile-proxy-payouts-${new Date().toISOString().slice(0, 10)}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success('Payout list exported');
+    } catch (e: any) {
+      toast.error(e?.message || 'Could not export the payout list');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   if (loading) {
     return (
       <Card className="border-border/50">
@@ -159,6 +197,16 @@ export function ProxyRecentPayouts() {
         <Receipt className="h-4 w-4 text-muted-foreground" />
         <h3 className="text-sm font-semibold text-foreground">Recent payouts</h3>
         <span className="text-xs text-muted-foreground">({rows.length})</span>
+        <Button
+          variant="outline"
+          size="sm"
+          className="ml-auto h-7 gap-1 px-2 text-xs"
+          onClick={handleExportPdf}
+          disabled={exporting || rows.length === 0}
+        >
+          {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+          PDF
+        </Button>
       </div>
 
       {error && (
