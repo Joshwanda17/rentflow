@@ -29576,6 +29576,7 @@ export type Database = {
           fin_ops_verified_by: string | null
           id: string
           initiated_by: string | null
+          intent_key: string | null
           landlord_payout_id: string | null
           linked_party: string | null
           manager_approved_at: string | null
@@ -29591,6 +29592,7 @@ export type Database = {
           payout_proof_type: string | null
           payout_proof_uploaded_at: string | null
           payout_proof_uploaded_by: string | null
+          payout_route_ref: string | null
           pool_funded: boolean
           preferred_cashout_agent_id: string | null
           priority_level: string | null
@@ -29638,6 +29640,7 @@ export type Database = {
           fin_ops_verified_by?: string | null
           id?: string
           initiated_by?: string | null
+          intent_key?: string | null
           landlord_payout_id?: string | null
           linked_party?: string | null
           manager_approved_at?: string | null
@@ -29653,6 +29656,7 @@ export type Database = {
           payout_proof_type?: string | null
           payout_proof_uploaded_at?: string | null
           payout_proof_uploaded_by?: string | null
+          payout_route_ref?: string | null
           pool_funded?: boolean
           preferred_cashout_agent_id?: string | null
           priority_level?: string | null
@@ -29700,6 +29704,7 @@ export type Database = {
           fin_ops_verified_by?: string | null
           id?: string
           initiated_by?: string | null
+          intent_key?: string | null
           landlord_payout_id?: string | null
           linked_party?: string | null
           manager_approved_at?: string | null
@@ -29715,6 +29720,7 @@ export type Database = {
           payout_proof_type?: string | null
           payout_proof_uploaded_at?: string | null
           payout_proof_uploaded_by?: string | null
+          payout_route_ref?: string | null
           pool_funded?: boolean
           preferred_cashout_agent_id?: string | null
           priority_level?: string | null
@@ -32073,6 +32079,19 @@ export type Database = {
       compute_wallet_report: {
         Args: { _end: string; _start: string }
         Returns: Json
+      }
+      compute_withdrawal_intent_key: {
+        Args: {
+          p_agent_id: string
+          p_amount: number
+          p_bank_account_number: string
+          p_created_at: string
+          p_momo_number: string
+          p_partner_id: string
+          p_payout_method: string
+          p_route_ref: string
+        }
+        Returns: string
       }
       confirm_field_collection: {
         Args: {
