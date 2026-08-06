@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatUGX } from '@/lib/rentCalculations';
+import { normalizeUgandaRegion } from '@/lib/ugandaDistricts';
 import { ServiceCenterState, ServiceCenterSubAgent } from '@/hooks/useAgentServiceCenter';
 import { initialsOf, tintFor } from './subAgentVisuals';
 import { EntityRow, SubAgentEntityList } from './SubAgentEntityList';
