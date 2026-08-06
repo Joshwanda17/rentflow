@@ -35784,6 +35784,14 @@ export type Database = {
             }
             Returns: Json
           }
+      partner_lead_candidates: {
+        Args: { p_search: string }
+        Returns: {
+          display_name: string
+          position_title: string
+          user_id: string
+        }[]
+      }
       partner_note_rate: {
         Args: { p_at: string; p_role: string }
         Returns: number
