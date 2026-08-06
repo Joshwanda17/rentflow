@@ -82,6 +82,8 @@ import { notifyVerificationCreated } from '@/lib/landlordVerificationNotify';
 import { formatUGX, calculateRentRepayment } from '@/lib/rentCalculations';
 import { hapticSuccess } from '@/lib/haptics';
 import { normalizeDistrict, districtWarning } from '@/lib/ugandaDistricts';
+import { UgLocationPicker } from '@/components/location/UgLocationPicker';
+import type { UgLocationSelection } from '@/hooks/useUgLocations';
 import { validateUgandaPhone } from '@/lib/ugandaPhone';
 import { generateRentRequestFormPdf } from '@/lib/rentRequestFormPdf';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -731,6 +733,17 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   // landing in the "needs verification" bucket.
   const [propertyCity, setPropertyCity] = useState('');
   const [propertyDistrict, setPropertyDistrict] = useState('');
+  // Official Uganda administrative location, shared picker (same data layer as
+  // the house listing form). One tap fills district, town/city and LC1 village.
+  const [ugLoc, setUgLoc] = useState<UgLocationSelection | null>(null);
+  const applyUgLocation = (sel: UgLocationSelection | null) => {
+    setUgLoc(sel);
+    if (!sel) return;
+    setPropertyDistrict(normalizeDistrict(sel.district) || sel.district);
+    setPropertyCity((c) => c || sel.subcounty || sel.county || '');
+    setLc1Village((v) => v || sel.village);
+    setPropertyAddress((a) => a || sel.fullPath);
+  };
   const [houseCategory, setHouseCategory] = useState('');
   const [landlordPayoutDay, setLandlordPayoutDay] = useState<string>('1');
   const [noSmartphone, setNoSmartphone] = useState(false);
@@ -2238,6 +2251,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setLc1Village('');
     setPropertyCity('');
     setPropertyDistrict('');
+    setUgLoc(null);
     setLc1Mode('search');
     setLc1Selected(false);
     setLc1Query('');
@@ -4775,6 +4789,12 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   <Label className="text-sm font-semibold flex items-center gap-1">
                     <MapPin className="h-4 w-4 text-primary" /> Where is the house?
                   </Label>
+                  <UgLocationPicker
+                    label="Official village (government list)"
+                    value={ugLoc}
+                    onChange={applyUgLocation}
+                    className="pb-1"
+                  />
                   <p className="text-xs text-muted-foreground leading-snug">The village, road or area people use to find it.</p>
                   <p className="text-[11px] text-muted-foreground">e.g. Kira Town, near Total petrol station</p>
                   <Input

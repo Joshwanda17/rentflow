@@ -68,6 +68,8 @@ const REGIONS = [
 ];
 
 import { normalizeDistrict, districtWarning, regionLabel, UGANDA_DISTRICT_AREAS, UGANDA_REGION_GROUPS } from '@/lib/ugandaDistricts';
+import { UgLocationPicker } from '@/components/location/UgLocationPicker';
+import type { UgLocationSelection } from '@/hooks/useUgLocations';
 
 // Flattened, searchable index of every curated administrative area across all
 // districts. Lets agents type any place (e.g. "Bwaise", "Ntinda") and jump
@@ -313,6 +315,22 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     lc1_phone: '',
     lc1_village: '',
   });
+
+  // Official Uganda administrative location (village → district) chosen through
+  // the shared picker. One tap fills region / district / village consistently.
+  const [ugLoc, setUgLoc] = useState<UgLocationSelection | null>(null);
+  const applyUgLocation = (sel: UgLocationSelection | null) => {
+    setUgLoc(sel);
+    if (!sel) return;
+    const normalizedDistrict = normalizeDistrict(sel.district) || sel.district;
+    setForm((f) => ({
+      ...f,
+      region: DISTRICT_TO_BACKEND_REGION[normalizedDistrict] ?? f.region,
+      district: normalizedDistrict,
+      village: sel.village,
+      lc1_village: f.lc1_village || sel.village,
+    }));
+  };
 
   // Pre-fill landlord details when the dialog opens from the landlord form.
   useEffect(() => {
@@ -2341,6 +2359,14 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
             <p className="text-[11px] text-muted-foreground -mt-1">
               Can't find it? Just type the area in the fields below to add a new location.
             </p>
+
+            {/* Official government location list (district → county → sub-county
+                → parish → village), shared with the rent request form. */}
+            <UgLocationPicker
+              label="Official village (government list)"
+              value={ugLoc}
+              onChange={applyUgLocation}
+            />
 
             {/* Unique GPS pin for THIS house */}
             <div className={`rounded-lg border bg-background p-3 ${attempted && !geo ? 'border-destructive bg-destructive/5' : 'border-border'}`}>
