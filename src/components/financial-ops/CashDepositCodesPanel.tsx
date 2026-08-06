@@ -82,6 +82,7 @@ export function CashDepositCodesPanel() {
   const [realtimeHealthy, setRealtimeHealthy] = useState(false);
   const [secondsToRefresh, setSecondsToRefresh] = useState<number>(3);
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [reissuing, setReissuing] = useState<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
