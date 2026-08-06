@@ -8,6 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Textarea } from '@/components/ui/textarea';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,6 +44,8 @@ import {
   createDepartment,
   createPosition,
   addAssignment,
+  changeDepartment,
+  transferPosition,
   enrollStaff,
   getActiveAssignmentsByStaff,
   getDepartments,
@@ -81,6 +84,8 @@ export default function StaffDirectory() {
   const [assignments, setAssignments] = useState<Record<string, ActiveAssignment[]>>({});
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [addFor, setAddFor] = useState<Employee | null>(null);
+  const [transferFor, setTransferFor] = useState<Employee | null>(null);
+  const [deptChangeFor, setDeptChangeFor] = useState<Employee | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
@@ -460,6 +465,12 @@ export default function StaffDirectory() {
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => navigate('/platform-users')}>
                                   Manage access
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setTransferFor(s)}>
+                                  Transfer position
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setDeptChangeFor(s)}>
+                                  Change department
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
