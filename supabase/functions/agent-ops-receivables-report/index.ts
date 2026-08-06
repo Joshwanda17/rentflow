@@ -324,8 +324,6 @@ function buildPdf(s: Stats, prettyDate: string): Uint8Array {
     iy += lineH * w.length;
   });
 
-  // Page 2 — party ledgers
-  doc.addPage();
   const tableTheme = {
     theme: "grid" as const,
     styles: { fontSize: 7.6, cellPadding: 1.8, textColor: INK, lineColor: BORDER, lineWidth: 0.1 },
@@ -334,22 +332,25 @@ function buildPdf(s: Stats, prettyDate: string): Uint8Array {
     margin: { left: margin, right: margin },
   };
 
+  // Accountability matrix (page 1, below the read-out)
+  const matrixTop = y + boxH + 9;
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(13);
+  doc.setFontSize(11);
   doc.setTextColor(...BRAND_DARK);
-  doc.text("Accountability ledgers", margin, 16);
+  doc.text("Accountability matrix", margin, matrixTop);
+  doc.setDrawColor(...BRAND);
+  doc.setLineWidth(0.4);
+  doc.line(margin, matrixTop + 1.8, pageWidth - margin, matrixTop + 1.8);
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
+  doc.setFontSize(7.6);
   doc.setTextColor(...MUTED);
   doc.text(
-    "Same tenant book seen through each accountable party — figures are views, not additive totals.",
-    margin, 21.5,
+    "Same tenant book seen through each accountable party - views, not additive totals.",
+    margin, matrixTop + 6.6,
   );
-
-  // Summary matrix
   autoTable(doc, {
     ...tableTheme,
-    startY: 26,
+    startY: matrixTop + 9,
     head: [["Group", "Count", "Receivable", "Share of book"]],
     body: [
       ["Tenants (active repayment)", num(s.tenants_count), fmtUGX(s.tenants_receivable), "100%"],
@@ -365,7 +366,7 @@ function buildPdf(s: Stats, prettyDate: string): Uint8Array {
   const section = (title: string, head: string[], body: (string | number)[][]) => {
     const prevY = (doc as any).lastAutoTable?.finalY ?? 26;
     let top = prevY + 10;
-    if (top > pageHeight - 45) { doc.addPage(); top = 18; }
+    if (top > pageHeight - 55) { doc.addPage(); top = 18; }
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10.5);
     doc.setTextColor(...BRAND_DARK);
