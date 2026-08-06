@@ -18595,6 +18595,33 @@ export type Database = {
         }
         Relationships: []
       }
+      partner_note_rates: {
+        Row: {
+          amount: number
+          effective_from: string
+          id: string
+          payee_role: string
+          reason: string
+          set_by: string | null
+        }
+        Insert: {
+          amount: number
+          effective_from?: string
+          id?: string
+          payee_role: string
+          reason: string
+          set_by?: string | null
+        }
+        Update: {
+          amount?: number
+          effective_from?: string
+          id?: string
+          payee_role?: string
+          reason?: string
+          set_by?: string | null
+        }
+        Relationships: []
+      }
       partner_self_audit: {
         Row: {
           action: string
@@ -35360,6 +35387,10 @@ export type Database = {
             }
             Returns: Json
           }
+      partner_note_rate: {
+        Args: { p_at: string; p_role: string }
+        Returns: number
+      }
       partner_ops_report_breakdown: {
         Args: { p_from?: string; p_to?: string }
         Returns: Json
