@@ -843,17 +843,16 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         ) : (
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => { hapticTap(); navigate('/settings'); }}
-                aria-label="Open profile and settings"
-                title="Profile & settings"
-                className="shrink-0 rounded-full touch-manipulation active:scale-95 transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                style={{ WebkitTapHighlightColor: 'transparent' }}
-              >
-                <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="lg" />
-                <span className="sr-only">{profile?.full_name ? `${profile.full_name} — profile and settings` : 'Profile and settings'}</span>
-              </button>
+              <ProfileSummaryPopover
+                avatarUrl={profile?.avatar_url}
+                fullName={profile?.full_name}
+                phone={(profile as any)?.phone}
+                email={(profile as any)?.email}
+                location={(profile as any)?.territory ?? (profile as any)?.location}
+                verified={profile?.verified}
+                roleLabel="Welile Agent"
+                triggerSize="lg"
+              />
               <div className="flex-1 min-w-0">
                 <h1 className="font-bold text-xl leading-tight flex items-center gap-1.5 flex-wrap">
                   <span className="break-words">{profile?.full_name || 'Agent'}</span>
