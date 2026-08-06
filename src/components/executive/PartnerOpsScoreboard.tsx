@@ -76,14 +76,9 @@ export function PartnerOpsScoreboard() {
   const rows = data?.rows || [];
 
   if (isLoading) {
-    return (
-      <div className="space-y-3">
-        <PartnerNoteRateEditor />
-        <p className="text-sm text-muted-foreground">Loading scoreboard…</p>
-      </div>
-    );
+    return <p className="text-sm text-muted-foreground">Loading scoreboard…</p>;
   }
-  if (!rows.length) return <PartnerNoteRateEditor />;
+  if (!rows.length) return null;
 
   return (
     <div className="space-y-3">
