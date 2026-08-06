@@ -19,6 +19,7 @@ import DashboardHeader from '@/components/DashboardHeader';
 
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
+import { ProfileSummaryPopover } from '@/components/profile/ProfileSummaryPopover';
 import { SupporterDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { useWallet } from '@/hooks/useWallet';
 import { useAvailableBalance } from '@/hooks/useAvailableBalance';

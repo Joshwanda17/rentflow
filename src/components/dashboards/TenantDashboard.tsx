@@ -19,6 +19,7 @@ import DashboardHeader from '@/components/DashboardHeader';
 
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
+import { ProfileSummaryPopover } from '@/components/profile/ProfileSummaryPopover';
 import { TenantDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { ListSectionSkeleton } from '@/components/skeletons/SectionSkeletons';
 import { PayLandlordDialog } from '@/components/wallet/PayLandlordDialog';

@@ -61,6 +61,7 @@ import DashboardHeader from '@/components/DashboardHeader';
 
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
+import { ProfileSummaryPopover } from '@/components/profile/ProfileSummaryPopover';
 import { SubAgentsPanel } from '@/components/agent/SubAgentsPanel';
 import { MyParentAgentCard } from '@/components/agent/MyParentAgentCard';
 import { ServiceCenterQualificationCard } from '@/components/agent/ServiceCenterQualificationCard';
