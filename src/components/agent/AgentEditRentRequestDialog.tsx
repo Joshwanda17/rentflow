@@ -22,7 +22,13 @@ const HOUSE_CATEGORIES = [
   { value: '3-bed', label: '3 Bedroom Apartment' },
   { value: '3-bed-luxury', label: '3 Bed Luxury + Boys Quarter' },
   { value: '4-bed', label: '4+ Bedroom Villa' },
-  { value: 'commercial', label: 'Commercial Property' },
+  { value: 'shop', label: 'Shop / Lock-up Shop' },
+  { value: 'market-stall', label: 'Market Stall' },
+  { value: 'kiosk', label: 'Kiosk / Container' },
+  { value: 'salon-workshop', label: 'Salon / Workshop' },
+  { value: 'office', label: 'Office Space' },
+  { value: 'warehouse', label: 'Warehouse / Store' },
+  { value: 'commercial', label: 'Other Commercial Premises' },
 ];
 
 const PREFERRED_LANGUAGES = ['English', 'Luganda', 'Runyankole', 'Lusoga', 'Acholi', 'Lugbara', 'Other'];

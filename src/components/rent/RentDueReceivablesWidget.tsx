@@ -81,15 +81,21 @@ interface ApprovedRequest {
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
-  'single-room': '🚪 Single Room',
-  'double-room': '🛏️ Double Room',
-  '1-bed': '🏠 1 Bed House',
-  '2-bed': '🏡 2 Bedroom',
-  '2-bed-full': '🏘️ 2 Bed Full',
-  '3-bed': '🏢 3 Bedroom',
-  '3-bed-luxury': '🏰 3 Bed Luxury',
-  '4-bed': '🏛️ 4+ Bed Villa',
-  'commercial': '🏪 Commercial',
+  'single-room': 'Single Room',
+  'double-room': 'Double Room',
+  '1-bed': '1 Bed House',
+  '2-bed': '2 Bedroom',
+  '2-bed-full': '2 Bed Full',
+  '3-bed': '3 Bedroom',
+  '3-bed-luxury': '3 Bed Luxury',
+  '4-bed': '4+ Bed Villa',
+  'shop': 'Shop / Lock-up Shop',
+  'market-stall': 'Market Stall',
+  'kiosk': 'Kiosk / Container',
+  'salon-workshop': 'Salon / Workshop',
+  'office': 'Office Space',
+  'warehouse': 'Warehouse / Store',
+  'commercial': 'Other Commercial Premises',
 };
 
 interface RentDueReceivablesWidgetProps {
