@@ -506,6 +506,16 @@ export function PromissoryNotesQueue() {
                       Approved
                     </Button>
                   )}
+                  {selectedNote.approval_bonus_paid && canReverseBonus && (
+                    <Button
+                      variant="outline"
+                      className="flex-1 border-destructive/40 text-destructive hover:bg-destructive/10"
+                      onClick={() => { setRejectReason(''); setRejectTarget(selectedNote); }}
+                    >
+                      <XCircle className="h-4 w-4 mr-2" />
+                      Reject & Reverse Bonus
+                    </Button>
+                  )}
                   <Button
                     variant="destructive"
                     className="flex-1"
@@ -580,6 +590,42 @@ export function PromissoryNotesQueue() {
               className="bg-emerald-600 text-white hover:bg-emerald-700"
             >
               {approving ? 'Approving…' : 'Approve & Pay'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Reject an already-approved note and reverse the paid bonus */}
+      <AlertDialog open={!!rejectTarget} onOpenChange={(open) => { if (!open && !rejecting) { setRejectTarget(null); setRejectReason(''); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reject approved promissory note?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This reverses the approval of {rejectTarget?.partner_name}'s promissory note. A reason of at least 20 characters is required and this action is recorded.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2">
+            <p className="text-xs text-destructive">
+              This reverses the bonus already paid. Money will be debited from the agent's wallet, and from the lead's wallet where an override was paid. If a wallet is short, the balance becomes recoverable arrears.
+            </p>
+            <Label htmlFor="reject-reason">Reason for rejection (min 20 characters)</Label>
+            <Textarea
+              id="reject-reason"
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="e.g. Promissory note document could not be verified with the partner on follow-up"
+              rows={3}
+            />
+            <p className="text-[11px] text-muted-foreground text-right">{rejectReason.trim().length}/20 characters</p>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={rejecting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleReverseBonus(); }}
+              disabled={rejecting || rejectReason.trim().length < 20}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {rejecting ? 'Reversing…' : 'Reject & Reverse'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
