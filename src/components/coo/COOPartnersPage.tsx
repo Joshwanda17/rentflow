@@ -2369,8 +2369,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
           <SummaryCard icon={<Users className="h-4 w-4" />} label="Total Partners" value={summary.totalPartners}
             sub={`${summary.activePartners} active · ${summary.suspendedPartners} suspended`} accent="primary" />
-          <SummaryCard icon={<Banknote className="h-4 w-4" />} label="Total Funded" value={formatUGX(summary.totalFunded)}
-            sub={`${summary.totalDeals} deals completed`} accent="emerald" />
+          <PendingPortfoliosCard onClick={() => setPendingPortfoliosOpen(true)} />
           <SummaryCard icon={<Wallet className="h-4 w-4" />} label="Wallet Balances" value={formatUGX(summary.totalWalletBalance)}
             sub="Across all partner wallets · tap to view" accent="amber"
             onClick={() => { setWalletBalancesSearch(''); setWalletBalancesOpen(true); }} />
