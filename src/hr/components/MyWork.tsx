@@ -37,6 +37,114 @@ import { setMyWorkBadge } from '@/hr/lib/myWorkBadge';
 import type { Department, Employee, MetricDefinition, MetricSnapshot, Task } from '@/hr/types';
 import TaskFormDialog from './TaskFormDialog';
 
+interface LeadScoreboardRow {
+  lead_user_id: string;
+  agents_attached: number;
+  notes_approved: number;
+  override_total: number;
+  target_value: number;
+  state: string;
+  agents_attached_month?: number;
+  agents_target?: number;
+  agents_state?: string;
+}
+
+function partnerMonthStart() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+}
+
+function partnerStateText(state?: string) {
+  switch (state) {
+    case 'on_track': return 'text-emerald-600';
+    case 'amber': return 'text-amber-600';
+    case 'red': return 'text-destructive';
+    default: return 'text-muted-foreground';
+  }
+}
+
+function partnerStateBorder(state?: string) {
+  switch (state) {
+    case 'on_track': return 'border-l-4 border-l-emerald-500';
+    case 'amber': return 'border-l-4 border-l-amber-500';
+    case 'red': return 'border-l-4 border-l-destructive';
+    default: return 'border-l-4 border-l-muted';
+  }
+}
+
+/**
+ * Partner growth production for the signed-in user, shown only when they
+ * currently lead at least one attached proxy agent. Renders nothing otherwise.
+ */
+function PartnerLeadProduction() {
+  const [row, setRow] = useState<LeadScoreboardRow | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: auth } = await supabase.auth.getUser();
+        const uid = auth?.user?.id;
+        if (!uid) return;
+        const { data: leadRows, error: leadError } = await supabase
+          .from('partner_lead_assignments' as never)
+          .select('id')
+          .eq('lead_user_id', uid)
+          .is('detached_at', null)
+          .limit(1);
+        if (leadError || !leadRows || leadRows.length === 0) return;
+        const { data, error } = await supabase.rpc('partner_ops_scoreboard' as never, {
+          p_month: partnerMonthStart(),
+        } as never);
+        if (error) return;
+        const mine = ((data ?? []) as unknown as LeadScoreboardRow[]).find(
+          (r) => r.lead_user_id === uid,
+        );
+        if (!cancelled && mine) setRow(mine);
+      } catch {
+        // Silent: this panel is additive and must never block My Work.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  if (!row) return null;
+
+  const agents = Number(row.agents_attached_month ?? row.agents_attached ?? 0);
+  const agentsTarget = Number(row.agents_target ?? 0);
+  const notes = Number(row.notes_approved ?? 0);
+  const notesTarget = Number(row.target_value ?? 0);
+  const override = Number(row.override_total ?? 0);
+
+  return (
+    <Card className={partnerStateBorder(row.state)}>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm">Partner growth production — this month</CardTitle>
+      </CardHeader>
+      <CardContent className="grid grid-cols-2 gap-3 pt-0 sm:grid-cols-3">
+        <div className="min-w-0">
+          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Agents attached</p>
+          <p className={`text-sm font-semibold ${partnerStateText(row.agents_state)}`}>
+            {agents} / {agentsTarget}
+          </p>
+        </div>
+        <div className="min-w-0">
+          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Notes approved</p>
+          <p className={`text-sm font-semibold ${partnerStateText(row.state)}`}>
+            {notes} / {notesTarget}
+          </p>
+        </div>
+        <div className="min-w-0">
+          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Override earned</p>
+          <p className="text-sm font-semibold text-foreground">
+            UGX {override.toLocaleString('en-UG')}
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 /** Statuses that take a task out of the open list. */
 const CLOSED: string[] = ['completed', 'cancelled'];
 
@@ -419,6 +527,7 @@ export default function MyWork({ embedded = false }: MyWorkProps) {
 
   return (
     <div className={embedded ? 'space-y-5' : 'space-y-5'}>
+      <PartnerLeadProduction />
       {unstarted.length > 0 && (
         <Card className="border-primary/50">
           <CardHeader className="pb-2">
