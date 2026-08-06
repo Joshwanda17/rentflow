@@ -33767,12 +33767,25 @@ export type Database = {
       get_public_trust_profile: { Args: { p_ai_id: string }; Returns: Json }
       get_referral_progress: { Args: { p_referred_id: string }; Returns: Json }
       get_rent_requests_summary: { Args: never; Returns: Json }
+      get_service_center_pipeline: {
+        Args: {
+          p_limit?: number
+          p_offset?: number
+          p_search?: string
+          p_statuses?: string[]
+        }
+        Returns: Json
+      }
       get_service_center_qualification: {
         Args: { p_agent_id?: string }
         Returns: Json
       }
       get_service_center_rent_queue: {
         Args: { p_manager_id?: string }
+        Returns: Json
+      }
+      get_service_center_tenant_payments: {
+        Args: { p_limit?: number; p_offset?: number; p_rent_request_id: string }
         Returns: Json
       }
       get_shadow_match_rate: {
