@@ -3768,7 +3768,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         <SelectContent>
                           {HOUSE_CATEGORIES.map(cat => (
                             <SelectItem key={cat.value} value={cat.value}>
-                              {cat.emoji} {cat.label}
+                              {cat.label}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -4234,7 +4234,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   <SelectContent>
                     {HOUSE_CATEGORIES.map(cat => (
                       <SelectItem key={cat.value} value={cat.value}>
-                        {cat.emoji} {cat.label}
+                        {cat.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
