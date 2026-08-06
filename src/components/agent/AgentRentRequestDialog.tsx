@@ -4713,8 +4713,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 {/* GPS Capture */}
                 <div className="space-y-1">
                   <Label className="flex items-center gap-1">
-                    <Navigation className="h-3 w-3" /> Property GPS (optional)
+                    <Navigation className="h-3 w-3" /> Property GPS *
                   </Label>
+                  <p className="text-[11px] text-muted-foreground">
+                    Required — stand at the property and capture its exact location.
+                  </p>
                   {gpsLocation ? (
                     <div className="flex items-center gap-2 p-2.5 rounded-xl bg-success/10 border border-success/30">
                       <Navigation className="h-4 w-4 text-success flex-shrink-0" />
@@ -4755,6 +4758,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       )}
                     </Button>
                   )}
+                  {!gpsLocation && <FieldError message={getFieldError('gpsLocation')} />}
                 </div>
 
                 {/* House Photos — 4 outside views */}
