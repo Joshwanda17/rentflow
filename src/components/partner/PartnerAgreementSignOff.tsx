@@ -180,7 +180,13 @@ export default function PartnerAgreementSignOff({
     try {
       // Render the executed PDF from the EXACT same HTML shown in the preview so
       // the stored/emailed document is pixel-identical to what the admin saw.
-      if (alreadySigned) {
+      const storedStamp = agreement?.countersigned_at
+        ? new Date(agreement.countersigned_at).toISOString().slice(0, 10)
+        : '';
+      // A changed stamp date must land in the stored/emailed PDF, so re-render
+      // instead of resending the previously stored file.
+      const stampChanged = !!stampDate && stampDate !== storedStamp;
+      if (alreadySigned && !stampChanged) {
         const { data, error } = await supabase.functions.invoke('resend-partner-agreement-email', {
           body: { partnerId: partner.id },
         });
@@ -203,6 +209,7 @@ export default function PartnerAgreementSignOff({
             partnerId: partner.id,
             countersign: true,
             pdfBase64,
+            countersignAt: stampDate || undefined,
             rep: {
               name: repName.trim(),
               position: repPosition.trim(),
