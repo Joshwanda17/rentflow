@@ -34705,6 +34705,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      hr_change_department: {
+        Args: {
+          p_assignment: string
+          p_department_id: string
+          p_reason: string
+        }
+        Returns: string
+      }
       hr_compute_snapshots: {
         Args: { _period_end: string; _period_start: string }
         Returns: number
@@ -34902,6 +34910,14 @@ export type Database = {
           object_count: number
           taken_at: string
         }[]
+      }
+      hr_transfer_position: {
+        Args: {
+          p_from_assignment: string
+          p_reason: string
+          p_to_staff_id: string
+        }
+        Returns: string
       }
       hr_unenrolled_staff_candidates: {
         Args: { _q?: string }
