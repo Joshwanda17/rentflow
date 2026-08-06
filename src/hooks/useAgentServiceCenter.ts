@@ -127,14 +127,26 @@ export function useServiceCenterOverview() {
       if (error) throw error;
       const raw = (data as (ServiceCenterOverview & { sub_agents?: (ServiceCenterSubAgent & { name?: string | null })[] }) | null) ?? null;
       if (!raw) return { parent_agent_id: '', sub_agents: [] };
-      return {
-        ...raw,
-        sub_agents: (raw.sub_agents ?? []).map((s) => {
-          const row = s as ServiceCenterSubAgent & { name?: string | null };
-          // The RPC emits the display name as `name`; the UI reads `full_name`.
-          return { ...row, full_name: row.full_name ?? row.name ?? null };
-        }),
-      };
+      const rows = (raw.sub_agents ?? []).map((s) => {
+        const row = s as ServiceCenterSubAgent & { name?: string | null };
+        // The RPC emits the display name as `name`; the UI reads `full_name`.
+        return { ...row, full_name: row.full_name ?? row.name ?? null };
+      });
+
+      // The RPC does not return avatars — hydrate them from profiles.
+      const ids = rows.map((r) => r.sub_agent_id).filter(Boolean);
+      if (ids.length) {
+        const { data: pics } = await supabase
+          .from('profiles')
+          .select('id, avatar_url')
+          .in('id', ids);
+        const byId = new Map((pics ?? []).map((p) => [p.id as string, p.avatar_url as string | null]));
+        rows.forEach((r) => {
+          r.avatar_url = r.avatar_url ?? byId.get(r.sub_agent_id) ?? null;
+        });
+      }
+
+      return { ...raw, sub_agents: rows };
     },
     staleTime: 60_000,
   });
