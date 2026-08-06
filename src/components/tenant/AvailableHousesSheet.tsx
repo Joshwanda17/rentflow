@@ -569,21 +569,6 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
           {/* Price range (daily rate) — quick chips + custom min/max */}
           <div className="space-y-1.5">
             <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Daily rent</p>
-            <div className="flex flex-wrap gap-1.5">
-              {PRICE_CHIPS.map(chip => {
-                const active = (chip.min || undefined) === minPrice && (chip.max || undefined) === maxPrice;
-                return (
-                  <button
-                    key={chip.label}
-                    type="button"
-                    onClick={() => { setMinPrice(chip.min); setMaxPrice(chip.max); }}
-                    className={`px-2.5 py-1 rounded-full border text-[11px] font-medium transition ${active ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border text-foreground hover:bg-muted'}`}
-                  >
-                    {chip.label}
-                  </button>
-                );
-              })}
-            </div>
             <div className="flex gap-2">
               <Input
                 type="number"
