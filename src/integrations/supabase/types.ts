@@ -27748,6 +27748,140 @@ export type Database = {
         }
         Relationships: []
       }
+      ug_counties: {
+        Row: {
+          created_at: string
+          district_id: number
+          id: number
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          district_id: number
+          id: number
+          name: string
+        }
+        Update: {
+          created_at?: string
+          district_id?: number
+          id?: number
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ug_counties_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "ug_districts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ug_districts: {
+        Row: {
+          created_at: string
+          id: number
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id: number
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          name?: string
+        }
+        Relationships: []
+      }
+      ug_parishes: {
+        Row: {
+          created_at: string
+          id: number
+          name: string
+          subcounty_id: number
+        }
+        Insert: {
+          created_at?: string
+          id: number
+          name: string
+          subcounty_id: number
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          name?: string
+          subcounty_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ug_parishes_subcounty_id_fkey"
+            columns: ["subcounty_id"]
+            isOneToOne: false
+            referencedRelation: "ug_subcounties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ug_subcounties: {
+        Row: {
+          county_id: number
+          created_at: string
+          id: number
+          name: string
+        }
+        Insert: {
+          county_id: number
+          created_at?: string
+          id: number
+          name: string
+        }
+        Update: {
+          county_id?: number
+          created_at?: string
+          id?: number
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ug_subcounties_county_id_fkey"
+            columns: ["county_id"]
+            isOneToOne: false
+            referencedRelation: "ug_counties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ug_villages: {
+        Row: {
+          created_at: string
+          id: number
+          name: string
+          parish_id: number
+        }
+        Insert: {
+          created_at?: string
+          id: number
+          name: string
+          parish_id: number
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          name?: string
+          parish_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ug_villages_parish_id_fkey"
+            columns: ["parish_id"]
+            isOneToOne: false
+            referencedRelation: "ug_parishes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       update_failure_events: {
         Row: {
           cache_cleared: boolean | null
@@ -36843,6 +36977,38 @@ export type Database = {
       try_link_gmail_for_deposit: {
         Args: { p_deposit_id: string }
         Returns: Json
+      }
+      ug_resolve_village: {
+        Args: { p_village_id: number }
+        Returns: {
+          county_id: number
+          county_name: string
+          district_id: number
+          district_name: string
+          full_path: string
+          parish_id: number
+          parish_name: string
+          subcounty_id: number
+          subcounty_name: string
+          village_id: number
+          village_name: string
+        }[]
+      }
+      ug_search_villages: {
+        Args: { p_limit?: number; p_query: string }
+        Returns: {
+          county_id: number
+          county_name: string
+          district_id: number
+          district_name: string
+          full_path: string
+          parish_id: number
+          parish_name: string
+          subcounty_id: number
+          subcounty_name: string
+          village_id: number
+          village_name: string
+        }[]
       }
       unblock_agent_listing: {
         Args: { p_agent_id: string; p_reason?: string }
