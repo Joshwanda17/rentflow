@@ -256,6 +256,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'Mission & Goals', icon: Target, id: 'mission-goals' },
         { label: 'Role Management', icon: UserCog, id: 'role-management' },
         { label: 'My Work', icon: ClipboardList, id: 'my-work' },
+        { label: 'Supervision', icon: Eye, id: 'supervision' },
       ],
     },
   ],
