@@ -60,42 +60,17 @@ const HOUSE_CATEGORIES = [
   { value: 'shop', label: 'Shop', emoji: '🏪' },
 ];
 
-const REGIONS = [
-  'Central', 'Eastern', 'Northern', 'Western',
-  'Kampala', 'Wakiso', 'Mukono', 'Jinja', 'Mbale',
-  'Mbarara', 'Gulu', 'Lira', 'Fort Portal', 'Masaka',
-  'Entebbe', 'Nansana', 'Kira', 'Bweyogerere',
-];
-
-import { normalizeDistrict, districtWarning, regionLabel, UGANDA_DISTRICT_AREAS, UGANDA_REGION_GROUPS } from '@/lib/ugandaDistricts';
+import { normalizeDistrict, UGANDA_REGION_GROUPS } from '@/lib/ugandaDistricts';
 import { UgLocationPicker } from '@/components/location/UgLocationPicker';
 import type { UgLocationSelection } from '@/hooks/useUgLocations';
 
-// Flattened, searchable index of every curated administrative area across all
-// districts. Lets agents type any place (e.g. "Bwaise", "Ntinda") and jump
-// straight to it — region + district + village all auto-filled from one tap.
-interface LocationOption {
-  area: string;
-  district: string;
-  region: string;
-  label: string;
-}
+// Map a selected village's district back to the backend region enum.
 const DISTRICT_TO_BACKEND_REGION: Record<string, string> = (() => {
   const m: Record<string, string> = {};
   for (const g of UGANDA_REGION_GROUPS) {
     for (const d of g.districts) m[d.name] = d.backendRegion;
   }
   return m;
-})();
-const LOCATION_OPTIONS: LocationOption[] = (() => {
-  const out: LocationOption[] = [];
-  for (const [district, areas] of Object.entries(UGANDA_DISTRICT_AREAS)) {
-    const region = DISTRICT_TO_BACKEND_REGION[district] ?? 'Central';
-    for (const area of areas) {
-      out.push({ area, district, region, label: `${area} · ${district}` });
-    }
-  }
-  return out;
 })();
 
 export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLandlordName, initialLandlordPhone, initialLc1Name, initialLc1Phone, initialLc1Village, fromPromoBanner = false }: ListEmptyHouseDialogProps) {
