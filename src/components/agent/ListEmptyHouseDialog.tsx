@@ -2186,7 +2186,6 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                 <SelectContent className="bg-popover">
                   {HOUSE_CATEGORIES.map(c => (
                     <SelectItem key={c.value} value={c.value}>
-                      <span className="mr-2">{c.emoji}</span>
                       {c.label}
                     </SelectItem>
                   ))}
