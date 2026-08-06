@@ -163,18 +163,6 @@ Deno.serve(async (req) => {
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        reference_id: referenceId,
-        new_balance: newBalance,
-        payout_day,
-        first_payout_date: firstPayoutDate,
-        monthly_reward: monthlyReward,
-      }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : "Unknown error";
     console.error("[fund-rent-pool] Error:", msg);
