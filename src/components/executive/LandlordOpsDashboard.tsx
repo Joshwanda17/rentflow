@@ -1561,8 +1561,8 @@ export function LandlordOpsDashboard() {
       return next;
     });
     toast({
-      title: '✅ Verified → UGX 5,000 Credited',
-      description: `${listing.title} verified. UGX 5,000 credited to the agent's commission wallet.`,
+      title: '✅ Verified → UGX 2,000 Credited',
+      description: `${listing.title} verified. UGX 2,000 credited to the agent's commission wallet.`,
     });
     try {
       const { data, error } = await supabase.functions.invoke('credit-listing-bonus', {
@@ -1589,11 +1589,22 @@ export function LandlordOpsDashboard() {
         if (!Array.isArray(old)) return old;
         return old.filter(l => l.id !== listing.id);
       });
-      setOptimisticallyVerifiedIds(prev => {
-        const next = new Set(prev);
-        next.delete(listing.id);
-        return next;
+      // Drop the row from the server-side verification queue pages immediately so
+      // the card disappears without a manual page refresh. The id stays in the
+      // optimistic set as a belt-and-braces guard until the refetch lands.
+      queryClient.setQueriesData<any>({ queryKey: ['ops-house-search'] }, (old: any) => {
+        if (!old?.pages) return old;
+        return {
+          ...old,
+          pages: old.pages.map((p: any) => ({
+            ...p,
+            listings: (p.listings || []).filter((l: any) => l.id !== listing.id),
+            total: Math.max(0, Number(p.total || 0) - 1),
+          })),
+        };
       });
+      queryClient.invalidateQueries({ queryKey: ['ops-house-search'] });
+      queryClient.invalidateQueries({ queryKey: ['ops-house-status-counts'] });
       // Persist the operator's inline note (if any) for audit/attribution.
       if (note && note.trim()) {
         await supabase.from('audit_logs').insert({
