@@ -299,7 +299,11 @@ export async function generateNearingPayoutsPdf(input: NearingPayoutPdfInput): P
     // Prefer per-portfolio payout details on the portfolio record itself —
     // an edit on the portfolio's account/MoMo fields must show up here.
     let paymentCell: string;
-    if (det?.payment_method === 'bank_transfer') {
+    if (compounding) {
+      // Compounding portfolios receive no cash payout — never disclose any
+      // bank / mobile-money destination for them on this export.
+      paymentCell = 'Reinvested — no payout';
+    } else if (det?.payment_method === 'bank_transfer') {
       paymentCell = `BANK: ${det.bank_name || '—'}\nName: ${det.bank_account_name || '—'}\nA/C: ${det.account_number || '—'}`;
     } else if (det?.payment_method === 'mobile_money') {
       // The "name the mobile money shows" is stored on the portfolio's

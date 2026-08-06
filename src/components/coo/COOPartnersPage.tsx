@@ -4846,6 +4846,8 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
     let cash = 0;
     let unset = 0;
     for (const p of filtered) {
+      // Compounding portfolios reinvest — they have no payout destination.
+      if (p.roiMode === 'monthly_compounding') continue;
       if (p.paymentMethod === 'bank_transfer') {
         const key = (p.bankName || '').trim().toUpperCase() || 'BANK (NAME NOT SET)';
         banks.set(key, (banks.get(key) || 0) + 1);
@@ -4866,6 +4868,8 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
   // Does a visible row match the chosen payout destination?
   const matchesPayMethod = (p: NearingPayoutPortfolio, key: string) => {
     if (key === 'all') return true;
+    // Destination-specific exports never include compounding portfolios.
+    if (p.roiMode === 'monthly_compounding') return false;
     if (key === 'cash') return p.paymentMethod === 'cash';
     if (key === 'unset') return !p.paymentMethod;
     if (key.startsWith('bank:')) {
