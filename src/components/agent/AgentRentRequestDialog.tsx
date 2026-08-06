@@ -4314,30 +4314,15 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                               )}
                             </div>
                           ) : (
-                            <div className="mt-1 space-y-2">
-                              <p className="text-xs text-success font-medium">✓ Verified landlord — details filled in for you</p>
-                              {verifyReqState === 'sent' || verifyReqState === 'exists' ? (
-                                <p className="text-xs font-medium text-success flex items-center gap-1">
-                                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                                  Landlord Operations have been notified.
+                            /* Verified landlord — nothing to notify Landlord Ops about. */
+                            <div className="mt-2 flex items-center gap-2 rounded-xl border border-success/40 bg-success/10 px-2.5 py-2">
+                              <ShieldCheck className="h-4 w-4 text-success shrink-0" />
+                              <div className="min-w-0">
+                                <p className="text-xs font-bold text-success leading-tight">Verified landlord</p>
+                                <p className="text-[11px] text-muted-foreground leading-snug">
+                                  Their saved details were filled in for you — continue with this rent request.
                                 </p>
-                              ) : (
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-9 w-full gap-1.5 rounded-xl"
-                                  disabled={verifyReqState === 'sending'}
-                                  onClick={requestLandlordVerification}
-                                >
-                                  {verifyReqState === 'sending' ? (
-                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                  ) : (
-                                    <ShieldCheck className="h-3.5 w-3.5" />
-                                  )}
-                                  Notify Landlord Ops
-                                </Button>
-                              )}
+                              </div>
                             </div>
                           )}
                         </div>
