@@ -1,13 +1,16 @@
-# Welile (RentFlow) — Africa's Rent Facilitation Platform
+# Welile — Africa's Rent Facilitation Platform
 
-[![Deploy Status](https://img.shields.io/badge/Netlify-Live-success?style=flat-square&logo=netlify)](https://welile.tech)
 [![Stack](https://img.shields.io/badge/React-18-blue?style=flat-square&logo=react)](https://react.dev)
 [![Backend](https://img.shields.io/badge/Supabase-Database%20%26%20Auth-green?style=flat-square&logo=supabase)](https://supabase.com)
 
-Welile is a decentralized fintech and rent facilitation ecosystem designed for emerging markets across Africa. The platform connects tenants, landlords, agents, and funders—enabling tenants to access credit to pay rent, landlords to receive guaranteed cash flow, and funders to grow capital through managed micro-lending portfolios.
+Welile is a Ugandan rent-facilitation and fintech platform. Tenants who can't pay rent as a lump sum get a **Rent Plan**: Welile pays the landlord up front and the tenant repays daily over 7–120 days. Field **agents** originate, verify, and collect. **Supporters** (retail funders/partners) supply capital and earn **Returns**. Every shilling is double-entry accounted through a central ledger.
 
 * **Production URL:** [https://welile.tech](https://welile.tech)
-* **Target Repository:** [github.com/Joshwanda17/rentflow](https://github.com/Joshwanda17/rentflow)
+* **Source repository:** [github.com/weliletenants-sys/welilereceipts-com-98bba33b](https://github.com/weliletenants-sys/welilereceipts-com-98bba33b) (this repo — managed via [Lovable](https://lovable.dev))
+
+> Regulatory terminology is mandatory in user-facing copy: *Rent Plan* (not loan), *Supporter* (not lender), *Returns* (not ROI).
+
+For the full canonical architecture reference (data model, ledger internals, subsystem inventory, operational rules), see [`SYSTEM_CONTEXT.md`](./SYSTEM_CONTEXT.md) — it is kept in sync with the live database and is the source of truth ahead of this file.
 
 ---
 
@@ -24,44 +27,46 @@ Welile is a decentralized fintech and rent facilitation ecosystem designed for e
 * **Automated Ledgers:** Live tenant payment reconciliation, print-ready payout receipts, and automated tax accounting.
 
 ### 💰 For Funders (Supporters)
-* **Capital Growth:** Fund verified tenant rent plans and earn yields.
+* **Capital Growth:** Fund verified tenant rent plans and earn Returns.
 * **Portfolio Analytics:** Real-time visibility into active pools, compounding yields, maturity profiles, and risk distribution.
 
 ---
 
 ## 🛠️ Architecture & Technology Stack
 
-The platform is engineered as a secure, responsive serverless web application optimized for performance on both mobile browsers and low-bandwidth connections.
+The platform is engineered as a secure, responsive PWA optimized for performance on mobile browsers and low-bandwidth connections.
 
 | Layer | Technology | Details |
 | :--- | :--- | :--- |
-| **Frontend** | React 18, Vite, TypeScript | Modern component architecture, pre-rendered routes, optimized code splitting. |
-| **Styling & UI** | Tailwind CSS, shadcn/ui | Premium dark/light themes, Radix UI primitives, responsive mobile design. |
-| **Database & Auth** | Supabase (PostgreSQL) | Secure session management, Row Level Security (RLS) policies, database triggers. |
-| **Serverless** | Supabase Edge Functions | Transactional emails (Resend), MoMo API integrations, PDF generation. |
-| **Third-Party APIs** | Google Maps, MoMo SDK | Location-based search, MTN/Airtel payment gateway integrations. |
+| **Frontend** | React 18, Vite, TypeScript | Lazy-loaded routes with retry/concurrency limiting, offline-first React Query. |
+| **Styling & UI** | Tailwind CSS, shadcn/ui | Radix UI primitives, dark/light themes, responsive mobile design. |
+| **Database & Auth** | Supabase (PostgreSQL) | Row Level Security policies, SECURITY DEFINER RPCs, database triggers. The frontend never writes ledger/wallet state directly — enforced at build time by `scripts/guard-frontend-ledger-writes.mjs`. |
+| **Serverless** | Supabase Edge Functions (Deno) | Money movement, transactional email (Mailgun), SMS (Yoola / Africa's Talking / LANA), PDF generation, MoMo reconciliation. |
+| **Third-Party APIs** | Google Maps, MTN/Airtel Mobile Money | Location-based search, mobile money payment rails. |
 
 ---
 
 ## 📦 Project Structure
 
 ```text
-├── .git/
-├── .github/                 # CI/CD workflows and automated guards
-├── docs/                    # API definitions and documentation
-├── public/                  # Manifests, icons, PWA configurations, sitemaps
-├── scripts/                 # Build-time optimization and verification utilities
+├── .github/                 # CI/CD workflows
+├── docs/                    # Architecture & API documentation
+├── mem/, .lovable/          # Lovable project memory (business rules, architecture notes)
+├── public/                  # Manifests, icons, PWA configuration, sitemaps
+├── scripts/                 # Build-time guards, sitemap/dist generation, verification
 ├── src/
-│   ├── components/          # Reusable UI component library (shadcn)
-│   ├── hooks/               # Custom React hooks (auth, query hooks)
-│   ├── integrations/        # Database client instantiation and schema definitions
-│   ├── lib/                 # Logic engines (calculations, PDF generators, helpers)
-│   └── pages/               # Routed pages (Dashboard, Landing, Market, etc.)
+│   ├── components/          # Reusable UI component library (shadcn) + feature components
+│   ├── hooks/                # Custom React hooks (auth, wallet, ops)
+│   ├── integrations/         # Supabase client + generated schema types
+│   ├── lib/                  # Calculation engines, PDF generators, helpers
+│   └── pages/                 # Routed pages (per-persona dashboards, marketplace, landing)
 ├── supabase/
-│   ├── functions/           # Edge Functions (API endpoints, emailers)
-│   └── migrations/          # PostgreSQL database schema migrations
-├── tailwind.config.ts       # Design tokens, color system, and layout themes
-└── vite.config.ts           # Bundler build config and Rollup code split definitions
+│   ├── functions/            # Edge Functions (API endpoints, cron jobs, emailers)
+│   └── migrations/           # PostgreSQL schema migrations
+├── e2e/                      # Playwright end-to-end tests
+├── SYSTEM_CONTEXT.md         # Canonical architecture reference (start here)
+├── tailwind.config.ts        # Design tokens, color system, layout themes
+└── vite.config.ts            # Bundler build config and code-split definitions
 ```
 
 ---
@@ -75,8 +80,8 @@ The platform is engineered as a secure, responsive serverless web application op
 ### Installation & Startup
 ```bash
 # 1. Clone this repository
-git clone https://github.com/Joshwanda17/rentflow.git
-cd rentflow
+git clone https://github.com/weliletenants-sys/welilereceipts-com-98bba33b.git
+cd welilereceipts-com-98bba33b
 
 # 2. Install dependencies
 npm install
@@ -86,43 +91,22 @@ npm run dev
 ```
 The application will launch on [http://localhost:8080](http://localhost:8080).
 
----
+### Build
 
-## 🔄 Rebrand & Sync Workflow
-
-This codebase is managed upstream via Lovable (configured for the legacy domain `welile.tech`), but builds and deploys in production under the domain `welile.tech` (`rentflow`).
-
-To make sure updates are synchronized seamlessly without breaking domain references, the project uses a post-merge git automation.
-
-### Sync Pipeline
-
-```
-┌──────────────┐     sync     ┌──────────────────┐    rebrand     ┌─────────────────┐
-│   Lovable    │ ──────────── │  Local Workspace │ ─────────────  │  RentFlow Repo  │
-│  (upstream)  │  git pull    │ (welile.tech)  │ commit & push  │  (welile.tech)  │
-└──────────────┘              └──────────────────┘                └─────────────────┘
-```
-
-1. **Automatic Sync:** When you run `git pull origin lovable`, the git post-merge hook (`.git/hooks/post-merge`) fires.
-2. **Global Replacement:** The hook executes the rebrand pipeline, replacing all instances of `welile.tech` with `welile.tech` across indexable routes, SEO meta tags, email templates, and manifests.
-3. **Automated Commit:** All modified files are committed and force-pushed to the production repository (`rentflow`).
-4. **Local Reset:** The local workspace is reset back to the default `origin/lovable` state to avoid merge conflicts on subsequent syncs.
-
-*Manual Trigger:*
 ```bash
-node "C:\Users\USER\Documents\welile-tools\sync-rebrand-push.mjs"
+npm run build      # runs build-time guards, generates the sitemap, builds, and verifies dist/
+npm run guard:all   # run all build-time guards on demand
+npm run test:e2e    # Playwright end-to-end tests
 ```
 
 ---
 
-## 🚀 Netlify Deployment Configuration
+## 🌐 Deployment
 
-The production application is continuously deployed to Netlify:
+The production app is a static SPA served through the Lovable proxy (`no-cache` on `index.html`); Edge Functions and database migrations deploy independently of the frontend build. Required environment variables:
 
-* **Build Command:** `npm run build`
-* **Publish Directory:** `dist`
-* **Production Environment Variables Required:**
-  * `VITE_SUPABASE_URL`
-  * `VITE_SUPABASE_PUBLISHABLE_KEY`
-  * `VITE_SUPABASE_PROJECT_ID`
-  * `VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY`
+* `VITE_SUPABASE_URL`
+* `VITE_SUPABASE_PUBLISHABLE_KEY`
+* `VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY`
+
+The canonical public domain is `welile.tech`. `scripts/guard-legacy-domain.mjs` fails the build if any shipping file references a legacy domain (see `scripts/site-domains.mjs`).
