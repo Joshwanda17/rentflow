@@ -47,16 +47,6 @@ const CATEGORIES = [
   { value: 'shop', label: 'Shop' },
 ];
 
-// Daily-rate quick chips (UGX). Rent on Welile is quoted per day, so we express
-// price ranges as daily rates. Monthly equivalents are ~ daily × 30.
-const PRICE_CHIPS: { label: string; min?: number; max?: number }[] = [
-  { label: 'Any price' },
-  { label: 'Under 3k/day', max: 3000 },
-  { label: '3k – 5k/day', min: 3000, max: 5000 },
-  { label: '5k – 10k/day', min: 5000, max: 10000 },
-  { label: '10k – 20k/day', min: 10000, max: 20000 },
-  { label: '20k+/day', min: 20000 },
-];
 
 const SORT_OPTIONS = [
   { value: 'newest', label: 'Newest first' },
@@ -569,21 +559,6 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
           {/* Price range (daily rate) — quick chips + custom min/max */}
           <div className="space-y-1.5">
             <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Daily rent</p>
-            <div className="flex flex-wrap gap-1.5">
-              {PRICE_CHIPS.map(chip => {
-                const active = (chip.min || undefined) === minPrice && (chip.max || undefined) === maxPrice;
-                return (
-                  <button
-                    key={chip.label}
-                    type="button"
-                    onClick={() => { setMinPrice(chip.min); setMaxPrice(chip.max); }}
-                    className={`px-2.5 py-1 rounded-full border text-[11px] font-medium transition ${active ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border text-foreground hover:bg-muted'}`}
-                  >
-                    {chip.label}
-                  </button>
-                );
-              })}
-            </div>
             <div className="flex gap-2">
               <Input
                 type="number"
