@@ -9,6 +9,8 @@ import { Search } from 'lucide-react';
 import RoleSwitcher from '@/components/RoleSwitcher';
 import { SidebarSkeleton, TopBarSkeleton } from '@/components/skeletons/SectionSkeletons';
 import { executiveSidebarConfig, roleLabels, roleDashboardRoutes } from './executiveSidebarConfig';
+import { PARTNER_OPS_ATTENTION_ITEM_IDS } from './executiveSidebarConfig';
+import { useQuery } from '@tanstack/react-query';
 import type { SidebarSection, SidebarItem } from './executiveSidebarConfig';
 import { useStaffPermissions } from '@/hooks/useStaffPermissions';
 import { GlossaryButton } from '@/components/shared/GlossaryButton';
@@ -44,6 +46,31 @@ export default function ExecutiveDashboardLayout({
   const [checkingProfile, setCheckingProfile] = useState(true);
   const [navQuery, setNavQuery] = useState('');
   const loggedRef = useRef(false);
+
+  /**
+   * Partner Ops attention indicator. One call per layout mount for the current
+   * month. If the caller's role means the RPC returns nothing (or errors), the
+   * count stays 0 and the sidebar renders exactly as before — no error state.
+   */
+  const partnerOpsMonth = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+  })();
+  const { data: partnerOpsRedCount = 0 } = useQuery({
+    queryKey: ['sidebar-partner-ops-red', partnerOpsMonth],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('partner_ops_scoreboard', {
+        p_month: partnerOpsMonth,
+      });
+      if (error) return 0;
+      const rows = (data || []) as Array<{ state?: string }>;
+      return rows.filter((r) => r?.state === 'red').length;
+    },
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+  const hasPartnerOpsAlert = (itemId: string) =>
+    partnerOpsRedCount > 0 && PARTNER_OPS_ATTENTION_ITEM_IDS.includes(itemId);
 
   useEffect(() => {
     if (!user) { setCheckingProfile(false); return; }
@@ -277,8 +304,22 @@ export default function ExecutiveDashboardLayout({
                     )}
                     style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
                   >
+                    {hasPartnerOpsAlert(item.id) && (
+                      <span
+                        aria-hidden="true"
+                        className="-ml-2 mr-0 w-1 self-stretch shrink-0 rounded-full bg-destructive"
+                      />
+                    )}
                     <item.icon className="h-4 w-4 shrink-0" />
                     <span className="truncate">{item.label}</span>
+                    {hasPartnerOpsAlert(item.id) && (
+                      <span
+                        title={`${partnerOpsRedCount} lead${partnerOpsRedCount === 1 ? '' : 's'} off track`}
+                        className="ml-auto shrink-0 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold leading-none"
+                      >
+                        {partnerOpsRedCount > 99 ? '99+' : partnerOpsRedCount}
+                      </span>
+                    )}
                     {badges && badges[item.id] > 0 && (
                       <span className="ml-auto shrink-0 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold leading-none">
                         {badges[item.id] > 99 ? '99+' : badges[item.id]}
