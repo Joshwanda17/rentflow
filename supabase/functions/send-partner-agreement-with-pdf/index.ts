@@ -431,6 +431,12 @@ Deno.serve(async (req) => {
     const overrideEmail = typeof body?.overrideEmail === 'string' && body.overrideEmail.trim()
       ? String(body.overrideEmail).trim()
       : null
+    // Optional: issue the agreement for ONE specific portfolio. partner_agreements
+    // stores a single row per partner, so a partner with several portfolios would
+    // otherwise always get the amount of whichever portfolio was completed first.
+    const portfolioId = typeof body?.portfolioId === 'string' && body.portfolioId.trim()
+      ? String(body.portfolioId).trim()
+      : null
     if (!partnerId) return json({ error: 'partnerId is required' }, 400)
 
     const { data: row, error: rowErr } = await admin
@@ -441,12 +447,38 @@ Deno.serve(async (req) => {
     if (rowErr) return json({ error: rowErr.message }, 500)
     if (!row) return json({ error: 'Agreement not found for partner' }, 404)
 
-    const amountNum = Math.max(0, Math.floor(Number(row.partnership_amount) || 0))
-    const reference = row.reference || `PA-${partnerId.slice(0, 8).toUpperCase()}`
+    const baseReference = row.reference || `PA-${partnerId.slice(0, 8).toUpperCase()}`
+    let amountNum = Math.max(0, Math.floor(Number(row.partnership_amount) || 0))
+    let reference = baseReference
+    let scopedPortfolio: { portfolio_code: string; roi_percentage: number | null } | null = null
+
+    if (portfolioId) {
+      const { data: scoped, error: scopedErr } = await admin
+        .from('investor_portfolios')
+        .select('id, investor_id, portfolio_code, investment_amount, roi_percentage')
+        .eq('id', portfolioId)
+        .maybeSingle()
+      if (scopedErr) return json({ error: scopedErr.message }, 500)
+      if (!scoped) return json({ error: 'Portfolio not found' }, 404)
+      if (scoped.investor_id !== partnerId) {
+        return json({ error: 'Portfolio does not belong to this partner' }, 400)
+      }
+      amountNum = Math.max(0, Math.floor(Number(scoped.investment_amount) || 0))
+      reference = `${baseReference}-${scoped.portfolio_code}`
+      scopedPortfolio = {
+        portfolio_code: scoped.portfolio_code,
+        roi_percentage: scoped.roi_percentage === null ? null : Number(scoped.roi_percentage),
+      }
+    }
 
     // Resolve real ROI% from the newest portfolio if available.
     let monthlyReturnLabel = '15%'
-    try {
+    if (scopedPortfolio) {
+      const pct = Number(scopedPortfolio.roi_percentage)
+      if (Number.isFinite(pct) && pct > 0) {
+        monthlyReturnLabel = `${Number.isInteger(pct) ? pct : pct.toFixed(2).replace(/\.?0+$/, '')}%`
+      }
+    } else try {
       const { data: portfolio } = await admin
         .from('investor_portfolios')
         .select('roi_percentage, created_at, status')
@@ -473,7 +505,9 @@ Deno.serve(async (req) => {
       partnerPhone: row.phone || '',
       partnerEmail: row.email || '',
       partnershipAmount: amountNum,
-      partnershipAmountWords: row.partnership_amount_words || numberToWords(amountNum),
+      partnershipAmountWords: portfolioId
+        ? numberToWords(amountNum)
+        : (row.partnership_amount_words || numberToWords(amountNum)),
       monthlyReturnLabel,
       bankName: row.bank_name || '',
       bankAccountName: row.bank_account_name || '',
@@ -497,11 +531,15 @@ Deno.serve(async (req) => {
       .createSignedUrl(objectPath, 60 * 60 * 24 * 365)
     const signedUrl = signed?.signedUrl || null
 
-    // Update the row so future resends via the standard flow work.
-    await admin
-      .from('partner_agreements')
-      .update({ generated_pdf_path: objectPath })
-      .eq('id', row.id)
+    // Update the row so future resends via the standard flow work. Skip this for
+    // a portfolio-scoped issue — that PDF is an addendum for one portfolio and
+    // must not replace the partner's master agreement document.
+    if (!portfolioId) {
+      await admin
+        .from('partner_agreements')
+        .update({ generated_pdf_path: objectPath })
+        .eq('id', row.id)
+    }
 
     // Prepare email HTML using the existing React template (so the button links
     // to the signed URL). Send via Mailgun DIRECT with the PDF attached.
@@ -514,7 +552,9 @@ Deno.serve(async (req) => {
       partner_email: row.email || '',
       partner_reference: reference,
       partnership_amount: `UGX ${amountNum.toLocaleString('en-US')}`,
-      partnership_amount_words: row.partnership_amount_words || numberToWords(amountNum),
+      partnership_amount_words: portfolioId
+        ? numberToWords(amountNum)
+        : (row.partnership_amount_words || numberToWords(amountNum)),
       monthly_return: monthlyReturnLabel,
       payout_summary: payoutSummary,
       agreement_download_url: signedUrl || 'https://welile.tech',
@@ -544,6 +584,7 @@ Deno.serve(async (req) => {
         override_email: overrideEmail || null,
         signed_url: signedUrl,
         pdf_object_path: objectPath,
+        portfolio_id: portfolioId,
       },
     })
 
@@ -573,6 +614,7 @@ Deno.serve(async (req) => {
           override_email: overrideEmail || null,
           signed_url: signedUrl,
           pdf_object_path: objectPath,
+          portfolio_id: portfolioId,
         },
       })
     } catch (error) {
