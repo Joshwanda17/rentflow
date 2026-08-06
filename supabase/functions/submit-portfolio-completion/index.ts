@@ -190,6 +190,40 @@ Deno.serve(async (req) => {
       console.warn("[submit-portfolio-completion] Agreement persist failed (non-blocking):", (e as Error)?.message);
     }
 
+    // Stamp the payout destination onto THIS portfolio row. partner_agreements
+    // holds one row per partner, so it cannot represent a partner who runs
+    // several portfolios with different payout destinations. Writing the
+    // details onto investor_portfolios keeps each portfolio self-describing
+    // for ROI payout and Ops review.
+    try {
+      const portfolioPayout: Record<string, unknown> = {};
+      if (payoutMode === 'bank' && bankName && bankAccountNumber) {
+        portfolioPayout.payment_method = 'bank_transfer';
+        portfolioPayout.bank_name = bankName;
+        portfolioPayout.account_number = bankAccountNumber;
+        if (bankAccountName) {
+          portfolioPayout.account_name = bankAccountName;
+          portfolioPayout.bank_account_name = bankAccountName;
+        }
+      } else if (payoutMode === 'momo' && momoNumber) {
+        portfolioPayout.payment_method = 'mobile_money';
+        portfolioPayout.mobile_money_number = momoNumber;
+        if (momoProvider) portfolioPayout.mobile_network = momoProvider;
+        if (momoName) portfolioPayout.account_name = momoName;
+      }
+      if (Object.keys(portfolioPayout).length > 0) {
+        const { error: payoutErr } = await admin
+          .from("investor_portfolios")
+          .update(portfolioPayout)
+          .eq("id", portfolioId);
+        if (payoutErr) {
+          console.warn("[submit-portfolio-completion] Portfolio payout stamp failed (non-blocking):", payoutErr.message);
+        }
+      }
+    } catch (e) {
+      console.warn("[submit-portfolio-completion] Portfolio payout stamp threw (non-blocking):", (e as Error)?.message);
+    }
+
     // Save/refresh the partner's default payout method so future ROI payouts
     // route without an Ops fill-in.
     if (payoutMode === 'bank' && bankName && bankAccountNumber) {
