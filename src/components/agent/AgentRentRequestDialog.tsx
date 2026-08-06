@@ -4239,17 +4239,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   </div>
                 </div>
 
-                {/* Bonus — always visible, simple words */}
-                <div className="rounded-2xl border border-success/30 bg-success/10 p-3 flex items-center gap-3">
-                  <div className="h-11 w-11 rounded-full bg-success/20 flex items-center justify-center text-2xl shrink-0">💰</div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-extrabold text-success leading-tight">Earn UGX 5,000</p>
-                    <p className="text-[11px] text-success/90 leading-snug">
-                      Add a new landlord and list their house. Paid when a tenant moves in.
-                    </p>
-                  </div>
-                </div>
-
+                {/* Bonus promo removed — keeps the agent focused on the listing. */}
                 {/* ── Sticky quick-switch bar ── */}
                 <div className="sticky top-0 z-20 -mx-1 px-1 py-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
                   {!selectedLandlord ? (
