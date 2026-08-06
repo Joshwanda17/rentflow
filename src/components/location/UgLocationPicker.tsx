@@ -66,8 +66,8 @@ export function UgLocationPicker({
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              onFocus={() => setFocused(true)}
-              onBlur={() => setTimeout(() => setFocused(false), 150)}
+              
+              
               placeholder="Type the village name e.g. Kansanga, Bwaise…"
               className={`h-11 pl-8 pr-8 text-base ${error ? 'border-destructive border-2' : ''}`}
             />
@@ -92,7 +92,7 @@ export function UgLocationPicker({
                       key={hit.villageId}
                       type="button"
                       onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => { onChange(hit); setQuery(''); setFocused(false); }}
+                      onClick={() => { onChange(hit); setQuery(""); }}
                       className="flex w-full items-start gap-2 px-3 py-2.5 text-left hover:bg-muted/60"
                     >
                       <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
