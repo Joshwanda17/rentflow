@@ -30,6 +30,8 @@ interface Props {
   required?: boolean;
   error?: string | null;
   className?: string;
+  /** When set, village search is limited to villages inside this district. */
+  districtName?: string | null;
 }
 
 function LevelSelect({
@@ -65,7 +67,7 @@ function LevelSelect({
 }
 
 export function UgLocationPicker({
-  value, onChange, label = 'Official location', required, error, className,
+  value, onChange, label = 'Official location', required, error, className, districtName,
 }: Props) {
   const [query, setQuery] = useState('');
   const [focused, setFocused] = useState(false);
@@ -82,7 +84,16 @@ export function UgLocationPicker({
   const subcounties = useUgSubcounties(countyId);
   const parishes = useUgParishes(subcountyId);
   const villages = useUgVillages(parishId);
-  const search = useUgVillageSearch(query);
+  // The village search is always relative to the district in play: the one
+  // picked in the cascade wins, otherwise the district typed in the form.
+  const scopeDistrictName = (districtName ?? '').trim();
+  const search = useUgVillageSearch(query, 20, {
+    districtId: districtId,
+    districtName: districtId == null ? scopeDistrictName : null,
+  });
+  const activeScopeLabel = districtId != null
+    ? (districts.data?.find((d) => d.id === districtId)?.name ?? '')
+    : scopeDistrictName;
 
   const names = {
     district: districts.data?.find((d) => d.id === districtId)?.name ?? '',
@@ -146,7 +157,9 @@ export function UgLocationPicker({
               <div className="absolute z-50 mt-1 max-h-56 w-full overflow-y-auto overscroll-contain rounded-lg border border-border bg-popover shadow-lg [-webkit-overflow-scrolling:touch]">
                 {(search.data ?? []).length === 0 ? (
                   <p className="px-3 py-3 text-xs text-muted-foreground">
-                    No village matched. Use the official list below instead.
+                    {activeScopeLabel
+                      ? `No village matched in ${activeScopeLabel} district. Check the district, or use the official list below.`
+                      : 'No village matched. Use the official list below instead.'}
                   </p>
                 ) : (
                   (search.data ?? []).map((hit) => (
@@ -171,6 +184,11 @@ export function UgLocationPicker({
           {search.isError && (
             <p className="text-[11px] text-destructive">
               Could not search locations: {(search.error as Error).message}
+            </p>
+          )}
+          {activeScopeLabel && (
+            <p className="text-[11px] text-muted-foreground">
+              Searching villages in <span className="font-medium text-foreground">{activeScopeLabel}</span> district only.
             </p>
           )}
 
