@@ -201,6 +201,7 @@ export function CEODashboard() {
       <FunderFunnelPanel />
 
       <SupervisionSections />
+      {activeTab === 'supervision' && <SupervisionSections />}
 
       {/* Growth Metrics */}
       <div className="rounded-2xl border border-border bg-card p-3 sm:p-4">
