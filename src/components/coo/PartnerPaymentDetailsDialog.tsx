@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/components/ui/sonner';
-import { Loader2, Save, Wallet } from 'lucide-react';
+import { Loader2, Save, Wallet, FileText } from 'lucide-react';
 
 interface PortfolioRow {
   id: string;
@@ -41,6 +41,8 @@ export default function PartnerPaymentDetailsDialog({ open, onOpenChange, partne
   const [bankName, setBankName] = useState('');
   const [bankAccName, setBankAccName] = useState('');
   const [bankAccNumber, setBankAccNumber] = useState('');
+  const [sending, setSending] = useState(false);
+  const [previewEmail, setPreviewEmail] = useState('');
 
   useEffect(() => {
     if (!open || !portfolio) return;
@@ -52,6 +54,28 @@ export default function PartnerPaymentDetailsDialog({ open, onOpenChange, partne
     setBankAccName(portfolio.bank_account_name || '');
     setBankAccNumber(portfolio.account_number || '');
   }, [open, portfolio]);
+
+  const handleSendAgreement = async () => {
+    setSending(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-partner-agreement-with-pdf', {
+        body: {
+          partnerId,
+          portfolioId: portfolio.id,
+          ...(previewEmail.trim() ? { overrideEmail: previewEmail.trim() } : {}),
+        },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      toast.success('Agreement sent', {
+        description: `${portfolio.portfolio_code || 'Portfolio'} → ${(data as any)?.recipient || previewEmail.trim() || 'partner'}`,
+      });
+    } catch (e: any) {
+      toast.error('Could not send agreement', { description: e.message });
+    } finally {
+      setSending(false);
+    }
+  };
 
   const handleSave = async () => {
     if (mode === 'mobile_money' && !momoNumber.trim()) {
@@ -167,6 +191,26 @@ export default function PartnerPaymentDetailsDialog({ open, onOpenChange, partne
               </div>
             </>
           )}
+        </div>
+
+        <div className="rounded-md border border-border p-3 space-y-2">
+          <Label className="text-xs flex items-center gap-1.5">
+            <FileText className="h-3.5 w-3.5 text-primary" />
+            Partnership agreement for this portfolio
+          </Label>
+          <p className="text-[10px] text-muted-foreground">
+            Regenerates the signed PDF using this portfolio's own amount, returns rate and code — it never overwrites the partner's other agreements.
+          </p>
+          <Input
+            value={previewEmail}
+            onChange={e => setPreviewEmail(e.target.value)}
+            placeholder="Preview email (optional) — leave blank to send to the partner"
+            inputMode="email"
+          />
+          <Button variant="secondary" size="sm" onClick={handleSendAgreement} disabled={sending} className="gap-1.5 w-full">
+            {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+            Send agreement
+          </Button>
         </div>
 
         <DialogFooter>
