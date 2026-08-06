@@ -15,6 +15,8 @@ import { FunderFunnelPanel } from './FunderFunnelPanel';
 import { SupervisionSections } from './SupervisionSections';
 
 export function CEODashboard() {
+  const [searchParams] = useSearchParams();
+  const activeTab = searchParams.get('section') || '';
   const { data: profiles, isLoading: loadingProfiles } = useQuery({
     queryKey: ['exec-profiles-count'],
     queryFn: async () => {
