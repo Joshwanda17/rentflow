@@ -126,15 +126,18 @@ export function AgentTenantCollectDialog({
   }, [open]);
 
   const maxAllowable = Math.max(0, Math.min(outstandingBalance, floatBalance));
-  const canAllocate = floatBalance >= 100 && outstandingBalance >= 100;
-  const isValid = amount >= 100 && amount <= maxAllowable;
+  // Final-settlement rule: normally UGX 100 minimum, but when the tenant owes
+  // less than 100 the agent must still be able to clear the last shillings.
+  const minAllowed = outstandingBalance > 0 ? Math.min(100, outstandingBalance) : 100;
+  const canAllocate = floatBalance >= minAllowed && outstandingBalance >= minAllowed && outstandingBalance > 0;
+  const isValid = amount >= minAllowed && amount <= maxAllowable;
 
   // Auto-suggest amount when dialog opens and float is available
   useEffect(() => {
-    if (open && amount === 0 && maxAllowable >= 100) {
+    if (open && amount === 0 && maxAllowable >= minAllowed) {
       setAmount(maxAllowable);
     }
-  }, [open, maxAllowable]);
+  }, [open, maxAllowable, minAllowed]);
 
   const handleAllocate = async () => {
     // Defensive logging — previously this handler appeared to "fail
