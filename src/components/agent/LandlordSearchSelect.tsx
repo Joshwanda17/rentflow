@@ -421,7 +421,11 @@ export function LandlordSearchSelect({
   const isTyping = panelOpen && query.trim().length > 0 && query.trim() !== debounced;
   // Unified "working" flag: either debouncing the latest keystroke or fetching.
   const busy = loading || isTyping;
-  const isSearchEmpty = !busy && results.length === 0 && debounced.length > 0;
+  // Below MIN_QUERY_CHARS nothing has been searched yet, so neither the
+  // "no landlords in the system" nor the "no match" state applies.
+  const needsMoreChars = query.trim().length < MIN_QUERY_CHARS;
+  const isSearchEmpty =
+    !busy && !needsMoreChars && results.length === 0 && debounced.length >= MIN_QUERY_CHARS;
 
   // Compose a location subtitle from the most specific available fields.
   const locationLine = (l: LandlordOption) =>
