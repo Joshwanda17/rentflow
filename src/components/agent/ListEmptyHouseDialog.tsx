@@ -1085,16 +1085,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       failWith('Monthly rent must be at least UGX 10,000');
       return;
     }
-    if (!form.region) {
-      failWith('Please select a region');
-      return;
-    }
-    if (!form.address.trim()) {
-      failWith('Address is required');
-      return;
-    }
-    if (!form.village.trim()) {
-      failWith('Village / Zone is required');
+    if (!ugLoc) {
+      failWith('Search and select the village where the house is located');
       return;
     }
     if (images.length < 3) {
