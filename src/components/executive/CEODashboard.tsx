@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from './KPICard';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
@@ -14,6 +15,8 @@ import { FunderFunnelPanel } from './FunderFunnelPanel';
 import { SupervisionSections } from './SupervisionSections';
 
 export function CEODashboard() {
+  const [searchParams] = useSearchParams();
+  const activeTab = searchParams.get('section') || '';
   const { data: profiles, isLoading: loadingProfiles } = useQuery({
     queryKey: ['exec-profiles-count'],
     queryFn: async () => {
@@ -198,6 +201,7 @@ export function CEODashboard() {
       <FunderFunnelPanel />
 
       <SupervisionSections />
+      {activeTab === 'supervision' && <SupervisionSections />}
 
       {/* Growth Metrics */}
       <div className="rounded-2xl border border-border bg-card p-3 sm:p-4">
