@@ -55,6 +55,8 @@ import { CreditRequestsFeed } from '@/components/supporter/CreditRequestsFeed';
 import { InvestmentPackageSheet } from '@/components/supporter/InvestmentPackageSheet';
 // FundingPoolCard removed from direct import
 import { FunderCapitalOpportunities } from '@/components/supporter/FunderCapitalOpportunities';
+import { SupportedTenantsSection } from '@/components/supporter/SupportedTenantsSection';
+import { useSupportedTenants } from '@/hooks/useSupportedTenants';
 
 import { InvestmentAccountsDrawer } from '@/components/supporter/InvestmentAccountsDrawer';
 import { FunderApprovalBanner } from '@/components/supporter/FunderApprovalGate';
@@ -100,6 +102,7 @@ export default function SupporterDashboard({
   const displayFullName = profile?.full_name?.trim() || metaFullName || emailLocal;
   const displayFirstName = displayFullName ? displayFullName.split(' ')[0] : (profileLoading ? '' : 'Supporter');
   const { isOnline } = useOffline();
+  const { count: supportedTenantCount } = useSupportedTenants();
   const [loading, setLoading] = useState(false);
   const [hasCachedData, setHasCachedData] = useState(() => {
     try { return !!localStorage.getItem(`supporter_houses_${user.id}`); } catch { return false; }
@@ -490,12 +493,13 @@ export default function SupporterDashboard({
               role="supporter"
               secondaryLabel="Invested"
               secondaryValue={_formatUGX(totalRentContributed)}
-              houses={virtualHouses.length}
+              houses={supportedTenantCount}
+              housesLabel="Tenants"
               returnPerMonth={_formatUGX(totalRoiEarned)}
               deployed={_formatUGX(totalRentContributed)}
               onOpenWallet={() => setShowWallet(true)}
               onHousesTap={() => {
-                const el = document.getElementById('my-houses');
+                const el = document.getElementById('supported-tenants');
                 if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
               }}
               onReturnTap={() => {
@@ -522,6 +526,11 @@ export default function SupporterDashboard({
           )}
 
           <VerificationChecklist userId={user.id} highlightRole="supporter" compact />
+
+          {/* ═══ TENANTS YOU SUPPORT ═══ */}
+          <WidgetErrorBoundary label="Tenants you support">
+            <SupportedTenantsSection />
+          </WidgetErrorBoundary>
 
 
           {/* ═══ QUICK ACTIONS — Pill Style ═══ */}

@@ -64,8 +64,8 @@ export function FundRentDialog({ open, onOpenChange, summary }: FundRentDialogPr
       window.dispatchEvent(new CustomEvent('supporter-contribution-changed'));
 
       toast({
-        title: '🎉 Funds transferred!',
-        description: `${formatUGX(amountNum)} sent to Rent Management Pool.`,
+        title: 'Submitted for approval',
+        description: `${formatUGX(amountNum)} committed. Partner Operations will review it — your money stays in your wallet until the portfolio is approved.`,
       });
     } catch (err: any) {
       console.error('[FundRentDialog] Fund error:', err);

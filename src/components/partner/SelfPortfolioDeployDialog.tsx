@@ -141,7 +141,9 @@ export function SelfPortfolioDeployDialog({
           p_term_months: 1,
         });
         if (error) throw error;
-        toast.success('New monthly portfolio deployed and earning from today.');
+        toast.success('Portfolio submitted for approval', {
+          description: `Partner Operations will review it. Your ${formatDynamic(total)} stays in your wallet until the portfolio is approved.`,
+        });
       }
 
       onOpenChange(false);
@@ -153,6 +155,10 @@ export function SelfPortfolioDeployDialog({
         setChoice('new');
         await loadEligibility();
         toast.error(raw.replace(/^.*PSM_TOPUP_WINDOW_CLOSED:\s*/, ''));
+      } else if (raw.includes('AGREEMENT_REQUIRED')) {
+        toast.error('Sign your partner agreement first', {
+          description: 'A signed partnership agreement is required before you can create a portfolio.',
+        });
       } else {
         toast.error(raw);
       }

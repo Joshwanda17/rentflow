@@ -56,6 +56,8 @@ import PartnerImportDialog from './PartnerImportDialog';
 import UpdateContributionDatesDialog from './UpdateContributionDatesDialog';
 import PartnerPaymentDetailsDialog from './PartnerPaymentDetailsDialog';
 import { PortfolioTopUpsCard } from './PortfolioTopUpsCard';
+import { PendingPortfoliosCard } from '@/components/executive/PendingPortfoliosCard';
+import { PendingPortfoliosQueue } from '@/components/executive/PendingPortfoliosQueue';
 
 
 /** Roll a stale next_roi_date forward month-by-month until it's >= today */
@@ -479,6 +481,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   const [nearingPayoutsOpen, setNearingPayoutsOpen] = useState(false);
   const [allPortfoliosForPayout, setAllPortfoliosForPayout] = useState<NearingPayoutPortfolio[]>([]);
   const [expiringPortfoliosOpen, setExpiringPortfoliosOpen] = useState(false);
+  const [pendingPortfoliosOpen, setPendingPortfoliosOpen] = useState(false);
   const [editPortfolioDuration, setEditPortfolioDuration] = useState('');
   const [editPortfolioStatus, setEditPortfolioStatus] = useState('');
   const [editPortfolioDate, setEditPortfolioDate] = useState('');
@@ -2369,8 +2372,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
           <SummaryCard icon={<Users className="h-4 w-4" />} label="Total Partners" value={summary.totalPartners}
             sub={`${summary.activePartners} active · ${summary.suspendedPartners} suspended`} accent="primary" />
-          <SummaryCard icon={<Banknote className="h-4 w-4" />} label="Total Funded" value={formatUGX(summary.totalFunded)}
-            sub={`${summary.totalDeals} deals completed`} accent="emerald" />
+          <PendingPortfoliosCard onClick={() => setPendingPortfoliosOpen(true)} />
           <SummaryCard icon={<Wallet className="h-4 w-4" />} label="Wallet Balances" value={formatUGX(summary.totalWalletBalance)}
             sub="Across all partner wallets · tap to view" accent="amber"
             onClick={() => { setWalletBalancesSearch(''); setWalletBalancesOpen(true); }} />
@@ -4106,6 +4108,14 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
 
       {/* Expiring Portfolios Dialog */}
       <ExpiringPortfoliosDialog open={expiringPortfoliosOpen} onOpenChange={setExpiringPortfoliosOpen} portfolios={allPortfoliosForPayout} />
+      <Dialog open={pendingPortfoliosOpen} onOpenChange={setPendingPortfoliosOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Pending portfolios</DialogTitle>
+          </DialogHeader>
+          <PendingPortfoliosQueue />
+        </DialogContent>
+      </Dialog>
 
       {/* Merge Pending Top-Ups Dialog */}
       <Dialog open={!!mergeDialogPortfolioId} onOpenChange={(open) => { if (!open) { setMergeDialogPortfolioId(null); setMergeReason(''); } }}>
