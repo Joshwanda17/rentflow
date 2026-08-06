@@ -27,6 +27,7 @@ import { ShareSupporterRecruit } from '@/components/shared/ShareSupporterRecruit
 import { PartnerFinancialActivity } from './PartnerFinancialActivity';
 import { PendingFunderApprovals } from './PendingFunderApprovals';
 import { PromissoryNotesQueue } from './PromissoryNotesQueue';
+import { PartnerOpsScoreboard } from './PartnerOpsScoreboard';
 import { NewPartnersPanel } from './NewPartnersPanel';
 import { PendingPartnerRequests } from './PendingPartnerRequests';
 import { ProxyAgentManager } from '@/components/cfo/ProxyAgentManager';
@@ -203,7 +204,12 @@ export function PartnersOpsDashboard() {
         </div>
       );
       case 'activity': return <PartnerFinancialActivity />;
-      case 'promissory': return <PromissoryNotesQueue />;
+      case 'promissory': return (
+        <div className="space-y-6">
+          <PartnerOpsScoreboard />
+          <PromissoryNotesQueue />
+        </div>
+      );
       case 'maturity': return <MaturityRequestsQueue />;
       case 'renewals': return <PortfolioRenewalsPanel />;
       case 'withdrawals': return (
