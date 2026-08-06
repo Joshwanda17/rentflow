@@ -2267,77 +2267,14 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               )}
             </div>
 
-            {/* Search & choose a specific location — auto-fills region/district/village */}
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                value={locQuery}
-                onChange={(e) => setLocQuery(e.target.value)}
-                onFocus={() => setLocFocused(true)}
-                onBlur={() => setTimeout(() => setLocFocused(false), 150)}
-                placeholder="Search a place e.g. Bwaise, Ntinda, Nateete…"
-                className="h-11 pl-8 pr-8 text-base"
-              />
-              {locQuery && (
-                <button
-                  type="button"
-                  onClick={() => setLocQuery('')}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  aria-label="Clear search"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-              {locFocused && locQuery.trim().length >= 2 && (() => {
-                const q = locQuery.trim().toLowerCase();
-                const matches = LOCATION_OPTIONS
-                  .filter((o) => o.label.toLowerCase().includes(q))
-                  .slice(0, 8);
-                return (
-                  <div className="mt-1 w-full max-h-48 overflow-y-auto overscroll-contain rounded-lg border border-border bg-popover shadow-lg [-webkit-overflow-scrolling:touch]">
-                    {matches.length === 0 ? (
-                      <p className="px-3 py-3 text-xs text-muted-foreground">
-                        No match — just type the area below to add a new location.
-                      </p>
-                    ) : (
-                      matches.map((o) => (
-                        <button
-                          key={o.label}
-                          type="button"
-                          onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => {
-                            setForm((f) => ({
-                              ...f,
-                              region: o.region,
-                              district: o.district,
-                              village: o.area,
-                              lc1_village: o.area,
-                            }));
-                            setLocQuery('');
-                            setLocFocused(false);
-                          }}
-                          className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm hover:bg-muted/60"
-                        >
-                          <MapPin className="h-3.5 w-3.5 shrink-0 text-primary" />
-                          <span className="font-medium">{o.area}</span>
-                          <span className="ml-auto text-[11px] text-muted-foreground">{o.district}</span>
-                        </button>
-                      ))
-                    )}
-                  </div>
-                );
-              })()}
-            </div>
-            <p className="text-[11px] text-muted-foreground -mt-1">
-              Can't find it? Just type the area in the fields below to add a new location.
-            </p>
-
-            {/* Official government location list (district → county → sub-county
-                → parish → village), shared with the rent request form. */}
+            {/* Village search — the single source of truth for location.
+                Region and district are derived automatically from the selected village. */}
             <UgLocationPicker
-              label="Official village (government list)"
+              label="Village"
               value={ugLoc}
               onChange={applyUgLocation}
+              required
+              error={attempted && !ugLoc ? 'Search and select the village where the house is located' : null}
             />
 
             {/* Unique GPS pin for THIS house */}
