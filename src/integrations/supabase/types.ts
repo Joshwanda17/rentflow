@@ -35557,6 +35557,21 @@ export type Database = {
         Returns: Json
       }
       partner_ops_report_totals: { Args: never; Returns: Json }
+      partner_ops_scoreboard: {
+        Args: { p_month: string }
+        Returns: {
+          agents_attached: number
+          attainment_pct: number
+          lead_user_id: string
+          notes_approved: number
+          notes_pending: number
+          notes_rejected: number
+          override_total: number
+          pace_pct: number
+          state: string
+          target_value: number
+        }[]
+      }
       partner_self_claim_plans: {
         Args: { p_idempotency_key?: string; p_rent_request_ids: string[] }
         Returns: Json
@@ -36055,6 +36070,10 @@ export type Database = {
       }
       reverse_portfolio_renewal: {
         Args: { p_reason: string; p_renewal_id: string }
+        Returns: Json
+      }
+      reverse_promissory_note_bonus: {
+        Args: { p_note_id: string; p_reason: string }
         Returns: Json
       }
       run_email_auto_match_retry: {
