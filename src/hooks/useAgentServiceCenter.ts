@@ -138,6 +138,18 @@ export function useServiceCenterOverview() {
           full_name: row.full_name ?? row.name ?? row.phone ?? row.email ?? null,
           wallet: row.wallet ?? { withdrawable: 0, float: 0, advance: 0 },
           nested_subagents: row.nested_subagents ?? 0,
+          // The RPC emits tenants with `id`/`name`; the UI reads
+          // `tenant_id`/`tenant_name`. Normalise so tenant KPIs and lists are
+          // never blank.
+          tenant_list: (row.tenant_list ?? []).map((t) => {
+            const raw = t as ServiceCenterTenant & { id?: string | null; name?: string | null; phone?: string | null };
+            return {
+              ...raw,
+              tenant_id: raw.tenant_id ?? raw.id ?? null,
+              tenant_name: raw.tenant_name ?? raw.name ?? null,
+              tenant_phone: raw.tenant_phone ?? raw.phone ?? null,
+            };
+          }),
         };
       });
 

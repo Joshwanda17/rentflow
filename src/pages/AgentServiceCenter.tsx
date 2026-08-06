@@ -56,14 +56,39 @@ export default function AgentServiceCenter() {
     );
   }, [subAgents, query]);
 
+  // Statuses that mean a rent plan is still being vetted somewhere in the
+  // pipeline (not yet funded, not rejected/closed).
+  const PENDING_TENANT_STATUSES = [
+    'service_center_review',
+    'pending',
+    'pending_approval',
+    'under_review',
+    'submitted',
+    'agent_ops_review',
+    'tenant_ops_review',
+    'landlord_ops_review',
+    'coo_review',
+    'awaiting_funding',
+  ];
+
   const totals = useMemo(() => ({
     subAgents: subAgents.length,
-    tenants: subAgents.reduce((a, s) => a + s.active_tenants, 0),
+    tenants: subAgents.reduce((a, s) => a + Number(s.active_tenants || 0), 0),
     allTenants: subAgents.reduce((a, s) => a + Number(s.total_tenants || 0), 0),
     commissions: subAgents.reduce((a, s) => a + Number(s.commission_total || 0), 0),
     bonuses: subAgents.reduce((a, s) => a + Number(s.referral_bonus || 0), 0),
     landlords: subAgents.reduce((a, s) => a + Number(s.landlords_registered || 0), 0),
+    landlordsPending: subAgents.reduce((a, s) => a + Number(s.landlords_pending || 0), 0),
     houses: subAgents.reduce((a, s) => a + Number(s.houses_listed || 0), 0),
+    housesPending: subAgents.reduce((a, s) => a + Number(s.houses_pending || 0), 0),
+    tenantsPending: subAgents.reduce(
+      (a, s) =>
+        a +
+        (s.tenant_list ?? []).filter((t) =>
+          PENDING_TENANT_STATUSES.includes(String(t.status ?? '').toLowerCase()),
+        ).length,
+      0,
+    ),
     pending: transfers.filter((t) => t.status === 'pending').length,
   }), [subAgents, transfers]);
 
@@ -94,14 +119,15 @@ export default function AgentServiceCenter() {
             { label: 'Landlords registered', value: String(totals.landlords) },
             { label: 'Houses listed', value: String(totals.houses) },
             { label: 'Rent requests to vet', value: String(vetting?.pending_count ?? 0) },
-            { label: 'Houses pending verification', value: '—', placeholder: true },
-            { label: 'Tenants pending verification', value: '—', placeholder: true },
+            { label: 'Houses pending verification', value: String(totals.housesPending) },
+            { label: 'Landlords pending verification', value: String(totals.landlordsPending) },
+            { label: 'Tenants pending funding', value: String(totals.tenantsPending) },
             { label: 'Pending transfers', value: String(totals.pending) },
           ].map((s) => (
             <Card key={s.label}>
               <CardContent className="p-3">
                 <div className="text-[11px] text-muted-foreground">{s.label}</div>
-                <div className={cn('text-base font-bold break-words', s.placeholder ? 'text-muted-foreground' : 'text-foreground')}>
+                <div className={cn('text-base font-bold break-words', s.value === '0' ? 'text-muted-foreground' : 'text-foreground')}>
                   {s.value}
                 </div>
               </CardContent>
