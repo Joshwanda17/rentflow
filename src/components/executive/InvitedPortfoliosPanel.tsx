@@ -46,6 +46,9 @@ interface Row {
   partner_email: string | null;
   token_expires_at: string | null;
   token_consumed_at: string | null;
+  sent_count: number;
+  last_sent_at: string | null;
+  last_send_status: string | null;
 }
 
 type Filter = 'all' | InviteStatus;
@@ -76,21 +79,44 @@ export function InvitedPortfoliosPanel() {
       const partnerIds = Array.from(new Set(portfolios.map(p => p.investor_id).filter(Boolean)));
       const portfolioIds = portfolios.map(p => p.id);
 
-      const [{ data: profiles }, { data: tokens }] = await Promise.all([
+      const codes = portfolios.map(p => p.portfolio_code).filter(Boolean);
+
+      const [{ data: profiles }, { data: tokens }, { data: sendLog }] = await Promise.all([
         (supabase.from('profiles') as any)
           .select('id, full_name, phone, email')
           .in('id', partnerIds),
         (supabase.from('portfolio_completion_tokens') as any)
           .select('portfolio_id, expires_at, consumed_at')
           .in('portfolio_id', portfolioIds),
+        // Delivery history for the invite email so Ops can see which invites
+        // actually went out, how many times, and when the last one was sent.
+        (supabase.from('email_send_log') as any)
+          .select('recipient_email, status, created_at, metadata')
+          .eq('template_name', 'partner-portfolio-invite')
+          .order('created_at', { ascending: false })
+          .limit(1000),
       ]);
 
       const nameMap = new Map<string, any>((profiles || []).map((p: any) => [p.id, p]));
       const tokenMap = new Map<string, any>((tokens || []).map((t: any) => [t.portfolio_id, t]));
 
+      // Group send-log rows by portfolio code (kept in metadata.template_data).
+      const sendMap = new Map<string, { count: number; last_at: string; last_status: string }>();
+      for (const log of (sendLog || []) as any[]) {
+        const code = log?.metadata?.template_data?.portfolio_code;
+        if (!code || !codes.includes(code)) continue;
+        const existing = sendMap.get(code);
+        if (existing) {
+          existing.count += 1;
+        } else {
+          sendMap.set(code, { count: 1, last_at: log.created_at, last_status: log.status });
+        }
+      }
+
       return portfolios.map((p): Row => {
         const prof = nameMap.get(p.investor_id) || {};
         const tok = tokenMap.get(p.id) || {};
+        const send = sendMap.get(p.portfolio_code);
         return {
           id: p.id,
           portfolio_code: p.portfolio_code,
@@ -106,6 +132,9 @@ export function InvitedPortfoliosPanel() {
           partner_email: prof.email || null,
           token_expires_at: tok.expires_at || null,
           token_consumed_at: tok.consumed_at || null,
+          sent_count: send?.count || 0,
+          last_sent_at: send?.last_at || null,
+          last_send_status: send?.last_status || null,
         };
       });
     },
@@ -346,6 +375,11 @@ export function InvitedPortfoliosPanel() {
                           <MailWarning className="h-3 w-3" /> Invite expired
                         </Badge>
                       )}
+                      {row.sent_count > 0 && (
+                        <Badge variant="outline" className="text-[10px] gap-1 border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
+                          <Send className="h-3 w-3" /> Sent{row.sent_count > 1 ? ` ×${row.sent_count}` : ''}
+                        </Badge>
+                      )}
                     </div>
                   </div>
 
@@ -371,6 +405,35 @@ export function InvitedPortfoliosPanel() {
                     </div>
                   </div>
 
+                  {/* Invite delivery + link validity */}
+                  {row.status === 'awaiting_partner_details' && (
+                    <div className="rounded-md bg-muted/40 px-2.5 py-2 text-[11px] space-y-0.5">
+                      <p className="text-muted-foreground">
+                        {row.last_sent_at ? (
+                          <>
+                            Last invite sent{' '}
+                            <span className="font-semibold text-foreground" title={format(new Date(row.last_sent_at), 'PPpp')}>
+                              {formatDistanceToNow(new Date(row.last_sent_at), { addSuffix: true })}
+                            </span>
+                            {row.partner_email ? <> to <span className="font-medium text-foreground">{row.partner_email}</span></> : null}
+                            {row.last_send_status && row.last_send_status !== 'sent' ? ` · ${row.last_send_status}` : ''}
+                          </>
+                        ) : (
+                          'No invite email recorded for this portfolio yet.'
+                        )}
+                      </p>
+                      <p className={cn('font-medium', expired ? 'text-destructive' : 'text-muted-foreground')}>
+                        {row.token_consumed_at
+                          ? 'Link already used by the partner.'
+                          : row.token_expires_at
+                            ? expired
+                              ? `Link expired ${formatDistanceToNow(new Date(row.token_expires_at), { addSuffix: true })} — resend to mint a new 7-day link.`
+                              : `Link valid until ${format(new Date(row.token_expires_at), 'PPp')} (${formatDistanceToNow(new Date(row.token_expires_at), { addSuffix: true })})`
+                            : 'No completion link on file.'}
+                      </p>
+                    </div>
+                  )}
+
                   <div className="flex justify-end pt-1 border-t">
                     {row.status === 'awaiting_partner_details' && (
                       <Button
@@ -383,7 +446,7 @@ export function InvitedPortfoliosPanel() {
                         {resendingId === row.id
                           ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
                           : <Send className="h-3.5 w-3.5" />}
-                        {expired ? 'Resend new link' : 'Resend invite'}
+                        {expired ? 'Resend — new 7-day link' : 'Resend invite (new 7-day link)'}
                       </Button>
                     )}
                     <Button
