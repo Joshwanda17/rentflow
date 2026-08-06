@@ -1,7 +1,7 @@
 import { cn } from '@/lib/utils';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ClipboardCheck, Search, ShoppingBag, Store, Users } from 'lucide-react';
+import { ArrowLeft, ClipboardCheck, Route, Search, ShoppingBag, Store, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -18,6 +18,7 @@ import {
 import { SubAgentRosterCard } from '@/components/agent/service-center/SubAgentRosterCard';
 import { SubAgentDetailSheet } from '@/components/agent/service-center/SubAgentDetailSheet';
 import { ServiceCenterRentVettingQueue } from '@/components/agent/service-center/ServiceCenterRentVettingQueue';
+import { ServiceCenterPipelineTracker } from '@/components/agent/service-center/ServiceCenterPipelineTracker';
 import { useServiceCenterRentQueue } from '@/hooks/useServiceCenterRentQueue';
 import {
   SuspendSubAgentDialog,
@@ -109,12 +110,15 @@ export default function AgentServiceCenter() {
         </div>
 
         <Tabs defaultValue="team">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="team" className="text-xs sm:text-sm">
               <Users className="mr-1.5 h-4 w-4" /> Team
             </TabsTrigger>
             <TabsTrigger value="vetting" className="text-xs sm:text-sm">
               <ClipboardCheck className="mr-1.5 h-4 w-4" /> Vetting
+            </TabsTrigger>
+            <TabsTrigger value="followup" className="text-xs sm:text-sm">
+              <Route className="mr-1.5 h-4 w-4" /> Follow-up
             </TabsTrigger>
             <TabsTrigger value="transfers" className="text-xs sm:text-sm">Transfers</TabsTrigger>
             <TabsTrigger value="shop" className="text-xs sm:text-sm">
@@ -124,6 +128,10 @@ export default function AgentServiceCenter() {
 
           <TabsContent value="vetting" className="mt-3 space-y-3">
             <ServiceCenterRentVettingQueue />
+          </TabsContent>
+
+          <TabsContent value="followup" className="mt-3 space-y-3">
+            <ServiceCenterPipelineTracker />
           </TabsContent>
 
           <TabsContent value="team" className="mt-3 space-y-3">

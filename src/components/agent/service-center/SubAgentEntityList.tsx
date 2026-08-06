@@ -45,6 +45,10 @@ export interface EntityRow {
   amountValue?: number | null;
   createdAt?: string | null;
   details: { label: string; value: string }[];
+  /** Raw pipeline status used by the detailed status filter (optional). */
+  statusKey?: string | null;
+  /** Human label for statusKey, shown in the filter menu and row badge. */
+  statusLabel?: string | null;
   /** Optional photo URLs rendered as thumbnails inside the expanded row. */
   images?: string[];
   /** Optional progress bar (0-100) rendered inside the expanded row. */
@@ -65,6 +69,7 @@ export function SubAgentEntityList({
   resetKey,
   renderRowAction,
   hideHeading = false,
+  showStatusFilter = false,
 }: {
   heading: string;
   emptyLabel: string;
@@ -73,8 +78,11 @@ export function SubAgentEntityList({
   resetKey?: string;
   renderRowAction?: (row: EntityRow) => React.ReactNode;
   hideHeading?: boolean;
+  /** Adds a second dropdown filtering by the detailed `statusKey` of each row. */
+  showStatusFilter?: boolean;
 }) {
   const [filter, setFilter] = useState<'all' | ServiceCenterState>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [sort, setSort] = useState<SortKey>('newest');
   const [visible, setVisible] = useState(PAGE);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -86,6 +94,7 @@ export function SubAgentEntityList({
 
   useEffect(() => {
     setFilter('all');
+    setStatusFilter('all');
     setSort('newest');
     setVisible(PAGE);
     setOpenId(null);
@@ -98,8 +107,25 @@ export function SubAgentEntityList({
     rejected: rows.filter((r) => r.state === 'rejected').length,
   }), [rows]);
 
+  const statusOptions = useMemo(() => {
+    if (!showStatusFilter) return [] as { key: string; label: string; count: number }[];
+    const map = new Map<string, { key: string; label: string; count: number }>();
+    rows.forEach((r) => {
+      if (!r.statusKey) return;
+      const existing = map.get(r.statusKey);
+      if (existing) existing.count += 1;
+      else map.set(r.statusKey, {
+        key: r.statusKey,
+        label: r.statusLabel ?? r.statusKey.replace(/_/g, ' '),
+        count: 1,
+      });
+    });
+    return [...map.values()].sort((a, b) => b.count - a.count);
+  }, [rows, showStatusFilter]);
+
   const sorted = useMemo(() => {
-    const list = filter === 'all' ? [...rows] : rows.filter((r) => r.state === filter);
+    let list = filter === 'all' ? [...rows] : rows.filter((r) => r.state === filter);
+    if (statusFilter !== 'all') list = list.filter((r) => r.statusKey === statusFilter);
     const time = (v?: string | null) => (v ? new Date(v).getTime() || 0 : 0);
     switch (sort) {
       case 'oldest': return list.sort((a, b) => time(a.createdAt) - time(b.createdAt));
@@ -107,9 +133,9 @@ export function SubAgentEntityList({
       case 'amount': return list.sort((a, b) => (b.amountValue ?? 0) - (a.amountValue ?? 0));
       default: return list.sort((a, b) => time(b.createdAt) - time(a.createdAt));
     }
-  }, [rows, filter, sort]);
+  }, [rows, filter, statusFilter, sort]);
 
-  useEffect(() => { setVisible(PAGE); setOpenId(null); }, [filter, sort]);
+  useEffect(() => { setVisible(PAGE); setOpenId(null); }, [filter, statusFilter, sort]);
 
   const chips: ('all' | ServiceCenterState)[] = ['all', 'verified', 'pending', 'rejected'];
   const sorts: { key: SortKey; label: string }[] = [
@@ -165,6 +191,42 @@ export function SubAgentEntityList({
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
+
+            {statusOptions.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                      'h-8 min-w-0 flex-1 justify-start gap-1.5 rounded-full px-3 text-[11px] font-medium',
+                      statusFilter !== 'all' && 'border-primary/40 bg-primary/10 text-primary',
+                    )}
+                  >
+                    <span className="truncate">
+                      {statusFilter === 'all'
+                        ? 'Any stage'
+                        : statusOptions.find((s) => s.key === statusFilter)?.label ?? statusFilter}
+                    </span>
+                    <ChevronDown className="ml-auto h-3.5 w-3.5 shrink-0 opacity-60" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="max-h-[60vh] min-w-[11rem] overflow-y-auto">
+                  <DropdownMenuItem onSelect={() => setStatusFilter('all')} className="text-xs">
+                    <span className="flex-1">Any stage</span>
+                    <span className="ml-2 tabular-nums text-muted-foreground">{rows.length}</span>
+                    {statusFilter === 'all' && <Check className="ml-2 h-3.5 w-3.5 text-primary" />}
+                  </DropdownMenuItem>
+                  {statusOptions.map((s) => (
+                    <DropdownMenuItem key={s.key} onSelect={() => setStatusFilter(s.key)} className="text-xs">
+                      <span className="flex-1 capitalize">{s.label}</span>
+                      <span className="ml-2 tabular-nums text-muted-foreground">{s.count}</span>
+                      {statusFilter === s.key && <Check className="ml-2 h-3.5 w-3.5 text-primary" />}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

@@ -13,6 +13,8 @@ import { normalizeUgandaRegion } from '@/lib/ugandaDistricts';
 import { ServiceCenterState, ServiceCenterSubAgent } from '@/hooks/useAgentServiceCenter';
 import { initialsOf, tintFor } from './subAgentVisuals';
 import { EntityRow, SubAgentEntityList } from './SubAgentEntityList';
+import { ServiceCenterTenantPayments } from './ServiceCenterTenantPayments';
+import { pipelineStageLabel } from '@/lib/rentPipelineStages';
 
 const dateLabel = (v?: string | null) =>
   v
@@ -82,6 +84,8 @@ export function SubAgentDetailSheet({
     id: t.rent_request_id,
     state: tenantState(t.status, t.is_active),
     primary: t.tenant_name ?? 'Unnamed tenant',
+    statusKey: t.status,
+    statusLabel: pipelineStageLabel(t.status),
     secondary: [t.tenant_phone, t.location].filter(Boolean).join(' · ') || t.status.replace(/_/g, ' '),
     amountLabel: t.monthly_rent ? formatUGX(t.monthly_rent) : null,
     amountValue: t.monthly_rent ?? 0,
@@ -289,20 +293,25 @@ export function SubAgentDetailSheet({
                   heading="Tenants"
                   emptyLabel="No tenants linked to this sub-agent yet."
                   rows={tenantRows}
+                  showStatusFilter
                   resetKey={`${subAgent.sub_agent_id}-tenants-${open}`}
                   renderRowAction={(r) => {
                     const t = subAgent.tenant_list.find((x) => x.rent_request_id === r.id);
-                    if (!t?.is_active) return null;
                     return (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full sm:w-auto"
-                        disabled={actionsDisabled}
-                        onClick={() => onTransfer(subAgent, t.rent_request_id)}
-                      >
-                        <ArrowLeftRight className="mr-1.5 h-3.5 w-3.5" /> Transfer tenant
-                      </Button>
+                      <div className="space-y-3">
+                        <ServiceCenterTenantPayments rentRequestId={r.id} />
+                        {t?.is_active && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="w-full sm:w-auto"
+                            disabled={actionsDisabled}
+                            onClick={() => onTransfer(subAgent, t.rent_request_id)}
+                          >
+                            <ArrowLeftRight className="mr-1.5 h-3.5 w-3.5" /> Transfer tenant
+                          </Button>
+                        )}
+                      </div>
                     );
                   }}
                 />
