@@ -368,3 +368,15 @@ export const roleLabels: Record<AppRole, string> = {
   operations: 'Operations',
   super_admin: 'Super Admin',
 };
+
+/**
+ * Sidebar item ids that surface Partner Operations health. When the
+ * `partner_ops_scoreboard` RPC reports one or more leads in the `red` state,
+ * the layout paints a red left edge + count badge on these items.
+ *
+ * Purely presentational — routes, ids, access and ordering are untouched.
+ */
+export const PARTNER_OPS_ATTENTION_ITEM_IDS: string[] = [
+  'partners',
+  'reports-partner-ops',
+];
