@@ -14,6 +14,8 @@ import { listingHasRealPhoto } from '@/hooks/useHouseListings';
 import { ExistingTenantPhoneNotice } from '@/components/agent/ExistingTenantPhoneNotice';
 import { TenantDuplicateNotice } from '@/components/agent/TenantDuplicateNotice';
 import { useTenantDuplicateCheck, type TenantDuplicateMatch } from '@/hooks/useTenantDuplicateCheck';
+import { UgLocationPicker } from '@/components/location/UgLocationPicker';
+import type { UgLocationSelection } from '@/hooks/useUgLocations';
 
 import { useAuth } from '@/hooks/useAuth';
 import { useAgentCapacityMap, DAILY_ELIGIBILITY_THRESHOLD, NEW_AGENT_TENANT_THRESHOLD, NEW_AGENT_RENT_CAP_UGX } from '@/hooks/useAgentCapacityMap';
@@ -718,6 +720,18 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [landlordName, setLandlordName] = useState('');
   const [landlordPhone, setLandlordPhone] = useState('');
   const [propertyAddress, setPropertyAddress] = useState('');
+  const [ugLocation, setUgLocation] = useState<UgLocationSelection | null>(null);
+  const applyUgLocation = (location: UgLocationSelection | null) => {
+    setUgLocation(location);
+    if (!location) {
+      setPropertyAddress('');
+      return;
+    }
+    setPropertyAddress(location.village);
+    setPropertyCity(location.subcounty || location.county);
+    setPropertyDistrict(normalizeDistrict(location.district) || location.district);
+    setLc1Village((current) => current || location.village);
+  };
   
   // LC1 info
   const [lc1Name, setLc1Name] = useState('');
@@ -2233,6 +2247,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setLandlordName('');
     setLandlordPhone('');
     setPropertyAddress('');
+    setUgLocation(null);
     setLc1Name('');
     setLc1Phone('');
     setLc1Village('');
@@ -4773,15 +4788,12 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 )}
 
                 <div className="space-y-1.5">
-                  <Label className="text-sm font-semibold flex items-center gap-1">
-                    <MapPin className="h-4 w-4 text-primary" /> Where is the house?
-                  </Label>
-                  <Input
-                    value={propertyAddress}
-                    onChange={(e) => setPropertyAddress(e.target.value)}
-                    placeholder="Village, road or area"
-                    className={`h-12 text-base ${hasFieldError('propertyAddress') ? 'border-destructive border-2' : ''}`}
+                  <UgLocationPicker
+                    value={ugLocation}
+                    onChange={applyUgLocation}
+                    label="Where is the house? Search village"
                     required
+                    error={getFieldError('propertyAddress')}
                   />
                   <FieldError message={vPlace(propertyAddress, 'Kira Town, near Total') || getFieldError('propertyAddress')} />
                 </div>
