@@ -147,6 +147,7 @@ export function AgentWelileHomesSheet({ open, onOpenChange }: AgentWelileHomesSh
   const [subs, setSubs] = useState<WHSubscription[]>([]);
   const [earned, setEarned] = useState(0);
   const [pendingPayouts, setPendingPayouts] = useState(0);
+  const [recentPayments, setRecentPayments] = useState<RecentRentPayment[]>([]);
   const [enrollOpen, setEnrollOpen] = useState(false);
   const [allocFor, setAllocFor] = useState<WHSubscription | null>(null);
   const [editFor, setEditFor] = useState<WHSubscription | null>(null);
@@ -194,6 +195,23 @@ export function AgentWelileHomesSheet({ open, onOpenChange }: AgentWelileHomesSh
       });
       setEarned(e);
       setPendingPayouts(p);
+
+      // Recent rent payments (collected dues) with their month
+      const { data: paid } = await supabase
+        .from('welile_homes_monthly_dues')
+        .select('id, tenant_id, period_month, amount_collected, amount_due, updated_at')
+        .eq('agent_id', user.id)
+        .eq('collection_status', 'collected')
+        .order('updated_at', { ascending: false })
+        .limit(10);
+      const nameById = new Map(list.map((s) => [s.tenant_id, s.tenant_name ?? 'Tenant']));
+      setRecentPayments((paid ?? []).map((d: any) => ({
+        id: d.id,
+        period_month: d.period_month,
+        amount: Number(d.amount_collected) || Number(d.amount_due) || 0,
+        created_at: d.updated_at,
+        tenant_name: nameById.get(d.tenant_id) ?? 'Tenant',
+      })));
     } catch (err: any) {
       toast({ title: 'Failed to load Welile Homes', description: err.message, variant: 'destructive' });
     } finally {
