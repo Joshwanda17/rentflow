@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { formatUGX } from '@/lib/utils';
+import { formatUGX } from '@/lib/rentCalculations';
 
 interface ScoreboardRow {
   lead_user_id: string;
