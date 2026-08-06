@@ -2369,9 +2369,9 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                 setImages(newImages);
                 setPreviewIndex((prev) => Math.min(prev, Math.max(0, newImages.length - 1)));
               }}
-              region={form.region}
-              district={form.district}
-              village={form.village}
+              region={ugLoc ? (DISTRICT_TO_BACKEND_REGION[ugLoc.district] ?? 'Central') : ''}
+              district={ugLoc?.district ?? ''}
+              village={ugLoc?.village ?? ''}
               maxImages={14}
               minImages={3}
               cameraOnly
