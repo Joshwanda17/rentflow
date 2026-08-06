@@ -200,7 +200,6 @@ export function CEODashboard() {
       {/* Funder funnel — view terms → select → lock → fund */}
       <FunderFunnelPanel />
 
-      <SupervisionSections />
       {activeTab === 'supervision' && <SupervisionSections />}
 
       {/* Growth Metrics */}
