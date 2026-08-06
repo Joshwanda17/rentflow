@@ -380,4 +380,6 @@ export const roleLabels: Record<AppRole, string> = {
 export const PARTNER_OPS_ATTENTION_ITEM_IDS: string[] = [
   'partners',
   'reports-partner-ops',
+  'supervision',
+  'hr-partner-ops',
 ];
