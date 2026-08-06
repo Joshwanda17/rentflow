@@ -1723,6 +1723,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       const missingHousePhotos = HOUSE_PHOTO_SLOTS.some((_, i) => !housePhotos[i]);
       if (missingHousePhotos) errors.push('Take all 4 house photos (front, back, left and right)');
       if (!tenantPhoto) errors.push("Take the tenant's passport photo");
+      if (!gpsLocation) errors.push('Capture the property GPS at the house');
     } else if (idx === 3) {
       if (!lc1Name.trim()) errors.push("Type the LC1 chairperson's name");
       if (!lc1Phone.trim()) errors.push('Type the LC1 phone number');
