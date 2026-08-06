@@ -937,25 +937,15 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   // Validate just the current step before moving forward. Returns true if OK.
   const validateStep = (s: number): boolean => {
     if (s === 1) {
-      // Essentials: rent, region, address, village.
+      // Essentials: rent, village (which drives region/district), GPS.
       if (!monthlyRent || monthlyRent < 10000) {
         toast.error('Monthly rent must be at least UGX 10,000');
         showFormMessage('error', 'Monthly rent must be at least UGX 10,000');
         return false;
       }
-      if (!form.region) {
-        toast.error('Please select a region');
-        showFormMessage('error', 'Please select a region');
-        return false;
-      }
-      if (!form.address.trim()) {
-        toast.error('Address is required');
-        showFormMessage('error', 'Address is required');
-        return false;
-      }
-      if (!form.village.trim()) {
-        toast.error('Village / Zone is required');
-        showFormMessage('error', 'Village / Zone is required');
+      if (!ugLoc) {
+        toast.error('Search and select the village where the house is located');
+        showFormMessage('error', 'Search and select the village where the house is located');
         return false;
       }
       // Every listed house MUST carry its own GPS pin.
