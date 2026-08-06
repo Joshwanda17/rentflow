@@ -20,6 +20,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { ProxyRecentPayouts } from '@/components/agent/ProxyRecentPayouts';
 
 interface PartnerBalance {
   partnerId: string;
@@ -1415,13 +1416,16 @@ export function ProxyPartnerFunds() {
 
   if (partnerBalances.length === 0 && !withdrawOpen) {
     return (
-      <Card className="border-border/50">
-        <CardContent className="py-10 text-center text-muted-foreground">
-          <Users className="h-10 w-10 mx-auto mb-2 opacity-30" />
-          <p className="text-sm font-medium">No proxy partner payouts ready</p>
-          <p className="text-xs mt-1">CFO-approved ROI returns for your proxy partners will appear here</p>
-        </CardContent>
-      </Card>
+      <div className="space-y-4">
+        <Card className="border-border/50">
+          <CardContent className="py-10 text-center text-muted-foreground">
+            <Users className="h-10 w-10 mx-auto mb-2 opacity-30" />
+            <p className="text-sm font-medium">No proxy partner payouts ready</p>
+            <p className="text-xs mt-1">CFO-approved ROI returns for your proxy partners will appear here</p>
+          </CardContent>
+        </Card>
+        <ProxyRecentPayouts />
+      </div>
     );
   }
 
@@ -2027,6 +2031,9 @@ export function ProxyPartnerFunds() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Recent proxy payouts (read-only history) */}
+      <ProxyRecentPayouts />
     </div>
   );
 }
