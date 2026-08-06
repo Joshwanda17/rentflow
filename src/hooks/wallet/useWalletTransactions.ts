@@ -39,7 +39,7 @@ export function useWalletTransactions(
   const [page, setPage] = useState(opts.initialPage ?? 0);
   const [direction, setDirection] = useState<WalletTxDirection>(opts.direction ?? "all");
 
-  const query = useQuery<{ rows: WalletTxRow[]; total: number }>({
+  const query = useQuery<{ rows: WalletTxRow[]; total: number; hasMore: boolean }>({
     queryKey: ["wallet-tx-page", userId ?? "", page, pageSize, direction] as const,
     enabled: !!userId,
     queryFn: () =>
@@ -48,13 +48,15 @@ export function useWalletTransactions(
     gcTime: 30_000,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    retry: 1,
+    // Statement timeouts under DB load are transient — back off and retry.
+    retry: 3,
+    retryDelay: (attempt) => Math.min(4000, 500 * 2 ** attempt),
   });
 
   const rows = query.data?.rows ?? [];
   const total = query.data?.total ?? 0;
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const hasNext = page + 1 < totalPages;
+  const totalPages = Math.max(1, page + 1 + (query.data?.hasMore ? 1 : 0));
+  const hasNext = !!query.data?.hasMore;
   const hasPrev = page > 0;
 
   const next = useCallback(() => setPage((p) => p + 1), []);
