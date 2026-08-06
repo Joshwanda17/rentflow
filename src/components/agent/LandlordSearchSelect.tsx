@@ -302,7 +302,6 @@ export function LandlordSearchSelect({
     if (debounced.trim().length < MIN_QUERY_CHARS) {
       reqIdRef.current++;
       setResults([]);
-      setTotalCount(null);
       setLoading(false);
       return;
     }
@@ -375,28 +374,13 @@ export function LandlordSearchSelect({
     if (!query.trim()) setCancelledInfo(null);
   }, [query]);
 
-
-  // One-time fetch of total landlord count so we can show a system-empty warning
-  useEffect(() => {
-    if (!panelOpen) return;
-    let cancelled = false;
-    (async () => {
-      const { count, error } = await supabase
-        .from('landlords_directory')
-        .select('*', { count: 'exact', head: true });
-      if (!cancelled && !error && count !== null && count !== undefined) {
-        setTotalCount(count);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [panelOpen]);
-
   const triggerLabel = useMemo(() => {
     if (!value) return placeholder;
     return `${value.name} • ${value.phone}`;
   }, [value, placeholder]);
 
-  const isSystemEmpty = totalCount === 0;
+  // No standalone count round-trip: the search RPC is the only query.
+  const isSystemEmpty = false;
   // True while a keystroke is still waiting out the debounce window — lets us
   // show "Searching…" the instant the agent types, before the fetch even fires.
   const isTyping = panelOpen && query.trim().length > 0 && query.trim() !== debounced;
@@ -501,10 +485,7 @@ export function LandlordSearchSelect({
   const panel = (
     <>
         <div className="px-4 pt-3.5 pb-2.5">
-          <div className="mb-2.5 flex justify-center">
-            <GoogleWordmark />
-          </div>
-          {/* Google-style pill search bar */}
+          {/* Simple debounced search input */}
           <div className="relative flex items-center rounded-full border border-border/70 bg-background px-4 h-11 shadow-sm transition-shadow focus-within:shadow-[0_1px_6px_rgba(32,33,36,0.28)] hover:shadow-[0_1px_6px_rgba(32,33,36,0.18)]">
             <Search className="h-4 w-4 shrink-0 text-[#4285F4]" />
             <input
@@ -570,9 +551,6 @@ export function LandlordSearchSelect({
                 {debounced
                   ? `About ${results.length} landlord${results.length === 1 ? '' : 's'} matching "${debounced}"`
                   : `Showing ${results.length} registered landlord${results.length === 1 ? '' : 's'}`}
-                {typeof totalCount === 'number' && totalCount > 0 && (
-                  <span className="opacity-70"> · {totalCount} total</span>
-                )}
               </p>
               <button
                 type="button"
