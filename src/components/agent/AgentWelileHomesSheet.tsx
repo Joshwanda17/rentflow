@@ -289,9 +289,6 @@ export function AgentWelileHomesSheet({ open, onOpenChange }: AgentWelileHomesSh
               </CardContent></Card>
             </div>
 
-            {pendingConfirmation > 0 && (
-              <></>
-            )}
             {/* Recent rent payments */}
             <Card>
               <CardContent className="p-3 space-y-2.5">
