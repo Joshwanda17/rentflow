@@ -234,7 +234,9 @@ export function UnlinkSubAgentDialog({
 }) {
   const [reason, setReason] = useState('');
   const unlink = useUnlinkSubAgent();
-  const activeTenants = (subAgent?.tenant_list ?? []).filter((t) => t.is_active).length;
+  // Only rent plans owned by this sub-agent block the unlink — the server checks the same thing.
+  const activeTenants = (subAgent?.tenant_list ?? [])
+    .filter((t) => t.is_active && t.owned_by_subagent !== false).length;
 
   const submit = async () => {
     if (!subAgent) return;

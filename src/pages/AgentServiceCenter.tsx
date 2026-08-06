@@ -34,9 +34,14 @@ export default function AgentServiceCenter() {
   const [transferTarget, setTransferTarget] = useState<ServiceCenterSubAgent | null>(null);
   const [transferRentRequestId, setTransferRentRequestId] = useState<string | null>(null);
   const [unlinkTarget, setUnlinkTarget] = useState<ServiceCenterSubAgent | null>(null);
-  const [detailTarget, setDetailTarget] = useState<ServiceCenterSubAgent | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
 
   const subAgents = data?.sub_agents ?? [];
+  // Derived so the open sheet re-renders with fresh data after suspend/restore/transfer,
+  // and closes by itself once an unlinked sub-agent leaves the roster.
+  const detailTarget = detailId
+    ? subAgents.find((s) => s.sub_agent_id === detailId) ?? null
+    : null;
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -133,7 +138,7 @@ export default function AgentServiceCenter() {
                 <SubAgentRosterCard
                   key={s.sub_agent_id}
                   subAgent={s}
-                  onOpen={setDetailTarget}
+                  onOpen={(sa) => setDetailId(sa.sub_agent_id)}
                 />
               ))
             )}
@@ -205,17 +210,17 @@ export default function AgentServiceCenter() {
       <SubAgentDetailSheet
         subAgent={detailTarget}
         open={!!detailTarget}
-        onOpenChange={(v) => !v && setDetailTarget(null)}
-        onSuspend={(s) => { setDetailTarget(null); setSuspendTarget(s); }}
+        onOpenChange={(v) => !v && setDetailId(null)}
+        onSuspend={(s) => setSuspendTarget(s)}
         onTransfer={(s, rentRequestId) => {
-          setDetailTarget(null);
           setTransferRentRequestId(rentRequestId);
           setTransferTarget(s);
         }}
-        onUnlink={(s) => { setDetailTarget(null); setUnlinkTarget(s); }}
+        onUnlink={(s) => setUnlinkTarget(s)}
+        actionsDisabled={!!suspendTarget || !!unlinkTarget || !!transferTarget}
       />
       <SuspendSubAgentDialog
-        subAgent={suspendTarget}
+        subAgent={suspendTarget ? subAgents.find((s) => s.sub_agent_id === suspendTarget.sub_agent_id) ?? suspendTarget : null}
         open={!!suspendTarget}
         onOpenChange={(v) => !v && setSuspendTarget(null)}
       />
@@ -227,9 +232,9 @@ export default function AgentServiceCenter() {
         onOpenChange={(v) => { if (!v) { setTransferTarget(null); setTransferRentRequestId(null); } }}
       />
       <UnlinkSubAgentDialog
-        subAgent={unlinkTarget}
+        subAgent={unlinkTarget ? subAgents.find((s) => s.sub_agent_id === unlinkTarget.sub_agent_id) ?? unlinkTarget : null}
         open={!!unlinkTarget}
-        onOpenChange={(v) => !v && setUnlinkTarget(null)}
+        onOpenChange={(v) => { if (!v) { setUnlinkTarget(null); } }}
       />
     </div>
   );
