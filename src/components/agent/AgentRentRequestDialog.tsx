@@ -4953,6 +4953,42 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
               {detailStep === 3 && (
               <>
+              {/* ===== LC LETTER UPLOAD ===== */}
+              <div className="space-y-2">
+                <h4 className="text-base font-bold text-foreground flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4" />
+                  LC Letter
+                </h4>
+                {lcLetter ? (
+                  <div className="flex items-center gap-3 rounded-xl border border-border p-2.5">
+                    <img src={lcLetter.preview} alt="LC letter" className="h-16 w-16 rounded-lg object-cover" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-foreground">{lcLetter.file.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {(lcLetter.file.size / (1024 * 1024)).toFixed(1)} MB
+                      </p>
+                    </div>
+                    <Button type="button" size="sm" variant="outline" onClick={() => setLcLetter(null)}>
+                      Remove
+                    </Button>
+                  </div>
+                ) : (
+                  <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border p-4 text-sm text-muted-foreground hover:border-primary/50">
+                    <Upload className="h-4 w-4" />
+                    Upload the LC letter
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png,.jpg,.jpeg,.png"
+                      className="hidden"
+                      onChange={handleLcLetter}
+                    />
+                  </label>
+                )}
+                <p className="text-[10px] leading-relaxed text-muted-foreground">
+                  One image only — JPG, JPEG or PNG, up to 10 MB. Kept private and visible to Welile operations.
+                </p>
+              </div>
+
               {/* ===== 5. LC1 DETAILS ===== */}
               <div ref={lc1SectionRef} className="space-y-3">
                 <h4 className="text-base font-bold text-foreground flex items-center gap-2">
