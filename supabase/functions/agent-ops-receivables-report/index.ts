@@ -65,6 +65,9 @@ function compactUGX(n: unknown): string {
   if (Math.abs(v) >= 1_000) return `UGX ${(v / 1_000).toFixed(0)}k`;
   return `UGX ${num(v)}`;
 }
+function ascii(s: unknown): string {
+  return String(s ?? "").replace(/[^\x20-\x7E]/g, "").replace(/\s+/g, " ").trim() || "-";
+}
 function esc(s: unknown): string {
   return String(s ?? "")
     .replace(/&/g, "&amp;").replace(/</g, "&lt;")
@@ -283,7 +286,7 @@ function buildPdf(s: Stats, prettyDate: string): Uint8Array {
     doc.text(`${compactUGX(b.outstanding)} · ${num(b.plans)} plans`, pageWidth - margin, y + 3.6, { align: "right" });
     y += 7.4;
   });
-  y += 3;
+  y += 8;
 
   // Executive read-out
   doc.setFont("helvetica", "bold");
@@ -353,7 +356,7 @@ function buildPdf(s: Stats, prettyDate: string): Uint8Array {
       ["Agents — total (super + sub)", num(s.agents_count), fmtUGX(s.agents_receivable), `${((Number(s.agents_receivable) / (Number(s.tenants_receivable) || 1)) * 100).toFixed(0)}%`],
       ["   Super agents", num(s.super_agents_count), fmtUGX(s.super_agents_receivable), `${(100 - d.subShare).toFixed(0)}%`],
       ["   Sub agents", num(s.sub_agents_count), fmtUGX(s.sub_agents_receivable), `${d.subShare.toFixed(0)}%`],
-      [`Service centres (of ${num(s.service_centers_total)})`, num(s.service_centers_count), fmtUGX(s.service_centers_receivable), `${d.scmShare.toFixed(0)}%`],
+      [`Service centres${Number(s.service_centers_total) > 0 ? ` (of ${num(s.service_centers_total)})` : ""}`, num(s.service_centers_count), fmtUGX(s.service_centers_receivable), `${d.scmShare.toFixed(0)}%`],
       ["Landlords", num(s.landlords_count), fmtUGX(s.landlords_receivable), `${((Number(s.landlords_receivable) / (Number(s.tenants_receivable) || 1)) * 100).toFixed(0)}%`],
     ],
     columnStyles: { 1: { halign: "right" }, 2: { halign: "right" }, 3: { halign: "right" } },
@@ -380,7 +383,7 @@ function buildPdf(s: Stats, prettyDate: string): Uint8Array {
     "Top agents by outstanding",
     ["Agent", "Type", "Tenants", "Repaid", "Outstanding", "Recovered"],
     s.top_agents.map((p) => [
-      p.name, p.kind ?? "-", num(p.tenants), compactUGX(p.repaid), compactUGX(p.outstanding),
+      ascii(p.name), p.kind ?? "-", num(p.tenants), compactUGX(p.repaid), compactUGX(p.outstanding),
       `${(Number(p.billed) > 0 ? (Number(p.repaid) / Number(p.billed)) * 100 : 0).toFixed(0)}%`,
     ]),
   );
@@ -388,7 +391,7 @@ function buildPdf(s: Stats, prettyDate: string): Uint8Array {
     "Service centre managers by outstanding",
     ["Service centre", "Tenants", "Repaid", "Outstanding", "Recovered"],
     s.top_service_centers.map((p) => [
-      p.name, num(p.tenants), compactUGX(p.repaid), compactUGX(p.outstanding),
+      ascii(p.name), num(p.tenants), compactUGX(p.repaid), compactUGX(p.outstanding),
       `${(Number(p.billed) > 0 ? (Number(p.repaid) / Number(p.billed)) * 100 : 0).toFixed(0)}%`,
     ]),
   );
@@ -396,7 +399,7 @@ function buildPdf(s: Stats, prettyDate: string): Uint8Array {
     "Landlords by outstanding",
     ["Landlord", "Plans", "Repaid", "Outstanding", "Recovered"],
     s.top_landlords.map((p) => [
-      p.name, num(p.plans), compactUGX(p.repaid), compactUGX(p.outstanding),
+      ascii(p.name), num(p.plans), compactUGX(p.repaid), compactUGX(p.outstanding),
       `${(Number(p.billed) > 0 ? (Number(p.repaid) / Number(p.billed)) * 100 : 0).toFixed(0)}%`,
     ]),
   );
