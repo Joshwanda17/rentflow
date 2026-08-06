@@ -47,6 +47,7 @@ export function SelfPortfolioPlanDetailSheet({
   onOpenChange: (v: boolean) => void;
   isFunded: boolean;
 }) {
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   if (!plan) return null;
   const photos = (plan.house_image_urls ?? []).filter(Boolean);
   const name = plan.tenant_full_name || plan.tenant_first_name || 'Tenant';
@@ -71,21 +72,81 @@ export function SelfPortfolioPlanDetailSheet({
           <SheetTitle>Rent plan details</SheetTitle>
         </SheetHeader>
 
-        {/* Hero photo */}
+        {/* Photo carousel */}
         <div className="relative w-full h-56 bg-muted">
-          {hero ? (
-            <img src={hero} alt="House photo 1" loading="lazy" className="w-full h-full object-cover" />
+          {photos.length > 0 ? (
+            <Carousel className="w-full h-56" opts={{ loop: photos.length > 1 }}>
+              <CarouselContent className="ml-0 h-56">
+                {photos.map((url, i) => (
+                  <CarouselItem key={url + i} className="pl-0 basis-full">
+                    <button
+                      type="button"
+                      onClick={() => setLightboxIndex(i)}
+                      aria-label={`Expand house photo ${i + 1}`}
+                      className="block w-full h-56"
+                    >
+                      <img
+                        src={url}
+                        alt={`House photo ${i + 1}`}
+                        loading="lazy"
+                        className="w-full h-full object-cover"
+                      />
+                    </button>
+                    <span className="absolute bottom-3 right-3 rounded-md bg-foreground/70 px-2 py-1 text-[11px] font-semibold text-background">
+                      {i + 1} / {photos.length}
+                    </span>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+              {photos.length > 1 && (
+                <>
+                  <CarouselPrevious className="left-3 h-8 w-8" />
+                  <CarouselNext className="right-3 h-8 w-8" />
+                </>
+              )}
+            </Carousel>
           ) : (
             <div className="w-full h-full flex items-center justify-center">
               <Home className="h-8 w-8 text-muted-foreground" />
             </div>
           )}
-          {photos.length > 0 && (
-            <span className="absolute bottom-3 right-3 rounded-md bg-foreground/70 px-2 py-1 text-[11px] font-semibold text-background">
-              1 / {photos.length}
-            </span>
-          )}
         </div>
+
+        {/* Expanded image card */}
+        <Dialog open={lightboxIndex !== null} onOpenChange={(v) => !v && setLightboxIndex(null)}>
+          <DialogContent className="max-w-3xl p-0 overflow-hidden">
+            <DialogHeader className="sr-only">
+              <DialogTitle>House photo</DialogTitle>
+            </DialogHeader>
+            {lightboxIndex !== null && (
+              <Carousel
+                className="w-full"
+                opts={{ loop: photos.length > 1, startIndex: lightboxIndex }}
+              >
+                <CarouselContent className="ml-0">
+                  {photos.map((url, i) => (
+                    <CarouselItem key={`lb-${url}-${i}`} className="pl-0 basis-full">
+                      <img
+                        src={url}
+                        alt={`House photo ${i + 1} enlarged`}
+                        className="w-full max-h-[75vh] object-contain bg-muted"
+                      />
+                      <p className="px-4 py-3 text-xs text-muted-foreground">
+                        Photo {i + 1} of {photos.length}
+                      </p>
+                    </CarouselItem>
+                  ))}
+                </CarouselContent>
+                {photos.length > 1 && (
+                  <>
+                    <CarouselPrevious className="left-3" />
+                    <CarouselNext className="right-3" />
+                  </>
+                )}
+              </Carousel>
+            )}
+          </DialogContent>
+        </Dialog>
 
         {/* Title card overlapping the hero */}
         <div className="relative -mt-6 rounded-t-3xl bg-background px-5 pt-6 pb-5">
@@ -147,19 +208,26 @@ export function SelfPortfolioPlanDetailSheet({
             </p>
           </div>
 
-          {/* Remaining photos */}
-          {restPhotos.length > 0 && (
+          {/* Thumbnails */}
+          {photos.length > 1 && (
             <div className="mt-5">
               <p className="text-sm font-bold mb-2">More photos</p>
               <div className="grid grid-cols-3 gap-2">
-                {restPhotos.map((url, i) => (
-                  <img
-                    key={url + i}
-                    src={url}
-                    alt={`House photo ${i + 2}`}
-                    loading="lazy"
-                    className="w-full h-24 object-cover rounded-xl bg-muted"
-                  />
+                {photos.map((url, i) => (
+                  <button
+                    type="button"
+                    key={`thumb-${url}-${i}`}
+                    onClick={() => setLightboxIndex(i)}
+                    aria-label={`Expand house photo ${i + 1}`}
+                    className="rounded-xl overflow-hidden"
+                  >
+                    <img
+                      src={url}
+                      alt={`House photo ${i + 1}`}
+                      loading="lazy"
+                      className="w-full h-24 object-cover bg-muted"
+                    />
+                  </button>
                 ))}
               </div>
             </div>
