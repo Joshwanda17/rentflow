@@ -309,6 +309,18 @@ export default function PartnerAgreementSignOff({
                     <Input value={repContact} onChange={(e) => setRepContact(e.target.value)} placeholder="Phone or email" className="h-8 text-xs" />
                   </div>
                   <div className="space-y-1">
+                    <Label className="text-[11px]">Stamp / execution date</Label>
+                    <Input
+                      type="date"
+                      value={stampDate}
+                      onChange={(e) => setStampDate(e.target.value)}
+                      className="h-8 text-xs"
+                    />
+                    <p className="text-[10px] text-muted-foreground">
+                      Sets the date printed on the contract and the Welile stamp. Changing it re-renders and re-sends the executed PDF.
+                    </p>
+                  </div>
+                  <div className="space-y-1">
                     <Label className="text-[11px]">Signature image</Label>
                     <div className="flex items-center gap-2">
                       <Button asChild variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
