@@ -185,6 +185,13 @@ export function AgentProxyWithdrawalDialog({
         proxy_partner_id: funderId,
         client_request_id: clientRequestId,
         auto_dispatched: false,
+        // Route reference for the server-side deterministic intent key
+        // (trg_set_withdrawal_intent_key). A portfolio route pins the key to that
+        // portfolio's current payout cycle, so a re-tap of the SAME cycle is
+        // refused forever while next cycle's genuine payout passes through.
+        payout_route_ref: route.source === 'portfolio'
+          ? `portfolio:${route.portfolio_id}`
+          : `saved:${route.key.slice('saved:'.length)}`,
         // Pre-populate the payout route the partner has on file so Financial Ops
         // does not need to re-key MoMo / bank details. This pulls from the
         // selected saved method or per-portfolio route.
@@ -204,6 +211,24 @@ export function AgentProxyWithdrawalDialog({
         // agent doesn't keep tapping.
         if ((error as any).code === '23505') {
           const msg = String((error as any).message || '');
+          if (msg.includes('DUPLICATE_WITHDRAWAL_INTENT')) {
+            toast.error(
+              `This exact payout for ${funderName} (${formatUGX(amount)}) has already been requested for this cycle. ${msg.split('DUPLICATE_WITHDRAWAL_INTENT:')[1]?.trim() ?? ''}`,
+              { duration: 12000 },
+            );
+            isSubmittingRef.current = false;
+            setLoading(false);
+            return;
+          }
+          if (msg.includes('withdrawal_requests_intent_key_uq')) {
+            toast.error(
+              `This exact payout for ${funderName} (${formatUGX(amount)}) is already in the system for this cycle. Open the partner's payout history before trying again.`,
+              { duration: 12000 },
+            );
+            isSubmittingRef.current = false;
+            setLoading(false);
+            return;
+          }
           if (msg.includes('DUPLICATE_PENDING_WITHDRAWAL')) {
             toast.error(
               `A withdrawal of ${formatUGX(amount)} for ${funderName} was just submitted a few minutes ago. Wait about 15 minutes (or for it to be settled) before submitting the same amount again.`,
