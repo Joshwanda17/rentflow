@@ -65,6 +65,7 @@ import {
   HandCoins,
   ArrowUpDown,
   Trash2,
+  ClipboardCheck,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, isToday, isThisWeek, isThisMonth } from 'date-fns';
