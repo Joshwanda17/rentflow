@@ -229,6 +229,8 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
   const [amount, setAmount] = useState<number>(0);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [partnerName, setPartnerName] = useState<string | null>(null);
   const withdrawCtx = useWithdrawContext(user?.id);
   const withdrawalsPaused = withdrawCtx.gates.withdrawalsPaused;
   const { restrictedHeld } = withdrawCtx.wallet;
@@ -295,6 +297,27 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
   useEffect(() => {
     if (open) setWorkingHoursStatus(checkWorkingHours());
   }, [open]);
+
+  // Reset the confirmation gate whenever the dialog opens/closes.
+  useEffect(() => {
+    setConfirming(false);
+  }, [open]);
+
+  // Proxy mode: resolve who this withdrawal is actually for, so the agent sees
+  // the partner's real name in the header and in the confirmation step.
+  useEffect(() => {
+    if (!open || !linkedParty) { setPartnerName(null); return; }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', linkedParty)
+        .maybeSingle();
+      if (!cancelled) setPartnerName((data as any)?.full_name ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [open, linkedParty]);
 
   // Restore any in-flight idempotency key for this partner on (re)open, so a
   // close-and-reopen after a network failure retries with the SAME key.
