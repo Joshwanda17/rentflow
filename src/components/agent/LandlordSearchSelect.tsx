@@ -197,6 +197,9 @@ function highlightPhone(text: string | null | undefined, query: string): ReactNo
  * Supports keyboard navigation, query highlighting, a live result count, and a
  * prominent fallback warning when no registered landlords are found.
  */
+// Minimum keystrokes before the landlord search runs — mirrors the LC1 search.
+const MIN_QUERY_CHARS = 3;
+
 export function LandlordSearchSelect({
   value,
   onChange,
@@ -313,6 +316,15 @@ export function LandlordSearchSelect({
   // response can never land after a newer one (no out-of-order results).
   useEffect(() => {
     if (!panelOpen) return;
+    // Search-only list: nothing is fetched until the agent has typed at least
+    // MIN_QUERY_CHARS characters (same behaviour as the LC1 chairperson search).
+    if (debounced.trim().length < MIN_QUERY_CHARS) {
+      reqIdRef.current++;
+      setResults([]);
+      setTotalCount(null);
+      setLoading(false);
+      return;
+    }
     const myId = ++reqIdRef.current;
     const controller = new AbortController();
     const { signal } = controller;
@@ -409,7 +421,11 @@ export function LandlordSearchSelect({
   const isTyping = panelOpen && query.trim().length > 0 && query.trim() !== debounced;
   // Unified "working" flag: either debouncing the latest keystroke or fetching.
   const busy = loading || isTyping;
-  const isSearchEmpty = !busy && results.length === 0 && debounced.length > 0;
+  // Below MIN_QUERY_CHARS nothing has been searched yet, so neither the
+  // "no landlords in the system" nor the "no match" state applies.
+  const needsMoreChars = query.trim().length < MIN_QUERY_CHARS;
+  const isSearchEmpty =
+    !busy && !needsMoreChars && results.length === 0 && debounced.length >= MIN_QUERY_CHARS;
 
   // Compose a location subtitle from the most specific available fields.
   const locationLine = (l: LandlordOption) =>
@@ -641,14 +657,26 @@ export function LandlordSearchSelect({
           {/* Instant feedback: show "Searching…" the moment the agent types,
               through the debounce window and the fetch. Keep prior results
               visible while re-searching so the list never flickers empty. */}
-          {busy && results.length === 0 && (
+          {needsMoreChars && (
+            <div className="px-3 py-5 text-center">
+              <Search className="mx-auto h-5 w-5 text-muted-foreground" />
+              <p className="mt-2 text-xs font-medium text-foreground">
+                Type at least {MIN_QUERY_CHARS} letters to search
+              </p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground leading-snug">
+                Search a landlord by name or phone number — results appear as you type.
+              </p>
+            </div>
+          )}
+
+          {!needsMoreChars && busy && results.length === 0 && (
             <div className="flex items-center justify-center gap-2 py-4 text-xs text-muted-foreground">
               <Loader2 className="h-3.5 w-3.5 animate-spin" /> Searching…
             </div>
           )}
 
           {/* Prominent fallback warning when the system has zero landlords */}
-          {!loading && isSystemEmpty && (
+          {!loading && !needsMoreChars && isSystemEmpty && (
             <div className="px-3 py-4 space-y-3">
               <div className="rounded-xl border border-warning/40 bg-warning/10 p-3 flex items-start gap-2.5">
                 <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
@@ -715,7 +743,7 @@ export function LandlordSearchSelect({
             </div>
           )}
 
-          {!loading && !isSystemEmpty && !isSearchEmpty && results.length === 0 && debounced.length === 0 && (
+          {!loading && !needsMoreChars && !isSystemEmpty && !isSearchEmpty && results.length === 0 && debounced.length === 0 && (
             <div className="px-3 py-4 text-center text-xs text-muted-foreground">
               Start typing to search landlords.
             </div>

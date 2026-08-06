@@ -124,16 +124,24 @@ interface AgentRentRequestDialogProps {
 type IncomeType = 'daily' | 'weekly-monthly' | 'outstanding';
 type RepaymentPeriod = string;
 
+// Property categories — residential AND business premises (shops, stalls,
+// kiosks, salons, offices, stores). No emojis: agents read plain labels.
 const HOUSE_CATEGORIES = [
-  { value: 'single-room', label: 'Single Room', emoji: '🚪' },
-  { value: 'double-room', label: 'Double Room', emoji: '🛏️' },
-  { value: '1-bed', label: '1 Bed House', emoji: '🏠' },
-  { value: '2-bed', label: '2 Bedroom House', emoji: '🏡' },
-  { value: '2-bed-full', label: '2 Bed + Sitting Room, Kitchen & 2 Toilets', emoji: '🏘️' },
-  { value: '3-bed', label: '3 Bedroom Apartment', emoji: '🏢' },
-  { value: '3-bed-luxury', label: '3 Bed Luxury + Boys Quarter', emoji: '🏰' },
-  { value: '4-bed', label: '4+ Bedroom Villa', emoji: '🏛️' },
-  { value: 'commercial', label: 'Commercial Property', emoji: '🏪' },
+  { value: 'single-room', label: 'Single Room' },
+  { value: 'double-room', label: 'Double Room' },
+  { value: '1-bed', label: '1 Bed House' },
+  { value: '2-bed', label: '2 Bedroom House' },
+  { value: '2-bed-full', label: '2 Bed + Sitting Room, Kitchen & 2 Toilets' },
+  { value: '3-bed', label: '3 Bedroom Apartment' },
+  { value: '3-bed-luxury', label: '3 Bed Luxury + Boys Quarter' },
+  { value: '4-bed', label: '4+ Bedroom Villa' },
+  { value: 'shop', label: 'Shop / Lock-up Shop' },
+  { value: 'market-stall', label: 'Market Stall' },
+  { value: 'kiosk', label: 'Kiosk / Container' },
+  { value: 'salon-workshop', label: 'Salon / Workshop' },
+  { value: 'office', label: 'Office Space' },
+  { value: 'warehouse', label: 'Warehouse / Store' },
+  { value: 'commercial', label: 'Other Commercial Premises' },
 ];
 
 const PREFERRED_LANGUAGES = [
@@ -322,26 +330,8 @@ function AgentCapacityBanner({ agentId }: { agentId?: string }) {
   return (
     <>
       {dailyBanner}
-      <div className={`rounded-xl border p-3 ${tone}`}>
-        <div className="flex items-center justify-between text-xs font-semibold mb-1.5">
-          <span>Your Active Rent Exposure</span>
-          <span>
-            {loading ? '…' : `${formatUGX(used)} / ${formatUGX(AGENT_RENT_CAP_UGX)}`}
-          </span>
-        </div>
-        <div className="h-1.5 w-full rounded-full bg-background/40 overflow-hidden">
-          <div
-            className="h-full bg-current transition-all"
-            style={{ width: `${pct}%` }}
-          />
-        </div>
-        <p className="text-[11px] mt-1.5 leading-snug opacity-90">
-          Headroom available for new rent requests:{' '}
-          <strong className="font-mono">{formatUGX(headroom)}</strong>.
-          Per-tenant rent limits scale with each tenant's repayment rate.
-          Collect on existing rent to grow your headroom.
-        </p>
-      </div>
+      {/* "Your Active Rent Exposure" card removed — it confused agents. The
+          daily rating banner above is the only capacity signal shown here. */}
     </>
   );
 }
@@ -1733,6 +1723,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       const missingHousePhotos = HOUSE_PHOTO_SLOTS.some((_, i) => !housePhotos[i]);
       if (missingHousePhotos) errors.push('Take all 4 house photos (front, back, left and right)');
       if (!tenantPhoto) errors.push("Take the tenant's passport photo");
+      if (!gpsLocation) errors.push('Capture the property GPS at the house');
     } else if (idx === 3) {
       if (!lc1Name.trim()) errors.push("Type the LC1 chairperson's name");
       if (!lc1Phone.trim()) errors.push('Type the LC1 phone number');
@@ -1794,6 +1785,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       const missingHousePhotos = HOUSE_PHOTO_SLOTS.some((_, i) => !housePhotos[i]);
       if (missingHousePhotos) map['housePhotos'] = 'Take all 4 house photos (front, back, left and right)';
       if (!tenantPhoto) map['tenantPhoto'] = "Take the tenant's passport photo";
+      if (!gpsLocation) map['gpsLocation'] = 'Capture the property GPS at the house';
     } else if (idx === 3) {
       if (!lc1Name.trim()) map['lc1Name'] = "Type the LC1 chairperson's name";
       if (!lc1Phone.trim()) map['lc1Phone'] = 'Type the LC1 phone number';
@@ -1879,6 +1871,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       const missingHousePhotos = HOUSE_PHOTO_SLOTS.some((_, i) => !housePhotos[i]);
       if (missingHousePhotos) map['housePhotos'] = 'Take all 4 house photos (front, back, left and right)';
       if (!tenantPhoto) map['tenantPhoto'] = "Take the tenant's passport photo";
+      if (!gpsLocation) map['gpsLocation'] = 'Capture the property GPS at the house';
       if (!lc1Name.trim()) map['lc1Name'] = "Type the LC1 chairperson's name";
       if (!lc1Phone.trim()) map['lc1Phone'] = 'Type the LC1 phone number';
       else if (!isValidUgPhone(cleanLc1Phone)) map['lc1Phone'] = 'LC1 phone looks wrong — use a valid Ugandan number';
@@ -2406,6 +2399,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       if (!lc1Village.trim()) errors.push('Type the LC1 village');
       if (!propertyCity.trim()) errors.push('Type the town / city');
       if (!houseCategory) errors.push('Choose the house type');
+      if (!gpsLocation) errors.push('Capture the property GPS at the house');
     }
 
     // ===== Block duplicate phone numbers across roles =====
@@ -3760,7 +3754,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         <SelectContent>
                           {HOUSE_CATEGORIES.map(cat => (
                             <SelectItem key={cat.value} value={cat.value}>
-                              {cat.emoji} {cat.label}
+                              {cat.label}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -4226,7 +4220,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   <SelectContent>
                     {HOUSE_CATEGORIES.map(cat => (
                       <SelectItem key={cat.value} value={cat.value}>
-                        {cat.emoji} {cat.label}
+                        {cat.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -4249,17 +4243,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   </div>
                 </div>
 
-                {/* Bonus — always visible, simple words */}
-                <div className="rounded-2xl border border-success/30 bg-success/10 p-3 flex items-center gap-3">
-                  <div className="h-11 w-11 rounded-full bg-success/20 flex items-center justify-center text-2xl shrink-0">💰</div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-extrabold text-success leading-tight">Earn UGX 5,000</p>
-                    <p className="text-[11px] text-success/90 leading-snug">
-                      Add a new landlord and list their house. Paid when a tenant moves in.
-                    </p>
-                  </div>
-                </div>
-
+                {/* Bonus promo removed — keeps the agent focused on the listing. */}
                 {/* ── Sticky quick-switch bar ── */}
                 <div className="sticky top-0 z-20 -mx-1 px-1 py-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
                   {!selectedLandlord ? (
@@ -4334,30 +4318,15 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                               )}
                             </div>
                           ) : (
-                            <div className="mt-1 space-y-2">
-                              <p className="text-xs text-success font-medium">✓ Verified landlord — details filled in for you</p>
-                              {verifyReqState === 'sent' || verifyReqState === 'exists' ? (
-                                <p className="text-xs font-medium text-success flex items-center gap-1">
-                                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                                  Landlord Operations have been notified.
+                            /* Verified landlord — nothing to notify Landlord Ops about. */
+                            <div className="mt-2 flex items-center gap-2 rounded-xl border border-success/40 bg-success/10 px-2.5 py-2">
+                              <ShieldCheck className="h-4 w-4 text-success shrink-0" />
+                              <div className="min-w-0">
+                                <p className="text-xs font-bold text-success leading-tight">Verified landlord</p>
+                                <p className="text-[11px] text-muted-foreground leading-snug">
+                                  Their saved details were filled in for you — continue with this rent request.
                                 </p>
-                              ) : (
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-9 w-full gap-1.5 rounded-xl"
-                                  disabled={verifyReqState === 'sending'}
-                                  onClick={requestLandlordVerification}
-                                >
-                                  {verifyReqState === 'sending' ? (
-                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                  ) : (
-                                    <ShieldCheck className="h-3.5 w-3.5" />
-                                  )}
-                                  Notify Landlord Ops
-                                </Button>
-                              )}
+                              </div>
                             </div>
                           )}
                         </div>
@@ -4748,8 +4717,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 {/* GPS Capture */}
                 <div className="space-y-1">
                   <Label className="flex items-center gap-1">
-                    <Navigation className="h-3 w-3" /> Property GPS (optional)
+                    <Navigation className="h-3 w-3" /> Property GPS *
                   </Label>
+                  <p className="text-[11px] text-muted-foreground">
+                    Required — stand at the property and capture its exact location.
+                  </p>
                   {gpsLocation ? (
                     <div className="flex items-center gap-2 p-2.5 rounded-xl bg-success/10 border border-success/30">
                       <Navigation className="h-4 w-4 text-success flex-shrink-0" />
@@ -4790,6 +4762,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       )}
                     </Button>
                   )}
+                  {!gpsLocation && <FieldError message={getFieldError('gpsLocation')} />}
                 </div>
 
                 {/* House Photos — 4 outside views */}
