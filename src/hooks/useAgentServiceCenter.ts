@@ -50,6 +50,9 @@ export interface ServiceCenterLandlord {
   phone: string | null;
   district: string | null;
   region: string | null;
+  address?: string | null;
+  village?: string | null;
+  county?: string | null;
   state: ServiceCenterState;
   link_source: string | null;
   reason: string | null;
