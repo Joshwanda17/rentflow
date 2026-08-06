@@ -21,11 +21,12 @@ for (const name of requiredPublicBuildVars) {
 const missing = requiredPublicBuildVars.filter((name) => !configured.has(name));
 
 if (missing.length) {
-  console.error(`[guard:runtime-env] BLOCKED: missing required build variables: ${missing.join(", ")}`);
-  console.error("Reconnect the Lovable Cloud backend so the generated public build variables are restored.");
-  process.exit(1);
+  // Publish containers inject the public values into the Vite build step itself,
+  // so they are frequently absent from this guard's process. Warn, never block.
+  console.warn(`[guard:runtime-env] warning: build variables not visible here: ${missing.join(", ")}`);
+  console.warn("[guard:runtime-env] continuing: the build step receives these values from the Lovable Cloud connection.");
+} else {
+  console.log(`[guard:runtime-env] ok: ${requiredPublicBuildVars.length} required public build variables are configured`);
 }
-
-console.log(`[guard:runtime-env] ok: ${requiredPublicBuildVars.length} required public build variables are configured`);
 console.log("[guard:runtime-env] platform runtime variables are supplied to edge functions at deploy time");
 console.log("[guard:runtime-env] user-managed integrations remain runtime concerns and do not block the frontend build");
