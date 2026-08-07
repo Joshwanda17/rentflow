@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Sparkles, History, MapPin, Home, BarChart3 } from 'lucide-react';
+import { Sparkles, History, MapPin, Home, BarChart3, FileText, Loader2 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { TenantOpsDashboard } from './TenantOpsDashboard';
 import { TenantOpsDashboardV2 } from './TenantOpsDashboardV2';
@@ -11,6 +11,7 @@ import { BehaviorDrawer } from '@/components/ops/BehaviorDrawer';
 import { TenantPhoneDuplicatePanel } from '@/components/ops/TenantPhoneDuplicatePanel';
 import { WelileHomesAdminPanel } from '@/components/ops/WelileHomesAdminPanel';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 const STORAGE_KEY = 'tenant-ops-view-mode';
 
@@ -21,6 +22,7 @@ export function TenantOpsHub() {
   const [opsUserId, setOpsUserId] = useState<string | null>(null);
   const [behaviorTenantId, setBehaviorTenantId] = useState<string | null>(null);
   const [welileHomesOpen, setWelileHomesOpen] = useState(false);
+  const [docxBusy, setDocxBusy] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -37,6 +39,28 @@ export function TenantOpsHub() {
     localStorage.setItem(STORAGE_KEY, m);
   };
 
+  const generateWordReport = async () => {
+    setDocxBusy(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-tenant-ops-docx', { body: {} });
+      if (error) throw error;
+      const res = data as { ok?: boolean; error?: string; download_url?: string; filename?: string };
+      if (!res?.ok || !res.download_url) throw new Error(res?.error || 'Report generation failed');
+      const a = document.createElement('a');
+      a.href = res.download_url;
+      a.download = res.filename || 'welile-tenant-operations-report.docx';
+      a.rel = 'noopener';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      toast.success('Tenant Operations report ready', { description: res.filename });
+    } catch (e) {
+      toast.error('Could not generate report', { description: (e as Error).message });
+    } finally {
+      setDocxBusy(false);
+    }
+  };
+
   return (
     <div className="space-y-3">
       <AgentInactiveAlertBanner opsUserId={opsUserId} onOpenBehavior={setBehaviorTenantId} />
@@ -51,6 +75,16 @@ export function TenantOpsHub() {
           className="gap-1.5 mr-auto"
         >
           <MapPin className="h-3.5 w-3.5" /> Manage Locations
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => void generateWordReport()}
+          disabled={docxBusy}
+          className="gap-1.5"
+        >
+          {docxBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
+          Word Report
         </Button>
         <Button
           variant="outline"
