@@ -17379,6 +17379,7 @@ export type Database = {
           item_name: string
           notes: string | null
           order_status: string
+          payment_plan: string
           payment_status: string
           quantity: number
           rejected_at: string | null
@@ -17403,6 +17404,7 @@ export type Database = {
           item_name: string
           notes?: string | null
           order_status?: string
+          payment_plan?: string
           payment_status?: string
           quantity: number
           rejected_at?: string | null
@@ -17427,6 +17429,7 @@ export type Database = {
           item_name?: string
           notes?: string | null
           order_status?: string
+          payment_plan?: string
           payment_status?: string
           quantity?: number
           rejected_at?: string | null
@@ -31669,7 +31672,11 @@ export type Database = {
       agent_order_spiro_bike: { Args: { p_amount: number }; Returns: Json }
       agent_per_tenant_max: { Args: { _agent_id: string }; Returns: number }
       agent_purchase_merchandise: {
-        Args: { p_catalog_id: string; p_quantity: number }
+        Args: {
+          p_catalog_id: string
+          p_payment_mode?: string
+          p_quantity: number
+        }
         Returns: Json
       }
       agent_request_subagent_tenant_transfer: {
