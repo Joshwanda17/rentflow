@@ -271,25 +271,57 @@ export async function generateNearingPayoutsPdf(input: NearingPayoutPdfInput): P
     return doc.output('blob');
   }
 
-  // Sort: cash-payout rows first (due today → upcoming → overdue), then every
-  // compounding portfolio last — they reinvest, so no payout details are shown.
-  const sortedRows = [...rows].sort((a, b) => {
-    const ca = isCompounding(a) ? 1 : 0;
-    const cb = isCompounding(b) ? 1 : 0;
-    if (ca !== cb) return ca - cb;
+  // Resolve the destination institution for grouping: the exact bank name
+  // (e.g. "Equity Bank") or the mobile-money network (e.g. "MTN Mobile Money").
+  const groupLabelFor = (r: NearingPayoutPdfRow): string => {
+    if (isCompounding(r)) return 'Compounding — reinvesting (no payout)';
+    const det = r.portfolioId ? detailsMap.get(r.portfolioId) : null;
+    const pm = r.investorId ? payoutMap.get(r.investorId) : undefined;
+    const method = det?.payment_method || pm?.mode;
+    if (method === 'bank_transfer') {
+      const bank = det?.bank_name || (pm?.line1 || '').replace(/^BANK:\s*/i, '');
+      return bank && bank !== '—' ? String(bank) : 'Bank — not specified';
+    }
+    if (method === 'mobile_money') {
+      const net = det?.mobile_network || (pm?.line1 || '').replace(/\s*MOBILE MONEY$/i, '');
+      return `${(net || 'MoMo').toString().toUpperCase()} Mobile Money`;
+    }
+    if (method === 'cash') return 'Cash pickup';
+    return 'Payout method not set';
+  };
+
+  // Sort within each destination group: due today → upcoming → overdue.
+  const dueSort = (a: NearingPayoutPdfRow, b: NearingPayoutPdfRow) => {
     const bucket = (d: number) => (d === 0 ? 0 : d > 0 ? 1 : 2);
     const ba = bucket(a.daysUntil), bb = bucket(b.daysUntil);
     if (ba !== bb) return ba - bb;
     if (ba === 1) return a.daysUntil - b.daysUntil;   // 1d, 2d, 3d…
     if (ba === 2) return b.daysUntil - a.daysUntil;   // -1, -2, -3…
     return 0;
+  };
+
+  // Build ordered groups: payout destinations (A→Z) first, compounding last.
+  const groups = new Map<string, NearingPayoutPdfRow[]>();
+  for (const r of rows) {
+    const key = groupLabelFor(r);
+    const arr = groups.get(key) || [];
+    arr.push(r);
+    groups.set(key, arr);
+  }
+  const COMPOUNDING_KEY = 'Compounding — reinvesting (no payout)';
+  const orderedGroups = Array.from(groups.entries()).sort((a, b) => {
+    const ca = a[0] === COMPOUNDING_KEY ? 1 : 0;
+    const cb = b[0] === COMPOUNDING_KEY ? 1 : 0;
+    if (ca !== cb) return ca - cb;
+    return a[0].localeCompare(b[0]);
   });
+  orderedGroups.forEach(([, arr]) => arr.sort(dueSort));
 
   // Body table — only the columns the COO needs for nearing payouts.
   const head = [[
     '#', 'Partner', 'Returns Due', 'Due', 'Payment Details',
   ]];
-  const body = sortedRows.map((r, idx) => {
+  const buildRow = (r: NearingPayoutPdfRow, idx: number) => {
     // Prefer FRESH database values over the row payload supplied by the
     // caller — the caller's `rows` can be stale if the operator edited a
     // portfolio between opening the dialog and exporting the PDF.
@@ -332,7 +364,37 @@ export async function generateNearingPayoutsPdf(input: NearingPayoutPdfInput): P
       compounding ? 'Compounding' : dueLabel(r.daysUntil, r.nextPayoutDate ?? det?.next_roi_date ?? r.nextRoiDate ?? ''),
       paymentCell,
     ];
-  });
+  };
+
+  // Flatten into a table body with a full-width header row per destination.
+  const body: any[] = [];
+  let rowNo = 0;
+  for (const [label, groupRows] of orderedGroups) {
+    const groupTotal = groupRows.reduce((s, r) => {
+      const det = r.portfolioId ? detailsMap.get(r.portfolioId) : null;
+      const principal = det?.investment_amount ?? r.investmentAmount ?? 0;
+      const roiPct = det?.roi_percentage ?? r.roiPercentage ?? 0;
+      return s + Math.round(principal * roiPct / 100);
+    }, 0);
+    body.push([
+      {
+        content: `${label.toUpperCase()}   ·   ${groupRows.length} portfolio${groupRows.length === 1 ? '' : 's'}   ·   Returns Due: ${formatUGX(groupTotal)}`,
+        colSpan: 5,
+        styles: {
+          fillColor: THEME_PRIMARY_DARK,
+          textColor: 255,
+          fontStyle: 'bold',
+          fontSize: 8,
+          halign: 'left',
+          cellPadding: 2,
+        },
+      },
+    ]);
+    for (const r of groupRows) {
+      rowNo += 1;
+      body.push(buildRow(r, rowNo - 1));
+    }
+  }
 
   autoTable(doc, {
     head,
