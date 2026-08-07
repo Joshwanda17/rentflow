@@ -531,10 +531,10 @@ export default function MerchandiseStore() {
       </div>
 
       {/* Order confirm dialog */}
-      <Dialog open={!!selected} onOpenChange={(o) => { if (!o) setSelected(null); }}>
+      <Dialog open={!!selected} onOpenChange={(o) => { if (!o) { setSelected(null); setConfirmStep(false); } }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Confirm your purchase</DialogTitle>
+            <DialogTitle>{confirmStep ? 'Confirm your purchase' : 'How would you like to pay?'}</DialogTitle>
           </DialogHeader>
           {selected && (
             <div className="space-y-3">
@@ -551,6 +551,8 @@ export default function MerchandiseStore() {
                   <p className="text-xs text-muted-foreground">{formatUGX(Number(selected.unit_price))} each</p>
                 </div>
               </div>
+              {!confirmStep && (
+              <>
               <div className="space-y-1">
                 <Label className="text-xs">Quantity</Label>
                 <Input
@@ -567,31 +569,105 @@ export default function MerchandiseStore() {
                   }}
                 />
               </div>
+              <div className="grid gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPayMode('full')}
+                  className={`text-left rounded-xl border px-3 py-2.5 transition ${payMode === 'full' ? 'border-primary bg-primary/5' : 'border-border'}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold">Buy now (pay in full)</span>
+                    {payMode === 'full' && <CheckCircle2 className="h-4 w-4 text-primary" />}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    {formatUGX(orderTotal)} is debited from your wallet immediately. Nothing to owe.
+                  </p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPayMode('installment')}
+                  className={`text-left rounded-xl border px-3 py-2.5 transition ${payMode === 'installment' ? 'border-primary bg-primary/5' : 'border-border'}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold">Pay in installments</span>
+                    {payMode === 'installment' && <CheckCircle2 className="h-4 w-4 text-primary" />}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    40% of your available wallet is taken now and at every recovery run until the
+                    {' '}{formatUGX(orderTotal)} price is cleared. No extra charge.
+                  </p>
+                </button>
+              </div>
+              </>
+              )}
               <div className="rounded-lg bg-muted/50 px-3 py-2 flex justify-between text-sm">
                 <span className="text-muted-foreground">Wallet balance</span>
                 <span className="font-semibold">{formatUGX(availableWallet)}</span>
               </div>
-              <div className={`rounded-lg px-3 py-2 flex justify-between text-sm ${insufficient ? 'bg-destructive/10 text-destructive' : 'bg-primary/5 text-foreground'}`}>
-                <span className="text-muted-foreground">Total to debit now</span>
-                <span className="font-bold">{formatUGX(orderTotal)}</span>
+              <div className="rounded-lg bg-muted/50 px-3 py-2 flex justify-between text-sm">
+                <span className="text-muted-foreground">Item price ({qty} × {formatUGX(Number(selected.unit_price))})</span>
+                <span className="font-semibold">{formatUGX(orderTotal)}</span>
               </div>
+              <div className={`rounded-lg px-3 py-2 flex justify-between text-sm ${insufficient ? 'bg-destructive/10 text-destructive' : 'bg-primary/5 text-foreground'}`}>
+                <span className="text-muted-foreground">{payMode === 'full' ? 'Total to debit now' : 'First installment (40%) now'}</span>
+                <span className="font-bold">{formatUGX(dueNow)}</span>
+              </div>
+              {payMode === 'installment' && !insufficient && (
+                <div className="rounded-lg bg-amber-500/10 px-3 py-2 flex justify-between text-sm">
+                  <span className="text-muted-foreground">Balance to recover</span>
+                  <span className="font-semibold">{formatUGX(remainingAfter)}</span>
+                </div>
+              )}
               {insufficient ? (
                 <div className="rounded-lg bg-destructive/10 border border-destructive/30 px-3 py-2 flex gap-2 text-[11px] text-destructive">
                   <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                  <p><span className="font-semibold">Amount exceeds your available wallet balance of {formatUGX(availableWallet)}.</span> Reduce the quantity to continue.</p>
+                  <p>
+                    {payMode === 'full' ? (
+                      <><span className="font-semibold">Amount exceeds your available wallet balance of {formatUGX(availableWallet)}.</span> Reduce the quantity or choose installments.</>
+                    ) : (
+                      <><span className="font-semibold">Your wallet is empty.</span> An installment plan needs a wallet balance to take the first 40%.</>
+                    )}
+                  </p>
+                </div>
+              ) : confirmStep ? (
+                <div className="rounded-lg bg-primary/5 border border-primary/20 px-3 py-2 text-[11px] text-muted-foreground">
+                  {payMode === 'full' ? (
+                    <>You are about to pay <span className="font-semibold text-foreground">{formatUGX(orderTotal)}</span> in
+                    full for <span className="font-semibold text-foreground">{qty} × {selected.item_name}</span>. This is
+                    debited from your withdrawable wallet immediately and cannot be undone here.</>
+                  ) : (
+                    <>You are starting an installment plan for <span className="font-semibold text-foreground">{qty} × {selected.item_name}</span> at
+                    {' '}<span className="font-semibold text-foreground">{formatUGX(orderTotal)}</span>.
+                    {' '}<span className="font-semibold text-foreground">{formatUGX(dueNow)}</span> is taken now and
+                    40% of your available wallet keeps being applied until the balance reaches zero.</>
+                  )}
+                  {' '}Marketing (CMO) sees this order and your payment plan.
                 </div>
               ) : (
                 <p className="text-[11px] text-muted-foreground">
-                  This amount is recovered from your withdrawable wallet — 15% up to 4 times a day until fully paid.
+                  {payMode === 'full'
+                    ? 'The full amount is debited from your withdrawable wallet right away.'
+                    : 'Installments are recovered from your withdrawable wallet — 40% up to 4 times a day until fully paid.'}
                 </p>
               )}
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSelected(null)} disabled={ordering}>Cancel</Button>
-            <Button onClick={placeOrder} disabled={ordering || insufficient}>
-              {ordering ? 'Ordering…' : insufficient ? 'Amount exceeds balance' : `Confirm order · ${formatUGX(orderTotal)}`}
-            </Button>
+            {confirmStep ? (
+              <>
+                <Button variant="outline" onClick={() => setConfirmStep(false)} disabled={ordering}>Back</Button>
+                <Button onClick={placeOrder} disabled={ordering || insufficient}>
+                  {ordering ? 'Placing order…' : `Yes, pay ${formatUGX(dueNow)}`}
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="outline" onClick={() => setSelected(null)} disabled={ordering}>Cancel</Button>
+                <Button onClick={() => setConfirmStep(true)} disabled={insufficient}>
+                  {insufficient ? 'Not enough balance' : 'Review order'}
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
