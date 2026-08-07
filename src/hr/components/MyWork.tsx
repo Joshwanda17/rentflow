@@ -36,7 +36,7 @@ import { supabase } from '@/hr/api/client';
 import { setMyWorkBadge } from '@/hr/lib/myWorkBadge';
 import type { Department, Employee, MetricDefinition, MetricSnapshot, Task } from '@/hr/types';
 import TaskFormDialog from './TaskFormDialog';
-import MyProxyInviteLink from '@/components/executive/MyProxyInviteLink';
+
 
 interface LeadScoreboardRow {
   lead_user_id: string;
@@ -528,7 +528,7 @@ export default function MyWork({ embedded = false }: MyWorkProps) {
 
   return (
     <div className={embedded ? 'space-y-5' : 'space-y-5'}>
-      <MyProxyInviteLink />
+      
       <PartnerLeadProduction />
       {unstarted.length > 0 && (
         <Card className="border-primary/50">
