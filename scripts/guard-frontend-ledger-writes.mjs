@@ -70,10 +70,9 @@ function isUserFacing(rel) {
 }
 
 // Allowlist: file path → reason. Bootstrapping a wallet row with balance 0 is
-// inert — it cannot create drift. Both call sites guard against re-creation.
+// inert — it cannot create drift.
 const ALLOWED_INSERTS = new Map([
   ['hooks/useWallet.ts', 'Bootstrap empty wallet row (balance: 0) on first load'],
-  ['components/manager/AddBalanceDialog.tsx', 'Bootstrap empty wallet row (balance: 0) before deposit flow'],
 ]);
 
 const WALLETS_INSERT_RE = /\.from\(\s*['"]wallets['"]\s*\)\s*\.insert\s*\(/;

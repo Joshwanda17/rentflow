@@ -262,7 +262,7 @@ export default function AddBalanceDialog({
                 {formatUGX(previewBalance)}
               </p>
               <p className="text-[10px] text-muted-foreground mt-1">
-                {type === 'credit' ? 'Applied immediately — no approval step.' : 'Queued for manager approval before it applies.'}
+                Applied immediately — no approval step.
               </p>
             </div>
           )}
@@ -284,7 +284,7 @@ export default function AddBalanceDialog({
             ) : (
               <Minus className="h-4 w-4" />
             )}
-            {type === 'credit' ? 'Credit Account' : 'Queue Debit'}
+            {type === 'credit' ? 'Credit Account' : 'Debit Account'}
           </Button>
         </DialogFooter>
       </DialogContent>
