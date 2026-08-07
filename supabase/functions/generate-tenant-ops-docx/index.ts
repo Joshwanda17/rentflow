@@ -342,23 +342,45 @@ Deno.serve(async (req) => {
     const week = eatWeekStartIso();
     const month = eatMonthStartIso();
 
-    // Single server-side count per window via an inner join on user_roles —
-    // never materialise the tenant id list (it is far too large for an IN filter).
-    const countTenants = async (sinceIso?: string) => {
-      let q = supabase
-        .from('profiles')
-        .select('id, user_roles!inner(role, enabled)', { count: 'exact', head: true })
-        .eq('user_roles.role', 'tenant')
-        .eq('user_roles.enabled', true);
-      if (sinceIso) q = q.gte('created_at', sinceIso);
-      const { count, error } = await q;
+    // Registered total: enabled tenant role rows (unique per user_id, role).
+    const countRegisteredTenants = async () => {
+      const { count, error } = await supabase
+        .from('user_roles')
+        .select('user_id', { count: 'exact', head: true })
+        .eq('role', 'tenant')
+        .eq('enabled', true);
       if (error) throw error;
       return count ?? 0;
     };
 
-    const registered_total = await countTenants();
-    const new_this_week = await countTenants(week.iso);
-    const new_this_month = await countTenants(month.iso);
+    // New tenants: profiles created in the window that hold an enabled tenant
+    // role. Window sets are small, so we resolve them in id chunks rather than
+    // joining (embedded-join counts time out on a 56k-row role table).
+    const countNewTenants = async (sinceIso: string) => {
+      const { data: rows, error } = await supabase
+        .from('profiles')
+        .select('id')
+        .gte('created_at', sinceIso)
+        .limit(20000);
+      if (error) throw error;
+      const ids = (rows ?? []).map((r: any) => r.id);
+      let total = 0;
+      for (let i = 0; i < ids.length; i += 200) {
+        const { count, error: cErr } = await supabase
+          .from('user_roles')
+          .select('user_id', { count: 'exact', head: true })
+          .eq('role', 'tenant')
+          .eq('enabled', true)
+          .in('user_id', ids.slice(i, i + 200));
+        if (cErr) throw cErr;
+        total += count ?? 0;
+      }
+      return total;
+    };
+
+    const registered_total = await countRegisteredTenants();
+    const new_this_week = await countNewTenants(week.iso);
+    const new_this_month = await countNewTenants(month.iso);
 
     const counts: Counts = {
       registered_total,
