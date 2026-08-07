@@ -558,6 +558,8 @@ export default function ExecutiveBrief({ embedded = false }: ExecutiveBriefProps
         </Card>
       </div>
 
+      <PartnerOpsProductionSection />
+
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm">Open work</CardTitle>
