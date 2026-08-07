@@ -69,7 +69,7 @@ function PartnerOpsProductionSection() {
         p_month: partnerOpsMonthStart(),
       } as never);
       if (error) throw error;
-      return Array.isArray(data) ? data.length : 0;
+      return Array.isArray(data) ? (data as unknown[]).length : 0;
     },
     staleTime: 120000,
   });
