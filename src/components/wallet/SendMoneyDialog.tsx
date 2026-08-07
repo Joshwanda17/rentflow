@@ -78,7 +78,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
   const [draftNickname, setDraftNickname] = useState('');
   const [recipientSearch, setRecipientSearch] = useState('');
   const [approvedDepositCount, setApprovedDepositCount] = useState<number | null>(null);
-  const MIN_APPROVED_DEPOSITS = 10;
+  const MIN_APPROVED_DEPOSITS = 7;
   // Agent daily-collection performance gate (mirrors WithdrawFlow). When an
   // agent has active tenants and today's collection ratio < 20%, sending
   // money to another user is blocked — same rule as withdrawals.
@@ -109,7 +109,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
     }
   }, [open, user?.id]);
 
-  // Anti-fraud gate: user-to-user transfers require at least 10 approved deposits.
+  // Anti-fraud gate: user-to-user transfers require at least 7 approved deposits.
   // We fetch the current count each time the dialog opens so the message and the
   // disabled state reflect the freshest server truth.
   useEffect(() => {
