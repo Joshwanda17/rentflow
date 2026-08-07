@@ -25,6 +25,17 @@ interface ScoreboardRow {
   agents_state?: string;
 }
 
+interface LeadAttachmentStats {
+  lead_user_id: string;
+  added_this_week: number;
+  added_this_month: number;
+  added_all_time: number;
+  new_signups_month: number;
+  existing_agents_month: number;
+  consented_month: number;
+  awaiting_consent: number;
+}
+
 const monthStart = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
