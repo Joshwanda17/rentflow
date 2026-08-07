@@ -57,6 +57,7 @@ export default function AgentPartners() {
   const [currentPage, setCurrentPage] = useState(0);
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<TabFilter>('invited');
+  const [hasLeadAssignment, setHasLeadAssignment] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const { commissionBalance, isLoading: commissionLoading } = useAgentBalances(user?.id);
 
