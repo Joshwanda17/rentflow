@@ -135,6 +135,7 @@ const MerchandiseStore = lazy(() => import('./pages/MerchandiseStore'));
 const Join = lazy(() => import('./pages/Join'));
 const SubAgentInvite = lazy(() => import('./pages/SubAgentInvite'));
 const ProxyAgentInvite = lazy(() => import('./pages/ProxyAgentInvite'));
+const ProxyAgreementRecord = lazy(() => import('./pages/ProxyAgreementRecord'));
 const InviteMerchantAgent = lazy(() => import('./pages/InviteMerchantAgent'));
 const MerchantRegister = lazy(() => import('./pages/MerchantRegister'));
 const MerchantLogin = lazy(() => import('./pages/MerchantLogin'));
@@ -553,6 +554,7 @@ function AppRoutes() {
           {/* Short alias used by emailed invite links, resend + gate resume */}
           <Route path="/n" element={<SubAgentInvite />} />
           <Route path="/pa/:code" element={<ProxyAgentInvite />} />
+          <Route path="/pa/record" element={<ProxyAgreementRecord />} />
           <Route path="/record-rent" element={<RecordRent />} />
           <Route path="/calculator" element={<Calculator />} />
           <Route path="/users" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'cto']} requiredPermission="company-ops"><AdminUsersPage /></RoleGuard>} />
