@@ -45,8 +45,45 @@ import {
   getTasks,
 } from '@/hr/api';
 import { supabase } from '@/hr/api/client';
+import { useQuery } from '@tanstack/react-query';
+import { PartnerOpsPendingSummary } from '@/components/executive/PartnerOpsPendingSummary';
+import { PartnerOpsScoreboard } from '@/components/executive/PartnerOpsScoreboard';
 import type { Department, Employee, MetricDefinition, MetricSnapshot, Task } from '@/hr/types';
 import TaskFormDialog from './TaskFormDialog';
+
+/** Month start (YYYY-MM-01) used by the partner ops RPCs. */
+const partnerOpsMonthStart = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+};
+
+/**
+ * Partner Ops production block. Renders nothing at all when the scoreboard
+ * RPC returns no rows for the current month.
+ */
+function PartnerOpsProductionSection() {
+  const { data: rowCount } = useQuery({
+    queryKey: ['executive-brief-partner-ops-rows', partnerOpsMonthStart()],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('partner_ops_scoreboard' as never, {
+        p_month: partnerOpsMonthStart(),
+      } as never);
+      if (error) throw error;
+      return Array.isArray(data) ? data.length : 0;
+    },
+    staleTime: 120000,
+  });
+
+  if (!rowCount) return null;
+
+  return (
+    <div className="space-y-3">
+      <h3 className="text-sm font-semibold text-foreground">Partner Ops production</h3>
+      <PartnerOpsPendingSummary />
+      <PartnerOpsScoreboard hideTargetEditor />
+    </div>
+  );
+}
 
 /** Statuses that take a task out of the open list. */
 const CLOSED: string[] = ['completed', 'cancelled'];
