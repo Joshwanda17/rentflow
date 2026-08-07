@@ -1911,3 +1911,147 @@ async function buildTechPdf(a: PdfArgs): Promise<Uint8Array> {
 
   return await doc.save();
 }
+
+// ============================================================================
+// Board memo renderer — 1-2 pages, business framing, no engineering detail.
+// ============================================================================
+
+interface BoardArgs {
+  dateStr: string;
+  health: number;
+  healthLabel: string;
+  headline: string[];
+  pillars: { label: string; status: string; tone: Tone; note: string }[];
+  decisions: string[];
+  kpis: string[][];
+}
+
+async function buildBoardPdf(a: BoardArgs): Promise<Uint8Array> {
+  const doc = await PDFDocument.create();
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+
+  const W = 595.28, H = 841.89, margin = 46;
+  const col = (r: number, g: number, b: number) => rgb(r / 255, g / 255, b / 255);
+  const ink = col(15, 23, 42);
+  const muted = col(100, 116, 139);
+  const line = col(226, 232, 240);
+  const soft = col(248, 250, 252);
+  const good = col(15, 157, 88);
+  const warn = col(199, 119, 0);
+  const bad = col(192, 57, 43);
+  const statusColor = (t: Tone) => (t === 'good' ? good : t === 'warn' ? warn : t === 'bad' ? bad : muted);
+
+  let page = doc.addPage([W, H]);
+  let y = 0;
+  let pageNo = 0;
+
+  const wrap = (s: string, f: any, size: number, maxW: number) => {
+    const words = String(s ?? '').split(/\s+/);
+    const lines: string[] = [];
+    let cur = '';
+    for (const w of words) {
+      const t = cur ? `${cur} ${w}` : w;
+      if (f.widthOfTextAtSize(t, size) > maxW && cur) { lines.push(cur); cur = w; } else { cur = t; }
+    }
+    if (cur) lines.push(cur);
+    return lines;
+  };
+
+  const header = () => {
+    pageNo += 1;
+    page.drawRectangle({ x: 0, y: H - 92, width: W, height: 92, color: ink });
+    page.drawText('WELILE TECHNOLOGIES LIMITED', { x: margin, y: H - 34, size: 8.5, font: bold, color: col(148, 163, 184) });
+    page.drawText('Board of Directors — Technology Memo', { x: margin, y: H - 58, size: 17, font: bold, color: col(255, 255, 255) });
+    page.drawText(`Reporting day ${a.dateStr} (EAT)  |  Technology health ${a.health}/100 (${a.healthLabel})`, { x: margin, y: H - 78, size: 9, font, color: col(203, 213, 225) });
+    const pn = `Page ${pageNo}`;
+    page.drawText(pn, { x: W - margin - bold.widthOfTextAtSize(pn, 8.5), y: H - 78, size: 8.5, font: bold, color: col(203, 213, 225) });
+    y = H - 92 - 26;
+  };
+  const footer = () => {
+    page.drawLine({ start: { x: margin, y: 38 }, end: { x: W - margin, y: 38 }, color: line, thickness: 0.6 });
+    page.drawText('Confidential - prepared for the Chief Executive Officer and Board of Directors. Full engineering diagnostics issued separately.', { x: margin, y: 25, size: 7.5, font, color: muted });
+  };
+  const newPage = () => { footer(); page = doc.addPage([W, H]); header(); };
+  const ensure = (h: number) => { if (y - h < 56) newPage(); };
+
+  header();
+
+  const sectionTitle = (label: string) => {
+    ensure(32);
+    page.drawText(label.toUpperCase(), { x: margin, y: y - 11, size: 9.5, font: bold, color: ink });
+    page.drawLine({ start: { x: margin, y: y - 17 }, end: { x: W - margin, y: y - 17 }, color: ink, thickness: 1.2 });
+    y -= 28;
+  };
+
+  const para = (s: string, size = 10.5) => {
+    for (const l of wrap(s, font, size, W - margin * 2)) {
+      ensure(size + 5);
+      page.drawText(l, { x: margin, y: y - size, size, font, color: ink });
+      y -= size + 4.5;
+    }
+    y -= 5;
+  };
+
+  const bullet = (s: string, size = 10) => {
+    const maxW = W - margin * 2 - 14;
+    const lines = wrap(s, font, size, maxW);
+    lines.forEach((l, i) => {
+      ensure(size + 5);
+      if (i === 0) page.drawText('-', { x: margin, y: y - size, size, font: bold, color: muted });
+      page.drawText(l, { x: margin + 14, y: y - size, size, font, color: ink });
+      y -= size + 4;
+    });
+    y -= 3;
+  };
+
+  // 1. Headline
+  sectionTitle('Headline');
+  for (const p of a.headline) para(p);
+
+  // 2. Scorecard
+  sectionTitle('Business risk scorecard');
+  for (const p of a.pillars) {
+    const noteLines = wrap(p.note, font, 9, W - margin * 2 - 170);
+    const blockH = Math.max(26, 14 + noteLines.length * 12);
+    ensure(blockH + 6);
+    page.drawRectangle({ x: margin, y: y - blockH, width: W - margin * 2, height: blockH, color: soft });
+    page.drawRectangle({ x: margin, y: y - blockH, width: 4, height: blockH, color: statusColor(p.tone) });
+    page.drawText(p.label, { x: margin + 12, y: y - 15, size: 10, font: bold, color: ink });
+    page.drawText(p.status.toUpperCase(), { x: margin + 12, y: y - 27, size: 9, font: bold, color: statusColor(p.tone) });
+    noteLines.forEach((l, i) => {
+      page.drawText(l, { x: margin + 170, y: y - 15 - i * 12, size: 9, font, color: muted });
+    });
+    y -= blockH + 8;
+  }
+  y -= 4;
+
+  // 3. Decisions
+  sectionTitle('For board decision or awareness');
+  for (const b of a.decisions) bullet(b);
+
+  // 4. KPI table
+  sectionTitle('Key indicators — today versus target');
+  const headers = ['Indicator', 'Today', 'Target', 'Status'];
+  const weights = [0.42, 0.2, 0.2, 0.18];
+  const totalW = W - margin * 2;
+  const colX = (i: number) => margin + weights.slice(0, i).reduce((s, w) => s + w * totalW, 0);
+  ensure(22);
+  page.drawRectangle({ x: margin, y: y - 18, width: totalW, height: 18, color: ink });
+  headers.forEach((h, i) => page.drawText(h, { x: colX(i) + 6, y: y - 13, size: 8.5, font: bold, color: col(255, 255, 255) }));
+  y -= 18;
+  a.kpis.forEach((row, ri) => {
+    ensure(18);
+    if (ri % 2 === 1) page.drawRectangle({ x: margin, y: y - 16, width: totalW, height: 16, color: soft });
+    row.forEach((cell, i) => {
+      const isStatus = i === 3;
+      const c = isStatus ? (cell === 'On target' ? good : warn) : ink;
+      page.drawText(String(cell), { x: colX(i) + 6, y: y - 12, size: 8.5, font: isStatus ? bold : font, color: c });
+    });
+    page.drawLine({ start: { x: margin, y: y - 16 }, end: { x: W - margin, y: y - 16 }, color: line, thickness: 0.5 });
+    y -= 16;
+  });
+
+  footer();
+  return await doc.save();
+}
