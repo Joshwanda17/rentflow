@@ -43,11 +43,20 @@ export default function ProxyAgentInvite() {
     }
   }, [code]);
 
-  // Not signed in → send to auth with the agent intent.
+  // Not signed in → send to the plain sign-in page, returning here afterwards.
   useEffect(() => {
     if (authLoading) return;
-    if (!user) navigate('/auth?become=agent', { replace: true });
-  }, [authLoading, user, navigate]);
+    if (!user) {
+      navigate(`/auth?redirect=${encodeURIComponent(`/pa/${code}`)}`, { replace: true });
+    }
+  }, [authLoading, user, navigate, code]);
+
+  // After accepting, land the proxy directly where promissory notes are submitted.
+  useEffect(() => {
+    if (!accepted) return;
+    const timer = setTimeout(() => navigate('/agent/partners', { replace: true }), 2000);
+    return () => clearTimeout(timer);
+  }, [accepted, navigate]);
 
   useEffect(() => {
     if (authLoading || !user) return;
@@ -147,12 +156,12 @@ export default function ProxyAgentInvite() {
                 <div className="flex items-start gap-2 rounded-md border border-primary/30 bg-primary/10 p-3 text-sm">
                   <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                   <span>
-                    You're connected. Promissory notes you submit will now be credited to your lead.
+                    You're connected. Taking you to My Partners…
                   </span>
                 </div>
-                <Link to="/pa/record" className="text-sm text-primary underline">
-                  Go to record a promissory note
-                </Link>
+                <Button onClick={() => navigate('/agent/partners', { replace: true })} className="w-full">
+                  Go to My Partners now
+                </Button>
               </div>
             ) : agreement?.already_accepted ? (
               <div className="space-y-3">
