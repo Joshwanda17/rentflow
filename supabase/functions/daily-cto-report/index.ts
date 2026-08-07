@@ -1591,9 +1591,14 @@ Deno.serve(async (req) => {
     form.append('from', FROM);
     for (const r of recipients) form.append('to', r);
     form.append('h:Reply-To', REPLY_TO);
-    form.append('subject', `Daily CTO Report — ${dateStr} — Health ${health}/100 (${healthLabel})`);
-    form.append('text', text);
-    form.append('html', html);
+    form.append(
+      'subject',
+      reportType === 'board'
+        ? `Board Technology Memo — ${dateStr} — Health ${health}/100 (${healthLabel})`
+        : `Daily CTO Report — ${dateStr} — Health ${health}/100 (${healthLabel})`,
+    );
+    form.append('text', reportType === 'board' ? boardText : text);
+    form.append('html', reportType === 'board' ? boardHtml : html);
     form.append('attachment', new Blob([pdfBytes], { type: 'application/pdf' }), pdfName);
 
     const mgRes = await fetch(`${mgBase}/v3/${mgDomain}/messages`, {
@@ -1609,7 +1614,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ ok: true, date: dateStr, recipients, health, risks: risks.length, attachment: pdfName, pdf_bytes: pdfBytes.length }), {
+    return new Response(JSON.stringify({ ok: true, date: dateStr, report_type: reportType, recipients, health, risks: risks.length, attachment: pdfName, pdf_bytes: pdfBytes.length }), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (e) {
