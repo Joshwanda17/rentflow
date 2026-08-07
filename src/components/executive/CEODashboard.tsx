@@ -12,7 +12,6 @@ import { AgentAdvancesDailyReportCard } from './AgentAdvancesDailyReportCard';
 import { AgentOpsLiveStatsCard } from './AgentOpsLiveStatsCard';
 import { FunderEngagementPanel } from './FunderEngagementPanel';
 import { FunderFunnelPanel } from './FunderFunnelPanel';
-import { SupervisionSections } from './SupervisionSections';
 
 export function CEODashboard() {
   const [searchParams] = useSearchParams();
@@ -199,8 +198,6 @@ export function CEODashboard() {
 
       {/* Funder funnel — view terms → select → lock → fund */}
       <FunderFunnelPanel />
-
-      {activeTab === 'supervision' && <SupervisionSections />}
 
       {/* Growth Metrics */}
       <div className="rounded-2xl border border-border bg-card p-3 sm:p-4">
