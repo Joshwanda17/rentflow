@@ -79,6 +79,37 @@ export function PartnerLeadAssignments() {
     },
   });
 
+  const { data: consentMap = {} } = useQuery({
+    queryKey: ['proxy-agreement-consents', 'current-month', personIds],
+    enabled: personIds.length > 0,
+    queryFn: async () => {
+      const start = new Date();
+      start.setDate(1);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(start);
+      end.setMonth(end.getMonth() + 1);
+
+      const { data, error } = await supabase
+        .from('proxy_agreement_consents')
+        .select('agent_user_id, accepted_at, proxy_agreement_versions(version_code)')
+        .in('agent_user_id', personIds)
+        .gte('period_month', start.toISOString())
+        .lt('period_month', end.toISOString())
+        .order('accepted_at', { ascending: false });
+      if (error) throw error;
+
+      const map: Record<string, { accepted_at: string; version_code: string }> = {};
+      for (const c of data ?? []) {
+        const agentId = c.agent_user_id;
+        if (!map[agentId]) {
+          const version = (c.proxy_agreement_versions as { version_code?: string } | null)?.version_code ?? '';
+          map[agentId] = { accepted_at: c.accepted_at, version_code: version };
+        }
+      }
+      return map;
+    },
+  });
+
   const reasonOk = reason.trim().length >= MIN_REASON;
   const canSubmit = !!lead && !!agent && reasonOk && !submitting;
 
