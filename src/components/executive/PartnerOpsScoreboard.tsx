@@ -136,6 +136,11 @@ export function PartnerOpsScoreboard({ hideTargetEditor = false }: PartnerOpsSco
           Scoreboard failed to load: {error?.message}
         </div>
       )}
+      {statsIsError && (
+        <div className="rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive">
+          Attachment stats failed to load: {statsError?.message}
+        </div>
+      )}
       <PartnerOpsPendingSummary />
       <PartnerNoteRateEditor />
       {!isError && !rows.length ? (
