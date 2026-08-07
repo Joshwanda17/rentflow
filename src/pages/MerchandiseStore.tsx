@@ -264,6 +264,14 @@ export default function MerchandiseStore() {
         ? `${selected.item_name} ordered. ${formatUGX(orderTotal)} debited from your wallet.`
         : `${selected.item_name} ordered on installments. ${formatUGX(dueNow)} paid now, ${formatUGX(remainingAfter)} to go.`,
     );
+    setSuccess({
+      itemName: selected.item_name,
+      quantity: qty,
+      mode: payMode,
+      paidNow: payMode === 'full' ? orderTotal : dueNow,
+      remaining: payMode === 'full' ? 0 : remainingAfter,
+      total: orderTotal,
+    });
     setSelected(null);
     setQuantity('1');
     setPayMode('full');
