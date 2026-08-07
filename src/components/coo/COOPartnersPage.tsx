@@ -4846,39 +4846,32 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
     }
   })();
 
-  // Build the payment-mode breakdown for the PDF dropdown from the rows that
-  // are currently visible. Bank rows are grouped by the actual bank name
-  // (e.g. "EQUITY BANK") and mobile money by network, so Ops picks the real
-  // destination rather than a generic "bank".
+  // Two-way destination breakdown for the PDF dropdown: Banks (all bank names
+  // combined) and Mobile Money (all networks combined). Each total includes
+  // compounding portfolios — they are listed last in the PDF with "--" payout
+  // details since they reinvest instead of cashing out.
   const payMethodGroups = useMemo(() => {
-    const banks = new Map<string, number>();
-    const momo = new Map<string, number>();
-    let cash = 0;
-    let unset = 0;
+    let banks = 0, banksCompounding = 0, momo = 0, momoCompounding = 0;
     for (const p of filtered) {
-      // Compounding portfolios reinvest — they have no payout destination.
-      if (p.roiMode === 'monthly_compounding') continue;
+      const compounding = p.roiMode === 'monthly_compounding';
       if (p.paymentMethod === 'bank_transfer') {
-        const key = (p.bankName || '').trim().toUpperCase() || 'BANK (NAME NOT SET)';
-        banks.set(key, (banks.get(key) || 0) + 1);
+        banks += 1;
+        if (compounding) banksCompounding += 1;
       } else if (p.paymentMethod === 'mobile_money') {
-        const key = (p.mobileNetwork || '').trim().toUpperCase() || 'MOBILE MONEY (NETWORK NOT SET)';
-        momo.set(key, (momo.get(key) || 0) + 1);
-      } else if (p.paymentMethod === 'cash') {
-        cash += 1;
-      } else {
-        unset += 1;
+        momo += 1;
+        if (compounding) momoCompounding += 1;
       }
     }
-    const sortEntries = (m: Map<string, number>) =>
-      Array.from(m.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-    return { banks: sortEntries(banks), momo: sortEntries(momo), cash, unset };
+    return { banks, banksCompounding, momo, momoCompounding };
   }, [filtered]);
 
   // Does a visible row match the chosen payout destination?
   const matchesPayMethod = (p: NearingPayoutPortfolio, key: string) => {
     if (key === 'all') return true;
-    // Destination-specific exports never include compounding portfolios.
+    // Banks / Mobile Money exports include compounding portfolios too — the
+    // PDF lists them last and masks their payout details with "--".
+    if (key === 'banks') return p.paymentMethod === 'bank_transfer';
+    if (key === 'mobile_money') return p.paymentMethod === 'mobile_money';
     if (p.roiMode === 'monthly_compounding') return false;
     if (key === 'cash') return p.paymentMethod === 'cash';
     if (key === 'unset') return !p.paymentMethod;
@@ -4897,6 +4890,8 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
 
   const payMethodLabel = (key: string) => {
     if (key === 'all') return 'All payment modes';
+    if (key === 'banks') return 'Banks (all bank transfers)';
+    if (key === 'mobile_money') return 'Mobile Money (all networks)';
     if (key === 'cash') return 'Cash';
     if (key === 'unset') return 'No payout method set';
     if (key.startsWith('bank:')) return `${key.slice(5)} (bank transfer)`;
@@ -4940,7 +4935,11 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
       const stamp = new Date().toISOString().slice(0, 10);
       const methodSlug = methodKey === 'all'
         ? 'all-modes'
-        : methodKey.replace(/^bank:|^momo:/, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+        : methodKey === 'banks'
+          ? 'banks'
+          : methodKey === 'mobile_money'
+            ? 'mobile-money'
+            : methodKey.replace(/^bank:|^momo:/, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
       downloadNearingBlob(blob, `welile-nearing-payouts-${rangeFilter}-${methodSlug}-${stamp}.pdf`);
       toast.success('PDF exported', { description: `${rows.length} portfolio${rows.length === 1 ? '' : 's'} · ${payMethodLabel(methodKey)}.` });
     } catch (err: any) {
