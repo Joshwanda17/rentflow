@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 import { Loader2, Plus, Minus, Wallet, Landmark, Banknote } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { useAuth } from '@/hooks/useAuth';
+import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 
 interface AddBalanceDialogProps {
   open: boolean;
