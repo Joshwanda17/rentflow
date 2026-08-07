@@ -1639,9 +1639,9 @@ Deno.serve(async (req) => {
 
     const pdfBytes = reportType === 'board'
       ? await buildBoardPdf({
-          dateStr,
-          health,
-          healthLabel,
+          dateStr: weeklyMode ? boardPeriodLabel : dateStr,
+          health: wHealth,
+          healthLabel: wHealthLabel,
           headline: boardHeadline,
           pillars: boardPillars,
           decisions: boardDecisions,
@@ -1649,13 +1649,13 @@ Deno.serve(async (req) => {
         })
       : await buildTechPdf(techArgs);
     const pdfName = reportType === 'board'
-      ? `Welile_Board_Technology_Memo_${dateStr}.pdf`
+      ? `Welile_Board_Technology_Memo_Week_Ending_${dateStr}.pdf`
       : `Welile_Daily_CTO_Report_${dateStr}.pdf`;
 
     const boardHtml = `
       <div style="font-family:Helvetica,Arial,sans-serif;color:${C.ink};max-width:680px;">
-        <h2 style="margin:0 0 6px;font-size:19px;">Board Technology Memo — ${dateStr}</h2>
-        <div style="font-size:12px;color:${C.muted};margin-bottom:14px;">Technology health ${health}/100 (${healthLabel})</div>
+        <h2 style="margin:0 0 6px;font-size:19px;">Board Technology Memo — week ending ${dateStr}</h2>
+        <div style="font-size:12px;color:${C.muted};margin-bottom:14px;">Reporting period ${esc(weeklyMode ? boardPeriodLabel : dateStr)} (EAT) · Technology health ${wHealth}/100 (${wHealthLabel})${weeklyMode ? ' — 7-day average' : ''}</div>
         ${boardHeadline.map((p) => `<p style="font-size:13.5px;line-height:1.65;margin:0 0 10px;">${esc(p)}</p>`).join('')}
         <h3 style="font-size:14px;margin:18px 0 8px;">Scorecard</h3>
         <ul style="font-size:13px;line-height:1.7;padding-left:18px;margin:0;">
@@ -1668,8 +1668,9 @@ Deno.serve(async (req) => {
         <p style="font-size:11.5px;color:${C.muted};margin-top:18px;">The full engineering diagnostic report is issued separately to the technology team.</p>
       </div>`;
     const boardText = [
-      `Board Technology Memo — ${dateStr}`,
-      `Technology health: ${health}/100 (${healthLabel})`,
+      `Board Technology Memo — week ending ${dateStr}`,
+      `Reporting period: ${weeklyMode ? boardPeriodLabel : dateStr} (EAT)`,
+      `Technology health: ${wHealth}/100 (${wHealthLabel})${weeklyMode ? ' (7-day average)' : ''}`,
       '',
       ...boardHeadline,
       '',
@@ -1695,7 +1696,7 @@ Deno.serve(async (req) => {
     form.append(
       'subject',
       reportType === 'board'
-        ? `Welile Board Technology Update — ${dateStr} — Health ${health}/100 (${healthLabel})`
+        ? `Welile Weekly Board Technology Update — week ending ${dateStr} — Health ${wHealth}/100 (${wHealthLabel})`
         : `Welile Daily Tech Diagnostic Report — ${dateStr} — Health ${health}/100 (${healthLabel})`,
     );
     form.append('text', reportType === 'board' ? boardText : text);
@@ -1715,7 +1716,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ ok: true, date: dateStr, report_type: reportType, recipients, health, risks: risks.length, attachment: pdfName, pdf_bytes: pdfBytes.length }), {
+    return new Response(JSON.stringify({ ok: true, date: dateStr, period: reportType === 'board' ? boardPeriodLabel : dateStr, weekly: weeklyMode, report_type: reportType, recipients, health: reportType === 'board' ? wHealth : health, risks: risks.length, attachment: pdfName, pdf_bytes: pdfBytes.length }), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (e) {
