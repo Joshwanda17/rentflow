@@ -21,6 +21,7 @@ import { format } from 'date-fns';
 import SmartphoneOrderStatus from '@/components/merchandise/SmartphoneOrderStatus';
 import { StorageImage } from '@/components/ui/StorageImage';
 import { shortMerchandiseUrl, longMerchandiseUrl } from '@/lib/merchandiseShareLink';
+import { useRestoreBodyPointerEvents } from '@/hooks/useRestoreBodyPointerEvents';
 
 // Merchandise tables aren't in generated types yet.
 const db = supabase as any;
@@ -58,6 +59,9 @@ const PAGE_SIZE = 8;
 
 export default function MerchandiseStore() {
   const navigate = useNavigate();
+  // Clears the Radix stacked-modal body pointer-events lock that can make the
+  // dialog's footer buttons (e.g. "Review order") silently unresponsive.
+  useRestoreBodyPointerEvents();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const queryClient = useQueryClient();
