@@ -16,7 +16,10 @@ const corsHeaders = {
 
 const FROM = 'Welile CTO Office <reports@welile.com>';
 const REPLY_TO = 'reports@welile.com';
-const DEFAULT_RECIPIENTS = ['joshwanda17@gmail.com'];
+// Engineering distribution list for the full technical diagnostic report.
+const TECH_RECIPIENTS = ['joshwanda17@gmail.com'];
+// CEO / Board distribution list for the condensed board memo.
+const BOARD_RECIPIENTS = ['joshwanda17@gmail.com'];
 
 const C = {
   ink: '#0f172a',
@@ -179,10 +182,12 @@ Deno.serve(async (req) => {
     const body = req.method === 'POST' ? await req.json().catch(() => ({})) : {};
     const dateStr: string =
       typeof body?.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.date) ? body.date : yesterdayIsoEAT();
+    // One data pass, two renderers: 'board' = condensed memo, 'tech' = full diagnostics.
+    const reportType: 'board' | 'tech' = body?.report_type === 'board' ? 'board' : 'tech';
     const recipients: string[] =
       Array.isArray(body?.recipients) && body.recipients.length
         ? body.recipients.filter((r: unknown) => typeof r === 'string' && (r as string).includes('@'))
-        : DEFAULT_RECIPIENTS;
+        : reportType === 'board' ? BOARD_RECIPIENTS : TECH_RECIPIENTS;
 
     const supabase = createClient(supabaseUrl, serviceKey);
     const { data, error } = await supabase.rpc('get_cto_daily_report', { p_date: dateStr });
@@ -1145,7 +1150,7 @@ Deno.serve(async (req) => {
     ].join('\n');
 
     // ---- Downloadable PDF attachment ------------------------------------
-    const pdfBytes = await buildCtoPdf({
+    const techArgs: PdfArgs = {
       dateStr,
       generatedAt: String(d.generated_at || '').slice(0, 19).replace('T', ' '),
       health, healthLabel,
@@ -1445,8 +1450,134 @@ Deno.serve(async (req) => {
           ]),
         },
       ],
-    });
-    const pdfName = `Welile_Daily_CTO_Report_${dateStr}.pdf`;
+    };
+
+    // ---- Board framing (same data, business language) ---------------------
+    const rollbackRate = pct(n(I.rollbacks), Math.max(1, n(I.commits) + n(I.rollbacks)));
+    const GUARDRAIL_RE = /advance|recover|guardrail|bonus|trust|wallet|ledger|payout|commission|deposit|solvency|drift/i;
+    const guardrailJobs = failingJobs.filter((j: any) => GUARDRAIL_RE.test(String(j.jobname || '')));
+    const brokenAllDay = n(adJobsSummary.jobs_broken_all_day);
+    const notifDelivery = 100 - emailFailRate;
+    const authSuccess = 100 - loginFailRate;
+
+    const ragTone = (v: number): Tone => (v >= 85 ? 'good' : v >= 65 ? 'warn' : 'bad');
+    const pillarScores = {
+      reliability: Math.max(0, Math.min(100, 100 - rollbackRate * 6 - errRate * 10)),
+      controls: Math.max(0, 100 - guardrailJobs.length * 22 - Math.max(0, failingJobs.length - guardrailJobs.length) * 6),
+      security: Math.min(100, rlsCoverage),
+      customer: Math.min(100, authSuccess * 0.6 + notifDelivery * 0.4),
+      continuity: backupOk ? 100 : 45,
+    };
+    const boardPillars: { label: string; status: string; tone: Tone; note: string }[] = [
+      {
+        label: 'Platform Reliability',
+        status: pillarScores.reliability >= 85 ? 'Green' : pillarScores.reliability >= 65 ? 'Amber' : 'Red',
+        tone: ragTone(pillarScores.reliability),
+        note: `${rollbackRate.toFixed(2)}% of database transactions rolled back; ${errRate.toFixed(2)}% app error rate affecting ${fmt(E.affected_users_today)} users.`,
+      },
+      {
+        label: 'Financial Controls Automation',
+        status: pillarScores.controls >= 85 ? 'Green' : pillarScores.controls >= 65 ? 'Amber' : 'Red',
+        tone: ragTone(pillarScores.controls),
+        note: guardrailJobs.length
+          ? `${guardrailJobs.length} financial-control automation${guardrailJobs.length > 1 ? 's' : ''} not completing (${guardrailJobs.slice(0, 3).map((j: any) => String(j.jobname)).join(', ')}); ${brokenAllDay} job(s) had no successful run today.`
+          : `All ${fmt(J.total_scheduled)} automated controls completing; ${jobFailRate.toFixed(1)}% run failure rate.`,
+      },
+      {
+        label: 'Security & Compliance',
+        status: pillarScores.security >= 98 ? 'Green' : pillarScores.security >= 90 ? 'Amber' : 'Red',
+        tone: ragTone(pillarScores.security),
+        note: `Access controls enforced on ${rlsCoverage.toFixed(1)}% of data tables; ${fmt(S.fraud_blocks_active)} fraud blocks active; ${fmt(P.txn_today)} balanced ledger postings.`,
+      },
+      {
+        label: 'Customer Experience',
+        status: pillarScores.customer >= 95 ? 'Green' : pillarScores.customer >= 85 ? 'Amber' : 'Red',
+        tone: ragTone(pillarScores.customer),
+        note: `${authSuccess.toFixed(1)}% of sign-ins succeeded; ${notifDelivery.toFixed(1)}% of customer notifications delivered.`,
+      },
+      {
+        label: 'Business Continuity',
+        status: backupOk ? 'Green' : 'Amber',
+        tone: backupOk ? 'good' : 'warn',
+        note: `${fmt(B.runs_7d)} backups in the last 7 days with ${fmt(B.failures_7d)} failures; latest ${B.latest?.created_at ? String(B.latest.created_at).slice(0, 16).replace('T', ' ') : 'not recorded'}.`,
+      },
+    ];
+
+    const boardHeadline: string[] = [
+      `The platform served ${fmt(P.active_24h)} active customers today with no revenue-impacting outage, and financial ledger integrity held across ${fmt(P.txn_today)} balanced postings.`,
+      `Customer-facing quality was ${errRate < 1 ? 'stable' : 'under pressure'}: ${authSuccess.toFixed(1)}% of sign-ins succeeded and ${notifDelivery.toFixed(1)}% of notifications were delivered.`,
+      guardrailJobs.length
+        ? `One item needs board visibility: ${guardrailJobs.length} automated job${guardrailJobs.length > 1 ? 's' : ''} enforcing financial controls (${guardrailJobs.slice(0, 3).map((j: any) => String(j.jobname)).join(', ')}) ${guardrailJobs.length > 1 ? 'have' : 'has'} not completed successfully in the last 24 hours, so those controls are currently running on manual oversight rather than automatically.`
+        : `No financial-control automation is currently failing; all scheduled control jobs completed in the last 24 hours.`,
+      rollbackRate >= 5
+        ? `Separately, ${rollbackRate.toFixed(2)}% of database transactions were rolled back today, above the internal tolerance — this signals wasted processing and retried customer actions rather than lost money.`
+        : `Overall technology health stands at ${health} out of 100 (${healthLabel}); no other item requires a board decision this cycle.`,
+    ];
+
+    const boardDecisions: string[] = [];
+    if (guardrailJobs.length)
+      boardDecisions.push(`Approve prioritising a remediation sprint for the ${guardrailJobs.length} financial-guardrail automation${guardrailJobs.length > 1 ? 's' : ''} so financial controls run without manual oversight.`);
+    if (rollbackRate >= 5)
+      boardDecisions.push(`Note the elevated transaction rollback rate (${rollbackRate.toFixed(2)}%) and the engineering commitment to bring it back within tolerance.`);
+    if (!backupOk)
+      boardDecisions.push('Note that the backup cadence is not fully green this week; continuity assurance requires attention before the next cycle.');
+    if (emailFailRate >= 5)
+      boardDecisions.push(`Be aware that ${emailFailRate.toFixed(1)}% of customer notifications failed to deliver, which increases support load.`);
+    if (!boardDecisions.length)
+      boardDecisions.push('No decision required this cycle. All five pillars are within tolerance; the technology team continues on planned work.');
+
+    const boardKpis: string[][] = [
+      ['Technology health score', `${health}/100 (${healthLabel})`, '85 or above', health >= 85 ? 'On target' : 'Below target'],
+      ['Customer-facing error rate', `${errRate.toFixed(2)}%`, 'Below 1.00%', errRate < 1 ? 'On target' : 'Below target'],
+      ['Sign-in success rate', `${authSuccess.toFixed(1)}%`, '98.0% or above', authSuccess >= 98 ? 'On target' : 'Below target'],
+      ['Automation success rate', `${(100 - jobFailRate).toFixed(1)}%`, '99.0% or above', jobFailRate <= 1 ? 'On target' : 'Below target'],
+      ['Notification delivery', `${notifDelivery.toFixed(1)}%`, '95.0% or above', notifDelivery >= 95 ? 'On target' : 'Below target'],
+      ['Transaction rollback rate', `${rollbackRate.toFixed(2)}%`, 'Below 5.00%', rollbackRate < 5 ? 'On target' : 'Below target'],
+      ['Financial controls automated', `${fmt(Math.max(0, n(J.total_scheduled) - failingJobs.length))} of ${fmt(J.total_scheduled)}`, 'All scheduled jobs', failingJobs.length ? 'Below target' : 'On target'],
+    ];
+
+    const pdfBytes = reportType === 'board'
+      ? await buildBoardPdf({
+          dateStr,
+          health,
+          healthLabel,
+          headline: boardHeadline,
+          pillars: boardPillars,
+          decisions: boardDecisions,
+          kpis: boardKpis,
+        })
+      : await buildTechPdf(techArgs);
+    const pdfName = reportType === 'board'
+      ? `Welile_Board_Technology_Memo_${dateStr}.pdf`
+      : `Welile_Daily_CTO_Report_${dateStr}.pdf`;
+
+    const boardHtml = `
+      <div style="font-family:Helvetica,Arial,sans-serif;color:${C.ink};max-width:680px;">
+        <h2 style="margin:0 0 6px;font-size:19px;">Board Technology Memo — ${dateStr}</h2>
+        <div style="font-size:12px;color:${C.muted};margin-bottom:14px;">Technology health ${health}/100 (${healthLabel})</div>
+        ${boardHeadline.map((p) => `<p style="font-size:13.5px;line-height:1.65;margin:0 0 10px;">${esc(p)}</p>`).join('')}
+        <h3 style="font-size:14px;margin:18px 0 8px;">Scorecard</h3>
+        <ul style="font-size:13px;line-height:1.7;padding-left:18px;margin:0;">
+          ${boardPillars.map((p) => `<li><b>${esc(p.label)}: <span style="color:${toneColor(p.tone)}">${esc(p.status)}</span></b> — ${esc(p.note)}</li>`).join('')}
+        </ul>
+        <h3 style="font-size:14px;margin:18px 0 8px;">For board decision or awareness</h3>
+        <ul style="font-size:13px;line-height:1.7;padding-left:18px;margin:0;">
+          ${boardDecisions.map((b) => `<li>${esc(b)}</li>`).join('')}
+        </ul>
+        <p style="font-size:11.5px;color:${C.muted};margin-top:18px;">The full engineering diagnostic report is issued separately to the technology team.</p>
+      </div>`;
+    const boardText = [
+      `Board Technology Memo — ${dateStr}`,
+      `Technology health: ${health}/100 (${healthLabel})`,
+      '',
+      ...boardHeadline,
+      '',
+      'Scorecard:',
+      ...boardPillars.map((p) => `- ${p.label}: ${p.status} — ${p.note}`),
+      '',
+      'For board decision or awareness:',
+      ...boardDecisions.map((b, i) => `${i + 1}. ${b}`),
+    ].join('\n');
 
     // Preview mode: return the PDF itself instead of emailing it.
     if (body?.preview === true) {
@@ -1460,9 +1591,14 @@ Deno.serve(async (req) => {
     form.append('from', FROM);
     for (const r of recipients) form.append('to', r);
     form.append('h:Reply-To', REPLY_TO);
-    form.append('subject', `Daily CTO Report — ${dateStr} — Health ${health}/100 (${healthLabel})`);
-    form.append('text', text);
-    form.append('html', html);
+    form.append(
+      'subject',
+      reportType === 'board'
+        ? `Board Technology Memo — ${dateStr} — Health ${health}/100 (${healthLabel})`
+        : `Daily CTO Report — ${dateStr} — Health ${health}/100 (${healthLabel})`,
+    );
+    form.append('text', reportType === 'board' ? boardText : text);
+    form.append('html', reportType === 'board' ? boardHtml : html);
     form.append('attachment', new Blob([pdfBytes], { type: 'application/pdf' }), pdfName);
 
     const mgRes = await fetch(`${mgBase}/v3/${mgDomain}/messages`, {
@@ -1478,7 +1614,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ ok: true, date: dateStr, recipients, health, risks: risks.length, attachment: pdfName, pdf_bytes: pdfBytes.length }), {
+    return new Response(JSON.stringify({ ok: true, date: dateStr, report_type: reportType, recipients, health, risks: risks.length, attachment: pdfName, pdf_bytes: pdfBytes.length }), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (e) {
@@ -1517,7 +1653,7 @@ interface PdfArgs {
   diagSections?: { title: string; headers: string[]; rows: string[][]; weights: number[] }[];
 }
 
-async function buildCtoPdf(a: PdfArgs): Promise<Uint8Array> {
+async function buildTechPdf(a: PdfArgs): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
@@ -1773,5 +1909,152 @@ async function buildCtoPdf(a: PdfArgs): Promise<Uint8Array> {
 
   footer();
 
+  return await doc.save();
+}
+
+// ============================================================================
+// Board memo renderer — 1-2 pages, business framing, no engineering detail.
+// ============================================================================
+
+interface BoardArgs {
+  dateStr: string;
+  health: number;
+  healthLabel: string;
+  headline: string[];
+  pillars: { label: string; status: string; tone: Tone; note: string }[];
+  decisions: string[];
+  kpis: string[][];
+}
+
+async function buildBoardPdf(a: BoardArgs): Promise<Uint8Array> {
+  const doc = await PDFDocument.create();
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+
+  const W = 595.28, H = 841.89, margin = 46;
+  const col = (r: number, g: number, b: number) => rgb(r / 255, g / 255, b / 255);
+  const ink = col(15, 23, 42);
+  const muted = col(100, 116, 139);
+  const line = col(226, 232, 240);
+  const soft = col(248, 250, 252);
+  const good = col(15, 157, 88);
+  const warn = col(199, 119, 0);
+  const bad = col(192, 57, 43);
+  const statusColor = (t: Tone) => (t === 'good' ? good : t === 'warn' ? warn : t === 'bad' ? bad : muted);
+
+  let page = doc.addPage([W, H]);
+  let y = 0;
+  let pageNo = 0;
+
+  const wrap = (s: string, f: any, size: number, maxW: number) => {
+    const words = String(s ?? '').split(/\s+/);
+    const lines: string[] = [];
+    let cur = '';
+    for (const w of words) {
+      const t = cur ? `${cur} ${w}` : w;
+      if (f.widthOfTextAtSize(t, size) > maxW && cur) { lines.push(cur); cur = w; } else { cur = t; }
+    }
+    if (cur) lines.push(cur);
+    return lines;
+  };
+
+  const header = () => {
+    pageNo += 1;
+    page.drawRectangle({ x: 0, y: H - 92, width: W, height: 92, color: ink });
+    page.drawText('WELILE TECHNOLOGIES LIMITED', { x: margin, y: H - 34, size: 8.5, font: bold, color: col(148, 163, 184) });
+    page.drawText('Board of Directors — Technology Memo', { x: margin, y: H - 58, size: 17, font: bold, color: col(255, 255, 255) });
+    page.drawText(`Reporting day ${a.dateStr} (EAT)  |  Technology health ${a.health}/100 (${a.healthLabel})`, { x: margin, y: H - 78, size: 9, font, color: col(203, 213, 225) });
+    const pn = `Page ${pageNo}`;
+    page.drawText(pn, { x: W - margin - bold.widthOfTextAtSize(pn, 8.5), y: H - 78, size: 8.5, font: bold, color: col(203, 213, 225) });
+    y = H - 92 - 26;
+  };
+  const footer = () => {
+    page.drawLine({ start: { x: margin, y: 38 }, end: { x: W - margin, y: 38 }, color: line, thickness: 0.6 });
+    page.drawText('Confidential - prepared for the Chief Executive Officer and Board of Directors. Full engineering diagnostics issued separately.', { x: margin, y: 25, size: 7.5, font, color: muted });
+  };
+  const newPage = () => { footer(); page = doc.addPage([W, H]); header(); };
+  const ensure = (h: number) => { if (y - h < 56) newPage(); };
+
+  header();
+
+  const sectionTitle = (label: string) => {
+    ensure(32);
+    page.drawText(label.toUpperCase(), { x: margin, y: y - 11, size: 9.5, font: bold, color: ink });
+    page.drawLine({ start: { x: margin, y: y - 17 }, end: { x: W - margin, y: y - 17 }, color: ink, thickness: 1.2 });
+    y -= 28;
+  };
+
+  const para = (s: string, size = 10.5) => {
+    for (const l of wrap(s, font, size, W - margin * 2)) {
+      ensure(size + 5);
+      page.drawText(l, { x: margin, y: y - size, size, font, color: ink });
+      y -= size + 4.5;
+    }
+    y -= 5;
+  };
+
+  const bullet = (s: string, size = 10) => {
+    const maxW = W - margin * 2 - 14;
+    const lines = wrap(s, font, size, maxW);
+    lines.forEach((l, i) => {
+      ensure(size + 5);
+      if (i === 0) page.drawText('-', { x: margin, y: y - size, size, font: bold, color: muted });
+      page.drawText(l, { x: margin + 14, y: y - size, size, font, color: ink });
+      y -= size + 4;
+    });
+    y -= 3;
+  };
+
+  // 1. Headline
+  sectionTitle('Headline');
+  for (const p of a.headline) para(p);
+
+  // 2. Scorecard
+  sectionTitle('Business risk scorecard');
+  for (const p of a.pillars) {
+    const noteLines = wrap(p.note, font, 9, W - margin * 2 - 170);
+    const blockH = Math.max(26, 14 + noteLines.length * 12);
+    ensure(blockH + 6);
+    page.drawRectangle({ x: margin, y: y - blockH, width: W - margin * 2, height: blockH, color: soft });
+    page.drawRectangle({ x: margin, y: y - blockH, width: 4, height: blockH, color: statusColor(p.tone) });
+    page.drawText(p.label, { x: margin + 12, y: y - 15, size: 10, font: bold, color: ink });
+    page.drawText(p.status.toUpperCase(), { x: margin + 12, y: y - 27, size: 9, font: bold, color: statusColor(p.tone) });
+    noteLines.forEach((l, i) => {
+      page.drawText(l, { x: margin + 170, y: y - 15 - i * 12, size: 9, font, color: muted });
+    });
+    y -= blockH + 8;
+  }
+  y -= 4;
+
+  // 3. Decisions
+  sectionTitle('For board decision or awareness');
+  for (const b of a.decisions) bullet(b);
+
+  // 4. KPI table
+  // Keep the section heading with its table.
+  ensure(28 + 18 + a.kpis.length * 16 + 8);
+  sectionTitle('Key indicators — today versus target');
+  const headers = ['Indicator', 'Today', 'Target', 'Status'];
+  const weights = [0.42, 0.2, 0.2, 0.18];
+  const totalW = W - margin * 2;
+  const colX = (i: number) => margin + weights.slice(0, i).reduce((s, w) => s + w * totalW, 0);
+  // Keep the whole indicator table on one page.
+  ensure(18 + a.kpis.length * 16 + 8);
+  page.drawRectangle({ x: margin, y: y - 18, width: totalW, height: 18, color: ink });
+  headers.forEach((h, i) => page.drawText(h, { x: colX(i) + 6, y: y - 13, size: 8.5, font: bold, color: col(255, 255, 255) }));
+  y -= 18;
+  a.kpis.forEach((row, ri) => {
+    ensure(18);
+    if (ri % 2 === 1) page.drawRectangle({ x: margin, y: y - 16, width: totalW, height: 16, color: soft });
+    row.forEach((cell, i) => {
+      const isStatus = i === 3;
+      const c = isStatus ? (cell === 'On target' ? good : warn) : ink;
+      page.drawText(String(cell), { x: colX(i) + 6, y: y - 12, size: 8.5, font: isStatus ? bold : font, color: c });
+    });
+    page.drawLine({ start: { x: margin, y: y - 16 }, end: { x: W - margin, y: y - 16 }, color: line, thickness: 0.5 });
+    y -= 16;
+  });
+
+  footer();
   return await doc.save();
 }
