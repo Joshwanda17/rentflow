@@ -59,6 +59,9 @@ const PAGE_SIZE = 8;
 
 export default function MerchandiseStore() {
   const navigate = useNavigate();
+  // Clears the Radix stacked-modal body pointer-events lock that can make the
+  // dialog's footer buttons (e.g. "Review order") silently unresponsive.
+  useRestoreBodyPointerEvents();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const queryClient = useQueryClient();
