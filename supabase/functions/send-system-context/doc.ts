@@ -195,7 +195,7 @@ SMS (\`sms_delivery_log\`, \`sms_opt_outs\`, \`sms_message_exceptions\`, \`sms_b
 
 ## 2.17 Fraud prevention
 
-\`fraud_identity_blocks\`, \`signup_attempts\`, \`blocked_signup_ips\`, \`v_suspicious_duplicate_accounts\`, \`tenant_phone_duplicate_alerts\`, \`deposit_duplicate_detection\`, \`trg_enforce_tid_deposit_uniqueness\`, \`trg_enforce_no_fraud_wallet_earnings\`, \`enforce_no_fraud_withdrawal_request\`, \`fraud-cutoff-account\`. AML: **UGX 50,000/day withdrawal cap for accounts ≤ 30 days old**; user-to-user transfers need ≥10 deposits, and agents additionally need the 20% collection gate.
+\`fraud_identity_blocks\`, \`signup_attempts\`, \`blocked_signup_ips\`, \`v_suspicious_duplicate_accounts\`, \`tenant_phone_duplicate_alerts\`, \`deposit_duplicate_detection\`, \`trg_enforce_tid_deposit_uniqueness\`, \`trg_enforce_no_fraud_wallet_earnings\`, \`enforce_no_fraud_withdrawal_request\`, \`fraud-cutoff-account\`. AML: **UGX 50,000/day withdrawal cap for accounts ≤ 30 days old**; user-to-user transfers need ≥7 deposits, and agents additionally need the 20% collection gate.
 
 ## 2.18 Risk / trust engine
 

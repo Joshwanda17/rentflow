@@ -314,9 +314,9 @@ Deno.serve(async (req) => {
     }
 
     // Anti-fraud gate: person-to-person wallet transfers require the sender
-    // to have at least 10 approved deposits on record. Merchant flows that
+    // to have at least 7 approved deposits on record. Merchant flows that
     // route through wallet-transfer (e.g. Welile Bread) are exempt.
-    const MIN_APPROVED_DEPOSITS = 10;
+    const MIN_APPROVED_DEPOSITS = 7;
     if (!isWelileBread) {
       const { count: approvedDeposits, error: depositCountError } = await adminClient
         .from('deposit_requests')
