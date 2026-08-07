@@ -340,33 +340,23 @@ Deno.serve(async (req) => {
     const week = eatWeekStartIso();
     const month = eatMonthStartIso();
 
-    const tenantIdsSince = async (sinceIso?: string) => {
-      // Enabled tenant roles, then filter by profile creation date.
-      const { data: roles, error } = await supabase
-        .from('user_roles')
-        .select('user_id')
-        .eq('role', 'tenant')
-        .eq('enabled', true);
+    // Single server-side count per window via an inner join on user_roles —
+    // never materialise the tenant id list (it is far too large for an IN filter).
+    const countTenants = async (sinceIso?: string) => {
+      let q = supabase
+        .from('profiles')
+        .select('id, user_roles!inner(role, enabled)', { count: 'exact', head: true })
+        .eq('user_roles.role', 'tenant')
+        .eq('user_roles.enabled', true);
+      if (sinceIso) q = q.gte('created_at', sinceIso);
+      const { count, error } = await q;
       if (error) throw error;
-      const ids = Array.from(new Set((roles ?? []).map((r: any) => r.user_id)));
-      if (!sinceIso) return ids.length;
-      let total = 0;
-      for (let i = 0; i < ids.length; i += 500) {
-        const chunk = ids.slice(i, i + 500);
-        const { count, error: cErr } = await supabase
-          .from('profiles')
-          .select('id', { count: 'exact', head: true })
-          .in('id', chunk)
-          .gte('created_at', sinceIso);
-        if (cErr) throw cErr;
-        total += count ?? 0;
-      }
-      return total;
+      return count ?? 0;
     };
 
-    const registered_total = await tenantIdsSince();
-    const new_this_week = await tenantIdsSince(week.iso);
-    const new_this_month = await tenantIdsSince(month.iso);
+    const registered_total = await countTenants();
+    const new_this_week = await countTenants(week.iso);
+    const new_this_month = await countTenants(month.iso);
 
     const counts: Counts = {
       registered_total,
