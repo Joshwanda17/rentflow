@@ -271,8 +271,12 @@ export async function generateNearingPayoutsPdf(input: NearingPayoutPdfInput): P
     return doc.output('blob');
   }
 
-  // Sort: Due today first → upcoming ascending → overdue (newest first, oldest last)
+  // Sort: cash-payout rows first (due today → upcoming → overdue), then every
+  // compounding portfolio last — they reinvest, so no payout details are shown.
   const sortedRows = [...rows].sort((a, b) => {
+    const ca = isCompounding(a) ? 1 : 0;
+    const cb = isCompounding(b) ? 1 : 0;
+    if (ca !== cb) return ca - cb;
     const bucket = (d: number) => (d === 0 ? 0 : d > 0 ? 1 : 2);
     const ba = bucket(a.daysUntil), bb = bucket(b.daysUntil);
     if (ba !== bb) return ba - bb;
@@ -302,7 +306,7 @@ export async function generateNearingPayoutsPdf(input: NearingPayoutPdfInput): P
     if (compounding) {
       // Compounding portfolios receive no cash payout — never disclose any
       // bank / mobile-money destination for them on this export.
-      paymentCell = 'Reinvested — no payout';
+      paymentCell = '--';
     } else if (det?.payment_method === 'bank_transfer') {
       paymentCell = `BANK: ${det.bank_name || '—'}\nName: ${det.bank_account_name || '—'}\nA/C: ${det.account_number || '—'}`;
     } else if (det?.payment_method === 'mobile_money') {
