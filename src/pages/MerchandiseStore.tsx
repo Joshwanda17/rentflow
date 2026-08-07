@@ -695,6 +695,47 @@ export default function MerchandiseStore() {
       </Dialog>
 
       {/* Smartphone order dialog */}
+      {/* Purchase success receipt */}
+      <Dialog open={!!success} onOpenChange={(o) => { if (!o) setSuccess(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-primary" /> Order placed
+            </DialogTitle>
+          </DialogHeader>
+          {success && (
+            <div className="space-y-3 text-sm">
+              <p className="text-muted-foreground">
+                Your order for <span className="font-semibold text-foreground">{success.itemName}</span>
+                {success.quantity > 1 && <> × {success.quantity}</>} was successful.
+              </p>
+              <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-1.5">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Order total</span>
+                  <span className="font-semibold">{formatUGX(success.total)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Paid now from wallet</span>
+                  <span className="font-semibold">{formatUGX(success.paidNow)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Balance to recover</span>
+                  <span className="font-semibold">{formatUGX(success.remaining)}</span>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {success.mode === 'full'
+                  ? 'Paid in full — nothing more will be deducted for this item.'
+                  : 'Future earnings will be used to clear the balance until it reaches zero. Track it under your recovery plans below.'}
+              </p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button onClick={() => setSuccess(null)}>Done</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={phoneOpen} onOpenChange={(o) => { if (!o) setPhoneOpen(false); }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
