@@ -102,8 +102,7 @@ export function PartnerLeadAssignments() {
       for (const c of data ?? []) {
         const agentId = c.agent_user_id;
         if (!map[agentId]) {
-          const versions = c.proxy_agreement_versions as { version_code?: string }[] | null | undefined;
-          const version = Array.isArray(versions) ? versions[0]?.version_code ?? '' : '';
+          const version = (c.proxy_agreement_versions as { version_code?: string } | null)?.version_code ?? '';
           map[agentId] = { accepted_at: c.accepted_at, version_code: version };
         }
       }
