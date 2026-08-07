@@ -2031,6 +2031,8 @@ async function buildBoardPdf(a: BoardArgs): Promise<Uint8Array> {
   for (const b of a.decisions) bullet(b);
 
   // 4. KPI table
+  // Keep the section heading with its table.
+  ensure(28 + 18 + a.kpis.length * 16 + 8);
   sectionTitle('Key indicators — today versus target');
   const headers = ['Indicator', 'Today', 'Target', 'Status'];
   const weights = [0.42, 0.2, 0.2, 0.18];
