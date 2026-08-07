@@ -50,6 +50,7 @@ import { PartnerOpsPendingSummary } from '@/components/executive/PartnerOpsPendi
 import { PartnerOpsScoreboard } from '@/components/executive/PartnerOpsScoreboard';
 import type { Department, Employee, MetricDefinition, MetricSnapshot, Task } from '@/hr/types';
 import TaskFormDialog from './TaskFormDialog';
+import TasksList from './TasksList';
 
 /** Month start (YYYY-MM-01) used by the partner ops RPCs. */
 const partnerOpsMonthStart = () => {
@@ -557,6 +558,8 @@ export default function ExecutiveBrief({ embedded = false }: ExecutiveBriefProps
           </CardContent>
         </Card>
       </div>
+
+      <TasksList />
 
       <PartnerOpsProductionSection />
 
