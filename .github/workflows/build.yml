@@ -49,7 +49,7 @@ jobs:
       - name: Typecheck
         run: |
           set -euxo pipefail
-          npx tsgo --noEmit
+          npx tsc --noEmit
 
       - name: Pre-build guards (fail-fast, verbose)
         run: |
