@@ -36,6 +36,7 @@ import { supabase } from '@/hr/api/client';
 import { setMyWorkBadge } from '@/hr/lib/myWorkBadge';
 import type { Department, Employee, MetricDefinition, MetricSnapshot, Task } from '@/hr/types';
 import TaskFormDialog from './TaskFormDialog';
+import MyProxyInviteLink from '@/components/executive/MyProxyInviteLink';
 
 interface LeadScoreboardRow {
   lead_user_id: string;
