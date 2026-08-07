@@ -90,6 +90,14 @@ export default function MyProxyInviteLink() {
     }
   };
 
+  if (error) {
+    return (
+      <div className="rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive">
+        Invite link unavailable: {error.message}
+      </div>
+    );
+  }
+
   if (loading || !invite) return null;
 
   const link = `${window.location.origin}/pa/${invite.code}`;
