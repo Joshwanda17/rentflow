@@ -157,6 +157,21 @@ Deno.serve(async (req) => {
         }
 
         const isRoiWalletPayout = op.category === 'roi_payout' || op.category === 'supporter_platform_rewards';
+
+        // ── Manager/CTO Direct Balance Adjustment bucket routing ────────────
+        // AddBalanceDialog (reached from /platform-users → user card → Adjust
+        // Balance) lets the operator explicitly choose which wallet bucket the
+        // credit/debit lands in and stamps that choice onto `account`
+        // ('withdrawable' or 'float'). Without this, manager_credit/debit fell
+        // through to the implicit agent-role heuristic in
+        // wallet_route_for_category, so the operator had no visibility into —
+        // or control over — which bucket actually moved. Mirrors the
+        // recipient_type mechanism cfo-direct-credit already uses (Wallet
+        // Routing v2). Default to 'withdrawable' for older queued ops that
+        // predate the bucket picker.
+        const isManagerAdjustment = op.category === 'manager_credit' || op.category === 'manager_debit';
+        const managerBucket: 'withdrawable' | 'float' = op.account === 'float' ? 'float' : 'withdrawable';
+        const managerRecipientType: 'user' | 'operational_wallet' = managerBucket === 'float' ? 'operational_wallet' : 'user';
         // Managed-proxy ROI rule: if the partner has an active approved managed
         // proxy assignment, the FULL ROI wallet leg belongs on the proxy agent's
         // wallet and is earmarked with linked_party=partner. The partner wallet
@@ -294,9 +309,9 @@ Deno.serve(async (req) => {
               linked_party: walletLinkedParty,
               reference_id: op.reference_id,
               account: resolvedAccount,
-              recipient_type: isRoiWalletPayout ? 'user' : undefined,
-              wallet_bucket: isRoiWalletPayout ? 'withdrawable' : undefined,
-              routing_source: isRoiWalletPayout ? 'recipient_type_v2' : undefined,
+              recipient_type: isRoiWalletPayout ? 'user' : (isManagerAdjustment ? managerRecipientType : undefined),
+              wallet_bucket: isRoiWalletPayout ? 'withdrawable' : (isManagerAdjustment ? managerBucket : undefined),
+              routing_source: isRoiWalletPayout ? 'recipient_type_v2' : (isManagerAdjustment ? 'manager_adjustment_bucket_v1' : undefined),
               currency: 'UGX',
               transaction_date: new Date().toISOString(),
             },

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { invalidateOpsWallet } from '@/hooks/ops/useOpsDataLayer';
@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Loader2, Plus, Minus, Wallet } from 'lucide-react';
+import { Loader2, Plus, Minus, Wallet, Landmark, Banknote } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -29,6 +29,10 @@ interface AddBalanceDialogProps {
 }
 
 type AdjustmentType = 'credit' | 'debit';
+// Which bucket of the user's wallet the money moves in/out of.
+// 'withdrawable' = the user's own money (they can cash it out).
+// 'float' = company-controlled operational float (e.g. agent rent-collection float).
+type WalletBucket = 'withdrawable' | 'float';
 
 export default function AddBalanceDialog({
   open,
@@ -44,6 +48,27 @@ export default function AddBalanceDialog({
   const [reason, setReason] = useState('');
   const [loading, setLoading] = useState(false);
   const [type, setType] = useState<AdjustmentType>('credit');
+  const [bucket, setBucket] = useState<WalletBucket>('withdrawable');
+  const [bucketBalances, setBucketBalances] = useState<{ withdrawable: number; float: number }>({ withdrawable: 0, float: 0 });
+
+  // Bucket-specific balances so the debit check and preview reflect the
+  // actual bucket being touched, not the wallet's combined total.
+  useEffect(() => {
+    if (!open) return;
+    supabase
+      .from('wallets')
+      .select('withdrawable_balance, float_balance')
+      .eq('user_id', userId)
+      .maybeSingle()
+      .then(({ data }) => {
+        setBucketBalances({
+          withdrawable: Number(data?.withdrawable_balance ?? 0),
+          float: Number(data?.float_balance ?? 0),
+        });
+      });
+  }, [open, userId]);
+
+  const selectedBucketBalance = bucket === 'float' ? bucketBalances.float : bucketBalances.withdrawable;
 
   const handleAdjustBalance = async () => {
     const amountNum = parseFloat(amount);
@@ -58,8 +83,8 @@ export default function AddBalanceDialog({
       return;
     }
 
-    if (type === 'debit' && amountNum > currentBalance) {
-      toast.error(`Cannot debit more than the current balance (${formatUGX(currentBalance)})`);
+    if (type === 'debit' && amountNum > selectedBucketBalance) {
+      toast.error(`Cannot debit more than the ${bucket} balance (${formatUGX(selectedBucketBalance)})`);
       return;
     }
 
@@ -96,7 +121,11 @@ export default function AddBalanceDialog({
       const seq = String(Math.floor(1000 + Math.random() * 9000));
       const referenceId = `WBA${yy}${mm}${dd}${seq}`;
 
-      // Queue for manager approval instead of direct wallet update
+      // Queue for manager approval instead of direct wallet update.
+      // `account` carries the CTO's explicit bucket choice (withdrawable vs
+      // float) through to approve-wallet-operation, which stamps it onto the
+      // ledger leg's recipient_type/wallet_bucket — the same mechanism the
+      // CFO Direct Credit tool uses (Wallet Routing v2).
       const { error: queueError } = await supabase.from('pending_wallet_operations').insert({
         user_id: userId,
         amount: amountNum,
@@ -104,9 +133,10 @@ export default function AddBalanceDialog({
         category: type === 'credit' ? 'manager_credit' : 'manager_debit',
         source_table: 'wallets',
         source_id: wallet.id,
-        description: `Manager adjustment (${type}): ${reason.trim()}`,
+        description: `Manager adjustment (${type}, ${bucket}): ${reason.trim()}`,
         reference_id: referenceId,
         linked_party: user?.email || 'Manager',
+        account: bucket,
         status: 'pending',
       });
 
@@ -121,15 +151,17 @@ export default function AddBalanceDialog({
         metadata: {
           target_user_name: userName,
           adjustment_type: type,
+          wallet_bucket: bucket,
           amount: amountNum,
           reason: reason.trim(),
           previous_balance: currentBalance,
+          previous_bucket_balance: selectedBucketBalance,
           reference_id: referenceId,
           manager_email: user.email,
         },
       });
 
-      toast.success(`Balance adjustment queued for approval (${formatUGX(amountNum)} ${type})`);
+      toast.success(`Balance adjustment queued for approval (${formatUGX(amountNum)} ${type} · ${bucket})`);
       // Ensure every consumer of the shared wallet cache refreshes once the
       // adjustment is approved and applied. Also invalidate now so pending-op
       // banners re-hydrate immediately.
@@ -137,6 +169,7 @@ export default function AddBalanceDialog({
       setAmount('');
       setReason('');
       setType('credit');
+      setBucket('withdrawable');
       onOpenChange(false);
       onSuccess?.();
     } catch (error) {
@@ -150,8 +183,8 @@ export default function AddBalanceDialog({
   const quickAmounts = [5000, 10000, 50000, 100000];
   const previewBalance = amount && parseFloat(amount) > 0
     ? type === 'credit'
-      ? currentBalance + parseFloat(amount)
-      : Math.max(0, currentBalance - parseFloat(amount))
+      ? selectedBucketBalance + parseFloat(amount)
+      : Math.max(0, selectedBucketBalance - parseFloat(amount))
     : null;
 
   return (
@@ -164,7 +197,7 @@ export default function AddBalanceDialog({
           </DialogTitle>
           <DialogDescription>
             Credit or debit <strong>{userName}</strong>'s wallet.
-            Current balance: <strong>{formatUGX(currentBalance)}</strong>
+            Withdrawable: <strong>{formatUGX(bucketBalances.withdrawable)}</strong> · Float: <strong>{formatUGX(bucketBalances.float)}</strong>
           </DialogDescription>
         </DialogHeader>
 
@@ -189,6 +222,33 @@ export default function AddBalanceDialog({
               <Minus className="h-5 w-5" />
               Debit
             </Button>
+          </div>
+
+          {/* Bucket Toggle — which pool of the wallet this touches */}
+          <div className="space-y-2">
+            <Label>Bucket</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                variant={bucket === 'withdrawable' ? 'default' : 'outline'}
+                className="h-14 text-sm font-semibold gap-2 flex-col"
+                onClick={() => setBucket('withdrawable')}
+              >
+                <Banknote className="h-4 w-4" />
+                Withdrawable
+                <span className="text-[10px] font-normal opacity-80">User-owned</span>
+              </Button>
+              <Button
+                type="button"
+                variant={bucket === 'float' ? 'default' : 'outline'}
+                className="h-14 text-sm font-semibold gap-2 flex-col"
+                onClick={() => setBucket('float')}
+              >
+                <Landmark className="h-4 w-4" />
+                Float
+                <span className="text-[10px] font-normal opacity-80">Operational</span>
+              </Button>
+            </div>
           </div>
 
           {/* Amount */}
@@ -242,7 +302,7 @@ export default function AddBalanceDialog({
           {/* Preview */}
           {previewBalance !== null && (
             <div className={`p-3 rounded-lg border ${type === 'credit' ? 'bg-success/10 border-success/30' : 'bg-destructive/10 border-destructive/30'}`}>
-              <p className="text-sm text-muted-foreground">New balance will be:</p>
+              <p className="text-sm text-muted-foreground">New {bucket} balance will be:</p>
               <p className={`text-lg font-bold ${type === 'credit' ? 'text-success' : 'text-destructive'}`}>
                 {formatUGX(previewBalance)}
               </p>
