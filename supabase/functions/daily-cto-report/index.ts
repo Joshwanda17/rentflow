@@ -1594,8 +1594,8 @@ Deno.serve(async (req) => {
     form.append(
       'subject',
       reportType === 'board'
-        ? `Board Technology Memo — ${dateStr} — Health ${health}/100 (${healthLabel})`
-        : `Daily CTO Report — ${dateStr} — Health ${health}/100 (${healthLabel})`,
+        ? `Welile Board Technology Update — ${dateStr} — Health ${health}/100 (${healthLabel})`
+        : `Welile Daily Tech Diagnostic Report — ${dateStr} — Health ${health}/100 (${healthLabel})`,
     );
     form.append('text', reportType === 'board' ? boardText : text);
     form.append('html', reportType === 'board' ? boardHtml : html);
