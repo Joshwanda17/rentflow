@@ -36212,6 +36212,19 @@ export type Database = {
             }
             Returns: Json
           }
+      partner_lead_attachment_stats: {
+        Args: { p_lead?: string }
+        Returns: {
+          added_all_time: number
+          added_this_month: number
+          added_this_week: number
+          awaiting_consent: number
+          consented_month: number
+          existing_agents_month: number
+          lead_user_id: string
+          new_signups_month: number
+        }[]
+      }
       partner_lead_candidates: {
         Args: { p_search: string }
         Returns: {

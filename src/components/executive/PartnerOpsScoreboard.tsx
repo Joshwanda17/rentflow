@@ -25,6 +25,17 @@ interface ScoreboardRow {
   agents_state?: string;
 }
 
+interface LeadAttachmentStats {
+  lead_user_id: string;
+  added_this_week: number;
+  added_this_month: number;
+  added_all_time: number;
+  new_signups_month: number;
+  existing_agents_month: number;
+  consented_month: number;
+  awaiting_consent: number;
+}
+
 const monthStart = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
@@ -92,6 +103,27 @@ export function PartnerOpsScoreboard({ hideTargetEditor = false }: PartnerOpsSco
     return () => { supabase.removeChannel(channel); };
   }, [refetch]);
 
+  const {
+    data: statsRows,
+    isError: statsIsError,
+    error: statsError,
+  } = useQuery({
+    queryKey: ['partner-lead-attachment-stats'],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('partner_lead_attachment_stats');
+      if (error) throw error;
+      return (data || []) as LeadAttachmentStats[];
+    },
+  });
+
+  const statsByLead = (statsRows || []).reduce<Record<string, LeadAttachmentStats>>(
+    (acc, s) => {
+      acc[s.lead_user_id] = s;
+      return acc;
+    },
+    {}
+  );
+
   const rows = data?.rows || [];
 
   if (isLoading) {
@@ -102,6 +134,11 @@ export function PartnerOpsScoreboard({ hideTargetEditor = false }: PartnerOpsSco
       {isError && (
         <div className="rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive">
           Scoreboard failed to load: {error?.message}
+        </div>
+      )}
+      {statsIsError && (
+        <div className="rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive">
+          Attachment stats failed to load: {statsError?.message}
         </div>
       )}
       <PartnerOpsPendingSummary />
@@ -146,6 +183,30 @@ export function PartnerOpsScoreboard({ hideTargetEditor = false }: PartnerOpsSco
                   </span>
                 </p>
               </div>
+              {(() => {
+                const s = statsByLead[r.lead_user_id];
+                return (
+                  <div className="rounded-md border p-3 space-y-1">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Proxy agents</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      <Stat label="This week" value={Number(s?.added_this_week || 0)} />
+                      <Stat label="This month" value={Number(s?.added_this_month || 0)} />
+                      <Stat label="Total" value={Number(s?.added_all_time || 0)} />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {Number(s?.new_signups_month || 0)} new signups, {Number(s?.existing_agents_month || 0)} existing agents
+                    </p>
+                    <p
+                      className={cn(
+                        'text-xs',
+                        Number(s?.awaiting_consent || 0) > 0 ? 'text-amber-600' : 'text-muted-foreground'
+                      )}
+                    >
+                      {Number(s?.consented_month || 0)} consented, {Number(s?.awaiting_consent || 0)} awaiting consent
+                    </p>
+                  </div>
+                );
+              })()}
             </CardContent>
           </Card>
         ))}
