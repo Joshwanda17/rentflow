@@ -1653,7 +1653,7 @@ interface PdfArgs {
   diagSections?: { title: string; headers: string[]; rows: string[][]; weights: number[] }[];
 }
 
-async function buildCtoPdf(a: PdfArgs): Promise<Uint8Array> {
+async function buildTechPdf(a: PdfArgs): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
