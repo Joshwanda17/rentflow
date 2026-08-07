@@ -326,7 +326,8 @@ Deno.serve(async (req) => {
       kpi('Active 24h', fmt(P.active_24h), `${fmt(P.active_7d)} weekly · ${fmt(P.active_30d)} monthly`),
       kpi('System events', fmt(P.events_today), `${delta(n(P.events_today), n(P.events_prev_day))} vs prior day`),
       kpi('Ledger postings', fmt(P.txn_today), 'financial transactions today'),
-      kpi('Error rate', `${errRate.toFixed(2)}%`, 'errors per system event', errRate < 1 ? 'good' : errRate < 3 ? 'warn' : 'bad'),
+      kpi('Error rate', `${errRate.toFixed(2)}%`, 'share of active users hitting an error', errRate < 1 ? 'good' : errRate < 3 ? 'warn' : 'bad'),
+      kpi('Error volume', `${errorsPer1kEvents.toFixed(0)}`, 'error reports per 1,000 system events'),
       kpi('Errors today', fmt(E.today), `${delta(n(E.today), n(E.prev_day))} vs prior day`, n(E.today) <= n(E.prev_day) ? 'good' : 'warn'),
       kpi('Affected users', fmt(E.affected_users_today), 'distinct users hitting errors'),
       kpi('Browser compat events', fmt(E.compat_events_7d), 'last 7 days'),
@@ -1522,9 +1523,9 @@ Deno.serve(async (req) => {
       },
       {
         label: 'Business Continuity',
-        status: backupOk ? 'Green' : 'Amber',
-        tone: backupOk ? 'good' : 'warn',
-        note: `${fmt(B.runs_7d)} backups in the last 7 days with ${fmt(B.failures_7d)} failures; latest ${B.latest?.created_at ? String(B.latest.created_at).slice(0, 16).replace('T', ' ') : 'not recorded'}.`,
+        status: backupOk ? 'Green' : backupStaleTone === 'bad' ? 'Red' : 'Amber',
+        tone: backupOk ? 'good' : backupStaleTone === 'bad' ? 'bad' : 'warn',
+        note: `${fmt(B.runs_7d)} backup${n(B.runs_7d) === 1 ? '' : 's'} in the last 7 days with ${fmt(B.failures_7d)} failure${n(B.failures_7d) === 1 ? '' : 's'}; latest successful backup ${B.latest?.created_at ? String(B.latest.created_at).slice(0, 16).replace('T', ' ') : 'not recorded'} (${backupAgeLabel}, weekly cadence).`,
       },
     ];
 
