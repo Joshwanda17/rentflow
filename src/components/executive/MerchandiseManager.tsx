@@ -64,6 +64,7 @@ interface Sale {
   rejected_by?: string | null;
   rejected_at?: string | null;
   customer_id?: string | null;
+  payment_plan?: 'full' | 'installment' | null;
 }
 
 type OrderStatus = 'submitted' | 'processing' | 'completed' | 'failed' | 'rejected';
@@ -439,7 +440,7 @@ export function MerchandiseManager() {
       </div>
 
       {/* Merchandise wallet recovery */}
-      <Section title="Merchandise Wallet Recovery (15% · up to 4×/day)" icon={Repeat}>
+      <Section title="Merchandise Wallet Recovery (15% credit sales · 40% agent installments · up to 4×/day)" icon={Repeat}>
         {recoveryPlans.length === 0 ? (
           <EmptyRow text="No wallet-recovery plans yet. Credit sales to registered customers are recovered automatically." />
         ) : (
@@ -449,6 +450,7 @@ export function MerchandiseManager() {
                 <tr className="text-left text-xs text-muted-foreground border-b border-border">
                   <th className="py-2 pr-3">Customer</th>
                   <th className="py-2 px-3">Item</th>
+                  <th className="py-2 px-3 text-right">Rate</th>
                   <th className="py-2 px-3 text-right">Original</th>
                   <th className="py-2 px-3 text-right">Recovered</th>
                   <th className="py-2 px-3 text-right">Remaining</th>
@@ -464,6 +466,7 @@ export function MerchandiseManager() {
                       <div className="text-[11px] text-muted-foreground">{p.customer_phone || '—'}</div>
                     </td>
                     <td className="py-2 px-3">{p.item_name}</td>
+                    <td className="py-2 px-3 text-right">{Math.round(Number(p.daily_rate) * 100)}%</td>
                     <td className="py-2 px-3 text-right">{formatUGX(Number(p.original_amount))}</td>
                     <td className="py-2 px-3 text-right text-emerald-600">{formatUGX(Number(p.amount_recovered))}</td>
                     <td className="py-2 px-3 text-right font-semibold text-amber-600">{formatUGX(Number(p.outstanding_balance))}</td>
@@ -654,6 +657,7 @@ export function MerchandiseManager() {
                   <th className="py-2 px-3 text-right">Qty</th>
                   <th className="py-2 px-3 text-right">Revenue</th>
                   <th className="py-2 px-3">Client</th>
+                  <th className="py-2 px-3">Plan</th>
                   <th className="py-2 px-3">Status</th>
                   <th className="py-2 px-3">Order</th>
                   <th className="py-2 px-3 text-right">Owed</th>
@@ -680,6 +684,17 @@ export function MerchandiseManager() {
                     </td>
                     <td className="py-2 px-3 text-right">{formatUGX(Number(s.total_revenue))}</td>
                     <td className="py-2 px-3">{s.client_name || '—'}</td>
+                    <td className="py-2 px-3">
+                      {s.payment_plan === 'installment' ? (
+                        <span className="inline-flex items-center rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-medium text-amber-600">
+                          Installments 40%
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                          Paid in full
+                        </span>
+                      )}
+                    </td>
                     <td className="py-2 px-3"><StatusBadge status={s.payment_status} /></td>
                     <td className="py-2 px-3">
                       {s.order_status === 'rejected' ? (
