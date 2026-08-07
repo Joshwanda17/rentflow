@@ -257,7 +257,6 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'Mission & Goals', icon: Target, id: 'mission-goals' },
         { label: 'Role Management', icon: UserCog, id: 'role-management' },
         { label: 'My Work', icon: ClipboardList, id: 'my-work' },
-        { label: 'Supervision', icon: Eye, id: 'supervision' },
       ],
     },
   ],
@@ -301,7 +300,6 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'Productivity', icon: TrendingUp, id: 'hr-productivity', route: '/hr/dashboard/productivity', access: HR_ACCESS },
         { label: 'Recruitment', icon: UserCheck, id: 'hr-recruitment', route: '/hr/dashboard/recruitment', access: HR_ACCESS },
         { label: 'Metric Definitions', icon: Gauge, id: 'hr-metrics', route: '/hr/dashboard/metrics', access: HR_ACCESS },
-        { label: 'Partner Ops production', icon: Handshake, id: 'hr-partner-ops', access: HR_ACCESS },
       ],
     },
   ],
@@ -381,6 +379,6 @@ export const roleLabels: Record<AppRole, string> = {
 export const PARTNER_OPS_ATTENTION_ITEM_IDS: string[] = [
   'partners',
   'reports-partner-ops',
-  'supervision',
-  'hr-partner-ops',
+  'staff-performance',
+  'hr-executive-brief',
 ];
