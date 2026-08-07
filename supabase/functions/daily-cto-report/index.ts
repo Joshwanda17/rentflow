@@ -16,7 +16,10 @@ const corsHeaders = {
 
 const FROM = 'Welile CTO Office <reports@welile.com>';
 const REPLY_TO = 'reports@welile.com';
-const DEFAULT_RECIPIENTS = ['joshwanda17@gmail.com'];
+// Engineering distribution list for the full technical diagnostic report.
+const TECH_RECIPIENTS = ['joshwanda17@gmail.com'];
+// CEO / Board distribution list for the condensed board memo.
+const BOARD_RECIPIENTS = ['joshwanda17@gmail.com'];
 
 const C = {
   ink: '#0f172a',
