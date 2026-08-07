@@ -182,6 +182,12 @@ Deno.serve(async (req) => {
       if (msg.includes("PARTNER_MISSING_CONTACT")) {
         return json({ error: "Partner has no email or phone on file." }, 400);
       }
+      if (msg.includes("self_registered_funder_not_verified")) {
+        return json({
+          error:
+            "This partner signed themselves up and has not been verified yet. Approve them in Partner Ops → Partner Onboarding (verification queue) first, then create the portfolio.",
+        }, 400);
+      }
       if (msg.includes("INVALID_")) {
         return json({ error: "Portfolio details invalid — please review the form." }, 400);
       }
