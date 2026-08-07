@@ -127,10 +127,11 @@ export default function MerchandiseStore() {
 
   const qty = Math.max(1, parseInt(quantity || '1', 10) || 1);
   const orderTotal = selected ? Number(selected.unit_price) * qty : 0;
-  // Pay in full needs the whole price today. Installments take 25% of the
-  // available wallet now and keep taking 25% at each recovery run until the
-  // selling price is cleared — no extra charge on top of the price.
-  const firstInstallment = Math.min(orderTotal, Math.round(availableWallet * 0.25));
+  // Pay in full needs the whole price today. Installments are 25% of the item
+  // price each — paid now and at every recovery run until the selling price is
+  // cleared (4 installments, no extra charge on top of the price).
+  const installmentAmount = Math.round(orderTotal * 0.25);
+  const firstInstallment = Math.min(installmentAmount, availableWallet);
   const dueNow = payMode === 'full' ? orderTotal : firstInstallment;
   const remainingAfter = Math.max(0, orderTotal - dueNow);
   const insufficient = selected
@@ -593,7 +594,7 @@ export default function MerchandiseStore() {
                     {payMode === 'installment' && <CheckCircle2 className="h-4 w-4 text-primary" />}
                   </div>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
-                    25% of your available wallet is taken now and at every recovery run until the
+                    25% of the price ({formatUGX(installmentAmount)}) is taken now and at every recovery run until the
                     {' '}{formatUGX(orderTotal)} price is cleared. No extra charge.
                   </p>
                 </button>
@@ -609,7 +610,7 @@ export default function MerchandiseStore() {
                 <span className="font-semibold">{formatUGX(orderTotal)}</span>
               </div>
               <div className={`rounded-lg px-3 py-2 flex justify-between text-sm ${insufficient ? 'bg-destructive/10 text-destructive' : 'bg-primary/5 text-foreground'}`}>
-                <span className="text-muted-foreground">{payMode === 'full' ? 'Total to debit now' : 'First installment (25%) now'}</span>
+                <span className="text-muted-foreground">{payMode === 'full' ? 'Total to debit now' : 'First installment (25% of price) now'}</span>
                 <span className="font-bold">{formatUGX(dueNow)}</span>
               </div>
               {payMode === 'installment' && !insufficient && (
@@ -639,7 +640,7 @@ export default function MerchandiseStore() {
                     <>You are starting an installment plan for <span className="font-semibold text-foreground">{qty} × {selected.item_name}</span> at
                     {' '}<span className="font-semibold text-foreground">{formatUGX(orderTotal)}</span>.
                     {' '}<span className="font-semibold text-foreground">{formatUGX(dueNow)}</span> is taken now and
-                    25% of your available wallet keeps being applied until the balance reaches zero.</>
+                    25% of the price ({formatUGX(installmentAmount)}) keeps being applied until the balance reaches zero.</>
                   )}
                   {' '}Marketing (CMO) sees this order and your payment plan.
                 </div>
@@ -647,7 +648,7 @@ export default function MerchandiseStore() {
                 <p className="text-[11px] text-muted-foreground">
                   {payMode === 'full'
                     ? 'The full amount is debited from your withdrawable wallet right away.'
-                    : 'Installments are recovered from your withdrawable wallet — 25% up to 4 times a day until fully paid.'}
+                    : 'Installments are recovered from your withdrawable wallet — 25% of the price per recovery run until fully paid.'}
                 </p>
               )}
             </div>
