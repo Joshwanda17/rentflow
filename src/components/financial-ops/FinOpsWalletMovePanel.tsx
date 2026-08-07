@@ -1152,15 +1152,9 @@ export function FinOpsWalletMovePanel() {
                       <span className="font-semibold text-foreground">Welile Platform</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Reference</span>
-                      <span className="font-semibold text-foreground">{referenceNumber || '—'}</span>
+                      <span className="text-muted-foreground">Posts</span>
+                      <span className="font-semibold text-foreground">Immediately</span>
                     </div>
-                    {requiredApprovals > 0 && (
-                      <p className="pt-1 text-warning-foreground">
-                        Requires {requiredApprovals === 2 ? 'two approvals' : 'CFO approval'} before
-                        it posts.
-                      </p>
-                    )}
                   </div>
                 )}
               </div>
