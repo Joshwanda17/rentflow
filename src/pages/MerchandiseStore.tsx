@@ -63,6 +63,8 @@ export default function MerchandiseStore() {
   const queryClient = useQueryClient();
   const [selected, setSelected] = useState<CatalogItem | null>(null);
   const [quantity, setQuantity] = useState('1');
+  const [payMode, setPayMode] = useState<'full' | 'installment'>('full');
+  const [confirmStep, setConfirmStep] = useState(false);
   const [ordering, setOrdering] = useState(false);
   const [phoneOpen, setPhoneOpen] = useState(false);
   const [phoneAmount, setPhoneAmount] = useState('');
@@ -125,7 +127,15 @@ export default function MerchandiseStore() {
 
   const qty = Math.max(1, parseInt(quantity || '1', 10) || 1);
   const orderTotal = selected ? Number(selected.unit_price) * qty : 0;
-  const insufficient = selected ? orderTotal > availableWallet : false;
+  // Pay in full needs the whole price today. Installments take 40% of the
+  // available wallet now and keep taking 40% at each recovery run until the
+  // selling price is cleared — no extra charge on top of the price.
+  const firstInstallment = Math.min(orderTotal, Math.round(availableWallet * 0.4));
+  const dueNow = payMode === 'full' ? orderTotal : firstInstallment;
+  const remainingAfter = Math.max(0, orderTotal - dueNow);
+  const insufficient = selected
+    ? (payMode === 'full' ? orderTotal > availableWallet : firstInstallment <= 0)
+    : false;
 
   const pickImage = (item: CatalogItem | null): string | null => {
     if (!item) return null;
@@ -199,6 +209,8 @@ export default function MerchandiseStore() {
     if (match) {
       setSelected(match);
       setQuantity('1');
+      setPayMode('full');
+      setConfirmStep(false);
     }
     // Clear the param so refreshes/back-navigation don't reopen unexpectedly.
     const next = new URLSearchParams(searchParams);
@@ -219,6 +231,7 @@ export default function MerchandiseStore() {
     const { error } = await db.rpc('agent_purchase_merchandise', {
       p_catalog_id: selected.id,
       p_quantity: qty,
+      p_payment_mode: payMode,
     });
     setOrdering(false);
     if (error) {
@@ -232,9 +245,15 @@ export default function MerchandiseStore() {
       }
       return;
     }
-    toast.success(`${selected.item_name} ordered. ${formatUGX(orderTotal)} will be recovered from your wallet.`);
+    toast.success(
+      payMode === 'full'
+        ? `${selected.item_name} ordered. ${formatUGX(orderTotal)} debited from your wallet.`
+        : `${selected.item_name} ordered on installments. ${formatUGX(dueNow)} paid now, ${formatUGX(remainingAfter)} to go.`,
+    );
     setSelected(null);
     setQuantity('1');
+    setPayMode('full');
+    setConfirmStep(false);
     queryClient.invalidateQueries({ queryKey: ['my-merchandise-plans', user?.id] });
     queryClient.invalidateQueries({ queryKey: ['my-merchandise-deductions', user?.id] });
     queryClient.invalidateQueries({ queryKey: ['wallet-view', user?.id] });
