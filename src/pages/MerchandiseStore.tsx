@@ -78,6 +78,15 @@ export default function MerchandiseStore() {
   const [orderingBike, setOrderingBike] = useState(false);
   const [catalogPage, setCatalogPage] = useState(1);
   const [shareItem, setShareItem] = useState<CatalogItem | null>(null);
+  // Post-purchase receipt shown to the buyer as explicit confirmation.
+  const [success, setSuccess] = useState<{
+    itemName: string;
+    quantity: number;
+    mode: 'full' | 'installment';
+    paidNow: number;
+    remaining: number;
+    total: number;
+  } | null>(null);
   const [shareCodes, setShareCodes] = useState<Record<string, string>>({});
   const { withdrawableBalance } = useAgentBalances(user?.id);
   const availableWallet = Math.max(0, withdrawableBalance);
