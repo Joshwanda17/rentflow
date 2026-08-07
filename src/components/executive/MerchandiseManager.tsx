@@ -440,7 +440,7 @@ export function MerchandiseManager() {
       </div>
 
       {/* Merchandise wallet recovery */}
-      <Section title="Merchandise Wallet Recovery (15% credit sales · 40% agent installments · up to 4×/day)" icon={Repeat}>
+      <Section title="Merchandise Wallet Recovery (15% credit sales · 25% agent installments · up to 4×/day)" icon={Repeat}>
         {recoveryPlans.length === 0 ? (
           <EmptyRow text="No wallet-recovery plans yet. Credit sales to registered customers are recovered automatically." />
         ) : (
@@ -687,7 +687,7 @@ export function MerchandiseManager() {
                     <td className="py-2 px-3">
                       {s.payment_plan === 'installment' ? (
                         <span className="inline-flex items-center rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-medium text-amber-600">
-                          Installments 40%
+                          Installments 25%
                         </span>
                       ) : (
                         <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
