@@ -156,6 +156,7 @@ export function AgentTenantCollectDialog({
     }
     setLoading(true);
     setRpcError(null);
+    const submittedAt = new Date().toISOString();
     // Progressive feedback so Chrome users on slow networks don't feel
     // the app has frozen. Two toasts at 4s and 10s, cancelled on resolve.
     const slowToast = setTimeout(() => {
@@ -173,13 +174,58 @@ export function AgentTenantCollectDialog({
       // authoritative response. A client timeout or automatic retry can
       // duplicate an allocation when the server commits but the response is
       // lost on a weak mobile connection.
-      const { data, error } = await supabase.rpc('agent_allocate_tenant_payment', {
+      //
+      // A stalled mobile connection can leave this fetch pending forever —
+      // that is what looked like "Confirm fails silently" (spinner never
+      // resolves, no toast). We cap the wait, then RECONCILE against the
+      // server instead of retrying, so a committed allocation is reported as
+      // success and never allocated twice.
+      const rpcPromise = supabase.rpc('agent_allocate_tenant_payment', {
           p_agent_id: user.id,
           p_tenant_id: tenant.id,
           p_rent_request_id: rentRequestId,
           p_amount: amount,
           p_notes: notes.trim() || null,
         });
+      const STALL_MS = 45000;
+      const raced = await Promise.race([
+        rpcPromise,
+        new Promise<'stalled'>((resolve) => setTimeout(() => resolve('stalled'), STALL_MS)),
+      ]);
+
+      if (raced === 'stalled') {
+        // Ask the server what actually happened. If the row exists, the money
+        // moved — treat as success and refresh rather than letting the agent
+        // tap Confirm again.
+        const { data: rows } = await supabase
+          .from('agent_collections')
+          .select('id, amount, created_at')
+          .eq('agent_id', user.id)
+          .eq('tenant_id', tenant.id)
+          .eq('amount', amount)
+          .gte('created_at', submittedAt)
+          .limit(1);
+
+        if (rows && rows.length > 0) {
+          setConfirming(false);
+          refetchBalances();
+          invalidateCreditAccessLimit(user.id);
+          queryClient.invalidateQueries({ queryKey: ['agent-capacity-map'] });
+          queryClient.invalidateQueries({ queryKey: ['agent-rent-capacity-fleet'] });
+          toast.success('Payment already recorded', {
+            description: `${formatUGX(amount)} for ${tenant.full_name} went through. Do not send it again.`,
+          });
+          onSuccess?.();
+          onOpenChange(false);
+          return;
+        }
+
+        throw new Error(
+          'The network stalled before we got a confirmation. This payment was NOT recorded. Refresh the tenant balance and try again.',
+        );
+      }
+
+      const { data, error } = raced;
 
       if (error) {
         const message = await extractFromErrorObject(error, 'Allocation failed');
