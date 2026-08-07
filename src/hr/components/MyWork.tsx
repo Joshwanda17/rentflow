@@ -528,6 +528,7 @@ export default function MyWork({ embedded = false }: MyWorkProps) {
 
   return (
     <div className={embedded ? 'space-y-5' : 'space-y-5'}>
+      <MyProxyInviteLink />
       <PartnerLeadProduction />
       {unstarted.length > 0 && (
         <Card className="border-primary/50">
