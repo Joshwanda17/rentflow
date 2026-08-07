@@ -43,13 +43,6 @@ export default function ProxyAgentInvite() {
     }
   }, [code]);
 
-  // Not signed in → send to the plain sign-in page, returning here afterwards.
-  useEffect(() => {
-    if (authLoading) return;
-    if (!user) {
-      navigate(`/auth?redirect=${encodeURIComponent(`/pa/${code}`)}`, { replace: true });
-    }
-  }, [authLoading, user, navigate, code]);
 
   // After accepting, land the proxy directly where promissory notes are submitted.
   useEffect(() => {
