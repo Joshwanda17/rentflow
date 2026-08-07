@@ -107,6 +107,15 @@ export default function AgentPartners() {
         (profiles || []).forEach(p => { proxyProfiles[p.id] = p; });
       }
 
+      // Check whether this agent is currently attached to a lead partner.
+      const { data: leadAssignments } = await supabase
+        .from('partner_lead_assignments')
+        .select('id')
+        .eq('agent_id', user.id)
+        .is('detached_at', null)
+        .limit(1);
+      setHasLeadAssignment((leadAssignments || []).length > 0);
+
       // Build portfolio lookup by investor_id
       const portfolioMap: Record<string, { amount: number; status: string }> = {};
       (portfolios || []).forEach(p => {
