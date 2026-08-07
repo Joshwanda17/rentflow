@@ -368,13 +368,14 @@ export function FinOpsWalletMovePanel() {
   const removesEarnedIncome =
     isCorrection && (commissionComponent ?? 0) > 0 && (config?.require_commission_ack ?? true);
   const isHighValue = isCorrection && amountNum >= highValueThreshold;
-  const requiredApprovals = !isCorrection
-    ? 0
-    : amountNum >= dualThreshold ? 2 : amountNum >= cfoThreshold ? 1 : 0;
+  // Wallet → platform recoveries post immediately: no CFO / dual approval step.
+  const requiredApprovals = 0;
+  // Wallet → platform recoveries only need the reason note; the classification
+  // code is fixed so reconciliation stays consistent.
+  const effectiveReasonCode = isCorrection ? 'manual_reconciliation' : reasonCode;
   const governanceComplete =
     !isCorrection ||
-    ((reasonCode !== 'other' || reason.trim().length >= 30) &&
-      (!removesEarnedIncome || ackEarnedIncome));
+    (!removesEarnedIncome || ackEarnedIncome);
   // Visible float after the move: without acknowledgement the incoming amount is
   // swallowed by the hidden hole, so visible float stays floored at 0.
   const predictedVisibleFloat = floatOverdrawn
@@ -384,7 +385,7 @@ export function FinOpsWalletMovePanel() {
     : (source?.float_balance ?? 0) + (amountNum || 0);
   const canSubmit =
     !!source && destOk && validAmount && !exceedsBalance && reason.trim().length >= 10 &&
-    !!reasonCode && !submitting && (!floatOverdrawn || acknowledgeOverdraft) &&
+    !!effectiveReasonCode && !submitting && (!floatOverdrawn || acknowledgeOverdraft) &&
     (!fullHistorySweep || confirmFullHistory) && governanceComplete;
   // Never let the operator submit a Withdrawable → Float move while the real
   // float position is still being read.
@@ -417,7 +418,7 @@ export function FinOpsWalletMovePanel() {
     // Hard client-side contract guard. The `finops-wallet-move` edge function
     // rejects any request without a structured reason_code (400) and without a
     // 10-character note, so refuse to spend a round trip on an invalid payload.
-    if (!reasonCode || !REASON_CODES.some((r) => r.value === reasonCode)) {
+    if (!effectiveReasonCode || !REASON_CODES.some((r) => r.value === effectiveReasonCode)) {
       toast.error('Reason code required', {
         description: 'Pick a structured reason code before recovering money to the platform.',
       });
@@ -498,7 +499,7 @@ export function FinOpsWalletMovePanel() {
           amount: amountNum,
           // Keep the structured code inside the note so the same-user
           // reclassification audit trail matches the correction trail.
-          reason: `[${reasonCode}] ${reason.trim()}`,
+          reason: `[${effectiveReasonCode}] ${reason.trim()}`,
           acknowledge_float_overdraft:
             sameUserDir === 'withdrawable_to_float' && acknowledgeOverdraft
               ? true
@@ -550,7 +551,7 @@ export function FinOpsWalletMovePanel() {
         dest_bucket: mode === 'user_to_user' ? destBucket : undefined,
         amount: amountNum,
         reason: reason.trim(),
-        reason_code: reasonCode,
+        reason_code: effectiveReasonCode,
         confirm_full_history: fullHistorySweep ? true : undefined,
         business_justification: isCorrection && justification.trim() ? justification.trim() : undefined,
         reference_number: isCorrection && referenceNumber.trim() ? referenceNumber.trim() : undefined,
@@ -932,6 +933,7 @@ export function FinOpsWalletMovePanel() {
                 </p>
               )}
             </div>
+            {!isCorrection && (
             <div>
               <Label htmlFor="fwm-reason-code" className="text-xs">Reason code (required)</Label>
               <select
@@ -952,6 +954,7 @@ export function FinOpsWalletMovePanel() {
                 </p>
               )}
             </div>
+            )}
             <div>
               <Label htmlFor="fwm-reason" className="text-xs">Reason note (min 10 characters)</Label>
               <Textarea
@@ -968,58 +971,7 @@ export function FinOpsWalletMovePanel() {
                 </p>
               )}
             </div>
-            {isCorrection && (
-              <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Justification (optional)
-                </p>
-                {reasonCode === 'other' && reason.trim().length < 30 && (
-                  <p className="text-xs text-destructive">
-                    “Other” requires a detailed explanation of at least 30 characters in the reason
-                    note above ({reason.trim().length}/30).
-                  </p>
-                )}
-                <div>
-                  <Label htmlFor="fwm-justification" className="text-xs">
-                    Business justification (optional)
-                  </Label>
-                  <Textarea
-                    id="fwm-justification"
-                    value={justification}
-                    onChange={(e) => setJustification(e.target.value)}
-                    placeholder="Why is the platform entitled to recover this money?"
-                    rows={2}
-                    className="mt-1"
-                  />
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <Label htmlFor="fwm-ref" className="text-xs">
-                      Ticket / investigation reference (optional)
-                    </Label>
-                    <Input
-                      id="fwm-ref"
-                      value={referenceNumber}
-                      onChange={(e) => setReferenceNumber(e.target.value)}
-                      placeholder="e.g. FIN-2026-0142"
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="fwm-txn" className="text-xs">
-                      Related transaction ID (if applicable)
-                    </Label>
-                    <Input
-                      id="fwm-txn"
-                      value={relatedTxnId}
-                      onChange={(e) => setRelatedTxnId(e.target.value)}
-                      placeholder="Ledger reference or TID"
-                      className="mt-1"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
+            {null}
             {removesEarnedIncome && (
               <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 space-y-2">
                 <div className="flex items-start gap-2 text-xs">
@@ -1049,13 +1001,7 @@ export function FinOpsWalletMovePanel() {
                 </label>
               </div>
             )}
-            {isCorrection && requiredApprovals > 0 && validAmount && (
-              <p className="text-xs text-muted-foreground">
-                {fmt(amountNum)} is at or above the{' '}
-                {requiredApprovals >= 2 ? 'dual-approval' : 'CFO-approval'} threshold — submitting
-                raises an approval request instead of posting immediately.
-              </p>
-            )}
+            {null}
             {mode === 'error_correction' && lifetimeDeposits !== null && (
               <p className="text-xs text-muted-foreground">
                 Lifetime approved deposits by this user:{' '}
