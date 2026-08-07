@@ -13,6 +13,7 @@ import FinancialReportsPanel from '@/components/coo/FinancialReportsPanel';
 import FinancialAlertsPanel from '@/components/coo/FinancialAlertsPanel';
 import COOPartnersPage from '@/components/coo/COOPartnersPage';
 import { StaffPerformancePanel } from '@/components/executive/StaffPerformancePanel';
+import ExecutiveBrief from '@/hr/components/ExecutiveBrief';
 import { DirectorRequisitionsPanel } from '@/components/requisitions/DirectorRequisitionsPanel';
 import HRInternshipApplications from '@/components/hr/HRInternshipApplications';
 import { RentPipelineQueue } from '@/components/executive/RentPipelineQueue';
@@ -244,6 +245,7 @@ export default function COODashboardPage() {
           <div className="space-y-3">
             {isMobile && renderBackButton('Overview')}
             {renderSectionHeader('Staff Performance', UserCheck)}
+            <ExecutiveBrief embedded />
             <StaffPerformancePanel />
           </div>
         );
