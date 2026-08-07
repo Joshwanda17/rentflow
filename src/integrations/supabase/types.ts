@@ -22104,6 +22104,98 @@ export type Database = {
           },
         ]
       }
+      proxy_agent_identity: {
+        Row: {
+          agent_user_id: string
+          captured_at: string
+          id: string
+          nin: string
+        }
+        Insert: {
+          agent_user_id: string
+          captured_at?: string
+          id?: string
+          nin: string
+        }
+        Update: {
+          agent_user_id?: string
+          captured_at?: string
+          id?: string
+          nin?: string
+        }
+        Relationships: []
+      }
+      proxy_agreement_consents: {
+        Row: {
+          accepted_at: string
+          agent_user_id: string
+          body_checksum: string
+          id: string
+          invite_code: string | null
+          lead_user_id: string | null
+          period_month: string
+          version_id: string
+        }
+        Insert: {
+          accepted_at?: string
+          agent_user_id: string
+          body_checksum: string
+          id?: string
+          invite_code?: string | null
+          lead_user_id?: string | null
+          period_month?: string
+          version_id: string
+        }
+        Update: {
+          accepted_at?: string
+          agent_user_id?: string
+          body_checksum?: string
+          id?: string
+          invite_code?: string | null
+          lead_user_id?: string | null
+          period_month?: string
+          version_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proxy_agreement_consents_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "proxy_agreement_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      proxy_agreement_versions: {
+        Row: {
+          body_md: string
+          created_by: string | null
+          effective_from: string
+          id: string
+          requires_monthly_reconsent: boolean
+          retired_at: string | null
+          version_code: string
+        }
+        Insert: {
+          body_md: string
+          created_by?: string | null
+          effective_from?: string
+          id?: string
+          requires_monthly_reconsent?: boolean
+          retired_at?: string | null
+          version_code: string
+        }
+        Update: {
+          body_md?: string
+          created_by?: string | null
+          effective_from?: string
+          id?: string
+          requires_monthly_reconsent?: boolean
+          retired_at?: string | null
+          version_code?: string
+        }
+        Relationships: []
+      }
       proxy_debit_audit_log: {
         Row: {
           amount: number
@@ -31538,6 +31630,9 @@ export type Database = {
           test_name: string
         }[]
       }
+      accept_proxy_agreement:
+        | { Args: { p_code: string }; Returns: Json }
+        | { Args: { p_code: string; p_nin?: string }; Returns: Json }
       accept_withdrawal_dispatch: {
         Args: { p_withdrawal_id: string }
         Returns: Json
@@ -32727,6 +32822,15 @@ export type Database = {
       cto_set_kyc_level: {
         Args: { p_new_level: number; p_reason: string; p_user_id: string }
         Returns: undefined
+      }
+      current_proxy_agreement: {
+        Args: never
+        Returns: {
+          already_accepted: boolean
+          body_md: string
+          id: string
+          version_code: string
+        }[]
       }
       decide_error_correction_approval: {
         Args: { p_approval_id: string; p_decision: string; p_note?: string }
@@ -35531,6 +35635,17 @@ export type Database = {
           expires_at: string
           revoked: boolean
           uses_count: number
+        }[]
+      }
+      my_proxy_agreement_record: {
+        Args: never
+        Returns: {
+          accepted_at: string
+          body_md: string
+          checksum: string
+          lead_name: string
+          period_month: string
+          version_code: string
         }[]
       }
       normalize_district_name: { Args: { p_input: string }; Returns: string }
