@@ -2036,7 +2036,8 @@ async function buildBoardPdf(a: BoardArgs): Promise<Uint8Array> {
   const weights = [0.42, 0.2, 0.2, 0.18];
   const totalW = W - margin * 2;
   const colX = (i: number) => margin + weights.slice(0, i).reduce((s, w) => s + w * totalW, 0);
-  ensure(22);
+  // Keep the whole indicator table on one page.
+  ensure(18 + a.kpis.length * 16 + 8);
   page.drawRectangle({ x: margin, y: y - 18, width: totalW, height: 18, color: ink });
   headers.forEach((h, i) => page.drawText(h, { x: colX(i) + 6, y: y - 13, size: 8.5, font: bold, color: col(255, 255, 255) }));
   y -= 18;
