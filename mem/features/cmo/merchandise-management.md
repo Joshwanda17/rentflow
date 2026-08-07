@@ -62,6 +62,20 @@ automatically from their Withdrawable Wallet — no more manual `CFO Debit [🔧
   (plans + deductions). Linked from AgentDashboard (visible card + header menu "Buy Merchandise");
   `AgentNotificationBell` taps a merchandise notification → `/merchandise`.
 - RLS: cmo/cfo/manager/super_admin manage; customers can read their own plans + deductions.
+
+## Buy-now vs installments (agent storefront)
+- `merchandise_sales.payment_plan` (`full` | `installment`, default `full`).
+- `agent_purchase_merchandise(p_catalog_id, p_quantity, p_payment_mode)`:
+  - `full` → requires strict available balance ≥ price; debits the whole price at once (sale `paid`).
+  - `installment` → charges 40% of the STRICT available wallet immediately as the first
+    installment (sale `partial`), leaves the remainder outstanding; NO markup, the owed amount is
+    always the selling price.
+- `create_merchandise_recovery_plan` sets `daily_rate = 0.40` for installment sales and keeps 0.15
+  for CMO-recorded credit sales. `recover_merchandise_from_wallets` already reads
+  `plan.daily_rate`; the statement description now renders the plan's real percentage.
+- Store UI (`MerchandiseStore.tsx`): two-step checkout — pick plan, then a confirm screen showing
+  price, due now, balance to recover; CMO visibility is stated to the buyer.
+- CMO `MerchandiseManager`: Rate column on recovery plans + Plan column on sales transactions.
 - Dashboard: MerchandiseManager shows Recovered-to-Date / Customers-Repaying /
   Remaining-to-Recover / Fully-Paid KPIs, a "Merchandise Wallet Recovery (15% · up to 4×/day)"
   table, and a "Storefront Catalog" manager (Add Store Item / hide / delete).
