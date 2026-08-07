@@ -27,6 +27,7 @@ export default function MyProxyInviteLink() {
   const [invite, setInvite] = useState<PartnerLeadInvite | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
 
   const fetchInvite = async () => {
     try {
