@@ -1558,10 +1558,10 @@ Deno.serve(async (req) => {
 
     const ragTone = (v: number): Tone => (v >= 85 ? 'good' : v >= 65 ? 'warn' : 'bad');
     const pillarScores = {
-      reliability: Math.max(0, Math.min(100, 100 - rollbackRate * 6 - errRate * 10)),
+      reliability: Math.max(0, Math.min(100, 100 - wRollbackRate * 6 - wErrRate * 10)),
       controls: Math.max(0, 100 - guardrailJobs.length * 22 - Math.max(0, failingJobs.length - guardrailJobs.length) * 6),
       security: Math.min(100, rlsCoverage),
-      customer: Math.min(100, authSuccess * 0.6 + notifDelivery * 0.4),
+      customer: Math.min(100, wAuthSuccess * 0.6 + wNotifDelivery * 0.4),
       continuity: backupOk ? 100 : 45,
     };
     const boardPillars: { label: string; status: string; tone: Tone; note: string }[] = [
@@ -1569,7 +1569,7 @@ Deno.serve(async (req) => {
         label: 'Platform Reliability',
         status: pillarScores.reliability >= 85 ? 'Green' : pillarScores.reliability >= 65 ? 'Amber' : 'Red',
         tone: ragTone(pillarScores.reliability),
-        note: `${rollbackRate.toFixed(2)}% of database transactions rolled back; ${errRate.toFixed(2)}% app error rate affecting ${fmt(E.affected_users_today)} users.`,
+        note: `${wRollbackRate.toFixed(2)}% of database transactions rolled back ${periodWord}; ${wErrRate.toFixed(2)}% of active customers hit an app error (${fmt(wAffectedUsers)} ${weeklyMode ? 'affected user-days' : 'users'}).`,
       },
       {
         label: 'Financial Controls Automation',
@@ -1577,7 +1577,7 @@ Deno.serve(async (req) => {
         tone: ragTone(pillarScores.controls),
         note: guardrailJobs.length
           ? `${guardrailJobs.length} financial-control automation${guardrailJobs.length > 1 ? 's' : ''} not completing (${guardrailJobs.slice(0, 3).map((j: any) => String(j.jobname)).join(', ')}); ${brokenAllDay} job(s) had no successful run today.`
-          : `All ${fmt(J.total_scheduled)} automated controls completing; ${jobFailRate.toFixed(1)}% run failure rate.`,
+          : `All ${fmt(J.total_scheduled)} automated controls completing; ${wJobFailRate.toFixed(1)}% run failure rate ${periodWord} across ${fmt(wFailedRuns)} failed run${wFailedRuns === 1 ? '' : 's'}.`,
       },
       {
         label: 'Security & Compliance',
@@ -1589,7 +1589,7 @@ Deno.serve(async (req) => {
         label: 'Customer Experience',
         status: pillarScores.customer >= 95 ? 'Green' : pillarScores.customer >= 85 ? 'Amber' : 'Red',
         tone: ragTone(pillarScores.customer),
-        note: `${authSuccess.toFixed(1)}% of sign-ins succeeded; ${notifDelivery.toFixed(1)}% of customer notifications delivered.`,
+        note: `${wAuthSuccess.toFixed(1)}% of sign-ins succeeded ${periodWord}; ${wNotifDelivery.toFixed(1)}% of customer notifications delivered.`,
       },
       {
         label: 'Business Continuity',
@@ -1600,35 +1600,40 @@ Deno.serve(async (req) => {
     ];
 
     const boardHeadline: string[] = [
-      `The platform served ${fmt(P.active_24h)} active customers today with no revenue-impacting outage, and financial ledger integrity held across ${fmt(P.txn_today)} balanced postings.`,
-      `Customer-facing quality was ${errRate < 1 ? 'stable' : 'under pressure'}: ${authSuccess.toFixed(1)}% of sign-ins succeeded and ${notifDelivery.toFixed(1)}% of notifications were delivered.`,
+      `The platform served ${wLedgerNote} with no revenue-impacting outage, and financial ledger integrity held across ${fmt(P.txn_today)} balanced postings on the closing day.`,
+      `Customer-facing quality was ${wErrRate < 1 ? 'stable' : 'under pressure'}: ${wAuthSuccess.toFixed(1)}% of sign-ins succeeded and ${wNotifDelivery.toFixed(1)}% of notifications were delivered ${periodWord}.`,
+      ...(weeklyMode
+        ? [`Technology health averaged ${wHealth} out of 100 across the seven days and ${wHealthTrend > 0 ? `improved ${wHealthTrend}` : wHealthTrend < 0 ? `declined ${Math.abs(wHealthTrend)}` : 'held flat at'} ${wHealthTrend === 0 ? `${wHealthLast}` : 'points'} from ${wHealthFirst} on ${weekStart} to ${wHealthLast} on ${dateStr}.`]
+        : []),
       guardrailJobs.length
         ? `One item needs board visibility: ${guardrailJobs.length} automated job${guardrailJobs.length > 1 ? 's' : ''} enforcing financial controls (${guardrailJobs.slice(0, 3).map((j: any) => String(j.jobname)).join(', ')}) ${guardrailJobs.length > 1 ? 'have' : 'has'} not completed successfully in the last 24 hours, so those controls are currently running on manual oversight rather than automatically.`
         : `No financial-control automation is currently failing; all scheduled control jobs completed in the last 24 hours.`,
-      rollbackRate >= 5
-        ? `Separately, ${rollbackRate.toFixed(2)}% of database transactions were rolled back today, above the internal tolerance — this signals wasted processing and retried customer actions rather than lost money.`
-        : `Overall technology health stands at ${health} out of 100 (${healthLabel}); no other item requires a board decision this cycle.`,
+      wRollbackRate >= 5
+        ? `Separately, ${wRollbackRate.toFixed(2)}% of database transactions were rolled back ${periodWord}, above the internal tolerance — this signals wasted processing and retried customer actions rather than lost money.`
+        : `Overall technology health stands at ${wHealth} out of 100 (${wHealthLabel}); no other item requires a board decision this cycle.`,
     ];
 
     const boardDecisions: string[] = [];
     if (guardrailJobs.length)
       boardDecisions.push(`Approve prioritising a remediation sprint for the ${guardrailJobs.length} financial-guardrail automation${guardrailJobs.length > 1 ? 's' : ''} so financial controls run without manual oversight.`);
-    if (rollbackRate >= 5)
-      boardDecisions.push(`Note the elevated transaction rollback rate (${rollbackRate.toFixed(2)}%) and the engineering commitment to bring it back within tolerance.`);
+    if (wRollbackRate >= 5)
+      boardDecisions.push(`Note the elevated transaction rollback rate (${wRollbackRate.toFixed(2)}% ${periodWord}) and the engineering commitment to bring it back within tolerance.`);
     if (!backupOk)
       boardDecisions.push(`Note that the last successful backup is ${backupAgeLabel} against a weekly cadence; continuity assurance requires attention before the next cycle.`);
-    if (emailFailRate >= 5)
-      boardDecisions.push(`Be aware that ${emailFailRate.toFixed(1)}% of customer notifications failed to deliver, which increases support load.`);
+    if (100 - wNotifDelivery >= 5)
+      boardDecisions.push(`Be aware that ${(100 - wNotifDelivery).toFixed(1)}% of customer notifications failed to deliver ${periodWord}, which increases support load.`);
     if (!boardDecisions.length)
       boardDecisions.push('No decision required this cycle. All five pillars are within tolerance; the technology team continues on planned work.');
 
     const boardKpis: string[][] = [
-      ['Technology health score', `${health}/100 (${healthLabel})`, '85 or above', health >= 85 ? 'On target' : 'Below target'],
-      ['Customers affected by an error', `${errRate.toFixed(2)}% of active users`, 'Below 1.00%', errRate < 1 ? 'On target' : 'Below target'],
-      ['Sign-in success rate', `${authSuccess.toFixed(1)}%`, '98.0% or above', authSuccess >= 98 ? 'On target' : 'Below target'],
-      ['Automation success rate', `${(100 - jobFailRate).toFixed(1)}%`, '99.0% or above', jobFailRate <= 1 ? 'On target' : 'Below target'],
-      ['Notification delivery', `${notifDelivery.toFixed(1)}%`, '95.0% or above', notifDelivery >= 95 ? 'On target' : 'Below target'],
-      ['Transaction rollback rate', `${rollbackRate.toFixed(2)}%`, 'Below 5.00%', rollbackRate < 5 ? 'On target' : 'Below target'],
+      [weeklyMode ? 'Technology health score (7-day average)' : 'Technology health score', `${wHealth}/100 (${wHealthLabel})`, '85 or above', wHealth >= 85 ? 'On target' : 'Below target'],
+      ...(weeklyMode ? [['Health trend across the week', `${wHealthFirst} to ${wHealthLast} (${wHealthTrend >= 0 ? '+' : ''}${wHealthTrend})`, 'Flat or improving', wHealthTrend >= 0 ? 'On target' : 'Below target']] : []),
+      ['Customers affected by an error', `${wErrRate.toFixed(2)}% of active customers`, 'Below 1.00%', wErrRate < 1 ? 'On target' : 'Below target'],
+      ['Sign-in success rate', `${wAuthSuccess.toFixed(1)}%`, '98.0% or above', wAuthSuccess >= 98 ? 'On target' : 'Below target'],
+      ['Automation success rate', `${(100 - wJobFailRate).toFixed(1)}%`, '99.0% or above', wJobFailRate <= 1 ? 'On target' : 'Below target'],
+      ...(weeklyMode ? [['Failed automation runs (cumulative)', `${fmt(wFailedRuns)} over 7 days`, 'Zero', wFailedRuns === 0 ? 'On target' : 'Below target']] : []),
+      ['Notification delivery', `${wNotifDelivery.toFixed(1)}%`, '95.0% or above', wNotifDelivery >= 95 ? 'On target' : 'Below target'],
+      ['Transaction rollback rate', `${wRollbackRate.toFixed(2)}%`, 'Below 5.00%', wRollbackRate < 5 ? 'On target' : 'Below target'],
       ['Financial controls automated', `${fmt(Math.max(0, n(J.total_scheduled) - failingJobs.length))} of ${fmt(J.total_scheduled)}`, 'All scheduled jobs', failingJobs.length ? 'Below target' : 'On target'],
     ];
 
