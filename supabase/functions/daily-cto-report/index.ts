@@ -1480,6 +1480,76 @@ Deno.serve(async (req) => {
 
     // ---- Board framing (same data, business language) ---------------------
     const rollbackRate = pct(n(I.rollbacks), Math.max(1, n(I.commits) + n(I.rollbacks)));
+
+    // ---- Weekly roll-up: the board memo fires weekly, so it reports the
+    // trailing 7 days rather than a single day's snapshot. -------------------
+    const shiftDay = (iso: string, back: number) => {
+      const dt = new Date(`${iso}T00:00:00Z`);
+      dt.setUTCDate(dt.getUTCDate() - back);
+      return dt.toISOString().slice(0, 10);
+    };
+    const weekDates = Array.from({ length: 7 }, (_, i) => shiftDay(dateStr, 6 - i));
+    const weekStart = weekDates[0];
+    const boardPeriodLabel = `${weekStart} to ${dateStr}`;
+    type DayRoll = {
+      d: string; health: number; errUsers: number; active: number;
+      loginFail: number; loginEvents: number; emailFailed: number; emailSent: number;
+      jobRuns: number; jobFailed: number; rollbacks: number; commits: number; rls: number;
+    };
+    const weekDays: DayRoll[] = [];
+    if (reportType === 'board') {
+      const results = await Promise.all(
+        weekDates.map(async (dy) => {
+          if (dy === dateStr) return { dy, payload: d };
+          try {
+            const { data: dd, error: de } = await supabase.rpc('get_cto_daily_report', { p_date: dy });
+            if (de) { console.error('[daily-cto-report] weekly rpc failed', dy, de); return null; }
+            return { dy, payload: dd || {} };
+          } catch (e) { console.error('[daily-cto-report] weekly rpc threw', dy, e); return null; }
+        }),
+      );
+      for (const r of results) {
+        if (!r) continue;
+        const x: any = r.payload || {};
+        const xP = x.platform || {}, xE = x.errors || {}, xA = x.auth || {}, xI = x.infra || {},
+          xJ = x.jobs || {}, xM = x.email || {}, xS = x.security || {};
+        const dErr = pct(n(xE.affected_users_today), Math.max(1, Math.max(n(xP.active_24h), n(xE.affected_users_today))));
+        const dLogin = pct(n(xA.login_failures_today), Math.max(1, n(xA.login_events_today)));
+        const dJob = pct(n(xJ.failed_24h), Math.max(1, n(xJ.runs_24h)));
+        const dConn = pct(n(xI.connections), Math.max(1, n(xI.max_connections)));
+        const dRls = pct(n(xS.rls_tables), Math.max(1, n(xS.public_tables)));
+        const dCache = n(xI.cache_hit_pct);
+        const dHealth = Math.round(
+          (Math.max(0, 100 - dErr * 12) * 25 + Math.max(0, 100 - dLogin * 1.6) * 15 + Math.max(0, 100 - dJob * 4) * 15 +
+            Math.min(100, dCache * 0.7 + Math.max(0, 100 - dConn) * 0.3) * 20 + dRls * 15 + (backupOk ? 100 : 45) * 10) / 100,
+        );
+        weekDays.push({
+          d: r.dy, health: dHealth, errUsers: n(xE.affected_users_today), active: n(xP.active_24h),
+          loginFail: n(xA.login_failures_today), loginEvents: n(xA.login_events_today),
+          emailFailed: n(xM.failed_today), emailSent: n(xM.sent_today),
+          jobRuns: n(xJ.runs_24h), jobFailed: n(xJ.failed_24h),
+          rollbacks: n(xI.rollbacks), commits: n(xI.commits), rls: dRls,
+        });
+      }
+      weekDays.sort((a2, b2) => (a2.d < b2.d ? -1 : 1));
+    }
+    const sum = (k: keyof DayRoll) => weekDays.reduce((s, r) => s + Number(r[k] || 0), 0);
+    const weeklyMode = reportType === 'board' && weekDays.length > 1;
+    const wHealth = weeklyMode ? Math.round(sum('health') / weekDays.length) : health;
+    const wHealthLabel = wHealth >= 85 ? 'Healthy' : wHealth >= 70 ? 'Watch' : 'At risk';
+    const wHealthFirst = weekDays.length ? weekDays[0].health : health;
+    const wHealthLast = weekDays.length ? weekDays[weekDays.length - 1].health : health;
+    const wHealthTrend = wHealthLast - wHealthFirst;
+    const wErrRate = weeklyMode ? Math.min(100, pct(sum('errUsers'), Math.max(1, n(P.active_7d)))) : errRate;
+    const wAuthSuccess = weeklyMode ? 100 - pct(sum('loginFail'), Math.max(1, sum('loginEvents'))) : authSuccess;
+    const wNotifDelivery = weeklyMode ? 100 - pct(sum('emailFailed'), Math.max(1, sum('emailSent'))) : notifDelivery;
+    const wJobFailRate = weeklyMode ? pct(sum('jobFailed'), Math.max(1, sum('jobRuns'))) : jobFailRate;
+    const wFailedRuns = weeklyMode ? sum('jobFailed') : n(J.failed_24h);
+    const wRollbackRate = weeklyMode ? pct(sum('rollbacks'), Math.max(1, sum('commits') + sum('rollbacks'))) : rollbackRate;
+    const wAffectedUsers = weeklyMode ? sum('errUsers') : n(E.affected_users_today);
+    const wLedgerNote = weeklyMode ? `${fmt(P.active_7d)} active customers over the week` : `${fmt(P.active_24h)} active customers today`;
+    const periodWord = weeklyMode ? 'this week' : 'today';
+
     const GUARDRAIL_RE = /advance|recover|guardrail|bonus|trust|wallet|ledger|payout|commission|deposit|solvency|drift/i;
     const guardrailJobs = failingJobs.filter((j: any) => GUARDRAIL_RE.test(String(j.jobname || '')));
     const brokenAllDay = n(adJobsSummary.jobs_broken_all_day);
