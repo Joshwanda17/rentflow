@@ -79,6 +79,37 @@ export function PartnerLeadAssignments() {
     },
   });
 
+  const { data: consentMap = {} } = useQuery({
+    queryKey: ['proxy-agreement-consents', 'current-month', personIds],
+    enabled: personIds.length > 0,
+    queryFn: async () => {
+      const start = new Date();
+      start.setDate(1);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(start);
+      end.setMonth(end.getMonth() + 1);
+
+      const { data, error } = await supabase
+        .from('proxy_agreement_consents')
+        .select('agent_user_id, accepted_at, proxy_agreement_versions(version_code)')
+        .in('agent_user_id', personIds)
+        .gte('period_month', start.toISOString())
+        .lt('period_month', end.toISOString())
+        .order('accepted_at', { ascending: false });
+      if (error) throw error;
+
+      const map: Record<string, { accepted_at: string; version_code: string }> = {};
+      for (const c of data ?? []) {
+        const agentId = c.agent_user_id;
+        if (!map[agentId]) {
+          const version = (c.proxy_agreement_versions as { version_code?: string } | null)?.version_code ?? '';
+          map[agentId] = { accepted_at: c.accepted_at, version_code: version };
+        }
+      }
+      return map;
+    },
+  });
+
   const reasonOk = reason.trim().length >= MIN_REASON;
   const canSubmit = !!lead && !!agent && reasonOk && !submitting;
 
@@ -212,38 +243,52 @@ export function PartnerLeadAssignments() {
             <p className="py-4 text-sm text-muted-foreground">No active attachments.</p>
           ) : (
             <div className="space-y-2">
-              {rows.map((r) => (
-                <div
-                  key={r.id}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/30 p-3"
-                >
-                  <div className="min-w-0 space-y-0.5">
-                    <p className="truncate text-sm font-medium">
-                      {nameMap[r.lead_user_id] ?? r.lead_user_id}
-                    </p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      Agent: {nameMap[r.agent_id] ?? r.agent_id}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Attached {format(new Date(r.attached_at), 'dd MMM yyyy')}
-                    </p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-1.5"
-                    disabled={detaching === r.id}
-                    onClick={() => handleDetach(r.id)}
+              {rows.map((r) => {
+                const consent = consentMap[r.agent_id];
+                return (
+                  <div
+                    key={r.id}
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/30 p-3"
                   >
-                    {detaching === r.id ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Unlink className="h-3.5 w-3.5" />
-                    )}
-                    Detach
-                  </Button>
-                </div>
-              ))}
+                    <div className="min-w-0 space-y-0.5">
+                      <p className="truncate text-sm font-medium">
+                        {nameMap[r.lead_user_id] ?? r.lead_user_id}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        Agent: {nameMap[r.agent_id] ?? r.agent_id}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Attached {format(new Date(r.attached_at), 'dd MMM yyyy')}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {consent ? (
+                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                          Accepted {format(new Date(consent.accepted_at), 'dd MMM yyyy')} · {consent.version_code}
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                          Not accepted
+                        </Badge>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5"
+                        disabled={detaching === r.id}
+                        onClick={() => handleDetach(r.id)}
+                      >
+                        {detaching === r.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Unlink className="h-3.5 w-3.5" />
+                        )}
+                        Detach
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
