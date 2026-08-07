@@ -31,15 +31,18 @@ export default function MyProxyInviteLink() {
 
   const fetchInvite = async () => {
     try {
-      const { data, error } = await supabase.rpc('my_partner_lead_invite');
-      if (error) {
-        toast.error(error.message);
+      const { data, error: rpcError } = await supabase.rpc('my_partner_lead_invite');
+      if (rpcError) {
+        setError(new Error(rpcError.message));
+        toast.error(rpcError.message);
         return;
       }
       const rows = (data ?? []) as unknown as PartnerLeadInvite[];
       setInvite(rows[0] ?? null);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not load invite link');
+      const caught = e instanceof Error ? e : new Error('Could not load invite link');
+      setError(caught);
+      toast.error(caught.message);
     } finally {
       setLoading(false);
     }
