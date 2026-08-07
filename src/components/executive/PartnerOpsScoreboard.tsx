@@ -103,6 +103,27 @@ export function PartnerOpsScoreboard({ hideTargetEditor = false }: PartnerOpsSco
     return () => { supabase.removeChannel(channel); };
   }, [refetch]);
 
+  const {
+    data: statsRows,
+    isError: statsIsError,
+    error: statsError,
+  } = useQuery({
+    queryKey: ['partner-lead-attachment-stats'],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('partner_lead_attachment_stats');
+      if (error) throw error;
+      return (data || []) as LeadAttachmentStats[];
+    },
+  });
+
+  const statsByLead = (statsRows || []).reduce<Record<string, LeadAttachmentStats>>(
+    (acc, s) => {
+      acc[s.lead_user_id] = s;
+      return acc;
+    },
+    {}
+  );
+
   const rows = data?.rows || [];
 
   if (isLoading) {
