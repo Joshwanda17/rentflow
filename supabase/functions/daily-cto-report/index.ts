@@ -244,14 +244,39 @@ Deno.serve(async (req) => {
       I = d.infra || {}, B = d.backups || {}, J = d.jobs || {}, M = d.email || {};
 
     // ---- Derived executive indicators -------------------------------------
-    const errRate = pct(n(E.today), Math.max(1, n(P.events_today)));
+    // Error rate must be a bounded percentage. The old formula divided total
+    // error EVENTS (client_error_reports rows, 1,255 on 2026-08-07) by recorded
+    // system events (588) which is a different, smaller population -> 213.44%.
+    // Correct denominator = the active-user population for the period, and the
+    // numerator = distinct users who hit an error (8 / 98 = 8.16%).
+    const activeUsersForRate = Math.max(n(P.active_24h), n(E.affected_users_today));
+    const errRate = pct(n(E.affected_users_today), Math.max(1, activeUsersForRate)); // share of active users hitting >=1 error
+    // Unbounded volume indicator kept separately (never presented as a percentage).
+    const errorsPer1kEvents = n(P.events_today) > 0 ? (n(E.today) / n(P.events_today)) * 1000 : 0;
     const loginFailRate = pct(n(A.login_failures_today), Math.max(1, n(A.login_events_today)));
     const jobFailRate = pct(n(J.failed_24h), Math.max(1, n(J.runs_24h)));
     const emailFailRate = pct(n(M.failed_today), Math.max(1, n(M.sent_today)));
     const connSat = pct(n(I.connections), Math.max(1, n(I.max_connections)));
     const rlsCoverage = pct(n(S.rls_tables), Math.max(1, n(S.public_tables)));
     const cacheHit = n(I.cache_hit_pct);
-    const backupOk = n(B.runs_7d) > 0 && n(B.failures_7d) === 0;
+    // ---- Backup recency (intended cadence: weekly-database-backup, Sun 02:00 UTC) ----
+    const BACKUP_CADENCE_HOURS = 168;      // weekly
+    const BACKUP_WARN_HOURS = 180;         // ~7.5 days: window slipped
+    const BACKUP_RED_HOURS = 192;          // ~8 days: a full cycle missed
+    const latestBackupAt = B.latest?.created_at && String(B.latest.status) === 'success'
+      ? new Date(String(B.latest.created_at))
+      : null;
+    const backupAgeHours = latestBackupAt
+      ? Math.max(0, (Date.now() - latestBackupAt.getTime()) / 3_600_000)
+      : Number.POSITIVE_INFINITY;
+    const backupAgeLabel = Number.isFinite(backupAgeHours)
+      ? `${Math.floor(backupAgeHours / 24)}d ${Math.round(backupAgeHours % 24)}h old`
+      : 'no successful backup on record';
+    const backupFresh = backupAgeHours <= BACKUP_CADENCE_HOURS;
+    const backupStaleTone: Tone = backupAgeHours > BACKUP_RED_HOURS ? 'bad' : backupAgeHours > BACKUP_WARN_HOURS ? 'warn' : 'good';
+    // Zero failures inside a window that has not actually produced a recent
+    // success is not evidence of health, so recency now gates the verdict.
+    const backupOk = n(B.runs_7d) > 0 && n(B.failures_7d) === 0 && backupFresh;
 
     // Weighted technology health score (0-100)
     const scoreParts = [
