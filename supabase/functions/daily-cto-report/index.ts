@@ -1546,7 +1546,7 @@ Deno.serve(async (req) => {
     if (rollbackRate >= 5)
       boardDecisions.push(`Note the elevated transaction rollback rate (${rollbackRate.toFixed(2)}%) and the engineering commitment to bring it back within tolerance.`);
     if (!backupOk)
-      boardDecisions.push('Note that the backup cadence is not fully green this week; continuity assurance requires attention before the next cycle.');
+      boardDecisions.push(`Note that the last successful backup is ${backupAgeLabel} against a weekly cadence; continuity assurance requires attention before the next cycle.`);
     if (emailFailRate >= 5)
       boardDecisions.push(`Be aware that ${emailFailRate.toFixed(1)}% of customer notifications failed to deliver, which increases support load.`);
     if (!boardDecisions.length)
@@ -1554,7 +1554,7 @@ Deno.serve(async (req) => {
 
     const boardKpis: string[][] = [
       ['Technology health score', `${health}/100 (${healthLabel})`, '85 or above', health >= 85 ? 'On target' : 'Below target'],
-      ['Customer-facing error rate', `${errRate.toFixed(2)}%`, 'Below 1.00%', errRate < 1 ? 'On target' : 'Below target'],
+      ['Customers affected by an error', `${errRate.toFixed(2)}% of active users`, 'Below 1.00%', errRate < 1 ? 'On target' : 'Below target'],
       ['Sign-in success rate', `${authSuccess.toFixed(1)}%`, '98.0% or above', authSuccess >= 98 ? 'On target' : 'Below target'],
       ['Automation success rate', `${(100 - jobFailRate).toFixed(1)}%`, '99.0% or above', jobFailRate <= 1 ? 'On target' : 'Below target'],
       ['Notification delivery', `${notifDelivery.toFixed(1)}%`, '95.0% or above', notifDelivery >= 95 ? 'On target' : 'Below target'],
