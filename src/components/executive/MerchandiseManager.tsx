@@ -440,7 +440,7 @@ export function MerchandiseManager() {
       </div>
 
       {/* Merchandise wallet recovery */}
-      <Section title="Merchandise Wallet Recovery (15% credit sales · 40% agent installments · up to 4×/day)" icon={Repeat}>
+      <Section title="Merchandise Wallet Recovery (15% credit sales · 25% agent installments · up to 4×/day)" icon={Repeat}>
         {recoveryPlans.length === 0 ? (
           <EmptyRow text="No wallet-recovery plans yet. Credit sales to registered customers are recovered automatically." />
         ) : (
