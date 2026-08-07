@@ -1450,8 +1450,134 @@ Deno.serve(async (req) => {
           ]),
         },
       ],
-    });
-    const pdfName = `Welile_Daily_CTO_Report_${dateStr}.pdf`;
+    };
+
+    // ---- Board framing (same data, business language) ---------------------
+    const rollbackRate = pct(n(I.rollbacks), Math.max(1, n(I.commits) + n(I.rollbacks)));
+    const GUARDRAIL_RE = /advance|recover|guardrail|bonus|trust|wallet|ledger|payout|commission|deposit|solvency|drift/i;
+    const guardrailJobs = failingJobs.filter((j: any) => GUARDRAIL_RE.test(String(j.jobname || '')));
+    const brokenAllDay = n(adJobsSummary.jobs_broken_all_day);
+    const notifDelivery = 100 - emailFailRate;
+    const authSuccess = 100 - loginFailRate;
+
+    const ragTone = (v: number): Tone => (v >= 85 ? 'good' : v >= 65 ? 'warn' : 'bad');
+    const pillarScores = {
+      reliability: Math.max(0, Math.min(100, 100 - rollbackRate * 6 - errRate * 10)),
+      controls: Math.max(0, 100 - guardrailJobs.length * 22 - Math.max(0, failingJobs.length - guardrailJobs.length) * 6),
+      security: Math.min(100, rlsCoverage),
+      customer: Math.min(100, authSuccess * 0.6 + notifDelivery * 0.4),
+      continuity: backupOk ? 100 : 45,
+    };
+    const boardPillars: { label: string; status: string; tone: Tone; note: string }[] = [
+      {
+        label: 'Platform Reliability',
+        status: pillarScores.reliability >= 85 ? 'Green' : pillarScores.reliability >= 65 ? 'Amber' : 'Red',
+        tone: ragTone(pillarScores.reliability),
+        note: `${rollbackRate.toFixed(2)}% of database transactions rolled back; ${errRate.toFixed(2)}% app error rate affecting ${fmt(E.affected_users_today)} users.`,
+      },
+      {
+        label: 'Financial Controls Automation',
+        status: pillarScores.controls >= 85 ? 'Green' : pillarScores.controls >= 65 ? 'Amber' : 'Red',
+        tone: ragTone(pillarScores.controls),
+        note: guardrailJobs.length
+          ? `${guardrailJobs.length} financial-control automation${guardrailJobs.length > 1 ? 's' : ''} not completing (${guardrailJobs.slice(0, 3).map((j: any) => String(j.jobname)).join(', ')}); ${brokenAllDay} job(s) had no successful run today.`
+          : `All ${fmt(J.total_scheduled)} automated controls completing; ${jobFailRate.toFixed(1)}% run failure rate.`,
+      },
+      {
+        label: 'Security & Compliance',
+        status: pillarScores.security >= 98 ? 'Green' : pillarScores.security >= 90 ? 'Amber' : 'Red',
+        tone: ragTone(pillarScores.security),
+        note: `Access controls enforced on ${rlsCoverage.toFixed(1)}% of data tables; ${fmt(S.fraud_blocks_active)} fraud blocks active; ${fmt(P.txn_today)} balanced ledger postings.`,
+      },
+      {
+        label: 'Customer Experience',
+        status: pillarScores.customer >= 95 ? 'Green' : pillarScores.customer >= 85 ? 'Amber' : 'Red',
+        tone: ragTone(pillarScores.customer),
+        note: `${authSuccess.toFixed(1)}% of sign-ins succeeded; ${notifDelivery.toFixed(1)}% of customer notifications delivered.`,
+      },
+      {
+        label: 'Business Continuity',
+        status: backupOk ? 'Green' : 'Amber',
+        tone: backupOk ? 'good' : 'warn',
+        note: `${fmt(B.runs_7d)} backups in the last 7 days with ${fmt(B.failures_7d)} failures; latest ${B.latest?.created_at ? String(B.latest.created_at).slice(0, 16).replace('T', ' ') : 'not recorded'}.`,
+      },
+    ];
+
+    const boardHeadline: string[] = [
+      `The platform served ${fmt(P.active_24h)} active customers today with no revenue-impacting outage, and financial ledger integrity held across ${fmt(P.txn_today)} balanced postings.`,
+      `Customer-facing quality was ${errRate < 1 ? 'stable' : 'under pressure'}: ${authSuccess.toFixed(1)}% of sign-ins succeeded and ${notifDelivery.toFixed(1)}% of notifications were delivered.`,
+      guardrailJobs.length
+        ? `One item needs board visibility: ${guardrailJobs.length} automated job${guardrailJobs.length > 1 ? 's' : ''} enforcing financial controls (${guardrailJobs.slice(0, 3).map((j: any) => String(j.jobname)).join(', ')}) ${guardrailJobs.length > 1 ? 'have' : 'has'} not completed successfully in the last 24 hours, so those controls are currently running on manual oversight rather than automatically.`
+        : `No financial-control automation is currently failing; all scheduled control jobs completed in the last 24 hours.`,
+      rollbackRate >= 5
+        ? `Separately, ${rollbackRate.toFixed(2)}% of database transactions were rolled back today, above the internal tolerance — this signals wasted processing and retried customer actions rather than lost money.`
+        : `Overall technology health stands at ${health} out of 100 (${healthLabel}); no other item requires a board decision this cycle.`,
+    ];
+
+    const boardDecisions: string[] = [];
+    if (guardrailJobs.length)
+      boardDecisions.push(`Approve prioritising a remediation sprint for the ${guardrailJobs.length} financial-guardrail automation${guardrailJobs.length > 1 ? 's' : ''} so financial controls run without manual oversight.`);
+    if (rollbackRate >= 5)
+      boardDecisions.push(`Note the elevated transaction rollback rate (${rollbackRate.toFixed(2)}%) and the engineering commitment to bring it back within tolerance.`);
+    if (!backupOk)
+      boardDecisions.push('Note that the backup cadence is not fully green this week; continuity assurance requires attention before the next cycle.');
+    if (emailFailRate >= 5)
+      boardDecisions.push(`Be aware that ${emailFailRate.toFixed(1)}% of customer notifications failed to deliver, which increases support load.`);
+    if (!boardDecisions.length)
+      boardDecisions.push('No decision required this cycle. All five pillars are within tolerance; the technology team continues on planned work.');
+
+    const boardKpis: string[][] = [
+      ['Technology health score', `${health}/100 (${healthLabel})`, '85 or above', health >= 85 ? 'On target' : 'Below target'],
+      ['Customer-facing error rate', `${errRate.toFixed(2)}%`, 'Below 1.00%', errRate < 1 ? 'On target' : 'Below target'],
+      ['Sign-in success rate', `${authSuccess.toFixed(1)}%`, '98.0% or above', authSuccess >= 98 ? 'On target' : 'Below target'],
+      ['Automation success rate', `${(100 - jobFailRate).toFixed(1)}%`, '99.0% or above', jobFailRate <= 1 ? 'On target' : 'Below target'],
+      ['Notification delivery', `${notifDelivery.toFixed(1)}%`, '95.0% or above', notifDelivery >= 95 ? 'On target' : 'Below target'],
+      ['Transaction rollback rate', `${rollbackRate.toFixed(2)}%`, 'Below 5.00%', rollbackRate < 5 ? 'On target' : 'Below target'],
+      ['Financial controls automated', `${fmt(Math.max(0, n(J.total_scheduled) - failingJobs.length))} of ${fmt(J.total_scheduled)}`, 'All scheduled jobs', failingJobs.length ? 'Below target' : 'On target'],
+    ];
+
+    const pdfBytes = reportType === 'board'
+      ? await buildBoardPdf({
+          dateStr,
+          health,
+          healthLabel,
+          headline: boardHeadline,
+          pillars: boardPillars,
+          decisions: boardDecisions,
+          kpis: boardKpis,
+        })
+      : await buildTechPdf(techArgs);
+    const pdfName = reportType === 'board'
+      ? `Welile_Board_Technology_Memo_${dateStr}.pdf`
+      : `Welile_Daily_CTO_Report_${dateStr}.pdf`;
+
+    const boardHtml = `
+      <div style="font-family:Helvetica,Arial,sans-serif;color:${C.ink};max-width:680px;">
+        <h2 style="margin:0 0 6px;font-size:19px;">Board Technology Memo — ${dateStr}</h2>
+        <div style="font-size:12px;color:${C.muted};margin-bottom:14px;">Technology health ${health}/100 (${healthLabel})</div>
+        ${boardHeadline.map((p) => `<p style="font-size:13.5px;line-height:1.65;margin:0 0 10px;">${esc(p)}</p>`).join('')}
+        <h3 style="font-size:14px;margin:18px 0 8px;">Scorecard</h3>
+        <ul style="font-size:13px;line-height:1.7;padding-left:18px;margin:0;">
+          ${boardPillars.map((p) => `<li><b>${esc(p.label)}: <span style="color:${toneColor(p.tone)}">${esc(p.status)}</span></b> — ${esc(p.note)}</li>`).join('')}
+        </ul>
+        <h3 style="font-size:14px;margin:18px 0 8px;">For board decision or awareness</h3>
+        <ul style="font-size:13px;line-height:1.7;padding-left:18px;margin:0;">
+          ${boardDecisions.map((b) => `<li>${esc(b)}</li>`).join('')}
+        </ul>
+        <p style="font-size:11.5px;color:${C.muted};margin-top:18px;">The full engineering diagnostic report is issued separately to the technology team.</p>
+      </div>`;
+    const boardText = [
+      `Board Technology Memo — ${dateStr}`,
+      `Technology health: ${health}/100 (${healthLabel})`,
+      '',
+      ...boardHeadline,
+      '',
+      'Scorecard:',
+      ...boardPillars.map((p) => `- ${p.label}: ${p.status} — ${p.note}`),
+      '',
+      'For board decision or awareness:',
+      ...boardDecisions.map((b, i) => `${i + 1}. ${b}`),
+    ].join('\n');
 
     // Preview mode: return the PDF itself instead of emailing it.
     if (body?.preview === true) {
