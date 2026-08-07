@@ -21,6 +21,7 @@ import { format } from 'date-fns';
 import SmartphoneOrderStatus from '@/components/merchandise/SmartphoneOrderStatus';
 import { StorageImage } from '@/components/ui/StorageImage';
 import { shortMerchandiseUrl, longMerchandiseUrl } from '@/lib/merchandiseShareLink';
+import { useRestoreBodyPointerEvents } from '@/hooks/useRestoreBodyPointerEvents';
 
 // Merchandise tables aren't in generated types yet.
 const db = supabase as any;
