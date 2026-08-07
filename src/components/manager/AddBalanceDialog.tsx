@@ -17,7 +17,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { Loader2, Plus, Minus, Wallet, Landmark, Banknote } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
-import { useAuth } from '@/hooks/useAuth';
 import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 
 interface AddBalanceDialogProps {
@@ -43,7 +42,6 @@ export default function AddBalanceDialog({
   currentBalance,
   onSuccess
 }: AddBalanceDialogProps) {
-  const { user } = useAuth();
   const qc = useQueryClient();
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
@@ -92,80 +90,36 @@ export default function AddBalanceDialog({
     setLoading(true);
 
     try {
-      // Get or create wallet
-      let { data: wallet, error: walletError } = await supabase
-        .from('wallets')
-        .select('id, balance')
-        .eq('user_id', userId)
-        .maybeSingle();
-
-      if (walletError) throw walletError;
-
-      if (!wallet) {
-        const { data: newWallet, error: createError } = await supabase
-          .from('wallets')
-          // `wallets` is now a view backed by an INSTEAD OF trigger that routes
-          // INSERTs to wallets_physical. Generated types mark views read-only,
-          // so cast through `any` to keep the (still-functional) write.
-          .insert({ user_id: userId, balance: 0 } as any)
-          .select('id, balance')
-          .single();
-        if (createError) throw createError;
-        wallet = newWallet;
-      }
-
-      // Generate reference ID: WBA + YYMMDD + random 4 digits
-      const now = new Date();
-      const yy = String(now.getFullYear()).slice(-2);
-      const mm = String(now.getMonth() + 1).padStart(2, '0');
-      const dd = String(now.getDate()).padStart(2, '0');
-      const seq = String(Math.floor(1000 + Math.random() * 9000));
-      const referenceId = `WBA${yy}${mm}${dd}${seq}`;
-
-      // Queue for manager approval instead of direct wallet update.
-      // `account` carries the CTO's explicit bucket choice (withdrawable vs
-      // float) through to approve-wallet-operation, which stamps it onto the
-      // ledger leg's recipient_type/wallet_bucket — the same mechanism the
-      // CFO Direct Credit tool uses (Wallet Routing v2).
-      const { error: queueError } = await supabase.from('pending_wallet_operations').insert({
-        user_id: userId,
-        amount: amountNum,
-        direction: type === 'credit' ? 'cash_in' : 'cash_out',
-        category: type === 'credit' ? 'manager_credit' : 'manager_debit',
-        source_table: 'wallets',
-        source_id: wallet.id,
-        description: `Manager adjustment (${type}, ${bucket}): ${reason.trim()}`,
-        reference_id: referenceId,
-        linked_party: user?.email || 'Manager',
-        account: bucket,
-        status: 'pending',
-      });
-
-      if (queueError) throw queueError;
-
-      // Log to audit_logs for manager edit tracking
-      await supabase.from('audit_logs').insert({
-        action_type: 'manager_fund_edit',
-        user_id: user.id,
-        record_id: userId,
-        table_name: 'wallets',
-        metadata: {
-          target_user_name: userName,
-          adjustment_type: type,
-          wallet_bucket: bucket,
+      // Direct, immediate credit/debit — no approval queue. Posts straight
+      // through the same balanced double-entry ledger + Wallet Routing v2
+      // mechanism (recipient_type) the CFO Direct Credit tool uses, so the
+      // bucket chosen above actually lands (or leaves from) the money there
+      // right away. cfo-direct-credit already enforces its own bucket-aware
+      // solvency gate on debits (get_user_available_balance /
+      // get_user_float_available_balance), so an insufficient-balance debit
+      // is rejected server-side even if the client-side pre-check above
+      // somehow drifted from the live balance.
+      const { data, error } = await supabase.functions.invoke('cfo-direct-credit', {
+        body: {
+          target_user_id: userId,
           amount: amountNum,
           reason: reason.trim(),
-          previous_balance: currentBalance,
-          previous_bucket_balance: selectedBucketBalance,
-          reference_id: referenceId,
-          manager_email: user.email,
+          operation: type,
+          recipient_type: bucket === 'float' ? 'operational_wallet' : 'user',
+          // Float credits must use a category in the edge function's
+          // FLOAT_ROUTE_CATEGORIES allow-list or it rejects the request.
+          wallet_category: bucket === 'float' ? 'agent_float_deposit' : undefined,
+          financial_impact: 'neutral',
+          category_label: `Manager Wallet ${type === 'credit' ? 'Credit' : 'Debit'} (${bucket === 'float' ? 'Float' : 'Withdrawable'})`,
+          manual_credit: true,
         },
       });
+      if (error) throw new Error(await extractFromErrorObject(error, `Failed to ${type} wallet`));
+      if ((data as any)?.error) throw new Error((data as any).error);
 
-      toast.success(`Balance adjustment queued for approval (${formatUGX(amountNum)} ${type} · ${bucket})`);
-      // Ensure every consumer of the shared wallet cache refreshes once the
-      // adjustment is approved and applied. Also invalidate now so pending-op
-      // banners re-hydrate immediately.
+      toast.success(`UGX ${amountNum.toLocaleString()} ${type === 'credit' ? 'credited to' : 'debited from'} ${userName}'s ${bucket} balance`);
+
+      // Ensure every consumer of the shared wallet cache refreshes immediately.
       invalidateOpsWallet(qc, userId);
       setAmount('');
       setReason('');
@@ -173,9 +127,9 @@ export default function AddBalanceDialog({
       setBucket('withdrawable');
       onOpenChange(false);
       onSuccess?.();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adjusting balance:', error);
-      toast.error('Failed to adjust balance. Please try again.');
+      toast.error(error?.message || 'Failed to adjust balance. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -307,6 +261,9 @@ export default function AddBalanceDialog({
               <p className={`text-lg font-bold ${type === 'credit' ? 'text-success' : 'text-destructive'}`}>
                 {formatUGX(previewBalance)}
               </p>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                {type === 'credit' ? 'Applied immediately — no approval step.' : 'Queued for manager approval before it applies.'}
+              </p>
             </div>
           )}
         </div>
@@ -327,7 +284,7 @@ export default function AddBalanceDialog({
             ) : (
               <Minus className="h-4 w-4" />
             )}
-            {type === 'credit' ? 'Credit' : 'Debit'} Account
+            {type === 'credit' ? 'Credit Account' : 'Queue Debit'}
           </Button>
         </DialogFooter>
       </DialogContent>
