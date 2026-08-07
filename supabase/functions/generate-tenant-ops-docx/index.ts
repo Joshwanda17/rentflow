@@ -331,11 +331,13 @@ Deno.serve(async (req) => {
     const recipients: string[] = Array.isArray(body?.recipients) ? body.recipients : [];
     const wantsEmail = body?.email === true && recipients.length > 0;
 
+    console.log('stage: start');
     // 1) Receivables (existing RPC — untouched)
     const { data: rpcData, error: rpcErr } = await supabase.rpc('get_agent_ops_receivables_report');
     if (rpcErr) throw new Error(`get_agent_ops_receivables_report failed: ${rpcErr.message}`);
     const receivables = (rpcData ?? {}) as Receivables;
 
+    console.log('stage: receivables ok');
     // 2) Registered tenants + new tenants (EAT windows)
     const week = eatWeekStartIso();
     const month = eatMonthStartIso();
@@ -366,6 +368,7 @@ Deno.serve(async (req) => {
       month_start: month.label,
     };
 
+    console.log('stage: counts ok', counts);
     // 3) Payables — landlord_payouts not yet settled
     const SETTLED = ['completed', 'disbursed', 'failed', 'cancelled', 'rejected'];
     const { data: payoutRows, error: payErr } = await supabase
@@ -398,11 +401,13 @@ Deno.serve(async (req) => {
       annual_ledger_rows: (lalRows ?? []).length,
     };
 
+    console.log('stage: payables ok', payables.total);
     // 4) Build the .docx
     const doc = buildDoc(receivables, counts, payables);
     const blob = await Packer.toBlob(doc);
     const bytes = new Uint8Array(await blob.arrayBuffer());
 
+    console.log('stage: docx built', bytes.length);
     // 5) Upload + signed URL
     const dateStr = eatDateStr();
     const stamp = eatNow().toISOString().slice(11, 16).replace(':', '');
@@ -472,8 +477,10 @@ Deno.serve(async (req) => {
       emailError,
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (e) {
-    console.error('generate-tenant-ops-docx failed', e);
-    return new Response(JSON.stringify({ ok: false, error: (e as Error).message }), {
+    const detail = (e as any)?.message || (e as any)?.error_description ||
+      (() => { try { return JSON.stringify(e); } catch { return String(e); } })();
+    console.error('generate-tenant-ops-docx failed', detail, (e as any)?.stack);
+    return new Response(JSON.stringify({ ok: false, error: detail }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
