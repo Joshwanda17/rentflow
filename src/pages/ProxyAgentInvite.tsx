@@ -43,13 +43,6 @@ export default function ProxyAgentInvite() {
     }
   }, [code]);
 
-  // Not signed in → send to the plain sign-in page, returning here afterwards.
-  useEffect(() => {
-    if (authLoading) return;
-    if (!user) {
-      navigate(`/auth?redirect=${encodeURIComponent(`/pa/${code}`)}`, { replace: true });
-    }
-  }, [authLoading, user, navigate, code]);
 
   // After accepting, land the proxy directly where promissory notes are submitted.
   useEffect(() => {
@@ -118,7 +111,41 @@ export default function ProxyAgentInvite() {
     setError(row?.message || row?.status || 'Could not accept the agreement.');
   };
 
-  if (authLoading || !user) return null;
+  if (authLoading) return null;
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background px-4 py-8">
+        <div className="mx-auto w-full max-w-2xl">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <FileText className="h-4 w-4 text-primary" />
+                Proxy agent agreement
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                You've been invited to join Welile as a proxy agent. Sign in or create an account, then accept the proxy agent agreement.
+              </p>
+              <div className="flex flex-col gap-2">
+                <Button asChild variant="outline" className="w-full justify-start">
+                  <Link to={`/auth?redirect=${encodeURIComponent(`/pa/${code}`)}`}>
+                    I already have a Welile account
+                  </Link>
+                </Button>
+                <Button asChild className="w-full justify-start">
+                  <Link to={`/auth?signup=1&role=agent&redirect=${encodeURIComponent(`/pa/${code}`)}&signup_source=proxy-invite`}>
+                    Create an account
+                  </Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background px-4 py-8">
