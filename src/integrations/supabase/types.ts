@@ -18872,6 +18872,45 @@ export type Database = {
         }
         Relationships: []
       }
+      partner_lead_invites: {
+        Row: {
+          code: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          lead_user_id: string
+          max_uses: number | null
+          note: string | null
+          revoked_at: string | null
+          revoked_by: string | null
+          uses_count: number
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          lead_user_id: string
+          max_uses?: number | null
+          note?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          uses_count?: number
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          lead_user_id?: string
+          max_uses?: number | null
+          note?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          uses_count?: number
+        }
+        Relationships: []
+      }
       partner_note_overrides: {
         Row: {
           agent_id: string
@@ -32341,6 +32380,7 @@ export type Database = {
         Args: { _job_id?: string }
         Returns: Json
       }
+      claim_partner_lead_invite: { Args: { p_code: string }; Returns: Json }
       claim_withdrawal_verified: {
         Args: {
           p_momo_name?: string
@@ -35484,6 +35524,15 @@ export type Database = {
         }
         Returns: number
       }
+      my_partner_lead_invite: {
+        Args: never
+        Returns: {
+          code: string
+          expires_at: string
+          revoked: boolean
+          uses_count: number
+        }[]
+      }
       normalize_district_name: { Args: { p_input: string }; Returns: string }
       normalize_e164_phone: { Args: { raw: string }; Returns: string }
       normalize_momo_tid: { Args: { p_tid: string }; Returns: string }
@@ -36653,6 +36702,7 @@ export type Database = {
         Args: { p_agent_id: string; p_reason?: string }
         Returns: Json
       }
+      revoke_partner_lead_invite: { Args: { p_code: string }; Returns: Json }
       run_email_auto_match_retry: {
         Args: { p_window_hours?: number }
         Returns: number
