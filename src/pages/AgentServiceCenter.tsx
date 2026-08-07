@@ -26,9 +26,11 @@ import {
   TransferTenantDialog,
   UnlinkSubAgentDialog,
 } from '@/components/agent/service-center/SubAgentActionDialogs';
+import { useRestoreBodyPointerEvents } from '@/hooks/useRestoreBodyPointerEvents';
 
 export default function AgentServiceCenter() {
   const navigate = useNavigate();
+  useRestoreBodyPointerEvents();
   const { data, isLoading, error } = useServiceCenterOverview();
   const { data: transfers = [] } = useServiceCenterTransfers();
   const { data: catalog = [], isLoading: loadingCatalog } = useServiceCenterCatalog();
@@ -263,12 +265,13 @@ export default function AgentServiceCenter() {
         subAgent={detailTarget}
         open={!!detailTarget}
         onOpenChange={(v) => !v && setDetailId(null)}
-        onSuspend={(s) => setSuspendTarget(s)}
+        onSuspend={(s) => { setDetailId(null); setSuspendTarget(s); }}
         onTransfer={(s, rentRequestId) => {
+          setDetailId(null);
           setTransferRentRequestId(rentRequestId);
           setTransferTarget(s);
         }}
-        onUnlink={(s) => setUnlinkTarget(s)}
+        onUnlink={(s) => { setDetailId(null); setUnlinkTarget(s); }}
         actionsDisabled={!!suspendTarget || !!unlinkTarget || !!transferTarget}
       />
       <SuspendSubAgentDialog
