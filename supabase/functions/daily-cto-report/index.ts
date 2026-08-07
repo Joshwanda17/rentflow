@@ -182,10 +182,12 @@ Deno.serve(async (req) => {
     const body = req.method === 'POST' ? await req.json().catch(() => ({})) : {};
     const dateStr: string =
       typeof body?.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.date) ? body.date : yesterdayIsoEAT();
+    // One data pass, two renderers: 'board' = condensed memo, 'tech' = full diagnostics.
+    const reportType: 'board' | 'tech' = body?.report_type === 'board' ? 'board' : 'tech';
     const recipients: string[] =
       Array.isArray(body?.recipients) && body.recipients.length
         ? body.recipients.filter((r: unknown) => typeof r === 'string' && (r as string).includes('@'))
-        : DEFAULT_RECIPIENTS;
+        : reportType === 'board' ? BOARD_RECIPIENTS : TECH_RECIPIENTS;
 
     const supabase = createClient(supabaseUrl, serviceKey);
     const { data, error } = await supabase.rpc('get_cto_daily_report', { p_date: dateStr });
