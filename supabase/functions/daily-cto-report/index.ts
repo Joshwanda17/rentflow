@@ -1150,7 +1150,7 @@ Deno.serve(async (req) => {
     ].join('\n');
 
     // ---- Downloadable PDF attachment ------------------------------------
-    const pdfBytes = await buildCtoPdf({
+    const techArgs: PdfArgs = {
       dateStr,
       generatedAt: String(d.generated_at || '').slice(0, 19).replace('T', ' '),
       health, healthLabel,
