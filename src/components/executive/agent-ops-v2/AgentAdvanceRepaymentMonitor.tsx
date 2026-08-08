@@ -240,6 +240,15 @@ export function AgentAdvanceRepaymentMonitor() {
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <KPICard title="Agents with advances" value={stats.total} icon={Users} loading={isLoading} color="bg-purple-100 text-purple-700" />
+        {Object.keys(paused).length > 0 && (
+          <KPICard
+            title="Deductions paused"
+            value={Object.keys(paused).length}
+            icon={PauseCircle}
+            color="bg-amber-100 text-amber-700"
+            subtitle="Excluded from all auto-recovery"
+          />
+        )}
         <KPICard
           title="Advance adoption"
           value={`${adoptionPct}%`}
@@ -323,7 +332,15 @@ export function AgentAdvanceRepaymentMonitor() {
             {isLoading && <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>}
             {!isLoading && stats.unpaid.length === 0 && <p className="text-xs text-muted-foreground py-4 text-center">Everyone with an advance has repaid today. 🎉</p>}
             {stats.unpaid.map((r) => (
-              <AgentRepaymentRow key={r.advance_id} r={r} tone="unpaid" onRemind={() => sendReminder([r.agent_id], r.advance_id)} reminding={remindingId === r.advance_id} />
+              <AgentRepaymentRow
+                key={r.advance_id}
+                r={r}
+                tone="unpaid"
+                pausedInfo={paused[r.advance_id]}
+                onTogglePause={() => setPauseTarget({ id: r.advance_id, name: r.full_name, paused: !!paused[r.advance_id] })}
+                onRemind={() => sendReminder([r.agent_id], r.advance_id)}
+                reminding={remindingId === r.advance_id}
+              />
             ))}
           </CardContent>
         </Card>
@@ -339,20 +356,38 @@ export function AgentAdvanceRepaymentMonitor() {
             {isLoading && <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>}
             {!isLoading && stats.paid.length === 0 && <p className="text-xs text-muted-foreground py-4 text-center">No repayments collected yet today.</p>}
             {stats.paid.map((r) => (
-              <AgentRepaymentRow key={r.advance_id} r={r} tone="paid" />
+              <AgentRepaymentRow
+                key={r.advance_id}
+                r={r}
+                tone="paid"
+                pausedInfo={paused[r.advance_id]}
+                onTogglePause={() => setPauseTarget({ id: r.advance_id, name: r.full_name, paused: !!paused[r.advance_id] })}
+              />
             ))}
           </CardContent>
         </Card>
       </div>
+
+      <AdvancePauseDialog
+        advanceId={pauseTarget?.id ?? null}
+        agentName={pauseTarget?.name ?? null}
+        isPaused={!!pauseTarget?.paused}
+        open={!!pauseTarget}
+        onOpenChange={(o) => { if (!o) setPauseTarget(null); }}
+        invalidateKeys={['agent-advance-paused-map', 'agent-advance-repayment-monitor', 'cfo-outstanding-advances']}
+      />
     </div>
   );
 }
 
-function AgentRepaymentRow({ r, tone, onRemind, reminding }: {
+function AgentRepaymentRow({ r, tone, onRemind, reminding, pausedInfo, onTogglePause }: {
   r: MonitorRow; tone: 'paid' | 'unpaid'; onRemind?: () => void; reminding?: boolean;
+  pausedInfo?: { reason: string | null; at: string | null };
+  onTogglePause?: () => void;
 }) {
+  const isPaused = !!pausedInfo;
   return (
-    <div className="rounded-xl border border-border bg-card p-2.5 flex items-start gap-2.5">
+    <div className={`rounded-xl border bg-card p-2.5 flex items-start gap-2.5 ${isPaused ? 'border-amber-400/60' : 'border-border'}`}>
       <Avatar className="h-9 w-9 shrink-0">
         <AvatarImage src={r.avatar_url ?? undefined} />
         <AvatarFallback className="text-xs">{initials(r.full_name)}</AvatarFallback>
@@ -362,6 +397,11 @@ function AgentRepaymentRow({ r, tone, onRemind, reminding }: {
           <span className="text-sm font-semibold truncate">{r.full_name || 'Unknown agent'}</span>
           {r.is_overdue && <Badge variant="destructive" className="text-[9px] px-1 py-0">OVERDUE</Badge>}
           {r.arrears_balance > 0 && <Badge className="bg-amber-100 text-amber-700 text-[9px] px-1 py-0">Arrears {formatUGX(r.arrears_balance)}</Badge>}
+          {isPaused && (
+            <Badge className="bg-amber-100 text-amber-800 text-[9px] px-1 py-0 gap-1">
+              <PauseCircle className="h-2.5 w-2.5" /> PAUSED
+            </Badge>
+          )}
         </div>
         <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px]">
           <span className="text-muted-foreground flex items-center gap-1"><Banknote className="h-3 w-3" /> Owed: <b className="text-foreground">{formatUGX(r.outstanding_balance)}</b></span>
@@ -375,13 +415,31 @@ function AgentRepaymentRow({ r, tone, onRemind, reminding }: {
           7d: {r.paid_days_window} paid · {r.missed_days_window} missed · collected {formatUGX(r.repaid_window)}
           {r.collections_count_today > 0 && <> · today collected {formatUGX(r.collections_today)} ({r.collections_count_today})</>}
         </div>
+        {isPaused && (
+          <p className="mt-1 text-[10px] text-amber-700 break-words">
+            Paused{pausedInfo?.at ? ` ${format(new Date(pausedInfo.at), 'd MMM')}` : ''}: {pausedInfo?.reason || 'no reason recorded'}
+          </p>
+        )}
       </div>
-      {tone === 'unpaid' && onRemind && (
-        <Button size="sm" variant="outline" className="shrink-0 h-8" disabled={reminding || !r.phone} onClick={onRemind}>
-          {reminding ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BellRing className="h-3.5 w-3.5" />}
-          <span className="hidden sm:inline ml-1">Remind</span>
-        </Button>
-      )}
+      <div className="shrink-0 flex flex-col gap-1">
+        {tone === 'unpaid' && onRemind && !isPaused && (
+          <Button size="sm" variant="outline" className="h-8" disabled={reminding || !r.phone} onClick={onRemind}>
+            {reminding ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BellRing className="h-3.5 w-3.5" />}
+            <span className="hidden sm:inline ml-1">Remind</span>
+          </Button>
+        )}
+        {onTogglePause && (
+          <Button
+            size="sm"
+            variant={isPaused ? 'default' : 'ghost'}
+            className="h-8 text-xs"
+            onClick={onTogglePause}
+          >
+            {isPaused ? <PlayCircle className="h-3.5 w-3.5" /> : <PauseCircle className="h-3.5 w-3.5" />}
+            <span className="hidden sm:inline ml-1">{isPaused ? 'Resume' : 'Pause'}</span>
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
