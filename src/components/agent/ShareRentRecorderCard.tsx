@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { MessageCircle, Copy, Check, ClipboardList, TrendingUp, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { hapticTap } from '@/lib/haptics';
+import { getPublicOrigin } from '@/lib/getPublicOrigin';
 
 /**
  * Prominent agent-dashboard card.
@@ -19,7 +20,7 @@ export function ShareRentRecorderCard() {
   // Permanent, never-expiring direct link. Works offline (no DB resolve needed),
   // opens on every device, no signup, no short-code lookup. Uses the canonical
   // production domain so the same link always resolves even if shared from preview.
-  const PUBLIC_BASE = 'https://welile.tech';
+  const PUBLIC_BASE = getPublicOrigin();
   const shortUrl = user ? `${PUBLIC_BASE}/record-rent?a=${user.id}` : '';
   const isLoading = !user;
 
