@@ -1,12 +1,14 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatUGX } from '@/lib/agentAdvanceCalculations';
-import { AlertTriangle, TrendingUp, Users, Loader2, HandCoins } from 'lucide-react';
+import { AlertTriangle, TrendingUp, Users, Loader2, HandCoins, PauseCircle, PlayCircle } from 'lucide-react';
 import { differenceInDays } from 'date-fns';
+import AdvancePauseDialog from '@/components/advances/AdvancePauseDialog';
 
 interface AdvanceRow {
   id: string;
@@ -17,16 +19,19 @@ interface AdvanceRow {
   status: string;
   issued_at: string;
   expires_at: string;
+  deduction_paused: boolean | null;
+  pause_reason: string | null;
   profiles: { full_name: string | null; phone: string | null } | null;
 }
 
 export function AgentAdvancesOutstandingPanel() {
+  const [pauseTarget, setPauseTarget] = useState<AdvanceRow | null>(null);
   const { data, isLoading } = useQuery({
     queryKey: ['cfo-outstanding-advances'],
     queryFn: async (): Promise<AdvanceRow[]> => {
       const { data, error } = await supabase
         .from('agent_advances')
-        .select('id, agent_id, principal, outstanding_balance, arrears_balance, status, issued_at, expires_at, profiles:agent_id (full_name, phone)')
+        .select('id, agent_id, principal, outstanding_balance, arrears_balance, status, issued_at, expires_at, deduction_paused, pause_reason, profiles:agent_id (full_name, phone)')
         .in('status', ['active', 'overdue'])
         .gt('outstanding_balance', 0)
         .order('outstanding_balance', { ascending: false });
@@ -50,6 +55,8 @@ export function AgentAdvancesOutstandingPanel() {
       activeCount: active.length,
       overdueCount: overdue.length,
       uniqueAgents,
+      pausedCount: rows.filter(r => r.deduction_paused).length,
+      pausedOutstanding: sum(rows.filter(r => r.deduction_paused)),
     };
   }, [rows]);
 
@@ -83,9 +90,12 @@ export function AgentAdvancesOutstandingPanel() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium">
-              <Users className="h-3.5 w-3.5" /> Agents
+              <PauseCircle className="h-3.5 w-3.5 text-amber-600" /> Paused ({summary.pausedCount})
             </div>
-            <p className="text-xl font-bold mt-1">{summary.uniqueAgents}</p>
+            <p className="text-xl font-bold mt-1 text-amber-600">{formatUGX(summary.pausedOutstanding)}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
+              <Users className="h-3 w-3" /> {summary.uniqueAgents} agents with advances
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -115,6 +125,7 @@ export function AgentAdvancesOutstandingPanel() {
                   <TableHead className="text-right">Principal</TableHead>
                   <TableHead className="text-right">Outstanding</TableHead>
                   <TableHead className="text-right">Days</TableHead>
+                  <TableHead className="text-right">Deductions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -129,9 +140,16 @@ export function AgentAdvancesOutstandingPanel() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <Badge variant={r.status === 'overdue' ? 'destructive' : 'secondary'} className="capitalize">
-                          {r.status}
-                        </Badge>
+                        <div className="flex flex-col items-start gap-1">
+                          <Badge variant={r.status === 'overdue' ? 'destructive' : 'secondary'} className="capitalize">
+                            {r.status}
+                          </Badge>
+                          {r.deduction_paused && (
+                            <Badge className="bg-amber-100 text-amber-700 text-[9px] gap-1" title={r.pause_reason || undefined}>
+                              <PauseCircle className="h-3 w-3" /> Deductions paused
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="text-right tabular-nums">{formatUGX(Number(r.principal))}</TableCell>
                       <TableCell className="text-right tabular-nums font-semibold">
@@ -145,6 +163,18 @@ export function AgentAdvancesOutstandingPanel() {
                       <TableCell className="text-right tabular-nums text-xs text-muted-foreground">
                         {r.status === 'overdue' && overdueDays > 0 ? `+${overdueDays}d over` : '—'}
                       </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          size="sm"
+                          variant={r.deduction_paused ? 'default' : 'outline'}
+                          className="h-7 text-xs"
+                          onClick={() => setPauseTarget(r)}
+                        >
+                          {r.deduction_paused
+                            ? <><PlayCircle className="h-3.5 w-3.5 mr-1" /> Resume</>
+                            : <><PauseCircle className="h-3.5 w-3.5 mr-1" /> Pause</>}
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   );
                 })}
@@ -153,6 +183,15 @@ export function AgentAdvancesOutstandingPanel() {
           )}
         </CardContent>
       </Card>
+
+      <AdvancePauseDialog
+        advanceId={pauseTarget?.id ?? null}
+        agentName={pauseTarget?.profiles?.full_name ?? null}
+        isPaused={!!pauseTarget?.deduction_paused}
+        open={!!pauseTarget}
+        onOpenChange={(o) => { if (!o) setPauseTarget(null); }}
+        invalidateKeys={['cfo-outstanding-advances', 'agent-advance-repayment-monitor']}
+      />
     </div>
   );
 }
