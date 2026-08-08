@@ -13,6 +13,20 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim());
 });
 
+// Every notification is branded to the canonical Welile app origin, so a
+// worker that was registered on a legacy host still sends users to
+// welileapp.com when they tap.
+const WELILE_ORIGIN = 'https://welileapp.com';
+const WELILE_BRAND = 'Welile';
+
+function brandedUrl(url) {
+  try {
+    return new URL(url || '/', WELILE_ORIGIN).toString();
+  } catch (_e) {
+    return WELILE_ORIGIN + '/';
+  }
+}
+
 self.addEventListener('push', (event) => {
   let data = {};
   try {
@@ -20,20 +34,26 @@ self.addEventListener('push', (event) => {
   } catch (_e) {
     // Fall back to plain text payloads.
     try {
-      data = { title: 'Welile', body: event.data ? event.data.text() : '' };
+      data = { title: WELILE_BRAND, body: event.data ? event.data.text() : '' };
     } catch (_e2) {
       data = {};
     }
   }
 
-  const title = data.title || 'Welile';
+  const title = data.title || WELILE_BRAND;
   const options = {
     body: data.body || '',
     icon: data.icon || '/icon-192.png',
     badge: data.badge || '/icon-192.png',
     tag: data.tag || data.notificationId || undefined,
+    // Shown by browsers that support it (Chrome/Android) so the notification
+    // reads "welileapp.com" instead of the raw registration host.
+    dir: 'ltr',
+    lang: 'en',
     data: {
-      url: data.url || '/',
+      url: brandedUrl(data.url),
+      brand: WELILE_BRAND,
+      origin: WELILE_ORIGIN,
       ...(data.data || {}),
     },
   };
@@ -44,7 +64,9 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
-  const targetUrl = (event.notification.data && event.notification.data.url) || '/';
+  const targetUrl = brandedUrl(
+    (event.notification.data && event.notification.data.url) || '/',
+  );
 
   event.waitUntil(
     self.clients
