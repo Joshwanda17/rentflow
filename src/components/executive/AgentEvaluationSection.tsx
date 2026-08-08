@@ -289,6 +289,9 @@ export function AgentEvaluationSection({
         </div>
       )}
 
+      {/* Rent request outcomes */}
+      {agentId && <RentRequestOutcomes agentId={agentId} />}
+
       {/* Score breakdown */}
       <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
         <p className="text-xs font-bold flex items-center gap-1.5"><Info className="h-3.5 w-3.5" /> Performance breakdown</p>
