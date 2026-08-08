@@ -29,6 +29,9 @@ Deno.serve(async (req) => {
       .from('agent_advances')
       .select('*')
       .in('status', ['active', 'overdue'])
+      // Paused advances are under dispute/investigation — Agent Ops or the CFO
+      // has explicitly stopped collection until it is resolved.
+      .eq('deduction_paused', false)
       // ROI-recovery advances are never swept or reminded here — they are
       // repaid exclusively via apply_roi_advance_recovery. NULL-safe so legacy
       // rows without a recovery_source keep their daily behaviour.
