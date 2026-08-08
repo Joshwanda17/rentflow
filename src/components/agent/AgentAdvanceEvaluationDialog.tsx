@@ -9,6 +9,7 @@ import {
   Home, FileText, AlertTriangle, PiggyBank, Coins, ChevronDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { RentRequestOutcomes } from '@/components/executive/AgentEvaluationSection';
 
 const num = (v: any) => Number(v ?? 0);
 
@@ -351,6 +352,9 @@ export function AgentAdvanceEvaluationDialog({
                   <Info className="h-4 w-4" /> No potential score available for this agent — evaluate from the reason and history below.
                 </div>
               ) : null}
+
+              {/* Rent request outcomes — approved & disbursed vs pending / rejected */}
+              {resolvedAgentId && <RentRequestOutcomes agentId={resolvedAgentId} />}
 
               {/* Score breakdown */}
               {p && (
