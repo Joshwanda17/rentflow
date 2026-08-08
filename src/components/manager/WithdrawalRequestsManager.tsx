@@ -1436,13 +1436,13 @@ export function WithdrawalRequestsManager({ subCategoryFilter: propSubCategoryFi
                               <ExternalLink className="h-3 w-3 opacity-50" />
                             </button>
                             <Badge 
-                              variant={request.status === 'approved' ? 'default' : 'destructive'}
+                              variant={['approved', 'completed'].includes(request.status) ? 'default' : ['rejected', 'failed'].includes(request.status) ? 'destructive' : 'secondary'}
                               className="gap-1 text-xs"
                             >
-                              {request.status === 'approved' ? (
-                                <><CheckCircle className="h-3 w-3" /> Approved</>
+                              {['approved', 'completed'].includes(request.status) ? (
+                                <><CheckCircle className="h-3 w-3" /> <span className="capitalize">{request.status}</span></>
                               ) : (
-                                <><XCircle className="h-3 w-3" /> Rejected</>
+                                <><XCircle className="h-3 w-3" /> <span className="capitalize">{request.status.replace(/_/g, ' ')}</span></>
                               )}
                             </Badge>
                             {request.sub_category && request.sub_category !== 'general' && (
@@ -1477,13 +1477,21 @@ export function WithdrawalRequestsManager({ subCategoryFilter: propSubCategoryFi
                           </div>
 
                           <div className="flex items-center justify-between mt-2">
-                            <p className={`text-xl font-bold ${request.status === 'approved' ? 'text-success' : 'text-destructive'}`}>
+                            <p className={`text-xl font-bold ${['approved', 'completed'].includes(request.status) ? 'text-success' : 'text-destructive'}`}>
                               {formatCurrency(request.amount)}
                             </p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 text-xs"
+                              onClick={() => { setDetailId(request.id); setDetailOpen(true); }}
+                            >
+                              View full record
+                            </Button>
                           </div>
 
-                          {/* Approved: Show transaction ID and processed time */}
-                          {request.status === 'approved' && request.transaction_id && (
+                          {/* Settled: Show transaction ID and processed time */}
+                          {['approved', 'completed'].includes(request.status) && request.transaction_id && (
                             <div className="mt-2 p-2 rounded-lg bg-success/10 border border-success/20 space-y-1">
                               <div className="flex items-center gap-2 text-xs text-success">
                                 <CheckCircle className="h-3 w-3" />
