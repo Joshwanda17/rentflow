@@ -106,7 +106,11 @@ export function isPushSupported(): boolean {
 
 export type EnsurePushResult =
   | { ok: true; endpoint: string; p256dh: string; auth: string }
-  | { ok: false; reason: "unsupported" | "blocked" | "dismissed" | "error" | "iframe"; message: string };
+  | {
+      ok: false;
+      reason: "unsupported" | "blocked" | "dismissed" | "error" | "iframe" | "legacy-origin";
+      message: string;
+    };
 
 /**
  * True when the app is running inside an iframe (e.g. the Lovable preview).
@@ -171,6 +175,18 @@ export async function ensurePushSubscription(
       ok: false,
       reason: "unsupported",
       message: "This browser or device does not support web push notifications.",
+    };
+  }
+
+  // Only the canonical app domain may own a subscription, so notifications are
+  // always branded welileapp.com.
+  if (isLegacyPushOrigin()) {
+    await purgeLegacyOriginPush(deleteByEndpoint);
+    return {
+      ok: false,
+      reason: "legacy-origin",
+      message:
+        "Open the app at welileapp.com to enable notifications — this old address can't send branded alerts.",
     };
   }
 
