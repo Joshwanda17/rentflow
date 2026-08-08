@@ -190,21 +190,6 @@ function RentRequestOutcomes({ agentId }: { agentId: string }) {
   );
 }
 
-function ScoreBarLegacyUnused({ label, value, max }: { label: string; value: number; max: number }) {
-  const pct = max > 0 ? Math.round((value / max) * 100) : 0;
-  return (
-    <div>
-      <div className="flex items-center justify-between text-[11px] mb-1">
-        <span className="font-medium">{label} <span className="text-muted-foreground">(max {max})</span></span>
-        <span className="font-bold">{value.toFixed(1)}</span>
-      </div>
-      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-        <div className={cn('h-full rounded-full', scoreBg(pct))} style={{ width: `${Math.min(pct, 100)}%` }} />
-      </div>
-    </div>
-  );
-}
-
 function StatBlock({ icon: Icon, label, value, sub }: { icon: any; label: string; value: string; sub?: string }) {
   return (
     <div className="rounded-xl border border-border bg-card p-3">
