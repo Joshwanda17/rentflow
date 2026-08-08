@@ -45,6 +45,7 @@ import { UserAvatar } from '@/components/UserAvatar';
 import { format, formatDistanceToNow } from 'date-fns';
 import { exportToCSV } from '@/lib/exportUtils';
 import UserDetailsDialog from '@/components/manager/UserDetailsDialog';
+import WithdrawalRecordDetailDialog from '@/components/manager/WithdrawalRecordDetailDialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -126,13 +127,23 @@ export function WithdrawalRequestsManager({ subCategoryFilter: propSubCategoryFi
   const [activeTab, setActiveTab] = useState<'pending' | 'history'>('pending');
   const [historyRequests, setHistoryRequests] = useState<WithdrawalRequest[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<'all' | 'approved' | 'rejected'>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [searchInput, setSearchInput] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
     from: undefined,
     to: undefined
   });
   const [datePreset, setDatePreset] = useState<'all' | 'today' | '7days' | '30days' | 'custom'>('all');
   const [subCategoryFilter, setSubCategoryFilter] = useState<string>(propSubCategoryFilter || 'all');
+
+  // Debounce the due-diligence search so each keystroke doesn't hit the DB.
+  useEffect(() => {
+    const t = setTimeout(() => setSearchTerm(searchInput.trim()), 400);
+    return () => clearTimeout(t);
+  }, [searchInput]);
 
   // Batch selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -565,13 +576,54 @@ export function WithdrawalRequestsManager({ subCategoryFilter: propSubCategoryFi
         historyFilters.sub_category = subCategoryFilter;
       }
 
+      // Scope ALL terminal/settled states — `completed` is the dominant status
+      // in production and was previously invisible here.
+      const HISTORY_STATUSES = [
+        'completed', 'approved', 'rejected', 'expired', 'cancelled',
+        'failed', 'processing', 're_approved_for_recovery',
+      ];
+
       let query = supabase
         .from('withdrawal_requests')
         .select('*')
         .match(historyFilters)
-        .in('status', statusFilter === 'all' ? ['approved', 'rejected'] : [statusFilter])
         .order('created_at', { ascending: false })
-        .limit(50);
+        .limit(searchTerm ? 200 : 100);
+
+      if (statusFilter !== 'all') {
+        query = query.eq('status', statusFilter);
+      } else {
+        query = query.in('status', HISTORY_STATUSES);
+      }
+
+      // Due-diligence search: destination numbers/accounts, references and the
+      // requester's name/phone. Matching users first so name searches work.
+      if (searchTerm) {
+        const escaped = searchTerm.replace(/[%,()]/g, ' ').trim();
+        const digits = escaped.replace(/\D/g, '');
+        const { data: matchedUsers } = await supabase
+          .from('profiles')
+          .select('id')
+          .or(`full_name.ilike.%${escaped}%,phone.ilike.%${escaped}%`)
+          .limit(50);
+        const userIdList = (matchedUsers || []).map(u => u.id);
+
+        const orParts = [
+          `mobile_money_number.ilike.%${escaped}%`,
+          `mobile_money_name.ilike.%${escaped}%`,
+          `bank_account_number.ilike.%${escaped}%`,
+          `bank_account_name.ilike.%${escaped}%`,
+          `bank_name.ilike.%${escaped}%`,
+          `transaction_id.ilike.%${escaped}%`,
+          `payout_code.ilike.%${escaped}%`,
+          `fin_ops_reference.ilike.%${escaped}%`,
+        ];
+        if (digits.length >= 6) orParts.push(`mobile_money_number.ilike.%${digits}%`);
+        if (/^[0-9a-f-]{8,}$/i.test(escaped)) orParts.push(`id.eq.${escaped}`);
+        if (userIdList.length) orParts.push(`user_id.in.(${userIdList.join(',')})`);
+
+        query = query.or(orParts.join(','));
+      }
 
       // Apply date filters
       if (dateRange.from) {
@@ -611,7 +663,7 @@ export function WithdrawalRequestsManager({ subCategoryFilter: propSubCategoryFi
     } finally {
       setHistoryLoading(false);
     }
-  }, [statusFilter, dateRange, subCategoryFilter]);
+  }, [statusFilter, dateRange, subCategoryFilter, searchTerm]);
 
   // Apply date presets
   const applyDatePreset = (preset: typeof datePreset) => {
@@ -1159,6 +1211,26 @@ export function WithdrawalRequestsManager({ subCategoryFilter: propSubCategoryFi
           <TabsContent value="history" className="mt-0">
             {/* Filters */}
             <div className="px-4 py-3 border-b bg-muted/30 space-y-3">
+              {/* Due-diligence search */}
+              <div className="flex items-center gap-2">
+                <Input
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  placeholder="Search number, account, name, transaction ID or record ID"
+                  className="h-9 text-xs"
+                />
+                {searchInput && (
+                  <Button variant="ghost" size="sm" className="h-9 text-xs" onClick={() => setSearchInput('')}>
+                    Clear
+                  </Button>
+                )}
+              </div>
+              {searchTerm && (
+                <p className="text-[11px] text-muted-foreground">
+                  Searching all withdrawal records for “{searchTerm}” — destination numbers, bank accounts, references and requester name/phone.
+                </p>
+              )}
+
               <div className="flex items-center gap-2 flex-wrap">
                 <Filter className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm font-medium text-muted-foreground">Filters:</span>
@@ -1166,14 +1238,20 @@ export function WithdrawalRequestsManager({ subCategoryFilter: propSubCategoryFi
               
               <div className="flex flex-wrap gap-2">
                 {/* Status Filter */}
-                <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
-                  <SelectTrigger className="w-[130px] h-8 text-xs">
+                <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v)}>
+                  <SelectTrigger className="w-[160px] h-8 text-xs">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="approved">✅ Approved</SelectItem>
-                    <SelectItem value="rejected">❌ Rejected</SelectItem>
+                    <SelectItem value="all">All statuses</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="approved">Approved</SelectItem>
+                    <SelectItem value="processing">Processing</SelectItem>
+                    <SelectItem value="rejected">Rejected</SelectItem>
+                    <SelectItem value="failed">Failed</SelectItem>
+                    <SelectItem value="expired">Expired</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                    <SelectItem value="re_approved_for_recovery">Re-approved for recovery</SelectItem>
                   </SelectContent>
                 </Select>
 
@@ -1246,7 +1324,7 @@ export function WithdrawalRequestsManager({ subCategoryFilter: propSubCategoryFi
                   <span className="text-xs text-muted-foreground">Active:</span>
                   {statusFilter !== 'all' && (
                     <Badge variant="secondary" className="text-xs gap-1">
-                      {statusFilter === 'approved' ? '✅' : '❌'} {statusFilter}
+                      <span className="capitalize">{statusFilter.replace(/_/g, ' ')}</span>
                       <button onClick={() => setStatusFilter('all')} className="ml-1 hover:text-destructive">×</button>
                     </Badge>
                   )}
@@ -1270,39 +1348,39 @@ export function WithdrawalRequestsManager({ subCategoryFilter: propSubCategoryFi
             {!historyLoading && historyRequests.length > 0 && (
               <div className="px-4 py-3 border-b">
                 <div className="grid grid-cols-2 gap-3">
-                  {/* Approved Stats */}
+                  {/* Settled (completed + approved) */}
                   <div className="p-3 rounded-xl bg-success/10 border border-success/20">
                     <div className="flex items-center gap-2 mb-1">
                       <CheckCircle className="h-4 w-4 text-success" />
-                      <span className="text-xs font-medium text-success">Approved</span>
+                      <span className="text-xs font-medium text-success">Completed / approved</span>
                     </div>
                     <p className="text-lg font-bold text-success">
                       {formatCurrency(
                         historyRequests
-                          .filter(r => r.status === 'approved')
+                          .filter(r => r.status === 'approved' || r.status === 'completed')
                           .reduce((sum, r) => sum + r.amount, 0)
                       )}
                     </p>
                     <p className="text-[10px] text-muted-foreground">
-                      {historyRequests.filter(r => r.status === 'approved').length} request{historyRequests.filter(r => r.status === 'approved').length !== 1 ? 's' : ''}
+                      {historyRequests.filter(r => r.status === 'approved' || r.status === 'completed').length} request(s)
                     </p>
                   </div>
 
-                  {/* Rejected Stats */}
+                  {/* Rejected / failed / expired / cancelled */}
                   <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20">
                     <div className="flex items-center gap-2 mb-1">
                       <XCircle className="h-4 w-4 text-destructive" />
-                      <span className="text-xs font-medium text-destructive">Rejected</span>
+                      <span className="text-xs font-medium text-destructive">Rejected / failed / expired</span>
                     </div>
                     <p className="text-lg font-bold text-destructive">
                       {formatCurrency(
                         historyRequests
-                          .filter(r => r.status === 'rejected')
+                          .filter(r => ['rejected', 'failed', 'expired', 'cancelled'].includes(r.status))
                           .reduce((sum, r) => sum + r.amount, 0)
                       )}
                     </p>
                     <p className="text-[10px] text-muted-foreground">
-                      {historyRequests.filter(r => r.status === 'rejected').length} request{historyRequests.filter(r => r.status === 'rejected').length !== 1 ? 's' : ''}
+                      {historyRequests.filter(r => ['rejected', 'failed', 'expired', 'cancelled'].includes(r.status)).length} request(s)
                     </p>
                   </div>
                 </div>
@@ -1358,13 +1436,13 @@ export function WithdrawalRequestsManager({ subCategoryFilter: propSubCategoryFi
                               <ExternalLink className="h-3 w-3 opacity-50" />
                             </button>
                             <Badge 
-                              variant={request.status === 'approved' ? 'default' : 'destructive'}
+                              variant={['approved', 'completed'].includes(request.status) ? 'default' : ['rejected', 'failed'].includes(request.status) ? 'destructive' : 'secondary'}
                               className="gap-1 text-xs"
                             >
-                              {request.status === 'approved' ? (
-                                <><CheckCircle className="h-3 w-3" /> Approved</>
+                              {['approved', 'completed'].includes(request.status) ? (
+                                <><CheckCircle className="h-3 w-3" /> <span className="capitalize">{request.status}</span></>
                               ) : (
-                                <><XCircle className="h-3 w-3" /> Rejected</>
+                                <><XCircle className="h-3 w-3" /> <span className="capitalize">{request.status.replace(/_/g, ' ')}</span></>
                               )}
                             </Badge>
                             {request.sub_category && request.sub_category !== 'general' && (
@@ -1399,13 +1477,21 @@ export function WithdrawalRequestsManager({ subCategoryFilter: propSubCategoryFi
                           </div>
 
                           <div className="flex items-center justify-between mt-2">
-                            <p className={`text-xl font-bold ${request.status === 'approved' ? 'text-success' : 'text-destructive'}`}>
+                            <p className={`text-xl font-bold ${['approved', 'completed'].includes(request.status) ? 'text-success' : 'text-destructive'}`}>
                               {formatCurrency(request.amount)}
                             </p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 text-xs"
+                              onClick={() => { setDetailId(request.id); setDetailOpen(true); }}
+                            >
+                              View full record
+                            </Button>
                           </div>
 
-                          {/* Approved: Show transaction ID and processed time */}
-                          {request.status === 'approved' && request.transaction_id && (
+                          {/* Settled: Show transaction ID and processed time */}
+                          {['approved', 'completed'].includes(request.status) && request.transaction_id && (
                             <div className="mt-2 p-2 rounded-lg bg-success/10 border border-success/20 space-y-1">
                               <div className="flex items-center gap-2 text-xs text-success">
                                 <CheckCircle className="h-3 w-3" />
@@ -1749,6 +1835,13 @@ export function WithdrawalRequestsManager({ subCategoryFilter: propSubCategoryFi
           user={selectedUserForDetail}
         />
       )}
+
+      {/* Full withdrawal record — due diligence view */}
+      <WithdrawalRecordDetailDialog
+        requestId={detailId}
+        open={detailOpen}
+        onOpenChange={(open) => { setDetailOpen(open); if (!open) setDetailId(null); }}
+      />
     </>
   );
 }
