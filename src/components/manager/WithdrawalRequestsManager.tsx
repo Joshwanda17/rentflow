@@ -1211,6 +1211,26 @@ export function WithdrawalRequestsManager({ subCategoryFilter: propSubCategoryFi
           <TabsContent value="history" className="mt-0">
             {/* Filters */}
             <div className="px-4 py-3 border-b bg-muted/30 space-y-3">
+              {/* Due-diligence search */}
+              <div className="flex items-center gap-2">
+                <Input
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  placeholder="Search number, account, name, transaction ID or record ID"
+                  className="h-9 text-xs"
+                />
+                {searchInput && (
+                  <Button variant="ghost" size="sm" className="h-9 text-xs" onClick={() => setSearchInput('')}>
+                    Clear
+                  </Button>
+                )}
+              </div>
+              {searchTerm && (
+                <p className="text-[11px] text-muted-foreground">
+                  Searching all withdrawal records for “{searchTerm}” — destination numbers, bank accounts, references and requester name/phone.
+                </p>
+              )}
+
               <div className="flex items-center gap-2 flex-wrap">
                 <Filter className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm font-medium text-muted-foreground">Filters:</span>
@@ -1218,14 +1238,20 @@ export function WithdrawalRequestsManager({ subCategoryFilter: propSubCategoryFi
               
               <div className="flex flex-wrap gap-2">
                 {/* Status Filter */}
-                <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
-                  <SelectTrigger className="w-[130px] h-8 text-xs">
+                <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v)}>
+                  <SelectTrigger className="w-[160px] h-8 text-xs">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="approved">✅ Approved</SelectItem>
-                    <SelectItem value="rejected">❌ Rejected</SelectItem>
+                    <SelectItem value="all">All statuses</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="approved">Approved</SelectItem>
+                    <SelectItem value="processing">Processing</SelectItem>
+                    <SelectItem value="rejected">Rejected</SelectItem>
+                    <SelectItem value="failed">Failed</SelectItem>
+                    <SelectItem value="expired">Expired</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                    <SelectItem value="re_approved_for_recovery">Re-approved for recovery</SelectItem>
                   </SelectContent>
                 </Select>
 
