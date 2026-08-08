@@ -24,6 +24,7 @@ export const CANONICAL_ORIGIN =
   trim(process.env.SITE_CANONICAL_ORIGIN) || `https://${CANONICAL_DOMAIN}`;
 
 const DEFAULT_LEGACY = [
+  'welile.tech',
   'welilereceipts.com',
   'welilereciept.com',
   'welilereceipts-com.lovable.app',
