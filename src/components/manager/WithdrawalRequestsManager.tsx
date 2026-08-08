@@ -1835,6 +1835,13 @@ export function WithdrawalRequestsManager({ subCategoryFilter: propSubCategoryFi
           user={selectedUserForDetail}
         />
       )}
+
+      {/* Full withdrawal record — due diligence view */}
+      <WithdrawalRecordDetailDialog
+        requestId={detailId}
+        open={detailOpen}
+        onOpenChange={(open) => { setDetailOpen(open); if (!open) setDetailId(null); }}
+      />
     </>
   );
 }
