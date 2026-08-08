@@ -7,6 +7,52 @@ export const VAPID_PUBLIC_KEY =
   "BGBr-FpnY4VrB-Whq9rXDTjeiH7vGXCquZk1kmkET87x12qkW073Tx-J8qJHcLW-8j4534x05f80WdLHPmnsKz0";
 
 /**
+ * Notifications are branded to the canonical app domain. A subscription that
+ * was created on a legacy host makes the browser label every notification with
+ * that old hostname, so we refuse to create new ones there and clean up any
+ * that already exist.
+ */
+const LEGACY_PUSH_HOSTS = [
+  "welile.tech", // legacy-domain-guard-allow
+  "welilereceipts.com", // legacy-domain-guard-allow
+  "welilereciept.com", // legacy-domain-guard-allow
+];
+
+/** True when the current host must not own a push subscription. */
+export function isLegacyPushOrigin(): boolean {
+  if (typeof window === "undefined") return false;
+  const host = window.location.hostname.replace(/^www\./, "").toLowerCase();
+  return LEGACY_PUSH_HOSTS.includes(host);
+}
+
+/**
+ * Removes any push subscription registered on a legacy host so notifications
+ * are only ever delivered — and branded — from welileapp.com. Safe no-op on
+ * the canonical domain.
+ */
+export async function purgeLegacyOriginPush(
+  deleteByEndpoint?: (endpoint: string) => Promise<void>,
+): Promise<boolean> {
+  if (!isPushSupported() || !isLegacyPushOrigin()) return false;
+  try {
+    const registration = await navigator.serviceWorker.getRegistration("/sw.js");
+    if (!registration) return false;
+    const subscription = await registration.pushManager.getSubscription();
+    if (subscription) {
+      if (deleteByEndpoint) {
+        try { await deleteByEndpoint(subscription.endpoint); } catch { /* ignore */ }
+      }
+      try { await subscription.unsubscribe(); } catch { /* ignore */ }
+    }
+    try { await registration.unregister(); } catch { /* ignore */ }
+    return true;
+  } catch (err) {
+    console.warn("purgeLegacyOriginPush failed:", err);
+    return false;
+  }
+}
+
+/**
  * Converts a base64url VAPID public key into the Uint8Array the
  * PushManager.subscribe() `applicationServerKey` option requires.
  */
