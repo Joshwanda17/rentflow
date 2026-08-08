@@ -49,7 +49,7 @@ export function AgentMyAdvancesCard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('agent_advances')
-        .select('id, principal, outstanding_balance, arrears_balance, status, issued_at, expires_at, created_at, cycle_days, access_fee, prepaid_installments_remaining')
+        .select('id, principal, outstanding_balance, arrears_balance, status, issued_at, expires_at, created_at, cycle_days, access_fee, prepaid_installments_remaining, deduction_paused, pause_reason')
         .eq('agent_id', user!.id)
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -277,6 +277,11 @@ export function AgentMyAdvancesCard() {
                   {interest > 0 && adv.status !== 'completed' && (
                     <p className="text-[10px] text-muted-foreground">
                       Includes {formatUGX(interest)} access fee
+                    </p>
+                  )}
+                  {adv.deduction_paused && adv.status !== 'completed' && (
+                    <p className="rounded-md bg-amber-500/10 px-2 py-1 text-[10px] font-medium text-amber-700 dark:text-amber-400">
+                      Deductions are on hold while this advance is under review. Nothing will be taken from your wallet until it resumes.
                     </p>
                   )}
                   {Number(adv.arrears_balance || 0) > 0 && adv.status !== 'completed' && (

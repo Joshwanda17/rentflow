@@ -147,6 +147,53 @@ export type Database = {
           },
         ]
       }
+      agent_advance_pause_events: {
+        Row: {
+          acted_by: string
+          action: string
+          advance_id: string
+          agent_id: string
+          created_at: string
+          id: string
+          metadata: Json
+          outstanding_at_action: number
+          reason: string
+          updated_at: string
+        }
+        Insert: {
+          acted_by: string
+          action: string
+          advance_id: string
+          agent_id: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          outstanding_at_action?: number
+          reason: string
+          updated_at?: string
+        }
+        Update: {
+          acted_by?: string
+          action?: string
+          advance_id?: string
+          agent_id?: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          outstanding_at_action?: number
+          reason?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_advance_pause_events_advance_id_fkey"
+            columns: ["advance_id"]
+            isOneToOne: false
+            referencedRelation: "agent_advances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agent_advance_requests: {
         Row: {
           access_fee: number
@@ -723,6 +770,7 @@ export type Database = {
           cycle_days: number
           daily_installment: number
           daily_rate: number
+          deduction_paused: boolean
           expires_at: string
           id: string
           installment_amount: number | null
@@ -730,12 +778,17 @@ export type Database = {
           issued_by: string
           monthly_rate: number
           outstanding_balance: number
+          pause_reason: string | null
+          paused_at: string | null
+          paused_by: string | null
           pre_cancel_outstanding: number | null
           prepaid_installments_remaining: number
           principal: number
           recovery_source: string
           registration_fee: number | null
           repayment_frequency: string
+          resumed_at: string | null
+          resumed_by: string | null
           roi_recovery_percent: number
           status: string
           updated_at: string
@@ -754,6 +807,7 @@ export type Database = {
           cycle_days?: number
           daily_installment?: number
           daily_rate?: number
+          deduction_paused?: boolean
           expires_at?: string
           id?: string
           installment_amount?: number | null
@@ -761,12 +815,17 @@ export type Database = {
           issued_by: string
           monthly_rate?: number
           outstanding_balance?: number
+          pause_reason?: string | null
+          paused_at?: string | null
+          paused_by?: string | null
           pre_cancel_outstanding?: number | null
           prepaid_installments_remaining?: number
           principal?: number
           recovery_source?: string
           registration_fee?: number | null
           repayment_frequency?: string
+          resumed_at?: string | null
+          resumed_by?: string | null
           roi_recovery_percent?: number
           status?: string
           updated_at?: string
@@ -785,6 +844,7 @@ export type Database = {
           cycle_days?: number
           daily_installment?: number
           daily_rate?: number
+          deduction_paused?: boolean
           expires_at?: string
           id?: string
           installment_amount?: number | null
@@ -792,12 +852,17 @@ export type Database = {
           issued_by?: string
           monthly_rate?: number
           outstanding_balance?: number
+          pause_reason?: string | null
+          paused_at?: string | null
+          paused_by?: string | null
           pre_cancel_outstanding?: number | null
           prepaid_installments_remaining?: number
           principal?: number
           recovery_source?: string
           registration_fee?: number | null
           repayment_frequency?: string
+          resumed_at?: string | null
+          resumed_by?: string | null
           roi_recovery_percent?: number
           status?: string
           updated_at?: string
@@ -32287,6 +32352,7 @@ export type Database = {
         Args: { _tenant_id: string }
         Returns: Json
       }
+      can_pause_agent_advance: { Args: { _user_id: string }; Returns: boolean }
       can_process_cashout: { Args: { _agent_id: string }; Returns: boolean }
       can_read_landlord_payout_receipts: {
         Args: { _user_id: string }
@@ -36357,6 +36423,10 @@ export type Database = {
         Args: { p_commitment_id: string }
         Returns: Json
       }
+      pause_agent_advance: {
+        Args: { p_advance_id: string; p_reason: string }
+        Returns: Json
+      }
       pause_tenant_repayment: {
         Args: { p_days: number; p_reason: string; p_rent_request_id: string }
         Returns: Json
@@ -36807,6 +36877,10 @@ export type Database = {
       resubmit_rejected_deposit: {
         Args: { p_id: string; p_payload: Json }
         Returns: string
+      }
+      resume_agent_advance: {
+        Args: { p_advance_id: string; p_reason: string }
+        Returns: Json
       }
       resume_expired_repayment_pauses: { Args: never; Returns: Json }
       return_rent_request_for_correction: {
