@@ -16,6 +16,8 @@ import {
   arrayBufferToBase64,
   isInIframe,
   isPushSupported,
+  isLegacyPushOrigin,
+  purgeLegacyOriginPush,
   subscriptionUsesCurrentVapidKey,
   urlBase64ToUint8Array,
 } from "@/lib/webPush";
@@ -271,6 +273,14 @@ export function PushNotificationGate() {
     if (isInIframe()) return;
     // If the browser can't do push at all, don't nag.
     if (!isPushSupported()) return;
+    // Notifications are branded to welileapp.com — never prompt (and clean up)
+    // on a legacy hostname, otherwise alerts arrive labelled with the old host.
+    if (isLegacyPushOrigin()) {
+      void purgeLegacyOriginPush(async (endpoint) => {
+        await supabase.from("push_subscriptions").delete().eq("endpoint", endpoint);
+      });
+      return;
+    }
 
     if (Notification.permission === "granted") {
       markEnabled(user.id);
