@@ -169,7 +169,7 @@ function OutcomeTile({
   );
 }
 
-function RentRequestOutcomes({ agentId }: { agentId: string }) {
+export function RentRequestOutcomes({ agentId }: { agentId: string }) {
   const { data, isLoading } = useAgentRentRequestOutcomes(agentId);
   if (isLoading) return <Skeleton className="h-24 w-full" />;
   if (!data) return null;
