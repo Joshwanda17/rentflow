@@ -1324,7 +1324,7 @@ export function WithdrawalRequestsManager({ subCategoryFilter: propSubCategoryFi
                   <span className="text-xs text-muted-foreground">Active:</span>
                   {statusFilter !== 'all' && (
                     <Badge variant="secondary" className="text-xs gap-1">
-                      {statusFilter === 'approved' ? '✅' : '❌'} {statusFilter}
+                      <span className="capitalize">{statusFilter.replace(/_/g, ' ')}</span>
                       <button onClick={() => setStatusFilter('all')} className="ml-1 hover:text-destructive">×</button>
                     </Badge>
                   )}
@@ -1348,39 +1348,39 @@ export function WithdrawalRequestsManager({ subCategoryFilter: propSubCategoryFi
             {!historyLoading && historyRequests.length > 0 && (
               <div className="px-4 py-3 border-b">
                 <div className="grid grid-cols-2 gap-3">
-                  {/* Approved Stats */}
+                  {/* Settled (completed + approved) */}
                   <div className="p-3 rounded-xl bg-success/10 border border-success/20">
                     <div className="flex items-center gap-2 mb-1">
                       <CheckCircle className="h-4 w-4 text-success" />
-                      <span className="text-xs font-medium text-success">Approved</span>
+                      <span className="text-xs font-medium text-success">Completed / approved</span>
                     </div>
                     <p className="text-lg font-bold text-success">
                       {formatCurrency(
                         historyRequests
-                          .filter(r => r.status === 'approved')
+                          .filter(r => r.status === 'approved' || r.status === 'completed')
                           .reduce((sum, r) => sum + r.amount, 0)
                       )}
                     </p>
                     <p className="text-[10px] text-muted-foreground">
-                      {historyRequests.filter(r => r.status === 'approved').length} request{historyRequests.filter(r => r.status === 'approved').length !== 1 ? 's' : ''}
+                      {historyRequests.filter(r => r.status === 'approved' || r.status === 'completed').length} request(s)
                     </p>
                   </div>
 
-                  {/* Rejected Stats */}
+                  {/* Rejected / failed / expired / cancelled */}
                   <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20">
                     <div className="flex items-center gap-2 mb-1">
                       <XCircle className="h-4 w-4 text-destructive" />
-                      <span className="text-xs font-medium text-destructive">Rejected</span>
+                      <span className="text-xs font-medium text-destructive">Rejected / failed / expired</span>
                     </div>
                     <p className="text-lg font-bold text-destructive">
                       {formatCurrency(
                         historyRequests
-                          .filter(r => r.status === 'rejected')
+                          .filter(r => ['rejected', 'failed', 'expired', 'cancelled'].includes(r.status))
                           .reduce((sum, r) => sum + r.amount, 0)
                       )}
                     </p>
                     <p className="text-[10px] text-muted-foreground">
-                      {historyRequests.filter(r => r.status === 'rejected').length} request{historyRequests.filter(r => r.status === 'rejected').length !== 1 ? 's' : ''}
+                      {historyRequests.filter(r => ['rejected', 'failed', 'expired', 'cancelled'].includes(r.status)).length} request(s)
                     </p>
                   </div>
                 </div>
