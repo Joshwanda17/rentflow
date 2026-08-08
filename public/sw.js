@@ -21,7 +21,11 @@ const WELILE_BRAND = 'Welile';
 
 function brandedUrl(url) {
   try {
-    return new URL(url || '/', WELILE_ORIGIN).toString();
+    // Resolve against the canonical origin, then force that origin so an
+    // absolute or protocol-relative URL (legacy host, or anything else) can
+    // never send a tap off welileapp.com. Path, query and hash are preserved.
+    const parsed = new URL(url || '/', WELILE_ORIGIN);
+    return WELILE_ORIGIN + parsed.pathname + parsed.search + parsed.hash;
   } catch (_e) {
     return WELILE_ORIGIN + '/';
   }
