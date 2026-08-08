@@ -77,3 +77,4 @@
 - [Duplicate-account advance block](mem://constraints/duplicate-account-advance-block) — same-name duplicates and flagged accounts cannot request agent advances; CFO/Agent Ops flag via reject_advance_as_duplicate, manager-only release
 - [Agent advance activity gate](mem://business-model/agent-advance-activity-gate) — zero-activity agents blocked from advance requests; one field-work signal required; also documents the agent limit build-up (base 20K → 9M cap)
 - [Agent advance deduction pause](mem://features/agent/advance-deduction-pause) — `deduction_paused` switch + `pause_agent_advance`/`resume_agent_advance` RPCs; every auto-recovery path must exclude paused advances
+- [Canonical domain is welileapp.com](mem://constraints/canonical-domain) — Single public origin `https://welileapp.com`; use `getPublicOrigin()`, never hardcode; welile.tech / welilereceipts.com are legacy and CI-guarded
