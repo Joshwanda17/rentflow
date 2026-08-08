@@ -32,7 +32,7 @@ import {
 } from '@/lib/houseListingDraft';
 import { isListingDaytime, LISTING_NIGHT_MESSAGE } from '@/lib/listingHours';
 
-const APP_URL = 'https://welile.tech';
+const APP_URL = 'https://welileapp.com';
 
 interface ListEmptyHouseDialogProps {
   open: boolean;

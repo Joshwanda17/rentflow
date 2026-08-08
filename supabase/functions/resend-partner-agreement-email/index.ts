@@ -187,7 +187,7 @@ Deno.serve(async (req) => {
       partnership_amount_words: row.partnership_amount_words || numberToWords(amountNum),
       monthly_return: monthlyReturnLabel,
       payout_summary: payoutSummary,
-      agreement_download_url: signed?.signedUrl || 'https://welile.tech',
+      agreement_download_url: signed?.signedUrl || 'https://welileapp.com',
       company_name: 'WELILE TECHNOLOGIES LTD',
     }
 

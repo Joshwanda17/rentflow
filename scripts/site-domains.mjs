@@ -4,7 +4,7 @@
  * deployment (production, staging, preview forks, self-hosted) can override
  * them without patching guard scripts.
  *
- *   SITE_CANONICAL_DOMAIN   default: welile.tech
+ *   SITE_CANONICAL_DOMAIN   default: welileapp.com
  *   SITE_CANONICAL_ORIGIN   default: https://<SITE_CANONICAL_DOMAIN>
  *   SITE_LEGACY_DOMAINS     comma-separated hostnames that must never appear
  *                           in shipping code (default: welilereceipts.com,
@@ -18,12 +18,13 @@ function trim(v) {
 }
 
 export const CANONICAL_DOMAIN =
-  trim(process.env.SITE_CANONICAL_DOMAIN) || 'welile.tech';
+  trim(process.env.SITE_CANONICAL_DOMAIN) || 'welileapp.com';
 
 export const CANONICAL_ORIGIN =
   trim(process.env.SITE_CANONICAL_ORIGIN) || `https://${CANONICAL_DOMAIN}`;
 
 const DEFAULT_LEGACY = [
+  'welile.tech',
   'welilereceipts.com',
   'welilereciept.com',
   'welilereceipts-com.lovable.app',
