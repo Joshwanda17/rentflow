@@ -121,6 +121,75 @@ function ScoreBar({ label, value, max }: { label: string; value: number; max: nu
   );
 }
 
+/** Rent request outcome buckets for an agent — how many actually converted. */
+const DISBURSED_STATUSES = ['funded', 'repaying', 'completed'];
+const APPROVED_STATUSES = ['approved', 'coo_approved', 'agent_ops_approved', 'cfo_approved'];
+const REJECTED_STATUSES = ['rejected', 'cancelled', 'deleted_by_agent'];
+
+export function useAgentRentRequestOutcomes(agentId: string | null | undefined) {
+  return useQuery({
+    queryKey: ['agent-rent-request-outcomes', agentId],
+    enabled: !!agentId,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('rent_requests')
+        .select('status')
+        .eq('agent_id', agentId as string);
+      if (error) throw error;
+      const rows = (data ?? []) as Array<{ status: string | null }>;
+      let disbursed = 0, approved = 0, pending = 0, rejected = 0;
+      for (const r of rows) {
+        const s = (r.status ?? '').toLowerCase();
+        if (DISBURSED_STATUSES.includes(s)) disbursed++;
+        else if (APPROVED_STATUSES.includes(s)) approved++;
+        else if (REJECTED_STATUSES.includes(s)) rejected++;
+        else pending++;
+      }
+      return { total: rows.length, disbursed, approved, pending, rejected };
+    },
+  });
+}
+
+function OutcomeTile({
+  label, value, sub, tone,
+}: { label: string; value: number; sub: string; tone: 'emerald' | 'sky' | 'amber' | 'rose' }) {
+  const tones: Record<string, string> = {
+    emerald: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    sky: 'border-sky-200 bg-sky-50 text-sky-700',
+    amber: 'border-amber-200 bg-amber-50 text-amber-800',
+    rose: 'border-rose-200 bg-rose-50 text-rose-700',
+  };
+  return (
+    <div className={cn('rounded-xl border p-2.5 text-center', tones[tone])}>
+      <p className="text-[10px] uppercase tracking-wide font-semibold">{label}</p>
+      <p className="text-xl font-extrabold leading-tight">{value}</p>
+      <p className="text-[10px] opacity-80">{sub}</p>
+    </div>
+  );
+}
+
+export function RentRequestOutcomes({ agentId }: { agentId: string }) {
+  const { data, isLoading } = useAgentRentRequestOutcomes(agentId);
+  if (isLoading) return <Skeleton className="h-24 w-full" />;
+  if (!data) return null;
+  const conv = data.total > 0 ? Math.round((data.disbursed / data.total) * 100) : 0;
+  return (
+    <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-bold flex items-center gap-1.5"><FileText className="h-3.5 w-3.5" /> Rent requests made by this agent</p>
+        <span className="text-[11px] text-muted-foreground">{data.total} total · {conv}% disbursed</span>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <OutcomeTile label="Disbursed" value={data.disbursed} sub="funded / repaying / completed" tone="emerald" />
+        <OutcomeTile label="Approved" value={data.approved} sub="awaiting disbursement" tone="sky" />
+        <OutcomeTile label="Pending" value={data.pending} sub="in review / vetting" tone="amber" />
+        <OutcomeTile label="Rejected" value={data.rejected} sub="rejected / cancelled" tone="rose" />
+      </div>
+    </div>
+  );
+}
+
 function StatBlock({ icon: Icon, label, value, sub }: { icon: any; label: string; value: string; sub?: string }) {
   return (
     <div className="rounded-xl border border-border bg-card p-3">
@@ -219,6 +288,9 @@ export function AgentEvaluationSection({
           {e.has_active_advance ? ' · has an active advance' : ''}.
         </div>
       )}
+
+      {/* Rent request outcomes */}
+      {agentId && <RentRequestOutcomes agentId={agentId} />}
 
       {/* Score breakdown */}
       <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
