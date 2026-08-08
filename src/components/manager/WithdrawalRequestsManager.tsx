@@ -45,6 +45,7 @@ import { UserAvatar } from '@/components/UserAvatar';
 import { format, formatDistanceToNow } from 'date-fns';
 import { exportToCSV } from '@/lib/exportUtils';
 import UserDetailsDialog from '@/components/manager/UserDetailsDialog';
+import WithdrawalRecordDetailDialog from '@/components/manager/WithdrawalRecordDetailDialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -126,13 +127,23 @@ export function WithdrawalRequestsManager({ subCategoryFilter: propSubCategoryFi
   const [activeTab, setActiveTab] = useState<'pending' | 'history'>('pending');
   const [historyRequests, setHistoryRequests] = useState<WithdrawalRequest[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<'all' | 'approved' | 'rejected'>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [searchInput, setSearchInput] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
     from: undefined,
     to: undefined
   });
   const [datePreset, setDatePreset] = useState<'all' | 'today' | '7days' | '30days' | 'custom'>('all');
   const [subCategoryFilter, setSubCategoryFilter] = useState<string>(propSubCategoryFilter || 'all');
+
+  // Debounce the due-diligence search so each keystroke doesn't hit the DB.
+  useEffect(() => {
+    const t = setTimeout(() => setSearchTerm(searchInput.trim()), 400);
+    return () => clearTimeout(t);
+  }, [searchInput]);
 
   // Batch selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
