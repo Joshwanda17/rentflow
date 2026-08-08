@@ -16,8 +16,10 @@ import {
 import {
   Banknote, TrendingDown, AlertTriangle, CheckCircle2, XCircle,
   Wallet, Loader2, BellRing, Percent, Users, CalendarClock, Sparkles, CalendarDays, Search, X,
+  PauseCircle, PlayCircle,
 } from 'lucide-react';
 import { format, subDays, startOfMonth, isSameDay } from 'date-fns';
+import AdvancePauseDialog from '@/components/advances/AdvancePauseDialog';
 
 const num = (v: any) => Number(v ?? 0);
 
@@ -57,6 +59,7 @@ export function AgentAdvanceRepaymentMonitor() {
   const [remindingId, setRemindingId] = useState<string | null>(null);
   const [bulkSending, setBulkSending] = useState(false);
   const [search, setSearch] = useState('');
+  const [pauseTarget, setPauseTarget] = useState<{ id: string; name: string | null; paused: boolean } | null>(null);
 
   const { data: rows, isLoading, refetch } = useQuery({
     queryKey: ['agent-advance-repayment-monitor', days],
@@ -82,6 +85,23 @@ export function AgentAdvanceRepaymentMonitor() {
     },
     staleTime: 5 * 60_000,
   });
+
+  // Pause state lives on `agent_advances` — the monitor RPC doesn't carry it.
+  const { data: pausedMap } = useQuery({
+    queryKey: ['agent-advance-paused-map'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('agent_advances')
+        .select('id, pause_reason, paused_at')
+        .eq('deduction_paused', true);
+      if (error) throw error;
+      const map: Record<string, { reason: string | null; at: string | null }> = {};
+      (data || []).forEach((r: any) => { map[r.id] = { reason: r.pause_reason, at: r.paused_at }; });
+      return map;
+    },
+    staleTime: 30_000,
+  });
+  const paused = pausedMap || {};
 
   // Ledger for the repayment-rate + collection + interest trend (last ~35 days).
   const { data: ledger } = useQuery({
