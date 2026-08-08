@@ -576,13 +576,54 @@ export function WithdrawalRequestsManager({ subCategoryFilter: propSubCategoryFi
         historyFilters.sub_category = subCategoryFilter;
       }
 
+      // Scope ALL terminal/settled states — `completed` is the dominant status
+      // in production and was previously invisible here.
+      const HISTORY_STATUSES = [
+        'completed', 'approved', 'rejected', 'expired', 'cancelled',
+        'failed', 'processing', 're_approved_for_recovery',
+      ];
+
       let query = supabase
         .from('withdrawal_requests')
         .select('*')
         .match(historyFilters)
-        .in('status', statusFilter === 'all' ? ['approved', 'rejected'] : [statusFilter])
         .order('created_at', { ascending: false })
-        .limit(50);
+        .limit(searchTerm ? 200 : 100);
+
+      if (statusFilter !== 'all') {
+        query = query.eq('status', statusFilter);
+      } else {
+        query = query.in('status', HISTORY_STATUSES);
+      }
+
+      // Due-diligence search: destination numbers/accounts, references and the
+      // requester's name/phone. Matching users first so name searches work.
+      if (searchTerm) {
+        const escaped = searchTerm.replace(/[%,()]/g, ' ').trim();
+        const digits = escaped.replace(/\D/g, '');
+        const { data: matchedUsers } = await supabase
+          .from('profiles')
+          .select('id')
+          .or(`full_name.ilike.%${escaped}%,phone.ilike.%${escaped}%`)
+          .limit(50);
+        const userIdList = (matchedUsers || []).map(u => u.id);
+
+        const orParts = [
+          `mobile_money_number.ilike.%${escaped}%`,
+          `mobile_money_name.ilike.%${escaped}%`,
+          `bank_account_number.ilike.%${escaped}%`,
+          `bank_account_name.ilike.%${escaped}%`,
+          `bank_name.ilike.%${escaped}%`,
+          `transaction_id.ilike.%${escaped}%`,
+          `payout_code.ilike.%${escaped}%`,
+          `fin_ops_reference.ilike.%${escaped}%`,
+        ];
+        if (digits.length >= 6) orParts.push(`mobile_money_number.ilike.%${digits}%`);
+        if (/^[0-9a-f-]{8,}$/i.test(escaped)) orParts.push(`id.eq.${escaped}`);
+        if (userIdList.length) orParts.push(`user_id.in.(${userIdList.join(',')})`);
+
+        query = query.or(orParts.join(','));
+      }
 
       // Apply date filters
       if (dateRange.from) {
@@ -622,7 +663,7 @@ export function WithdrawalRequestsManager({ subCategoryFilter: propSubCategoryFi
     } finally {
       setHistoryLoading(false);
     }
-  }, [statusFilter, dateRange, subCategoryFilter]);
+  }, [statusFilter, dateRange, subCategoryFilter, searchTerm]);
 
   // Apply date presets
   const applyDatePreset = (preset: typeof datePreset) => {
