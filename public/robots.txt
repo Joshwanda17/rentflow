@@ -16,4 +16,4 @@ Allow: /
 User-agent: *
 Allow: /
 
-Sitemap: https://welile.tech/sitemap.xml
+Sitemap: https://welileapp.com/sitemap.xml
