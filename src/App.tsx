@@ -50,6 +50,7 @@ const PinAuthProvider = lazyWithRetry(() => import("@/hooks/usePinAuth").then(m 
 const BiometricAuthProvider = lazyWithRetry(() => import("@/hooks/useBiometricAuth").then(m => ({ default: m.BiometricAuthProvider })));
 const ProfileCompletionGate = optionalLazyWithRetry(() => import("@/components/onboarding/ProfileCompletionGate"), "ProfileCompletionGate");
 const PushNotificationGate = optionalLazyWithRetry(() => import("@/components/notifications/PushNotificationGate"), "PushNotificationGate");
+const TwoFactorGate = optionalLazyWithRetry(() => import("@/components/account/TwoFactorGate"), "TwoFactorGate");
 const PhoneCollectionGate = optionalLazyWithRetry(() => import("@/components/notifications/PhoneCollectionGate"), "PhoneCollectionGate");
 const NameCompletionGate = optionalLazyWithRetry(() => import("@/components/notifications/NameCompletionGate"), "NameCompletionGate");
 const RejectionAlertGate = optionalLazyWithRetry(() => import("@/components/notifications/RejectionAlertGate"), "RejectionAlertGate");
@@ -375,6 +376,7 @@ function GlobalOnboardingGates() {
   if (isReceiptRoute) return null;
   return (
     <>
+      <TwoFactorGate />
       <ProfileCompletionGate />
       <PushNotificationGate />
       <PhoneCollectionGate />
