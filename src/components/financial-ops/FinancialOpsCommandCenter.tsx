@@ -926,3 +926,40 @@ function QuickTile({
   );
 }
 
+function MajorActionButton({
+  onClick, icon: Icon, tone, title, desc,
+}: {
+  onClick: () => void;
+  icon: typeof KeyRound;
+  tone: 'amber' | 'blue';
+  title: string;
+  desc: string;
+}) {
+  const toneClass =
+    tone === 'amber'
+      ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 hover:bg-amber-500/15 hover:border-amber-500/40'
+      : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 hover:bg-blue-500/15 hover:border-blue-500/40';
+  const iconBg =
+    tone === 'amber'
+      ? 'bg-amber-500/20'
+      : 'bg-blue-500/20';
+  return (
+    <button
+      onClick={onClick}
+      className={`group relative text-left rounded-2xl border p-5 transition-all min-h-[120px] flex flex-col focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${toneClass}`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className={`h-12 w-12 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}>
+          <Icon className="h-6 w-6" />
+        </div>
+        <ChevronDown className="h-5 w-5 text-muted-foreground rotate-[-90deg] group-hover:translate-x-0.5 transition-transform" />
+      </div>
+      <div className="mt-4">
+        <p className="font-bold text-lg tracking-tight">{title}</p>
+        <p className="text-sm text-muted-foreground mt-1 leading-relaxed">{desc}</p>
+      </div>
+    </button>
+  );
+}
+
+
