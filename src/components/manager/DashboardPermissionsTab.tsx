@@ -27,6 +27,7 @@ const DASHBOARDS = [
   { key: 'director', label: 'Director Dashboard' },
   { key: 'financial-ops', label: 'Financial Ops' },
   { key: 'company-ops', label: 'Company Staff' },
+  { key: 'platform-users', label: 'Platform Users' },
   { key: 'agent-ops', label: 'Agent Ops' },
   { key: 'tenant-ops', label: 'Tenant Ops' },
   { key: 'landlord-ops', label: 'Landlord Ops' },
