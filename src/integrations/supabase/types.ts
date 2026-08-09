@@ -14,6 +14,53 @@ export type Database = {
   }
   public: {
     Tables: {
+      access_surface_positions: {
+        Row: {
+          created_at: string
+          effective_from: string
+          granted_by: string | null
+          id: string
+          position_id: string
+          reason: string | null
+          revoke_reason: string | null
+          revoked_at: string | null
+          revoked_by: string | null
+          surface_key: string
+        }
+        Insert: {
+          created_at?: string
+          effective_from?: string
+          granted_by?: string | null
+          id?: string
+          position_id: string
+          reason?: string | null
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          surface_key: string
+        }
+        Update: {
+          created_at?: string
+          effective_from?: string
+          granted_by?: string | null
+          id?: string
+          position_id?: string
+          reason?: string | null
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          surface_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "access_surface_positions_position_id_fkey"
+            columns: ["position_id"]
+            isOneToOne: false
+            referencedRelation: "hr_positions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       advance_fee_config: {
         Row: {
           daily_recovery_rate: number
