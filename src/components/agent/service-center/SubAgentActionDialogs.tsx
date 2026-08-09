@@ -123,6 +123,7 @@ export function TransferTenantDialog({
   open,
   onOpenChange,
   presetRentRequestId,
+  pendingRentRequestIds = [],
 }: {
   subAgent: ServiceCenterSubAgent | null;
   peers: ServiceCenterSubAgent[];
@@ -130,6 +131,8 @@ export function TransferTenantDialog({
   onOpenChange: (v: boolean) => void;
   /** Tenant chosen from the sub-agent's tenant list. */
   presetRentRequestId?: string | null;
+  /** Rent plans already awaiting an Agent Ops decision — cannot be re-submitted. */
+  pendingRentRequestIds?: string[];
 }) {
   const [rentRequestId, setRentRequestId] = useState('');
   const [toId, setToId] = useState('');
@@ -140,9 +143,19 @@ export function TransferTenantDialog({
     if (open) setRentRequestId(presetRentRequestId ?? '');
   }, [open, presetRentRequestId]);
 
-  // Only funded/repaying rent plans can be transferred.
-  const tenants = (subAgent?.tenant_list ?? []).filter((t) => t.is_active);
-  const options = peers.filter((p) => p.sub_agent_id !== subAgent?.sub_agent_id && p.link_status === 'verified');
+  // Server rules, mirrored exactly: only funded/repaying plans that this
+  // sub-agent actually owns, and never one already awaiting approval.
+  const pending = new Set(pendingRentRequestIds);
+  const tenants = (subAgent?.tenant_list ?? []).filter(
+    (t) => t.is_active && t.owned_by_subagent !== false && !pending.has(t.rent_request_id),
+  );
+  // A suspended sub-agent cannot receive tenants (the server refuses too).
+  const options = peers.filter(
+    (p) =>
+      p.sub_agent_id !== subAgent?.sub_agent_id &&
+      p.link_status === 'verified' &&
+      !p.suspension,
+  );
 
   const submit = async () => {
     if (!rentRequestId) { toast.error('Choose a tenant to transfer'); return; }
@@ -174,7 +187,9 @@ export function TransferTenantDialog({
           <div className="space-y-2">
             <Label>Tenant (from {subAgent?.full_name ?? '—'})</Label>
             <Select value={rentRequestId} onValueChange={setRentRequestId}>
-              <SelectTrigger><SelectValue placeholder={tenants.length ? 'Select tenant' : 'No active tenants'} /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue placeholder={tenants.length ? 'Select tenant' : 'No transferable tenants'} />
+              </SelectTrigger>
               <SelectContent>
                 {tenants.map((t) => (
                   <SelectItem key={t.rent_request_id} value={t.rent_request_id}>
@@ -183,12 +198,20 @@ export function TransferTenantDialog({
                 ))}
               </SelectContent>
             </Select>
+            {tenants.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                Only funded or repaying rent plans owned by this sub-agent, with no transfer already
+                waiting, can be moved.
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
             <Label>Receiving sub-agent</Label>
             <Select value={toId} onValueChange={setToId}>
-              <SelectTrigger><SelectValue placeholder={options.length ? 'Select sub-agent' : 'No other sub-agents'} /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue placeholder={options.length ? 'Select sub-agent' : 'No eligible sub-agent'} />
+              </SelectTrigger>
               <SelectContent>
                 {options.map((p) => (
                   <SelectItem key={p.sub_agent_id} value={p.sub_agent_id}>
@@ -197,6 +220,11 @@ export function TransferTenantDialog({
                 ))}
               </SelectContent>
             </Select>
+            {options.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                A receiving sub-agent must be verified and not suspended.
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -213,7 +241,7 @@ export function TransferTenantDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={request.isPending}>Cancel</Button>
-          <Button onClick={submit} disabled={request.isPending}>
+          <Button onClick={submit} disabled={request.isPending || tenants.length === 0 || options.length === 0}>
             {request.isPending ? 'Submitting…' : 'Submit for approval'}
           </Button>
         </DialogFooter>

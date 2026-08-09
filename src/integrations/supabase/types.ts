@@ -14,6 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
+      _sc_smoke_results: {
+        Row: {
+          at: string | null
+          result: string | null
+          step: string | null
+        }
+        Insert: {
+          at?: string | null
+          result?: string | null
+          step?: string | null
+        }
+        Update: {
+          at?: string | null
+          result?: string | null
+          step?: string | null
+        }
+        Relationships: []
+      }
       advance_fee_config: {
         Row: {
           daily_recovery_rate: number

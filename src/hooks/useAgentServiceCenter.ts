@@ -127,7 +127,15 @@ export function useServiceCenterOverview() {
       if (error) throw error;
       const raw = (data as (ServiceCenterOverview & { sub_agents?: (ServiceCenterSubAgent & { name?: string | null })[] }) | null) ?? null;
       if (!raw) return { parent_agent_id: '', sub_agents: [] };
-      const rows = (raw.sub_agents ?? []).map((s) => {
+      const seen = new Set<string>();
+      const rows = (raw.sub_agents ?? []).filter((s) => {
+        // Defensive de-duplication: a sub-agent with two link rows or two active
+        // freezes must still render exactly one card.
+        const id = (s as ServiceCenterSubAgent).sub_agent_id;
+        if (!id || seen.has(id)) return false;
+        seen.add(id);
+        return true;
+      }).map((s) => {
         const row = s as ServiceCenterSubAgent & { name?: string | null };
         // The RPC emits the display name as `name`; the UI reads `full_name`.
         // Fall back to phone/email so an incomplete profile never renders as
@@ -138,6 +146,16 @@ export function useServiceCenterOverview() {
           full_name: row.full_name ?? row.name ?? row.phone ?? row.email ?? null,
           wallet: row.wallet ?? { withdrawable: 0, float: 0, advance: 0 },
           nested_subagents: row.nested_subagents ?? 0,
+          // The RPC emits the freeze scope as `freeze_scope`.
+          suspension: row.suspension
+            ? {
+                ...row.suspension,
+                scope:
+                  row.suspension.scope ??
+                  (row.suspension as unknown as { freeze_scope?: string | null }).freeze_scope ??
+                  null,
+              }
+            : null,
           // The RPC emits tenants with `id`/`name`; the UI reads
           // `tenant_id`/`tenant_name`. Normalise so tenant KPIs and lists are
           // never blank.
@@ -152,19 +170,6 @@ export function useServiceCenterOverview() {
           }),
         };
       });
-
-      // The RPC does not return avatars — hydrate them from profiles.
-      const ids = rows.map((r) => r.sub_agent_id).filter(Boolean);
-      if (ids.length) {
-        const { data: pics } = await supabase
-          .from('profiles')
-          .select('id, avatar_url')
-          .in('id', ids);
-        const byId = new Map((pics ?? []).map((p) => [p.id as string, p.avatar_url as string | null]));
-        rows.forEach((r) => {
-          r.avatar_url = r.avatar_url ?? byId.get(r.sub_agent_id) ?? null;
-        });
-      }
 
       return { ...raw, sub_agents: rows };
     },
