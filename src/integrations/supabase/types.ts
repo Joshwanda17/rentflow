@@ -28138,6 +28138,72 @@ export type Database = {
         }
         Relationships: []
       }
+      user_2fa_challenges: {
+        Row: {
+          attempts: number
+          code_hash: string
+          consumed_at: string | null
+          created_at: string
+          device_id: string
+          email: string
+          expires_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          code_hash: string
+          consumed_at?: string | null
+          created_at?: string
+          device_id: string
+          email: string
+          expires_at: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          code_hash?: string
+          consumed_at?: string | null
+          created_at?: string
+          device_id?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_2fa_trusted_devices: {
+        Row: {
+          approved_at: string
+          created_at: string
+          device_id: string
+          device_label: string | null
+          id: string
+          last_verified_at: string
+          user_id: string
+        }
+        Insert: {
+          approved_at?: string
+          created_at?: string
+          device_id: string
+          device_label?: string | null
+          id?: string
+          last_verified_at?: string
+          user_id: string
+        }
+        Update: {
+          approved_at?: string
+          created_at?: string
+          device_id?: string
+          device_label?: string | null
+          id?: string
+          last_verified_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_activity_log: {
         Row: {
           activity_type: string
@@ -28492,6 +28558,39 @@ export type Database = {
           enabled?: boolean
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_two_factor: {
+        Row: {
+          created_at: string
+          disabled_at: string | null
+          email: string | null
+          enabled: boolean
+          enabled_at: string | null
+          enabled_device_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          disabled_at?: string | null
+          email?: string | null
+          enabled?: boolean
+          enabled_at?: string | null
+          enabled_device_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          disabled_at?: string | null
+          email?: string | null
+          enabled?: boolean
+          enabled_at?: string | null
+          enabled_device_id?: string | null
+          updated_at?: string
           user_id?: string
         }
         Relationships: []

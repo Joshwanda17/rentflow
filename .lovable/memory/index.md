@@ -1,1 +1,2 @@
 - [Free Service Center qualification](mem://features/agent/free-service-center-qualification) — permanent milestone: 20 qualifying sub-agents (each with an active tenant) + 5 personal active tenants unlocks a free service center request
+- [Two-step verification](mem://features/security/two-step-verification) — Email-code 2MFA in Settings → Safety; enabling kills all other sessions, new devices need an emailed code, blocked for placeholder emails
