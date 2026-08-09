@@ -148,7 +148,7 @@ const moreActions: MoreAction[] = [
 
 import { useAuth } from '@/hooks/useAuth';
 
-const WALLET_BREAKDOWN_KEY = 'finops_wallet_breakdown_open';
+const WALLET_BREAKDOWN_KEY = 'finops_wallet_breakdown_open_v2';
 
 function getStoredOpen(userId?: string): boolean {
   if (typeof window === 'undefined' || !userId) return false;
@@ -681,7 +681,25 @@ function FinOpsHome({
         </div>
       </div>
 
-      {/* Wallet Breakdown — highest priority overview */}
+      {/* Major action buttons — cash deposit codes + email transactions */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <MajorActionButton
+          onClick={() => onOpenTool('cash_codes')}
+          icon={KeyRound}
+          tone="amber"
+          title="Cash Deposit Codes"
+          desc="Read pending codes back to depositors — codes expire in 2 min."
+        />
+        <MajorActionButton
+          onClick={() => onOpenTool('email_tx')}
+          icon={Mail}
+          tone="blue"
+          title="Email Transactions"
+          desc="Live transactions extracted from connected Gmail accounts."
+        />
+      </div>
+
+      {/* Wallet Breakdown — collapsed by default; expand to search every wallet */}
       <div className="rounded-2xl border border-border bg-card overflow-hidden">
         <button
           type="button"
@@ -708,24 +726,6 @@ function FinOpsHome({
             />
           </div>
         )}
-      </div>
-
-      {/* Major action buttons — cash deposit codes + email transactions */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <MajorActionButton
-          onClick={() => onOpenTool('cash_codes')}
-          icon={KeyRound}
-          tone="amber"
-          title="Cash Deposit Codes"
-          desc="Read pending codes back to depositors — codes expire in 2 min."
-        />
-        <MajorActionButton
-          onClick={() => onOpenTool('email_tx')}
-          icon={Mail}
-          tone="blue"
-          title="Email Transactions"
-          desc="Live transactions extracted from connected Gmail accounts."
-        />
       </div>
 
       {/* Hero + Ledger Health */}
