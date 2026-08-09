@@ -710,20 +710,23 @@ function FinOpsHome({
         )}
       </div>
 
-      {/* Cash Deposit Codes — time-sensitive quick action (codes expire in 2 min) */}
-      <button
-        onClick={() => onOpenTool('cash_codes')}
-        className="w-full flex items-center gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-500/50 transition-all p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
-      >
-        <div className="h-10 w-10 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0">
-          <KeyRound className="h-5 w-5 text-amber-600" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-sm">Cash Deposit Codes</p>
-          <p className="text-xs text-muted-foreground">Read pending codes back to depositors — codes expire in 2 min.</p>
-        </div>
-        <ChevronDown className="h-4 w-4 text-muted-foreground rotate-[-90deg]" />
-      </button>
+      {/* Major action buttons — cash deposit codes + email transactions */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <MajorActionButton
+          onClick={() => onOpenTool('cash_codes')}
+          icon={KeyRound}
+          tone="amber"
+          title="Cash Deposit Codes"
+          desc="Read pending codes back to depositors — codes expire in 2 min."
+        />
+        <MajorActionButton
+          onClick={() => onOpenTool('email_tx')}
+          icon={Mail}
+          tone="blue"
+          title="Email Transactions"
+          desc="Live transactions extracted from connected Gmail accounts."
+        />
+      </div>
 
       {/* Hero + Ledger Health */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
