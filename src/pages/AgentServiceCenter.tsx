@@ -50,6 +50,11 @@ export default function AgentServiceCenter() {
   const detailTarget = detailId
     ? subAgents.find((s) => s.sub_agent_id === detailId) ?? null
     : null;
+  // Reuses the transfers query already on this page — no extra round trip.
+  const pendingTransferRentRequestIds = useMemo(
+    () => transfers.filter((t) => t.status === 'pending').map((t) => t.rent_request_id),
+    [transfers],
+  );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -284,6 +289,7 @@ export default function AgentServiceCenter() {
         peers={subAgents}
         open={!!transferTarget}
         presetRentRequestId={transferRentRequestId}
+        pendingRentRequestIds={pendingTransferRentRequestIds}
         onOpenChange={(v) => { if (!v) { setTransferTarget(null); setTransferRentRequestId(null); } }}
       />
       <UnlinkSubAgentDialog
