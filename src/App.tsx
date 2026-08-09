@@ -560,7 +560,7 @@ function AppRoutes() {
           <Route path="/record-rent" element={<RecordRent />} />
           <Route path="/calculator" element={<Calculator />} />
           <Route path="/users" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'cto']} requiredPermission="company-ops"><AdminUsersPage /></RoleGuard>} />
-          <Route path="/platform-users" element={<RoleGuard allowedRoles={['manager', 'cto']}><UserManagement /></RoleGuard>} />
+          <Route path="/platform-users" element={<RoleGuard allowedRoles={['super_admin', 'ceo', 'coo', 'cfo', 'cto', 'cmo', 'crm', 'hr', 'manager', 'operations', 'employee', 'access_admin']}><UserManagement /></RoleGuard>} />
           <Route path="/supporter-earnings" element={<SupporterEarnings />} />
           <Route path="/reinvestment-history" element={<ReinvestmentHistory />} />
           <Route path="/investment-portfolio" element={<InvestmentPortfolio />} />
