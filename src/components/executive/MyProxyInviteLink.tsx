@@ -65,6 +65,32 @@ export default function MyProxyInviteLink() {
   useEffect(() => {
     void fetchInvite();
     void fetchAgents();
+
+    const channel = supabase
+      .channel('my-partner-lead-agents')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'partner_lead_assignments' },
+        () => {
+          void fetchAgents();
+        },
+      )
+      .subscribe();
+
+    const interval = window.setInterval(() => {
+      void fetchAgents();
+    }, 30000);
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void fetchAgents();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+
+    return () => {
+      supabase.removeChannel(channel);
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, []);
 
   const handleCopy = async () => {
