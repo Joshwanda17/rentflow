@@ -43,6 +43,7 @@ import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
 import savingsBroAsset from '@/assets/Savings-bro.svg.asset.json';
 import mtnLogoAsset from '@/assets/mtn-logo.jpg.asset.json';
 import airtelLogoAsset from '@/assets/airtel-logo.jpg.asset.json';
+import equityLogoAsset from '@/assets/equity-logo.jpg.asset.json';
 
 /**
  * Extract a Mobile Money / bank reference from arbitrary SMS text.
@@ -1690,6 +1691,12 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                       <img
                         src={airtelLogoAsset.url}
                         alt="Airtel"
+                        className="h-full w-full object-cover"
+                      />
+                    ) : ch.id === 'bank' ? (
+                      <img
+                        src={equityLogoAsset.url}
+                        alt="Equity Bank"
                         className="h-full w-full object-cover"
                       />
                     ) : (
