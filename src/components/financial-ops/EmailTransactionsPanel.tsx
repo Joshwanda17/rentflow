@@ -3315,10 +3315,10 @@ export function EmailTransactionsPanel() {
           the right. ──────────────────────────────────────────────────── */}
       <div className="flex gap-4">
         <aside
-          className={`${gmailNavOpen ? 'block' : 'hidden'} lg:block w-full max-w-[240px] shrink-0 lg:w-[220px]`}
+          className={`${gmailNavOpen ? 'block' : 'hidden'} lg:block w-full max-w-[256px] shrink-0 lg:w-[232px] lg:sticky lg:top-3 lg:self-start`}
           aria-label="Mail labels"
         >
-          <nav className="space-y-1">
+          <nav className="space-y-0.5 pr-1 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto">
             {gmailLabels.map(({ key, label, Icon, count, active, apply }) => (
               <button
                 key={key}
@@ -3331,23 +3331,25 @@ export function EmailTransactionsPanel() {
                     document.getElementById('email-tx-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                   }
                 }}
-                className={`flex w-full items-center gap-3 rounded-r-full px-4 py-2 text-left text-[13px] transition-colors ${
+                className={`group flex w-full items-center gap-3.5 rounded-r-full py-2 pl-4 pr-3 text-left text-[13px] transition-colors ${
                   active
-                    ? 'bg-muted font-semibold text-foreground'
-                    : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
+                    ? 'bg-primary/10 font-bold text-primary'
+                    : 'text-foreground/70 hover:bg-muted/70 hover:text-foreground'
                 }`}
               >
-                <Icon className="h-4 w-4 shrink-0" />
+                <Icon className={`h-[18px] w-[18px] shrink-0 ${active ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'}`} />
                 <span className="min-w-0 flex-1 truncate">{label}</span>
                 {count > 0 && (
-                  <span className="shrink-0 font-mono text-[11px] tabular-nums">{count}</span>
+                  <span className={`shrink-0 text-[11px] tabular-nums ${active ? 'font-bold text-primary' : 'font-semibold text-muted-foreground'}`}>
+                    {count}
+                  </span>
                 )}
               </button>
             ))}
           </nav>
         </aside>
         <div className={`min-w-0 flex-1 space-y-4 ${gmailNavOpen ? 'hidden lg:block' : ''}`}>
-      <div id="email-tx-results" className="rounded-lg border bg-card overflow-hidden scroll-mt-20">
+      <div id="email-tx-results" className="rounded-2xl border bg-card overflow-hidden scroll-mt-20 shadow-sm">
         {/* Prominent, full-width search bar — lets ops find any email by
             amount, name, phone (any format), reference id, or any word in
             the body / subject. Sticky on scroll so it's always reachable. */}
@@ -3510,6 +3512,37 @@ export function EmailTransactionsPanel() {
           </div>
         </div>
 
+        {/* ── Gmail list toolbar: refresh on the left, result count on the
+            right — the strip that sits above every Gmail inbox. ────────── */}
+        <div className="flex items-center justify-between gap-2 border-b px-2 py-1.5">
+          <div className="flex items-center gap-0.5">
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8 rounded-full"
+              onClick={() => load()}
+              disabled={loading}
+              aria-label="Refresh"
+              title="Refresh"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8 rounded-full"
+              onClick={() => setAlertSettingsOpen(true)}
+              aria-label="View settings"
+              title="View settings"
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+            </Button>
+          </div>
+          <span className="pr-1 text-[11px] tabular-nums text-muted-foreground">
+            {visibleRows.length} of {rows.length}
+          </span>
+        </div>
+
         {!loading && loadError && rows.length > 0 && (
           <div className="mx-3 mb-3 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs">
             <span className="font-semibold">Partial load</span> — some emails could not be read:{' '}
@@ -3542,7 +3575,7 @@ export function EmailTransactionsPanel() {
             <p className="text-xs">Click <strong>Poll now</strong> to check Gmail for new emails, or just wait a minute — it checks on its own.</p>
           </div>
         ) : (
-          <div className="divide-y max-h-[600px] overflow-y-auto">
+          <div className="divide-y max-h-[calc(100vh-16rem)] min-h-[420px] overflow-y-auto">
             {selectedIds.size > 0 && (
               <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-2 border-b bg-background/95 backdrop-blur px-3 py-2 shadow-sm">
                 <div className="text-xs font-medium">
