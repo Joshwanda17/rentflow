@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +18,33 @@ interface PromissoryNoteDialogProps {
 export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialogProps) {
   const [submitting, setSubmitting] = useState(false);
   const [createdNote, setCreatedNote] = useState<any>(null);
+  // Flat validation fee for a promissory note, read from the database.
+  // null = unavailable (never fall back to a hardcoded figure).
+  const [noteRate, setNoteRate] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data, error } = await supabase.rpc('partner_note_rate', {
+          p_role: 'agent',
+          p_at: new Date().toISOString(),
+        });
+        if (cancelled) return;
+        const value = typeof data === 'number' ? data : Number(data);
+        setNoteRate(!error && Number.isFinite(value) ? value : null);
+      } catch {
+        if (!cancelled) setNoteRate(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open]);
+
+  const earningsLine =
+    noteRate === null
+      ? 'Rate unavailable'
+      : `You earn: ${formatUGX(noteRate)} when this note is validated`;
 
   const [partnerName, setPartnerName] = useState('');
   const [whatsappNumber, setWhatsappNumber] = useState('');
@@ -125,7 +152,7 @@ export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialo
               <p className="text-sm font-medium">Note for <span className="text-primary">{partnerName}</span> created!</p>
               <p className="text-lg font-bold text-primary">{formatUGX(parsedAmount)}</p>
               <p className="text-xs text-muted-foreground">
-                {contributionType === 'monthly' ? `Monthly on day ${deductionDay}` : 'Once-off'} · Your commission: <span className="text-primary font-semibold">{formatUGX(parsedAmount * 0.02)}</span>
+                {contributionType === 'monthly' ? `Monthly on day ${deductionDay}` : 'Once-off'} · <span className="text-primary font-semibold">{earningsLine}</span>
               </p>
             </div>
             <div className="grid gap-2">
@@ -167,7 +194,7 @@ export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialo
               {parsedAmount > 0 && (
                 <div className="flex justify-between mt-1 text-[11px]">
                   <span className="text-primary font-medium">{formatUGX(parsedAmount)}</span>
-                  <span className="text-emerald-600 font-medium">Your 2%: {formatUGX(parsedAmount * 0.02)}</span>
+                  <span className="text-emerald-600 font-medium">{earningsLine}</span>
                 </div>
               )}
             </div>
@@ -211,8 +238,10 @@ export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialo
                   <span className="font-medium text-emerald-600">{formatUGX(parsedAmount * 0.15)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Your commission (2%)</span>
-                  <span className="font-bold text-primary">{formatUGX(parsedAmount * 0.02)}</span>
+                  <span className="text-muted-foreground">Note validation fee</span>
+                  <span className="font-bold text-primary">
+                    {noteRate === null ? 'Rate unavailable' : `You earn: ${formatUGX(noteRate)} when this note is validated`}
+                  </span>
                 </div>
               </div>
             )}
