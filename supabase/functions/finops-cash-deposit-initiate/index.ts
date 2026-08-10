@@ -192,11 +192,12 @@ Deno.serve(async (req) => {
     let smsSent = false;
     try {
       smsSent = await sendSMS(smsPhone, message, {
-        recipientUserId: (depositor as any).id,
-        recipientName: (depositor as any).full_name ?? null,
-        referenceId: depositId,
+        admin,
         source: "finops-cash-deposit-initiate",
-      } as any);
+        reference_id: depositId,
+        recipient_user_id: (depositor as any).id,
+        recipient_name: (depositor as any).full_name ?? null,
+      });
     } catch (e) {
       console.error("[finops-cash-initiate] sms failed", e);
     }
