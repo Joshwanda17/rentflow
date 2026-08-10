@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ChevronLeft, Paperclip, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -66,7 +66,18 @@ function fmtUgx(n?: number | null) {
  */
 export function GmailStyleEmailList({ rows }: { rows: GmailStyleRow[] }) {
   const [openId, setOpenId] = useState<string | null>(null);
-  const open = openId ? rows.find((r) => r.id === openId) ?? null : null;
+  // Always present the newest email first, even if the parent list order drifts
+  // (e.g. realtime inserts, focus-direction resets, or cached presets).
+  const sortedRows = useMemo(
+    () =>
+      [...rows].sort((a, b) => {
+        const ta = a.internal_date ? new Date(a.internal_date).getTime() : 0;
+        const tb = b.internal_date ? new Date(b.internal_date).getTime() : 0;
+        return tb - ta;
+      }),
+    [rows],
+  );
+  const open = openId ? sortedRows.find((r) => r.id === openId) ?? null : null;
 
   if (open) {
     const name = senderName(open);
@@ -143,7 +154,7 @@ export function GmailStyleEmailList({ rows }: { rows: GmailStyleRow[] }) {
     );
   }
 
-  if (rows.length === 0) {
+  if (sortedRows.length === 0) {
     return (
       <div className="p-10 text-center text-sm text-muted-foreground">
         No emails in this view.
@@ -153,7 +164,7 @@ export function GmailStyleEmailList({ rows }: { rows: GmailStyleRow[] }) {
 
   return (
     <ul className="divide-y">
-      {rows.map((r) => {
+      {sortedRows.map((r) => {
         const name = senderName(r);
         const amount = fmtUgx(r.amount);
         return (

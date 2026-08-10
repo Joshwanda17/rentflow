@@ -2955,10 +2955,10 @@ export function EmailTransactionsPanel() {
         }
         return 0;
       });
-    } else if (sortMode !== 'newest') {
-      // Primary sort dropdown — only applies when the specialized debit sort
-      // is off (debitSort === 'none'). 'newest' is the natural DB order, so we
-      // only re-sort for the other modes.
+    } else {
+      // Primary sort dropdown. 'newest' is now explicitly sorted by internal_date
+      // descending so the latest email always appears on top, regardless of whether
+      // rows arrived via realtime subscription or DB pagination order.
       const ts = (r: GmailTx) => {
         const v = r.internal_date ? new Date(r.internal_date).getTime() : 0;
         return Number.isFinite(v) ? v : 0;
@@ -2969,6 +2969,7 @@ export function EmailTransactionsPanel() {
         return s === 'needs_routing' ? 0 : s === 'unparsed' ? 1 : s === 'credited' ? 2 : 3;
       };
       list = [...list].sort((a, b) => {
+        if (sortMode === 'newest') return ts(b) - ts(a);
         if (sortMode === 'oldest') return ts(a) - ts(b);
         if (sortMode === 'amount_high') return amt(b) - amt(a) || ts(b) - ts(a);
         if (sortMode === 'amount_low') return amt(a) - amt(b) || ts(b) - ts(a);
