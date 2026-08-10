@@ -311,16 +311,19 @@ function buildPdf(r: Report, prettyDate: string, logo: Uint8Array | null): Uint8
     { label: "Compound count", value: num(k.compounded_today_count), accent: TEAL },
   ]);
   barChart([
-    { label: "Cash payouts", value: Number(k.paid_out_today_amount) || 0, note: `${num(k.paid_out_today_count)} partners`, color: ROSE },
+    { label: "Cash payouts", value: Number(k.paid_out_today_amount) || 0, note: `${num(k.paid_out_today_count)} payouts to ${num(k.paid_out_today_partners)} partners`, color: ROSE },
     { label: "Compounded", value: Number(k.compounded_today_amount) || 0, note: `${num(k.compounded_today_count)} portfolios`, color: TEAL },
   ]);
   table(
-    ["Partner (paid out)", "Principal", "Returns"],
-    r.paid_today.slice(0, 45).map((p: any) => [ascii(p.name), fmtUGX(p.principal), fmtUGX(p.roi)]),
+    ["Partner (paid out)", "Portfolio", "Principal", "Returns", "Paid to"],
+    r.paid_today.slice(0, 200).map((p: any) => [
+      ascii(p.name), ascii(p.portfolio_code), fmtUGX(p.principal), fmtUGX(p.roi),
+      p.paid_to ? ascii(p.paid_to) : "Own wallet",
+    ]),
   );
   table(
     ["Partner (compounded)", "Portfolio", "Principal", "Returns", "New amount"],
-    r.compounded_today.slice(0, 45).map((p: any) => [
+    r.compounded_today.slice(0, 200).map((p: any) => [
       ascii(p.name), ascii(p.portfolio_code), fmtUGX(p.principal), fmtUGX(p.roi), fmtUGX(p.new_amount),
     ]),
   );
