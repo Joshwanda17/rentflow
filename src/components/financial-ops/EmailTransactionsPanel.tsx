@@ -3731,7 +3731,10 @@ export function EmailTransactionsPanel() {
                 </div>
               </div>
             )}
-            {focusDirection && focusView === 'gmail' ? (
+            {focusView === 'gmail' ? (
+              // Every label (Inbox / Money in / Money out / Needs routing /
+              // Unparsed / Credited) renders as a Gmail inbox that endlessly
+              // scrolls through ALL rows behind that label's count.
               <GmailStyleEmailList rows={visibleRows} />
             ) : (() => {
               const totalPages = Math.max(1, Math.ceil(visibleRows.length / pageSize));
