@@ -712,6 +712,9 @@ export default function LandlordRegistrationForm({
         name: newLandlord.name,
         phone: newLandlord.phone,
         property_address: (newLandlord as any).property_address ?? null,
+        district: ugLoc?.district ?? null,
+        county: ugLoc?.county ?? null,
+        village: ugLoc?.village ?? null,
         house_category: (newLandlord as any).house_category ?? null,
         latitude: (newLandlord as any).latitude ?? null,
         longitude: (newLandlord as any).longitude ?? null,
@@ -1110,7 +1113,7 @@ export default function LandlordRegistrationForm({
             const phoneOk =
               /^\d{9,10}$/.test(toUgandaLocalDigits(landlordPhone)) && !errors.landlordPhone;
             const lcOk = !minimal || (lc1Name.trim().length >= 2 && /^\d{9,10}$/.test(toUgandaLocalDigits(lc1Phone)));
-            const ready = nameOk && phoneOk && lcOk && !loading;
+            const ready = nameOk && phoneOk && lcOk && !!ugLoc && !loading;
             if (!ready) return null;
             return (
               <motion.div
