@@ -34749,6 +34749,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_partner_ops_daily_report: { Args: { p_date?: string }; Returns: Json }
       get_payout_delivery_audit: {
         Args: { p_limit?: number; p_user_id?: string }
         Returns: {
