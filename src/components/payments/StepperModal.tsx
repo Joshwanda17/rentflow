@@ -90,7 +90,7 @@ export default function StepperModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[90vh] p-0 gap-0 overflow-hidden">
+      <DialogContent className="max-w-md max-h-[90vh] p-0 gap-0 overflow-hidden flex flex-col">
         <img
           src={eWalletPanaAsset.url}
           alt="Withdraw illustration"
