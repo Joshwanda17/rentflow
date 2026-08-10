@@ -1540,6 +1540,8 @@ export function LandlordOpsDashboard() {
       const { count } = await supabase
         .from('landlords')
         .select('id', { count: 'exact', head: true })
+        // Still with a Service Centre manager → not yet Landlord Ops work.
+        .neq('service_center_status', 'pending')
         .or('verified.is.null,verified.eq.false');
       return count || 0;
     },

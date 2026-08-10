@@ -75,6 +75,8 @@ export function ResidenceVerificationPanel() {
     queryFn: async () => {
       let q = supabase.from('landlords')
         .select('id, name, phone, village, district, verification_status, verification_reason, latitude, longitude, property_address');
+      // Records still being vetted by a Service Centre manager are not yet Landlord Ops work.
+      q = q.neq('service_center_status', 'pending');
       if (statusFilter !== 'all') q = q.eq('verification_status', statusFilter);
       if (debounced.length >= 2) {
         const digits = debounced.replace(/\D/g, '');

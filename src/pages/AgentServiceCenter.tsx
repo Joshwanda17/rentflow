@@ -19,8 +19,10 @@ import { SubAgentRosterCard } from '@/components/agent/service-center/SubAgentRo
 import { SubAgentDetailSheet } from '@/components/agent/service-center/SubAgentDetailSheet';
 import { ServiceCenterRentVettingQueue } from '@/components/agent/service-center/ServiceCenterRentVettingQueue';
 import { ServiceCenterListingVettingQueue } from '@/components/agent/service-center/ServiceCenterListingVettingQueue';
+import { ServiceCenterVerificationVettingQueue } from '@/components/agent/service-center/ServiceCenterVerificationVettingQueue';
 import { ServiceCenterPipelineTracker } from '@/components/agent/service-center/ServiceCenterPipelineTracker';
 import { useServiceCenterRentQueue } from '@/hooks/useServiceCenterRentQueue';
+import { useServiceCenterVerificationQueue } from '@/hooks/useServiceCenterVerificationQueue';
 import {
   SuspendSubAgentDialog,
   TransferTenantDialog,
@@ -35,6 +37,7 @@ export default function AgentServiceCenter() {
   const { data: transfers = [] } = useServiceCenterTransfers();
   const { data: catalog = [], isLoading: loadingCatalog } = useServiceCenterCatalog();
   const { data: vetting } = useServiceCenterRentQueue();
+  const { data: verificationQueue } = useServiceCenterVerificationQueue();
 
   const [query, setQuery] = useState('');
   const [visible, setVisible] = useState(20);
@@ -127,6 +130,7 @@ export default function AgentServiceCenter() {
             { label: 'Landlords registered', value: String(totals.landlords) },
             { label: 'Houses listed', value: String(totals.houses) },
             { label: 'Rent requests to vet', value: String(vetting?.pending_count ?? 0) },
+            { label: 'Landlords & LC1 to vet', value: String(verificationQueue?.pending_count ?? 0) },
             { label: 'Houses pending verification', value: String(totals.housesPending) },
             { label: 'Landlords pending verification', value: String(totals.landlordsPending) },
             { label: 'Tenants pending funding', value: String(totals.tenantsPending) },
@@ -163,6 +167,7 @@ export default function AgentServiceCenter() {
           <TabsContent value="vetting" className="mt-3 space-y-3">
             <ServiceCenterRentVettingQueue />
             <ServiceCenterListingVettingQueue />
+            <ServiceCenterVerificationVettingQueue />
           </TabsContent>
 
           <TabsContent value="followup" className="mt-3 space-y-3">
