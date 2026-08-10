@@ -28,6 +28,8 @@ import { LandlordAutocompleteInput } from '@/components/agent/LandlordAutocomple
 import type { LandlordOption } from '@/components/agent/LandlordSearchSelect';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import { validateFullName } from '@/lib/authValidation';
+import { UgLocationPicker } from '@/components/location/UgLocationPicker';
+import { ugLocationLabel, type UgLocationSelection } from '@/hooks/useUgLocations';
 
 const HOUSE_CATEGORIES = [
   'Single Room', 'Double Room', 'Bedsitter', 'One Bedroom',
@@ -224,6 +226,11 @@ export default function LandlordRegistrationForm({
   const [landlordName, setLandlordName] = useState('');
   const [landlordPhone, setLandlordPhone] = useState('');
   const [propertyAddress, setPropertyAddress] = useState('');
+  // Official Uganda administrative location (region → village) from the shared
+  // ug_* dataset. Mandatory: it replaces every free-text location guess and is
+  // what lets us drop the old village: 'To be confirmed' placeholder.
+  const [ugLoc, setUgLoc] = useState<UgLocationSelection | null>(null);
+  const [ugLocError, setUgLocError] = useState<string | null>(null);
   const [numberOfRentals, setNumberOfRentals] = useState('');
   const [houseCategory, setHouseCategory] = useState('');
 
