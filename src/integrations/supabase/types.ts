@@ -34394,6 +34394,10 @@ export type Database = {
           tenant_ops_reviewed_at: string
         }[]
       }
+      get_cashflow_forecast_series: {
+        Args: { p_bucket?: string; p_end: string; p_start: string }
+        Returns: Json
+      }
       get_cashout_settlement_ledger_rows: {
         Args: { p_withdrawal_id: string }
         Returns: {
