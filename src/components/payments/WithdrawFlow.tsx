@@ -239,21 +239,10 @@ export default function WithdrawFlow({
     : ledgerAvailable !== null
       ? Math.min(availableBalance, ledgerAvailable)
       : availableBalance;
-  // Clamp additionally by KYC daily remaining (from the unified context).
-  // Cap of 0 while the context loads is avoided by using Infinity as the
-  // sentinel until we have a real number, so the amount input isn't
-  // needlessly zero-locked on first render.
-  const kycRemainingToday = withdrawCtx.isLoading
-    ? Number.POSITIVE_INFINITY
-    : withdrawCtx.usageToday.remainingAmount;
+  // Daily withdrawal limits removed globally (2026-08-10). The only cap is
+  // the caller-supplied or ledger-true available balance.
   const rawMax = source === 'available' ? trueAvailable : roiBalance;
-  const maxAmount = Math.min(rawMax, kycRemainingToday);
-  // True when the binding constraint is the KYC daily cap rather than the
-  // ledger balance. Without this, a level-1 user with money in the ledger
-  // sees "Verified against live ledger · UGX 50,000 available" and believes
-  // the ledger lost their funds.
-  const isKycCapped =
-    Number.isFinite(kycRemainingToday) && kycRemainingToday < rawMax;
+  const maxAmount = rawMax;
 
   // 20% daily-collection withdrawal gate REMOVED (2026-08-01) — agents can
   // withdraw regardless of today's collection performance. Kept as a constant
