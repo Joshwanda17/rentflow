@@ -3301,6 +3301,7 @@ export function EmailTransactionsPanel() {
           <Mail className="h-4 w-4 text-muted-foreground" />
           <span className="text-sm font-medium tracking-tight">Email transactions</span>
         </div>
+        <TelecomBalanceStrip refreshKey={rows[0]?.id ?? null} />
         <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
           <input
