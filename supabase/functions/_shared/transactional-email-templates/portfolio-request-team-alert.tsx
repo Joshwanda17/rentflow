@@ -43,7 +43,7 @@ export function PortfolioRequestTeamAlert({
   message = '',
   currency = 'UGX',
   company_name = 'Welile',
-  logo_url = 'https://welileapp.com/welile-logo.png',
+  logo_url = 'https://welile.tech/welile-logo.png',
 }: PortfolioRequestTeamAlertProps) {
   const fmtValue = formatAmount(portfolio_value, currency)
   const reqLabel = labelFor(request_type)

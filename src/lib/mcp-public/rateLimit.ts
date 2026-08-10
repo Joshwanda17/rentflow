@@ -218,8 +218,8 @@ export async function enforceRateLimit(tool: string): Promise<ToolHandlerResult 
     const retry = Math.max(1, Math.round(verdict.retry_after_seconds ?? 60));
     const blocked = verdict.reason === "temporarily_blocked";
     const text = blocked
-      ? `Too many requests from this connection, so it is paused for ${waitLabel(retry)}. This limit protects the free public Welile tools from spam. Please try again after that, or create a free account at https://welileapp.com for your own personal access.`
-      : `Rate limit reached — the free public Welile tools allow ${PER_MINUTE} requests a minute and ${PER_HOUR} an hour per connection. Please try again in ${waitLabel(retry)}, or create a free account at https://welileapp.com for your own personal access.`;
+      ? `Too many requests from this connection, so it is paused for ${waitLabel(retry)}. This limit protects the free public Welile tools from spam. Please try again after that, or create a free account at https://welile.tech for your own personal access.`
+      : `Rate limit reached — the free public Welile tools allow ${PER_MINUTE} requests a minute and ${PER_HOUR} an hour per connection. Please try again in ${waitLabel(retry)}, or create a free account at https://welile.tech for your own personal access.`;
 
     return publicToolResult({
       tool,

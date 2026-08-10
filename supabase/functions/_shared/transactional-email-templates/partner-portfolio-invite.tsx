@@ -37,13 +37,13 @@ export function PartnerPortfolioInvite({
   duration_months = 12,
   roi_percentage = 0,
   roi_mode = 'monthly_payout',
-  completion_url = 'https://welileapp.com',
+  completion_url = 'https://welile.tech',
   currency = 'UGX',
   company_name = 'Welile',
-  logo_url = 'https://welileapp.com/welile-logo.png',
+  logo_url = 'https://welile.tech/welile-logo.png',
   unsubscribe_url = 'https://welile.com/unsubscribe',
-  terms_url = 'https://welileapp.com/partners-terms',
-  privacy_url = 'https://welileapp.com/privacy',
+  terms_url = 'https://welile.tech/partners-terms',
+  privacy_url = 'https://welile.tech/privacy',
 }: PartnerPortfolioInviteProps) {
   const year = new Date().getFullYear()
   const fmtValue = fmtAmount(amount, currency)
@@ -272,7 +272,7 @@ export const template = {
     duration_months: 12,
     roi_percentage: 5,
     roi_mode: 'monthly_payout',
-    completion_url: 'https://welileapp.com/partners/00000000-0000-0000-0000-000000000000/portfolios/00000000-0000-0000-0000-000000000000/complete?token=preview',
+    completion_url: 'https://welile.tech/partners/00000000-0000-0000-0000-000000000000/portfolios/00000000-0000-0000-0000-000000000000/complete?token=preview',
     currency: 'UGX',
     company_name: 'Welile',
   },

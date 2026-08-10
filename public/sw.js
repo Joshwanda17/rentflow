@@ -15,15 +15,15 @@ self.addEventListener('activate', (event) => {
 
 // Every notification is branded to the canonical Welile app origin, so a
 // worker that was registered on a legacy host still sends users to
-// welileapp.com when they tap.
-const WELILE_ORIGIN = 'https://welileapp.com';
+// welile.tech when they tap.
+const WELILE_ORIGIN = 'https://welile.tech';
 const WELILE_BRAND = 'Welile';
 
 function brandedUrl(url) {
   try {
     // Resolve against the canonical origin, then force that origin so an
     // absolute or protocol-relative URL (legacy host, or anything else) can
-    // never send a tap off welileapp.com. Path, query and hash are preserved.
+    // never send a tap off welile.tech. Path, query and hash are preserved.
     const raw = typeof url === 'string' && url.trim() ? url.trim() : '/';
     const parsed = new URL(raw, WELILE_ORIGIN);
     // Reject non-web schemes (javascript:, data:, mailto: …) outright.
@@ -57,7 +57,7 @@ self.addEventListener('push', (event) => {
     badge: data.badge || '/icon-192.png',
     tag: data.tag || data.notificationId || undefined,
     // Shown by browsers that support it (Chrome/Android) so the notification
-    // reads "welileapp.com" instead of the raw registration host.
+    // reads "welile.tech" instead of the raw registration host.
     dir: 'ltr',
     lang: 'en',
     data: {
@@ -83,7 +83,7 @@ self.addEventListener('notificationclick', (event) => {
     self.clients
       .matchAll({ type: 'window', includeUncontrolled: true })
       .then((clientList) => {
-        // Reuse a tab only when it is already on welileapp.com — client.navigate
+        // Reuse a tab only when it is already on welile.tech — client.navigate
         // cannot cross origins, so a tab left open on a legacy host must be
         // replaced by a fresh window on the canonical domain.
         for (const client of clientList) {

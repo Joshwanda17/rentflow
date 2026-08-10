@@ -29,7 +29,7 @@ import { copyFileSync, rmSync, readdirSync, statSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { resolve, dirname } from 'node:path';
 
-const BASE_URL = 'https://welileapp.com';
+const BASE_URL = 'https://welile.tech';
 const DIST = resolve('dist');
 const TEMPLATE_PATH = resolve(DIST, 'index.html');
 // Persist across builds (dist/ is wiped every `vite build`). node_modules/.cache

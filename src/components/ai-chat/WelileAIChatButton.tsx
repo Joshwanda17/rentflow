@@ -91,8 +91,8 @@ export function WelileAIPage() {
   return (
     <>
     <Helmet>
-      <link rel="canonical" href="https://welileapp.com/ai" />
-      <meta property="og:url" content="https://welileapp.com/ai" />
+      <link rel="canonical" href="https://welile.tech/ai" />
+      <meta property="og:url" content="https://welile.tech/ai" />
     </Helmet>
     <WelileAIChatDrawer
       open={open}

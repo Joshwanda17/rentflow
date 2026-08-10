@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const REVIEW_URL = "https://welileapp.com/director/dashboard";
+const REVIEW_URL = "https://welile.tech/director/dashboard";
 const STAFF_ROLES = ["ceo","cfo","coo","cto","cmo","crm","hr","manager","super_admin","operations","employee"];
 const DIRECTOR_PHONE = "0740834746";
 

@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
     const { subAgentId } = reqBody;
     const origin = typeof reqBody?.origin === "string" && reqBody.origin.startsWith("http")
       ? reqBody.origin.replace(/\/+$/, "")
-      : "https://welileapp.com";
+      : "https://welile.tech";
     // Optional short personal note shown to the invited user (max 100 chars).
     const inviteMessage = typeof reqBody?.inviteMessage === "string"
       ? reqBody.inviteMessage.trim().slice(0, 100)

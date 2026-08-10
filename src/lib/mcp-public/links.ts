@@ -3,14 +3,14 @@
 // attributed (see profiles.signup_source), and an optional role so a guided
 // prompt like "check my rent access" pre-selects the tenant signup path.
 
-const SIGNUP_BASE = "https://welileapp.com/auth";
+const SIGNUP_BASE = "https://welile.tech/auth";
 
 // Role-scoped deep-link landing path. Opens the public Welile AI onboarding
 // chat pre-scoped to a role (e.g. /ai?role=agent), so a tool response can route
 // a prospective user straight into the right onboarding flow instead of a bare
 // signup form. The landing page then surfaces role-specific guidance + the
 // correct signup CTA.
-const LANDING_BASE = "https://welileapp.com/ai";
+const LANDING_BASE = "https://welile.tech/ai";
 
 // Roles the Auth page accepts via the `role` query param (pre-selects signup).
 export const SIGNUP_ROLES = ["tenant", "agent", "landlord", "supporter"] as const;

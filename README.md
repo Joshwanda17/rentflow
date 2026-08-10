@@ -5,7 +5,7 @@
 
 Welile is a Ugandan rent-facilitation and fintech platform. Tenants who can't pay rent as a lump sum get a **Rent Plan**: Welile pays the landlord up front and the tenant repays daily over 7–120 days. Field **agents** originate, verify, and collect. **Supporters** (retail funders/partners) supply capital and earn **Returns**. Every shilling is double-entry accounted through a central ledger.
 
-* **Production URL:** [https://welileapp.com](https://welileapp.com)
+* **Production URL:** [https://welile.tech](https://welile.tech)
 * **Source repository:** [github.com/weliletenants-sys/welilereceipts-com-98bba33b](https://github.com/weliletenants-sys/welilereceipts-com-98bba33b) (this repo — managed via [Lovable](https://lovable.dev))
 
 > Regulatory terminology is mandatory in user-facing copy: *Rent Plan* (not loan), *Supporter* (not lender), *Returns* (not ROI).
@@ -109,4 +109,4 @@ The production app is a static SPA served through the Lovable proxy (`no-cache` 
 * `VITE_SUPABASE_PUBLISHABLE_KEY`
 * `VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY`
 
-The canonical public domain is `welileapp.com`. `scripts/guard-legacy-domain.mjs` fails the build if any shipping file references a legacy domain (see `scripts/site-domains.mjs`).
+The canonical public domain is `welile.tech`. `scripts/guard-legacy-domain.mjs` fails the build if any shipping file references a legacy domain (see `scripts/site-domains.mjs`).

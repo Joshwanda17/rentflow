@@ -42,8 +42,8 @@ export default function ResumeSms() {
   return (
     <>
       <Helmet>
-        <link rel="canonical" href="https://welileapp.com/resume-sms" />
-        <meta property="og:url" content="https://welileapp.com/resume-sms" />
+        <link rel="canonical" href="https://welile.tech/resume-sms" />
+        <meta property="og:url" content="https://welile.tech/resume-sms" />
       </Helmet>
     <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
       <Card className="w-full max-w-md">

@@ -175,7 +175,7 @@ async function main() {
   console.log(`sitemap.xml written (${entries.length} entries, ${houses.length} houses)`);
 
   // Legacy-domain sitemap: same paths on welilereceipts.com so Google recrawls
-  // them and picks up the 301 redirects to their canonical welileapp.com targets.
+  // them and picks up the 301 redirects to their canonical welile.tech targets.
   writeFileSync(
     resolve('public/sitemap-welilereceipts.xml'),
     generateSitemap(entries, LEGACY_BASE_URL),

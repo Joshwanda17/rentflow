@@ -60,7 +60,7 @@ export function TwoFactorCodeEmail({
             If this was not you, do NOT share this code. Sign in on your own device,
             open Settings, and change your password immediately.
           </Text>
-          <Text style={footer}>Welile · https://welileapp.com</Text>
+          <Text style={footer}>Welile · https://welile.tech</Text>
         </Container>
       </Body>
     </Html>

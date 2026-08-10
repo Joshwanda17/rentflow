@@ -1,4 +1,4 @@
-// SEO indexing monitor for welileapp.com.
+// SEO indexing monitor for welile.tech.
 //
 // Polls Google Search Console (sitemap status + URL inspection) through the
 // Lovable connector gateway, records a snapshot in
@@ -16,8 +16,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const SITE_URL = "https://welileapp.com/";
-const SITEMAP_URL = "https://welileapp.com/sitemap.xml";
+const SITE_URL = "https://welile.tech/";
+const SITEMAP_URL = "https://welile.tech/sitemap.xml";
 const GATEWAY = "https://connector-gateway.lovable.dev/google_search_console";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -97,11 +97,11 @@ function buildEmailHtml(kind: "first_indexation" | "errors", snap: Record<string
   const good = kind === "first_indexation";
   const accent = good ? "#16a34a" : "#dc2626";
   const title = good
-    ? "welileapp.com is now appearing in Google"
-    : "Indexing issue detected on welileapp.com";
+    ? "welile.tech is now appearing in Google"
+    : "Indexing issue detected on welile.tech";
   const lead = good
-    ? "Google Search Console now shows indexed pages for welileapp.com with no indexing errors."
-    : "Google Search Console reported a new indexing or sitemap error for welileapp.com.";
+    ? "Google Search Console now shows indexed pages for welile.tech with no indexing errors."
+    : "Google Search Console reported a new indexing or sitemap error for welile.tech.";
   const row = (k: string, v: unknown) =>
     `<tr><td style="padding:6px 12px;color:#64748b;font-size:13px">${k}</td><td style="padding:6px 12px;font-size:13px;font-weight:600">${v ?? "—"}</td></tr>`;
   return `<!doctype html><html><body style="font-family:Arial,Helvetica,sans-serif;background:#f5f3fa;margin:0;padding:24px;color:#1e1b2e">
@@ -212,8 +212,8 @@ Deno.serve(async (req) => {
     let emailResult: unknown = null;
     if (alert_type && (alert_type === "first_indexation" || alert_type === "errors") && alertsEnabled) {
       const subject = alert_type === "first_indexation"
-        ? "✅ welileapp.com is now indexed in Google (no errors)"
-        : "⚠️ Indexing issue detected on welileapp.com";
+        ? "✅ welile.tech is now indexed in Google (no errors)"
+        : "⚠️ Indexing issue detected on welile.tech";
       const r = await sendEmail(alertEmail, subject, buildEmailHtml(alert_type, snap));
       alertSent = r.ok;
       emailResult = { ok: r.ok, status: r.status };

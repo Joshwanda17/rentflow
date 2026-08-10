@@ -746,7 +746,7 @@ See §1.7 for the credential map. Operational notes:
 
 # 18. Deployment
 
-- **Frontend:** Vite build → static assets behind the Lovable proxy; HTML served \`no-cache\`. Chunk load failures recover with a plain \`window.location.reload()\`. Canonical custom domain: \`welileapp.com\` (plus \`www.welileapp.com\`); legacy receipt domains redirect there.
+- **Frontend:** Vite build → static assets behind the Lovable proxy; HTML served \`no-cache\`. Chunk load failures recover with a plain \`window.location.reload()\`. Canonical custom domain: \`welile.tech\` (plus \`www.welile.tech\`); legacy receipt domains redirect there.
 - **Edge Functions:** deployed individually; JWT verification configured per function in \`supabase/config.toml\`.
 - **Database:** migrations only; every new public table ships with GRANTs and RLS in the same migration; cron registration uses the insert tool, not migrations.
 - **Environments:** dev and prod each hold their own secret set (100-secret cap per environment).

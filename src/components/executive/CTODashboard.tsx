@@ -285,19 +285,19 @@ export function CTODashboard({ activeTab }: { activeTab?: string }) {
       {/* Maintenance Mode Control (CTO) */}
       <MaintenanceToggleCard />
 
-      {/* Google indexing monitor (welileapp.com SEO) */}
+      {/* Google indexing monitor (welile.tech SEO) */}
       <SeoIndexMonitorPanel />
 
-      {/* Search Console coverage comparison (welileapp.com vs the legacy domain) */}
+      {/* Search Console coverage comparison (welile.tech vs the legacy domain) */}
       <SeoCoverageDashboard />
 
-      {/* Domain redirect audit (legacy + www -> welileapp.com) */}
+      {/* Domain redirect audit (legacy + www -> welile.tech) */}
       <SeoRedirectAuditPanel />
 
-      {/* Change of Address readiness monitor (welilereceipts.com -> welileapp.com) */}
+      {/* Change of Address readiness monitor (welilereceipts.com -> welile.tech) */}
       <ChangeOfAddressMonitorPanel />
 
-      {/* Redirect uptime alerting (welilereceipts.com -> welileapp.com) */}
+      {/* Redirect uptime alerting (welilereceipts.com -> welile.tech) */}
       <RedirectHealthAlertsPanel />
 
       {/* Branded SERP visibility (Search Console demand + Semrush rank + profile presence) */}

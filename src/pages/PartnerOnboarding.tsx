@@ -364,8 +364,8 @@ export default function FunderOnboarding() {
     return (
       <>
       <Helmet>
-        <link rel="canonical" href="https://welileapp.com/partner-onboarding" />
-        <meta property="og:url" content="https://welileapp.com/partner-onboarding" />
+        <link rel="canonical" href="https://welile.tech/partner-onboarding" />
+        <meta property="og:url" content="https://welile.tech/partner-onboarding" />
       </Helmet>
       <ScreenLoader />
       </>
@@ -432,8 +432,8 @@ export default function FunderOnboarding() {
   return (
     <>
     <Helmet>
-      <link rel="canonical" href="https://welileapp.com/partner-onboarding" />
-      <meta property="og:url" content="https://welileapp.com/partner-onboarding" />
+      <link rel="canonical" href="https://welile.tech/partner-onboarding" />
+      <meta property="og:url" content="https://welile.tech/partner-onboarding" />
     </Helmet>
     <COODetailLayout
       title="Partner Onboarding"

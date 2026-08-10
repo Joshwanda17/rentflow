@@ -8,7 +8,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const PUBLIC_TRACK_BASE = "https://welileapp.com/business-advance/track";
+const PUBLIC_TRACK_BASE = "https://welile.tech/business-advance/track";
 
 type Status =
   | "pending"

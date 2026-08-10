@@ -1,6 +1,6 @@
 // Branded SERP visibility aggregator for the executive dashboard.
 //
-// Combines three read-only signals for welileapp.com:
+// Combines three read-only signals for welile.tech:
 //   1. Google Search Console — branded impressions/clicks/CTR/position (last 28d)
 //   2. Semrush — latest stored rank / organic keyword snapshot
 //   3. Profile presence — live verification status across search surfaces
@@ -15,7 +15,7 @@ const corsHeaders = {
 };
 
 const GSC_GATEWAY = "https://connector-gateway.lovable.dev/google_search_console";
-const SITE_URL = "https://welileapp.com/";
+const SITE_URL = "https://welile.tech/";
 const SITE_ENC = encodeURIComponent(SITE_URL);
 const BRAND_TERM = "welile";
 
@@ -118,7 +118,7 @@ async function fetchGscVerified(): Promise<boolean> {
 // Live-fetch the published site and detect verification/presence meta tags.
 async function fetchSiteMeta() {
   try {
-    const res = await fetch("https://welileapp.com/", {
+    const res = await fetch("https://welile.tech/", {
       headers: { "User-Agent": "WelileBrandMonitor/1.0" },
     });
     if (!res.ok) return { bing: false, yandex: false, google_meta: false };
@@ -217,7 +217,7 @@ Deno.serve(async (req) => {
       JSON.stringify({
         ok: true,
         checked_at: new Date().toISOString(),
-        domain: "welileapp.com",
+        domain: "welile.tech",
         search_console: searchConsole,
         semrush,
         profiles,

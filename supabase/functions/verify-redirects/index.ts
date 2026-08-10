@@ -1,5 +1,5 @@
 // verify-redirects — quick diagnostic endpoint that confirms every legacy /
-// variant host resolves to the canonical https://welileapp.com.
+// variant host resolves to the canonical https://welile.tech.
 //
 // GET https://<project>.functions.supabase.co/verify-redirects
 // Returns JSON: per-host status, redirect chain, final URL, and an overall
@@ -12,13 +12,13 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "GET, OPTIONS",
 };
 
-const CANONICAL = "https://welileapp.com";
-const CANONICAL_HOST = "welileapp.com";
+const CANONICAL = "https://welile.tech";
+const CANONICAL_HOST = "welile.tech";
 
-// Hosts that must all end up on welileapp.com.
+// Hosts that must all end up on welile.tech.
 const TARGETS: Array<{ url: string; expect: "canonical" | "redirect" }> = [
-  { url: "https://welileapp.com/", expect: "canonical" },
-  { url: "https://www.welileapp.com/", expect: "redirect" },
+  { url: "https://welile.tech/", expect: "canonical" },
+  { url: "https://www.welile.tech/", expect: "redirect" },
   { url: "https://welilereceipts-com.lovable.app/", expect: "redirect" }, // legacy-domain-guard-allow
   { url: "http://welilereceipts.com/", expect: "redirect" }, // legacy-domain-guard-allow
   { url: "http://welilereciept.com/", expect: "redirect" }, // legacy-domain-guard-allow

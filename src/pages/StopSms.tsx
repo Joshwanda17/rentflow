@@ -42,8 +42,8 @@ export default function StopSms() {
   return (
     <>
       <Helmet>
-        <link rel="canonical" href="https://welileapp.com/stop-sms" />
-        <meta property="og:url" content="https://welileapp.com/stop-sms" />
+        <link rel="canonical" href="https://welile.tech/stop-sms" />
+        <meta property="og:url" content="https://welile.tech/stop-sms" />
       </Helmet>
     <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
       <Card className="w-full max-w-md">

@@ -74,7 +74,7 @@ export function DailyAgentCard({
           {/* Header */}
           <Section style={headerRow}>
             <Img
-              src="https://welileapp.com/welile-logo.png"
+              src="https://welile.tech/welile-logo.png"
               alt="Welile"
               height={36}
               style={{ objectFit: 'contain' }}
@@ -170,7 +170,7 @@ export function DailyAgentCard({
             </Text>
           </Section>
 
-          <Text style={footer}>Powered by Welile · welileapp.com</Text>
+          <Text style={footer}>Powered by Welile · welile.tech</Text>
         </Container>
       </Body>
     </Html>

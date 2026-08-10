@@ -76,8 +76,8 @@ export function buildPartnershipEmailRequest(
       roi_payment_day: ctx.payoutDay,
       currency: 'UGX',
       company_name: 'Welile',
-      logo_url: 'https://welileapp.com/welile-logo.png',
-      dashboard_url: 'https://welileapp.com/auth',
+      logo_url: 'https://welile.tech/welile-logo.png',
+      dashboard_url: 'https://welile.tech/auth',
     },
   };
 }

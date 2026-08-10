@@ -96,7 +96,7 @@ export function SemrushBrandTrackerPanel() {
             <Search className="w-5 h-5" /> Brand Search Tracker
           </CardTitle>
           <p className="text-sm text-muted-foreground mt-1">
-            Semrush branded keywords &amp; backlink profile for welileapp.com
+            Semrush branded keywords &amp; backlink profile for welile.tech
           </p>
         </div>
         <Button size="sm" onClick={() => snapshot.mutate()} disabled={snapshot.isPending}>

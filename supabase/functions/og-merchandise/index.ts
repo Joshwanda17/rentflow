@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const SITE_URL = "https://welileapp.com";
+const SITE_URL = "https://welile.tech";
 
 function formatUGX(amount: number): string {
   return `UGX ${Number(amount || 0).toLocaleString("en-UG")}`;
@@ -101,7 +101,7 @@ Deno.serve(async (req) => {
   );
   const segments = url.pathname.split("/").filter(Boolean);
   // Short branded links arrive as ?code=<code> (proxied from
-  // s.welileapp.com/m/<code>) or as /og-merchandise/m/<code>.
+  // s.welile.tech/m/<code>) or as /og-merchandise/m/<code>.
   const shareCode =
     url.searchParams.get("code") ||
     (segments.length >= 2 && segments[segments.length - 2] === "m"

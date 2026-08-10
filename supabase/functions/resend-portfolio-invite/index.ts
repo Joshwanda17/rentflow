@@ -113,7 +113,7 @@ Deno.serve(async (req) => {
       return json({ error: `Could not refresh the invite link: ${tokErr.message}` }, 500);
     }
 
-    const origin = req.headers.get("origin") || "https://welileapp.com";
+    const origin = req.headers.get("origin") || "https://welile.tech";
     const completionUrl =
       `${origin}/partners/${portfolio.investor_id}/portfolios/${portfolioId}/complete?token=${encodeURIComponent(rawToken)}`;
 
