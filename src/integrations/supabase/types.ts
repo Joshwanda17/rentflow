@@ -35940,6 +35940,15 @@ export type Database = {
         }
         Returns: number
       }
+      my_partner_lead_agents: {
+        Args: never
+        Returns: {
+          agent_id: string
+          attached_at: string
+          full_name: string
+          phone: string
+        }[]
+      }
       my_partner_lead_invite: {
         Args: never
         Returns: {
