@@ -541,7 +541,36 @@ Deno.serve(async (req) => {
 
     const { data: state } = await supabase
       .from('gmail_poll_state').select('*').eq('id', 1).maybeSingle();
-    const lastMs: number = Number(state?.last_internal_date_ms ?? 0);
+
+    // ── Timestamp watermark, defensively clamped ───────────────────────────
+    // `internalDate` is sender-influenced: some banks/URA stamp EAT wall-clock
+    // as UTC, which lands ~3h in the FUTURE. The old monotonic cutoff accepted
+    // that value and then discarded every subsequent (correctly dated) email as
+    // `older_than_last_poll` — a single message could blackhole intake for
+    // hours while every tick still reported `ok`.
+    //
+    // Two guards:
+    //   1. Never ADVANCE the cutoff past now + FUTURE_SKEW_MS.
+    //   2. Never TRUST a stored cutoff that is already in the future (self-heals
+    //      a poisoned gmail_poll_state row without any backfill).
+    //
+    // The durable de-dup guard is ID-based, not time-based: every message is
+    // checked against gmail_transactions.gmail_message_id (and transaction_id /
+    // dedup_hash) before insert, so clamping the timestamp cutoff cannot cause
+    // duplicates — it only widens the scan window. Long-term the timestamp
+    // cutoff should be replaced entirely by a Gmail `historyId` watermark
+    // (users.history.list), with the ID checks below as the safety net.
+    const FUTURE_SKEW_MS = 2 * 60 * 1000;
+    const pollNowMs = Date.now();
+    const maxAcceptableMs = pollNowMs + FUTURE_SKEW_MS;
+    const storedLastMs: number = Number(state?.last_internal_date_ms ?? 0);
+    const lastMs: number = storedLastMs > maxAcceptableMs ? 0 : storedLastMs;
+    if (storedLastMs > maxAcceptableMs) {
+      console.warn(
+        `[gmail-poll] stored cutoff ${new Date(storedLastMs).toISOString()} is in the future ` +
+        `(now ${new Date(pollNowMs).toISOString()}) — ignoring it for this tick and re-anchoring to real time.`,
+      );
+    }
 
     // List recent matching messages
     const list = await gmailFetch(
@@ -550,6 +579,15 @@ Deno.serve(async (req) => {
     const messages: { id: string; threadId: string }[] = list?.messages ?? [];
 
     let inserted = 0; let newestMs = lastMs;
+    /** Advance the cutoff only with sane, non-future timestamps. */
+    const advanceCutoff = (ms: number) => {
+      if (!ms || !Number.isFinite(ms)) return;
+      if (ms > maxAcceptableMs) {
+        console.warn(`[gmail-poll] ignoring future-dated internalDate ${new Date(ms).toISOString()} for the cutoff`);
+        return;
+      }
+      if (ms > newestMs) newestMs = ms;
+    };
     const debugReport: any[] = [];
     for (const m of messages) {
       const { data: existing } = await supabase
@@ -590,7 +628,7 @@ Deno.serve(async (req) => {
           reason: 'self_cash_code_notification',
           metadata: { gmail_message_id: m.id, from: fromEmail, subject },
         });
-        if (internalMs > newestMs) newestMs = internalMs;
+        advanceCutoff(internalMs);
         continue;
       }
 
@@ -603,7 +641,7 @@ Deno.serve(async (req) => {
         });
         continue;
       }
-      if (internalMs > newestMs) newestMs = internalMs;
+      advanceCutoff(internalMs);
 
       const isParsed = !!(parsed.amount || parsed.transaction_id);
       const internalDateObj = internalMs ? new Date(internalMs) : null;

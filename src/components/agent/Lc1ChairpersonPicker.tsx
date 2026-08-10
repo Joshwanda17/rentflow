@@ -2,19 +2,12 @@ import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Shield, ShieldCheck, Search, Loader2, X, UserPlus, ChevronDown } from 'lucide-react';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { normalizeDistrict, districtWarning, regionLabel } from '@/lib/ugandaDistricts';
-
-const REGIONS = [
-  'Central', 'Eastern', 'Northern', 'Western',
-  'Kampala', 'Wakiso', 'Mukono', 'Jinja', 'Mbale',
-  'Mbarara', 'Gulu', 'Lira', 'Fort Portal', 'Masaka',
-  'Entebbe', 'Nansana', 'Kira', 'Bweyogerere',
-];
+import { UgLocationPicker } from '@/components/location/UgLocationPicker';
+import type { UgLocationSelection } from '@/hooks/useUgLocations';
 
 /**
  * The agent's LC1 chairperson choice for a listing.
@@ -37,6 +30,8 @@ export interface Lc1Selection {
   cell?: string;
   zone?: string;
   village: string;
+  /** Official ug_villages.id backing the selected village (new LC1 only). */
+  ug_village_id?: number | null;
 }
 
 interface Lc1Hit {
@@ -56,6 +51,11 @@ interface Lc1ChairpersonPickerProps {
   defaultRegion?: string;
   defaultDistrict?: string;
   defaultVillage?: string;
+  /**
+   * Scope the official village search to this district (taken from the linked
+   * landlord / house listing when known).
+   */
+  scopeDistrictName?: string | null;
   /** Highlight missing required fields after a failed submit. */
   attempted?: boolean;
 }
@@ -81,6 +81,7 @@ export function Lc1ChairpersonPicker({
   defaultRegion = '',
   defaultDistrict = '',
   defaultVillage = '',
+  scopeDistrictName = null,
   attempted = false,
 }: Lc1ChairpersonPickerProps) {
   const [query, setQuery] = useState('');
@@ -88,6 +89,7 @@ export function Lc1ChairpersonPicker({
   const [searching, setSearching] = useState(false);
   const [searchedOnce, setSearchedOnce] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
+  const [ugLoc, setUgLoc] = useState<UgLocationSelection | null>(null);
 
   const search = async () => {
     const q = query.trim();
@@ -138,11 +140,28 @@ export function Lc1ChairpersonPicker({
     onChange(null);
     setResults([]);
     setSearchedOnce(false);
+    setUgLoc(null);
   };
 
   const patchNew = (patch: Partial<Lc1Selection>) => {
     if (!value || value.mode !== 'new') return;
     onChange({ ...value, ...patch });
+  };
+
+  /** One official village pick fills region → village on the selection. */
+  const applyUgLocation = (sel: UgLocationSelection | null) => {
+    setUgLoc(sel);
+    if (!value || value.mode !== 'new') return;
+    onChange({
+      ...value,
+      region: sel?.region ?? '',
+      district: sel?.district ?? '',
+      county: sel?.county ?? '',
+      sub_county: sel?.subcounty ?? '',
+      parish: sel?.parish ?? '',
+      village: sel?.village ?? '',
+      ug_village_id: sel?.villageId ?? null,
+    });
   };
 
   const invalid = (cond: boolean) => (attempted && cond ? 'border-destructive' : '');
@@ -272,46 +291,22 @@ export function Lc1ChairpersonPicker({
             </div>
           </div>
 
-          {/* Uganda administrative structure */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-xs">Region *</Label>
-              <Select value={value.region || ''} onValueChange={(v) => patchNew({ region: v })}>
-                <SelectTrigger className={invalid(!value.region)}><SelectValue placeholder="Select" /></SelectTrigger>
-                <SelectContent>
-                  {REGIONS.map((r) => (
-                    <SelectItem key={r} value={r}>{regionLabel(r)}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs">District *</Label>
-              <Input
-                placeholder="District"
-                value={value.district || ''}
-                onChange={(e) => patchNew({ district: e.target.value })}
-                onBlur={(e) => {
-                  const normalized = normalizeDistrict(e.target.value);
-                  if (normalized && normalized !== e.target.value.trim()) patchNew({ district: normalized });
-                }}
-                className={invalid(!(value.district || '').trim())}
-              />
-              {districtWarning(value.district || '') && (
-                <p className="text-[10px] text-warning leading-tight mt-1">{districtWarning(value.district || '')}</p>
-              )}
-            </div>
-          </div>
-
-          <div>
-            <Label className="text-xs">Village / Zone *</Label>
-            <Input
-              placeholder="e.g. Kikaya Zone B"
-              value={value.village}
-              onChange={(e) => patchNew({ village: e.target.value })}
-              className={invalid(!value.village.trim())}
-            />
-          </div>
+          {/* Official Uganda administrative location — one pick fills the whole
+              chain (region → district → county → sub-county → parish → village). */}
+          <UgLocationPicker
+            value={ugLoc}
+            onChange={applyUgLocation}
+            label="Chairperson village (official)"
+            required
+            districtName={scopeDistrictName || null}
+            error={attempted && !value.village.trim() ? 'Select the chairperson village from the official list' : null}
+          />
+          {value.village.trim() && (
+            <p className="text-[11px] text-muted-foreground">
+              {[value.village, value.parish, value.sub_county, value.county, value.district]
+                .filter(Boolean).join(' · ')}
+            </p>
+          )}
 
           {/* Deeper admin levels — collapsed to keep it simple for ordinary agents */}
           <div className="border border-border rounded-xl overflow-hidden">
@@ -321,27 +316,15 @@ export function Lc1ChairpersonPicker({
               className="w-full flex items-center justify-between px-3 py-2.5 bg-muted/30 hover:bg-muted/50 transition-colors text-left"
             >
               <span className="text-xs font-semibold text-muted-foreground uppercase">
-                More location detail {showAdmin ? '' : '(county, parish, cell…)'}
+                More location detail {showAdmin ? '' : '(town council, cell, zone)'}
               </span>
               <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${showAdmin ? 'rotate-180' : ''}`} />
             </button>
             {showAdmin && (
               <div className="p-3 grid grid-cols-2 gap-3">
                 <div>
-                  <Label className="text-xs">County</Label>
-                  <Input value={value.county || ''} onChange={(e) => patchNew({ county: e.target.value })} placeholder="County" />
-                </div>
-                <div>
-                  <Label className="text-xs">Sub-county</Label>
-                  <Input value={value.sub_county || ''} onChange={(e) => patchNew({ sub_county: e.target.value })} placeholder="Sub-county" />
-                </div>
-                <div>
                   <Label className="text-xs">Town council</Label>
                   <Input value={value.town_council || ''} onChange={(e) => patchNew({ town_council: e.target.value })} placeholder="Town council" />
-                </div>
-                <div>
-                  <Label className="text-xs">Parish</Label>
-                  <Input value={value.parish || ''} onChange={(e) => patchNew({ parish: e.target.value })} placeholder="Parish" />
                 </div>
                 <div>
                   <Label className="text-xs">Cell</Label>
@@ -368,9 +351,9 @@ export function validateLc1Selection(sel: Lc1Selection | null): string | null {
   if (!sel.name.trim()) return 'LC1 chairperson name is required';
   if (!sel.phone.trim()) return 'LC1 chairperson phone is required';
   if (sel.mode === 'new') {
-    if (!sel.region) return 'Select the LC1 chairperson region';
-    if (!(sel.district || '').trim()) return 'Enter the LC1 chairperson district';
-    if (!sel.village.trim()) return 'Enter the LC1 chairperson village / zone';
+    if (!sel.village.trim() || !sel.ug_village_id) {
+      return 'Select the LC1 chairperson village from the official list';
+    }
   }
   return null;
 }

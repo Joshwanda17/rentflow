@@ -15464,6 +15464,7 @@ export type Database = {
           service_center_status: string
           sub_county: string | null
           town_council: string | null
+          ug_village_id: number | null
           verification_bonus_paid: boolean
           verification_bonus_paid_at: string | null
           verification_reason: string | null
@@ -15498,6 +15499,7 @@ export type Database = {
           service_center_status?: string
           sub_county?: string | null
           town_council?: string | null
+          ug_village_id?: number | null
           verification_bonus_paid?: boolean
           verification_bonus_paid_at?: string | null
           verification_reason?: string | null
@@ -15532,6 +15534,7 @@ export type Database = {
           service_center_status?: string
           sub_county?: string | null
           town_council?: string | null
+          ug_village_id?: number | null
           verification_bonus_paid?: boolean
           verification_bonus_paid_at?: string | null
           verification_reason?: string | null
@@ -15542,7 +15545,15 @@ export type Database = {
           village?: string
           zone?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "lc1_chairpersons_ug_village_id_fkey"
+            columns: ["ug_village_id"]
+            isOneToOne: false
+            referencedRelation: "ug_villages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       lc1_verification_requests: {
         Row: {
@@ -34444,6 +34455,20 @@ export type Database = {
           total_buckets: number
         }[]
       }
+      get_gmail_intake_health: {
+        Args: { p_silence_minutes?: number }
+        Returns: {
+          cutoff_at: string
+          cutoff_is_future: boolean
+          intake_silent: boolean
+          last_error: string
+          last_insert_at: string
+          last_polled_at: string
+          last_status: string
+          poll_stale: boolean
+          silence_minutes: number
+        }[]
+      }
       get_house_activity_timeline: {
         Args: { p_house_id: string }
         Returns: {
@@ -34749,6 +34774,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_partner_ops_daily_report: { Args: { p_date?: string }; Returns: Json }
       get_payout_delivery_audit: {
         Args: { p_limit?: number; p_user_id?: string }
         Returns: {

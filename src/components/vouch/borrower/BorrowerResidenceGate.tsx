@@ -18,6 +18,8 @@ import { motion } from 'framer-motion';
 import LandlordRegistrationForm from '@/components/shared/LandlordRegistrationForm';
 import { LandlordAutocompleteInput } from '@/components/agent/LandlordAutocompleteInput';
 import type { LandlordOption } from '@/components/agent/LandlordSearchSelect';
+import { UgLocationPicker } from '@/components/location/UgLocationPicker';
+import type { UgLocationSelection } from '@/hooks/useUgLocations';
 
 export type VerifStatus = 'verified' | 'pending' | 'rejected';
 
@@ -119,6 +121,8 @@ export default function BorrowerResidenceGate({ open, onOpenChange, onComplete }
   const [lc1Results, setLc1Results] = useState<LinkedLc1[]>([]);
   const [lc1Searching, setLc1Searching] = useState(false);
   const [lc1Form, setLc1Form] = useState({ name: '', phone: '', village: '' });
+  // Official dataset village for a newly-added LC1 (mandatory).
+  const [lc1UgLoc, setLc1UgLoc] = useState<UgLocationSelection | null>(null);
 
   const loadProfile = useCallback(async () => {
     if (!user) return;
@@ -214,6 +218,7 @@ export default function BorrowerResidenceGate({ open, onOpenChange, onComplete }
       setLandlordSearch('');
       setLc1Search('');
       setLc1Form({ name: '', phone: '', village: '' });
+      setLc1UgLoc(null);
       loadProfile();
     }
   }, [open, loadProfile]);
@@ -283,16 +288,24 @@ export default function BorrowerResidenceGate({ open, onOpenChange, onComplete }
   const handleAddLc1 = async () => {
     if (!user) return;
     if (!lc1Form.name.trim()) { toast.error('LC1 name is required'); return; }
+    if (!lc1Form.phone.trim()) { toast.error('LC1 phone is required'); return; }
+    if (!lc1UgLoc) { toast.error('Select the LC1 village from the official list'); return; }
     setSaving(true);
     const { data, error } = await supabase
       .from('lc1_chairpersons')
       .insert({
         name: lc1Form.name.trim(),
-        phone: lc1Form.phone.trim() || null,
-        village: lc1Form.village.trim() || null,
+        phone: lc1Form.phone.trim(),
+        village: lc1UgLoc.village,
+        region: lc1UgLoc.region ?? null,
+        district: lc1UgLoc.district,
+        county: lc1UgLoc.county,
+        sub_county: lc1UgLoc.subcounty,
+        parish: lc1UgLoc.parish,
+        ug_village_id: lc1UgLoc.villageId,
         registered_by: user.id,
         verified: false,
-      })
+      } as any)
       .select('id')
       .single();
     setSaving(false);
@@ -414,13 +427,19 @@ export default function BorrowerResidenceGate({ open, onOpenChange, onComplete }
                   <Input value={lc1Form.name} onChange={(e) => setLc1Form((f) => ({ ...f, name: e.target.value }))} placeholder="Full name" className="h-9 text-sm" />
                 </div>
                 <div>
-                  <Label className="text-xs">Phone</Label>
+                  <Label className="text-xs">Phone *</Label>
                   <Input value={lc1Form.phone} onChange={(e) => setLc1Form((f) => ({ ...f, phone: e.target.value }))} placeholder="07XXXXXXXX" inputMode="tel" className="h-9 text-sm" />
                 </div>
-                <div>
-                  <Label className="text-xs">Village / zone</Label>
-                  <Input value={lc1Form.village} onChange={(e) => setLc1Form((f) => ({ ...f, village: e.target.value }))} placeholder="Village name" className="h-9 text-sm" />
-                </div>
+                <UgLocationPicker
+                  value={lc1UgLoc}
+                  onChange={(sel) => {
+                    setLc1UgLoc(sel);
+                    setLc1Form((f) => ({ ...f, village: sel?.village ?? '' }));
+                  }}
+                  label="LC1 village (official)"
+                  required
+                  districtName={landlord?.district ?? null}
+                />
                 <p className="text-[10px] text-muted-foreground">Your LC1 will be verified by our team later. You can still continue now.</p>
                 <Button size="sm" className="w-full h-9 font-bold" disabled={saving} onClick={handleAddLc1}>
                   {saving && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
