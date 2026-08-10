@@ -148,8 +148,11 @@ export default function MerchandiseStore() {
   const dueNow = payMode === 'full' ? orderTotal : firstInstallment;
   const remainingAfter = Math.max(0, orderTotal - dueNow);
   const insufficient = selected
-    ? (payMode === 'full' ? orderTotal > availableWallet : firstInstallment <= 0)
+    ? (payMode === 'full' ? orderTotal > availableWallet : false)
     : false;
+  // Installments work even with an empty wallet: nothing is taken at checkout
+  // and the whole price is recovered later at 25% per recovery run.
+  const zeroDown = payMode === 'installment' && dueNow <= 0;
 
   const pickImage = (item: CatalogItem | null): string | null => {
     if (!item) return null;
@@ -262,7 +265,9 @@ export default function MerchandiseStore() {
     toast.success(
       payMode === 'full'
         ? `${selected.item_name} ordered. ${formatUGX(orderTotal)} debited from your wallet.`
-        : `${selected.item_name} ordered on installments. ${formatUGX(dueNow)} paid now, ${formatUGX(remainingAfter)} to go.`,
+        : zeroDown
+          ? `${selected.item_name} ordered on installments. Nothing taken now — ${formatUGX(remainingAfter)} will be recovered from your wallet.`
+          : `${selected.item_name} ordered on installments. ${formatUGX(dueNow)} paid now, ${formatUGX(remainingAfter)} to go.`,
     );
     setSuccess({
       itemName: selected.item_name,
@@ -615,8 +620,9 @@ export default function MerchandiseStore() {
                     {payMode === 'installment' && <CheckCircle2 className="h-4 w-4 text-primary" />}
                   </div>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
-                    25% of the price ({formatUGX(installmentAmount)}) is taken now and at every recovery run until the
-                    {' '}{formatUGX(orderTotal)} price is cleared. No extra charge.
+                    25% of the price ({formatUGX(installmentAmount)}) is taken at every recovery run until the
+                    {' '}{formatUGX(orderTotal)} price is cleared. No extra charge. Works even with a zero wallet balance —
+                    nothing is taken until money lands.
                   </p>
                 </button>
               </div>
@@ -631,7 +637,7 @@ export default function MerchandiseStore() {
                 <span className="font-semibold">{formatUGX(orderTotal)}</span>
               </div>
               <div className={`rounded-lg px-3 py-2 flex justify-between text-sm ${insufficient ? 'bg-destructive/10 text-destructive' : 'bg-primary/5 text-foreground'}`}>
-                <span className="text-muted-foreground">{payMode === 'full' ? 'Total to debit now' : 'First installment (25% of price) now'}</span>
+                <span className="text-muted-foreground">{payMode === 'full' ? 'Total to debit now' : zeroDown ? 'Due now (wallet is empty)' : 'First installment (25% of price) now'}</span>
                 <span className="font-bold">{formatUGX(dueNow)}</span>
               </div>
               {payMode === 'installment' && !insufficient && (
@@ -640,15 +646,21 @@ export default function MerchandiseStore() {
                   <span className="font-semibold">{formatUGX(remainingAfter)}</span>
                 </div>
               )}
+              {payMode === 'installment' && zeroDown && (
+                <div className="rounded-lg bg-primary/5 border border-primary/20 px-3 py-2 flex gap-2 text-[11px] text-muted-foreground">
+                  <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                  <p>
+                    <span className="font-semibold text-foreground">Nothing is taken now.</span> The full
+                    {' '}{formatUGX(orderTotal)} stays as your balance and 25% is recovered from your wallet at every
+                    recovery run once money lands.
+                  </p>
+                </div>
+              )}
               {insufficient ? (
                 <div className="rounded-lg bg-destructive/10 border border-destructive/30 px-3 py-2 flex gap-2 text-[11px] text-destructive">
                   <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
                   <p>
-                    {payMode === 'full' ? (
-                      <><span className="font-semibold">Amount exceeds your available wallet balance of {formatUGX(availableWallet)}.</span> Reduce the quantity or choose installments.</>
-                    ) : (
-                      <><span className="font-semibold">Your wallet is empty.</span> An installment plan needs a wallet balance to take the first 25%.</>
-                    )}
+                    <span className="font-semibold">Amount exceeds your available wallet balance of {formatUGX(availableWallet)}.</span> Reduce the quantity or choose installments.
                   </p>
                 </div>
               ) : confirmStep ? (
@@ -660,8 +672,10 @@ export default function MerchandiseStore() {
                   ) : (
                     <>You are starting an installment plan for <span className="font-semibold text-foreground">{qty} × {selected.item_name}</span> at
                     {' '}<span className="font-semibold text-foreground">{formatUGX(orderTotal)}</span>.
-                    {' '}<span className="font-semibold text-foreground">{formatUGX(dueNow)}</span> is taken now and
-                    25% of the price ({formatUGX(installmentAmount)}) keeps being applied until the balance reaches zero.</>
+                    {' '}{zeroDown
+                      ? <><span className="font-semibold text-foreground">Nothing is taken now</span> because your wallet is empty, and</>
+                      : <><span className="font-semibold text-foreground">{formatUGX(dueNow)}</span> is taken now and</>}
+                    {' '}25% of the price ({formatUGX(installmentAmount)}) keeps being applied until the balance reaches zero.</>
                   )}
                   {' '}Marketing (CMO) sees this order and your payment plan.
                 </div>
@@ -679,7 +693,7 @@ export default function MerchandiseStore() {
               <>
                 <Button variant="outline" onClick={() => setConfirmStep(false)} disabled={ordering}>Back</Button>
                 <Button onClick={placeOrder} disabled={ordering || insufficient}>
-                  {ordering ? 'Placing order…' : `Yes, pay ${formatUGX(dueNow)}`}
+                  {ordering ? 'Placing order…' : zeroDown ? 'Yes, place order' : `Yes, pay ${formatUGX(dueNow)}`}
                 </Button>
               </>
             ) : (
