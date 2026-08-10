@@ -13,7 +13,6 @@ export const VAPID_PUBLIC_KEY =
  * that already exist.
  */
 const LEGACY_PUSH_HOSTS = [
-  "welile.tech", // legacy-domain-guard-allow
   "welilereceipts.com", // legacy-domain-guard-allow
   "welilereciept.com", // legacy-domain-guard-allow
 ];
