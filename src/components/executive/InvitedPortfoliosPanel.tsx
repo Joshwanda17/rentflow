@@ -518,6 +518,8 @@ function ReviewSubmissionDialog({
   const [repPosition, setRepPosition] = useState('');
   const [repContact, setRepContact] = useState('');
   const [sigDataUrl, setSigDataUrl] = useState<string | undefined>();
+  // Stamp / execution date shown on the Welile stamp and DATE field.
+  const [stampDate, setStampDate] = useState('');
 
   const { data: submission, isLoading } = useQuery({
     queryKey: ['invited-portfolio-submission', row?.id, row?.investor_id],
@@ -571,6 +573,18 @@ function ReviewSubmissionDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [row?.id, defaults?.rep_name, defaults?.rep_position, defaults?.rep_contact]);
 
+  // Seed the stamp date from the stored agreement date, else today.
+  useEffect(() => {
+    if (!row) return;
+    const src = agreement?.agreement_date ? new Date(agreement.agreement_date) : new Date();
+    if (!Number.isNaN(src.getTime())) {
+      setStampDate(
+        `${src.getFullYear()}-${String(src.getMonth() + 1).padStart(2, '0')}-${String(src.getDate()).padStart(2, '0')}`
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [row?.id, agreement?.agreement_date]);
+
   const onSignatureFile = (file?: File) => {
     if (!file) return;
     if (!file.type.startsWith('image/')) {
@@ -605,7 +619,14 @@ function ReviewSubmissionDialog({
     momoName: agreement.momo_name || profile.mobile_money_name || '',
     kinName: agreement.kin_name || '',
     kinContact: agreement.kin_contact || '',
-    agreementDate: agreement.agreement_date ? new Date(agreement.agreement_date) : new Date(),
+    agreementDate: (() => {
+      if (stampDate) {
+        const [y, m, d] = stampDate.split('-').map(Number);
+        const picked = new Date(y, (m || 1) - 1, d || 1);
+        if (!Number.isNaN(picked.getTime())) return picked;
+      }
+      return agreement.agreement_date ? new Date(agreement.agreement_date) : new Date();
+    })(),
     partnerSignatureDataUrl: signature,
     welileRepName: repName,
     welileRepPosition: repPosition,
@@ -646,6 +667,7 @@ function ReviewSubmissionDialog({
     ...(!repName.trim() ? ['Missing Welile representative name.'] : []),
     ...(!repPosition.trim() ? ['Missing Welile representative position.'] : []),
     ...(!repContact.trim() ? ['Missing Welile representative contact.'] : []),
+    ...(!stampDate ? ['Missing stamp date.'] : []),
     ...(!(sigDataUrl || defaultSigUrl) ? ['Missing Welile representative signature.'] : []),
   ];
   const approvalBlocked = approvalBlockers.length > 0;
@@ -753,6 +775,18 @@ function ReviewSubmissionDialog({
                   <div className="space-y-1">
                     <Label className="text-[11px]">Contact</Label>
                     <Input value={repContact} onChange={(e) => setRepContact(e.target.value)} placeholder="Phone or email" className="h-8 text-xs" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px]">Stamp date</Label>
+                    <Input
+                      type="date"
+                      value={stampDate}
+                      onChange={(e) => setStampDate(e.target.value)}
+                      className="h-8 text-xs"
+                    />
+                    <p className="text-[10px] text-muted-foreground">
+                      Sets the DATE field and the date printed inside the Welile stamp.
+                    </p>
                   </div>
                   <div className="space-y-1">
                     <Label className="text-[11px]">Signature image</Label>
