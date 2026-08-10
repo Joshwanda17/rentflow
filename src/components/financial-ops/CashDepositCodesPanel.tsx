@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
-import { KeyRound, RefreshCw, Loader2, Copy, Check, Clock, Radio, ChevronDown } from 'lucide-react';
+import { KeyRound, RefreshCw, Loader2, Copy, Check, Clock, Radio, ChevronDown, Smartphone } from 'lucide-react';
+import { StartCashDepositDialog } from './StartCashDepositDialog';
 
 interface CashCodeRow {
   verification_id: string;
@@ -211,8 +212,11 @@ export function CashDepositCodesPanel() {
   const activeCount = activeRows.length;
 
   const [open, setOpen] = useState(true);
+  const [startOpen, setStartOpen] = useState(false);
 
   return (
+    <>
+    <StartCashDepositDialog open={startOpen} onOpenChange={setStartOpen} onIssued={load} />
     <Collapsible open={open} onOpenChange={setOpen} className="rounded-xl border bg-card">
       <CollapsibleTrigger asChild>
         <div className="flex items-center justify-between gap-3 cursor-pointer p-4 sm:p-5 hover:bg-muted/30 transition-colors rounded-t-xl">
@@ -228,6 +232,15 @@ export function CashDepositCodesPanel() {
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
+            <Button
+              size="sm"
+              onClick={(e) => { e.stopPropagation(); setStartOpen(true); }}
+              className="gap-1.5"
+            >
+              <Smartphone className="h-4 w-4" />
+              <span className="hidden sm:inline">Start deposit by SMS</span>
+              <span className="sm:hidden">SMS code</span>
+            </Button>
             <Badge
               variant="outline"
               className="hidden sm:inline-flex items-center gap-1 text-[10px] font-normal text-muted-foreground border-dashed"
@@ -334,5 +347,6 @@ export function CashDepositCodesPanel() {
         </div>
       </CollapsibleContent>
     </Collapsible>
+    </>
   );
 }
