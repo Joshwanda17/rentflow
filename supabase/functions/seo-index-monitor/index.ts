@@ -44,6 +44,13 @@ function numOrNull(v: unknown): number | null {
 function strOrNull(v: unknown): string | null {
   return v === null || v === undefined || v === "" ? null : String(v);
 }
+// Google returns *_UNSPECIFIED when it has NOT measured a state (e.g. URL unknown
+// to Google). That is "absent", not "bad" — it must never reach alert logic.
+function stateOrNull(v: unknown): string | null {
+  const s = strOrNull(v);
+  if (s === null) return null;
+  return /_UNSPECIFIED$/.test(s) || s === "UNSPECIFIED" ? null : s;
+}
 
 function gscHeaders() {
   const lovableKey = Deno.env.get("LOVABLE_API_KEY");
@@ -295,8 +302,8 @@ Deno.serve(async (req) => {
         url,
         verdict,
         coverage_state: coverage,
-        indexing_state: strOrNull(s.indexingState),
-        robots_state: strOrNull(s.robotsTxtState),
+        indexing_state: stateOrNull(s.indexingState),
+        robots_state: stateOrNull(s.robotsTxtState),
         google_canonical: strOrNull(s.googleCanonical),
         indexed: verdict == null && coverage == null ? null : sampleIsIndexed(verdict, coverage),
       });
@@ -320,8 +327,8 @@ Deno.serve(async (req) => {
       : {};
     const url_verdict = strOrNull(idx.verdict);
     const coverage_state = strOrNull(idx.coverageState);
-    const indexing_state = strOrNull(idx.indexingState);
-    const robots_state = strOrNull(idx.robotsTxtState);
+    const indexing_state = stateOrNull(idx.indexingState);
+    const robots_state = stateOrNull(idx.robotsTxtState);
     const google_canonical = strOrNull(idx.googleCanonical);
 
     // ---- LAYER 3: data quality — which expected fields were present vs absent.
