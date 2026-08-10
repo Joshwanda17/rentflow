@@ -357,11 +357,11 @@ export function WithdrawalPayoutCard({
   async function handleConfirmPaid() {
     setCompleteError(null);
     try {
-      // Bank & offline cash payouts REQUIRE an uploaded proof (bank slip photo,
-      // handwritten receipt, etc.). MoMo can skip (SMS is the proof).
-      const proofRequired = isBank || isCash;
-      if (proofRequired && !proofFile && !proofUrl) {
-        setCompleteError('Please upload a photo of the payment proof (bank slip, receipt, etc.) before confirming.');
+      // PROOF IS MANDATORY FOR EVERY PAYOUT CHANNEL (bank, cash and MoMo).
+      // Without a proof image the wallet must NOT be debited — the server
+      // enforces the same rule (PROOF_REQUIRED).
+      if (!proofFile && !proofUrl) {
+        setCompleteError('Upload a photo of the payment proof (bank slip, receipt, MoMo confirmation) before confirming. Without proof the payout cannot be completed and the customer wallet stays untouched.');
         return;
       }
       let uploaded = proofUrl
@@ -860,7 +860,7 @@ export function WithdrawalPayoutCard({
                       completingId === withdrawal.id ||
                       amountMismatch ||
                       proofUploading ||
-                      ((isBank || isCash) && !proofFile && !proofUrl)
+                      (!proofFile && !proofUrl)
                     }
                     onClick={handleConfirmPaid}
                     title={completingId === withdrawal.id ? 'Request is being processed…' : 'Confirm this payout'}
@@ -876,7 +876,7 @@ export function WithdrawalPayoutCard({
                   <div className="flex items-center justify-between gap-2">
                     <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                       <Upload className="h-3.5 w-3.5 text-primary" />
-                      Proof of payment {(isBank || isCash) ? <span className="text-destructive">*</span> : <span className="text-muted-foreground font-normal">(optional)</span>}
+                      Proof of payment <span className="text-destructive">*</span>
                     </label>
                     {proofFile && (
                       <button
