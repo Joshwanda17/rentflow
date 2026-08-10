@@ -32,6 +32,9 @@ export default function ProxyAgentInvite() {
   const [agreed, setAgreed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [accepted, setAccepted] = useState(false);
+  // Whether the accepted invite actually attached a lead partner.
+  // Null until an acceptance response is seen.
+  const [leadAttached, setLeadAttached] = useState<boolean | null>(null);
 
   // Remember the invite code so the user can resume after signing in.
   useEffect(() => {
@@ -94,17 +97,28 @@ export default function ProxyAgentInvite() {
 
     if (rpcError) {
       setError(rpcError.message);
+      // Surface the backend failure verbatim, prefixed for context, and stay
+      // on the form: no success screen, no redirect.
+      setError(`Could not accept: ${rpcError.message}`);
       return;
     }
 
     const row: any = Array.isArray(data) ? data[0] : data;
     if (row?.status === 'accepted') {
+      // An accepted agreement without a lead attachment is still a success,
+      // but the proxy must be told the link did not happen.
+      setLeadAttached(row?.lead_attached === true);
       try {
         localStorage.removeItem(STORAGE_KEY);
       } catch {
         /* ignore */
       }
       setAccepted(true);
+      return;
+    }
+
+    if (row?.status === 'error') {
+      setError(`Could not accept: ${row?.message || 'the agreement could not be accepted.'}`);
       return;
     }
 
@@ -186,6 +200,14 @@ export default function ProxyAgentInvite() {
                     You're connected. Taking you to My Partners…
                   </span>
                 </div>
+                {leadAttached === false && (
+                  <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span className="break-words">
+                      Accepted, but no lead was attached — the invite code may have expired or reached its limit.
+                    </span>
+                  </div>
+                )}
                 <Button onClick={() => navigate('/agent/partners', { replace: true })} className="w-full">
                   Go to My Partners now
                 </Button>

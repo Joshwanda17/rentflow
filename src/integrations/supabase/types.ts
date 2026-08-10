@@ -31868,9 +31868,10 @@ export type Database = {
           test_name: string
         }[]
       }
-      accept_proxy_agreement:
-        | { Args: { p_code: string }; Returns: Json }
-        | { Args: { p_code: string; p_nin?: string }; Returns: Json }
+      accept_proxy_agreement: {
+        Args: { p_code: string; p_nin?: string }
+        Returns: Json
+      }
       accept_withdrawal_dispatch: {
         Args: { p_withdrawal_id: string }
         Returns: Json
