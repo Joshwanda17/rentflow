@@ -609,6 +609,9 @@ export function EmailTransactionsPanel() {
     typeof window === 'undefined' ? '' : (localStorage.getItem('gmail_filter_search') || '')
   );
   useEffect(() => { try { localStorage.setItem('gmail_filter_search', searchQuery); } catch {} }, [searchQuery]);
+  // Gmail's "Show search options" panel — collapsed by default, holds the
+  // advanced refinements (From, date window, sort) exactly like Gmail does.
+  const [searchOptionsOpen, setSearchOptionsOpen] = useState(false);
   // Dedicated depositor-phone filter — narrows the list to a single phone
   // number in any printed format (0…, 256…, +256…, 7…). Matched against the
   // email counterparty / sender / body and the resolved depositing user's
