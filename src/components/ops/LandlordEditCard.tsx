@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
@@ -6,8 +6,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Pencil, Loader2, X } from 'lucide-react';
+import { Pencil, Loader2, X, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
+import { UgLocationPicker } from '@/components/location/UgLocationPicker';
+import {
+  resolveUgVillage,
+  ugLocationLabel,
+  type UgLocationSelection,
+} from '@/hooks/useUgLocations';
 
 type Props = {
   landlordId: string;
@@ -15,6 +21,12 @@ type Props = {
   canEdit: boolean;
 };
 
+/**
+ * Free-text district / sub-county / village inputs are gone: the official
+ * location comes from the shared UgLocationPicker (same ug_* dataset used by
+ * house listings and rent requests), so ops corrections can never introduce a
+ * spelling that does not exist in the government hierarchy.
+ */
 const FIELDS: Array<{ key: string; label: string; type?: 'text' | 'number' | 'textarea' }> = [
   { key: 'name', label: 'Landlord name' },
   { key: 'phone', label: 'Phone' },
@@ -23,9 +35,6 @@ const FIELDS: Array<{ key: string; label: string; type?: 'text' | 'number' | 'te
   { key: 'monthly_rent', label: 'Monthly rent (UGX)', type: 'number' },
   { key: 'number_of_rooms', label: 'Rooms', type: 'number' },
   { key: 'property_address', label: 'Property address' },
-  { key: 'district', label: 'District' },
-  { key: 'sub_county', label: 'Sub-county' },
-  { key: 'village', label: 'Village' },
   { key: 'house_number', label: 'House number' },
   { key: 'bank_name', label: 'Bank name' },
   { key: 'account_number', label: 'Bank account #' },
@@ -43,6 +52,25 @@ export function LandlordEditCard({ landlordId, landlord, canEdit }: Props) {
     Object.fromEntries(FIELDS.map((f) => [f.key, landlord?.[f.key] != null ? String(landlord[f.key]) : ''])),
   );
   const [reason, setReason] = useState('');
+  const [loc, setLoc] = useState<UgLocationSelection | null>(null);
+  const [locError, setLocError] = useState<string | null>(null);
+  // Location already on file, shown when it cannot be resolved to a dataset row
+  // so ops always sees what is stored and we never blank it out silently.
+  const storedLocLabel = [landlord?.village, landlord?.sub_county, landlord?.county, landlord?.district, landlord?.region]
+    .filter(Boolean)
+    .join(', ');
+
+  // Prefill the picker from the stored official village id when we have one.
+  useEffect(() => {
+    if (!open) return;
+    const vid = Number(landlord?.ug_village_id);
+    if (!Number.isFinite(vid) || vid <= 0) return;
+    let alive = true;
+    resolveUgVillage(vid)
+      .then((sel) => { if (alive && sel) setLoc(sel); })
+      .catch(() => { /* keep stored names visible; never wipe */ });
+    return () => { alive = false; };
+  }, [open, landlord?.ug_village_id]);
 
   const save = useMutation({
     mutationFn: async () => {
@@ -52,6 +80,23 @@ export function LandlordEditCard({ landlordId, landlord, canEdit }: Props) {
         const original = landlord?.[f.key] != null ? String(landlord[f.key]) : '';
         const next = (form[f.key] ?? '').trim();
         if (next !== original.trim()) patch[f.key] = next;
+      }
+      // Only send location fields that actually changed. A null/empty pick is
+      // never sent, so an existing address can never be overwritten with nulls.
+      if (loc) {
+        const locPatch: Record<string, string> = {
+          region: loc.region ?? '',
+          district: loc.district,
+          county: loc.county,
+          sub_county: loc.subcounty,
+          village: loc.village,
+          ug_village_id: String(loc.villageId),
+        };
+        for (const [k, v] of Object.entries(locPatch)) {
+          if (!v) continue;
+          const original = landlord?.[k] != null ? String(landlord[k]).trim() : '';
+          if (v.trim() !== original) patch[k] = v.trim();
+        }
       }
       if (Object.keys(patch).length === 0) throw new Error('No changes to save');
       const { error } = await supabase.rpc('ops_update_landlord' as any, {
@@ -66,8 +111,13 @@ export function LandlordEditCard({ landlordId, landlord, canEdit }: Props) {
       qc.invalidateQueries({ queryKey: ['drilldown-landlord', landlordId] });
       setOpen(false);
       setReason('');
+      setLocError(null);
     },
-    onError: (e: any) => toast.error(e.message ?? 'Update failed'),
+    onError: (e: any) => {
+      const msg = e?.message ?? 'Update failed';
+      if (/location|village|district/i.test(msg)) setLocError(msg);
+      toast.error(msg);
+    },
   });
 
   if (!canEdit) return null;
@@ -111,6 +161,23 @@ export function LandlordEditCard({ landlordId, landlord, canEdit }: Props) {
             )}
           </div>
         ))}
+      </div>
+      <div className="rounded-md border bg-muted/30 p-2">
+        <UgLocationPicker
+          value={loc}
+          onChange={(sel) => { setLoc(sel); setLocError(null); }}
+          label="Official location (region → village)"
+          error={locError}
+        />
+        {!loc && storedLocLabel && (
+          <p className="mt-1 flex items-start gap-1 text-[10px] text-muted-foreground">
+            <AlertTriangle className="h-3 w-3 mt-[1px] shrink-0" />
+            On file: {storedLocLabel}. Leave untouched to keep it, or pick an official location to correct it.
+          </p>
+        )}
+        {loc && (
+          <p className="mt-1 text-[10px] text-muted-foreground">New location: {ugLocationLabel(loc)}</p>
+        )}
       </div>
       <Textarea
         placeholder="Reason for change (min 10 chars) — required audit log"
