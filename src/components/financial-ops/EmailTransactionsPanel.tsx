@@ -36,6 +36,7 @@ import { CashDepositCodesPanel } from './CashDepositCodesPanel';
 import { ProxyDebitBreakdownDialog } from './ProxyDebitBreakdownDialog';
 import { EmailPeriodComparison } from './EmailPeriodComparison';
 import { SwipeableEmailRow, type SwipeAction } from './SwipeableEmailRow';
+import { GmailStyleEmailList } from './GmailStyleEmailList';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -693,6 +694,9 @@ export function EmailTransactionsPanel() {
   // narrowing filter is reset so nothing is silently hidden, and a banner with
   // a Back action replaces the tiles.
   const [focusDirection, setFocusDirection] = useState<'in' | 'out' | null>(null);
+  // Inside a money-in / money-out focused view, emails render Gmail-style by
+  // default; operators can flip to the detailed ops rows for routing actions.
+  const [focusView, setFocusView] = useState<'gmail' | 'ops'>('gmail');
   // Keep the focused view honest: if the operator changes the direction chips
   // lower down (or restores a preset), the banner follows or closes.
   useEffect(() => {
@@ -3241,6 +3245,14 @@ export function EmailTransactionsPanel() {
                     </>
                   )}
                 </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 text-xs ml-2 bg-background"
+                  onClick={() => setFocusView(focusView === 'gmail' ? 'ops' : 'gmail')}
+                >
+                  {focusView === 'gmail' ? 'Ops view (routing actions)' : 'Gmail view'}
+                </Button>
               </div>
             </div>
           );
@@ -3908,7 +3920,9 @@ export function EmailTransactionsPanel() {
                 </div>
               </div>
             )}
-            {(() => {
+            {focusDirection && focusView === 'gmail' ? (
+              <GmailStyleEmailList rows={visibleRows} />
+            ) : (() => {
               const totalPages = Math.max(1, Math.ceil(visibleRows.length / pageSize));
               const safePage = Math.min(currentPage, totalPages);
               const isInfinite = paginationMode === 'infinite';
