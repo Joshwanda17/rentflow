@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
-import { KeyRound, RefreshCw, Loader2, Copy, Check, Clock, Radio, ChevronDown, Smartphone } from 'lucide-react';
+import { KeyRound, RefreshCw, Loader2, Check, Clock, Radio, ChevronDown, Smartphone } from 'lucide-react';
 import { StartCashDepositDialog } from './StartCashDepositDialog';
 
 interface CashCodeRow {
@@ -79,11 +79,9 @@ export function CashDepositCodesPanel() {
   const [loading, setLoading] = useState(true);
   const [denied, setDenied] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [copied, setCopied] = useState<string | null>(null);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<number>(Date.now());
   const [realtimeHealthy, setRealtimeHealthy] = useState(false);
   const [secondsToRefresh, setSecondsToRefresh] = useState<number>(3);
-  const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [reissuing, setReissuing] = useState<string | null>(null);
   const [codeInputs, setCodeInputs] = useState<Record<string, string>>({});
   const [verifying, setVerifying] = useState<string | null>(null);
@@ -176,17 +174,6 @@ export function CashDepositCodesPanel() {
       supabase.removeChannel(channel);
     };
   }, [load]);
-
-  const copy = async (code: string) => {
-    try {
-      await navigator.clipboard.writeText(code);
-      setCopied(code);
-      if (copyTimer.current) clearTimeout(copyTimer.current);
-      copyTimer.current = setTimeout(() => setCopied(null), 1500);
-    } catch {
-      toast({ title: 'Copy failed', description: 'Could not copy the code.', variant: 'destructive' });
-    }
-  };
 
   if (denied) return null;
 
