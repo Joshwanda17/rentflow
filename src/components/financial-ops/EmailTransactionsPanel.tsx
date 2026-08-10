@@ -3152,33 +3152,35 @@ export function EmailTransactionsPanel() {
   };
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-3">
-        <div className="flex items-start gap-3 min-w-0">
-          <div className="hidden sm:flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            <Mail className="h-5 w-5" />
-          </div>
-          <div className="min-w-0">
-            <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Email Transaction Extractor</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              Live feed from your Gmail inbox. Reads MoMo, Airtel &amp; bank confirmation emails automatically every minute.
-            </p>
-          </div>
+    <div className="space-y-4">
+      {/* Minimal page header: quiet type, no coloured icon tile, single
+          low-emphasis layout switch on the right. */}
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+            Financial operations
+          </p>
+          <h2 className="text-lg sm:text-xl font-semibold tracking-tight mt-1">
+            Email transactions
+          </h2>
+          <p className="text-xs text-muted-foreground mt-1 max-w-xl">
+            Live Gmail feed — MoMo, Airtel and bank confirmations parsed every minute.
+          </p>
         </div>
         {/* Page-wide layout switch: Gmail arrangement (default) vs the
             detailed ops rows that carry routing / charging actions. */}
         <Button
           size="sm"
-          variant="outline"
-          className="shrink-0 h-8 text-xs"
+          variant="ghost"
+          className="shrink-0 h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground"
           onClick={() => setFocusView(focusView === 'gmail' ? 'ops' : 'gmail')}
         >
-          {focusView === 'gmail' ? 'Ops layout (routing actions)' : 'Gmail layout'}
+          {focusView === 'gmail' ? 'Ops layout' : 'Inbox layout'}
         </Button>
       </div>
       {/* Gmail-style category tabs — mirrors the Inbox / category strip. */}
       {focusView === 'gmail' && (
-        <div className="flex items-center gap-1 border-b -mb-2">
+        <div className="flex items-center gap-4 border-b">
           {([
             { key: 'all' as const, label: 'All mail', Icon: Mail },
             { key: 'in' as const, label: 'Money in', Icon: ArrowDownLeft },
@@ -3194,13 +3196,13 @@ export function EmailTransactionsPanel() {
                   setDirectionFilter(key === 'all' ? 'all' : key);
                   setFocusDirection(key === 'all' ? null : key);
                 }}
-                className={`inline-flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                className={`inline-flex items-center gap-1.5 pb-2.5 pt-1 text-[13px] font-medium border-b-2 -mb-px transition-colors ${
                   active
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/40'
+                    ? 'border-foreground text-foreground'
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
                 }`}
               >
-                <Icon className="h-4 w-4" />
+                <Icon className="h-3.5 w-3.5" />
                 {label}
               </button>
             );
