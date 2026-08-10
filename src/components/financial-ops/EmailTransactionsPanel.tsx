@@ -3164,10 +3164,51 @@ export function EmailTransactionsPanel() {
             </p>
           </div>
         </div>
+        {/* Page-wide layout switch: Gmail arrangement (default) vs the
+            detailed ops rows that carry routing / charging actions. */}
+        <Button
+          size="sm"
+          variant="outline"
+          className="shrink-0 h-8 text-xs"
+          onClick={() => setFocusView(focusView === 'gmail' ? 'ops' : 'gmail')}
+        >
+          {focusView === 'gmail' ? 'Ops layout (routing actions)' : 'Gmail layout'}
+        </Button>
       </div>
+      {/* Gmail-style category tabs — mirrors the Inbox / category strip. */}
+      {focusView === 'gmail' && (
+        <div className="flex items-center gap-1 border-b -mb-2">
+          {([
+            { key: 'all' as const, label: 'All mail', Icon: Mail },
+            { key: 'in' as const, label: 'Money in', Icon: ArrowDownLeft },
+            { key: 'out' as const, label: 'Money out', Icon: ArrowUpRight },
+          ]).map(({ key, label, Icon }) => {
+            const active = key === 'all' ? !focusDirection : focusDirection === key;
+            return (
+              <button
+                key={key}
+                type="button"
+                aria-pressed={active}
+                onClick={() => {
+                  setDirectionFilter(key === 'all' ? 'all' : key);
+                  setFocusDirection(key === 'all' ? null : key);
+                }}
+                className={`inline-flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                  active
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/40'
+                }`}
+              >
+                <Icon className="h-4 w-4" />
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      )}
       {/* Money-in / money-out entry buttons — one tap opens a dedicated view
           showing only that side of the extracted email feed. */}
-      {focusDirection ? (
+      {focusDirection && focusView === 'ops' ? (
         (() => {
           const isIn = focusDirection === 'in';
           const count = visibleRows.length;
