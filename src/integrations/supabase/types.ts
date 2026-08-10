@@ -15198,6 +15198,11 @@ export type Database = {
           rent_balance_due: number
           rent_last_paid_amount: number | null
           rent_last_paid_at: string | null
+          service_center_comment: string | null
+          service_center_manager_id: string | null
+          service_center_reviewed_at: string | null
+          service_center_reviewed_by: string | null
+          service_center_status: string
           sub_county: string | null
           tenant_id: string | null
           tin: string | null
@@ -15265,6 +15270,11 @@ export type Database = {
           rent_balance_due?: number
           rent_last_paid_amount?: number | null
           rent_last_paid_at?: string | null
+          service_center_comment?: string | null
+          service_center_manager_id?: string | null
+          service_center_reviewed_at?: string | null
+          service_center_reviewed_by?: string | null
+          service_center_status?: string
           sub_county?: string | null
           tenant_id?: string | null
           tin?: string | null
@@ -15332,6 +15342,11 @@ export type Database = {
           rent_balance_due?: number
           rent_last_paid_amount?: number | null
           rent_last_paid_at?: string | null
+          service_center_comment?: string | null
+          service_center_manager_id?: string | null
+          service_center_reviewed_at?: string | null
+          service_center_reviewed_by?: string | null
+          service_center_status?: string
           sub_county?: string | null
           tenant_id?: string | null
           tin?: string | null
@@ -15419,6 +15434,11 @@ export type Database = {
           registered_by: string | null
           registration_verification_bonus_paid: boolean
           registration_verification_bonus_paid_at: string | null
+          service_center_comment: string | null
+          service_center_manager_id: string | null
+          service_center_reviewed_at: string | null
+          service_center_reviewed_by: string | null
+          service_center_status: string
           sub_county: string | null
           town_council: string | null
           verification_bonus_paid: boolean
@@ -15448,6 +15468,11 @@ export type Database = {
           registered_by?: string | null
           registration_verification_bonus_paid?: boolean
           registration_verification_bonus_paid_at?: string | null
+          service_center_comment?: string | null
+          service_center_manager_id?: string | null
+          service_center_reviewed_at?: string | null
+          service_center_reviewed_by?: string | null
+          service_center_status?: string
           sub_county?: string | null
           town_council?: string | null
           verification_bonus_paid?: boolean
@@ -15477,6 +15502,11 @@ export type Database = {
           registered_by?: string | null
           registration_verification_bonus_paid?: boolean
           registration_verification_bonus_paid_at?: string | null
+          service_center_comment?: string | null
+          service_center_manager_id?: string | null
+          service_center_reviewed_at?: string | null
+          service_center_reviewed_by?: string | null
+          service_center_status?: string
           sub_county?: string | null
           town_council?: string | null
           verification_bonus_paid?: boolean
@@ -31465,6 +31495,8 @@ export type Database = {
           resolved_at: string | null
           resolved_by_name: string | null
           reviewer_name: string | null
+          service_center_manager_id: string | null
+          service_center_status: string | null
           source: string | null
           status: string | null
           verification_bonus_paid: boolean | null
@@ -34857,6 +34889,10 @@ export type Database = {
         Args: { p_limit?: number; p_offset?: number; p_rent_request_id: string }
         Returns: Json
       }
+      get_service_center_verification_queue: {
+        Args: { p_manager_id?: string }
+        Returns: Json
+      }
       get_shadow_match_rate: {
         Args: { p_hours?: number }
         Returns: {
@@ -36110,6 +36146,8 @@ export type Database = {
           resolved_at: string | null
           resolved_by_name: string | null
           reviewer_name: string | null
+          service_center_manager_id: string | null
+          service_center_status: string | null
           source: string | null
           status: string | null
           verification_bonus_paid: boolean | null
@@ -37268,6 +37306,15 @@ export type Database = {
       }
       service_center_review_rent_request: {
         Args: { p_comment?: string; p_decision: string; p_request_id: string }
+        Returns: Json
+      }
+      service_center_review_verification: {
+        Args: {
+          p_comment?: string
+          p_decision: string
+          p_kind: string
+          p_record_id: string
+        }
         Returns: Json
       }
       set_landlord_verification: {
