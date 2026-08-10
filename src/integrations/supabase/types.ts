@@ -15464,6 +15464,7 @@ export type Database = {
           service_center_status: string
           sub_county: string | null
           town_council: string | null
+          ug_village_id: number | null
           verification_bonus_paid: boolean
           verification_bonus_paid_at: string | null
           verification_reason: string | null
@@ -15498,6 +15499,7 @@ export type Database = {
           service_center_status?: string
           sub_county?: string | null
           town_council?: string | null
+          ug_village_id?: number | null
           verification_bonus_paid?: boolean
           verification_bonus_paid_at?: string | null
           verification_reason?: string | null
@@ -15532,6 +15534,7 @@ export type Database = {
           service_center_status?: string
           sub_county?: string | null
           town_council?: string | null
+          ug_village_id?: number | null
           verification_bonus_paid?: boolean
           verification_bonus_paid_at?: string | null
           verification_reason?: string | null
@@ -15542,7 +15545,15 @@ export type Database = {
           village?: string
           zone?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "lc1_chairpersons_ug_village_id_fkey"
+            columns: ["ug_village_id"]
+            isOneToOne: false
+            referencedRelation: "ug_villages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       lc1_verification_requests: {
         Row: {
