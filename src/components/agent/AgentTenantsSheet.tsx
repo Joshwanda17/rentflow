@@ -2363,9 +2363,16 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
               const propertyAddress = ctx?.propertyAddress || '';
               const landlordName = ctx?.landlordName || '';
               const payStatus: 'paid_up' | 'owing' = hasDebt ? 'owing' : 'paid_up';
-              const statusMeta = payStatus === 'paid_up'
-                ? { label: 'Paid up', cls: 'bg-emerald-100 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500', Icon: CheckCircle2 }
-                : { label: 'Owing',   cls: 'bg-rose-100 text-rose-700 border-rose-200',          dot: 'bg-rose-500',   Icon: AlertCircle };
+              // A zero balance only means "Paid up" when a plan actually ran.
+              // Tenants still sitting in vetting/approval have no plan yet.
+              const tHasLivePlan = tStatuses.has('funded') || tStatuses.has('disbursed')
+                || tStatuses.has('repaying') || tStatuses.has('completed');
+              const tInReview = !hasDebt && tStatuses.size > 0 && !tHasLivePlan;
+              const statusMeta = hasDebt
+                ? { label: 'Owing',   cls: 'bg-rose-100 text-rose-700 border-rose-200',          dot: 'bg-rose-500',   Icon: AlertCircle }
+                : tInReview
+                  ? { label: 'In review', cls: 'bg-amber-100 text-amber-700 border-amber-200',   dot: 'bg-amber-500',  Icon: AlertCircle }
+                  : { label: 'Paid up', cls: 'bg-emerald-100 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500', Icon: CheckCircle2 };
               const riskUiMeta: Record<string, { label: string; cls: string }> = {
                 good:     { label: 'Low Risk',    cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
                 standard: { label: 'Medium Risk', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
