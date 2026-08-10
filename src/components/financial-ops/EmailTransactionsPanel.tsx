@@ -3349,7 +3349,7 @@ export function EmailTransactionsPanel() {
           </nav>
         </aside>
         <div className={`min-w-0 flex-1 space-y-4 ${gmailNavOpen ? 'hidden lg:block' : ''}`}>
-      <div id="email-tx-results" className="rounded-lg border bg-card overflow-hidden scroll-mt-20">
+      <div id="email-tx-results" className="rounded-2xl border bg-card overflow-hidden scroll-mt-20 shadow-sm">
         {/* Prominent, full-width search bar — lets ops find any email by
             amount, name, phone (any format), reference id, or any word in
             the body / subject. Sticky on scroll so it's always reachable. */}
@@ -3544,7 +3544,7 @@ export function EmailTransactionsPanel() {
             <p className="text-xs">Click <strong>Poll now</strong> to check Gmail for new emails, or just wait a minute — it checks on its own.</p>
           </div>
         ) : (
-          <div className="divide-y max-h-[600px] overflow-y-auto">
+          <div className="divide-y max-h-[calc(100vh-16rem)] min-h-[420px] overflow-y-auto">
             {selectedIds.size > 0 && (
               <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-2 border-b bg-background/95 backdrop-blur px-3 py-2 shadow-sm">
                 <div className="text-xs font-medium">
