@@ -27,6 +27,20 @@ interface SeriesResponse {
   bucket: Bucket;
   buckets: { key: string; label: string }[];
   categories: SeriesCategory[];
+  partners?: PartnerProjection[];
+  portfolio_count?: number;
+  committed_capital?: number;
+}
+
+interface PartnerProjection {
+  partner_id: string;
+  partner_name: string;
+  phone: string | null;
+  portfolios: number;
+  committed: number;
+  payouts: number;
+  next_due: string | null;
+  projected: number;
 }
 
 const PRESETS: { key: RangePreset; label: string; bucket: Bucket }[] = [
@@ -90,6 +104,7 @@ export function CashflowForecastGraphs() {
 
   const categories = data?.categories ?? [];
   const active = categories.find((c) => c.key === activeCat) ?? categories[0] ?? null;
+  const partners = data?.partners ?? [];
 
   const chartData = useMemo(() => {
     if (!data || !active) return [];
@@ -125,9 +140,16 @@ export function CashflowForecastGraphs() {
             Graphic Cashflow Forecast
           </h1>
           <p className="text-sm text-muted-foreground">
-            Amount versus time for every payout category. Forecasted Returns are projected from
-            active partner portfolios and shift automatically with Partner Ops inputs and outputs.
+            Amount versus time for every payout category. Forecasted Returns are captured straight from
+            the portfolios on the Partner Ops dashboard and projected forward per partner, so they shift
+            automatically with Partner Ops inputs and outputs.
           </p>
+          {data ? (
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Source: {Number(data.portfolio_count ?? 0)} Partner Ops portfolios ·{' '}
+              {formatUGX(Number(data.committed_capital ?? 0))} committed capital
+            </p>
+          ) : null}
         </div>
         <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
           <RefreshCw className={cn('h-4 w-4 mr-1.5', isFetching && 'animate-spin')} />
