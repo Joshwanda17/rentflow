@@ -653,9 +653,10 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
       )}
 
 
-      {/* Main content */}
-      <div className="flex-1 min-w-0">
+      {/* Main content — full width when Email Transactions is open */}
+      <div className={emailTxFullscreen ? 'w-full min-w-0' : 'flex-1 min-w-0'}>
         {content}
+
         {!activeTool && view === 'home' && (
           <div className="mt-6 space-y-4">
             <MomoFeedSilenceAlert />
