@@ -2,19 +2,12 @@ import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Shield, ShieldCheck, Search, Loader2, X, UserPlus, ChevronDown } from 'lucide-react';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { normalizeDistrict, districtWarning, regionLabel } from '@/lib/ugandaDistricts';
-
-const REGIONS = [
-  'Central', 'Eastern', 'Northern', 'Western',
-  'Kampala', 'Wakiso', 'Mukono', 'Jinja', 'Mbale',
-  'Mbarara', 'Gulu', 'Lira', 'Fort Portal', 'Masaka',
-  'Entebbe', 'Nansana', 'Kira', 'Bweyogerere',
-];
+import { UgLocationPicker } from '@/components/location/UgLocationPicker';
+import type { UgLocationSelection } from '@/hooks/useUgLocations';
 
 /**
  * The agent's LC1 chairperson choice for a listing.
@@ -37,6 +30,8 @@ export interface Lc1Selection {
   cell?: string;
   zone?: string;
   village: string;
+  /** Official ug_villages.id backing the selected village (new LC1 only). */
+  ug_village_id?: number | null;
 }
 
 interface Lc1Hit {
@@ -56,6 +51,11 @@ interface Lc1ChairpersonPickerProps {
   defaultRegion?: string;
   defaultDistrict?: string;
   defaultVillage?: string;
+  /**
+   * Scope the official village search to this district (taken from the linked
+   * landlord / house listing when known).
+   */
+  scopeDistrictName?: string | null;
   /** Highlight missing required fields after a failed submit. */
   attempted?: boolean;
 }
@@ -81,6 +81,7 @@ export function Lc1ChairpersonPicker({
   defaultRegion = '',
   defaultDistrict = '',
   defaultVillage = '',
+  scopeDistrictName = null,
   attempted = false,
 }: Lc1ChairpersonPickerProps) {
   const [query, setQuery] = useState('');
@@ -88,6 +89,7 @@ export function Lc1ChairpersonPicker({
   const [searching, setSearching] = useState(false);
   const [searchedOnce, setSearchedOnce] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
+  const [ugLoc, setUgLoc] = useState<UgLocationSelection | null>(null);
 
   const search = async () => {
     const q = query.trim();
@@ -138,11 +140,28 @@ export function Lc1ChairpersonPicker({
     onChange(null);
     setResults([]);
     setSearchedOnce(false);
+    setUgLoc(null);
   };
 
   const patchNew = (patch: Partial<Lc1Selection>) => {
     if (!value || value.mode !== 'new') return;
     onChange({ ...value, ...patch });
+  };
+
+  /** One official village pick fills region → village on the selection. */
+  const applyUgLocation = (sel: UgLocationSelection | null) => {
+    setUgLoc(sel);
+    if (!value || value.mode !== 'new') return;
+    onChange({
+      ...value,
+      region: sel?.region ?? '',
+      district: sel?.district ?? '',
+      county: sel?.county ?? '',
+      sub_county: sel?.subcounty ?? '',
+      parish: sel?.parish ?? '',
+      village: sel?.village ?? '',
+      ug_village_id: sel?.villageId ?? null,
+    });
   };
 
   const invalid = (cond: boolean) => (attempted && cond ? 'border-destructive' : '');
