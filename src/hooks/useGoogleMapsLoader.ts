@@ -93,17 +93,21 @@ export function useGoogleMapsLoader(enabled = true) {
   const [state, setState] = useState<LoadState>(() =>
     authFailed ? 'error' : typeof window !== 'undefined' && window.google?.maps ? 'ready' : 'idle'
   );
+  // Distinguishes a domain/key rejection (Google's gm_authFailure, i.e.
+  // RefererNotAllowedMapError / InvalidKeyMapError) from a plain script load
+  // failure, so the UI can explain what actually went wrong.
+  const [reason, setReason] = useState<'referrer' | 'load' | null>(() => (authFailed ? 'referrer' : null));
 
   useEffect(() => {
     if (!enabled || state === 'ready' || state === 'error') return;
     let cancelled = false;
     setState('loading');
-    const onAuthFail = () => { if (!cancelled) setState('error'); };
+    const onAuthFail = () => { if (!cancelled) { setReason('referrer'); setState('error'); } };
     authFailureListeners.add(onAuthFail);
     if (authFailed) onAuthFail();
     loadGoogleMaps()
       .then(() => { if (!cancelled) setState('ready'); })
-      .catch(() => { if (!cancelled) setState('error'); });
+      .catch(() => { if (!cancelled) { setReason((r) => r ?? 'load'); setState('error'); } });
     return () => { cancelled = true; authFailureListeners.delete(onAuthFail); };
   }, [enabled, state]);
 
@@ -111,6 +115,8 @@ export function useGoogleMapsLoader(enabled = true) {
     isReady: state === 'ready',
     isLoading: state === 'loading',
     isError: state === 'error',
+    /** 'referrer' = key not authorised for this domain, 'load' = script failed. */
+    errorReason: reason,
     // We may have a managed key OR a manager-configured custom key; treat the
     // presence of either as "has a key". The custom key is resolved async, so
     // only report missing when there is also no managed fallback.

@@ -17,7 +17,7 @@ const KAMPALA: google.maps.LatLngLiteral = { lat: 0.3476, lng: 32.5825 };
 
 export function HousesMapView({ listings, userCoords, onSelectHouse, onSwitchToList }: HousesMapViewProps) {
   const navigate = useNavigate();
-  const { isReady, isError, hasKey } = useGoogleMapsLoader(true);
+  const { isReady, isError, hasKey, errorReason } = useGoogleMapsLoader(true);
   const mapEl = useRef<HTMLDivElement>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<google.maps.Marker[]>([]);
@@ -109,6 +109,12 @@ export function HousesMapView({ listings, userCoords, onSelectHouse, onSwitchToL
           <p className="text-sm text-muted-foreground">
             The map couldn't load right now. Switch to the list view to keep browsing houses.
           </p>
+          {errorReason === 'referrer' && (
+            <p className="text-[11px] text-muted-foreground/70">
+              Maps key is not authorised for this website address. A manager can fix this in
+              Settings, under Map key.
+            </p>
+          )}
         </div>
         {onSwitchToList && (
           <button
