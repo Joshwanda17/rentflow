@@ -316,27 +316,15 @@ export function Lc1ChairpersonPicker({
               className="w-full flex items-center justify-between px-3 py-2.5 bg-muted/30 hover:bg-muted/50 transition-colors text-left"
             >
               <span className="text-xs font-semibold text-muted-foreground uppercase">
-                More location detail {showAdmin ? '' : '(county, parish, cell…)'}
+                More location detail {showAdmin ? '' : '(town council, cell, zone)'}
               </span>
               <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${showAdmin ? 'rotate-180' : ''}`} />
             </button>
             {showAdmin && (
               <div className="p-3 grid grid-cols-2 gap-3">
                 <div>
-                  <Label className="text-xs">County</Label>
-                  <Input value={value.county || ''} onChange={(e) => patchNew({ county: e.target.value })} placeholder="County" />
-                </div>
-                <div>
-                  <Label className="text-xs">Sub-county</Label>
-                  <Input value={value.sub_county || ''} onChange={(e) => patchNew({ sub_county: e.target.value })} placeholder="Sub-county" />
-                </div>
-                <div>
                   <Label className="text-xs">Town council</Label>
                   <Input value={value.town_council || ''} onChange={(e) => patchNew({ town_council: e.target.value })} placeholder="Town council" />
-                </div>
-                <div>
-                  <Label className="text-xs">Parish</Label>
-                  <Input value={value.parish || ''} onChange={(e) => patchNew({ parish: e.target.value })} placeholder="Parish" />
                 </div>
                 <div>
                   <Label className="text-xs">Cell</Label>
@@ -363,9 +351,9 @@ export function validateLc1Selection(sel: Lc1Selection | null): string | null {
   if (!sel.name.trim()) return 'LC1 chairperson name is required';
   if (!sel.phone.trim()) return 'LC1 chairperson phone is required';
   if (sel.mode === 'new') {
-    if (!sel.region) return 'Select the LC1 chairperson region';
-    if (!(sel.district || '').trim()) return 'Enter the LC1 chairperson district';
-    if (!sel.village.trim()) return 'Enter the LC1 chairperson village / zone';
+    if (!sel.village.trim() || !sel.ug_village_id) {
+      return 'Select the LC1 chairperson village from the official list';
+    }
   }
   return null;
 }
