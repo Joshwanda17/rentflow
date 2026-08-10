@@ -2,6 +2,15 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
+/** Supabase errors are plain objects — turn them into real Errors so the UI
+ * never renders "[object Object]". */
+function toError(error: any): Error {
+  if (error instanceof Error) return error;
+  const parts = [error?.message, error?.details, error?.hint].filter(Boolean);
+  const code = error?.code ? ` (${error.code})` : '';
+  return new Error((parts.join(' — ') || 'Unknown database error') + code);
+}
+
 export interface ServiceCenterListing {
   id: string;
   title: string | null;
@@ -37,7 +46,7 @@ export function useServiceCenterListingQueue() {
       const { data, error } = await (supabase.rpc as any)('get_service_center_listing_queue', {
         p_manager_id: user!.id,
       });
-      if (error) throw error;
+      if (error) throw toError(error);
       return (data as ServiceCenterListing[]) ?? [];
     },
   });
@@ -52,7 +61,7 @@ export function useServiceCenterReviewListing() {
         p_decision: input.decision,
         p_comment: input.comment ?? null,
       });
-      if (error) throw error;
+      if (error) throw toError(error);
       return data;
     },
     onSuccess: () => {
