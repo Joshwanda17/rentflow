@@ -609,6 +609,9 @@ export function EmailTransactionsPanel() {
     typeof window === 'undefined' ? '' : (localStorage.getItem('gmail_filter_search') || '')
   );
   useEffect(() => { try { localStorage.setItem('gmail_filter_search', searchQuery); } catch {} }, [searchQuery]);
+  // Gmail's "Show search options" panel — collapsed by default, holds the
+  // advanced refinements (From, date window, sort) exactly like Gmail does.
+  const [searchOptionsOpen, setSearchOptionsOpen] = useState(false);
   // Dedicated depositor-phone filter — narrows the list to a single phone
   // number in any printed format (0…, 256…, +256…, 7…). Matched against the
   // email counterparty / sender / body and the resolved depositing user's
@@ -3232,16 +3235,28 @@ export function EmailTransactionsPanel() {
             aria-label="Search mail"
             className="h-10 w-full rounded-full border-0 bg-muted/60 pl-10 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:bg-background placeholder:text-muted-foreground/70 transition-colors"
           />
-          {searchQuery && (
+          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                aria-label="Clear search"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
             <button
               type="button"
-              onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-              aria-label="Clear search"
+              onClick={() => setSearchOptionsOpen((v) => !v)}
+              aria-expanded={searchOptionsOpen}
+              aria-label="Show search options"
+              title="Show search options"
+              className={`rounded-full p-1.5 hover:bg-muted ${searchOptionsOpen ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
             >
-              <X className="h-4 w-4" />
+              <SlidersHorizontal className="h-4 w-4" />
             </button>
-          )}
+          </div>
         </div>
         <Button
           size="sm"
@@ -3257,31 +3272,113 @@ export function EmailTransactionsPanel() {
         </Button>
       </div>
 
-      {/* Secondary chip bar: depositor-phone filter + quick date windows,
-          styled like Gmail's search-refinement chips. */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-0.5">
-        <div className="relative shrink-0">
-          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-          <input
-            type="search"
-            inputMode="tel"
-            value={phoneQuery}
-            onChange={(e) => setPhoneQuery(e.target.value)}
-            placeholder="From: phone number"
-            aria-label="Filter by depositor phone number"
-            className="h-8 w-[210px] rounded-full border bg-background pl-8 pr-8 text-xs focus:outline-none focus:ring-2 focus:ring-ring placeholder:text-muted-foreground/70"
-          />
-          {phoneQuery && (
-            <button
-              type="button"
-              onClick={() => setPhoneQuery('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-              aria-label="Clear phone filter"
+      {/* Gmail's advanced search card — drops beneath the search field with
+          From / Date within / Sort, plus Search + Clear actions. */}
+      {searchOptionsOpen && (
+        <div className="rounded-2xl border bg-card p-4 shadow-sm space-y-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="grid grid-cols-[88px_1fr] items-center gap-3">
+              <span className="text-xs text-muted-foreground text-right">From</span>
+              <div className="relative">
+                <Phone className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                <input
+                  type="search"
+                  inputMode="tel"
+                  value={phoneQuery}
+                  onChange={(e) => setPhoneQuery(e.target.value)}
+                  placeholder="Phone number"
+                  aria-label="Filter by depositor phone number"
+                  className="h-9 w-full rounded-md border bg-background pl-8 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring placeholder:text-muted-foreground/70"
+                />
+              </div>
+            </label>
+            <label className="grid grid-cols-[88px_1fr] items-center gap-3">
+              <span className="text-xs text-muted-foreground text-right">Has the words</span>
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Amount, name, reference…"
+                aria-label="Has the words"
+                className="h-9 w-full rounded-md border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring placeholder:text-muted-foreground/70"
+              />
+            </label>
+            <div className="grid grid-cols-[88px_1fr] items-center gap-3">
+              <span className="text-xs text-muted-foreground text-right">Date within</span>
+              <Select
+                value="custom"
+                onValueChange={(v) => {
+                  if (v === 'custom') return;
+                  applyRecentWindow(Number(v));
+                }}
+              >
+                <SelectTrigger className="h-9 text-sm" aria-label="Date within">
+                  <SelectValue placeholder="Any time" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="custom">{fromDate} → {toDate}</SelectItem>
+                  <SelectItem value="1">1 day</SelectItem>
+                  <SelectItem value="3">3 days</SelectItem>
+                  <SelectItem value="7">1 week</SelectItem>
+                  <SelectItem value="14">2 weeks</SelectItem>
+                  <SelectItem value="30">1 month</SelectItem>
+                  <SelectItem value="90">3 months</SelectItem>
+                  <SelectItem value="180">6 months</SelectItem>
+                  <SelectItem value="365">1 year</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-[88px_1fr] items-center gap-3">
+              <span className="text-xs text-muted-foreground text-right">Sort by</span>
+              <Select value={sortMode} onValueChange={(v) => setSortMode(v as SortMode)}>
+                <SelectTrigger className="h-9 text-sm" aria-label="Sort mail">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="newest">Newest first</SelectItem>
+                  <SelectItem value="oldest">Oldest first</SelectItem>
+                  <SelectItem value="amount_high">Amount: high to low</SelectItem>
+                  <SelectItem value="amount_low">Amount: low to high</SelectItem>
+                  <SelectItem value="status">Status (needs routing first)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-[88px_1fr] items-center gap-3">
+              <span className="text-xs text-muted-foreground text-right">Date from</span>
+              <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="h-9 text-sm" aria-label="Date from" />
+            </div>
+            <div className="grid grid-cols-[88px_1fr] items-center gap-3">
+              <span className="text-xs text-muted-foreground text-right">Date to</span>
+              <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="h-9 text-sm" aria-label="Date to" />
+            </div>
+          </div>
+          <div className="flex items-center justify-end gap-2 pt-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-9 rounded-full px-4 text-xs"
+              onClick={() => { setSearchQuery(''); setPhoneQuery(''); applyRecentWindow(7); }}
             >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          )}
+              Clear
+            </Button>
+            <Button
+              size="sm"
+              className="h-9 rounded-full px-5 text-xs"
+              onClick={() => {
+                setSearchOptionsOpen(false);
+                if (typeof document !== 'undefined') {
+                  document.getElementById('email-tx-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+              }}
+            >
+              <Search className="h-3.5 w-3.5 mr-1.5" /> Search
+            </Button>
+          </div>
         </div>
+      )}
+
+      {/* Compact quick date pills (Gmail chip row) — always visible. */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-0.5">
         {([
           { label: 'Today', days: 1 },
           { label: 'Last 7 days', days: 7 },
@@ -3296,19 +3393,15 @@ export function EmailTransactionsPanel() {
             {p.label}
           </button>
         ))}
-        <Select value={sortMode} onValueChange={(v) => setSortMode(v as SortMode)}>
-          <SelectTrigger className="h-8 w-[168px] shrink-0 rounded-full border bg-background text-xs" aria-label="Sort mail">
-            <span className="text-muted-foreground mr-1">Sort:</span>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="newest">Newest first</SelectItem>
-            <SelectItem value="oldest">Oldest first</SelectItem>
-            <SelectItem value="amount_high">Amount: high to low</SelectItem>
-            <SelectItem value="amount_low">Amount: low to high</SelectItem>
-            <SelectItem value="status">Status (needs routing first)</SelectItem>
-          </SelectContent>
-        </Select>
+        {(searchQuery || phoneQuery) && (
+          <button
+            type="button"
+            onClick={() => { setSearchQuery(''); setPhoneQuery(''); }}
+            className="shrink-0 inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs text-primary"
+          >
+            Clear filters <X className="h-3 w-3" />
+          </button>
+        )}
       </div>
 
       {/* ── Gmail body: label rail on the left, mail list + ops panels on
@@ -3327,6 +3420,10 @@ export function EmailTransactionsPanel() {
                 onClick={() => {
                   apply();
                   setGmailNavOpen(false);
+                  // Selecting a label always lands the operator in the Gmail
+                  // reading experience for that label, never the ops table.
+                  setFocusView('gmail');
+                  setSearchOptionsOpen(false);
                   if (typeof document !== 'undefined') {
                     document.getElementById('email-tx-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                   }
