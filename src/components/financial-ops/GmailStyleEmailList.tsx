@@ -182,50 +182,76 @@ export function GmailStyleEmailList({ rows }: { rows: GmailStyleRow[] }) {
 
   if (sortedRows.length === 0) {
     return (
-      <div className="p-10 text-center text-sm text-muted-foreground">
-        No emails in this view.
+      <div className="px-6 py-16 text-center">
+        <Inbox className="mx-auto h-10 w-10 text-muted-foreground/30" aria-hidden />
+        <p className="mt-3 text-sm font-medium">Nothing in this view</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Try another label on the left, or widen the date window.
+        </p>
       </div>
     );
   }
 
   return (
-    <ul className="divide-y divide-border/60">
-      {sortedRows.map((r) => {
+    <ul className="divide-y divide-border/50">
+      {sortedRows.map((r, i) => {
         const name = senderName(r);
         const amount = fmtUgx(r.amount);
+        // Gmail visually bolds "unread" mail. Here the freshest arrivals read as
+        // unread so the operator's eye lands on new traffic first.
+        const unread = i < 3;
         return (
-          <li key={r.id}>
+          <li key={r.id} className="relative">
             <button
               type="button"
               onClick={() => setOpenId(r.id)}
-              className="w-full text-left flex items-center gap-3 px-3 sm:px-4 py-2.5 hover:bg-muted/40 transition-colors"
+              className={`group relative w-full text-left flex items-center gap-3 px-3 sm:px-4 py-2 sm:py-[9px] transition-shadow hover:z-10 hover:shadow-[0_1px_2px_0_hsl(var(--foreground)/0.14),0_1px_3px_1px_hsl(var(--foreground)/0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                unread ? 'bg-background' : 'bg-muted/25'
+              }`}
             >
-              <Star className="hidden sm:block h-3.5 w-3.5 shrink-0 text-muted-foreground/30" aria-hidden />
+              <span
+                className="hidden sm:flex h-4 w-4 shrink-0 items-center justify-center rounded-[3px] border border-muted-foreground/40"
+                aria-hidden
+              />
+              <Star
+                className="hidden sm:block h-4 w-4 shrink-0 text-muted-foreground/30 hover:text-amber-500"
+                aria-hidden
+              />
               <span
                 className={`h-7 w-7 shrink-0 rounded-full flex items-center justify-center text-[11px] font-semibold ${toneFor(name)}`}
                 aria-hidden
               >
                 {name.charAt(0).toUpperCase()}
               </span>
-              <span className="w-28 sm:w-44 shrink-0 truncate text-[13px] font-medium">
+              <span className={`w-28 sm:w-44 shrink-0 truncate text-[13px] ${unread ? 'font-bold text-foreground' : 'font-normal text-foreground/80'}`}>
                 {name}
               </span>
               <span className="min-w-0 flex-1 truncate text-[13px]">
-                <span className="font-medium">{r.subject || '(no subject)'}</span>
+                <span className={unread ? 'font-bold text-foreground' : 'text-foreground/80'}>
+                  {r.subject || '(no subject)'}
+                </span>
                 {r.snippet && (
-                  <span className="text-muted-foreground"> &ndash; {r.snippet}</span>
+                  <span className="text-muted-foreground/80"> &ndash; {r.snippet}</span>
                 )}
               </span>
               {amount && (
-                <span className="hidden md:inline shrink-0 text-[11px] font-mono tabular-nums text-muted-foreground">
+                <span className={`hidden md:inline shrink-0 text-[11px] font-mono tabular-nums ${unread ? 'text-foreground' : 'text-muted-foreground'}`}>
                   {amount}
                 </span>
               )}
               {r.transaction_id && (
                 <Paperclip className="hidden lg:block h-3.5 w-3.5 shrink-0 text-muted-foreground/60" aria-hidden />
               )}
-              <span className="shrink-0 w-14 text-right text-[11px] font-medium tabular-nums text-muted-foreground">
+              {/* Gmail swaps the date column for row actions on hover. */}
+              <span className="shrink-0 w-16 text-right">
+                <span className={`text-[11px] tabular-nums group-hover:hidden ${unread ? 'font-bold text-foreground' : 'font-medium text-muted-foreground'}`}>
                 {gmailDate(r.internal_date)}
+                </span>
+                <span className="hidden group-hover:inline-flex items-center justify-end gap-1 text-muted-foreground" aria-hidden>
+                  <Archive className="h-3.5 w-3.5 hover:text-foreground" />
+                  <Clock className="h-3.5 w-3.5 hover:text-foreground" />
+                  <MailOpen className="h-3.5 w-3.5 hover:text-foreground" />
+                </span>
               </span>
             </button>
           </li>
