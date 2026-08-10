@@ -32,7 +32,7 @@ import { normalizeMomoTid } from '@/lib/momoTid';
 import { downloadCsv, csvTimestamp } from '@/lib/csvExport';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip as RTooltip, CartesianGrid, Legend, Brush } from 'recharts';
 import { DebitBucketAuditSearch } from './DebitBucketAuditSearch';
-import { CashDepositCodesPanel } from './CashDepositCodesPanel';
+
 import { ProxyDebitBreakdownDialog } from './ProxyDebitBreakdownDialog';
 import { EmailPeriodComparison } from './EmailPeriodComparison';
 import { SwipeableEmailRow, type SwipeAction } from './SwipeableEmailRow';
@@ -5244,9 +5244,8 @@ export function EmailTransactionsPanel() {
 
       <DebitBucketAuditSearch />
 
-      <CashDepositCodesPanel />
-
       <div className="rounded-xl border bg-card p-3 flex flex-col gap-3">
+
         <div className="flex flex-wrap items-center gap-2">
           <Button onClick={pollNow} disabled={polling} className="gap-2 flex-1 sm:flex-none min-w-[130px]">
             {polling ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
