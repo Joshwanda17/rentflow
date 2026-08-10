@@ -408,7 +408,15 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
           e.preventDefault();
         }}
       >
-        <SheetHeader className="px-5 pt-5 pb-3 border-b border-border space-y-3">
+        <div
+          ref={resultsRef}
+          className={
+            view === 'map'
+              ? 'flex-1 min-h-0 flex flex-col overflow-hidden'
+              : 'flex-1 min-h-0 overflow-y-auto overscroll-contain'
+          }
+        >
+        <SheetHeader className="px-5 pt-5 pb-3 border-b border-border space-y-3 bg-background">
           <img
             src={houseSearchingIllustration.url}
             alt="House searching illustration"
@@ -718,7 +726,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
             />
           </div>
         ) : (
-        <div ref={resultsRef} className="flex-1 overflow-y-auto overscroll-contain px-4 py-4">
+        <div className="px-4 py-4">
           <div className="mx-auto w-full max-w-2xl lg:max-w-6xl space-y-3">
           {loading ? (
             Array.from({ length: 4 }).map((_, i) => (
@@ -856,6 +864,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
           </div>
         </div>
         )}
+        </div>
         {view === 'list' && (() => {
           const target = filtered.find(l => l.latitude && l.longitude);
           const mapHref = target
