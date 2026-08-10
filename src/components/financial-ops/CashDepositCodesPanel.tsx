@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { KeyRound, RefreshCw, Loader2, Copy, Check, Clock, Radio, ChevronDown, Smartphone } from 'lucide-react';
@@ -84,6 +85,8 @@ export function CashDepositCodesPanel() {
   const [secondsToRefresh, setSecondsToRefresh] = useState<number>(3);
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [reissuing, setReissuing] = useState<string | null>(null);
+  const [codeInputs, setCodeInputs] = useState<Record<string, string>>({});
+  const [verifying, setVerifying] = useState<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -201,6 +204,37 @@ export function CashDepositCodesPanel() {
     load();
   };
 
+  // Operator entry: the depositor reads the SMS code back and Financial Ops
+  // types it here. The edge function credits the DEPOSITOR's wallet.
+  const submitCode = async (row: CashCodeRow) => {
+    const entered = (codeInputs[row.verification_id] ?? '').replace(/\D/g, '');
+    if (entered.length !== 4) {
+      toast({ title: 'Enter the 4-digit code', description: 'The depositor must read back all 4 digits.', variant: 'destructive' });
+      return;
+    }
+    setVerifying(row.verification_id);
+    const { data, error } = await supabase.functions.invoke('cash-deposit-verify-code', {
+      body: { deposit_request_id: row.deposit_request_id, code: entered, on_behalf: true },
+    });
+    setVerifying(null);
+    const payloadError = (data as any)?.error ? ((data as any)?.message || (data as any)?.error) : null;
+    if (error || payloadError) {
+      toast({
+        title: 'Code not accepted',
+        description: payloadError || error?.message || 'Could not verify this code.',
+        variant: 'destructive',
+      });
+      load();
+      return;
+    }
+    setCodeInputs((prev) => ({ ...prev, [row.verification_id]: '' }));
+    toast({
+      title: 'Deposit verified',
+      description: `${fmtUgx(row.amount)} credited to ${row.depositor_name || 'the depositor'}'s wallet.`,
+    });
+    load();
+  };
+
   const activeRows = rows.filter(
     (r) => r.status === 'awaiting_code' && r.expires_at && new Date(r.expires_at).getTime() > Date.now(),
   );
@@ -289,6 +323,7 @@ export function CashDepositCodesPanel() {
                     <th className="py-2 px-2 font-medium">Depositor</th>
                     <th className="py-2 px-2 font-medium">Purpose</th>
                     <th className="py-2 px-2 font-medium">Status</th>
+                    <th className="py-2 px-2 font-medium">Enter code</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -338,6 +373,43 @@ export function CashDepositCodesPanel() {
                       </td>
                       <td className="py-2 px-2 whitespace-nowrap text-xs">{purposeLabel(r.deposit_purpose)}</td>
                       <td className="py-2 px-2"><StatusBadge status={r.status} /></td>
+                      <td className="py-2 px-2 align-top">
+                        {r.status === 'awaiting_code' &&
+                        r.expires_at &&
+                        new Date(r.expires_at).getTime() > Date.now() ? (
+                          <div className="flex items-center gap-1.5">
+                            <Input
+                              inputMode="numeric"
+                              maxLength={4}
+                              placeholder="0000"
+                              className="h-8 w-16 text-center font-mono tracking-widest"
+                              value={codeInputs[r.verification_id] ?? ''}
+                              onChange={(e) =>
+                                setCodeInputs((prev) => ({
+                                  ...prev,
+                                  [r.verification_id]: e.target.value.replace(/\D/g, '').slice(0, 4),
+                                }))
+                              }
+                              onKeyDown={(e) => { if (e.key === 'Enter') void submitCode(r); }}
+                            />
+                            <Button
+                              size="sm"
+                              className="h-8 gap-1 text-xs"
+                              disabled={verifying === r.verification_id || (codeInputs[r.verification_id] ?? '').length !== 4}
+                              onClick={() => void submitCode(r)}
+                            >
+                              {verifying === r.verification_id ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Check className="h-3 w-3" />
+                              )}
+                              Credit
+                            </Button>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
