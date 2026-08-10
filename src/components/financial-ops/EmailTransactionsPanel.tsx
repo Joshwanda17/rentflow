@@ -688,6 +688,20 @@ export function EmailTransactionsPanel() {
   });
   useEffect(() => { try { localStorage.setItem('gmail_filter_direction', directionFilter); } catch {} }, [directionFilter]);
 
+  // Focused money-in / money-out view. Tapping one of the two entry tiles opens
+  // a dedicated page-style view that shows ONLY those emails: every other
+  // narrowing filter is reset so nothing is silently hidden, and a banner with
+  // a Back action replaces the tiles.
+  const [focusDirection, setFocusDirection] = useState<'in' | 'out' | null>(null);
+  // Keep the focused view honest: if the operator changes the direction chips
+  // lower down (or restores a preset), the banner follows or closes.
+  useEffect(() => {
+    setFocusDirection((cur) => {
+      if (directionFilter === 'all') return null;
+      return cur === null ? null : directionFilter;
+    });
+  }, [directionFilter]);
+
   // "Needs Routing" filter — when on, show only incoming deposits whose money
   // never landed in a wallet (not credited and not routed). Persisted so the
   // operator's triage view survives a refresh.
@@ -3147,8 +3161,91 @@ export function EmailTransactionsPanel() {
           </div>
         </div>
       </div>
-      {/* Money-in / money-out entry buttons — one tap slices the extracted
-          email feed to credits or debits and jumps to the results list. */}
+      {/* Money-in / money-out entry buttons — one tap opens a dedicated view
+          showing only that side of the extracted email feed. */}
+      {focusDirection ? (
+        (() => {
+          const isIn = focusDirection === 'in';
+          const count = visibleRows.length;
+          const total = visibleRows.reduce(
+            (s, r) => s + (r.amount && Number.isFinite(r.amount) ? (r.amount as number) : 0),
+            0,
+          );
+          return (
+            <div
+              className={`rounded-xl border p-4 ${
+                isIn
+                  ? 'border-emerald-600/40 bg-emerald-600/10'
+                  : 'border-rose-600/40 bg-rose-600/10'
+              }`}
+            >
+              <div className="flex items-start gap-3">
+                <span
+                  className={`h-10 w-10 shrink-0 rounded-lg flex items-center justify-center text-white ${
+                    isIn ? 'bg-emerald-600' : 'bg-rose-600'
+                  }`}
+                >
+                  {isIn ? <ArrowDownLeft className="h-5 w-5" /> : <ArrowUpRight className="h-5 w-5" />}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-bold text-base sm:text-lg leading-tight">
+                    {isIn ? 'Money in emails' : 'Money out emails'}
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {isIn
+                      ? 'Only extracted deposits and incoming credits are listed below.'
+                      : 'Only extracted payouts, debits and provider charges are listed below.'}
+                  </p>
+                  <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+                    <span>
+                      <span className="font-mono tabular-nums font-semibold">{count}</span>{' '}
+                      <span className="text-muted-foreground">email{count === 1 ? '' : 's'}</span>
+                    </span>
+                    <span>
+                      <span className="text-muted-foreground">Total </span>
+                      <span className="font-mono tabular-nums font-semibold">{fmtUgx(total)}</span>
+                    </span>
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="shrink-0 h-8 text-xs bg-background"
+                  onClick={() => {
+                    setFocusDirection(null);
+                    setDirectionFilter('all');
+                  }}
+                >
+                  <X className="h-3.5 w-3.5 mr-1" />
+                  Back to all emails
+                </Button>
+              </div>
+              <div className="mt-3">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="h-8 text-xs"
+                  onClick={() => {
+                    const next = isIn ? 'out' : 'in';
+                    setFocusDirection(next);
+                    setDirectionFilter(next);
+                  }}
+                >
+                  {isIn ? (
+                    <>
+                      <ArrowUpRight className="h-3.5 w-3.5 mr-1" /> Switch to money out
+                    </>
+                  ) : (
+                    <>
+                      <ArrowDownLeft className="h-3.5 w-3.5 mr-1" /> Switch to money in
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          );
+        })()
+      ) : (
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {([
           {
@@ -3171,7 +3268,16 @@ export function EmailTransactionsPanel() {
               type="button"
               aria-pressed={active}
               onClick={() => {
-                setDirectionFilter(active ? 'all' : key);
+                // Open a dedicated, unambiguous view for this direction: clear
+                // every other narrowing filter so the list is exactly the
+                // money-in (or money-out) emails.
+                setDirectionFilter(key);
+                setFocusDirection(key === 'in' ? 'in' : 'out');
+                setMatchFilter('all');
+                setStatusFilter('all');
+                setNeedsRoutingOnly(false);
+                setDebitFilter('all');
+                setDebitSort('none');
                 if (typeof document !== 'undefined') {
                   document.getElementById('email-tx-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }
@@ -3196,6 +3302,7 @@ export function EmailTransactionsPanel() {
           );
         })}
       </div>
+      )}
       <div id="email-tx-results" className="rounded-xl border bg-card overflow-hidden scroll-mt-20">
         {/* Prominent, full-width search bar — lets ops find any email by
             amount, name, phone (any format), reference id, or any word in
