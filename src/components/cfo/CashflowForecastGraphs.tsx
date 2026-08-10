@@ -316,6 +316,71 @@ export function CashflowForecastGraphs() {
           )}
         </CardContent>
       </Card>
+
+      {/* Per-partner projection (Returns forecast only) */}
+      {active?.key === 'roi_forecast' && (
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div>
+                <h2 className="text-sm font-bold">Projection per partner</h2>
+                <p className="text-[11px] text-muted-foreground">
+                  Every partner whose Partner Ops portfolios fall due inside {isoDay(start)} to {isoDay(end)}.
+                </p>
+              </div>
+              <Badge variant="outline" className="text-[10px]">{partners.length} partners</Badge>
+            </div>
+
+            {partners.length === 0 ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">
+                No partner Returns fall due inside this window.
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-left text-[10px] uppercase tracking-widest text-muted-foreground">
+                      <th className="py-2 pr-3 font-semibold">Partner</th>
+                      <th className="py-2 pr-3 font-semibold">Portfolios</th>
+                      <th className="py-2 pr-3 font-semibold text-right">Committed</th>
+                      <th className="py-2 pr-3 font-semibold">Next payout</th>
+                      <th className="py-2 pr-3 font-semibold">Cycles</th>
+                      <th className="py-2 font-semibold text-right">Projected Returns</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {partners.map((p) => (
+                      <tr key={p.partner_id} className="border-t border-border/60">
+                        <td className="py-2 pr-3">
+                          <p className="font-semibold">{p.partner_name}</p>
+                          {p.phone ? <p className="text-[10px] text-muted-foreground">{p.phone}</p> : null}
+                        </td>
+                        <td className="py-2 pr-3 tabular-nums">{Number(p.portfolios)}</td>
+                        <td className="py-2 pr-3 text-right font-mono tabular-nums">
+                          {formatUGX(Number(p.committed))}
+                        </td>
+                        <td className="py-2 pr-3 whitespace-nowrap">{p.next_due ?? '—'}</td>
+                        <td className="py-2 pr-3 tabular-nums">{Number(p.payouts)}</td>
+                        <td className="py-2 text-right font-mono tabular-nums font-bold">
+                          {formatUGX(Number(p.projected))}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t-2 border-border">
+                      <td className="py-2 pr-3 font-bold" colSpan={5}>Total projected Returns</td>
+                      <td className="py-2 text-right font-mono tabular-nums font-bold">
+                        {formatUGX(partners.reduce((s, p) => s + Number(p.projected), 0))}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
