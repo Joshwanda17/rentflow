@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ChevronLeft, Paperclip, Star } from 'lucide-react';
+import { ChevronLeft, Paperclip, Star, Inbox, Clock, Archive, Trash2, MailOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 /**
@@ -88,11 +88,33 @@ export function GmailStyleEmailList({ rows }: { rows: GmailStyleRow[] }) {
     const amount = fmtUgx(open.amount);
     return (
       <div className="bg-background">
-        <div className="flex items-center gap-2 px-3 py-2 border-b">
-          <Button size="sm" variant="ghost" className="h-8 px-2" onClick={() => setOpenId(null)}>
-            <ChevronLeft className="h-4 w-4 mr-1" />
-            Back
+        <div className="flex items-center gap-1 px-2 py-1.5 border-b">
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-9 w-9 rounded-full"
+            aria-label="Back to inbox"
+            title="Back to inbox"
+            onClick={() => setOpenId(null)}
+          >
+            <ChevronLeft className="h-4 w-4" />
           </Button>
+          <span className="mx-1 h-5 w-px bg-border" aria-hidden />
+          {[
+            { Icon: Archive, label: 'Archive' },
+            { Icon: Trash2, label: 'Delete' },
+            { Icon: MailOpen, label: 'Mark as unread' },
+            { Icon: Clock, label: 'Snooze' },
+          ].map(({ Icon, label }) => (
+            <span
+              key={label}
+              title={`${label} — read-only view`}
+              aria-hidden
+              className="hidden sm:flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground/40"
+            >
+              <Icon className="h-4 w-4" />
+            </span>
+          ))}
         </div>
         <div className="px-4 sm:px-6 py-4">
           <h3 className="text-base sm:text-lg font-medium leading-snug break-words tracking-tight">
