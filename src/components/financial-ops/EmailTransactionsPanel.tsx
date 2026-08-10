@@ -3334,21 +3334,21 @@ export function EmailTransactionsPanel() {
                   document.getElementById('email-tx-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }
               }}
-              className={`w-full text-left rounded-xl border p-4 transition-colors flex items-center gap-3 ${
+              className={`w-full text-left rounded-lg border p-3.5 transition-colors flex items-center gap-3 ${
                 active
-                  ? 'border-primary bg-primary/10 ring-1 ring-primary'
-                  : 'bg-card hover:bg-muted/50'
+                  ? 'border-foreground/30 bg-muted/60'
+                  : 'bg-card hover:bg-muted/40'
               }`}
             >
-              <span className={`h-10 w-10 shrink-0 rounded-lg flex items-center justify-center ${active ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
-                <Icon className="h-5 w-5" />
+              <span className="h-8 w-8 shrink-0 rounded-md flex items-center justify-center bg-muted text-muted-foreground">
+                <Icon className="h-4 w-4" />
               </span>
               <span className="min-w-0">
-                <span className="block font-semibold text-sm">{title}</span>
+                <span className="block font-medium text-sm">{title}</span>
                 <span className="block text-xs text-muted-foreground truncate">{hint}</span>
               </span>
               {active && (
-                <Badge variant="secondary" className="ml-auto text-[10px] shrink-0">Showing</Badge>
+                <Badge variant="outline" className="ml-auto text-[10px] shrink-0 font-normal">Showing</Badge>
               )}
             </button>
           );
