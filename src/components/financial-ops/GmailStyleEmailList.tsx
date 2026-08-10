@@ -101,6 +101,27 @@ export function GmailStyleEmailList({ rows }: { rows: GmailStyleRow[] }) {
   );
   const open = openId ? sortedRows.find((r) => r.id === openId) ?? null : null;
 
+  // ── Gmail-style endless scroll: render a first batch and grow it as the
+  // sentinel at the bottom of the list scrolls into view. Date rollups
+  // ("Today", "Yesterday", "Mon, Aug 4") separate the batches visually.
+  const [count, setCount] = useState(BATCH);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => { setCount(BATCH); }, [rows.length]);
+  const shown = sortedRows.slice(0, count);
+  const hasMore = count < sortedRows.length;
+  useEffect(() => {
+    if (open || !hasMore) return;
+    const el = sentinelRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) {
+        setCount((c) => Math.min(c + BATCH, sortedRows.length));
+      }
+    }, { rootMargin: '600px 0px' });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [open, hasMore, sortedRows.length]);
+
   if (open) {
     const name = senderName(open);
     const amount = fmtUgx(open.amount);
