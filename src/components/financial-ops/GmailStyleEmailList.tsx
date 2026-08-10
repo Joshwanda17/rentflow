@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, Paperclip, Star, Inbox, Clock, Archive, Trash2, MailOpen, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -246,10 +246,9 @@ export function GmailStyleEmailList({ rows }: { rows: GmailStyleRow[] }) {
         const showGroup = group !== lastGroup;
         lastGroup = group;
         return (
-          <>
+          <Fragment key={r.id}>
           {showGroup && (
             <li
-              key={`g-${group}-${r.id}`}
               className="sticky top-0 z-[5] bg-muted/60 backdrop-blur px-3 sm:px-4 py-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
             >
               {group}
@@ -309,7 +308,7 @@ export function GmailStyleEmailList({ rows }: { rows: GmailStyleRow[] }) {
               </span>
             </button>
           </li>
-          </>
+          </Fragment>
         );
       })}
     </ul>
