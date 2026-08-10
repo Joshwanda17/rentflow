@@ -7139,6 +7139,8 @@ export function EmailTransactionsPanel() {
         }}
         onDeleteRule={deleteUserRule}
       />
+      </div>
+      </div>
     </div>
   );
 }
