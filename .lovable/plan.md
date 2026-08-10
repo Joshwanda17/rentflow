@@ -1,66 +1,27 @@
-# Welile Android APK (side-loadable wrapper)
+# Buy merchandise with a zero wallet balance
 
-Goal: a signed `Welile.apk` that anyone can download from welileapp.com, install, and use as a real app icon on their phone — while the app content stays exactly the live welileapp.com you already publish.
+Today an agent can only order merchandise if their wallet has money: "Buy now" needs the full price, and "Pay in installments" still needs enough for a first 25% charge — an empty wallet is rejected outright. This change lets anyone place an installment order regardless of balance, and the existing 25% wallet recovery collects the whole price over time as earnings arrive.
 
-## What we build
+## What changes for the user
 
-A thin Android shell (Capacitor) whose only job is to open `https://welileapp.com` fullscreen, with the Welile icon, splash screen and status-bar colour. No second copy of the app, no duplicated screens.
+- Installments become available at any balance, including UGX 0.
+- If the wallet has something, the same first 25% is taken immediately (capped by what is actually available).
+- If the wallet is empty (or below the 25% figure), nothing is debited at checkout; the full price becomes the outstanding balance.
+- The confirm screen states plainly: "Due now: UGX 0 — the full amount is recovered from your wallet at 25% per recovery run."
+- "Buy now" keeps requiring the full amount in the wallet (unchanged); the empty-wallet warning becomes an informational note instead of a blocker for installments.
+- CMO merchandise view is unchanged in shape: the order appears as a credit sale with a 25% recovery plan, so the company still sees who owes what.
 
-```text
-Phone taps Welile icon
-        |
-Android shell (APK, signed)  ->  loads https://welileapp.com
-        |                                   |
- native back button,               your existing React app,
- splash, icon, file picker         Lovable Cloud backend, SMS, wallet
-```
+## Technical detail
 
-Because the shell loads the live site, every future release you publish appears in the APK immediately. You only rebuild the APK when the icon, name, permissions or Android settings change.
+1. `agent_purchase_merchandise` (database function), installment branch only:
+   - Remove the `v_down <= 0` rejection; allow a zero down payment (`v_down := LEAST(v_avail, GREATEST(round(v_total * 0.25), 1))`, clamped at `>= 0`).
+   - When `v_down = 0`, skip the wallet debit / ledger posting entirely and insert the sale with `amount_paid = 0`, `amount_outstanding = v_total`, `payment_status = 'credit'` (instead of `partial`), `payment_plan = 'installment'`.
+   - `full` mode keeps its existing `INSUFFICIENT_BALANCE` guard untouched.
+2. `create_merchandise_recovery_plan` trigger already fires whenever `amount_outstanding > 0` and picks `daily_rate = 0.25` for installment sales, so a zero-down order automatically gets a plan — no trigger change needed.
+3. `recover_merchandise_from_wallets` (4x/day cron) already deducts `least(outstanding, available, round(available * rate))` from the strict withdrawable balance, so zero-balance plans simply collect nothing until money lands. No change.
+4. `src/pages/MerchandiseStore.tsx` (presentation only):
+   - `insufficient` no longer includes the `firstInstallment <= 0` case; installments never disable the confirm button.
+   - Confirm screen and installment copy handle the `dueNow === 0` case ("Nothing is taken now").
+   - Keep the client-side `INSUFFICIENT_BALANCE` toast for `full` mode only.
 
-## Work items
-
-1. Add Capacitor (core, cli, android) and `capacitor.config.ts` with:
-   - appId `com.welile.app`, appName `Welile`
-   - `server.url = "https://welileapp.com"`, `androidScheme: "https"`
-   - allow-navigation for welileapp.com, welilereceipts.com and the backend host so auth and API calls are never blocked
-2. Android app icons + splash generated from `public/icon-512.png`, theme `#7c3aed`.
-3. `AndroidManifest` permissions: internet, camera (ID/receipt photos), fine location (agent GPS), notifications, storage read for uploads. Nothing more — extra permissions scare users and complicate Play later.
-4. Native back-button handling so back navigates web history instead of closing the app; exit only at the app root.
-5. App Links / deep links for welileapp.com so invite links (`/pa/:code`, activation, password reset) open in the app when installed.
-6. A small in-app version check: the shell reads a version file on the site and shows a "New version available – download" notice, since side-loaded APKs get no automatic updates.
-7. A public download page at `/download` with the APK, file size, SHA-256 checksum, and clear "allow install from this source" instructions for Android 8-15.
-8. Store the APK as a static asset served from the site so the link never expires.
-
-## What you do on your laptop (once per APK release)
-
-1. Export the project to GitHub, `git pull`, `npm install`
-2. `npx cap add android`, `npm run build`, `npx cap sync`
-3. In Android Studio: create the **release keystore once** and back it up forever — losing it means you can never ship an update under the same app identity.
-4. Build > Generate Signed Bundle/APK > APK > release. Rename the result `welile-<version>.apk`.
-5. Send me the file and I add it to the download page with its checksum.
-
-## Implications — the honest assessment
-
-**Good**
-- Real app icon, fullscreen, no browser bar; feels like a bank app and raises trust with landlords and agents.
-- No Play review, no USD 25 account, no data-safety questionnaire — live in days.
-- One codebase. Web releases reach app users instantly.
-- Camera, GPS and push work better than in a mobile browser.
-- You can send the download link straight to agents on WhatsApp.
-
-**Costs and risks**
-- **Trust friction on install.** Android shows "unknown source" warnings and Play Protect may flag it. Some users abandon here. The checksum + instructions page reduces this but cannot remove it.
-- **No automatic updates.** Only the in-app version notice; users must download again for shell changes.
-- **APK re-sharing.** The file will circulate. Old copies keep working and still hit the live site, so security stays server-side — which it already is (RLS, role checks). Nothing sensitive is baked into the APK.
-- **Keystore is a single point of failure.** Losing it forces a new app identity and a fresh install for everyone.
-- **Offline behaviour.** A remote-URL wrapper needs a connection; with no network it shows an offline screen. True offline field capture would be a much larger project and is not in this plan.
-- **iPhone users are not covered.** iOS side-loading is not possible; they keep the existing "Add to Home Screen" install.
-- **Play Store later.** The same project submits to Play with mostly metadata work, but Play requires an App Bundle and rejects pure webview wrappers under the minimum-functionality policy unless there is real native integration — our camera/GPS/push/deep-link work is what makes it pass.
-- **Financial-app scrutiny.** Since Welile moves money, keep the download page, privacy policy and terms visible from the app.
-
-**Not affected**
-- Backend, wallet logic, ledger, SMS, email, RLS — untouched. This is purely a delivery channel.
-
-## Recommendation
-
-Ship the wrapper APK for side-loading now with the download page, checksum and version notice, keep the PWA install for iPhone, and treat the Play Store as a separate follow-up once agent adoption proves demand.
+Smartphone and Spiro bike order dialogs keep their existing balance rules — this change is scoped to catalog merchandise.
