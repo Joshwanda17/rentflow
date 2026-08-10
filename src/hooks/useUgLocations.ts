@@ -22,6 +22,10 @@ export interface UgOption {
   name: string;
 }
 
+/** Uganda's four official regions. */
+export const UG_REGIONS = ['Central', 'Eastern', 'Northern', 'Western'] as const;
+export type UgRegion = (typeof UG_REGIONS)[number];
+
 /** A fully-resolved administrative chain for one village. */
 export interface UgLocationSelection {
   villageId: number;
@@ -34,6 +38,8 @@ export interface UgLocationSelection {
   county: string;
   districtId: number;
   district: string;
+  /** Region of the district (Central | Eastern | Northern | Western). */
+  region: string | null;
   fullPath: string;
 }
 
@@ -57,10 +63,19 @@ async function fetchLevel(table: string, parentCol: string | null, parentId: num
   return (data ?? []) as unknown as UgOption[];
 }
 
-export function useUgDistricts() {
+export interface UgDistrictOption extends UgOption { region: string | null }
+
+/** All districts, each carrying its region. Optionally filtered by region. */
+export function useUgDistricts(region?: string | null) {
   return useQuery({
-    queryKey: ['ug', 'districts'],
-    queryFn: () => fetchLevel('ug_districts', null, null),
+    queryKey: ['ug', 'districts', region ?? 'all'],
+    queryFn: async () => {
+      let q = supabase.from('ug_districts' as any).select('id, name, region').order('name');
+      if (region) q = q.eq('region', region);
+      const { data, error } = await q;
+      if (error) throw error;
+      return (data ?? []) as unknown as UgDistrictOption[];
+    },
     ...STATIC,
   });
 }
