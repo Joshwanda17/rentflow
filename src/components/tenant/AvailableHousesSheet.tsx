@@ -864,6 +864,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
           </div>
         </div>
         )}
+        </div>
         {view === 'list' && (() => {
           const target = filtered.find(l => l.latitude && l.longitude);
           const mapHref = target
