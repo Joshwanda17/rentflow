@@ -28102,16 +28102,19 @@ export type Database = {
           created_at: string
           id: number
           name: string
+          region: string | null
         }
         Insert: {
           created_at?: string
           id: number
           name: string
+          region?: string | null
         }
         Update: {
           created_at?: string
           id?: number
           name?: string
+          region?: string | null
         }
         Relationships: []
       }
@@ -37532,6 +37535,7 @@ export type Database = {
           full_path: string
           parish_id: number
           parish_name: string
+          region: string
           subcounty_id: number
           subcounty_name: string
           village_id: number
@@ -37549,6 +37553,7 @@ export type Database = {
               full_path: string
               parish_id: number
               parish_name: string
+              region: string
               subcounty_id: number
               subcounty_name: string
               village_id: number
@@ -37570,6 +37575,7 @@ export type Database = {
               full_path: string
               parish_id: number
               parish_name: string
+              region: string
               subcounty_id: number
               subcounty_name: string
               village_id: number
