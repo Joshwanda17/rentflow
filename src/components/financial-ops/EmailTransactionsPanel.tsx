@@ -3912,7 +3912,9 @@ export function EmailTransactionsPanel() {
                 </div>
               </div>
             )}
-            {(() => {
+            {focusDirection && focusView === 'gmail' ? (
+              <GmailStyleEmailList rows={visibleRows} />
+            ) : (() => {
               const totalPages = Math.max(1, Math.ceil(visibleRows.length / pageSize));
               const safePage = Math.min(currentPage, totalPages);
               const isInfinite = paginationMode === 'infinite';
