@@ -360,6 +360,7 @@ function GlobalFloatingWidgets() {
     <>
       <FloatingToolbar />
       <MerchantDispatchListener />
+      <GlobalInstallPrompt />
     </>
 
   );
