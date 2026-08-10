@@ -3442,9 +3442,9 @@ export function EmailTransactionsPanel() {
               )}
             </div>
           </div>
-          {/* Mobile-friendly quick filters: date, direction & status in one
-              horizontally-scrollable strip so ops can narrow results on a phone
-              without scrolling back up to the full filter panel. */}
+          {/* Mobile quick date windows. Flow/status narrowing lives in the
+              left label rail (Inbox / Money in / Money out / Needs routing /
+              Unparsed / Credited). */}
           <div className="sm:hidden -mx-1 overflow-x-auto">
             <div className="flex items-center gap-1.5 px-1 pb-1 w-max">
               {([
@@ -3476,47 +3476,6 @@ export function EmailTransactionsPanel() {
                   </button>
                 );
               })}
-              <span className="shrink-0 mx-0.5 h-4 w-px bg-border" aria-hidden />
-              {([
-                { key: 'all', label: 'All' },
-                { key: 'in', label: 'In' },
-                { key: 'out', label: 'Out' },
-              ] as Array<{ key: DirectionFilter; label: string }>).map((c) => (
-                <button
-                  key={c.key}
-                  type="button"
-                  onClick={() => setDirectionFilter(c.key)}
-                  aria-pressed={directionFilter === c.key}
-                  className={`shrink-0 text-[11px] px-2.5 py-1 rounded-full border transition-colors ${
-                    directionFilter === c.key
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-background hover:bg-muted text-muted-foreground border-border'
-                  }`}
-                >
-                  {c.label}
-                </button>
-              ))}
-              <span className="shrink-0 mx-0.5 h-4 w-px bg-border" aria-hidden />
-              {([
-                { key: 'all', label: 'Any' },
-                { key: 'credited', label: 'Credited' },
-                { key: 'needs_routing', label: 'Needs routing' },
-                { key: 'unparsed', label: 'Unparsed' },
-              ] as Array<{ key: StatusFilter; label: string }>).map((c) => (
-                <button
-                  key={c.key}
-                  type="button"
-                  onClick={() => setStatusFilter(c.key)}
-                  aria-pressed={statusFilter === c.key}
-                  className={`shrink-0 text-[11px] px-2.5 py-1 rounded-full border transition-colors ${
-                    statusFilter === c.key
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-background hover:bg-muted text-muted-foreground border-border'
-                  }`}
-                >
-                  {c.label}
-                </button>
-              ))}
             </div>
           </div>
         </div>
