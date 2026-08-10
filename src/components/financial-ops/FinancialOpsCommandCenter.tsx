@@ -540,7 +540,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
   return (
     <div className={emailTxFullscreen ? 'min-w-0' : 'flex gap-6 items-start min-w-0'}>
       {/* Persistent sidebar (desktop) — hidden when Email Transactions is open full-screen */}
-
+      {!emailTxFullscreen && (
       <aside className={`hidden lg:flex ${sidebarCollapsed ? 'w-14' : 'w-64 xl:w-72'} shrink-0 self-stretch min-h-[calc(100vh-2rem)] flex-col rounded-2xl border border-border bg-card overflow-hidden transition-[width] duration-200`}>
         {/* Sidebar header */}
         <div className={`${sidebarCollapsed ? 'px-2 py-3' : 'px-4 pt-4 pb-3'} border-b border-border bg-gradient-to-br from-primary/5 via-card to-card`}>
@@ -650,6 +650,8 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
           </div>
         </div>
       </aside>
+      )}
+
 
       {/* Main content */}
       <div className="flex-1 min-w-0">
