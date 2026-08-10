@@ -43,7 +43,7 @@ export function ProoflessPayoutBlocker() {
     queryFn: async (): Promise<ProoflessRow[]> => {
       const { data, error } = await supabase
         .from('withdrawal_requests')
-        .select('id, user_id, amount, payout_method, mobile_money_provider, processed_at, created_at')
+        .select('id, user_id, amount, payout_method, mobile_money_provider, processed_at, created_at, payout_proof')
         .eq('processed_by', user!.id)
         .eq('status', 'completed')
         .is('payout_proof_path', null)
