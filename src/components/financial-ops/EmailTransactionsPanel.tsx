@@ -2720,9 +2720,10 @@ export function EmailTransactionsPanel() {
     const isRouted = (routingHistory[r.id] ?? []).length > 0;
     const credited = creditedDeposits[r.id] ?? [];
     const manualMark = manualMarks[r.id];
-    const isCredited = manualMark ? manualMark.mark === 'credited' : credited.length > 0;
+    const ledgerHit = (ledgerCredits[r.id] ?? []).length > 0;
+    const isCredited = manualMark ? manualMark.mark === 'credited' : (credited.length > 0 || ledgerHit);
     return !isCredited && !isRouted;
-  }, [routingHistory, creditedDeposits, manualMarks, justRoutedIds]);
+  }, [routingHistory, creditedDeposits, manualMarks, justRoutedIds, ledgerCredits]);
 
   /**
    * Settlement status for a single row, used by the Status filter chips.
@@ -2738,9 +2739,10 @@ export function EmailTransactionsPanel() {
     const isRouted = (routingHistory[r.id] ?? []).length > 0;
     const credited = creditedDeposits[r.id] ?? [];
     const manualMark = manualMarks[r.id];
-    const isCredited = manualMark ? manualMark.mark === 'credited' : credited.length > 0;
+    const ledgerHit = (ledgerCredits[r.id] ?? []).length > 0;
+    const isCredited = manualMark ? manualMark.mark === 'credited' : (credited.length > 0 || ledgerHit);
     return isCredited || isRouted ? 'credited' : 'needs_routing';
-  }, [routingHistory, creditedDeposits, manualMarks, justRoutedIds]);
+  }, [routingHistory, creditedDeposits, manualMarks, justRoutedIds, ledgerCredits]);
 
   /**
    * Unread alert tracking. "Alerts" are rows that need a human: incoming
