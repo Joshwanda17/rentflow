@@ -312,8 +312,14 @@ export default function PartnerAgreementSignOff({
 
             {agreement && !loading && (
               <>
+                {isDraft && (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-[11px] text-amber-800">
+                    No agreement record on file yet — details below are drawn from the partner's profile and
+                    payout method. Counter-signing creates the agreement record and stores the executed PDF.
+                  </div>
+                )}
                 <section className="space-y-1.5">
-                  <p className="text-xs font-semibold text-foreground">Partner submitted</p>
+                  <p className="text-xs font-semibold text-foreground">{isDraft ? 'Partner details (from profile)' : 'Partner submitted'}</p>
                   <ReadRow label="Partnership amount" value={`UGX ${(Number(agreement.partnership_amount) || 0).toLocaleString('en-US')}`} />
                   <ReadRow label="National ID / Passport" value={agreement.national_id || '—'} />
                   <ReadRow label="Address" value={agreement.address || '—'} />
