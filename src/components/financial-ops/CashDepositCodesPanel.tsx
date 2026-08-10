@@ -262,8 +262,8 @@ export function CashDepositCodesPanel() {
     <StartCashDepositDialog open={startOpen} onOpenChange={setStartOpen} onIssued={load} />
     <Collapsible open={open} onOpenChange={setOpen} className="rounded-xl border bg-card">
       <CollapsibleTrigger asChild>
-        <div className="flex items-center justify-between gap-3 cursor-pointer p-4 sm:p-5 hover:bg-muted/30 transition-colors rounded-t-xl">
-          <div className="min-w-0">
+        <div className="flex flex-wrap items-center justify-between gap-3 cursor-pointer p-4 sm:p-5 hover:bg-muted/30 transition-colors rounded-t-xl">
+          <div className="min-w-0 flex-1 basis-[240px]">
             <h3 className="text-base sm:text-lg font-semibold flex items-center gap-2">
               <KeyRound className="h-5 w-5 text-primary" /> Cash Deposit Codes
               {activeCount > 0 && (
