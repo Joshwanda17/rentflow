@@ -12,11 +12,13 @@ import {
   Smartphone,
   ChevronDown,
   ChevronUp,
+  AlertTriangle,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { format, formatDistanceToNow, parseISO, isToday, isYesterday } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { ReportPayoutNotReceivedDialog } from '@/components/payouts/ReportPayoutNotReceivedDialog';
 
 interface WithdrawalRequest {
   id: string;
@@ -48,6 +50,9 @@ export function UserWithdrawalRequests() {
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
+  // Withdrawal ids the user already reported as "not received" -> status.
+  const [disputes, setDisputes] = useState<Record<string, string>>({});
+  const [reportTarget, setReportTarget] = useState<WithdrawalRequest | null>(null);
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('en-UG', {
@@ -69,6 +74,16 @@ export function UserWithdrawalRequests() {
         .limit(10);
       if (error) throw error;
       setRequests((data as any[]) || []);
+      const ids = ((data as any[]) || []).map((r) => r.id);
+      if (ids.length > 0) {
+        const { data: dRows } = await (supabase as any)
+          .from('payout_delivery_disputes')
+          .select('withdrawal_id, status')
+          .in('withdrawal_id', ids);
+        const map: Record<string, string> = {};
+        for (const row of (dRows as any[]) || []) map[row.withdrawal_id] = row.status;
+        setDisputes(map);
+      }
     } catch (error) {
       console.error('Error fetching withdrawal requests:', error);
     } finally {
@@ -285,6 +300,33 @@ export function UserWithdrawalRequests() {
                         </div>
                       )}
 
+                      {/* "I did not receive this money" — alerts the merchant
+                          agent who settled this payout. */}
+                      {isSettled && (
+                        <div className="mt-1.5 mx-1">
+                          {disputes[request.id] ? (
+                            <div className="flex items-center gap-1.5 rounded-lg bg-destructive/10 p-2 text-[11px] font-semibold text-destructive">
+                              <AlertTriangle className="h-3.5 w-3.5" />
+                              {disputes[request.id] === 'resolved'
+                                ? 'Non-delivery report closed by the merchant agent'
+                                : disputes[request.id] === 'acknowledged'
+                                  ? 'Merchant agent has seen your report — settlement pending'
+                                  : 'Reported as not received — merchant agent alerted'}
+                            </div>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-full justify-start gap-1.5 text-[11px] font-semibold text-destructive hover:bg-destructive/10"
+                              onClick={() => setReportTarget(request)}
+                            >
+                              <AlertTriangle className="h-3.5 w-3.5" />
+                              I did not receive this money
+                            </Button>
+                          )}
+                        </div>
+                      )}
+
                       <AnimatePresence>
                         {isCardExpanded && showTracker && (
                           <motion.div
@@ -345,6 +387,15 @@ export function UserWithdrawalRequests() {
           </Button>
         )}
       </CardContent>
+      {reportTarget && (
+        <ReportPayoutNotReceivedDialog
+          open={!!reportTarget}
+          onOpenChange={(v) => !v && setReportTarget(null)}
+          withdrawalId={reportTarget.id}
+          amount={reportTarget.amount}
+          onReported={fetchRequests}
+        />
+      )}
     </Card>
   );
 }
