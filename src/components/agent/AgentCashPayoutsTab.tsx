@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { formatUGX } from '@/lib/rentCalculations';
+import { MerchantPayoutDisputeAlarm } from '@/components/payouts/MerchantPayoutDisputeAlarm';
 import { getTelecomSendingCharge, getCashoutCommission } from '@/lib/cashoutCharges';
 import { format, startOfMonth, subDays } from 'date-fns';
 import {
