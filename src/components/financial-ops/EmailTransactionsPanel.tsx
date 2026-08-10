@@ -1652,8 +1652,10 @@ export function EmailTransactionsPanel() {
       const refs = Array.from(new Set(refByRow.values()));
       const byRef = new Map<string, LedgerCredit[]>();
       try {
-        for (let i = 0; i < refs.length; i += 150) {
-          const batch = refs.slice(i, i + 150);
+        // Small batches keep each trigram lookup well inside the statement
+        // timeout even on a large ledger.
+        for (let i = 0; i < refs.length; i += 40) {
+          const batch = refs.slice(i, i + 40);
           const { data, error } = await (supabase.rpc as any)('match_email_ledger_credits', { p_refs: batch });
           if (error) throw error;
           for (const m of (data ?? []) as Array<any>) {
