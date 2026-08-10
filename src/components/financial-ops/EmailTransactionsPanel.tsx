@@ -693,6 +693,14 @@ export function EmailTransactionsPanel() {
   // narrowing filter is reset so nothing is silently hidden, and a banner with
   // a Back action replaces the tiles.
   const [focusDirection, setFocusDirection] = useState<'in' | 'out' | null>(null);
+  // Keep the focused view honest: if the operator changes the direction chips
+  // lower down (or restores a preset), the banner follows or closes.
+  useEffect(() => {
+    setFocusDirection((cur) => {
+      if (directionFilter === 'all') return null;
+      return cur === null ? null : directionFilter;
+    });
+  }, [directionFilter]);
 
   // "Needs Routing" filter — when on, show only incoming deposits whose money
   // never landed in a wallet (not credited and not routed). Persisted so the
