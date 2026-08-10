@@ -718,11 +718,11 @@ export function EmailTransactionsPanel() {
   // Debit-breakdown filter — narrows the list by who was charged for an
   // outgoing email (user wallet, proxy agent wallet, or not yet debited).
   // Persisted so the operator's view survives a refresh.
-  type DebitFilter = 'all' | 'user_debit' | 'proxy_debit' | 'none';
+  type DebitFilter = 'all' | 'debited' | 'user_debit' | 'proxy_debit' | 'none';
   const [debitFilter, setDebitFilter] = useState<DebitFilter>(() => {
     if (typeof window === 'undefined') return 'all';
     const v = localStorage.getItem('gmail_filter_debit') as DebitFilter | null;
-    return v && ['all', 'user_debit', 'proxy_debit', 'none'].includes(v) ? v : 'all';
+    return v && ['all', 'debited', 'user_debit', 'proxy_debit', 'none'].includes(v) ? v : 'all';
   });
   useEffect(() => { try { localStorage.setItem('gmail_filter_debit', debitFilter); } catch {} }, [debitFilter]);
 
@@ -2929,6 +2929,7 @@ export function EmailTransactionsPanel() {
       list = list.filter((r) => {
         const meta = getDebitMeta(r);
         if (debitFilter === 'none') return !meta.isAutoDebited;
+        if (debitFilter === 'debited') return meta.isAutoDebited;
         if (debitFilter === 'user_debit') return meta.isAutoDebited && !meta.isProxyDebit;
         if (debitFilter === 'proxy_debit') return meta.isAutoDebited && meta.isProxyDebit;
         return true;
