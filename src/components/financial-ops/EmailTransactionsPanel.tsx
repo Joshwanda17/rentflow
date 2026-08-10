@@ -1139,7 +1139,19 @@ export function EmailTransactionsPanel() {
     const probe = tokens.length
       ? tokens.slice().sort((a, b) => b.length - a.length)[0]
       : null;
-    const esc = probe ? probe.replace(/[%_,()]/g, (m) => '\\' + m) : null;
+    // Phone-shaped probes must be narrowed to their trailing 9 digits before
+    // they hit the server. MTN/Airtel bodies print numbers in international
+    // form ("256783673998"), so a literal ilike on "0783673998" matches
+    // nothing and the operator sees an empty Recent emails list even though
+    // the email was captured. Last-9 matching covers 0…, 256…, +256… and
+    // bare 7… formats in one probe.
+    const probeDigits = probe ? probe.replace(/\D/g, '') : '';
+    const phoneShapedProbe =
+      probe && probeDigits.length >= 9 && probeDigits.length >= probe.length - 2
+        ? probeDigits.slice(-9)
+        : null;
+    const rawProbe = phoneShapedProbe ?? probe;
+    const esc = rawProbe ? rawProbe.replace(/[%_,()]/g, (m) => '\\' + m) : null;
 
     // Each page must be built from a FRESH query builder — reusing the
     // same builder across awaits can stack modifiers in PostgREST.
