@@ -718,11 +718,11 @@ export function EmailTransactionsPanel() {
   // Debit-breakdown filter — narrows the list by who was charged for an
   // outgoing email (user wallet, proxy agent wallet, or not yet debited).
   // Persisted so the operator's view survives a refresh.
-  type DebitFilter = 'all' | 'user_debit' | 'proxy_debit' | 'none';
+  type DebitFilter = 'all' | 'debited' | 'user_debit' | 'proxy_debit' | 'none';
   const [debitFilter, setDebitFilter] = useState<DebitFilter>(() => {
     if (typeof window === 'undefined') return 'all';
     const v = localStorage.getItem('gmail_filter_debit') as DebitFilter | null;
-    return v && ['all', 'user_debit', 'proxy_debit', 'none'].includes(v) ? v : 'all';
+    return v && ['all', 'debited', 'user_debit', 'proxy_debit', 'none'].includes(v) ? v : 'all';
   });
   useEffect(() => { try { localStorage.setItem('gmail_filter_debit', debitFilter); } catch {} }, [debitFilter]);
 
@@ -2929,6 +2929,7 @@ export function EmailTransactionsPanel() {
       list = list.filter((r) => {
         const meta = getDebitMeta(r);
         if (debitFilter === 'none') return !meta.isAutoDebited;
+        if (debitFilter === 'debited') return meta.isAutoDebited;
         if (debitFilter === 'user_debit') return meta.isAutoDebited && !meta.isProxyDebit;
         if (debitFilter === 'proxy_debit') return meta.isAutoDebited && meta.isProxyDebit;
         return true;
@@ -3207,6 +3208,92 @@ export function EmailTransactionsPanel() {
           })}
         </div>
       )}
+      {/* Settlement sub-panels for the active direction: money already applied
+          to wallets vs money still waiting on a wallet credit / debit. */}
+      {focusDirection && (() => {
+        const isIn = focusDirection === 'in';
+        const base = filteredRows.filter((r) =>
+          isIn ? r.direction === 'in' : r.direction === 'out' || r.direction === 'charge',
+        );
+        const settledCount = isIn
+          ? base.filter((r) => getRowStatus(r) === 'credited').length
+          : base.filter((r) => getDebitMeta(r).isAutoDebited).length;
+        const pendingCount = isIn
+          ? base.filter((r) => getRowStatus(r) === 'needs_routing').length
+          : base.filter((r) => !getDebitMeta(r).isAutoDebited).length;
+        const settledActive = isIn ? statusFilter === 'credited' : debitFilter === 'debited';
+        const pendingActive = isIn ? statusFilter === 'needs_routing' : debitFilter === 'none';
+        const allActive = !settledActive && !pendingActive;
+        const applyMode = (mode: 'all' | 'settled' | 'pending') => {
+          if (isIn) {
+            setDebitFilter('all');
+            setStatusFilter(mode === 'all' ? 'all' : mode === 'settled' ? 'credited' : 'needs_routing');
+          } else {
+            setStatusFilter('all');
+            setDebitFilter(mode === 'all' ? 'all' : mode === 'settled' ? 'debited' : 'none');
+          }
+          setNeedsRoutingOnly(false);
+        };
+        const tiles = [
+          {
+            key: 'settled' as const,
+            title: isIn ? 'Credited to wallets' : 'Debited from wallets',
+            hint: isIn
+              ? 'Automatically credited or routed to a user wallet'
+              : 'Already charged off a user or proxy wallet',
+            count: settledCount,
+            active: settledActive,
+            Icon: Wallet,
+            activeClass: 'border-emerald-600 bg-emerald-600/10',
+          },
+          {
+            key: 'pending' as const,
+            title: isIn ? 'Waiting to be credited' : 'Waiting to be debited',
+            hint: isIn
+              ? 'Extracted money not yet applied to any wallet'
+              : 'Outgoing money not yet charged to any wallet',
+            count: pendingCount,
+            active: pendingActive,
+            Icon: Clock,
+            activeClass: 'border-amber-600 bg-amber-600/10',
+          },
+        ];
+        return (
+          <div className="mt-3 space-y-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {tiles.map(({ key, title, hint, count, active, Icon, activeClass }) => (
+                <button
+                  key={key}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => applyMode(active ? 'all' : key)}
+                  className={`text-left rounded-lg border p-3 transition-colors ${
+                    active ? activeClass : 'bg-card hover:bg-muted/50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Icon className="h-4 w-4 shrink-0" />
+                    <span className="text-sm font-semibold">{title}</span>
+                    <span className="ml-auto font-mono tabular-nums text-sm font-bold">{count}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">{hint}</p>
+                </button>
+              ))}
+            </div>
+            {!allActive && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 text-xs"
+                onClick={() => applyMode('all')}
+              >
+                <X className="h-3.5 w-3.5 mr-1" />
+                Show all {isIn ? 'money in' : 'money out'} emails
+              </Button>
+            )}
+          </div>
+        );
+      })()}
       {/* Money-in / money-out entry buttons — one tap opens a dedicated view
           showing only that side of the extracted email feed. */}
       {focusDirection && focusView === 'ops' ? (
