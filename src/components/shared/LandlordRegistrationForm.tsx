@@ -433,6 +433,17 @@ export default function LandlordRegistrationForm({
     }
 
     // Confirm the phone number is free before advancing to Step 2.
+    if (!ugLoc) {
+      setUgLocError('Pick the official location (region → village) from the list.');
+      hapticWarning();
+      focusField('ugLocation');
+      toastFn({
+        title: 'Location required',
+        description: 'Choose the official village so ops can find this property.',
+        variant: 'destructive',
+      });
+      return;
+    }
     if (!phoneVerified) {
       const available = await checkPhoneAvailable(landlordPhone);
       if (!available) {
@@ -493,6 +504,18 @@ export default function LandlordRegistrationForm({
 
     // Pre-save duplicate check: if the phone hasn't already been verified as
     // free, run the check now and surface the exact field error before saving.
+    if (!ugLoc) {
+      setUgLocError('Pick the official location (region → village) from the list.');
+      hapticWarning();
+      setStep(1);
+      focusField('ugLocation');
+      toastFn({
+        title: 'Location required',
+        description: 'Choose the official village so ops can find this property.',
+        variant: 'destructive',
+      });
+      return;
+    }
     if (!phoneVerified) {
       const available = await checkPhoneAvailable(landlordPhone);
       if (!available) {
