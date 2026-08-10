@@ -67,6 +67,22 @@ interface PollState {
   last_error: string | null;
 }
 
+/** Shape returned by public.get_gmail_intake_health(). */
+interface IntakeHealth {
+  last_polled_at: string | null;
+  last_status: string | null;
+  last_error: string | null;
+  cutoff_at: string | null;
+  cutoff_is_future: boolean | null;
+  last_insert_at: string | null;
+  silence_minutes: number | null;
+  poll_stale: boolean | null;
+  intake_silent: boolean | null;
+}
+
+/** Minutes of zero inserts (while the cron still reports ok) that raise the alert. */
+const INTAKE_SILENCE_MINUTES = 30;
+
 const fmtUgx = (n: number | null) =>
   n === null || n === undefined ? '—' : `UGX ${Math.round(n).toLocaleString()}`;
 
@@ -547,6 +563,15 @@ export function EmailTransactionsPanel() {
   const { toast } = useToast();
   const [rows, setRows] = useState<GmailTx[]>([]);
   const [state, setState] = useState<PollState | null>(null);
+  /**
+   * Why the list is empty. A read blocked by row-level security used to look
+   * identical to "no emails captured yet" because the loader swallowed the
+   * PostgREST error — so staff who can open the page but can't read the table
+   * saw a friendly (and wrong) empty state.
+   */
+  const [loadError, setLoadError] = useState<{ message: string; denied: boolean } | null>(null);
+  /** Intake-silence heartbeat: poller says ok, but nothing is landing. */
+  const [intakeHealth, setIntakeHealth] = useState<IntakeHealth | null>(null);
   const [lastSuccessAt, setLastSuccessAt] = useState<string | null>(
     () => (typeof window !== 'undefined' ? localStorage.getItem('gmail_last_success_at') : null)
   );
@@ -1142,19 +1167,46 @@ export function EmailTransactionsPanel() {
 
     const all: GmailTx[] = [];
     let offset = 0;
+    let readError: { message: string; denied: boolean } | null = null;
     // eslint-disable-next-line no-constant-condition
     while (true) {
       const end = offset + PAGE - 1;
       const { data: page, error } = await buildQuery().range(offset, end);
-      if (error || !page || page.length === 0) break;
+      if (error) {
+        // Distinguish "you cannot read this" from "there is nothing to read".
+        const code = (error as any)?.code as string | undefined;
+        const msg = error.message || 'Unknown error';
+        const denied = code === '42501' || /permission denied|row-level security|not authoriz/i.test(msg);
+        readError = { message: msg, denied };
+        console.error('[EmailTransactionsPanel] gmail_transactions read failed:', code, msg);
+        break;
+      }
+      if (!page || page.length === 0) break;
       all.push(...(page as unknown as GmailTx[]));
       if (page.length < PAGE) break;          // last page
       if (all.length >= MAX_ROWS) break;       // safety ceiling
       offset += PAGE;
     }
     const { data: ps } = await psPromise;
+    setLoadError(readError);
     setRows(all);
     setState((ps as PollState) ?? null);
+
+    // Intake heartbeat — poller status vs. the newest actual insert. Read
+    // through the security-definer RPC so it works for every FinOps surface.
+    try {
+      const { data: health, error: healthErr } = await (supabase.rpc as any)('get_gmail_intake_health', {
+        p_silence_minutes: INTAKE_SILENCE_MINUTES,
+      });
+      if (healthErr) {
+        console.error('[EmailTransactionsPanel] intake health check failed:', healthErr.message);
+        setIntakeHealth(null);
+      } else {
+        setIntakeHealth((Array.isArray(health) ? health[0] : health) ?? null);
+      }
+    } catch {
+      setIntakeHealth(null);
+    }
     const psTyped = ps as PollState | null;
     if (psTyped?.last_status === 'ok' && psTyped.last_polled_at) {
       setLastSuccessAt(psTyped.last_polled_at);
@@ -3573,8 +3625,61 @@ export function EmailTransactionsPanel() {
           })()}
           </div>
         </div>
+        {/* ── Intake heartbeat ───────────────────────────────────────────────
+            The cron reporting `ok` is not proof that mail is landing: a poisoned
+            future-dated cutoff (or a silently failing query) can drop every
+            message while each tick still says ok. Alert on inserts going quiet. */}
+        {!loading && intakeHealth?.intake_silent && (
+          <div className="mx-3 mb-3 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs space-y-1">
+            <div className="flex items-center gap-2 font-semibold text-destructive">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+              Email intake has gone quiet
+            </div>
+            <p className="text-muted-foreground">
+              The poller last ran{' '}
+              {intakeHealth.last_polled_at ? new Date(intakeHealth.last_polled_at).toLocaleTimeString() : '—'}{' '}
+              and reported <strong>{intakeHealth.last_status ?? 'unknown'}</strong>, but no email has been captured for{' '}
+              <strong>
+                {intakeHealth.silence_minutes !== null && intakeHealth.silence_minutes !== undefined
+                  ? `${Math.round(Number(intakeHealth.silence_minutes))} min`
+                  : 'a while'}
+              </strong>{' '}
+              (alert threshold {INTAKE_SILENCE_MINUTES} min). Incoming MoMo / bank emails may be being dropped.
+            </p>
+            {intakeHealth.cutoff_is_future && (
+              <p className="text-destructive">
+                Cause: the intake cutoff is dated in the future
+                {intakeHealth.cutoff_at ? ` (${new Date(intakeHealth.cutoff_at).toLocaleString()})` : ''} — a sender
+                stamped local time as UTC. The poller now ignores future-dated stamps; click <strong>Poll now</strong> to re-anchor.
+              </p>
+            )}
+          </div>
+        )}
+        {!loading && loadError && rows.length > 0 && (
+          <div className="mx-3 mb-3 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs">
+            <span className="font-semibold">Partial load</span> — some emails could not be read:{' '}
+            <span className="font-mono break-all">{loadError.message}</span>
+          </div>
+        )}
         {loading ? (
           <div className="p-8 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+        ) : rows.length === 0 && loadError?.denied ? (
+          <div className="p-10 text-center text-sm space-y-2">
+            <ShieldAlert className="h-8 w-8 mx-auto text-destructive opacity-70" />
+            <p className="font-semibold text-destructive">Access denied — you can't read the transaction emails</p>
+            <p className="text-xs text-muted-foreground max-w-md mx-auto">
+              This is a permission problem, not an empty inbox. Your account can open Financial Ops but is not
+              allowed to read captured emails. Ask a manager to grant you the Financial Ops dashboard permission.
+            </p>
+            <p className="text-[10px] text-muted-foreground/80 font-mono break-all">{loadError.message}</p>
+          </div>
+        ) : rows.length === 0 && loadError ? (
+          <div className="p-10 text-center text-sm space-y-2">
+            <AlertTriangle className="h-8 w-8 mx-auto text-warning opacity-70" />
+            <p className="font-semibold">Could not load transaction emails</p>
+            <p className="text-[10px] text-muted-foreground/80 font-mono break-all">{loadError.message}</p>
+            <Button size="sm" variant="outline" className="mt-2" onClick={() => load()}>Try again</Button>
+          </div>
         ) : rows.length === 0 ? (
           <div className="p-10 text-center text-sm text-muted-foreground space-y-2">
             <Mail className="h-8 w-8 mx-auto opacity-30" />
