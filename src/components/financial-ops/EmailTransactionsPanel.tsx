@@ -3245,6 +3245,14 @@ export function EmailTransactionsPanel() {
                     </>
                   )}
                 </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 text-xs ml-2 bg-background"
+                  onClick={() => setFocusView(focusView === 'gmail' ? 'ops' : 'gmail')}
+                >
+                  {focusView === 'gmail' ? 'Ops view (routing actions)' : 'Gmail view'}
+                </Button>
               </div>
             </div>
           );
