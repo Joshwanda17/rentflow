@@ -36010,6 +36010,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      merchant_attach_payout_proof: {
+        Args: {
+          p_bucket?: string
+          p_path: string
+          p_type?: string
+          p_withdrawal_id: string
+        }
+        Returns: Json
+      }
       merchant_config_allows_payout: {
         Args: {
           p_bank_name: string
