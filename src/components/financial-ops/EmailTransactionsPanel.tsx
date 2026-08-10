@@ -3512,6 +3512,37 @@ export function EmailTransactionsPanel() {
           </div>
         </div>
 
+        {/* ── Gmail list toolbar: refresh on the left, result count on the
+            right — the strip that sits above every Gmail inbox. ────────── */}
+        <div className="flex items-center justify-between gap-2 border-b px-2 py-1.5">
+          <div className="flex items-center gap-0.5">
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8 rounded-full"
+              onClick={() => load()}
+              disabled={loading}
+              aria-label="Refresh"
+              title="Refresh"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8 rounded-full"
+              onClick={() => setAlertSettingsOpen(true)}
+              aria-label="View settings"
+              title="View settings"
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+            </Button>
+          </div>
+          <span className="pr-1 text-[11px] tabular-nums text-muted-foreground">
+            {visibleRows.length} of {rows.length}
+          </span>
+        </div>
+
         {!loading && loadError && rows.length > 0 && (
           <div className="mx-3 mb-3 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs">
             <span className="font-semibold">Partial load</span> — some emails could not be read:{' '}
