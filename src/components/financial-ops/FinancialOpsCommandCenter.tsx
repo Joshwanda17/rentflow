@@ -480,7 +480,13 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
 
   const activeId: string | null = activeTool ?? (view !== 'home' ? view : null);
 
+  // Email Transactions is opened as a full-screen workspace that covers the
+  // Financial Ops sidebar/menu so the operator has the whole laptop or
+  // smartphone screen for the inbox-style list.
+  const emailTxFullscreen = activeTool === 'email_tx';
+
   // Group the tool list into meaningful sections for the sidebar.
+
   const sidebarGroups: { title: string; items: MoreAction[] }[] = [
     {
       title: 'Deposits & Reconciliation',
