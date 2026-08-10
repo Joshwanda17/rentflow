@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { ImageLightbox } from '@/components/marketplace/ImageLightbox';
+import houseSearchingIllustration from '@/assets/House_searching-bro-3.svg.asset.json';
 import { useSearchParams, useNavigate, useLocation, useParams } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
