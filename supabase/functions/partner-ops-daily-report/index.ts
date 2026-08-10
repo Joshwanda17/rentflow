@@ -311,16 +311,19 @@ function buildPdf(r: Report, prettyDate: string, logo: Uint8Array | null): Uint8
     { label: "Compound count", value: num(k.compounded_today_count), accent: TEAL },
   ]);
   barChart([
-    { label: "Cash payouts", value: Number(k.paid_out_today_amount) || 0, note: `${num(k.paid_out_today_count)} partners`, color: ROSE },
+    { label: "Cash payouts", value: Number(k.paid_out_today_amount) || 0, note: `${num(k.paid_out_today_count)} payouts to ${num(k.paid_out_today_partners)} partners`, color: ROSE },
     { label: "Compounded", value: Number(k.compounded_today_amount) || 0, note: `${num(k.compounded_today_count)} portfolios`, color: TEAL },
   ]);
   table(
-    ["Partner (paid out)", "Principal", "Returns"],
-    r.paid_today.slice(0, 45).map((p: any) => [ascii(p.name), fmtUGX(p.principal), fmtUGX(p.roi)]),
+    ["Partner (paid out)", "Portfolio", "Principal", "Returns", "Paid to"],
+    r.paid_today.slice(0, 200).map((p: any) => [
+      ascii(p.name), ascii(p.portfolio_code), fmtUGX(p.principal), fmtUGX(p.roi),
+      p.paid_to ? ascii(p.paid_to) : "Own wallet",
+    ]),
   );
   table(
     ["Partner (compounded)", "Portfolio", "Principal", "Returns", "New amount"],
-    r.compounded_today.slice(0, 45).map((p: any) => [
+    r.compounded_today.slice(0, 200).map((p: any) => [
       ascii(p.name), ascii(p.portfolio_code), fmtUGX(p.principal), fmtUGX(p.roi), fmtUGX(p.new_amount),
     ]),
   );
@@ -463,7 +466,7 @@ function buildHtml(r: Report, prettyDate: string): string {
       <table style="width:100%;border-collapse:separate;border-spacing:6px 0;"><tr>
         ${tile("Partners", num(k.total_partners), `${num(k.onboarded_partners)} onboarded`, "#6c21c4")}
         ${tile("Portfolios", num(k.total_portfolios), `${num(k.new_portfolios_today)} new today`, "#2563eb")}
-        ${tile("Paid out today", compactUGX(k.paid_out_today_amount), `${num(k.paid_out_today_count)} payouts`, "#db2777")}
+        ${tile("Paid out today", compactUGX(k.paid_out_today_amount), `${num(k.paid_out_today_count)} payouts · ${num(k.paid_out_today_partners)} partners`, "#db2777")}
         ${tile("Compounded today", compactUGX(k.compounded_today_amount), `${num(k.compounded_today_count)} portfolios`, "#0d9488")}
       </tr></table>
       <table style="width:100%;border-collapse:collapse;margin-top:18px;">
@@ -503,7 +506,7 @@ function buildText(r: Report, prettyDate: string): string {
     `Total partners: ${num(k.total_partners)} (onboarded ${num(k.onboarded_partners)})`,
     `Portfolios: ${num(k.total_portfolios)} - new today ${num(k.new_portfolios_today)}`,
     `Compounding: ${num(k.compounding_portfolios)} · Monthly payouts: ${num(k.monthly_payout_portfolios)}`,
-    `Paid out today: ${num(k.paid_out_today_count)} - ${fmtUGX(k.paid_out_today_amount)}`,
+    `Paid out today: ${num(k.paid_out_today_count)} payouts to ${num(k.paid_out_today_partners)} partners - ${fmtUGX(k.paid_out_today_amount)}`,
     `Compounded today: ${num(k.compounded_today_count)} - ${fmtUGX(k.compounded_today_amount)}`,
     `Forecast Mon-Fri: ${fmtUGX(r.forecast.weekdays_total)} · weekend: ${fmtUGX(r.forecast.weekend_total)}`,
     `Full report attached as PDF.`,
@@ -603,7 +606,8 @@ async function queueFallback(
   return error ? `queue error: ${error.message}` : "queued (no attachment)";
 }
 
-async function sendForDate(admin: Admin, dateStr: string, force: boolean) {
+async function sendForDate(admin: Admin, dateStr: string, force: boolean, overrideTo?: string[]) {
+  const recipients = overrideTo && overrideTo.length ? overrideTo : REPORT_RECIPIENTS;
   if (!force) {
     const { data: existing } = await admin
       .from("system_events").select("id").eq("event_type", EVENT_TYPE)
@@ -623,7 +627,7 @@ async function sendForDate(admin: Admin, dateStr: string, force: boolean) {
 
   const results: Record<string, string> = {};
   let usedQueue = false;
-  for (const to of REPORT_RECIPIENTS) {
+  for (const to of recipients) {
     const sent = await sendWithAttachment(to, subject, html, text, pdf, filename);
     if (sent.ok) {
       results[to] = "sent with PDF";
@@ -636,10 +640,10 @@ async function sendForDate(admin: Admin, dateStr: string, force: boolean) {
 
   await admin.from("system_events").insert({
     event_type: EVENT_TYPE,
-    metadata: { date: dateStr, recipients: REPORT_RECIPIENTS, kpis: report.kpis, results, pdf_bytes: pdf.length },
+    metadata: { date: dateStr, recipients, kpis: report.kpis, results, pdf_bytes: pdf.length },
   });
 
-  return { date: dateStr, recipients: REPORT_RECIPIENTS, results, pdf_bytes: pdf.length, usedQueue, kpis: report.kpis };
+  return { date: dateStr, recipients, results, pdf_bytes: pdf.length, usedQueue, kpis: report.kpis };
 }
 
 Deno.serve(async (req) => {
@@ -671,7 +675,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    const report = await sendForDate(admin, dateStr, body?.force === true);
+    const overrideTo = Array.isArray(body?.to)
+      ? body.to.filter((x: unknown) => typeof x === "string" && x.includes("@"))
+      : typeof body?.to === "string" && body.to.includes("@")
+        ? [body.to]
+        : undefined;
+
+    const report = await sendForDate(admin, dateStr, body?.force === true, overrideTo);
 
     if ((report as any).usedQueue) {
       fetch(`${SUPABASE_URL}/functions/v1/process-email-queue`, {
