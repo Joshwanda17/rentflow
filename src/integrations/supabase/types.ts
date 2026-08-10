@@ -11336,6 +11336,7 @@ export type Database = {
           tenant_id: string | null
           title: string
           total_monthly_cost: number
+          ug_village_id: number | null
           updated_at: string
           verified: boolean | null
           verified_at: string | null
@@ -11399,6 +11400,7 @@ export type Database = {
           tenant_id?: string | null
           title: string
           total_monthly_cost?: number
+          ug_village_id?: number | null
           updated_at?: string
           verified?: boolean | null
           verified_at?: string | null
@@ -11462,6 +11464,7 @@ export type Database = {
           tenant_id?: string | null
           title?: string
           total_monthly_cost?: number
+          ug_village_id?: number | null
           updated_at?: string
           verified?: boolean | null
           verified_at?: string | null
