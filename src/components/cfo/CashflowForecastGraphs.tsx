@@ -19,6 +19,7 @@ interface SeriesCategory {
   key: string;
   label: string;
   kind: 'forecast' | 'actual';
+  flow?: 'in' | 'out';
   total: number;
   count: number;
   points: SeriesPoint[];
@@ -82,6 +83,7 @@ export function CashflowForecastGraphs() {
   const [customStart, setCustomStart] = useState(isoDay(new Date()));
   const [customEnd, setCustomEnd] = useState(isoDay(new Date(Date.now() + 90 * 864e5)));
   const [activeCat, setActiveCat] = useState<string>('roi_forecast');
+  const [flowFilter, setFlowFilter] = useState<'all' | 'in' | 'out'>('all');
 
   const { start, end } = useMemo(
     () => resolveRange(preset, customStart, customEnd),
@@ -102,8 +104,19 @@ export function CashflowForecastGraphs() {
     staleTime: 60_000,
   });
 
-  const categories = data?.categories ?? [];
+  const allCategories = data?.categories ?? [];
+  const categories = useMemo(
+    () => (flowFilter === 'all' ? allCategories : allCategories.filter((c) => (c.flow ?? 'out') === flowFilter)),
+    [allCategories, flowFilter],
+  );
   const active = categories.find((c) => c.key === activeCat) ?? categories[0] ?? null;
+  const isInflow = (active?.flow ?? 'out') === 'in';
+  const inflowTotal = allCategories
+    .filter((c) => c.flow === 'in')
+    .reduce((s, c) => s + Number(c.total), 0);
+  const outflowTotal = allCategories
+    .filter((c) => (c.flow ?? 'out') === 'out')
+    .reduce((s, c) => s + Number(c.total), 0);
   const partners = data?.partners ?? [];
 
   const chartData = useMemo(() => {
@@ -148,6 +161,13 @@ export function CashflowForecastGraphs() {
             <p className="text-[11px] text-muted-foreground mt-1">
               Source: {Number(data.portfolio_count ?? 0)} Partner Ops portfolios ·{' '}
               {formatUGX(Number(data.committed_capital ?? 0))} committed capital
+            </p>
+          ) : null}
+          {data ? (
+            <p className="text-[11px] mt-1">
+              <span className="text-emerald-600 font-semibold">Cash coming in: {formatUGX(inflowTotal)}</span>
+              <span className="text-muted-foreground"> · </span>
+              <span className="text-rose-600 font-semibold">Cash going out: {formatUGX(outflowTotal)}</span>
             </p>
           ) : null}
         </div>
@@ -210,6 +230,26 @@ export function CashflowForecastGraphs() {
               </Button>
             ))}
           </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+              Direction
+            </span>
+            {([
+              { key: 'all', label: 'All cash' },
+              { key: 'in', label: 'Money coming in' },
+              { key: 'out', label: 'Money going out' },
+            ] as const).map((f) => (
+              <Button
+                key={f.key}
+                size="sm"
+                variant={flowFilter === f.key ? 'secondary' : 'ghost'}
+                onClick={() => setFlowFilter(f.key)}
+              >
+                {f.label}
+              </Button>
+            ))}
+          </div>
         </CardContent>
       </Card>
 
@@ -229,9 +269,22 @@ export function CashflowForecastGraphs() {
             >
               <div className="flex items-center justify-between gap-2">
                 <p className="text-xs font-semibold">{c.label}</p>
-                <Badge variant={c.kind === 'forecast' ? 'default' : 'outline'} className="text-[9px] shrink-0">
-                  {c.kind === 'forecast' ? 'Forecast' : 'Actual'}
-                </Badge>
+                <div className="flex items-center gap-1 shrink-0">
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      'text-[9px]',
+                      (c.flow ?? 'out') === 'in'
+                        ? 'border-emerald-500/50 text-emerald-600'
+                        : 'border-rose-500/50 text-rose-600',
+                    )}
+                  >
+                    {(c.flow ?? 'out') === 'in' ? 'In' : 'Out'}
+                  </Badge>
+                  <Badge variant={c.kind === 'forecast' ? 'default' : 'outline'} className="text-[9px]">
+                    {c.kind === 'forecast' ? 'Forecast' : 'Actual'}
+                  </Badge>
+                </div>
               </div>
               <p className="mt-1 text-base font-bold font-mono tabular-nums">{formatUGX(Number(c.total))}</p>
               <p className="text-[10px] text-muted-foreground">{Number(c.count)} entries in window</p>
