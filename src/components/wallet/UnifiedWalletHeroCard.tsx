@@ -174,6 +174,14 @@ export function UnifiedWalletHeroCard({
       animate={{ padding: collapsed ? 14 : 24, borderRadius: collapsed ? 28 : 24 }}
       transition={morph ?? { duration: collapsed ? 0.25 : 0.6, ease: MORPH_EASE }}
     >
+      {/* Wallet illustration grazing the top-left border */}
+      <img
+        src={walletRafiki2Asset.url}
+        alt=""
+        aria-hidden="true"
+        className="absolute -top-4 -left-4 w-20 sm:w-24 h-auto pointer-events-none opacity-90 z-0"
+      />
+
       {/* Decorative elements for depth and text clarity */}
       <div className="absolute -top-20 -right-20 w-56 h-56 rounded-full bg-primary-foreground/[0.06] pointer-events-none" />
       <div className="absolute -bottom-16 -left-16 w-44 h-44 rounded-full bg-primary-foreground/[0.04] pointer-events-none" />
@@ -281,24 +289,17 @@ export function UnifiedWalletHeroCard({
               {/* Withdrawable section — STRICT ledger-backed value only.
                   Must NEVER display commissionBalance here: commission is
                   earnings history, not necessarily currently withdrawable. */}
-              <div className="relative">
-                <img
-                  src={walletRafikiAsset.url}
-                  alt=""
-                  className="absolute -top-5 -left-5 w-20 h-auto pointer-events-none opacity-80 z-10"
-                />
-                <div className="bg-primary-foreground/15 rounded-xl p-3 min-w-0">
-                  <div className="flex items-center gap-1.5 mb-1.5">
-                    <Coins className="h-3 w-3 text-emerald-400/70" />
-                    <p className="text-[9px] uppercase tracking-[0.15em] font-semibold text-emerald-300/70">Withdrawable</p>
-                  </div>
-                  <p className="text-lg font-black tracking-tight leading-none text-primary-foreground whitespace-nowrap">
-                    {formatAmount(withdrawableBalance ?? 0)}
-                  </p>
-                  <p className="text-[9px] text-emerald-300/50 mt-1 font-medium">
-                    Available to withdraw
-                  </p>
+              <div className="bg-primary-foreground/15 rounded-xl p-3 min-w-0">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <Coins className="h-3 w-3 text-emerald-400/70" />
+                  <p className="text-[9px] uppercase tracking-[0.15em] font-semibold text-emerald-300/70">Withdrawable</p>
                 </div>
+                <p className="text-lg font-black tracking-tight leading-none text-primary-foreground whitespace-nowrap">
+                  {formatAmount(withdrawableBalance ?? 0)}
+                </p>
+                <p className="text-[9px] text-emerald-300/50 mt-1 font-medium">
+                  Available to withdraw
+                </p>
               </div>
             </div>
 
@@ -317,37 +318,30 @@ export function UnifiedWalletHeroCard({
             onClick={handleOpenWallet}
             className="w-full text-left active:scale-[0.98] transition-transform"
           >
-            <div className="relative">
-              <img
-                src={walletRafikiAsset.url}
-                alt=""
-                className="absolute -top-6 -left-6 w-24 h-auto pointer-events-none opacity-80 z-10"
-              />
-              <div className="bg-primary-foreground/[0.10] rounded-2xl p-4 border border-primary-foreground/[0.06]">
-                <p className="text-[10px] uppercase tracking-[0.15em] font-bold text-primary-foreground/75 mb-2 flex items-center gap-1.5">
-                  <Wallet className="h-3 w-3" />
-                  Withdrawable Balance
+            <div className="bg-primary-foreground/[0.10] rounded-2xl p-4 border border-primary-foreground/[0.06]">
+              <p className="text-[10px] uppercase tracking-[0.15em] font-bold text-primary-foreground/75 mb-2 flex items-center gap-1.5">
+                <Wallet className="h-3 w-3" />
+                Withdrawable Balance
+              </p>
+              <p className="text-[clamp(1.75rem,6.5vw,2.75rem)] font-black tracking-tight leading-none text-primary-foreground drop-shadow-sm">
+                {formatAmount(headlineBalance)}
+              </p>
+              {pendingHold > 0 && (
+                <div className="mt-2.5 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-300/20">
+                  <Clock className="h-3 w-3 text-amber-300" />
+                  <span className="text-[10px] font-semibold text-amber-200">
+                    {formatAmount(pendingHold)} pending withdrawal
+                  </span>
+                </div>
+              )}
+              {pendingHold > 0 && (
+                <p className="text-[10px] text-primary-foreground/50 mt-1.5">
+                  Wallet total: <span className="font-semibold text-primary-foreground/80">{formatAmount(balance)}</span>
                 </p>
-                <p className="text-[clamp(1.75rem,6.5vw,2.75rem)] font-black tracking-tight leading-none text-primary-foreground drop-shadow-sm">
-                  {formatAmount(headlineBalance)}
-                </p>
-                {pendingHold > 0 && (
-                  <div className="mt-2.5 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-300/20">
-                    <Clock className="h-3 w-3 text-amber-300" />
-                    <span className="text-[10px] font-semibold text-amber-200">
-                      {formatAmount(pendingHold)} pending withdrawal
-                    </span>
-                  </div>
-                )}
-                {pendingHold > 0 && (
-                  <p className="text-[10px] text-primary-foreground/50 mt-1.5">
-                    Wallet total: <span className="font-semibold text-primary-foreground/80">{formatAmount(balance)}</span>
-                  </p>
-                )}
-                <p className="mt-2.5 text-[10px] text-primary-foreground/40 font-medium">
-                  Tap to see how your money moves in and out
-                </p>
-              </div>
+              )}
+              <p className="mt-2.5 text-[10px] text-primary-foreground/40 font-medium">
+                Tap to see how your money moves in and out
+              </p>
             </div>
           </button>
         )}
