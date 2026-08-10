@@ -3355,18 +3355,19 @@ export function EmailTransactionsPanel() {
         })}
       </div>
       )}
-      <div id="email-tx-results" className="rounded-xl border bg-card overflow-hidden scroll-mt-20">
+      <div id="email-tx-results" className="rounded-lg border bg-card overflow-hidden scroll-mt-20">
         {/* Prominent, full-width search bar — lets ops find any email by
             amount, name, phone (any format), reference id, or any word in
             the body / subject. Sticky on scroll so it's always reachable. */}
-        <div className="p-4 border-b bg-muted/30 sm:sticky sm:top-0 sm:z-10 space-y-2">
+        <div className="p-3.5 border-b bg-card/95 backdrop-blur sm:sticky sm:top-0 sm:z-10 space-y-2">
           <div className="flex items-center justify-between gap-2 flex-wrap">
-            <h3 className="font-semibold text-sm flex items-center gap-2">
-              <Mail className="h-4 w-4 text-muted-foreground" />
+            <h3 className="font-medium text-sm flex items-center gap-2">
+              <Mail className="h-3.5 w-3.5 text-muted-foreground" />
               Recent emails
               {unreadAlertCount > 0 && (
                 <Badge
-                  className="bg-orange-600 text-white hover:bg-orange-600 text-[10px] font-mono"
+                  variant="outline"
+                  className="border-orange-600/40 text-orange-600 text-[10px] font-mono font-normal"
                   aria-label={`${unreadAlertCount} unread items needing attention`}
                 >
                   {unreadAlertCount} new
@@ -3390,7 +3391,7 @@ export function EmailTransactionsPanel() {
                 </span>
               )}
               <Select value={sortMode} onValueChange={(v) => setSortMode(v as SortMode)}>
-                <SelectTrigger className="h-9 w-[160px] text-xs" aria-label="Sort emails">
+                <SelectTrigger className="h-8 w-[150px] text-xs border-transparent bg-muted/50 hover:bg-muted" aria-label="Sort emails">
                   <span className="text-muted-foreground mr-1">Sort:</span>
                   <SelectValue />
                 </SelectTrigger>
@@ -3405,14 +3406,14 @@ export function EmailTransactionsPanel() {
             </div>
           </div>
           <div className="relative w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             <input
               type="search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search by amount, name, phone, transaction id, or any word in the email…"
               aria-label="Search emails"
-              className="h-12 w-full rounded-lg border-2 border-input bg-background pl-10 pr-10 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent placeholder:text-muted-foreground/70"
+              className="h-11 w-full rounded-full border border-input bg-muted/40 pl-10 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:bg-background focus:border-transparent placeholder:text-muted-foreground/70 transition-colors"
             />
             {searchQuery && (
               <button
@@ -3428,7 +3429,7 @@ export function EmailTransactionsPanel() {
           {/* Dedicated depositor-phone filter — instantly narrow to one number
               in any format (0…, 256…, +256…, bare 7…). */}
           <div className="relative w-full">
-            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
+            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             <input
               type="search"
               inputMode="tel"
@@ -3436,7 +3437,7 @@ export function EmailTransactionsPanel() {
               onChange={(e) => setPhoneQuery(e.target.value)}
               placeholder="Filter by depositor phone number (e.g. 0783673998)…"
               aria-label="Filter by depositor phone number"
-              className="h-12 w-full rounded-lg border-2 border-input bg-background pl-10 pr-10 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent placeholder:text-muted-foreground/70"
+              className="h-11 w-full rounded-full border border-input bg-muted/40 pl-10 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:bg-background focus:border-transparent placeholder:text-muted-foreground/70 transition-colors"
             />
             {phoneQuery && (
               <button
