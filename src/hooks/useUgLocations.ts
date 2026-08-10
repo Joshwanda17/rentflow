@@ -176,3 +176,28 @@ export async function resolveUgVillage(villageId: number): Promise<UgLocationSel
 export function ugLocationLabel(sel: UgLocationSelection) {
   return sel.fullPath || [sel.village, sel.parish, sel.subcounty, sel.county, sel.district].filter(Boolean).join(', ');
 }
+
+/**
+ * Build the exact same UgLocationSelection shape from a completed cascading
+ * pick (Region → District → County → Sub-county → Parish → Village), so both
+ * picker modes hand callers an identical object.
+ */
+export function buildUgSelection(parts: {
+  region: string | null;
+  district: UgOption;
+  county: UgOption;
+  subcounty: UgOption;
+  parish: UgOption;
+  village: UgOption;
+}): UgLocationSelection {
+  const { region, district, county, subcounty, parish, village } = parts;
+  return {
+    villageId: village.id, village: village.name,
+    parishId: parish.id, parish: parish.name,
+    subcountyId: subcounty.id, subcounty: subcounty.name,
+    countyId: county.id, county: county.name,
+    districtId: district.id, district: district.name,
+    region: region ?? null,
+    fullPath: [village.name, parish.name, subcounty.name, county.name, district.name].join(', '),
+  };
+}
