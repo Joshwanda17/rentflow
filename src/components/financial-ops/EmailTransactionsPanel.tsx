@@ -5,7 +5,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { archivePdfBlob } from '@/lib/pdfVault';
 import { ArchivedPdfsDrawer } from '@/components/financial-ops/ArchivedPdfsDrawer';
 import { Badge } from '@/components/ui/badge';
-import { Mail, RefreshCw, Loader2, CheckCircle2, AlertCircle, Smartphone, Bug, ShieldAlert, Copy, Check, Wifi, WifiOff, ShieldCheck, ShieldQuestion, History, LinkIcon, ChevronDown, ChevronUp, FileDown, FileText, AlertTriangle, Search, X, Pencil, Trash2, Star, Users, ArrowRight, Zap, Undo2, Wallet, HelpCircle, Phone } from 'lucide-react';
+import { Mail, RefreshCw, Loader2, CheckCircle2, AlertCircle, Smartphone, Bug, ShieldAlert, Copy, Check, Wifi, WifiOff, ShieldCheck, ShieldQuestion, History, LinkIcon, ChevronDown, ChevronUp, FileDown, FileText, AlertTriangle, Search, X, Pencil, Trash2, Star, Users, ArrowRight, Zap, Undo2, Wallet, HelpCircle, Phone, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { RouteEmailDepositDialog, type EmailRowForRouting, type PrefilledUser } from '@/components/financial-ops/RouteEmailDepositDialog';
 import { BucketTransferLauncher } from '@/components/financial-ops/BucketTransferDialog';
 import { BacklogSweepLauncher } from '@/components/financial-ops/BacklogSweepDialog';
@@ -3146,6 +3146,55 @@ export function EmailTransactionsPanel() {
             </p>
           </div>
         </div>
+      </div>
+      {/* Money-in / money-out entry buttons — one tap slices the extracted
+          email feed to credits or debits and jumps to the results list. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {([
+          {
+            key: 'in' as DirectionFilter,
+            title: 'Money in',
+            hint: 'Extracted deposits & incoming credits',
+            Icon: ArrowDownLeft,
+          },
+          {
+            key: 'out' as DirectionFilter,
+            title: 'Money out',
+            hint: 'Extracted payouts, debits & charges',
+            Icon: ArrowUpRight,
+          },
+        ]).map(({ key, title, hint, Icon }) => {
+          const active = directionFilter === key;
+          return (
+            <button
+              key={key}
+              type="button"
+              aria-pressed={active}
+              onClick={() => {
+                setDirectionFilter(active ? 'all' : key);
+                if (typeof document !== 'undefined') {
+                  document.getElementById('email-tx-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+              }}
+              className={`w-full text-left rounded-xl border p-4 transition-colors flex items-center gap-3 ${
+                active
+                  ? 'border-primary bg-primary/10 ring-1 ring-primary'
+                  : 'bg-card hover:bg-muted/50'
+              }`}
+            >
+              <span className={`h-10 w-10 shrink-0 rounded-lg flex items-center justify-center ${active ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+                <Icon className="h-5 w-5" />
+              </span>
+              <span className="min-w-0">
+                <span className="block font-semibold text-sm">{title}</span>
+                <span className="block text-xs text-muted-foreground truncate">{hint}</span>
+              </span>
+              {active && (
+                <Badge variant="secondary" className="ml-auto text-[10px] shrink-0">Showing</Badge>
+              )}
+            </button>
+          );
+        })}
       </div>
       <div id="email-tx-results" className="rounded-xl border bg-card overflow-hidden scroll-mt-20">
         {/* Prominent, full-width search bar — lets ops find any email by
