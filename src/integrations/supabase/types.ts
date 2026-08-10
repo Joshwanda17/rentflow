@@ -22370,6 +22370,77 @@ export type Database = {
         }
         Relationships: []
       }
+      proxy_agent_targets: {
+        Row: {
+          agent_id: string
+          created_at: string
+          monthly_partner_target: number
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string
+          monthly_partner_target?: number
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string
+          monthly_partner_target?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proxy_agent_targets_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "proxy_agent_targets_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proxy_agent_targets_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "proxy_agent_targets_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "v_accounts_no_verified_phone"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proxy_agent_targets_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "proxy_agent_targets_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "v_tenant_ops_tenant_base"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "proxy_agent_targets_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+        ]
+      }
       proxy_agreement_consents: {
         Row: {
           accepted_at: string
@@ -22509,6 +22580,156 @@ export type Database = {
           transaction_references?: Json
         }
         Relationships: []
+      }
+      proxy_partner_invites: {
+        Row: {
+          channel: string
+          clicked_at: string | null
+          code: string
+          created_at: string
+          id: string
+          invitee_name: string | null
+          invitee_phone: string | null
+          last_shared_at: string
+          proxy_agent_id: string
+          share_count: number
+          signed_up_at: string | null
+          signed_up_user_id: string | null
+          target_path: string
+          updated_at: string
+        }
+        Insert: {
+          channel?: string
+          clicked_at?: string | null
+          code?: string
+          created_at?: string
+          id?: string
+          invitee_name?: string | null
+          invitee_phone?: string | null
+          last_shared_at?: string
+          proxy_agent_id: string
+          share_count?: number
+          signed_up_at?: string | null
+          signed_up_user_id?: string | null
+          target_path?: string
+          updated_at?: string
+        }
+        Update: {
+          channel?: string
+          clicked_at?: string | null
+          code?: string
+          created_at?: string
+          id?: string
+          invitee_name?: string | null
+          invitee_phone?: string | null
+          last_shared_at?: string
+          proxy_agent_id?: string
+          share_count?: number
+          signed_up_at?: string | null
+          signed_up_user_id?: string | null
+          target_path?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proxy_partner_invites_proxy_agent_id_fkey"
+            columns: ["proxy_agent_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "proxy_partner_invites_proxy_agent_id_fkey"
+            columns: ["proxy_agent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proxy_partner_invites_proxy_agent_id_fkey"
+            columns: ["proxy_agent_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "proxy_partner_invites_proxy_agent_id_fkey"
+            columns: ["proxy_agent_id"]
+            isOneToOne: false
+            referencedRelation: "v_accounts_no_verified_phone"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proxy_partner_invites_proxy_agent_id_fkey"
+            columns: ["proxy_agent_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "proxy_partner_invites_proxy_agent_id_fkey"
+            columns: ["proxy_agent_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_ops_tenant_base"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "proxy_partner_invites_proxy_agent_id_fkey"
+            columns: ["proxy_agent_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
+            foreignKeyName: "proxy_partner_invites_signed_up_user_id_fkey"
+            columns: ["signed_up_user_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "proxy_partner_invites_signed_up_user_id_fkey"
+            columns: ["signed_up_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proxy_partner_invites_signed_up_user_id_fkey"
+            columns: ["signed_up_user_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "proxy_partner_invites_signed_up_user_id_fkey"
+            columns: ["signed_up_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_accounts_no_verified_phone"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proxy_partner_invites_signed_up_user_id_fkey"
+            columns: ["signed_up_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "proxy_partner_invites_signed_up_user_id_fkey"
+            columns: ["signed_up_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_ops_tenant_base"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "proxy_partner_invites_signed_up_user_id_fkey"
+            columns: ["signed_up_user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+        ]
       }
       proxy_payout_settlements: {
         Row: {
@@ -34992,6 +35213,11 @@ export type Database = {
           with_gps: number
         }[]
       }
+      get_proxy_agent_command_center: {
+        Args: { p_agent_id?: string }
+        Returns: Json
+      }
+      get_proxy_agent_team: { Args: { p_agent_id?: string }; Returns: Json }
       get_proxy_partner_balance: {
         Args: { p_agent_id: string; p_partner_id: string }
         Returns: number
@@ -35911,6 +36137,30 @@ export type Database = {
         }
         Returns: Json
       }
+      list_proxy_agent_partners: {
+        Args: {
+          p_agent_id?: string
+          p_dir?: string
+          p_filter?: string
+          p_limit?: number
+          p_offset?: number
+          p_search?: string
+          p_sort?: string
+        }
+        Returns: Json
+      }
+      list_proxy_agent_promissory_notes: {
+        Args: {
+          p_agent_id?: string
+          p_dir?: string
+          p_limit?: number
+          p_offset?: number
+          p_search?: string
+          p_sort?: string
+          p_status?: string
+        }
+        Returns: Json
+      }
       list_purgeable_rejected_listings: {
         Args: { p_days?: number; p_limit?: number }
         Returns: {
@@ -35940,6 +36190,14 @@ export type Database = {
           _selected_provider: string
         }
         Returns: string
+      }
+      log_proxy_partner_invite: {
+        Args: {
+          p_channel?: string
+          p_invitee_name?: string
+          p_invitee_phone?: string
+        }
+        Returns: Json
       }
       log_system_event:
         | {
@@ -36839,6 +37097,23 @@ export type Database = {
         }
         Returns: Json
       }
+      proxy_agent_partner_rows: {
+        Args: { p_agent_id: string }
+        Returns: {
+          came_in: boolean
+          is_returning: boolean
+          last_funded_at: string
+          linked_at: string
+          notes_count: number
+          partner_name: string
+          partner_phone: string
+          partner_user_id: string
+          portfolios: number
+          sources: string[]
+          total_funded: number
+        }[]
+      }
+      proxy_cc_resolve_agent: { Args: { p_agent_id: string }; Returns: string }
       psm_audit: {
         Args: {
           p_action: string
@@ -37493,6 +37768,10 @@ export type Database = {
       }
       set_lc1_verification: {
         Args: { p_lc1_id: string; p_reason: string; p_status: string }
+        Returns: Json
+      }
+      set_proxy_agent_target: {
+        Args: { p_agent_id?: string; p_target: number }
         Returns: Json
       }
       set_staff_access_password: {
