@@ -79,6 +79,7 @@ const CreditLoadingDebugPanel = optionalLazyWithRetry(() => import("@/components
 const DeferredExtras = optionalLazyWithRetry(() => import("@/components/DeferredExtras"), "DeferredExtras");
 const FloatingToolbar = optionalLazyWithRetry(() => import("@/components/FloatingToolbar"), "FloatingToolbar");
 const MerchantDispatchListener = optionalLazyWithRetry(() => import("@/components/agent/MerchantDispatchListener"), "MerchantDispatchListener");
+const GlobalInstallPrompt = optionalLazyWithRetry(() => import("@/components/GlobalInstallPrompt"), "GlobalInstallPrompt");
 
 // Index is the entry router — must be eager for instant redirect
 
