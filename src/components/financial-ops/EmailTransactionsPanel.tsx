@@ -697,6 +697,9 @@ export function EmailTransactionsPanel() {
   // Inside a money-in / money-out focused view, emails render Gmail-style by
   // default; operators can flip to the detailed ops rows for routing actions.
   const [focusView, setFocusView] = useState<'gmail' | 'ops'>('gmail');
+  // Gmail-style label rail: collapsed by default on phones, always visible on
+  // desktop (mirrors Gmail's hamburger behaviour).
+  const [gmailNavOpen, setGmailNavOpen] = useState(false);
   // Keep the focused view honest: if the operator changes the direction chips
   // lower down (or restores a preset), the banner follows or closes.
   useEffect(() => {
