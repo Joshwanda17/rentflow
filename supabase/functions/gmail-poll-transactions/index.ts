@@ -628,7 +628,7 @@ Deno.serve(async (req) => {
           reason: 'self_cash_code_notification',
           metadata: { gmail_message_id: m.id, from: fromEmail, subject },
         });
-        if (internalMs > newestMs) newestMs = internalMs;
+        advanceCutoff(internalMs);
         continue;
       }
 
@@ -641,7 +641,7 @@ Deno.serve(async (req) => {
         });
         continue;
       }
-      if (internalMs > newestMs) newestMs = internalMs;
+      advanceCutoff(internalMs);
 
       const isParsed = !!(parsed.amount || parsed.transaction_id);
       const internalDateObj = internalMs ? new Date(internalMs) : null;
