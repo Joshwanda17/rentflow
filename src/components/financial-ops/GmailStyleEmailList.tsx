@@ -231,15 +231,30 @@ export function GmailStyleEmailList({ rows }: { rows: GmailStyleRow[] }) {
     );
   }
 
+  let lastGroup: string | null = null;
+
   return (
+    <>
     <ul className="divide-y divide-border/50">
-      {sortedRows.map((r, i) => {
+      {shown.map((r, i) => {
         const name = senderName(r);
         const amount = fmtUgx(r.amount);
         // Gmail visually bolds "unread" mail. Here the freshest arrivals read as
         // unread so the operator's eye lands on new traffic first.
         const unread = i < 3;
+        const group = dateGroupLabel(r.internal_date);
+        const showGroup = group !== lastGroup;
+        lastGroup = group;
         return (
+          <>
+          {showGroup && (
+            <li
+              key={`g-${group}-${r.id}`}
+              className="sticky top-0 z-[5] bg-muted/60 backdrop-blur px-3 sm:px-4 py-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+            >
+              {group}
+            </li>
+          )}
           <li key={r.id} className="relative">
             <button
               type="button"
@@ -294,8 +309,16 @@ export function GmailStyleEmailList({ rows }: { rows: GmailStyleRow[] }) {
               </span>
             </button>
           </li>
+          </>
         );
       })}
     </ul>
+    {hasMore && (
+      <div ref={sentinelRef} className="flex items-center justify-center gap-2 py-5 text-xs text-muted-foreground">
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        Loading more conversations… ({(sortedRows.length - count).toLocaleString()} left)
+      </div>
+    )}
+    </>
   );
 }
