@@ -5402,13 +5402,16 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
     if (managedInfo[p.portfolioId] === undefined) {
       setCheckingManagedStep2(true);
       try {
-        const { data: proxyData } = await supabase
+        const { data: proxyRows } = await supabase
           .from('proxy_agent_assignments')
-          .select('agent_id, is_managed_account, agent:agent_id(full_name)')
+          .select('agent_id, is_managed_account, created_at, agent:agent_id(full_name)')
           .eq('beneficiary_id', p.investorId)
           .eq('is_active', true)
-          .limit(1)
-          .maybeSingle();
+          .eq('approval_status', 'approved')
+          .order('is_managed_account', { ascending: false })
+          .order('created_at', { ascending: false })
+          .limit(1);
+        const proxyData = proxyRows?.[0] ?? null;
         if (proxyData) {
           const agentName = (proxyData.agent as any)?.full_name || 'Agent';
           setManagedInfo(prev => ({ ...prev, [p.portfolioId]: { isManaged: !!proxyData.is_managed_account, agentName, agentId: proxyData.agent_id, hasProxy: true } }));
