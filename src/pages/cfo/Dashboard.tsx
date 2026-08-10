@@ -413,13 +413,9 @@ export default function CFODashboardPage() {
         return <MerchantFloatRequisitionPanel mode="cfo" />;
       case 'ledger-health':
         return <LedgerHealthPanel />;
+      case 'cashflow-forecast':
+        return <CashflowForecastGraphs />;
       case 'capital-opportunities':
-        return (
-          <div className="space-y-4">
-            <OpportunitySummaryFormPlaceholder />
-          </div>
-        );
-      case '__unused_capital_opportunities':
         return (
           <div className="space-y-4">
             <div>
