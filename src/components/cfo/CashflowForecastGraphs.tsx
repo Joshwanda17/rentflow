@@ -311,6 +311,7 @@ export function CashflowForecastGraphs() {
                     {active.label}
                   </h2>
                   <p className="text-[11px] text-muted-foreground">
+                    {isInflow ? 'Cash coming in' : 'Cash going out'} ·{' '}
                     Amount vs time · {bucket === 'day' ? 'daily' : bucket === 'week' ? 'weekly' : 'monthly'} buckets
                     {' · '}
                     {isoDay(start)} to {isoDay(end)}
@@ -338,15 +339,21 @@ export function CashflowForecastGraphs() {
                     <AreaChart data={chartData}>
                       <defs>
                         <linearGradient id="cfFcGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.35} />
-                          <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                          <stop offset="5%" stopColor={isInflow ? 'hsl(152 60% 40%)' : 'hsl(var(--primary))'} stopOpacity={0.35} />
+                          <stop offset="95%" stopColor={isInflow ? 'hsl(152 60% 40%)' : 'hsl(var(--primary))'} stopOpacity={0} />
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                       <XAxis dataKey="label" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
                       <YAxis tick={{ fontSize: 10 }} width={70} tickFormatter={(v) => new Intl.NumberFormat('en-UG').format(Number(v))} />
                       <Tooltip content={<CustomTooltip />} />
-                      <Area type="monotone" dataKey="amount" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#cfFcGrad)" />
+                      <Area
+                        type="monotone"
+                        dataKey="amount"
+                        stroke={isInflow ? 'hsl(152 60% 40%)' : 'hsl(var(--primary))'}
+                        strokeWidth={2}
+                        fill="url(#cfFcGrad)"
+                      />
                     </AreaChart>
                   ) : (
                     <BarChart data={chartData}>
@@ -354,16 +361,19 @@ export function CashflowForecastGraphs() {
                       <XAxis dataKey="label" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
                       <YAxis tick={{ fontSize: 10 }} width={70} tickFormatter={(v) => new Intl.NumberFormat('en-UG').format(Number(v))} />
                       <Tooltip content={<CustomTooltip />} />
-                      <Bar dataKey="amount" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
+                      <Bar dataKey="amount" fill={isInflow ? 'hsl(152 60% 40%)' : 'hsl(var(--primary))'} radius={[3, 3, 0, 0]} />
                     </BarChart>
                   )}
                 </ResponsiveContainer>
               </div>
 
               <p className="text-[11px] text-muted-foreground">
-                Forecast panels project every active portfolio&apos;s monthly Returns cycle forward from its
+                Outflow forecasts project every active portfolio&apos;s monthly Returns cycle forward from its
                 next Returns date up to maturity, so Partner Ops approvals, top-ups, compounding and
-                withdrawals immediately reshape the curve. Actual panels read posted ledger outflows.
+                withdrawals immediately reshape the curve. Inflow forecasts schedule each funded tenant&apos;s
+                remaining receivable at its daily repayment rate and each unpaused agent advance at its daily
+                installment, so receivable cash is projected day by day until the balance clears. Actual panels
+                read posted ledger movements in the matching direction.
               </p>
             </>
           )}
