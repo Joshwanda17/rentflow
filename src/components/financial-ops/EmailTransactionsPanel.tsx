@@ -9,7 +9,7 @@ import { Mail, RefreshCw, Loader2, CheckCircle2, AlertCircle, Smartphone, Bug, S
 import { RouteEmailDepositDialog, type EmailRowForRouting, type PrefilledUser } from '@/components/financial-ops/RouteEmailDepositDialog';
 import { BucketTransferLauncher } from '@/components/financial-ops/BucketTransferDialog';
 import { BacklogSweepLauncher } from '@/components/financial-ops/BacklogSweepDialog';
-import { Info } from 'lucide-react';
+import { Info, Inbox, AlertOctagon, Send, Menu } from 'lucide-react';
 import { Wrench, Clock } from 'lucide-react';
 import { SlidersHorizontal } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -697,6 +697,9 @@ export function EmailTransactionsPanel() {
   // Inside a money-in / money-out focused view, emails render Gmail-style by
   // default; operators can flip to the detailed ops rows for routing actions.
   const [focusView, setFocusView] = useState<'gmail' | 'ops'>('gmail');
+  // Gmail-style label rail: collapsed by default on phones, always visible on
+  // desktop (mirrors Gmail's hamburger behaviour).
+  const [gmailNavOpen, setGmailNavOpen] = useState(false);
   // Keep the focused view honest: if the operator changes the direction chips
   // lower down (or restores a preset), the banner follows or closes.
   useEffect(() => {
@@ -3163,210 +3166,219 @@ export function EmailTransactionsPanel() {
     }));
   };
 
+  // Gmail-style label counts, computed off the same rows the list renders from.
+  const gmailLabelCounts = useMemo(() => {
+    let inCount = 0, outCount = 0, routing = 0, unparsed = 0, credited = 0;
+    for (const r of filteredRows) {
+      if (r.direction === 'in') inCount += 1;
+      else if (r.direction === 'out' || r.direction === 'charge') outCount += 1;
+      const s = getRowStatus(r);
+      if (s === 'needs_routing') routing += 1;
+      else if (s === 'unparsed') unparsed += 1;
+      else if (s === 'credited') credited += 1;
+    }
+    return { all: filteredRows.length, in: inCount, out: outCount, routing, unparsed, credited };
+  }, [filteredRows, getRowStatus]);
+
+  // Gmail label definitions — each one maps onto the existing filter state so
+  // no filtering logic changes, only the arrangement.
+  const gmailLabels: Array<{
+    key: string;
+    label: string;
+    Icon: typeof Inbox;
+    count: number;
+    active: boolean;
+    apply: () => void;
+  }> = [
+    {
+      key: 'all', label: 'Inbox', Icon: Inbox, count: gmailLabelCounts.all,
+      active: directionFilter === 'all' && statusFilter === 'all' && !needsRoutingOnly,
+      apply: () => { setDirectionFilter('all'); setFocusDirection(null); setStatusFilter('all'); setNeedsRoutingOnly(false); },
+    },
+    {
+      key: 'in', label: 'Money in', Icon: ArrowDownLeft, count: gmailLabelCounts.in,
+      active: directionFilter === 'in',
+      apply: () => { setDirectionFilter('in'); setFocusDirection(focusView === 'ops' ? 'in' : null); setStatusFilter('all'); setNeedsRoutingOnly(false); },
+    },
+    {
+      key: 'out', label: 'Money out', Icon: ArrowUpRight, count: gmailLabelCounts.out,
+      active: directionFilter === 'out',
+      apply: () => { setDirectionFilter('out'); setFocusDirection(focusView === 'ops' ? 'out' : null); setStatusFilter('all'); setNeedsRoutingOnly(false); },
+    },
+    {
+      key: 'needs_routing', label: 'Needs routing', Icon: Send, count: gmailLabelCounts.routing,
+      active: statusFilter === 'needs_routing',
+      apply: () => { setStatusFilter('needs_routing'); setNeedsRoutingOnly(false); setFocusDirection(null); },
+    },
+    {
+      key: 'unparsed', label: 'Unparsed', Icon: AlertOctagon, count: gmailLabelCounts.unparsed,
+      active: statusFilter === 'unparsed',
+      apply: () => { setStatusFilter('unparsed'); setNeedsRoutingOnly(false); setFocusDirection(null); },
+    },
+    {
+      key: 'credited', label: 'Credited', Icon: CheckCircle2, count: gmailLabelCounts.credited,
+      active: statusFilter === 'credited',
+      apply: () => { setStatusFilter('credited'); setNeedsRoutingOnly(false); setFocusDirection(null); },
+    },
+  ];
+
+  const applyRecentWindow = (days: number) => {
+    const todayKey = dateKeyInTz(new Date(), tz);
+    const [y, m, d] = todayKey.split('-').map(Number);
+    const toUtc = Date.UTC(y, m - 1, d);
+    const fromUtc = toUtc - (days - 1) * 86_400_000;
+    const fmtKey = (ms: number) => {
+      const dt = new Date(ms);
+      return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`;
+    };
+    setFromDate(fmtKey(fromUtc));
+    setToDate(fmtKey(toUtc));
+  };
+
   return (
-    <div className="space-y-4">
-      {/* Minimal page header: quiet type, no coloured icon tile, single
-          low-emphasis layout switch on the right. */}
-      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
-        <div className="min-w-0">
-          <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-            Financial operations
-          </p>
-          <h2 className="text-lg sm:text-xl font-semibold tracking-tight mt-1">
-            Email transactions
-          </h2>
-          <p className="text-xs text-muted-foreground mt-1 max-w-xl">
-            Live Gmail feed — MoMo, Airtel and bank confirmations parsed every minute.
-          </p>
+    <div className="space-y-3">
+      {/* ── Gmail-style app bar: hamburger, product name, one big rounded
+          search field, then the layout switch on the far right. ───────── */}
+      <div className="flex items-center gap-2 sm:gap-3 rounded-full border bg-card px-2 py-1.5 sm:px-3 sm:py-2">
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-9 w-9 shrink-0 rounded-full lg:hidden"
+          aria-label={gmailNavOpen ? 'Hide labels' : 'Show labels'}
+          aria-expanded={gmailNavOpen}
+          onClick={() => setGmailNavOpen((v) => !v)}
+        >
+          <Menu className="h-4 w-4" />
+        </Button>
+        <div className="hidden sm:flex items-center gap-2 shrink-0 pl-1 pr-1">
+          <Mail className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-medium tracking-tight">Email transactions</span>
         </div>
-        {/* Page-wide layout switch: Gmail arrangement (default) vs the
-            detailed ops rows that carry routing / charging actions. */}
+        <div className="relative flex-1 min-w-0">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search mail — amount, name, phone, transaction id…"
+            aria-label="Search mail"
+            className="h-10 w-full rounded-full border-0 bg-muted/60 pl-10 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:bg-background placeholder:text-muted-foreground/70 transition-colors"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label="Clear search"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
         <Button
           size="sm"
           variant="ghost"
-          className="shrink-0 h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground"
-          onClick={() => setFocusView(focusView === 'gmail' ? 'ops' : 'gmail')}
+          className="shrink-0 h-9 rounded-full px-3 text-xs text-muted-foreground hover:text-foreground"
+          onClick={() => {
+            const next = focusView === 'gmail' ? 'ops' : 'gmail';
+            setFocusView(next);
+            if (next === 'gmail') setFocusDirection(null);
+          }}
         >
           {focusView === 'gmail' ? 'Ops layout' : 'Inbox layout'}
         </Button>
       </div>
-      {/* Gmail-style category tabs — mirrors the Inbox / category strip. */}
-      {focusView === 'gmail' && (
-        <div className="flex items-center gap-4 border-b">
-          {([
-            { key: 'all' as const, label: 'All mail', Icon: Mail },
-            { key: 'in' as const, label: 'Money in', Icon: ArrowDownLeft },
-            { key: 'out' as const, label: 'Money out', Icon: ArrowUpRight },
-          ]).map(({ key, label, Icon }) => {
-            const active = key === 'all' ? !focusDirection : focusDirection === key;
-            return (
+
+      {/* Secondary chip bar: depositor-phone filter + quick date windows,
+          styled like Gmail's search-refinement chips. */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-0.5">
+        <div className="relative shrink-0">
+          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+          <input
+            type="search"
+            inputMode="tel"
+            value={phoneQuery}
+            onChange={(e) => setPhoneQuery(e.target.value)}
+            placeholder="From: phone number"
+            aria-label="Filter by depositor phone number"
+            className="h-8 w-[210px] rounded-full border bg-background pl-8 pr-8 text-xs focus:outline-none focus:ring-2 focus:ring-ring placeholder:text-muted-foreground/70"
+          />
+          {phoneQuery && (
+            <button
+              type="button"
+              onClick={() => setPhoneQuery('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label="Clear phone filter"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+        {([
+          { label: 'Today', days: 1 },
+          { label: 'Last 7 days', days: 7 },
+          { label: 'Last 30 days', days: 30 },
+        ]).map((p) => (
+          <button
+            key={p.label}
+            type="button"
+            onClick={() => applyRecentWindow(p.days)}
+            className="shrink-0 rounded-full border bg-background px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            {p.label}
+          </button>
+        ))}
+        <Select value={sortMode} onValueChange={(v) => setSortMode(v as SortMode)}>
+          <SelectTrigger className="h-8 w-[168px] shrink-0 rounded-full border bg-background text-xs" aria-label="Sort mail">
+            <span className="text-muted-foreground mr-1">Sort:</span>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="newest">Newest first</SelectItem>
+            <SelectItem value="oldest">Oldest first</SelectItem>
+            <SelectItem value="amount_high">Amount: high to low</SelectItem>
+            <SelectItem value="amount_low">Amount: low to high</SelectItem>
+            <SelectItem value="status">Status (needs routing first)</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* ── Gmail body: label rail on the left, mail list + ops panels on
+          the right. ──────────────────────────────────────────────────── */}
+      <div className="flex gap-4">
+        <aside
+          className={`${gmailNavOpen ? 'block' : 'hidden'} lg:block w-full max-w-[240px] shrink-0 lg:w-[220px]`}
+          aria-label="Mail labels"
+        >
+          <nav className="space-y-1">
+            {gmailLabels.map(({ key, label, Icon, count, active, apply }) => (
               <button
                 key={key}
                 type="button"
-                aria-pressed={active}
+                aria-current={active ? 'page' : undefined}
                 onClick={() => {
-                  setDirectionFilter(key === 'all' ? 'all' : key);
-                  setFocusDirection(key === 'all' ? null : key);
+                  apply();
+                  setGmailNavOpen(false);
+                  if (typeof document !== 'undefined') {
+                    document.getElementById('email-tx-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }
                 }}
-                className={`inline-flex items-center gap-1.5 pb-2.5 pt-1 text-[13px] font-medium border-b-2 -mb-px transition-colors ${
+                className={`flex w-full items-center gap-3 rounded-r-full px-4 py-2 text-left text-[13px] transition-colors ${
                   active
-                    ? 'border-foreground text-foreground'
-                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                    ? 'bg-muted font-semibold text-foreground'
+                    : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
                 }`}
               >
-                <Icon className="h-3.5 w-3.5" />
-                {label}
+                <Icon className="h-4 w-4 shrink-0" />
+                <span className="min-w-0 flex-1 truncate">{label}</span>
+                {count > 0 && (
+                  <span className="shrink-0 font-mono text-[11px] tabular-nums">{count}</span>
+                )}
               </button>
-            );
-          })}
-        </div>
-      )}
-      {/* Money-in / money-out entry buttons — one tap opens a dedicated view
-          showing only that side of the extracted email feed. */}
-      {focusDirection && focusView === 'ops' ? (
-        (() => {
-          const isIn = focusDirection === 'in';
-          const count = visibleRows.length;
-          const total = visibleRows.reduce(
-            (s, r) => s + (r.amount && Number.isFinite(r.amount) ? (r.amount as number) : 0),
-            0,
-          );
-          return (
-            <div className="rounded-lg border bg-card p-4">
-              <div className="flex items-start gap-3">
-                <span
-                  className={`h-8 w-8 shrink-0 rounded-md flex items-center justify-center ${
-                    isIn
-                      ? 'bg-emerald-600/10 text-emerald-600'
-                      : 'bg-rose-600/10 text-rose-600'
-                  }`}
-                >
-                  {isIn ? <ArrowDownLeft className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <h3 className="font-semibold text-sm leading-tight">
-                    {isIn ? 'Money in' : 'Money out'}
-                  </h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {isIn
-                      ? 'Only extracted deposits and incoming credits are listed below.'
-                      : 'Only extracted payouts, debits and provider charges are listed below.'}
-                  </p>
-                  <div className="mt-2.5 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs">
-                    <span>
-                      <span className="font-mono tabular-nums font-semibold">{count}</span>{' '}
-                      <span className="text-muted-foreground">email{count === 1 ? '' : 's'}</span>
-                    </span>
-                    <span>
-                      <span className="text-muted-foreground">Total </span>
-                      <span className="font-mono tabular-nums font-semibold">{fmtUgx(total)}</span>
-                    </span>
-                  </div>
-                </div>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="shrink-0 h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
-                  onClick={() => {
-                    setFocusDirection(null);
-                    setDirectionFilter('all');
-                  }}
-                >
-                  <X className="h-3.5 w-3.5 mr-1" />
-                  All emails
-                </Button>
-              </div>
-              <div className="mt-3 flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-8 text-xs"
-                  onClick={() => {
-                    const next = isIn ? 'out' : 'in';
-                    setFocusDirection(next);
-                    setDirectionFilter(next);
-                  }}
-                >
-                  {isIn ? (
-                    <>
-                      <ArrowUpRight className="h-3.5 w-3.5 mr-1" /> Money out
-                    </>
-                  ) : (
-                    <>
-                      <ArrowDownLeft className="h-3.5 w-3.5 mr-1" /> Money in
-                    </>
-                  )}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground"
-                  onClick={() => setFocusView('gmail')}
-                >
-                  Inbox layout
-                </Button>
-              </div>
-            </div>
-          );
-        })()
-      ) : (
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {([
-          {
-            key: 'in' as DirectionFilter,
-            title: 'Money in',
-            hint: 'Extracted deposits & incoming credits',
-            Icon: ArrowDownLeft,
-          },
-          {
-            key: 'out' as DirectionFilter,
-            title: 'Money out',
-            hint: 'Extracted payouts, debits & charges',
-            Icon: ArrowUpRight,
-          },
-        ]).map(({ key, title, hint, Icon }) => {
-          const active = directionFilter === key;
-          return (
-            <button
-              key={key}
-              type="button"
-              aria-pressed={active}
-              onClick={() => {
-                // Open a dedicated, unambiguous view for this direction: clear
-                // every other narrowing filter so the list is exactly the
-                // money-in (or money-out) emails.
-                setDirectionFilter(key);
-                setFocusDirection(key === 'in' ? 'in' : 'out');
-                setMatchFilter('all');
-                setStatusFilter('all');
-                setNeedsRoutingOnly(false);
-                setDebitFilter('all');
-                setDebitSort('none');
-                if (typeof document !== 'undefined') {
-                  document.getElementById('email-tx-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
-              }}
-              className={`w-full text-left rounded-lg border p-3.5 transition-colors flex items-center gap-3 ${
-                active
-                  ? 'border-foreground/30 bg-muted/60'
-                  : 'bg-card hover:bg-muted/40'
-              }`}
-            >
-              <span className="h-8 w-8 shrink-0 rounded-md flex items-center justify-center bg-muted text-muted-foreground">
-                <Icon className="h-4 w-4" />
-              </span>
-              <span className="min-w-0">
-                <span className="block font-medium text-sm">{title}</span>
-                <span className="block text-xs text-muted-foreground truncate">{hint}</span>
-              </span>
-              {active && (
-                <Badge variant="outline" className="ml-auto text-[10px] shrink-0 font-normal">Showing</Badge>
-              )}
-            </button>
-          );
-        })}
-      </div>
-      )}
+            ))}
+          </nav>
+        </aside>
+        <div className={`min-w-0 flex-1 space-y-4 ${gmailNavOpen ? 'hidden lg:block' : ''}`}>
       <div id="email-tx-results" className="rounded-lg border bg-card overflow-hidden scroll-mt-20">
         {/* Prominent, full-width search bar — lets ops find any email by
             amount, name, phone (any format), reference id, or any word in
@@ -3429,69 +3441,8 @@ export function EmailTransactionsPanel() {
                   {filteredRows.length} match{filteredRows.length === 1 ? '' : 'es'}
                 </span>
               )}
-              <Select value={sortMode} onValueChange={(v) => setSortMode(v as SortMode)}>
-                <SelectTrigger className="h-8 w-[150px] text-xs border-transparent bg-muted/50 hover:bg-muted" aria-label="Sort emails">
-                  <span className="text-muted-foreground mr-1">Sort:</span>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="newest">Newest first</SelectItem>
-                  <SelectItem value="oldest">Oldest first</SelectItem>
-                  <SelectItem value="amount_high">Amount: high → low</SelectItem>
-                  <SelectItem value="amount_low">Amount: low → high</SelectItem>
-                  <SelectItem value="status">Status (needs routing first)</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
           </div>
-          <div className="relative w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-            <input
-              type="search"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by amount, name, phone, transaction id, or any word in the email…"
-              aria-label="Search emails"
-              className="h-11 w-full rounded-full border border-input bg-muted/40 pl-10 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:bg-background focus:border-transparent placeholder:text-muted-foreground/70 transition-colors"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground rounded-full p-1 hover:bg-muted"
-                aria-label="Clear search"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-          {/* Dedicated depositor-phone filter — instantly narrow to one number
-              in any format (0…, 256…, +256…, bare 7…). */}
-          <div className="relative w-full">
-            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-            <input
-              type="search"
-              inputMode="tel"
-              value={phoneQuery}
-              onChange={(e) => setPhoneQuery(e.target.value)}
-              placeholder="Filter by depositor phone number (e.g. 0783673998)…"
-              aria-label="Filter by depositor phone number"
-              className="h-11 w-full rounded-full border border-input bg-muted/40 pl-10 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:bg-background focus:border-transparent placeholder:text-muted-foreground/70 transition-colors"
-            />
-            {phoneQuery && (
-              <button
-                type="button"
-                onClick={() => setPhoneQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground rounded-full p-1 hover:bg-muted"
-                aria-label="Clear phone filter"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-          <p className="text-[11px] text-muted-foreground">
-            Searches the <strong>full email history</strong> — the date range above is ignored while you type. Combine words (e.g. <code className="px-1 rounded bg-muted">john 150000</code>); phone numbers work in any format.
-          </p>
           {/* Mobile-friendly quick filters: date, direction & status in one
               horizontally-scrollable strip so ops can narrow results on a phone
               without scrolling back up to the full filter panel. */}
@@ -7127,6 +7078,8 @@ export function EmailTransactionsPanel() {
         }}
         onDeleteRule={deleteUserRule}
       />
+      </div>
+      </div>
     </div>
   );
 }
