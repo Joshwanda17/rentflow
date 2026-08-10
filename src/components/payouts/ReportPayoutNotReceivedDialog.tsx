@@ -7,7 +7,7 @@ import {
 } from '@/components/ui/dialog';
 import { AlertTriangle, Loader2, Send } from 'lucide-react';
 import { toast } from 'sonner';
-import { formatUGX } from '@/lib/currency';
+import { formatUGX } from '@/lib/rentCalculations';
 
 interface Props {
   open: boolean;

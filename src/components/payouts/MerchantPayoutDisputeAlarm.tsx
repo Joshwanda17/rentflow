@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { AlertOctagon, Loader2, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { formatUGX } from '@/lib/currency';
+import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 
 interface DisputeRow {
@@ -65,7 +65,7 @@ export function MerchantPayoutDisputeAlarm() {
   if (disputes.length === 0) return null;
 
   return (
-    <div className="rounded-2xl border-2 border-destructive bg-destructive/10 p-4 space-y-4 animate-pulse-none">
+    <div className="rounded-2xl border-2 border-destructive bg-destructive/10 p-4 space-y-4">
       <div className="flex items-start gap-3">
         <AlertOctagon className="h-6 w-6 text-destructive shrink-0 mt-0.5 animate-pulse" />
         <div>
