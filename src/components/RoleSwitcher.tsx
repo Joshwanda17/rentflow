@@ -26,7 +26,7 @@ import ApplyForRoleDialog from '@/components/ApplyForRoleDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useRoleAccessRequests } from '@/hooks/useRoleAccessRequests';
 
-type AppRole = 'tenant' | 'agent' | 'landlord' | 'supporter' | 'manager' | 'ceo' | 'coo' | 'cfo' | 'cto' | 'cmo' | 'crm' | 'employee' | 'operations' | 'super_admin' | 'hr';
+type AppRole = 'tenant' | 'agent' | 'landlord' | 'supporter' | 'manager' | 'ceo' | 'coo' | 'cfo' | 'cto' | 'cmo' | 'crm' | 'employee' | 'operations' | 'super_admin' | 'hr' | 'access_admin';
 
 const MANAGER_ACCESS_CODE = 'Manager@welile';
 
