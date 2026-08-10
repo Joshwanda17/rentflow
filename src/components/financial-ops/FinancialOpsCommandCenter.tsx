@@ -237,26 +237,38 @@ function setStoredOpen(userId: string, open: boolean) {
 export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymentRef?: boolean } = {}) {
   const { user } = useAuth();
   const userId = user?.id;
-  const [view, setView] = useState<View>('home');
-  const [activeTool, setActiveTool] = useState<Tool>(() => {
-    // Survive an app-level remount (failed chunk, recovered error) so the
-    // operator stays on the panel they opened instead of being dropped on
-    // Overview with no explanation.
-    if (typeof window === 'undefined') return null;
-    try {
-      return (sessionStorage.getItem('finops_active_tool') as Tool) || null;
-    } catch {
-      return null;
-    }
-  });
+  // The URL is the single source of truth for which panel is open.
+  //
+  // Previously this lived in component state with a sessionStorage backup. On
+  // devices where sessionStorage is unavailable (iOS private browsing, some
+  // in-app/embedded browsers, storage-partitioned WebViews) any remount — a
+  // recovered error, a failed chunk, a pull-to-refresh reload — silently reset
+  // the state and dumped the operator back on Overview, which reads exactly
+  // like "navigation is disabled on my account". Query params survive all of
+  // those, need no storage permission, and make panels linkable.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTool = (searchParams.get('tool') as Tool) || null;
+  const view = ((searchParams.get('view') as View) || 'home') as View;
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      if (activeTool) sessionStorage.setItem('finops_active_tool', activeTool);
-      else sessionStorage.removeItem('finops_active_tool');
-    } catch { /* noop */ }
-  }, [activeTool]);
+  const setActiveTool = (t: Tool) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (t) next.set('tool', String(t));
+      else next.delete('tool');
+      next.delete('view');
+      return next;
+    }, { replace: true });
+  };
+
+  const setView = (v: View) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('tool');
+      if (v && v !== 'home') next.set('view', v);
+      else next.delete('view');
+      return next;
+    }, { replace: true });
+  };
   const [moreSheet, setMoreSheet] = useState(false);
   const [focusBucket, setFocusBucket] = useState<'float' | 'withdrawable' | null>(null);
   const [walletBreakdownOpen, setWalletBreakdownOpen] = useState(() => getStoredOpen(userId));
