@@ -13,7 +13,7 @@ export const VAPID_PUBLIC_KEY =
  * that already exist.
  */
 const LEGACY_PUSH_HOSTS = [
-  "welile.tech", // legacy-domain-guard-allow
+  "welileapp.com", // legacy-domain-guard-allow
   "welilereceipts.com", // legacy-domain-guard-allow
   "welilereciept.com", // legacy-domain-guard-allow
 ];
@@ -27,7 +27,7 @@ export function isLegacyPushOrigin(): boolean {
 
 /**
  * Removes any push subscription registered on a legacy host so notifications
- * are only ever delivered — and branded — from welile.tech. Safe no-op on
+ * are only ever delivered — and branded — from welileapp.com. Safe no-op on
  * the canonical domain.
  */
 export async function purgeLegacyOriginPush(
@@ -179,14 +179,14 @@ export async function ensurePushSubscription(
   }
 
   // Only the canonical app domain may own a subscription, so notifications are
-  // always branded welile.tech.
+  // always branded welileapp.com.
   if (isLegacyPushOrigin()) {
     await purgeLegacyOriginPush(deleteByEndpoint);
     return {
       ok: false,
       reason: "legacy-origin",
       message:
-        "Open the app at welile.tech to enable notifications — this old address can't send branded alerts.",
+        "Open the app at welileapp.com to enable notifications — this old address can't send branded alerts.",
     };
   }
 

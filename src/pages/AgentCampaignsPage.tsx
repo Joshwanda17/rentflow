@@ -83,7 +83,7 @@ const LINK_TYPES = [
 
 function shortLinkUrl(code: string, slug: string) {
   const origin =
-    typeof window !== "undefined" ? window.location.origin : "https://welile.tech";
+    typeof window !== "undefined" ? window.location.origin : "https://welileapp.com";
   return `${origin}/c/${slug}/${code}`;
 }
 

@@ -1,6 +1,6 @@
 {
-  "name": "Welile",
-  "short_name": "Welile",
+  "name": "Welile.com",
+  "short_name": "Welile.com",
   "description": "Africa's leading rent facilitation platform. Access rent today, pay back over time.",
   "id": "welile-pwa",
   "start_url": "/?source=pwa",
@@ -78,7 +78,7 @@
   "related_applications": [
     {
       "platform": "webapp",
-      "url": "https://welile.tech/manifest.json"
+      "url": "https://welileapp.com/manifest.json"
     }
   ]
 }

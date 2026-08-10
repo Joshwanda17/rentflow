@@ -59,5 +59,5 @@ BEFORE UPDATE ON public.redirect_monitor
 FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 INSERT INTO public.redirect_monitor (old_domain, new_domain)
-VALUES ('welilereceipts.com', 'welile.tech')
+VALUES ('welilereceipts.com', 'welileapp.com')
 ON CONFLICT (old_domain, new_domain) DO NOTHING;

@@ -248,7 +248,7 @@ export function LandlordPayoutShareCard({ open, onOpenChange, data }: Props) {
       margin,
       footerY,
     );
-    pdf.text('welile.tech', margin, footerY + 5);
+    pdf.text('welileapp.com', margin, footerY + 5);
 
     return pdf.output('blob');
   };
@@ -423,7 +423,7 @@ export function LandlordPayoutShareCard({ open, onOpenChange, data }: Props) {
             </div>
 
             <p className="text-[10px] text-purple-200/80 text-center pt-1">
-              Powered by Welile · welile.tech
+              Powered by Welile · welileapp.com
             </p>
           </div>
         </div>

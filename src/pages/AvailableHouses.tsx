@@ -14,7 +14,7 @@ export default function AvailableHouses() {
       <Helmet>
         <title>Available Houses | Welile</title>
         <meta name="description" content="Browse all available houses to rent on Welile." />
-        <link rel="canonical" href="https://welile.tech/houses" />
+        <link rel="canonical" href="https://welileapp.com/houses" />
       </Helmet>
       <AvailableHousesSheet
         open
