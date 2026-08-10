@@ -3441,69 +3441,8 @@ export function EmailTransactionsPanel() {
                   {filteredRows.length} match{filteredRows.length === 1 ? '' : 'es'}
                 </span>
               )}
-              <Select value={sortMode} onValueChange={(v) => setSortMode(v as SortMode)}>
-                <SelectTrigger className="h-8 w-[150px] text-xs border-transparent bg-muted/50 hover:bg-muted" aria-label="Sort emails">
-                  <span className="text-muted-foreground mr-1">Sort:</span>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="newest">Newest first</SelectItem>
-                  <SelectItem value="oldest">Oldest first</SelectItem>
-                  <SelectItem value="amount_high">Amount: high → low</SelectItem>
-                  <SelectItem value="amount_low">Amount: low → high</SelectItem>
-                  <SelectItem value="status">Status (needs routing first)</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
           </div>
-          <div className="relative w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-            <input
-              type="search"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by amount, name, phone, transaction id, or any word in the email…"
-              aria-label="Search emails"
-              className="h-11 w-full rounded-full border border-input bg-muted/40 pl-10 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:bg-background focus:border-transparent placeholder:text-muted-foreground/70 transition-colors"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground rounded-full p-1 hover:bg-muted"
-                aria-label="Clear search"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-          {/* Dedicated depositor-phone filter — instantly narrow to one number
-              in any format (0…, 256…, +256…, bare 7…). */}
-          <div className="relative w-full">
-            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-            <input
-              type="search"
-              inputMode="tel"
-              value={phoneQuery}
-              onChange={(e) => setPhoneQuery(e.target.value)}
-              placeholder="Filter by depositor phone number (e.g. 0783673998)…"
-              aria-label="Filter by depositor phone number"
-              className="h-11 w-full rounded-full border border-input bg-muted/40 pl-10 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:bg-background focus:border-transparent placeholder:text-muted-foreground/70 transition-colors"
-            />
-            {phoneQuery && (
-              <button
-                type="button"
-                onClick={() => setPhoneQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground rounded-full p-1 hover:bg-muted"
-                aria-label="Clear phone filter"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-          <p className="text-[11px] text-muted-foreground">
-            Searches the <strong>full email history</strong> — the date range above is ignored while you type. Combine words (e.g. <code className="px-1 rounded bg-muted">john 150000</code>); phone numbers work in any format.
-          </p>
           {/* Mobile-friendly quick filters: date, direction & status in one
               horizontally-scrollable strip so ops can narrow results on a phone
               without scrolling back up to the full filter panel. */}
