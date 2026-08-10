@@ -534,9 +534,9 @@ export default function LandlordRegistrationForm({
     // It's auto-generated silently so an ordinary agent never has to think
     // about it — they only ever type a name and phone.
     const passwordToUse = tempPassword || generateTempPassword();
-    // landlords.property_address is NOT NULL — when no address is given, fall
-    // back to a placeholder that ops can update later.
-    const addressToUse = propertyAddress.trim() || 'To be confirmed';
+    // landlords.property_address is NOT NULL — when no street detail is typed we
+    // use the official location path (never a "To be confirmed" placeholder).
+    const addressToUse = propertyAddress.trim() || (ugLoc ? ugLocationLabel(ugLoc) : '');
 
     setLoading(true);
     setProgressMsg('Saving details…');
@@ -627,6 +627,17 @@ export default function LandlordRegistrationForm({
         house_category: houseCategory || null,
       };
 
+      // Official location — resolved names exactly as spelled in the dataset,
+      // plus the village id for a hard link back to the hierarchy.
+      if (ugLoc) {
+        insertData.region = ugLoc.region ?? null;
+        insertData.district = ugLoc.district;
+        insertData.county = ugLoc.county;
+        insertData.sub_county = ugLoc.subcounty;
+        insertData.village = ugLoc.village;
+        insertData.ug_village_id = ugLoc.villageId;
+      }
+
       if (registeredByRole === 'tenant') {
         insertData.tenant_id = user.id;
       }
@@ -652,7 +663,7 @@ export default function LandlordRegistrationForm({
               await supabase.from('lc1_chairpersons').insert({
                 name: lc1Name.trim(),
                 phone: lc1PhoneClean,
-                village: 'To be confirmed',
+                village: ugLoc?.village ?? null,
                 registered_by: user.id,
               } as any)
             ).error;
