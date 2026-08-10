@@ -208,6 +208,7 @@ const moreActions: MoreAction[] = [
 ];
 
 import { useAuth } from '@/hooks/useAuth';
+import { useSearchParams } from 'react-router-dom';
 
 const WALLET_BREAKDOWN_KEY = 'finops_wallet_breakdown_open_v2';
 
