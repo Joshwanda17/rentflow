@@ -232,7 +232,7 @@ export function UnifiedWalletHeroCard({
         aria-hidden={collapsed}
       >
         {/* Header row */}
-        <div className="flex items-center justify-between pl-14">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="p-1.5 rounded-lg bg-primary-foreground/15 backdrop-blur-sm">
               <Wallet className="h-3.5 w-3.5 text-primary-foreground/90" />
