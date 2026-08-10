@@ -711,16 +711,28 @@ function ChangeDepartmentDialog({
   onDone: () => void;
 }) {
   const open = staff !== null;
-  const [assignmentId, setAssignmentId] = useState('');
+  /**
+   * Encoded choice, because the box lists two different kinds of thing:
+   *   `assign:<assignmentId>`  — a position this person already holds; moving it
+   *                              re-parents the existing assignment (history kept).
+   *   `pos:<positionId>`       — any other active position in the system; picking
+   *                              it opens a NEW assignment in the chosen department.
+   * Previously only held assignments were listed, so a person enrolled with a
+   * single position saw exactly one option and the rest of the catalogue was
+   * invisible here.
+   */
+  const [choice, setChoice] = useState('');
   const [departmentId, setDepartmentId] = useState('');
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fallbackDepartments, setFallbackDepartments] = useState<Department[]>([]);
+  const [positions, setPositions] = useState<Position[]>([]);
+  const [positionsLoading, setPositionsLoading] = useState(false);
 
   useEffect(() => {
     if (!open) return;
-    setAssignmentId(assignments.length === 1 ? assignments[0].id : '');
+    setChoice(assignments.length === 1 ? `assign:${assignments[0].id}` : '');
     setDepartmentId('');
     setReason('');
     setError(null);
@@ -733,20 +745,57 @@ function ChangeDepartmentDialog({
       .catch((e) => setError(e instanceof Error ? e.message : String(e)));
   }, [open, departments.length]);
 
+  // Every active position in the system, so the box is never limited to what
+  // this person happens to hold today.
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setPositionsLoading(true);
+    getPositions()
+      .then((rows) => { if (!cancelled) setPositions(rows); })
+      .catch((e) => { if (!cancelled) setError(readableError(e, 'Loading positions')); })
+      .finally(() => { if (!cancelled) setPositionsLoading(false); });
+    return () => { cancelled = true; };
+  }, [open]);
+
   const departmentOptions = departments.length > 0 ? departments : fallbackDepartments;
-  const canSave = !!assignmentId && !!departmentId && reason.trim().length >= 10 && !saving;
+  const heldPositionIds = useMemo(
+    () => new Set(assignments.map((a) => a.position_title)),
+    [assignments],
+  );
+  /** Catalogue positions this person does not already hold. */
+  const otherPositions = useMemo(
+    () => positions.filter((p) => !heldPositionIds.has(p.title)),
+    [positions, heldPositionIds],
+  );
+  const isNewAssignment = choice.startsWith('pos:');
+  const canSave = !!choice && !!departmentId && reason.trim().length >= 10 && !saving;
 
   const submit = async () => {
-    if (!canSave) return;
+    if (!canSave || !staff) return;
     setSaving(true);
     setError(null);
     try {
-      await changeDepartment({ assignmentId, departmentId, reason: reason.trim() });
-      toast.success('Department changed');
+      if (isNewAssignment) {
+        await addAssignment({
+          staffId: staff.id,
+          departmentId,
+          positionId: choice.slice('pos:'.length),
+          makePrimary: assignments.length === 0,
+        });
+        toast.success('Position added in the chosen department');
+      } else {
+        await changeDepartment({
+          assignmentId: choice.slice('assign:'.length),
+          departmentId,
+          reason: reason.trim(),
+        });
+        toast.success('Department changed');
+      }
       onOpenChange(false);
       onDone();
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(readableError(e, isNewAssignment ? 'Adding the position' : 'Changing the department'));
     } finally {
       setSaving(false);
     }
@@ -759,31 +808,53 @@ function ChangeDepartmentDialog({
           <DialogTitle>Change department</DialogTitle>
           <DialogDescription>
             Moves one of {staff?.full_name || 'this person'}&apos;s open positions to another
-            department.
+            department — or opens one of the other positions in the system for them in the
+            department you pick.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3">
           <div className="space-y-1.5">
             <Label className="text-xs">Position</Label>
-            {assignments.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                This person has no open positions to move.
+            <Select value={choice} onValueChange={setChoice}>
+              <SelectTrigger>
+                <SelectValue
+                  placeholder={positionsLoading ? 'Loading positions…' : 'Select a position'}
+                />
+              </SelectTrigger>
+              <SelectContent className="max-h-72">
+                {assignments.length > 0 && (
+                  <SelectGroup>
+                    <SelectLabel>Positions they hold now</SelectLabel>
+                    {assignments.map((a) => (
+                      <SelectItem key={a.id} value={`assign:${a.id}`}>
+                        {(a.position_title || 'Untitled position') +
+                          (a.department_name ? ` · ${a.department_name}` : '')}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                )}
+                {otherPositions.length > 0 && (
+                  <SelectGroup>
+                    <SelectLabel>Other positions in the system</SelectLabel>
+                    {otherPositions.map((p) => (
+                      <SelectItem key={p.id} value={`pos:${p.id}`}>
+                        {p.title}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                )}
+                {!positionsLoading && assignments.length === 0 && otherPositions.length === 0 && (
+                  <div className="px-2 py-3 text-sm text-muted-foreground">
+                    No positions exist yet. Add one from the Enroll or Add position screen first.
+                  </div>
+                )}
+              </SelectContent>
+            </Select>
+            {isNewAssignment && (
+              <p className="text-[11px] text-muted-foreground">
+                They do not hold this position yet — saving opens it for them, starting today.
               </p>
-            ) : (
-              <Select value={assignmentId} onValueChange={setAssignmentId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a position" />
-                </SelectTrigger>
-                <SelectContent>
-                  {assignments.map((a) => (
-                    <SelectItem key={a.id} value={a.id}>
-                      {(a.position_title || 'Untitled position') +
-                        (a.department_name ? ` · ${a.department_name}` : '')}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             )}
           </div>
 
@@ -818,7 +889,7 @@ function ChangeDepartmentDialog({
         <DialogFooter className="flex-col gap-2 sm:flex-col sm:space-x-0">
           {error && <p className="w-full text-xs text-destructive whitespace-pre-wrap">{error}</p>}
           <Button className="w-full" disabled={!canSave} onClick={() => void submit()}>
-            {saving ? 'Saving…' : 'Change department'}
+            {saving ? 'Saving…' : isNewAssignment ? 'Add position in this department' : 'Change department'}
           </Button>
         </DialogFooter>
       </DialogContent>
