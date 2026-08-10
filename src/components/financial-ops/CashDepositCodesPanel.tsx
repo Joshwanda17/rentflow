@@ -188,9 +188,19 @@ export function CashDepositCodesPanel() {
     setReissuing(null);
     const payload = data as { ok?: boolean; error?: string; message?: string; depositor_phone?: string } | null;
     if (error || payload?.error) {
+      let detail = payload?.message || payload?.error || error?.message || null;
+      const ctx = (error as any)?.context;
+      if (!payload?.message && ctx?.text) {
+        try {
+          const parsed = JSON.parse(await ctx.text());
+          detail = parsed?.message || parsed?.error || detail;
+        } catch {
+          /* keep detail */
+        }
+      }
       toast({
         title: 'Code not delivered',
-        description: payload?.message || payload?.error || error?.message || 'Could not resend the code.',
+        description: detail || 'Could not resend the code.',
         variant: 'destructive',
       });
       load();
