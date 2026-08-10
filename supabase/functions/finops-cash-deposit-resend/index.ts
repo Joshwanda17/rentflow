@@ -1,0 +1,164 @@
+import "../_shared/smsFooterInterceptor.ts";
+// Financial Ops — resend/reissue a cash deposit code.
+//
+// The old path used the `fin_ops_reissue_cash_code` RPC, which rotated the code
+// in the database but had NO way to send an SMS — so the UI claimed "New code
+// sent by SMS" while the depositor never received anything. This function
+// rotates the code AND actually delivers it, reporting real delivery status.
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { sha256Hex } from "../_shared/cash-verification-core.ts";
+import { sendSMS, formatPhoneInternational } from "../_shared/sendSmsMultiProvider.ts";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+};
+
+const json = (status: number, payload: Record<string, unknown>) =>
+  new Response(JSON.stringify(payload), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+
+const ALLOWED_ROLES = ["financial_ops", "cfo", "coo", "super_admin", "manager", "operations"];
+
+function generateReceiptCode(): string {
+  const bytes = new Uint8Array(4);
+  crypto.getRandomValues(bytes);
+  let s = "";
+  for (const b of bytes) s += (b % 10).toString();
+  return s;
+}
+
+const fmtUGX = (n: number) => `UGX ${Math.round(n).toLocaleString("en-UG")}`;
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  try {
+    const admin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+
+    const token = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
+    const { data: authData, error: authErr } = await admin.auth.getUser(token);
+    if (authErr || !authData?.user) return json(401, { error: "Unauthorized" });
+    const operator = authData.user;
+
+    const { data: roleRows } = await admin
+      .from("user_roles").select("role").eq("user_id", operator.id);
+    const roles = (roleRows ?? []).map((r: any) => String(r.role));
+    if (!roles.some((r) => ALLOWED_ROLES.includes(r))) {
+      return json(403, {
+        error: "not_authorized",
+        message: "Only Financial Ops staff can resend a cash deposit code.",
+      });
+    }
+
+    const body = await req.json().catch(() => ({}));
+    const verificationId = typeof body?.verification_id === "string" ? body.verification_id : "";
+    if (!verificationId) {
+      return json(400, { error: "invalid_request", message: "verification_id is required" });
+    }
+
+    const { data: ver, error: vErr } = await admin
+      .from("cash_deposit_verifications")
+      .select("id, deposit_request_id, user_id, amount, status")
+      .eq("id", verificationId)
+      .maybeSingle();
+    if (vErr) return json(400, { error: "lookup_failed", message: vErr.message });
+    if (!ver) return json(404, { error: "verification_not_found", message: "That deposit code session no longer exists." });
+    if ((ver as any).status === "verified") {
+      return json(409, { error: "already_verified", message: "This deposit has already been verified." });
+    }
+
+    const { data: profile } = await admin
+      .from("profiles").select("id, full_name, phone").eq("id", (ver as any).user_id).maybeSingle();
+    const rawPhone = (profile as any)?.phone ?? "";
+    if (!rawPhone || String(rawPhone).replace(/\D/g, "").length < 9) {
+      return json(400, {
+        error: "no_phone",
+        message: "The depositor has no usable phone number on file, so the code cannot be delivered by SMS.",
+      });
+    }
+    const smsPhone = formatPhoneInternational(rawPhone);
+
+    const code = generateReceiptCode();
+    const codeHash = await sha256Hex(code);
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+    const { error: upErr } = await admin
+      .from("cash_deposit_verifications")
+      .update({
+        code_hash: codeHash,
+        code_plain: code,
+        status: "awaiting_code",
+        attempts: 0,
+        expires_at: expiresAt,
+      } as any)
+      .eq("id", verificationId);
+    if (upErr) return json(400, { error: "reissue_failed", message: upErr.message });
+
+    const amount = Number((ver as any).amount ?? 0);
+    const message =
+      `Welile cash deposit code: ${code}. ` +
+      `Amount ${fmtUGX(amount)}. Enter this code in the Welile app to confirm your cash deposit. ` +
+      `Valid for 10 minutes. Do not share it with anyone who has not received your cash.`;
+
+    let smsSent = false;
+    let smsError: string | null = null;
+    try {
+      smsSent = await sendSMS(smsPhone, message, {
+        admin,
+        source: "finops-cash-deposit-resend",
+        reference_id: (ver as any).deposit_request_id,
+        recipient_user_id: (ver as any).user_id,
+        recipient_name: (profile as any)?.full_name ?? null,
+      });
+    } catch (e) {
+      smsError = String((e as Error)?.message ?? e);
+      console.error("[finops-cash-resend] sms failed", e);
+    }
+
+    try {
+      await admin.from("cash_deposit_verification_events").insert({
+        verification_id: verificationId,
+        deposit_request_id: (ver as any).deposit_request_id,
+        user_id: (ver as any).user_id,
+        event_type: "code_reissued",
+        amount,
+        detail: smsSent
+          ? "Code reissued by Financial Ops and delivered to the depositor by SMS (10-minute expiry)."
+          : `Code reissued by Financial Ops but SMS delivery was NOT accepted${smsError ? `: ${smsError}` : ""}.`,
+        metadata: {
+          delivery: smsSent ? "sms" : "failed",
+          reissued_by: operator.id,
+          depositor_phone: smsPhone,
+          expires_at: expiresAt,
+          sms_error: smsError,
+        },
+      } as any);
+    } catch (e) {
+      console.warn("[finops-cash-resend] audit log failed", e);
+    }
+
+    if (!smsSent) {
+      return json(502, {
+        error: "sms_not_delivered",
+        message: `A new code was generated but the SMS to ${smsPhone} was not accepted by the provider${smsError ? ` (${smsError})` : ""}. Try again or contact the depositor.`,
+        verification_id: verificationId,
+        expires_at: expiresAt,
+      });
+    }
+
+    return json(200, {
+      ok: true,
+      sms_sent: true,
+      depositor_phone: smsPhone,
+      expires_at: expiresAt,
+    });
+  } catch (e) {
+    console.error("[finops-cash-resend] error", e);
+    return json(500, { error: "server_error", message: String((e as Error)?.message ?? e) });
+  }
+});

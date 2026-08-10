@@ -179,17 +179,36 @@ export function CashDepositCodesPanel() {
 
   const reissue = async (verificationId: string) => {
     setReissuing(verificationId);
-    const { data, error } = await (supabase.rpc as any)('fin_ops_reissue_cash_code', {
-      p_verification_id: verificationId,
+    // Must go through the edge function: it rotates the code AND actually
+    // delivers the SMS. The old RPC only rotated the code in the database, so
+    // the depositor never received anything.
+    const { data, error } = await supabase.functions.invoke('finops-cash-deposit-resend', {
+      body: { verification_id: verificationId },
     });
     setReissuing(null);
-    if (error) {
-      toast({ title: 'Could not reissue code', description: error.message, variant: 'destructive' });
+    const payload = data as { ok?: boolean; error?: string; message?: string; depositor_phone?: string } | null;
+    if (error || payload?.error) {
+      let detail = payload?.message || payload?.error || error?.message || null;
+      const ctx = (error as any)?.context;
+      if (!payload?.message && ctx?.text) {
+        try {
+          const parsed = JSON.parse(await ctx.text());
+          detail = parsed?.message || parsed?.error || detail;
+        } catch {
+          /* keep detail */
+        }
+      }
+      toast({
+        title: 'Code not delivered',
+        description: detail || 'Could not resend the code.',
+        variant: 'destructive',
+      });
+      load();
       return;
     }
     toast({
       title: 'New code sent by SMS',
-      description: 'Valid for 10 minutes. Ask the depositor to read the code from their SMS.',
+      description: `Delivered to ${payload?.depositor_phone ?? 'the depositor'}. Valid for 10 minutes.`,
     });
     load();
   };
