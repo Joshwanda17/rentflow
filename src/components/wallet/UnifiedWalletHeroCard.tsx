@@ -7,7 +7,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { usePayrollGrowth } from '@/hooks/usePayrollGrowth';
 import { useAvailableBalance } from '@/hooks/useAvailableBalance';
 import { WalletHoldNotice } from '@/components/wallet/WalletHoldNotice';
-import walletRafiki2Asset from '@/assets/wallet-rafiki-2.svg.asset.json';
 
 export type WalletRole = 'agent' | 'tenant' | 'supporter' | 'landlord';
 
@@ -174,14 +173,6 @@ export function UnifiedWalletHeroCard({
       animate={{ padding: collapsed ? 14 : 24, borderRadius: collapsed ? 28 : 24 }}
       transition={morph ?? { duration: collapsed ? 0.25 : 0.6, ease: MORPH_EASE }}
     >
-      {/* Wallet illustration grazing the top-left border */}
-      <img
-        src={walletRafiki2Asset.url}
-        alt=""
-        aria-hidden="true"
-        className="absolute -top-4 -left-4 w-20 sm:w-24 h-auto pointer-events-none opacity-90 z-0"
-      />
-
       {/* Decorative elements for depth and text clarity */}
       <div className="absolute -top-20 -right-20 w-56 h-56 rounded-full bg-primary-foreground/[0.06] pointer-events-none" />
       <div className="absolute -bottom-16 -left-16 w-44 h-44 rounded-full bg-primary-foreground/[0.04] pointer-events-none" />
@@ -241,7 +232,7 @@ export function UnifiedWalletHeroCard({
         aria-hidden={collapsed}
       >
         {/* Header row */}
-        <div className="flex items-center justify-between pl-14">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="p-1.5 rounded-lg bg-primary-foreground/15 backdrop-blur-sm">
               <Wallet className="h-3.5 w-3.5 text-primary-foreground/90" />
