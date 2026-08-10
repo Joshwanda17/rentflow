@@ -2,9 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
-import { KeyRound, RefreshCw, Loader2, Copy, Check, Clock, Radio, ChevronDown } from 'lucide-react';
+import { KeyRound, RefreshCw, Loader2, Check, Clock, Radio, ChevronDown, Smartphone } from 'lucide-react';
+import { StartCashDepositDialog } from './StartCashDepositDialog';
 
 interface CashCodeRow {
   verification_id: string;
@@ -77,12 +79,12 @@ export function CashDepositCodesPanel() {
   const [loading, setLoading] = useState(true);
   const [denied, setDenied] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [copied, setCopied] = useState<string | null>(null);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<number>(Date.now());
   const [realtimeHealthy, setRealtimeHealthy] = useState(false);
   const [secondsToRefresh, setSecondsToRefresh] = useState<number>(3);
-  const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [reissuing, setReissuing] = useState<string | null>(null);
+  const [codeInputs, setCodeInputs] = useState<Record<string, string>>({});
+  const [verifying, setVerifying] = useState<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -173,17 +175,6 @@ export function CashDepositCodesPanel() {
     };
   }, [load]);
 
-  const copy = async (code: string) => {
-    try {
-      await navigator.clipboard.writeText(code);
-      setCopied(code);
-      if (copyTimer.current) clearTimeout(copyTimer.current);
-      copyTimer.current = setTimeout(() => setCopied(null), 1500);
-    } catch {
-      toast({ title: 'Copy failed', description: 'Could not copy the code.', variant: 'destructive' });
-    }
-  };
-
   if (denied) return null;
 
   const reissue = async (verificationId: string) => {
@@ -196,7 +187,41 @@ export function CashDepositCodesPanel() {
       toast({ title: 'Could not reissue code', description: error.message, variant: 'destructive' });
       return;
     }
-    toast({ title: `New code: ${data}`, description: 'Valid for 10 minutes. Read it back to the depositor.' });
+    toast({
+      title: 'New code sent by SMS',
+      description: 'Valid for 10 minutes. Ask the depositor to read the code from their SMS.',
+    });
+    load();
+  };
+
+  // Operator entry: the depositor reads the SMS code back and Financial Ops
+  // types it here. The edge function credits the DEPOSITOR's wallet.
+  const submitCode = async (row: CashCodeRow) => {
+    const entered = (codeInputs[row.verification_id] ?? '').replace(/\D/g, '');
+    if (entered.length !== 4) {
+      toast({ title: 'Enter the 4-digit code', description: 'The depositor must read back all 4 digits.', variant: 'destructive' });
+      return;
+    }
+    setVerifying(row.verification_id);
+    const { data, error } = await supabase.functions.invoke('cash-deposit-verify-code', {
+      body: { deposit_request_id: row.deposit_request_id, code: entered, on_behalf: true },
+    });
+    setVerifying(null);
+    const payloadError = (data as any)?.error ? ((data as any)?.message || (data as any)?.error) : null;
+    if (error || payloadError) {
+      toast({
+        title: 'Code not accepted',
+        description: payloadError || error?.message || 'Could not verify this code.',
+        variant: 'destructive',
+      });
+      load();
+      return;
+    }
+    setCodeInputs((prev) => ({ ...prev, [row.verification_id]: '' }));
+    toast({
+      title: 'Deposit verified',
+      description: `${fmtUgx(row.amount)} credited to ${row.depositor_name || 'the depositor'}'s wallet.`,
+    });
     load();
   };
 
@@ -211,8 +236,11 @@ export function CashDepositCodesPanel() {
   const activeCount = activeRows.length;
 
   const [open, setOpen] = useState(true);
+  const [startOpen, setStartOpen] = useState(false);
 
   return (
+    <>
+    <StartCashDepositDialog open={startOpen} onOpenChange={setStartOpen} onIssued={load} />
     <Collapsible open={open} onOpenChange={setOpen} className="rounded-xl border bg-card">
       <CollapsibleTrigger asChild>
         <div className="flex items-center justify-between gap-3 cursor-pointer p-4 sm:p-5 hover:bg-muted/30 transition-colors rounded-t-xl">
@@ -224,10 +252,19 @@ export function CashDepositCodesPanel() {
               )}
             </h3>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Read the active code back to the depositor only after you have received the matching cash. Codes expire in 10 minutes.
+              Codes are never shown here — ask the depositor to read the code from their SMS, then enter it once you have received the matching cash. Codes expire in 10 minutes.
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
+            <Button
+              size="sm"
+              onClick={(e) => { e.stopPropagation(); setStartOpen(true); }}
+              className="gap-1.5"
+            >
+              <Smartphone className="h-4 w-4" />
+              <span className="hidden sm:inline">Start deposit by SMS</span>
+              <span className="sm:hidden">SMS code</span>
+            </Button>
             <Badge
               variant="outline"
               className="hidden sm:inline-flex items-center gap-1 text-[10px] font-normal text-muted-foreground border-dashed"
@@ -276,29 +313,21 @@ export function CashDepositCodesPanel() {
                     <th className="py-2 px-2 font-medium">Depositor</th>
                     <th className="py-2 px-2 font-medium">Purpose</th>
                     <th className="py-2 px-2 font-medium">Status</th>
+                    <th className="py-2 px-2 font-medium">Enter code</th>
                   </tr>
                 </thead>
                 <tbody>
                   {displayRows.map((r) => (
                     <tr key={r.verification_id} className="border-b last:border-0 hover:bg-muted/40">
                       <td className="py-2 px-2 align-top">
-                        {r.code ? (
-                          <div className="flex flex-col gap-1">
-                            <button
-                              type="button"
-                              onClick={() => copy(r.code!)}
-                              className="inline-flex items-center gap-1.5 font-mono text-base font-bold tracking-widest text-foreground rounded-md px-2 py-1 bg-amber-500/10 hover:bg-amber-500/20 transition-colors w-fit"
-                              title="Click to copy"
-                            >
-                              {r.code}
-                              {copied === r.code ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5 text-muted-foreground" />}
-                            </button>
-                            <Countdown expiresAt={r.expires_at} inline />
-                          </div>
-                        ) : (
-                          <div className="flex flex-col gap-1">
-                            <span className="text-xs text-muted-foreground">Code not stored</span>
-                            {r.status !== 'verified' && (
+                        <div className="flex flex-col gap-1">
+                          <span className="inline-flex items-center gap-1.5 font-mono text-base font-bold tracking-widest text-muted-foreground rounded-md px-2 py-1 bg-muted w-fit">
+                            ••••
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {r.status === 'verified' ? 'Verified' : 'Sent to depositor by SMS'}
+                          </span>
+                          {r.status !== 'verified' && (
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -311,12 +340,11 @@ export function CashDepositCodesPanel() {
                                 ) : (
                                   <KeyRound className="h-3 w-3" />
                                 )}
-                                Reissue code
+                                Resend code
                               </Button>
-                            )}
-                            <Countdown expiresAt={r.expires_at} inline />
-                          </div>
-                        )}
+                          )}
+                          <Countdown expiresAt={r.expires_at} inline />
+                        </div>
                       </td>
                       <td className="py-2 px-2 font-medium whitespace-nowrap">{fmtUgx(r.amount)}</td>
                       <td className="py-2 px-2">
@@ -325,6 +353,43 @@ export function CashDepositCodesPanel() {
                       </td>
                       <td className="py-2 px-2 whitespace-nowrap text-xs">{purposeLabel(r.deposit_purpose)}</td>
                       <td className="py-2 px-2"><StatusBadge status={r.status} /></td>
+                      <td className="py-2 px-2 align-top">
+                        {r.status === 'awaiting_code' &&
+                        r.expires_at &&
+                        new Date(r.expires_at).getTime() > Date.now() ? (
+                          <div className="flex items-center gap-1.5">
+                            <Input
+                              inputMode="numeric"
+                              maxLength={4}
+                              placeholder="0000"
+                              className="h-8 w-16 text-center font-mono tracking-widest"
+                              value={codeInputs[r.verification_id] ?? ''}
+                              onChange={(e) =>
+                                setCodeInputs((prev) => ({
+                                  ...prev,
+                                  [r.verification_id]: e.target.value.replace(/\D/g, '').slice(0, 4),
+                                }))
+                              }
+                              onKeyDown={(e) => { if (e.key === 'Enter') void submitCode(r); }}
+                            />
+                            <Button
+                              size="sm"
+                              className="h-8 gap-1 text-xs"
+                              disabled={verifying === r.verification_id || (codeInputs[r.verification_id] ?? '').length !== 4}
+                              onClick={() => void submitCode(r)}
+                            >
+                              {verifying === r.verification_id ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Check className="h-3 w-3" />
+                              )}
+                              Credit
+                            </Button>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -334,5 +399,6 @@ export function CashDepositCodesPanel() {
         </div>
       </CollapsibleContent>
     </Collapsible>
+    </>
   );
 }

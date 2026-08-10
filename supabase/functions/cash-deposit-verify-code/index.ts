@@ -287,17 +287,34 @@ Deno.serve(async (req) => {
       return json(400, { error: "invalid_code", message: "Enter the 4-digit receipt code" });
     }
 
-    // ── Load the verification row (scoped to this user) ──
-    const { data: ver, error: verErr } = await admin
+    // ── Operator mode: Financial Ops (or finance leadership) enters the code on
+    // the depositor's behalf after the depositor reads it back over the counter.
+    const onBehalf = body?.on_behalf === true;
+    if (onBehalf) {
+      const { data: roleRows } = await admin
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id);
+      const roles = (roleRows ?? []).map((r: any) => String(r.role));
+      const allowed = ["financial_ops", "cfo", "manager", "super_admin", "operations", "ceo", "coo"];
+      if (!roles.some((r) => allowed.includes(r))) {
+        return json(403, { error: "not_authorized", message: "Only Financial Ops can enter a code on behalf of a depositor." });
+      }
+    }
+
+    // ── Load the verification row (scoped to this user unless operator mode) ──
+    let verQuery = admin
       .from("cash_deposit_verifications")
       .select("id, deposit_request_id, user_id, amount, code_hash, attempts, max_attempts, status, expires_at")
-      .eq("deposit_request_id", depositId)
-      .eq("user_id", user.id)
-      .maybeSingle();
+      .eq("deposit_request_id", depositId);
+    if (!onBehalf) verQuery = verQuery.eq("user_id", user.id);
+    const { data: ver, error: verErr } = await verQuery.maybeSingle();
 
     if (verErr || !ver) {
       return json(404, { error: "not_found", message: "No pending cash deposit found for this code." });
     }
+    // Everything downstream is attributed to the DEPOSITOR, never the operator.
+    const depositorId = String(ver.user_id);
 
     // ── Pure decision: already-verified → expiry → attempt cap → hash ──
     const enteredHash = await sha256Hex(enteredCode);
@@ -305,7 +322,7 @@ Deno.serve(async (req) => {
 
     if (decision.kind === "already_verified") {
       await logEvent(admin, {
-        verification_id: ver.id, deposit_request_id: depositId, user_id: user.id,
+        verification_id: ver.id, deposit_request_id: depositId, user_id: depositorId,
         event_type: "already_verified", amount: Number(ver.amount),
         detail: "Verify attempted on an already-verified deposit.",
       });
@@ -327,7 +344,7 @@ Deno.serve(async (req) => {
         .eq("id", depositId)
         .eq("status", "pending");
       await logEvent(admin, {
-        verification_id: ver.id, deposit_request_id: depositId, user_id: user.id,
+        verification_id: ver.id, deposit_request_id: depositId, user_id: depositorId,
         event_type: "expired", attempt_no: Number(ver.attempts), amount: Number(ver.amount),
         detail: "Code entry rejected — verification window has expired; deposit auto-rejected.",
         metadata: { expires_at: ver.expires_at, auto_rejected: true },
@@ -352,7 +369,7 @@ Deno.serve(async (req) => {
     if (decision.kind === "too_many_attempts") {
       await admin.from("cash_deposit_verifications").update({ status: "expired" }).eq("id", ver.id);
       await logEvent(admin, {
-        verification_id: ver.id, deposit_request_id: depositId, user_id: user.id,
+        verification_id: ver.id, deposit_request_id: depositId, user_id: depositorId,
         event_type: "locked_out", attempt_no: Number(ver.attempts), attempts_remaining: 0,
         amount: Number(ver.amount),
         detail: "Verification locked — maximum attempts already reached.",
@@ -381,7 +398,7 @@ Deno.serve(async (req) => {
         .eq("id", depositId)
         .eq("status", "pending");
       await logEvent(admin, {
-        verification_id: ver.id, deposit_request_id: depositId, user_id: user.id,
+        verification_id: ver.id, deposit_request_id: depositId, user_id: depositorId,
         event_type: "rejected",
         attempt_no: newAttempts, attempts_remaining: 0, amount: Number(ver.amount),
         detail: "Incorrect code — deposit rejected automatically on first wrong attempt.",
@@ -411,7 +428,7 @@ Deno.serve(async (req) => {
     if (claimErr || !claimed) {
       // Another concurrent verify already claimed it.
       await logEvent(admin, {
-        verification_id: ver.id, deposit_request_id: depositId, user_id: user.id,
+        verification_id: ver.id, deposit_request_id: depositId, user_id: depositorId,
         event_type: "already_verified", amount: Number(ver.amount),
         detail: "Concurrent verification already claimed this deposit.",
       });
@@ -419,9 +436,12 @@ Deno.serve(async (req) => {
     }
 
     await logEvent(admin, {
-      verification_id: ver.id, deposit_request_id: depositId, user_id: user.id,
+      verification_id: ver.id, deposit_request_id: depositId, user_id: depositorId,
       event_type: "verified", attempt_no: Number(ver.attempts) + 1, amount: Number(ver.amount),
-      detail: "Receipt code matched — verification successful.",
+      detail: onBehalf
+        ? "Receipt code matched — entered by a Financial Ops operator on the depositor's behalf."
+        : "Receipt code matched — verification successful.",
+      metadata: { entered_by: user.id, on_behalf: onBehalf },
     });
 
     // Stamp the verified RCT code onto the deposit request for traceability.
@@ -454,7 +474,7 @@ Deno.serve(async (req) => {
         .eq("id", ver.id);
       console.error("[cash-verify-code] approve-deposit failed", approveRes.status, approveJson);
       await logEvent(admin, {
-        verification_id: ver.id, deposit_request_id: depositId, user_id: user.id,
+        verification_id: ver.id, deposit_request_id: depositId, user_id: depositorId,
         event_type: "credit_failed", amount: Number(ver.amount),
         detail: "Code verified but wallet crediting failed — verification rolled back.",
         metadata: { approve_status: approveRes.status, approve_response: approveJson },
@@ -466,7 +486,7 @@ Deno.serve(async (req) => {
     }
 
     await logEvent(admin, {
-      verification_id: ver.id, deposit_request_id: depositId, user_id: user.id,
+      verification_id: ver.id, deposit_request_id: depositId, user_id: depositorId,
       event_type: "credited", amount: Number(ver.amount),
       detail: "Wallet credited successfully after verification.",
       metadata: { receipt_code: enteredCode },
@@ -475,13 +495,13 @@ Deno.serve(async (req) => {
     // ── New balance for the confirmation email ──
     let newBalance: number | null = null;
     try {
-      const { data: bal } = await admin.rpc("get_user_available_balance", { p_user_id: user.id });
+      const { data: bal } = await admin.rpc("get_user_available_balance", { p_user_id: depositorId });
       if (bal != null) newBalance = Number(bal);
     } catch (_) { /* non-fatal */ }
 
     // ── Confirmation SMS to the depositor (verified amount + new balance) ──
     try {
-      const { phone, source } = await resolveDepositorPhone(admin, user.id, {
+      const { phone, source } = await resolveDepositorPhone(admin, depositorId, onBehalf ? {} : {
         phone: user.phone,
         user_metadata: (user as any).user_metadata,
       });
@@ -496,7 +516,7 @@ Deno.serve(async (req) => {
         await logSmsAttempts(admin, {
           phone,
           message: smsBody,
-          userId: user.id,
+          userId: depositorId,
           referenceId: ver.id ?? null,
           source: "cash-deposit-verify-code",
         }, sent);
