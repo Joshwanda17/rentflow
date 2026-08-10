@@ -3363,7 +3363,34 @@ export function EmailTransactionsPanel() {
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <h3 className="font-medium text-sm flex items-center gap-2">
               <Mail className="h-3.5 w-3.5 text-muted-foreground" />
-              Recent emails
+              <button
+                type="button"
+                onClick={() => {
+                  // Clicking "Recent emails" narrows the list to the last 7 days
+                  // (the standard "recent" window) and clears the free-text search
+                  // so the date filter is actually applied.
+                  const todayKey = dateKeyInTz(new Date(), tz);
+                  const [y, m, d] = todayKey.split('-').map(Number);
+                  const toUtc = Date.UTC(y, m - 1, d);
+                  const fromUtc = toUtc - 6 * 86_400_000; // inclusive 7-day window
+                  const fmtKey = (ms: number) => {
+                    const dt = new Date(ms);
+                    return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`;
+                  };
+                  setSearchQuery('');
+                  setPhoneQuery('');
+                  setFromDate(fmtKey(fromUtc));
+                  setToDate(fmtKey(toUtc));
+                  if (typeof document !== 'undefined') {
+                    document.getElementById('email-tx-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }
+                }}
+                className="hover:underline underline-offset-4 decoration-muted-foreground/40 cursor-pointer"
+                aria-label="Show recent emails (last 7 days)"
+                title="Show recent emails (last 7 days)"
+              >
+                Recent emails
+              </button>
               {unreadAlertCount > 0 && (
                 <Badge
                   variant="outline"
