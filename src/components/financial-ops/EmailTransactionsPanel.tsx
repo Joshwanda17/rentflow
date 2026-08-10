@@ -292,6 +292,62 @@ function extractCashReceiptCode(r: GmailTx): string | null {
  * the heuristic, and lets a manual fix (if we ever expose one) stick.
  */
 const CHANNEL_CACHE_KEY = 'gmail_channel_cache_v2';
+
+/**
+ * Live MTN / Airtel float balances as reported on the most recent
+ * balance-carrying email for each channel. Re-reads whenever new mail lands.
+ */
+function TelecomBalanceStrip({ refreshKey }: { refreshKey: string | null }) {
+  const [bal, setBal] = useState<{
+    mtn: { amount: number; at: string } | null;
+    airtel: { amount: number; at: string } | null;
+  }>({ mtn: null, airtel: null });
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const pick = async (channel: string) => {
+        const { data } = await (supabase.from('gmail_transactions') as any)
+          .select('balance, internal_date')
+          .eq('channel', channel)
+          .not('balance', 'is', null)
+          .order('internal_date', { ascending: false })
+          .limit(1);
+        const row = Array.isArray(data) ? data[0] : null;
+        return row ? { amount: Number(row.balance), at: String(row.internal_date) } : null;
+      };
+      const [mtn, airtel] = await Promise.all([pick('mtn_momo'), pick('airtel_money')]);
+      if (!cancelled) setBal({ mtn, airtel });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshKey]);
+
+  const fmt = (n: number) => `UGX ${Math.round(n).toLocaleString()}`;
+  const time = (iso: string) => {
+    const d = new Date(iso);
+    return isNaN(d.getTime()) ? '' : d.toLocaleString();
+  };
+
+  const item = (label: string, tone: string, v: { amount: number; at: string } | null) => (
+    <div
+      className="flex items-center gap-1.5 rounded-full border bg-muted/40 px-2.5 py-1"
+      title={v ? `${label} balance from the latest email · ${time(v.at)}` : `No ${label} balance found yet`}
+    >
+      <span className={`h-2 w-2 rounded-full ${tone}`} aria-hidden />
+      <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</span>
+      <span className="text-xs font-semibold tabular-nums">{v ? fmt(v.amount) : '—'}</span>
+    </div>
+  );
+
+  return (
+    <div className="hidden md:flex items-center gap-1.5 shrink-0" aria-label="Latest telecom balances">
+      {item('MTN', 'bg-warning', bal.mtn)}
+      {item('Airtel', 'bg-destructive', bal.airtel)}
+    </div>
+  );
+}
 const EXPANDED_ROWS_KEY = 'email_expanded_rows_v1';
 
 /**
@@ -3301,6 +3357,7 @@ export function EmailTransactionsPanel() {
           <Mail className="h-4 w-4 text-muted-foreground" />
           <span className="text-sm font-medium tracking-tight">Email transactions</span>
         </div>
+        <TelecomBalanceStrip refreshKey={rows[0]?.id ?? null} />
         <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
           <input
