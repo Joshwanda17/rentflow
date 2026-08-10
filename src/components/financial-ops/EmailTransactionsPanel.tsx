@@ -68,21 +68,6 @@ interface PollState {
   last_error: string | null;
 }
 
-/** Shape returned by public.get_gmail_intake_health(). */
-interface IntakeHealth {
-  last_polled_at: string | null;
-  last_status: string | null;
-  last_error: string | null;
-  cutoff_at: string | null;
-  cutoff_is_future: boolean | null;
-  last_insert_at: string | null;
-  silence_minutes: number | null;
-  poll_stale: boolean | null;
-  intake_silent: boolean | null;
-}
-
-/** Minutes of zero inserts (while the cron still reports ok) that raise the alert. */
-const INTAKE_SILENCE_MINUTES = 30;
 
 const fmtUgx = (n: number | null) =>
   n === null || n === undefined ? '—' : `UGX ${Math.round(n).toLocaleString()}`;
@@ -571,8 +556,7 @@ export function EmailTransactionsPanel() {
    * saw a friendly (and wrong) empty state.
    */
   const [loadError, setLoadError] = useState<{ message: string; denied: boolean } | null>(null);
-  /** Intake-silence heartbeat: poller says ok, but nothing is landing. */
-  const [intakeHealth, setIntakeHealth] = useState<IntakeHealth | null>(null);
+
   const [lastSuccessAt, setLastSuccessAt] = useState<string | null>(
     () => (typeof window !== 'undefined' ? localStorage.getItem('gmail_last_success_at') : null)
   );
@@ -1228,21 +1212,6 @@ export function EmailTransactionsPanel() {
     setRows(all);
     setState((ps as PollState) ?? null);
 
-    // Intake heartbeat — poller status vs. the newest actual insert. Read
-    // through the security-definer RPC so it works for every FinOps surface.
-    try {
-      const { data: health, error: healthErr } = await (supabase.rpc as any)('get_gmail_intake_health', {
-        p_silence_minutes: INTAKE_SILENCE_MINUTES,
-      });
-      if (healthErr) {
-        console.error('[EmailTransactionsPanel] intake health check failed:', healthErr.message);
-        setIntakeHealth(null);
-      } else {
-        setIntakeHealth((Array.isArray(health) ? health[0] : health) ?? null);
-      }
-    } catch {
-      setIntakeHealth(null);
-    }
     const psTyped = ps as PollState | null;
     if (psTyped?.last_status === 'ok' && psTyped.last_polled_at) {
       setLastSuccessAt(psTyped.last_polled_at);
@@ -3540,36 +3509,7 @@ export function EmailTransactionsPanel() {
             )}
           </div>
         </div>
-        {/* ── Intake heartbeat ───────────────────────────────────────────────
-            The cron reporting `ok` is not proof that mail is landing: a poisoned
-            future-dated cutoff (or a silently failing query) can drop every
-            message while each tick still says ok. Alert on inserts going quiet. */}
-        {!loading && intakeHealth?.intake_silent && (
-          <div className="mx-3 mb-3 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs space-y-1">
-            <div className="flex items-center gap-2 font-semibold text-destructive">
-              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-              Email intake has gone quiet
-            </div>
-            <p className="text-muted-foreground">
-              The poller last ran{' '}
-              {intakeHealth.last_polled_at ? new Date(intakeHealth.last_polled_at).toLocaleTimeString() : '—'}{' '}
-              and reported <strong>{intakeHealth.last_status ?? 'unknown'}</strong>, but no email has been captured for{' '}
-              <strong>
-                {intakeHealth.silence_minutes !== null && intakeHealth.silence_minutes !== undefined
-                  ? `${Math.round(Number(intakeHealth.silence_minutes))} min`
-                  : 'a while'}
-              </strong>{' '}
-              (alert threshold {INTAKE_SILENCE_MINUTES} min). Incoming MoMo / bank emails may be being dropped.
-            </p>
-            {intakeHealth.cutoff_is_future && (
-              <p className="text-destructive">
-                Cause: the intake cutoff is dated in the future
-                {intakeHealth.cutoff_at ? ` (${new Date(intakeHealth.cutoff_at).toLocaleString()})` : ''} — a sender
-                stamped local time as UTC. The poller now ignores future-dated stamps; click <strong>Poll now</strong> to re-anchor.
-              </p>
-            )}
-          </div>
-        )}
+
         {!loading && loadError && rows.length > 0 && (
           <div className="mx-3 mb-3 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs">
             <span className="font-semibold">Partial load</span> — some emails could not be read:{' '}
