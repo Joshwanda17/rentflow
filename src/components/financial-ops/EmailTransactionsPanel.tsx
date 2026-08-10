@@ -1639,6 +1639,60 @@ export function EmailTransactionsPanel() {
   // set changes (e.g. after bulk actions or new polls).
   useEffect(() => {
     if (!rows.length) { setManualMarks({}); return; }
+    return undefined as unknown as void;
+  }, []);
+
+  // Ledger-reference credits: match every visible incoming email's reference
+  // (MoMo TID / Airtel TID / cash receipt code) against wallet credits already
+  // posted in general_ledger. Batched so the reference array stays small.
+  useEffect(() => {
+    const incoming = rows.filter((r) => r.direction === 'in');
+    if (!incoming.length) { setLedgerCredits({}); return; }
+    let cancelled = false;
+    const refByRow = new Map<string, string>();
+    for (const r of incoming) {
+      const raw = (r.transaction_id ?? '').trim() || extractCashReceiptCode(r) || '';
+      if (raw.replace(/\D/g, '').length < 6) continue;
+      refByRow.set(r.id, raw);
+    }
+    if (!refByRow.size) { setLedgerCredits({}); return; }
+    (async () => {
+      const refs = Array.from(new Set(refByRow.values()));
+      const byRef = new Map<string, LedgerCredit[]>();
+      try {
+        for (let i = 0; i < refs.length; i += 150) {
+          const batch = refs.slice(i, i + 150);
+          const { data, error } = await (supabase.rpc as any)('match_email_ledger_credits', { p_refs: batch });
+          if (error) throw error;
+          for (const m of (data ?? []) as Array<any>) {
+            const arr = byRef.get(m.ref) ?? [];
+            arr.push({
+              ledger_id: m.ledger_id,
+              amount: Number(m.amount) || 0,
+              category: m.category ?? null,
+              user_id: m.user_id ?? null,
+              user_name: m.user_name ?? null,
+              user_phone: m.user_phone ?? null,
+              created_at: m.created_at ?? null,
+            });
+            byRef.set(m.ref, arr);
+          }
+        }
+        const next: Record<string, LedgerCredit[]> = {};
+        for (const [rowId, ref] of refByRow) {
+          const hits = byRef.get(ref);
+          if (hits?.length) next[rowId] = hits;
+        }
+        if (!cancelled) setLedgerCredits(next);
+      } catch {
+        if (!cancelled) setLedgerCredits({});
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [rows]);
+
+  useEffect(() => {
+    if (!rows.length) { setManualMarks({}); return; }
     let cancelled = false;
     const rowIds = rows.map((r) => r.id);
     (async () => {
