@@ -23,6 +23,60 @@ import {
 } from '@/lib/referenceExtractionConfidence';
 
 /**
+ * Reads the REAL error out of a `supabase.functions.invoke()` result.
+ *
+ * On a non-2xx response supabase-js (2.89) throws a `FunctionsHttpError`
+ * whose `.message` is always the generic
+ * "Edge Function returned a non-2xx status code" — the JSON body our
+ * functions return (`{ error: "INSUFFICIENT_FUNDS", message: "...",
+ * available, requested }`) lives on `.context`, which is the raw Response.
+ * Returns `null` when the call actually succeeded.
+ */
+async function edgeErrorMessage(
+  res: { data: any; error: any } | null | undefined,
+  fallback = 'Request failed',
+): Promise<string | null> {
+  const err: any = res?.error;
+  const data: any = res?.data;
+  let body: any = null;
+
+  if (err) {
+    const ctx: any = err.context;
+    try {
+      if (ctx && typeof ctx.json === 'function') {
+        const src = typeof ctx.clone === 'function' ? ctx.clone() : ctx;
+        body = await src.json();
+      } else if (ctx?.body) {
+        body = typeof ctx.body === 'string' ? JSON.parse(ctx.body) : ctx.body;
+      }
+    } catch { body = null; }
+    if (!body && ctx && typeof ctx.text === 'function') {
+      try { body = JSON.parse(await ctx.text()); } catch { body = null; }
+    }
+  } else if (data?.error) {
+    body = data;
+  } else {
+    return null;
+  }
+
+  if (!body) return err?.message || fallback;
+
+  const code = typeof body.error === 'string' ? body.error : null;
+  const detail = typeof body.message === 'string' ? body.message : null;
+  // Some guards (e.g. INSUFFICIENT_FUNDS) also return the numbers — show
+  // them so the operator sees available vs requested instead of guessing.
+  const amounts =
+    !detail && typeof body.available === 'number' && typeof body.requested === 'number'
+      ? ` (available ${formatUGX(body.available)}, requested ${formatUGX(body.requested)})`
+      : '';
+
+  // Keep the machine code in the string: downstream branches match on it
+  // (e.g. NEGATIVE_WALLET_BLOCKED) to offer bucket-switch / forced-reversal.
+  if (code && detail) return `${code}: ${detail}`;
+  return (code || detail || err?.message || fallback) + amounts;
+}
+
+/**
  * Fetches current wallet bucket balances (cache view) for a user so the
  * confirmation step can render before → after deltas.
  */
@@ -1165,8 +1219,9 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
             ? (solvencyBypassReasonRef.current || undefined)
             : undefined,
         };
-        const { data: debitData, error: debitErr } = await supabase.functions.invoke('cfo-direct-credit', { body: debitBody });
-        const debitErrMsg = (debitErr as any)?.message || (debitData as any)?.error;
+        const debitRes = await supabase.functions.invoke('cfo-direct-credit', { body: debitBody });
+        const debitData = debitRes.data;
+        const debitErrMsg = await edgeErrorMessage(debitRes, 'Debit failed');
         if (debitErrMsg) {
           // Same fallback the transfer leg uses: prefer a one-tap bucket
           // switch when the OTHER bucket of the same (non-proxy) wallet
@@ -1232,7 +1287,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
               on_behalf_of_partner: useProxyAgent ? user.full_name : null,
             },
           });
-          if (smsErr) smsError = (smsErr as any)?.message || 'SMS dispatch failed';
+          if (smsErr) smsError = (await edgeErrorMessage({ data: smsRes, error: smsErr }, 'SMS dispatch failed')) || 'SMS dispatch failed';
           else if ((smsRes as any)?.success) smsSent = true;
           else smsError = (smsRes as any)?.error || 'SMS not delivered';
         } catch (e: any) {
@@ -1339,7 +1394,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
         const direction = isFloat ? 'withdrawable_to_float' : 'float_to_withdrawable';
         const moveReason =
           `Re-routed auto-credited deposit ${isFloat ? 'Personal→Float' : 'Float→Personal'} (same user ${user.full_name}): ${reason.trim()}`.slice(0, 480);
-        const { data: moveData, error: moveErr } = await supabase.functions.invoke('ops-bucket-transfer', {
+        const moveRes = await supabase.functions.invoke('ops-bucket-transfer', {
           body: {
             target_user_id: user.id,
             amount: moveAmount,
@@ -1347,7 +1402,8 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
             reason: moveReason,
           },
         });
-        const moveErrMsg = (moveErr as any)?.message || (moveData as any)?.error;
+        const moveData = moveRes.data;
+        const moveErrMsg = await edgeErrorMessage(moveRes, 'Bucket move failed');
         if (moveErrMsg) throw new Error(`Bucket move failed: ${moveErrMsg}`);
 
         // Keep the deposit's recorded purpose in sync so future detection
@@ -1411,7 +1467,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
           const direction = fromFloat ? 'float_to_withdrawable' : 'withdrawable_to_float';
           const moveReason =
             `Same-user bucket move (${fromFloat ? 'Float→Personal Deposit' : 'Personal Deposit→Float'}) for ${user.full_name}: ${reason.trim()}`.slice(0, 480);
-          const { data: moveData, error: moveErr } = await supabase.functions.invoke('ops-bucket-transfer', {
+          const moveRes = await supabase.functions.invoke('ops-bucket-transfer', {
             body: {
               target_user_id: user.id,
               amount: amt,
@@ -1419,7 +1475,8 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
               reason: moveReason,
             },
           });
-          const moveErrMsg = (moveErr as any)?.message || (moveData as any)?.error;
+          const moveData = moveRes.data;
+          const moveErrMsg = await edgeErrorMessage(moveRes, 'Bucket move failed');
           if (moveErrMsg) throw new Error(`Bucket move failed: ${moveErrMsg}`);
 
           // Best-effort routing-history so the move is auditable.
@@ -1467,8 +1524,9 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
             ? (solvencyBypassReasonRef.current || undefined)
             : undefined,
         };
-        const { data: tdData, error: tdErr } = await supabase.functions.invoke('cfo-direct-credit', { body: transferDebitBody });
-        const tdErrMsg = (tdErr as any)?.message || (tdData as any)?.error;
+        const tdRes = await supabase.functions.invoke('cfo-direct-credit', { body: transferDebitBody });
+        const tdData = tdRes.data;
+        const tdErrMsg = await edgeErrorMessage(tdRes, 'Transfer debit failed');
         if (tdErrMsg) {
           if (!forceReversalRef.current && String(tdErrMsg).includes('NEGATIVE_WALLET_BLOCKED')) {
             // Prefer a one-tap bucket switch over forcing an overdraw when the
@@ -1549,8 +1607,9 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
           sub_category: row.transaction_id ?? null,
           allow_overdraw: forceReversalRef.current,
         };
-        const { data: revData, error: revErr } = await supabase.functions.invoke('cfo-direct-credit', { body: debitBody });
-        const revErrMsg = (revErr as any)?.message || (revData as any)?.error;
+        const revRes = await supabase.functions.invoke('cfo-direct-credit', { body: debitBody });
+        const revData = revRes.data;
+        const revErrMsg = await edgeErrorMessage(revRes, 'Reversal failed');
         if (revErrMsg) {
           if (!forceReversalRef.current && String(revErrMsg).includes('NEGATIVE_WALLET_BLOCKED')) {
             setForcePending({ amount: debitBody.amount, name: prior.original_user_name || 'the original user' });
@@ -1661,12 +1720,10 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
         // silently bypass the gate, so surface them too.
         throw new Error(verr?.message || 'Pre-credit verification failed');
       }
-      const { data, error } = await supabase.functions.invoke('cfo-direct-credit', { body });
-      if (error) {
-        const msg = (error as any)?.message || 'Routing failed';
-        throw new Error(msg);
-      }
-      if ((data as any)?.error) throw new Error((data as any).error);
+      const creditRes = await supabase.functions.invoke('cfo-direct-credit', { body });
+      const data = creditRes.data;
+      const creditErrMsg = await edgeErrorMessage(creditRes, 'Routing failed');
+      if (creditErrMsg) throw new Error(creditErrMsg);
       const referenceId = (data as any)?.reference_id ?? null;
 
       // 2) Fire SMS notification to the routed user (best-effort).
@@ -1685,7 +1742,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
             transaction_id: row.transaction_id,
           },
         });
-        if (smsErr) smsError = (smsErr as any)?.message || 'SMS dispatch failed';
+        if (smsErr) smsError = (await edgeErrorMessage({ data: smsRes, error: smsErr }, 'SMS dispatch failed')) || 'SMS dispatch failed';
         else if ((smsRes as any)?.success) smsSent = true;
         else smsError = (smsRes as any)?.error || 'SMS not delivered';
       } catch (e: any) {
