@@ -638,7 +638,12 @@ function AppRoutes() {
           <Route path="/director/dashboard" element={<RoleGuard allowedRoles={['ceo', 'super_admin', 'manager']} requiredPermission="director"><DirectorDashboardPage /></RoleGuard>} />
           <Route path="/admin/users" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'cto']} requiredPermission="company-ops"><AdminUsersPage /></RoleGuard>} />
           <Route path="/admin/access-audit" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'cto']}><AdminAccessAuditPage /></RoleGuard>} />
-          <Route path="/admin/financial-ops" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'coo', 'cfo']} requiredPermission="financial-ops"><AdminFinancialOpsPage /></RoleGuard>} />
+          <Route path="/admin/financial-ops" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'coo', 'cfo', 'financial_ops', 'employee', 'operations']} requiredPermission="financial-ops"><AdminFinancialOpsPage /></RoleGuard>} />
+          {/* Legacy/bookmarked paths staff type or tap from older links — these
+              previously fell through to the catch-all NotFound (404). */}
+          <Route path="/financial-ops" element={<Navigate to="/admin/financial-ops" replace />} />
+          <Route path="/dashboard/financial-ops" element={<Navigate to="/admin/financial-ops" replace />} />
+          <Route path="/financial_ops" element={<Navigate to="/admin/financial-ops" replace />} />
           <Route path="/admin/referrals" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'cfo', 'coo', 'cto']} requiredPermission="financial-ops"><AdminReferralsPage /></RoleGuard>} />
           <Route path="/admin/oauth-failures" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'ceo', 'coo', 'cto']} requiredPermission="cto"><AdminOAuthFailuresPage /></RoleGuard>} />
           <Route path="/admin/recovery-sms-log" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'cfo', 'ceo', 'coo', 'cto']} requiredPermission="financial-ops"><AdminRecoverySmsLogPage /></RoleGuard>} />
