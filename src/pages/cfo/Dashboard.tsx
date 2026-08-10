@@ -17,6 +17,7 @@ import { MerchantFloatRequisitionPanel } from '@/components/financial-ops/Mercha
 import { CFOPayoutsShareButton } from '@/components/cfo/CFOPayoutsShareButton';
 import { RevenueExpenseDashboard } from '@/components/cfo/RevenueExpenseDashboard';
 import RoiDisbursementReportPanel from '@/components/cfo/RoiDisbursementReportPanel';
+import { CashflowForecastGraphs } from '@/components/cfo/CashflowForecastGraphs';
 import { DirectorRequisitionsPanel } from '@/components/requisitions/DirectorRequisitionsPanel';
 
 import { FinancialStatementsPanel } from '@/components/manager/FinancialStatementsPanel';
@@ -413,6 +414,12 @@ export default function CFODashboardPage() {
       case 'ledger-health':
         return <LedgerHealthPanel />;
       case 'capital-opportunities':
+        return (
+          <div className="space-y-4">
+            <OpportunitySummaryFormPlaceholder />
+          </div>
+        );
+      case '__unused_capital_opportunities':
         return (
           <div className="space-y-4">
             <div>
