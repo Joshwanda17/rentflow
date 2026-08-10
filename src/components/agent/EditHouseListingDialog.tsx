@@ -15,6 +15,19 @@ import { HouseImageUploader, uploadHouseImages, type HouseImageFile } from './Ho
 import { FieldError } from '@/components/shared/FormFeedback';
 import { LandlordSearchSelect, type LandlordOption } from './LandlordSearchSelect';
 import { toUgandaLocalDigits, normalizeUgandaPhone, isValidUgandanPhoneNumber } from '@/lib/phoneUtils';
+import { UgLocationPicker } from '@/components/location/UgLocationPicker';
+import { resolveUgVillage, type UgLocationSelection } from '@/hooks/useUgLocations';
+import { normalizeDistrict, UGANDA_REGION_GROUPS } from '@/lib/ugandaDistricts';
+import { supabase as sb } from '@/integrations/supabase/client';
+
+/** District → backend region, mirroring ListEmptyHouseDialog. */
+const DISTRICT_TO_BACKEND_REGION: Record<string, string> = (() => {
+  const m: Record<string, string> = {};
+  for (const g of UGANDA_REGION_GROUPS) {
+    for (const d of g.districts) m[d.name] = d.backendRegion;
+  }
+  return m;
+})();
 
 interface EditHouseListingDialogProps {
   open: boolean;
@@ -30,10 +43,14 @@ export function EditHouseListingDialog({ open, onOpenChange, listing, onSaved }:
   const { user } = useAuth();
   const [title, setTitle] = useState('');
   const [address, setAddress] = useState('');
-  const [region, setRegion] = useState('');
   const [monthlyRent, setMonthlyRent] = useState<number>(0);
   const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
+  // Official Uganda administrative location (shared picker / shared ug_* dataset).
+  const [ugLoc, setUgLoc] = useState<UgLocationSelection | null>(null);
+  const [locLoading, setLocLoading] = useState(false);
+  const [locError, setLocError] = useState<string | null>(null);
+  const [attempted, setAttempted] = useState(false);
   // Photos already stored on the listing (kept unless the agent removes them).
   const [existingUrls, setExistingUrls] = useState<string[]>([]);
   // Newly captured/selected photos pending upload.
@@ -52,11 +69,14 @@ export function EditHouseListingDialog({ open, onOpenChange, listing, onSaved }:
     if (listing) {
       setTitle(listing.title);
       setAddress(listing.address);
-      setRegion(listing.region);
       setMonthlyRent(listing.monthly_rent);
       setDescription(listing.description ?? '');
       setExistingUrls(Array.isArray(listing.image_urls) ? listing.image_urls.filter(Boolean) : []);
       setNewImages([]);
+      setAttempted(false);
+      setLocError(null);
+      setUgLoc(null);
+      void prefillLocation(listing);
       // Reset landlord state, then hydrate from the currently linked landlord.
       setSelectedLandlord(null);
       setManualLandlord(false);
@@ -79,6 +99,43 @@ export function EditHouseListingDialog({ open, onOpenChange, listing, onSaved }:
     }
   }, [listing]);
 
+  /**
+   * Pre-fill the picker: stored village id first (one RPC), otherwise resolve
+   * from the stored names. On failure we leave the picker empty and surface a
+   * note — stored values are never wiped, the agent simply re-picks.
+   */
+  async function prefillLocation(l: HouseListing) {
+    const villageId = (l as any).ug_village_id as number | null | undefined;
+    setLocLoading(true);
+    try {
+      if (villageId) {
+        const sel = await resolveUgVillage(villageId);
+        if (sel) { setUgLoc(sel); return; }
+      }
+      const villageName = (l.village || '').trim();
+      if (villageName) {
+        const { data, error } = await sb.rpc('ug_search_villages' as any, {
+          p_query: villageName,
+          p_limit: 10,
+          p_district_id: null,
+          p_district_name: l.district ? (normalizeDistrict(l.district) || l.district) : null,
+        });
+        if (error) throw error;
+        const rows = (data ?? []) as any[];
+        const exact = rows.find((r) => String(r.village_name).toLowerCase() === villageName.toLowerCase()) ?? null;
+        if (exact) {
+          const sel = await resolveUgVillage(exact.village_id);
+          if (sel) { setUgLoc(sel); return; }
+        }
+      }
+      setLocError('We could not match the saved location to the official dataset — please select it below.');
+    } catch {
+      setLocError('Could not load the official location list. Select the village again below.');
+    } finally {
+      setLocLoading(false);
+    }
+  }
+
   if (!listing) return null;
 
   const calc = monthlyRent > 0 ? calculateDailyRentalRate(monthlyRent) : null;
@@ -90,13 +147,24 @@ export function EditHouseListingDialog({ open, onOpenChange, listing, onSaved }:
   const manualLandlordReady =
     manualLandlord && manualName.trim().length >= 2 && !manualPhoneError;
   const hasLandlord = !!selectedLandlord?.id || manualLandlordReady;
-  const canSave = hasLandlord;
+  const canSave = hasLandlord && !!ugLoc;
+  const storedLocationLabel = [listing.village, listing.sub_county, listing.district, listing.region]
+    .filter(Boolean).join(', ');
+  const regionForPhotos = ugLoc
+    ? (ugLoc.region || DISTRICT_TO_BACKEND_REGION[ugLoc.district] || listing.region)
+    : listing.region;
 
   const handleSave = async () => {
-    if (!title.trim() || !address.trim() || !region.trim() || monthlyRent <= 0) {
-      toast({ title: 'Missing info', description: 'Title, address, region and rent are required.', variant: 'destructive' });
+    setAttempted(true);
+    if (!title.trim() || !address.trim() || monthlyRent <= 0) {
+      toast({ title: 'Missing info', description: 'Title, address and rent are required.', variant: 'destructive' });
       return;
     }
+    if (!ugLoc) {
+      toast({ title: 'Location required', description: 'Select the official village where the house is located.', variant: 'destructive' });
+      return;
+    }
+    const listingRegion = ugLoc.region || DISTRICT_TO_BACKEND_REGION[ugLoc.district] || listing.region;
     setSaving(true);
     try {
       // Resolve landlord first — we never want to save a listing without one.
@@ -128,7 +196,9 @@ export function EditHouseListingDialog({ open, onOpenChange, listing, onSaved }:
               name: cleanName,
               phone: canonicalPhone,
               property_address: address.trim() || null,
-              region: region.trim() || null,
+              region: listingRegion || null,
+              district: ugLoc.district,
+              village: ugLoc.village,
               registered_by: user?.id ?? null,
               managed_by_agent_id: user?.id ?? null,
             })
@@ -161,7 +231,11 @@ export function EditHouseListingDialog({ open, onOpenChange, listing, onSaved }:
       const updates: any = {
         title: title.trim(),
         address: address.trim(),
-        region: region.trim(),
+        region: listingRegion,
+        district: ugLoc.district,
+        sub_county: ugLoc.subcounty,
+        village: ugLoc.village,
+        ug_village_id: ugLoc.villageId,
         description: description.trim() || null,
         monthly_rent: monthlyRent,
         image_urls: imageUrls,
