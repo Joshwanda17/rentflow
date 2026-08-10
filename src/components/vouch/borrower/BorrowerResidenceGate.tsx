@@ -427,7 +427,7 @@ export default function BorrowerResidenceGate({ open, onOpenChange, onComplete }
                   <Input value={lc1Form.name} onChange={(e) => setLc1Form((f) => ({ ...f, name: e.target.value }))} placeholder="Full name" className="h-9 text-sm" />
                 </div>
                 <div>
-                  <Label className="text-xs">Phone</Label>
+                  <Label className="text-xs">Phone *</Label>
                   <Input value={lc1Form.phone} onChange={(e) => setLc1Form((f) => ({ ...f, phone: e.target.value }))} placeholder="07XXXXXXXX" inputMode="tel" className="h-9 text-sm" />
                 </div>
                 <UgLocationPicker
