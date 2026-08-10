@@ -6832,7 +6832,10 @@ export function EmailTransactionsPanel() {
         canNext={canNextNav}
         currentIndex={navIndex >= 0 ? navIndex + 1 : 0}
         totalCount={visibleRows.length}
-        onRouted={(rowId) => { void refreshRowStatus(rowId); }}
+        onRouted={(rowId) => {
+          setJustRoutedIds((cur) => new Set(cur).add(rowId));
+          void refreshRowStatus(rowId);
+        }}
       />
 
       <FixChannelDialog
