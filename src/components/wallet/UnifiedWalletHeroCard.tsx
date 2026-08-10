@@ -7,7 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { usePayrollGrowth } from '@/hooks/usePayrollGrowth';
 import { useAvailableBalance } from '@/hooks/useAvailableBalance';
 import { WalletHoldNotice } from '@/components/wallet/WalletHoldNotice';
-import walletRafikiAsset from '@/assets/wallet-rafiki.svg.asset.json';
+import walletRafiki2Asset from '@/assets/wallet-rafiki-2.svg.asset.json';
 
 export type WalletRole = 'agent' | 'tenant' | 'supporter' | 'landlord';
 
