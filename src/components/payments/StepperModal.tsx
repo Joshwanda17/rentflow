@@ -143,7 +143,7 @@ export default function StepperModal({
         )}
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 max-h-[60vh]">
+        <div className="flex-1 overflow-y-auto p-4 min-h-0">
           {children}
         </div>
 
