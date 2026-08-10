@@ -9,7 +9,7 @@ import { Mail, RefreshCw, Loader2, CheckCircle2, AlertCircle, Smartphone, Bug, S
 import { RouteEmailDepositDialog, type EmailRowForRouting, type PrefilledUser } from '@/components/financial-ops/RouteEmailDepositDialog';
 import { BucketTransferLauncher } from '@/components/financial-ops/BucketTransferDialog';
 import { BacklogSweepLauncher } from '@/components/financial-ops/BacklogSweepDialog';
-import { Info } from 'lucide-react';
+import { Info, Inbox, AlertOctagon, Send, Menu } from 'lucide-react';
 import { Wrench, Clock } from 'lucide-react';
 import { SlidersHorizontal } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
