@@ -21,7 +21,7 @@ type Kind = 'landlord' | 'lc1';
  * landlord and LC1 chairperson their team registers before Landlord Ops does
  * the final verification.
  */
-export function ServiceCenterVerificationVettingQueue() {
+export function ServiceCenterVerificationVettingQueue({ only }: { only?: Kind } = {}) {
   const { data, isLoading, error } = useServiceCenterVerificationQueue();
   const review = useServiceCenterReviewVerification();
   const { toast } = useToast();
@@ -30,8 +30,8 @@ export function ServiceCenterVerificationVettingQueue() {
   const [returnId, setReturnId] = useState<string | null>(null);
   const [reason, setReason] = useState('');
 
-  const landlords = data?.landlords ?? [];
-  const lc1 = data?.lc1 ?? [];
+  const landlords = only === 'lc1' ? [] : data?.landlords ?? [];
+  const lc1 = only === 'landlord' ? [] : data?.lc1 ?? [];
   const total = landlords.length + lc1.length;
 
   const act = async (
@@ -117,14 +117,19 @@ export function ServiceCenterVerificationVettingQueue() {
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
         <h3 className="inline-flex items-center gap-1.5 text-sm font-semibold text-foreground">
-          <ShieldQuestion className="h-4 w-4" /> Landlords &amp; LC1 chairpersons awaiting your vetting
+          <ShieldQuestion className="h-4 w-4" />
+          {only === 'landlord'
+            ? 'Landlords awaiting your vetting'
+            : only === 'lc1'
+              ? 'LC1 chairpersons awaiting your vetting'
+              : 'Landlords & LC1 chairpersons awaiting your vetting'}
         </h3>
         <Badge variant={total ? 'default' : 'outline'}>{total}</Badge>
       </div>
 
       {total === 0 ? (
         <Card><CardContent className="p-6 text-center text-sm text-muted-foreground">
-          Nothing waiting on you. New landlords and LC1 chairpersons registered by your team appear here first.
+          Nothing waiting on you. New {only === 'lc1' ? 'LC1 chairpersons' : only === 'landlord' ? 'landlords' : 'landlords and LC1 chairpersons'} registered by your team appear here first.
         </CardContent></Card>
       ) : (
         <>
