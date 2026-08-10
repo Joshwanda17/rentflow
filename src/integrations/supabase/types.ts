@@ -35654,6 +35654,7 @@ export type Database = {
       is_ops_role: { Args: { _user_id: string }; Returns: boolean }
       is_parent_agent: { Args: { _agent_id: string }; Returns: boolean }
       is_partner_ops: { Args: { _uid: string }; Returns: boolean }
+      is_payout_ops_staff: { Args: { _user_id: string }; Returns: boolean }
       is_phone_available: { Args: { p_phone: string }; Returns: boolean }
       is_platform_user_admin: { Args: { _user_id?: string }; Returns: boolean }
       is_proxy_agent_for_partner: {
