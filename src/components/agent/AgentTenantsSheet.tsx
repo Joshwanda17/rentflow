@@ -967,7 +967,10 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
     const owingCount = Object.values(tenantBalances).filter(v => v > 0).length;
     const paidUpCount = tenants.filter(t => {
       const s = tenantStatuses[t.id];
-      return s && s.size > 0 && (tenantBalances[t.id] || 0) === 0;
+      if (!s || s.size === 0) return false;
+      if ((tenantBalances[t.id] || 0) !== 0) return false;
+      // Only tenants who actually had a funded plan can be "paid up".
+      return s.has('funded') || s.has('disbursed') || s.has('repaying') || s.has('completed');
     }).length;
     const dailyExpectation = Object.entries(tenantDaily).reduce((s, [tid, v]) => {
       return s + ((tenantBalances[tid] || 0) > 0 ? (v || 0) : 0);
