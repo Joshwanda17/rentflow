@@ -341,10 +341,23 @@ function TelecomBalanceStrip({ refreshKey }: { refreshKey: string | null }) {
     </div>
   );
 
+  const totalAmount = (bal.mtn?.amount ?? 0) + (bal.airtel?.amount ?? 0);
+  const totalAt = bal.mtn?.at && bal.airtel?.at
+    ? (new Date(bal.mtn.at) > new Date(bal.airtel.at) ? bal.mtn.at : bal.airtel.at)
+    : (bal.mtn?.at ?? bal.airtel?.at ?? null);
+
   return (
     <div className="hidden md:flex items-center gap-1.5 shrink-0" aria-label="Latest telecom balances">
       {item('MTN', 'bg-warning', bal.mtn)}
       {item('Airtel', 'bg-destructive', bal.airtel)}
+      <div
+        className="flex items-center gap-1.5 rounded-full border bg-purple-100 px-2.5 py-1 dark:bg-purple-950/40"
+        title={totalAt ? `Combined float balance · latest email ${time(totalAt)}` : 'Combined float balance'}
+      >
+        <span className="h-2 w-2 rounded-full bg-purple-600" aria-hidden />
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-purple-700 dark:text-purple-300">Total</span>
+        <span className="text-xs font-semibold tabular-nums text-purple-700 dark:text-purple-300">{fmt(totalAmount)}</span>
+      </div>
     </div>
   );
 }
