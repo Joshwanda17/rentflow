@@ -1102,9 +1102,7 @@ export default function WithdrawFlow({
               )}
               {amount > maxAmount && (
                 <p className="text-xs text-destructive text-center font-medium">
-                  {isKycCapped
-                    ? `Daily withdrawal limit reached — your account level allows up to ${formatCurrency(maxAmount, currency)} today. Your balance is ${formatCurrency(trueAvailable, currency)}.`
-                    : `Insufficient funds — exceeds available balance (${formatCurrency(maxAmount, currency)})`}
+                  Insufficient funds — exceeds available balance ({formatCurrency(maxAmount, currency)})
                 </p>
               )}
               {/* Live ledger sync indicator — gates Continue */}
@@ -1113,9 +1111,7 @@ export default function WithdrawFlow({
                   ? 'Checking live ledger balance…'
                   : isStale
                     ? 'Balance may be stale — re-checking…'
-                    : isKycCapped
-                      ? `Ledger balance ${formatCurrency(trueAvailable, currency)} · daily account limit caps today's withdrawal at ${formatCurrency(maxAmount, currency)}`
-                      : `Verified against live ledger · ${formatCurrency(maxAmount, currency)} available`}
+                    : `Verified against live ledger · ${formatCurrency(maxAmount, currency)} available`}
               </p>
               {/* Zero-fee assurance — Welile wallet has no withdrawal fees,
                   so users see the full amount on the other side. */}
