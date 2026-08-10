@@ -122,6 +122,7 @@ type SearchRow = {
   subcounty_id: number; subcounty_name: string;
   county_id: number; county_name: string;
   district_id: number; district_name: string;
+  region?: string | null;
   full_path: string;
 };
 
@@ -132,6 +133,7 @@ function rowToSelection(r: SearchRow): UgLocationSelection {
     subcountyId: r.subcounty_id, subcounty: r.subcounty_name,
     countyId: r.county_id, county: r.county_name,
     districtId: r.district_id, district: r.district_name,
+    region: r.region ?? null,
     fullPath: r.full_path,
   };
 }
