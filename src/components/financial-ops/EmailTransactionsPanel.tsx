@@ -986,6 +986,26 @@ export function EmailTransactionsPanel() {
   const [creditedDeposits, setCreditedDeposits] = useState<Record<string, CreditedDeposit[]>>({});
 
   /**
+   * Ledger-only credits. Some incoming money never produces a
+   * `deposit_requests` row at all — agent float deposits, CFO direct credits
+   * and other ops postings land straight in `general_ledger` while quoting the
+   * MoMo / Airtel reference in the description or idempotency key. Those
+   * emails were previously stuck under "Needs routing" even though the wallet
+   * was already credited, so they never showed up under Credited. Resolved
+   * through the ops-only `match_email_ledger_credits` RPC.
+   */
+  interface LedgerCredit {
+    ledger_id: string;
+    amount: number;
+    category: string | null;
+    user_id: string | null;
+    user_name: string | null;
+    user_phone: string | null;
+    created_at: string | null;
+  }
+  const [ledgerCredits, setLedgerCredits] = useState<Record<string, LedgerCredit[]>>({});
+
+  /**
    * Manual "mark credited / uncredited" audit log loaded from
    * `email_credit_manual_marks`. Bulk actions append immutable rows there;
    * the LATEST mark per gmail_transaction_id is the operative state and
