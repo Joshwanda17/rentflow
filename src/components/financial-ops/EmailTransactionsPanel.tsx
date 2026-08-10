@@ -688,6 +688,12 @@ export function EmailTransactionsPanel() {
   });
   useEffect(() => { try { localStorage.setItem('gmail_filter_direction', directionFilter); } catch {} }, [directionFilter]);
 
+  // Focused money-in / money-out view. Tapping one of the two entry tiles opens
+  // a dedicated page-style view that shows ONLY those emails: every other
+  // narrowing filter is reset so nothing is silently hidden, and a banner with
+  // a Back action replaces the tiles.
+  const [focusDirection, setFocusDirection] = useState<'in' | 'out' | null>(null);
+
   // "Needs Routing" filter — when on, show only incoming deposits whose money
   // never landed in a wallet (not credited and not routed). Persisted so the
   // operator's triage view survives a refresh.
