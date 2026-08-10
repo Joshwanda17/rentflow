@@ -291,46 +291,22 @@ export function Lc1ChairpersonPicker({
             </div>
           </div>
 
-          {/* Uganda administrative structure */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-xs">Region *</Label>
-              <Select value={value.region || ''} onValueChange={(v) => patchNew({ region: v })}>
-                <SelectTrigger className={invalid(!value.region)}><SelectValue placeholder="Select" /></SelectTrigger>
-                <SelectContent>
-                  {REGIONS.map((r) => (
-                    <SelectItem key={r} value={r}>{regionLabel(r)}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs">District *</Label>
-              <Input
-                placeholder="District"
-                value={value.district || ''}
-                onChange={(e) => patchNew({ district: e.target.value })}
-                onBlur={(e) => {
-                  const normalized = normalizeDistrict(e.target.value);
-                  if (normalized && normalized !== e.target.value.trim()) patchNew({ district: normalized });
-                }}
-                className={invalid(!(value.district || '').trim())}
-              />
-              {districtWarning(value.district || '') && (
-                <p className="text-[10px] text-warning leading-tight mt-1">{districtWarning(value.district || '')}</p>
-              )}
-            </div>
-          </div>
-
-          <div>
-            <Label className="text-xs">Village / Zone *</Label>
-            <Input
-              placeholder="e.g. Kikaya Zone B"
-              value={value.village}
-              onChange={(e) => patchNew({ village: e.target.value })}
-              className={invalid(!value.village.trim())}
-            />
-          </div>
+          {/* Official Uganda administrative location — one pick fills the whole
+              chain (region → district → county → sub-county → parish → village). */}
+          <UgLocationPicker
+            value={ugLoc}
+            onChange={applyUgLocation}
+            label="Chairperson village (official)"
+            required
+            districtName={scopeDistrictName || null}
+            error={attempted && !value.village.trim() ? 'Select the chairperson village from the official list' : null}
+          />
+          {value.village.trim() && (
+            <p className="text-[11px] text-muted-foreground">
+              {[value.village, value.parish, value.sub_county, value.county, value.district]
+                .filter(Boolean).join(' · ')}
+            </p>
+          )}
 
           {/* Deeper admin levels — collapsed to keep it simple for ordinary agents */}
           <div className="border border-border rounded-xl overflow-hidden">
