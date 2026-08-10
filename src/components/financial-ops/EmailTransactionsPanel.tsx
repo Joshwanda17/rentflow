@@ -3220,31 +3220,27 @@ export function EmailTransactionsPanel() {
             0,
           );
           return (
-            <div
-              className={`rounded-xl border p-4 ${
-                isIn
-                  ? 'border-emerald-600/40 bg-emerald-600/10'
-                  : 'border-rose-600/40 bg-rose-600/10'
-              }`}
-            >
+            <div className="rounded-lg border bg-card p-4">
               <div className="flex items-start gap-3">
                 <span
-                  className={`h-10 w-10 shrink-0 rounded-lg flex items-center justify-center text-white ${
-                    isIn ? 'bg-emerald-600' : 'bg-rose-600'
+                  className={`h-8 w-8 shrink-0 rounded-md flex items-center justify-center ${
+                    isIn
+                      ? 'bg-emerald-600/10 text-emerald-600'
+                      : 'bg-rose-600/10 text-rose-600'
                   }`}
                 >
-                  {isIn ? <ArrowDownLeft className="h-5 w-5" /> : <ArrowUpRight className="h-5 w-5" />}
+                  {isIn ? <ArrowDownLeft className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <h3 className="font-bold text-base sm:text-lg leading-tight">
-                    {isIn ? 'Money in emails' : 'Money out emails'}
+                  <h3 className="font-semibold text-sm leading-tight">
+                    {isIn ? 'Money in' : 'Money out'}
                   </h3>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {isIn
                       ? 'Only extracted deposits and incoming credits are listed below.'
                       : 'Only extracted payouts, debits and provider charges are listed below.'}
                   </p>
-                  <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+                  <div className="mt-2.5 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs">
                     <span>
                       <span className="font-mono tabular-nums font-semibold">{count}</span>{' '}
                       <span className="text-muted-foreground">email{count === 1 ? '' : 's'}</span>
@@ -3257,21 +3253,21 @@ export function EmailTransactionsPanel() {
                 </div>
                 <Button
                   size="sm"
-                  variant="outline"
-                  className="shrink-0 h-8 text-xs bg-background"
+                  variant="ghost"
+                  className="shrink-0 h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
                   onClick={() => {
                     setFocusDirection(null);
                     setDirectionFilter('all');
                   }}
                 >
                   <X className="h-3.5 w-3.5 mr-1" />
-                  Back to all emails
+                  All emails
                 </Button>
               </div>
-              <div className="mt-3">
+              <div className="mt-3 flex items-center gap-2">
                 <Button
                   size="sm"
-                  variant="secondary"
+                  variant="outline"
                   className="h-8 text-xs"
                   onClick={() => {
                     const next = isIn ? 'out' : 'in';
@@ -3281,21 +3277,21 @@ export function EmailTransactionsPanel() {
                 >
                   {isIn ? (
                     <>
-                      <ArrowUpRight className="h-3.5 w-3.5 mr-1" /> Switch to money out
+                      <ArrowUpRight className="h-3.5 w-3.5 mr-1" /> Money out
                     </>
                   ) : (
                     <>
-                      <ArrowDownLeft className="h-3.5 w-3.5 mr-1" /> Switch to money in
+                      <ArrowDownLeft className="h-3.5 w-3.5 mr-1" /> Money in
                     </>
                   )}
                 </Button>
                 <Button
                   size="sm"
-                  variant="outline"
-                  className="h-8 text-xs ml-2 bg-background"
+                  variant="ghost"
+                  className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground"
                   onClick={() => setFocusView('gmail')}
                 >
-                  Gmail layout
+                  Inbox layout
                 </Button>
               </div>
             </div>
