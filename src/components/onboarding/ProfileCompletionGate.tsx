@@ -49,7 +49,6 @@ const PERSONAS = [
   { value: "landlord", label: "Landlord — I own rental property" },
   { value: "funder", label: "Supporter — I fund rent / earn returns" },
   { value: "agent", label: "Agent — I collect rent in the field" },
-  { value: "partner", label: "Partner — I run an investing institution" },
   { value: "staff", label: "Welile staff" },
   { value: "other", label: "Other" },
 ] as const;
@@ -64,7 +63,6 @@ const QUICK_PERSONAS = [
   { value: "landlord", emoji: "🔑", label: "I own a house" },
   { value: "funder", emoji: "💰", label: "I fund rent" },
   { value: "agent", emoji: "🚶", label: "I collect rent" },
-  { value: "partner", emoji: "🏢", label: "Institution" },
   { value: "other", emoji: "👤", label: "Other" },
 ] as const;
 
