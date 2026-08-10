@@ -311,6 +311,12 @@ function TelecomBalanceStrip({ refreshKey }: { refreshKey: string | null }) {
           .select('balance, internal_date')
           .eq('channel', channel)
           .not('balance', 'is', null)
+          // Only real forwarded telecom SMS carry a true float balance.
+          // Internal Welile report emails (e.g. "Daily Wallet Financial
+          // Summary Report") also land in this table and had a bogus
+          // "balance" parsed out of their body, which was overriding the
+          // genuine MoMoPay figure.
+          .ilike('subject', '%Text From%')
           .order('internal_date', { ascending: false })
           .limit(1);
         const row = Array.isArray(data) ? data[0] : null;
