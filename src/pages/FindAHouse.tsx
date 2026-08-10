@@ -1408,20 +1408,6 @@ export default function FindAHouse() {
           )}
         </main>
 
-        {/* Footer CTA */}
-        <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-md border-t border-border p-3 z-40">
-          <div className="max-w-2xl mx-auto flex items-center gap-3">
-            <a href="/auth" className="flex-1">
-              <Button className="w-full gap-2 font-bold" size="lg">
-                <Home className="h-5 w-5" />
-                Sign Up — Start Renting Daily
-              </Button>
-            </a>
-            <Button variant="outline" size="lg" onClick={handleShare} className="shrink-0">
-              <Share2 className="h-5 w-5" />
-            </Button>
-          </div>
-        </div>
       </div>
     </>
   );
