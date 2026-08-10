@@ -1196,6 +1196,9 @@ export function AgentCashPayoutsTab() {
   return (
     <MerchantAgreementGate>
     <div className="space-y-5">
+      {/* Customer "money not delivered" alarms — must be the first thing a
+          merchant agent sees when they open the payout dashboard. */}
+      <MerchantPayoutDisputeAlarm />
       {withdrawalsPaused && (
         <div className="rounded-2xl border-2 border-amber-500/60 bg-amber-500/10 p-4 flex items-start gap-3">
           <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
