@@ -3625,6 +3625,42 @@ export function EmailTransactionsPanel() {
           })()}
           </div>
         </div>
+        {/* ── Intake heartbeat ───────────────────────────────────────────────
+            The cron reporting `ok` is not proof that mail is landing: a poisoned
+            future-dated cutoff (or a silently failing query) can drop every
+            message while each tick still says ok. Alert on inserts going quiet. */}
+        {!loading && intakeHealth?.intake_silent && (
+          <div className="mx-3 mb-3 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs space-y-1">
+            <div className="flex items-center gap-2 font-semibold text-destructive">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+              Email intake has gone quiet
+            </div>
+            <p className="text-muted-foreground">
+              The poller last ran{' '}
+              {intakeHealth.last_polled_at ? new Date(intakeHealth.last_polled_at).toLocaleTimeString() : '—'}{' '}
+              and reported <strong>{intakeHealth.last_status ?? 'unknown'}</strong>, but no email has been captured for{' '}
+              <strong>
+                {intakeHealth.silence_minutes !== null && intakeHealth.silence_minutes !== undefined
+                  ? `${Math.round(Number(intakeHealth.silence_minutes))} min`
+                  : 'a while'}
+              </strong>{' '}
+              (alert threshold {INTAKE_SILENCE_MINUTES} min). Incoming MoMo / bank emails may be being dropped.
+            </p>
+            {intakeHealth.cutoff_is_future && (
+              <p className="text-destructive">
+                Cause: the intake cutoff is dated in the future
+                {intakeHealth.cutoff_at ? ` (${new Date(intakeHealth.cutoff_at).toLocaleString()})` : ''} — a sender
+                stamped local time as UTC. The poller now ignores future-dated stamps; click <strong>Poll now</strong> to re-anchor.
+              </p>
+            )}
+          </div>
+        )}
+        {!loading && loadError && rows.length > 0 && (
+          <div className="mx-3 mb-3 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs">
+            <span className="font-semibold">Partial load</span> — some emails could not be read:{' '}
+            <span className="font-mono break-all">{loadError.message}</span>
+          </div>
+        )}
         {loading ? (
           <div className="p-8 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
         ) : rows.length === 0 && loadError?.denied ? (
