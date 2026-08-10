@@ -347,5 +347,6 @@ export function CashDepositCodesPanel() {
         </div>
       </CollapsibleContent>
     </Collapsible>
+    </>
   );
 }
