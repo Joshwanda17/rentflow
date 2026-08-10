@@ -20129,6 +20129,75 @@ export type Database = {
           },
         ]
       }
+      payout_delivery_disputes: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          amount: number
+          cashout_agent_id: string | null
+          created_at: string
+          id: string
+          merchant_user_id: string | null
+          message: string
+          reporter_id: string
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          updated_at: string
+          withdrawal_id: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          amount?: number
+          cashout_agent_id?: string | null
+          created_at?: string
+          id?: string
+          merchant_user_id?: string | null
+          message: string
+          reporter_id: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          updated_at?: string
+          withdrawal_id: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          amount?: number
+          cashout_agent_id?: string | null
+          created_at?: string
+          id?: string
+          merchant_user_id?: string | null
+          message?: string
+          reporter_id?: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          updated_at?: string
+          withdrawal_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payout_delivery_disputes_withdrawal_id_fkey"
+            columns: ["withdrawal_id"]
+            isOneToOne: false
+            referencedRelation: "v_withdrawal_holds_unbacked"
+            referencedColumns: ["withdrawal_id"]
+          },
+          {
+            foreignKeyName: "payout_delivery_disputes_withdrawal_id_fkey"
+            columns: ["withdrawal_id"]
+            isOneToOne: false
+            referencedRelation: "withdrawal_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payout_proof_integrity_alerts: {
         Row: {
           created_at: string
@@ -37097,6 +37166,10 @@ export type Database = {
           wallet_bucket: string
         }[]
       }
+      report_payout_not_received: {
+        Args: { p_message: string; p_withdrawal_id: string }
+        Returns: string
+      }
       request_agent_unallocation: {
         Args: {
           p_agent_id: string
@@ -37165,6 +37238,10 @@ export type Database = {
         }[]
       }
       resolve_welile_ai_id: { Args: { ai_id: string }; Returns: string }
+      respond_payout_dispute: {
+        Args: { p_dispute_id: string; p_note?: string; p_status: string }
+        Returns: undefined
+      }
       restore_campaign_attribution: { Args: { p_token: string }; Returns: Json }
       resubmit_rejected_deposit: {
         Args: { p_id: string; p_payload: Json }
