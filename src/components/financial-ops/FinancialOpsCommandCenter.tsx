@@ -480,7 +480,13 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
 
   const activeId: string | null = activeTool ?? (view !== 'home' ? view : null);
 
+  // Email Transactions is opened as a full-screen workspace that covers the
+  // Financial Ops sidebar/menu so the operator has the whole laptop or
+  // smartphone screen for the inbox-style list.
+  const emailTxFullscreen = activeTool === 'email_tx';
+
   // Group the tool list into meaningful sections for the sidebar.
+
   const sidebarGroups: { title: string; items: MoreAction[] }[] = [
     {
       title: 'Deposits & Reconciliation',
@@ -532,8 +538,9 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
     : sidebarGroups;
 
   return (
-    <div className="flex gap-6 items-start min-w-0">
-      {/* Persistent sidebar (desktop) */}
+    <div className={emailTxFullscreen ? 'min-w-0' : 'flex gap-6 items-start min-w-0'}>
+      {/* Persistent sidebar (desktop) — hidden when Email Transactions is open full-screen */}
+      {!emailTxFullscreen && (
       <aside className={`hidden lg:flex ${sidebarCollapsed ? 'w-14' : 'w-64 xl:w-72'} shrink-0 self-stretch min-h-[calc(100vh-2rem)] flex-col rounded-2xl border border-border bg-card overflow-hidden transition-[width] duration-200`}>
         {/* Sidebar header */}
         <div className={`${sidebarCollapsed ? 'px-2 py-3' : 'px-4 pt-4 pb-3'} border-b border-border bg-gradient-to-br from-primary/5 via-card to-card`}>
@@ -643,10 +650,13 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
           </div>
         </div>
       </aside>
+      )}
 
-      {/* Main content */}
-      <div className="flex-1 min-w-0">
+
+      {/* Main content — full width when Email Transactions is open */}
+      <div className={emailTxFullscreen ? 'w-full min-w-0' : 'flex-1 min-w-0'}>
         {content}
+
         {!activeTool && view === 'home' && (
           <div className="mt-6 space-y-4">
             <MomoFeedSilenceAlert />
