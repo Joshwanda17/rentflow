@@ -3420,6 +3420,10 @@ export function EmailTransactionsPanel() {
                 onClick={() => {
                   apply();
                   setGmailNavOpen(false);
+                  // Selecting a label always lands the operator in the Gmail
+                  // reading experience for that label, never the ops table.
+                  setFocusView('gmail');
+                  setSearchOptionsOpen(false);
                   if (typeof document !== 'undefined') {
                     document.getElementById('email-tx-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                   }
