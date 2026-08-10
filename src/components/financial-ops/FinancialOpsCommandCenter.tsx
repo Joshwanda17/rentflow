@@ -1,4 +1,4 @@
-import { useEffect, useState, lazy, Suspense, type ComponentType } from 'react';
+import { Component, useEffect, useState, lazy, Suspense, type ComponentType, type ReactNode } from 'react';
 // Eagerly imported: only what's needed on the Home view.
 import { WalletOverviewCard } from './WalletOverviewCard';
 import { MomoFeedSilenceAlert } from './MomoFeedSilenceAlert';
@@ -20,6 +20,67 @@ const PanelFallback = () => (
     Loading…
   </div>
 );
+
+/**
+ * Local boundary for a single tool panel.
+ *
+ * Without this, a failed lazy chunk (stale cache, flaky mobile connection) or a
+ * render error inside a panel bubbles to the app-level boundary, which remounts
+ * this command centre — silently resetting `activeTool` and dumping the operator
+ * back on Overview with no explanation. Keeping the failure local shows the real
+ * reason and offers a retry that re-attempts the chunk.
+ */
+class ToolErrorBoundary extends Component<
+  { toolKey: string; children: ReactNode },
+  { message: string | null }
+> {
+  state = { message: null as string | null };
+
+  static getDerivedStateFromError(err: Error) {
+    return { message: err?.message || 'Unknown error' };
+  }
+
+  componentDidUpdate(prev: { toolKey: string }) {
+    if (prev.toolKey !== this.props.toolKey && this.state.message) {
+      this.setState({ message: null });
+    }
+  }
+
+  render() {
+    if (this.state.message) {
+      const chunky = /chunk|dynamically imported module|Importing a module script failed/i.test(
+        this.state.message,
+      );
+      return (
+        <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 space-y-3">
+          <p className="text-sm font-semibold text-foreground">
+            This panel could not be opened
+          </p>
+          <p className="text-xs text-muted-foreground break-words">
+            {chunky
+              ? 'The panel could not be downloaded — usually an outdated cached version of the app or a dropped connection.'
+              : this.state.message}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => this.setState({ message: null })}
+              className="h-9 px-3 rounded-md bg-primary text-primary-foreground text-xs font-semibold"
+            >
+              Try again
+            </button>
+            <button
+              onClick={() => window.location.reload()}
+              className="h-9 px-3 rounded-md border border-border text-xs font-semibold"
+            >
+              Reload the app
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const ApprovalQueue = lz(() => import('./ApprovalQueue'), 'ApprovalQueue');
 const TransactionSearch = lz(() => import('./TransactionSearch'), 'TransactionSearch');
