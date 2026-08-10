@@ -410,7 +410,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
       >
         <SheetHeader className="px-5 pt-5 pb-3 border-b border-border space-y-3">
           <img
-            src={houseSearchingIllustration}
+            src={houseSearchingIllustration.url}
             alt="House searching illustration"
             className="mx-auto h-44 w-auto object-contain"
           />
