@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ChevronLeft, Paperclip, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
