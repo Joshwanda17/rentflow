@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { ChevronLeft, Paperclip, Star, Inbox, Clock, Archive, Trash2, MailOpen } from 'lucide-react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { ChevronLeft, Paperclip, Star, Inbox, Clock, Archive, Trash2, MailOpen, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 /**
@@ -59,6 +59,24 @@ function fmtUgx(n?: number | null) {
   return `UGX ${Math.round(n).toLocaleString('en-US')}`;
 }
 
+/** Gmail groups its inbox under date rollups: Today, Yesterday, then dates. */
+function dateGroupLabel(iso?: string | null) {
+  if (!iso) return 'No date';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return 'No date';
+  const now = new Date();
+  const dayKey = (x: Date) => `${x.getFullYear()}-${x.getMonth()}-${x.getDate()}`;
+  const yesterday = new Date(now.getTime() - 86_400_000);
+  if (dayKey(d) === dayKey(now)) return 'Today';
+  if (dayKey(d) === dayKey(yesterday)) return 'Yesterday';
+  const sameYear = d.getFullYear() === now.getFullYear();
+  return d.toLocaleDateString(undefined, sameYear
+    ? { weekday: 'short', month: 'short', day: 'numeric' }
+    : { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+const BATCH = 40;
+
 /**
  * Renders the extracted money-in / money-out emails exactly the way Gmail
  * shows an inbox: avatar, bold sender, subject followed by a muted snippet on
@@ -82,6 +100,27 @@ export function GmailStyleEmailList({ rows }: { rows: GmailStyleRow[] }) {
     [rows],
   );
   const open = openId ? sortedRows.find((r) => r.id === openId) ?? null : null;
+
+  // ── Gmail-style endless scroll: render a first batch and grow it as the
+  // sentinel at the bottom of the list scrolls into view. Date rollups
+  // ("Today", "Yesterday", "Mon, Aug 4") separate the batches visually.
+  const [count, setCount] = useState(BATCH);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => { setCount(BATCH); }, [rows.length]);
+  const shown = sortedRows.slice(0, count);
+  const hasMore = count < sortedRows.length;
+  useEffect(() => {
+    if (open || !hasMore) return;
+    const el = sentinelRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) {
+        setCount((c) => Math.min(c + BATCH, sortedRows.length));
+      }
+    }, { rootMargin: '600px 0px' });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [open, hasMore, sortedRows.length]);
 
   if (open) {
     const name = senderName(open);
@@ -192,15 +231,29 @@ export function GmailStyleEmailList({ rows }: { rows: GmailStyleRow[] }) {
     );
   }
 
+  let lastGroup: string | null = null;
+
   return (
+    <>
     <ul className="divide-y divide-border/50">
-      {sortedRows.map((r, i) => {
+      {shown.map((r, i) => {
         const name = senderName(r);
         const amount = fmtUgx(r.amount);
         // Gmail visually bolds "unread" mail. Here the freshest arrivals read as
         // unread so the operator's eye lands on new traffic first.
         const unread = i < 3;
+        const group = dateGroupLabel(r.internal_date);
+        const showGroup = group !== lastGroup;
+        lastGroup = group;
         return (
+          <Fragment key={r.id}>
+          {showGroup && (
+            <li
+              className="sticky top-0 z-[5] bg-muted/60 backdrop-blur px-3 sm:px-4 py-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+            >
+              {group}
+            </li>
+          )}
           <li key={r.id} className="relative">
             <button
               type="button"
@@ -255,8 +308,16 @@ export function GmailStyleEmailList({ rows }: { rows: GmailStyleRow[] }) {
               </span>
             </button>
           </li>
+          </Fragment>
         );
       })}
     </ul>
+    {hasMore && (
+      <div ref={sentinelRef} className="flex items-center justify-center gap-2 py-5 text-xs text-muted-foreground">
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        Loading more conversations… ({(sortedRows.length - count).toLocaleString()} left)
+      </div>
+    )}
+    </>
   );
 }
