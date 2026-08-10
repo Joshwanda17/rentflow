@@ -3179,17 +3179,20 @@ export function EmailTransactionsPanel() {
     {
       key: 'needs_routing', label: 'Needs routing', Icon: Send, count: gmailLabelCounts.routing,
       active: statusFilter === 'needs_routing',
-      apply: () => { setStatusFilter('needs_routing'); setNeedsRoutingOnly(false); setFocusDirection(null); },
+      // Settlement labels are direction-blind: a status only exists on incoming
+      // mail, so leaving a "Money out" direction filter active would render an
+      // empty view even though the counter shows matches. Always reset it.
+      apply: () => { setStatusFilter('needs_routing'); setNeedsRoutingOnly(false); setFocusDirection(null); setDirectionFilter('all'); },
     },
     {
       key: 'unparsed', label: 'Unparsed', Icon: AlertOctagon, count: gmailLabelCounts.unparsed,
       active: statusFilter === 'unparsed',
-      apply: () => { setStatusFilter('unparsed'); setNeedsRoutingOnly(false); setFocusDirection(null); },
+      apply: () => { setStatusFilter('unparsed'); setNeedsRoutingOnly(false); setFocusDirection(null); setDirectionFilter('all'); },
     },
     {
       key: 'credited', label: 'Credited', Icon: CheckCircle2, count: gmailLabelCounts.credited,
       active: statusFilter === 'credited',
-      apply: () => { setStatusFilter('credited'); setNeedsRoutingOnly(false); setFocusDirection(null); },
+      apply: () => { setStatusFilter('credited'); setNeedsRoutingOnly(false); setFocusDirection(null); setDirectionFilter('all'); },
     },
   ];
 
@@ -3419,6 +3422,11 @@ export function EmailTransactionsPanel() {
                 aria-current={active ? 'page' : undefined}
                 onClick={() => {
                   apply();
+                  // Secondary filters (match confidence / debit breakdown) are
+                  // sticky and can silently empty a label's view. Clear them so
+                  // the list always matches the counter next to the label.
+                  setMatchFilter('all');
+                  setDebitFilter('all');
                   setGmailNavOpen(false);
                   // Selecting a label always lands the operator in the Gmail
                   // reading experience for that label, never the ops table.
@@ -3436,11 +3444,11 @@ export function EmailTransactionsPanel() {
               >
                 <Icon className={`h-[18px] w-[18px] shrink-0 ${active ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'}`} />
                 <span className="min-w-0 flex-1 truncate">{label}</span>
-                {count > 0 && (
-                  <span className={`shrink-0 text-[11px] tabular-nums ${active ? 'font-bold text-primary' : 'font-semibold text-muted-foreground'}`}>
-                    {count}
-                  </span>
-                )}
+                {/* Always show the counter — a visible 0 explains an empty view
+                    instead of leaving the label looking broken. */}
+                <span className={`shrink-0 text-[11px] tabular-nums ${active ? 'font-bold text-primary' : count > 0 ? 'font-semibold text-muted-foreground' : 'text-muted-foreground/50'}`}>
+                  {count}
+                </span>
               </button>
             ))}
           </nav>
