@@ -28,6 +28,7 @@ export const CANONICAL_ORIGIN =
 // welile.tech is retired: it is listed here ONLY so guard-legacy-domain.mjs
 // keeps rejecting it in shipping code. Nothing may emit URLs on it.
 const DEFAULT_LEGACY = [
+  'welilereceipts.com',
   'welilereciept.com',
   'welilereceipts-com.lovable.app',
   'welile.tech', // retired host — blocked, never emitted
