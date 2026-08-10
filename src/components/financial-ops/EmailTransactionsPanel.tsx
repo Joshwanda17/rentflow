@@ -3179,17 +3179,20 @@ export function EmailTransactionsPanel() {
     {
       key: 'needs_routing', label: 'Needs routing', Icon: Send, count: gmailLabelCounts.routing,
       active: statusFilter === 'needs_routing',
-      apply: () => { setStatusFilter('needs_routing'); setNeedsRoutingOnly(false); setFocusDirection(null); },
+      // Settlement labels are direction-blind: a status only exists on incoming
+      // mail, so leaving a "Money out" direction filter active would render an
+      // empty view even though the counter shows matches. Always reset it.
+      apply: () => { setStatusFilter('needs_routing'); setNeedsRoutingOnly(false); setFocusDirection(null); setDirectionFilter('all'); },
     },
     {
       key: 'unparsed', label: 'Unparsed', Icon: AlertOctagon, count: gmailLabelCounts.unparsed,
       active: statusFilter === 'unparsed',
-      apply: () => { setStatusFilter('unparsed'); setNeedsRoutingOnly(false); setFocusDirection(null); },
+      apply: () => { setStatusFilter('unparsed'); setNeedsRoutingOnly(false); setFocusDirection(null); setDirectionFilter('all'); },
     },
     {
       key: 'credited', label: 'Credited', Icon: CheckCircle2, count: gmailLabelCounts.credited,
       active: statusFilter === 'credited',
-      apply: () => { setStatusFilter('credited'); setNeedsRoutingOnly(false); setFocusDirection(null); },
+      apply: () => { setStatusFilter('credited'); setNeedsRoutingOnly(false); setFocusDirection(null); setDirectionFilter('all'); },
     },
   ];
 
