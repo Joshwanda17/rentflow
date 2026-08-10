@@ -675,7 +675,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    const report = await sendForDate(admin, dateStr, body?.force === true);
+    const overrideTo = Array.isArray(body?.to)
+      ? body.to.filter((x: unknown) => typeof x === "string" && x.includes("@"))
+      : typeof body?.to === "string" && body.to.includes("@")
+        ? [body.to]
+        : undefined;
+
+    const report = await sendForDate(admin, dateStr, body?.force === true, overrideTo);
 
     if ((report as any).usedQueue) {
       fetch(`${SUPABASE_URL}/functions/v1/process-email-queue`, {
