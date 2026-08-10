@@ -598,6 +598,9 @@ function AppRoutes() {
           <Route path="/cto/dashboard" element={<RoleGuard allowedRoles={['cto', 'super_admin']} requiredPermission="cto"><CTODashboardPage /></RoleGuard>} />
           <Route path="/ceo/dashboard" element={<RoleGuard allowedRoles={['ceo', 'super_admin', 'cto']} requiredPermission="ceo"><CEODashboardPage /></RoleGuard>} />
           <Route path="/cfo/dashboard" element={<RoleGuard allowedRoles={['cfo', 'super_admin', 'cto']} requiredPermission="cfo"><CFODashboardPage /></RoleGuard>} />
+          <Route path="/cfo" element={<Navigate to="/cfo/dashboard" replace />} />
+          <Route path="/dashboard/cfo" element={<Navigate to="/cfo/dashboard" replace />} />
+          <Route path="/admin/cfo" element={<Navigate to="/cfo/dashboard" replace />} />
           <Route path="/cfo/investor-report" element={<RoleGuard allowedRoles={['cfo', 'ceo', 'coo', 'super_admin', 'cto']} requiredPermission="cfo"><InvestorReportPage /></RoleGuard>} />
           <Route path="/cfo/money-flow-trace" element={<RoleGuard allowedRoles={['cfo', 'ceo', 'coo', 'super_admin', 'cto', 'manager']} requiredPermission="cfo"><MoneyFlowTracePage /></RoleGuard>} />
           <Route path="/cfo/ledger/:id" element={<RoleGuard allowedRoles={['cfo', 'ceo', 'coo', 'super_admin', 'cto', 'manager']} requiredPermission="cfo"><LedgerEntryDetailPage /></RoleGuard>} />
