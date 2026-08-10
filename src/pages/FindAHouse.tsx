@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { ImageLightbox } from '@/components/marketplace/ImageLightbox';
+import houseSearchingIllustration from '@/assets/House_searching-bro-3.svg.asset.json';
 import { useSearchParams, useNavigate, useLocation, useParams } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -1014,6 +1015,14 @@ export default function FindAHouse() {
         </a>
         {/* Header */}
         <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-md border-b border-border">
+          <div className="max-w-2xl mx-auto px-4 pt-3 flex justify-center">
+            <img
+              src={houseSearchingIllustration.url}
+              alt="Illustration of a person searching for a house to rent"
+              className="h-24 w-auto sm:h-28"
+              loading="lazy"
+            />
+          </div>
           <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-2 min-w-0">
               <Button
@@ -1034,10 +1043,6 @@ export default function FindAHouse() {
                     : 'Find a House'}
               </h1>
             </div>
-            <Button variant="outline" size="sm" onClick={handleShare} className="gap-1.5">
-              {copied ? <Check className="h-4 w-4" /> : <Share2 className="h-4 w-4" />}
-              {copied ? 'Copied' : 'Share'}
-            </Button>
           </div>
         </header>
 
@@ -1403,20 +1408,6 @@ export default function FindAHouse() {
           )}
         </main>
 
-        {/* Footer CTA */}
-        <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-md border-t border-border p-3 z-40">
-          <div className="max-w-2xl mx-auto flex items-center gap-3">
-            <a href="/auth" className="flex-1">
-              <Button className="w-full gap-2 font-bold" size="lg">
-                <Home className="h-5 w-5" />
-                Sign Up — Start Renting Daily
-              </Button>
-            </a>
-            <Button variant="outline" size="lg" onClick={handleShare} className="shrink-0">
-              <Share2 className="h-5 w-5" />
-            </Button>
-          </div>
-        </div>
       </div>
     </>
   );

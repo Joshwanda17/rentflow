@@ -41,6 +41,10 @@ export default function PartnerAgreementSignOff({
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [agreement, setAgreement] = useState<any | null>(null);
+  // True when no `partner_agreements` row exists yet — we build a draft from the
+  // profile + saved payout method so counter-signing still works (the edge
+  // function backfills the real row server-side on countersign).
+  const [isDraft, setIsDraft] = useState(false);
   const [defaults, setDefaults] = useState<any | null>(null);
   const [repSigUrl, setRepSigUrl] = useState<string | undefined>();
   const [missing, setMissing] = useState<string | null>(null);
@@ -59,6 +63,7 @@ export default function PartnerAgreementSignOff({
     setLoading(true);
     setMissing(null);
     setAgreement(null);
+    setIsDraft(false);
     (async () => {
       try {
         const [{ data: ag, error: agErr }, { data: def }] = await Promise.all([
@@ -76,7 +81,39 @@ export default function PartnerAgreementSignOff({
         if (cancelled) return;
         if (agErr) throw agErr;
         if (!ag) {
-          setMissing('This partner has no agreement on file yet. It is created automatically when they complete onboarding.');
+          // Build a draft agreement from the profile + saved payout method so the
+          // stamp date, rep fields and preview all render. The record is created
+          // when the admin counter-signs.
+          const [{ data: prof }, { data: method }, { data: pf }] = await Promise.all([
+            supabase.from('profiles').select('full_name, phone, email, national_id, landmark').eq('id', partner.id).maybeSingle(),
+            supabase.from('saved_payout_methods').select('*').eq('user_id', partner.id)
+              .order('is_default', { ascending: false })
+              .limit(1).maybeSingle(),
+            supabase.from('investor_portfolios').select('investment_amount').eq('investor_id', partner.id),
+          ]);
+          if (cancelled) return;
+          const total = (pf || []).reduce((s: number, r: any) => s + (Number(r.investment_amount) || 0), 0);
+          setIsDraft(true);
+          setMissing(null);
+          setAgreement({
+            full_name: prof?.full_name || partner.full_name,
+            phone: prof?.phone || partner.phone,
+            email: prof?.email || partner.email,
+            national_id: prof?.national_id || '',
+            address: prof?.landmark || '',
+            partnership_amount: total,
+            payout_mode: method?.payout_mode || 'bank',
+            bank_name: method?.bank_name || '',
+            bank_account_name: method?.bank_account_name || '',
+            bank_account_number: method?.bank_account_number || '',
+            momo_provider: method?.momo_provider || '',
+            momo_number: method?.momo_number || '',
+            momo_name: method?.momo_name || '',
+            kin_name: '',
+            kin_contact: '',
+            reference: buildPartnerReference(partner.id, partner.created_at),
+            status: 'pending',
+          });
         } else {
           setAgreement(ag);
         }
@@ -275,8 +312,14 @@ export default function PartnerAgreementSignOff({
 
             {agreement && !loading && (
               <>
+                {isDraft && (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-[11px] text-amber-800">
+                    No agreement record on file yet — details below are drawn from the partner's profile and
+                    payout method. Counter-signing creates the agreement record and stores the executed PDF.
+                  </div>
+                )}
                 <section className="space-y-1.5">
-                  <p className="text-xs font-semibold text-foreground">Partner submitted</p>
+                  <p className="text-xs font-semibold text-foreground">{isDraft ? 'Partner details (from profile)' : 'Partner submitted'}</p>
                   <ReadRow label="Partnership amount" value={`UGX ${(Number(agreement.partnership_amount) || 0).toLocaleString('en-US')}`} />
                   <ReadRow label="National ID / Passport" value={agreement.national_id || '—'} />
                   <ReadRow label="Address" value={agreement.address || '—'} />

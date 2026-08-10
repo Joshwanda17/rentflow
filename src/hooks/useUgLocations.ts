@@ -22,6 +22,10 @@ export interface UgOption {
   name: string;
 }
 
+/** Uganda's four official regions. */
+export const UG_REGIONS = ['Central', 'Eastern', 'Northern', 'Western'] as const;
+export type UgRegion = (typeof UG_REGIONS)[number];
+
 /** A fully-resolved administrative chain for one village. */
 export interface UgLocationSelection {
   villageId: number;
@@ -34,6 +38,8 @@ export interface UgLocationSelection {
   county: string;
   districtId: number;
   district: string;
+  /** Region of the district (Central | Eastern | Northern | Western). */
+  region: string | null;
   fullPath: string;
 }
 
@@ -57,10 +63,19 @@ async function fetchLevel(table: string, parentCol: string | null, parentId: num
   return (data ?? []) as unknown as UgOption[];
 }
 
-export function useUgDistricts() {
+export interface UgDistrictOption extends UgOption { region: string | null }
+
+/** All districts, each carrying its region. Optionally filtered by region. */
+export function useUgDistricts(region?: string | null) {
   return useQuery({
-    queryKey: ['ug', 'districts'],
-    queryFn: () => fetchLevel('ug_districts', null, null),
+    queryKey: ['ug', 'districts', region ?? 'all'],
+    queryFn: async () => {
+      let q = supabase.from('ug_districts' as any).select('id, name, region').order('name');
+      if (region) q = q.eq('region', region);
+      const { data, error } = await q;
+      if (error) throw error;
+      return (data ?? []) as unknown as UgDistrictOption[];
+    },
     ...STATIC,
   });
 }
@@ -107,6 +122,7 @@ type SearchRow = {
   subcounty_id: number; subcounty_name: string;
   county_id: number; county_name: string;
   district_id: number; district_name: string;
+  region?: string | null;
   full_path: string;
 };
 
@@ -117,6 +133,7 @@ function rowToSelection(r: SearchRow): UgLocationSelection {
     subcountyId: r.subcounty_id, subcounty: r.subcounty_name,
     countyId: r.county_id, county: r.county_name,
     districtId: r.district_id, district: r.district_name,
+    region: r.region ?? null,
     fullPath: r.full_path,
   };
 }
@@ -158,4 +175,29 @@ export async function resolveUgVillage(villageId: number): Promise<UgLocationSel
 /** Human-readable label used consistently across every form. */
 export function ugLocationLabel(sel: UgLocationSelection) {
   return sel.fullPath || [sel.village, sel.parish, sel.subcounty, sel.county, sel.district].filter(Boolean).join(', ');
+}
+
+/**
+ * Build the exact same UgLocationSelection shape from a completed cascading
+ * pick (Region → District → County → Sub-county → Parish → Village), so both
+ * picker modes hand callers an identical object.
+ */
+export function buildUgSelection(parts: {
+  region: string | null;
+  district: UgOption;
+  county: UgOption;
+  subcounty: UgOption;
+  parish: UgOption;
+  village: UgOption;
+}): UgLocationSelection {
+  const { region, district, county, subcounty, parish, village } = parts;
+  return {
+    villageId: village.id, village: village.name,
+    parishId: parish.id, parish: parish.name,
+    subcountyId: subcounty.id, subcounty: subcounty.name,
+    countyId: county.id, county: county.name,
+    districtId: district.id, district: district.name,
+    region: region ?? null,
+    fullPath: [village.name, parish.name, subcounty.name, county.name, district.name].join(', '),
+  };
 }

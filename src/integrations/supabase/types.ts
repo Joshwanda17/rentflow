@@ -11336,6 +11336,7 @@ export type Database = {
           tenant_id: string | null
           title: string
           total_monthly_cost: number
+          ug_village_id: number | null
           updated_at: string
           verified: boolean | null
           verified_at: string | null
@@ -11399,6 +11400,7 @@ export type Database = {
           tenant_id?: string | null
           title: string
           total_monthly_cost?: number
+          ug_village_id?: number | null
           updated_at?: string
           verified?: boolean | null
           verified_at?: string | null
@@ -11462,6 +11464,7 @@ export type Database = {
           tenant_id?: string | null
           title?: string
           total_monthly_cost?: number
+          ug_village_id?: number | null
           updated_at?: string
           verified?: boolean | null
           verified_at?: string | null
@@ -28102,16 +28105,19 @@ export type Database = {
           created_at: string
           id: number
           name: string
+          region: string | null
         }
         Insert: {
           created_at?: string
           id: number
           name: string
+          region?: string | null
         }
         Update: {
           created_at?: string
           id?: number
           name?: string
+          region?: string | null
         }
         Relationships: []
       }
@@ -37532,50 +37538,35 @@ export type Database = {
           full_path: string
           parish_id: number
           parish_name: string
+          region: string
           subcounty_id: number
           subcounty_name: string
           village_id: number
           village_name: string
         }[]
       }
-      ug_search_villages:
-        | {
-            Args: { p_limit?: number; p_query: string }
-            Returns: {
-              county_id: number
-              county_name: string
-              district_id: number
-              district_name: string
-              full_path: string
-              parish_id: number
-              parish_name: string
-              subcounty_id: number
-              subcounty_name: string
-              village_id: number
-              village_name: string
-            }[]
-          }
-        | {
-            Args: {
-              p_district_id?: number
-              p_district_name?: string
-              p_limit?: number
-              p_query: string
-            }
-            Returns: {
-              county_id: number
-              county_name: string
-              district_id: number
-              district_name: string
-              full_path: string
-              parish_id: number
-              parish_name: string
-              subcounty_id: number
-              subcounty_name: string
-              village_id: number
-              village_name: string
-            }[]
-          }
+      ug_search_villages: {
+        Args: {
+          p_district_id?: number
+          p_district_name?: string
+          p_limit?: number
+          p_query: string
+        }
+        Returns: {
+          county_id: number
+          county_name: string
+          district_id: number
+          district_name: string
+          full_path: string
+          parish_id: number
+          parish_name: string
+          region: string
+          subcounty_id: number
+          subcounty_name: string
+          village_id: number
+          village_name: string
+        }[]
+      }
       unblock_agent_listing: {
         Args: { p_agent_id: string; p_reason?: string }
         Returns: Json

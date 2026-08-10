@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Bell, UserPlus, FileText, Banknote, Activity, TrendingUp, TrendingDown, Loader2, ChevronRight } from 'lucide-react';
 import { BriefDrillDownModal, type DrillMetric } from './BriefDrillDownModal';
 import { AgentDefinitionFunnel } from './AgentDefinitionFunnel';
-import { AdvancesSnapshotCard } from './AdvancesSnapshotCard';
+
 import {
   ResponsiveContainer,
   AreaChart,
@@ -405,8 +405,6 @@ export function AgentOpsHomeView({ range, onRangeChange, onOpenSection }: AgentO
       {/* Compact Active Users stat — share of the whole platform active in range */}
       <ActiveUsersStat range={range} />
 
-      {/* Agent advances: pending requests + exposure + recovery, with direct links */}
-      <AdvancesSnapshotCard range={range} onOpenSection={onOpenSection} />
 
       {/* Drill-down modal */}
       <BriefDrillDownModal
