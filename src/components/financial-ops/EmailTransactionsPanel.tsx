@@ -879,6 +879,10 @@ export function EmailTransactionsPanel() {
     sms_sent: boolean;
   }
   const [routingHistory, setRoutingHistory] = useState<Record<string, RoutingHistoryEntry[]>>({});
+  // Optimistic set of rows routed/charged in this session. A routed row must
+  // leave the "needs routing" queue immediately, even before the routing
+  // history refetch (or realtime feed) confirms the insert.
+  const [justRoutedIds, setJustRoutedIds] = useState<Set<string>>(new Set());
 
   // Live wallet balances (strict, ledger-derived) for every possible user
   // and every routing-history target shown in the list. Lets Financial Ops
@@ -2639,12 +2643,13 @@ export function EmailTransactionsPanel() {
   // logic used in the row render so the filter and the badge always agree.
   const isNeedsRouting = useCallback((r: GmailTx) => {
     if (r.direction !== 'in') return false;
+    if (justRoutedIds.has(r.id)) return false;
     const isRouted = (routingHistory[r.id] ?? []).length > 0;
     const credited = creditedDeposits[r.id] ?? [];
     const manualMark = manualMarks[r.id];
     const isCredited = manualMark ? manualMark.mark === 'credited' : credited.length > 0;
     return !isCredited && !isRouted;
-  }, [routingHistory, creditedDeposits, manualMarks]);
+  }, [routingHistory, creditedDeposits, manualMarks, justRoutedIds]);
 
   /**
    * Settlement status for a single row, used by the Status filter chips.
@@ -2656,12 +2661,13 @@ export function EmailTransactionsPanel() {
   const getRowStatus = useCallback((r: GmailTx): 'unparsed' | 'needs_routing' | 'credited' | 'other' => {
     if (isUnparsedRow(r)) return 'unparsed';
     if (r.direction !== 'in') return 'other';
+    if (justRoutedIds.has(r.id)) return 'credited';
     const isRouted = (routingHistory[r.id] ?? []).length > 0;
     const credited = creditedDeposits[r.id] ?? [];
     const manualMark = manualMarks[r.id];
     const isCredited = manualMark ? manualMark.mark === 'credited' : credited.length > 0;
     return isCredited || isRouted ? 'credited' : 'needs_routing';
-  }, [routingHistory, creditedDeposits, manualMarks]);
+  }, [routingHistory, creditedDeposits, manualMarks, justRoutedIds]);
 
   /**
    * Unread alert tracking. "Alerts" are rows that need a human: incoming
@@ -6826,7 +6832,10 @@ export function EmailTransactionsPanel() {
         canNext={canNextNav}
         currentIndex={navIndex >= 0 ? navIndex + 1 : 0}
         totalCount={visibleRows.length}
-        onRouted={(rowId) => { void refreshRowStatus(rowId); }}
+        onRouted={(rowId) => {
+          setJustRoutedIds((cur) => new Set(cur).add(rowId));
+          void refreshRowStatus(rowId);
+        }}
       />
 
       <FixChannelDialog
