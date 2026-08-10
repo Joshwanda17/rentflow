@@ -879,6 +879,10 @@ export function EmailTransactionsPanel() {
     sms_sent: boolean;
   }
   const [routingHistory, setRoutingHistory] = useState<Record<string, RoutingHistoryEntry[]>>({});
+  // Optimistic set of rows routed/charged in this session. A routed row must
+  // leave the "needs routing" queue immediately, even before the routing
+  // history refetch (or realtime feed) confirms the insert.
+  const [justRoutedIds, setJustRoutedIds] = useState<Set<string>>(new Set());
 
   // Live wallet balances (strict, ledger-derived) for every possible user
   // and every routing-history target shown in the list. Lets Financial Ops
