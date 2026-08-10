@@ -102,6 +102,7 @@ const OrderHistory = lazy(() => import("./pages/OrderHistory"));
 const Wishlist = lazy(() => import("./pages/Wishlist"));
 const AgentAnalytics = lazy(() => import("./pages/AgentAnalytics"));
 const AgentPartners = lazy(() => import("./pages/AgentPartners"));
+const ProxyAgentCommandCenter = lazy(() => import("./pages/agent/ProxyAgentCommandCenter"));
 const FlashSales = lazy(() => import("./pages/FlashSales"));
 const Marketplace = lazy(() => import("./pages/Marketplace"));
 const Categories = lazy(() => import("./pages/Categories"));
@@ -555,6 +556,7 @@ function AppRoutes() {
           <Route path="/agent/service-center" element={<AgentServiceCenter />} />
           <Route path="/merchandise" element={<MerchandiseStore />} />
           <Route path="/agent/partners" element={<AgentPartners />} />
+          <Route path="/agent/proxy-agents" element={<ProxyAgentCommandCenter />} />
           <Route path="/join" element={<Join />} />
           <Route path="/sub-agent-invite" element={<SubAgentInvite />} />
           {/* Short alias used by emailed invite links, resend + gate resume */}
