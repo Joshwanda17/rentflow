@@ -19,6 +19,7 @@ interface SeriesCategory {
   key: string;
   label: string;
   kind: 'forecast' | 'actual';
+  flow?: 'in' | 'out';
   total: number;
   count: number;
   points: SeriesPoint[];
@@ -82,6 +83,7 @@ export function CashflowForecastGraphs() {
   const [customStart, setCustomStart] = useState(isoDay(new Date()));
   const [customEnd, setCustomEnd] = useState(isoDay(new Date(Date.now() + 90 * 864e5)));
   const [activeCat, setActiveCat] = useState<string>('roi_forecast');
+  const [flowFilter, setFlowFilter] = useState<'all' | 'in' | 'out'>('all');
 
   const { start, end } = useMemo(
     () => resolveRange(preset, customStart, customEnd),
@@ -102,8 +104,19 @@ export function CashflowForecastGraphs() {
     staleTime: 60_000,
   });
 
-  const categories = data?.categories ?? [];
+  const allCategories = data?.categories ?? [];
+  const categories = useMemo(
+    () => (flowFilter === 'all' ? allCategories : allCategories.filter((c) => (c.flow ?? 'out') === flowFilter)),
+    [allCategories, flowFilter],
+  );
   const active = categories.find((c) => c.key === activeCat) ?? categories[0] ?? null;
+  const isInflow = (active?.flow ?? 'out') === 'in';
+  const inflowTotal = allCategories
+    .filter((c) => c.flow === 'in')
+    .reduce((s, c) => s + Number(c.total), 0);
+  const outflowTotal = allCategories
+    .filter((c) => (c.flow ?? 'out') === 'out')
+    .reduce((s, c) => s + Number(c.total), 0);
   const partners = data?.partners ?? [];
 
   const chartData = useMemo(() => {
@@ -148,6 +161,13 @@ export function CashflowForecastGraphs() {
             <p className="text-[11px] text-muted-foreground mt-1">
               Source: {Number(data.portfolio_count ?? 0)} Partner Ops portfolios ·{' '}
               {formatUGX(Number(data.committed_capital ?? 0))} committed capital
+            </p>
+          ) : null}
+          {data ? (
+            <p className="text-[11px] mt-1">
+              <span className="text-emerald-600 font-semibold">Cash coming in: {formatUGX(inflowTotal)}</span>
+              <span className="text-muted-foreground"> · </span>
+              <span className="text-rose-600 font-semibold">Cash going out: {formatUGX(outflowTotal)}</span>
             </p>
           ) : null}
         </div>
@@ -210,6 +230,26 @@ export function CashflowForecastGraphs() {
               </Button>
             ))}
           </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+              Direction
+            </span>
+            {([
+              { key: 'all', label: 'All cash' },
+              { key: 'in', label: 'Money coming in' },
+              { key: 'out', label: 'Money going out' },
+            ] as const).map((f) => (
+              <Button
+                key={f.key}
+                size="sm"
+                variant={flowFilter === f.key ? 'secondary' : 'ghost'}
+                onClick={() => setFlowFilter(f.key)}
+              >
+                {f.label}
+              </Button>
+            ))}
+          </div>
         </CardContent>
       </Card>
 
@@ -229,9 +269,22 @@ export function CashflowForecastGraphs() {
             >
               <div className="flex items-center justify-between gap-2">
                 <p className="text-xs font-semibold">{c.label}</p>
-                <Badge variant={c.kind === 'forecast' ? 'default' : 'outline'} className="text-[9px] shrink-0">
-                  {c.kind === 'forecast' ? 'Forecast' : 'Actual'}
-                </Badge>
+                <div className="flex items-center gap-1 shrink-0">
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      'text-[9px]',
+                      (c.flow ?? 'out') === 'in'
+                        ? 'border-emerald-500/50 text-emerald-600'
+                        : 'border-rose-500/50 text-rose-600',
+                    )}
+                  >
+                    {(c.flow ?? 'out') === 'in' ? 'In' : 'Out'}
+                  </Badge>
+                  <Badge variant={c.kind === 'forecast' ? 'default' : 'outline'} className="text-[9px]">
+                    {c.kind === 'forecast' ? 'Forecast' : 'Actual'}
+                  </Badge>
+                </div>
               </div>
               <p className="mt-1 text-base font-bold font-mono tabular-nums">{formatUGX(Number(c.total))}</p>
               <p className="text-[10px] text-muted-foreground">{Number(c.count)} entries in window</p>
@@ -258,6 +311,7 @@ export function CashflowForecastGraphs() {
                     {active.label}
                   </h2>
                   <p className="text-[11px] text-muted-foreground">
+                    {isInflow ? 'Cash coming in' : 'Cash going out'} ·{' '}
                     Amount vs time · {bucket === 'day' ? 'daily' : bucket === 'week' ? 'weekly' : 'monthly'} buckets
                     {' · '}
                     {isoDay(start)} to {isoDay(end)}
@@ -285,15 +339,21 @@ export function CashflowForecastGraphs() {
                     <AreaChart data={chartData}>
                       <defs>
                         <linearGradient id="cfFcGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.35} />
-                          <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                          <stop offset="5%" stopColor={isInflow ? 'hsl(152 60% 40%)' : 'hsl(var(--primary))'} stopOpacity={0.35} />
+                          <stop offset="95%" stopColor={isInflow ? 'hsl(152 60% 40%)' : 'hsl(var(--primary))'} stopOpacity={0} />
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                       <XAxis dataKey="label" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
                       <YAxis tick={{ fontSize: 10 }} width={70} tickFormatter={(v) => new Intl.NumberFormat('en-UG').format(Number(v))} />
                       <Tooltip content={<CustomTooltip />} />
-                      <Area type="monotone" dataKey="amount" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#cfFcGrad)" />
+                      <Area
+                        type="monotone"
+                        dataKey="amount"
+                        stroke={isInflow ? 'hsl(152 60% 40%)' : 'hsl(var(--primary))'}
+                        strokeWidth={2}
+                        fill="url(#cfFcGrad)"
+                      />
                     </AreaChart>
                   ) : (
                     <BarChart data={chartData}>
@@ -301,16 +361,19 @@ export function CashflowForecastGraphs() {
                       <XAxis dataKey="label" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
                       <YAxis tick={{ fontSize: 10 }} width={70} tickFormatter={(v) => new Intl.NumberFormat('en-UG').format(Number(v))} />
                       <Tooltip content={<CustomTooltip />} />
-                      <Bar dataKey="amount" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
+                      <Bar dataKey="amount" fill={isInflow ? 'hsl(152 60% 40%)' : 'hsl(var(--primary))'} radius={[3, 3, 0, 0]} />
                     </BarChart>
                   )}
                 </ResponsiveContainer>
               </div>
 
               <p className="text-[11px] text-muted-foreground">
-                Forecast panels project every active portfolio&apos;s monthly Returns cycle forward from its
+                Outflow forecasts project every active portfolio&apos;s monthly Returns cycle forward from its
                 next Returns date up to maturity, so Partner Ops approvals, top-ups, compounding and
-                withdrawals immediately reshape the curve. Actual panels read posted ledger outflows.
+                withdrawals immediately reshape the curve. Inflow forecasts schedule each funded tenant&apos;s
+                remaining receivable at its daily repayment rate and each unpaused agent advance at its daily
+                installment, so receivable cash is projected day by day until the balance clears. Actual panels
+                read posted ledger movements in the matching direction.
               </p>
             </>
           )}
