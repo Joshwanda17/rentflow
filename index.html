@@ -398,6 +398,27 @@
         }, 18000);
       })();
     </script>
+    <!-- Capture the browser install signal before the app bundle loads.
+         Chrome fires `beforeinstallprompt` once, very early; if nothing is
+         listening at that moment the event is lost for the whole visit and the
+         install card can never offer a one-tap install. -->
+    <script>
+      (function () {
+        try {
+          window.__welileInstallPrompt = window.__welileInstallPrompt || null;
+          window.addEventListener('beforeinstallprompt', function (e) {
+            e.preventDefault();
+            window.__welileInstallPrompt = e;
+            try {
+              window.dispatchEvent(new Event('welile:installpromptready'));
+            } catch (err) {}
+          });
+          window.addEventListener('appinstalled', function () {
+            window.__welileInstallPrompt = null;
+          });
+        } catch (e) {}
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

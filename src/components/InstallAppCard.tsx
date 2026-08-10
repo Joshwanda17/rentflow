@@ -1,30 +1,37 @@
 import { useEffect, useState, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Download, X, Share, Zap } from 'lucide-react';
+import { Download, X, Share, Zap, RefreshCw, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { useInstallPreflight } from '@/hooks/useInstallPreflight';
 import { toast } from 'sonner';
 import { trackInstallEvent } from '@/lib/installTracking';
 import WhatsAppInstallBanner from '@/components/WhatsAppInstallBanner';
+import { registerInstallCard } from '@/lib/installCardRegistry';
 
 const IOSInstallGuide = lazy(() => import('@/components/IOSInstallGuide'));
+const GenericInstallGuide = lazy(() => import('@/components/GenericInstallGuide'));
 
 /**
  * Dismissal is persistent, not per-session: "Not now" snoozes the card for
- * SNOOZE_DAYS across tabs and app relaunches, and installing hides it for good.
- * The card never re-appears on a timer — the only other install entry points
- * are the dashboard header menu and the /install page.
+ * SNOOZE_DAYS across tabs and app relaunches. Installing does NOT write a
+ * permanent lock — installed state is detected live on each load, so a user who
+ * later removes the app is offered it again.
  */
 const SNOOZE_KEY = 'welile_install_card_snoozed_until';
-const SNOOZE_DAYS = 14;
+const SNOOZE_DAYS = 7;
 
 function readSnoozed(): boolean {
   if (typeof window === 'undefined') return false;
   try {
     const raw = localStorage.getItem(SNOOZE_KEY);
     if (!raw) return false;
-    if (raw === 'installed') return true;
+    // Legacy permanent 'installed' sentinel — treat as no longer binding so
+    // users who uninstalled are offered the app again.
+    if (raw === 'installed') {
+      localStorage.removeItem(SNOOZE_KEY);
+      return false;
+    }
     const until = Number(raw);
     if (!Number.isFinite(until)) return false;
     return Date.now() < until;
@@ -37,9 +44,7 @@ function writeSnooze(value: 'installed' | 'snoozed') {
   try {
     localStorage.setItem(
       SNOOZE_KEY,
-      value === 'installed'
-        ? 'installed'
-        : String(Date.now() + SNOOZE_DAYS * 24 * 60 * 60 * 1000),
+      String(Date.now() + SNOOZE_DAYS * 24 * 60 * 60 * 1000),
     );
   } catch {
     /* storage unavailable — card simply reappears next load */
@@ -48,39 +53,71 @@ function writeSnooze(value: 'installed' | 'snoozed') {
 
 interface InstallAppCardProps {
   className?: string;
+  /**
+   * Set on the globally-mounted instance (public shell). The header instance
+   * takes priority so the card is never rendered twice.
+   */
+  global?: boolean;
 }
 
-export default function InstallAppCard({ className }: InstallAppCardProps) {
-  const { canShow, isInstalled, isIOS, hasPrompt, promptInstall } = usePWAInstall();
-  // Preflight: don't advertise install until the manifest, apple-touch-icon,
-  // service worker script, and a signed/CDN asset download all resolve.
+export default function InstallAppCard({ className, global = false }: InstallAppCardProps) {
+  const { canShow, isInstalled, isIOS, hasPrompt, canInstructInstead, promptInstall } = usePWAInstall();
+  // Preflight is ADVISORY, never a gate: a failed check degrades the copy but
+  // the card still renders, because slow mobile networks fail these routinely.
   const preflight = useInstallPreflight(!isInstalled);
   const [dismissed, setDismissed] = useState<boolean>(() => readSnoozed());
   const [isInstalling, setIsInstalling] = useState(false);
   const [showIOSGuide, setShowIOSGuide] = useState(false);
+  const [showGenericGuide, setShowGenericGuide] = useState(false);
+
+  // Header instance claims the slot; the global instance stands down while it is
+  // mounted so users never see two install cards.
+  useEffect(() => {
+    if (global) return;
+    return registerInstallCard();
+  }, [global]);
 
   // Auto-hide after install
   useEffect(() => {
     if (!isInstalled) return;
-    writeSnooze('installed');
     setDismissed(true);
   }, [isInstalled]);
 
   // Log card impression once per mount when visible.
   useEffect(() => {
     if (isInstalled || dismissed || !canShow) return;
-    if (preflight.loading || !preflight.ready) return;
-    trackInstallEvent('install_card_shown', { isIOS, hasPrompt });
+    if (preflight.loading) return;
+    trackInstallEvent('install_card_shown', {
+      isIOS,
+      hasPrompt,
+      degraded: preflight.degraded,
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [preflight.loading, preflight.ready]);
+  }, [preflight.loading, preflight.degraded]);
 
-  // Emit a one-time preflight-failure telemetry per session so we can measure
-  // how often users are silently blocked from seeing the card.
+  // Preflight failures are still logged, but they no longer hide the card.
   useEffect(() => {
     if (preflight.loading || preflight.ready || preflight.checks.length === 0) return;
     const failed = preflight.checks.filter((c) => !c.ok).map((c) => c.key);
-    trackInstallEvent('install_preflight_failed', { failed, isIOS });
+    trackInstallEvent('install_card_degraded', { failed, isIOS });
   }, [preflight.loading, preflight.ready, preflight.checks, isIOS]);
+
+  // Whenever the card decides NOT to render, say why — so suppression is
+  // measurable instead of guesswork.
+  const suppressionReason = isInstalled
+    ? 'already_installed'
+    : dismissed
+      ? 'snoozed'
+      : !canShow
+        ? 'not_installable'
+        : null;
+
+  useEffect(() => {
+    if (!suppressionReason) return;
+    if (suppressionReason === 'already_installed') return; // expected, not a problem
+    trackInstallEvent('install_card_suppressed', { reason: suppressionReason, isIOS, hasPrompt });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [suppressionReason]);
 
   const handleDismiss = () => {
     writeSnooze('snoozed');
@@ -98,7 +135,15 @@ export default function InstallAppCard({ className }: InstallAppCardProps) {
       trackInstallEvent('ios_guide_opened', { source: 'install_card' });
       return;
     }
-    if (!hasPrompt || isInstalling) return;
+    if (isInstalling) return;
+
+    // No native prompt available (Firefox, in-app browser, some WebViews):
+    // show written steps rather than doing nothing.
+    if (!hasPrompt) {
+      setShowGenericGuide(true);
+      trackInstallEvent('install_instructions_opened', { source: 'install_card' });
+      return;
+    }
 
     setIsInstalling(true);
     trackInstallEvent('native_prompt_shown');
@@ -123,17 +168,28 @@ export default function InstallAppCard({ className }: InstallAppCardProps) {
   // Hide conditions
   if (isInstalled) return null;
   if (dismissed) return null;
-  if (!canShow) return null; // covers: unsupported browser AND not iOS AND no prompt
-  // Preflight gate: hide the card until every readiness check passes. If a
-  // check fails, /install-diagnostics surfaces the reason.
+  if (!canShow) return null;
+  // Only the first paint waits for the checks — a failure never hides the card.
   if (preflight.loading) return null;
-  if (!preflight.ready) return null;
+
+  const ctaLabel = isInstalling
+    ? 'Installing…'
+    : isIOS
+      ? 'How to install'
+      : hasPrompt
+        ? 'Install App'
+        : 'How to install';
 
   return (
     <>
     {showIOSGuide && (
       <Suspense fallback={null}>
         <IOSInstallGuide onClose={() => setShowIOSGuide(false)} />
+      </Suspense>
+    )}
+    {showGenericGuide && (
+      <Suspense fallback={null}>
+        <GenericInstallGuide onClose={() => setShowGenericGuide(false)} />
       </Suspense>
     )}
     <AnimatePresence>
@@ -177,17 +233,39 @@ export default function InstallAppCard({ className }: InstallAppCardProps) {
                   ? 'Add Welile to your home screen for faster access and a native app feel.'
                   : 'Faster access, offline-ready, and a native app feel right from your home screen.'}
               </p>
+              {preflight.degraded && (
+                <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+                  Install may be slow on this connection.
+                </p>
+              )}
 
               <div className="mt-3 flex items-center gap-2 flex-wrap">
                 <Button
                   onClick={handleInstall}
-                  disabled={isInstalling || (!isIOS && !hasPrompt)}
+                  disabled={isInstalling}
                   size="sm"
                   className="gap-1.5 font-semibold"
                 >
-                  {isIOS ? <Share className="h-4 w-4" /> : <Download className="h-4 w-4" />}
-                  {isInstalling ? 'Installing…' : isIOS ? 'How to install' : 'Install App'}
+                  {isIOS ? (
+                    <Share className="h-4 w-4" />
+                  ) : hasPrompt ? (
+                    <Download className="h-4 w-4" />
+                  ) : (
+                    <HelpCircle className="h-4 w-4" />
+                  )}
+                  {ctaLabel}
                 </Button>
+                {preflight.degraded && (
+                  <Button
+                    onClick={() => preflight.rerun()}
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    Retry
+                  </Button>
+                )}
                 <Button
                   onClick={handleDismiss}
                   variant="ghost"

@@ -15,6 +15,12 @@ export interface PreflightCheck {
 
 export interface PreflightResult {
   ready: boolean;
+  /**
+   * True when the checks ran but at least one failed. The install card stays
+   * visible in this state (degraded), it is never hidden — a slow or metered
+   * mobile connection routinely fails these checks even though installing works.
+   */
+  degraded: boolean;
   loading: boolean;
   checks: PreflightCheck[];
   ranAt: number | null;
@@ -168,23 +174,40 @@ export function useInstallPreflight(enabled: boolean = true): PreflightResult & 
         ranAt: cached.ranAt,
         loading: false,
         ready: cached.checks.every((c) => c.ok),
+        degraded: cached.checks.some((c) => !c.ok),
       };
     }
-    return { checks: [], ranAt: null, loading: enabled, ready: false };
+    return { checks: [], ranAt: null, loading: enabled, ready: false, degraded: false };
   });
 
   const run = async () => {
     setState((s) => ({ ...s, loading: true }));
     const checks = await runInstallPreflight();
     const ranAt = Date.now();
-    writeCache(checks, ranAt);
-    setState({ checks, ranAt, loading: false, ready: checks.every((c) => c.ok) });
+    const allOk = checks.every((c) => c.ok);
+    // Only a passing result is cached. Caching a failure would keep the card
+    // suppressed/degraded for the rest of the session even after the network
+    // recovers.
+    if (allOk) writeCache(checks, ranAt);
+    setState({ checks, ranAt, loading: false, ready: allOk, degraded: !allOk });
   };
 
   useEffect(() => {
     if (!enabled) return;
     if (state.ranAt && Date.now() - state.ranAt < CACHE_TTL_MS) return;
     void run();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled]);
+
+  // Re-check when the device comes back online so a connection blip does not
+  // leave the card stuck in the degraded state.
+  useEffect(() => {
+    if (!enabled) return;
+    const onOnline = () => {
+      void run();
+    };
+    window.addEventListener('online', onOnline);
+    return () => window.removeEventListener('online', onOnline);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled]);
 
