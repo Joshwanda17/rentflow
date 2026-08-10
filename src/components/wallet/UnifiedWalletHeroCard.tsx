@@ -1,5 +1,5 @@
 import { ReactNode, useEffect, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'frframer-motion';
 import { Wallet, ChevronRight, ChevronDown, Shield, Home, TrendingUp, Rocket, PiggyBank, Coins, Sparkles, Clock, Users } from 'lucide-react';
 import { hapticTap } from '@/lib/haptics';
 import { useCurrency } from '@/hooks/useCurrency';
@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { usePayrollGrowth } from '@/hooks/usePayrollGrowth';
 import { useAvailableBalance } from '@/hooks/useAvailableBalance';
 import { WalletHoldNotice } from '@/components/wallet/WalletHoldNotice';
+import walletRafikiAsset from '@/assets/wallet-rafiki.svg.asset.json';
 
 export type WalletRole = 'agent' | 'tenant' | 'supporter' | 'landlord';
 
