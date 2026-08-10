@@ -87,7 +87,7 @@ export function StartCashDepositDialog({ open, onOpenChange, onIssued }: StartCa
     toast({
       title: smsSent ? 'Code sent by SMS' : 'Code issued (SMS not confirmed)',
       description: smsSent
-        ? `${name} has been sent the code on ${(data as any)?.depositor_phone}. It expires in 10 minutes.`
+        ? `${name} has been sent the code on ${payload?.depositor_phone}. It expires in 10 minutes.`
         : `The code is in the Cash Deposit Codes list below — read it back to ${name}.`,
     });
     reset();
