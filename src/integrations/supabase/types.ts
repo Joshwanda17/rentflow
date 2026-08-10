@@ -32201,6 +32201,17 @@ export type Database = {
       }
     }
     Functions: {
+      _cf_partner_ops_portfolios: {
+        Args: never
+        Returns: {
+          anchor_date: string
+          id: string
+          investment_amount: number
+          investor_id: string
+          maturity_date: string
+          roi_percentage: number
+        }[]
+      }
       _classify_daily_rating: {
         Args: { p_active_count: number; p_ratio: number }
         Returns: string
