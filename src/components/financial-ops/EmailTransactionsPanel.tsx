@@ -547,6 +547,15 @@ export function EmailTransactionsPanel() {
   const { toast } = useToast();
   const [rows, setRows] = useState<GmailTx[]>([]);
   const [state, setState] = useState<PollState | null>(null);
+  /**
+   * Why the list is empty. A read blocked by row-level security used to look
+   * identical to "no emails captured yet" because the loader swallowed the
+   * PostgREST error — so staff who can open the page but can't read the table
+   * saw a friendly (and wrong) empty state.
+   */
+  const [loadError, setLoadError] = useState<{ message: string; denied: boolean } | null>(null);
+  /** Intake-silence heartbeat: poller says ok, but nothing is landing. */
+  const [intakeHealth, setIntakeHealth] = useState<IntakeHealth | null>(null);
   const [lastSuccessAt, setLastSuccessAt] = useState<string | null>(
     () => (typeof window !== 'undefined' ? localStorage.getItem('gmail_last_success_at') : null)
   );
