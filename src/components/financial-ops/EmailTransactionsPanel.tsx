@@ -3422,6 +3422,11 @@ export function EmailTransactionsPanel() {
                 aria-current={active ? 'page' : undefined}
                 onClick={() => {
                   apply();
+                  // Secondary filters (match confidence / debit breakdown) are
+                  // sticky and can silently empty a label's view. Clear them so
+                  // the list always matches the counter next to the label.
+                  setMatchFilter('all');
+                  setDebitFilter('all');
                   setGmailNavOpen(false);
                   // Selecting a label always lands the operator in the Gmail
                   // reading experience for that label, never the ops table.
@@ -3439,11 +3444,11 @@ export function EmailTransactionsPanel() {
               >
                 <Icon className={`h-[18px] w-[18px] shrink-0 ${active ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'}`} />
                 <span className="min-w-0 flex-1 truncate">{label}</span>
-                {count > 0 && (
-                  <span className={`shrink-0 text-[11px] tabular-nums ${active ? 'font-bold text-primary' : 'font-semibold text-muted-foreground'}`}>
-                    {count}
-                  </span>
-                )}
+                {/* Always show the counter — a visible 0 explains an empty view
+                    instead of leaving the label looking broken. */}
+                <span className={`shrink-0 text-[11px] tabular-nums ${active ? 'font-bold text-primary' : count > 0 ? 'font-semibold text-muted-foreground' : 'text-muted-foreground/50'}`}>
+                  {count}
+                </span>
               </button>
             ))}
           </nav>
