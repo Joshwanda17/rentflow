@@ -1043,10 +1043,6 @@ export default function FindAHouse() {
                     : 'Find a House'}
               </h1>
             </div>
-            <Button variant="outline" size="sm" onClick={handleShare} className="gap-1.5">
-              {copied ? <Check className="h-4 w-4" /> : <Share2 className="h-4 w-4" />}
-              {copied ? 'Copied' : 'Share'}
-            </Button>
           </div>
         </header>
 
