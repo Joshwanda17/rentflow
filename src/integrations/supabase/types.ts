@@ -36269,6 +36269,20 @@ export type Database = {
         Args: { p_error: string; p_event_id: string }
         Returns: undefined
       }
+      match_email_ledger_credits: {
+        Args: { p_refs: string[] }
+        Returns: {
+          amount: number
+          category: string
+          created_at: string
+          ledger_id: string
+          ledger_scope: string
+          ref: string
+          user_id: string
+          user_name: string
+          user_phone: string
+        }[]
+      }
       mature_bonus_by_subject: {
         Args: { p_condition: string; p_subject_id: string }
         Returns: number

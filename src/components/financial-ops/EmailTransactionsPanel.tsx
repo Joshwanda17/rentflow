@@ -986,6 +986,26 @@ export function EmailTransactionsPanel() {
   const [creditedDeposits, setCreditedDeposits] = useState<Record<string, CreditedDeposit[]>>({});
 
   /**
+   * Ledger-only credits. Some incoming money never produces a
+   * `deposit_requests` row at all — agent float deposits, CFO direct credits
+   * and other ops postings land straight in `general_ledger` while quoting the
+   * MoMo / Airtel reference in the description or idempotency key. Those
+   * emails were previously stuck under "Needs routing" even though the wallet
+   * was already credited, so they never showed up under Credited. Resolved
+   * through the ops-only `match_email_ledger_credits` RPC.
+   */
+  interface LedgerCredit {
+    ledger_id: string;
+    amount: number;
+    category: string | null;
+    user_id: string | null;
+    user_name: string | null;
+    user_phone: string | null;
+    created_at: string | null;
+  }
+  const [ledgerCredits, setLedgerCredits] = useState<Record<string, LedgerCredit[]>>({});
+
+  /**
    * Manual "mark credited / uncredited" audit log loaded from
    * `email_credit_manual_marks`. Bulk actions append immutable rows there;
    * the LATEST mark per gmail_transaction_id is the operative state and
@@ -1609,6 +1629,57 @@ export function EmailTransactionsPanel() {
         if (tidPairs.length) void recordTidAutoCreditAudit(tidPairs);
       } catch {
         if (!cancelled) setCreditedDeposits({});
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [rows]);
+
+  // Ledger-reference credits: match every visible incoming email's reference
+  // (MoMo TID / Airtel TID / cash receipt code) against wallet credits already
+  // posted in general_ledger. Batched so the reference array stays small.
+  useEffect(() => {
+    const incoming = rows.filter((r) => r.direction === 'in');
+    if (!incoming.length) { setLedgerCredits({}); return; }
+    let cancelled = false;
+    const refByRow = new Map<string, string>();
+    for (const r of incoming) {
+      const raw = (r.transaction_id ?? '').trim() || extractCashReceiptCode(r) || '';
+      if (raw.replace(/\D/g, '').length < 6) continue;
+      refByRow.set(r.id, raw);
+    }
+    if (!refByRow.size) { setLedgerCredits({}); return; }
+    (async () => {
+      const refs = Array.from(new Set(refByRow.values()));
+      const byRef = new Map<string, LedgerCredit[]>();
+      try {
+        // Small batches keep each trigram lookup well inside the statement
+        // timeout even on a large ledger.
+        for (let i = 0; i < refs.length; i += 40) {
+          const batch = refs.slice(i, i + 40);
+          const { data, error } = await (supabase.rpc as any)('match_email_ledger_credits', { p_refs: batch });
+          if (error) throw error;
+          for (const m of (data ?? []) as Array<any>) {
+            const arr = byRef.get(m.ref) ?? [];
+            arr.push({
+              ledger_id: m.ledger_id,
+              amount: Number(m.amount) || 0,
+              category: m.category ?? null,
+              user_id: m.user_id ?? null,
+              user_name: m.user_name ?? null,
+              user_phone: m.user_phone ?? null,
+              created_at: m.created_at ?? null,
+            });
+            byRef.set(m.ref, arr);
+          }
+        }
+        const next: Record<string, LedgerCredit[]> = {};
+        for (const [rowId, ref] of refByRow) {
+          const hits = byRef.get(ref);
+          if (hits?.length) next[rowId] = hits;
+        }
+        if (!cancelled) setLedgerCredits(next);
+      } catch {
+        if (!cancelled) setLedgerCredits({});
       }
     })();
     return () => { cancelled = true; };
@@ -2651,9 +2722,10 @@ export function EmailTransactionsPanel() {
     const isRouted = (routingHistory[r.id] ?? []).length > 0;
     const credited = creditedDeposits[r.id] ?? [];
     const manualMark = manualMarks[r.id];
-    const isCredited = manualMark ? manualMark.mark === 'credited' : credited.length > 0;
+    const ledgerHit = (ledgerCredits[r.id] ?? []).length > 0;
+    const isCredited = manualMark ? manualMark.mark === 'credited' : (credited.length > 0 || ledgerHit);
     return !isCredited && !isRouted;
-  }, [routingHistory, creditedDeposits, manualMarks, justRoutedIds]);
+  }, [routingHistory, creditedDeposits, manualMarks, justRoutedIds, ledgerCredits]);
 
   /**
    * Settlement status for a single row, used by the Status filter chips.
@@ -2669,9 +2741,10 @@ export function EmailTransactionsPanel() {
     const isRouted = (routingHistory[r.id] ?? []).length > 0;
     const credited = creditedDeposits[r.id] ?? [];
     const manualMark = manualMarks[r.id];
-    const isCredited = manualMark ? manualMark.mark === 'credited' : credited.length > 0;
+    const ledgerHit = (ledgerCredits[r.id] ?? []).length > 0;
+    const isCredited = manualMark ? manualMark.mark === 'credited' : (credited.length > 0 || ledgerHit);
     return isCredited || isRouted ? 'credited' : 'needs_routing';
-  }, [routingHistory, creditedDeposits, manualMarks, justRoutedIds]);
+  }, [routingHistory, creditedDeposits, manualMarks, justRoutedIds, ledgerCredits]);
 
   /**
    * Unread alert tracking. "Alerts" are rows that need a human: incoming
