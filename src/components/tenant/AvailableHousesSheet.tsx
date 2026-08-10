@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
+import houseSearchingIllustration from '@/assets/House_searching-bro-2.svg.asset.json';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useMapLinkAnnouncer } from '@/hooks/useMapLinkAnnouncer';
 import { Input } from '@/components/ui/input';
@@ -409,9 +410,9 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
       >
         <SheetHeader className="px-5 pt-5 pb-3 border-b border-border space-y-3">
           <img
-            src="/House_searching-bro.svg"
+            src={houseSearchingIllustration.url}
             alt="House searching illustration"
-            className="mx-auto h-32 w-auto object-contain"
+            className="mx-auto h-44 w-auto object-contain"
           />
           <div className="flex items-center justify-between gap-2">
             <SheetTitle className="flex items-center gap-2">
