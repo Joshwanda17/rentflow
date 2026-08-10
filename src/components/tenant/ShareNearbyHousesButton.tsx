@@ -108,23 +108,5 @@ export function ShareNearbyHousesButton({
     );
   }
 
-  return (
-    <div className={`flex gap-2 ${className}`}>
-      <button
-        onClick={handleWhatsApp}
-        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#25D366]/10 border border-[#25D366]/30 text-[#25D366] hover:bg-[#25D366]/20 text-sm font-semibold transition-colors touch-manipulation active:scale-[0.97] min-h-[44px]"
-      >
-        <MessageCircle className="h-4 w-4" />
-        Share on WhatsApp
-      </button>
-      <button
-        onClick={handleShare}
-        className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-border bg-card hover:bg-muted text-sm font-medium transition-colors touch-manipulation active:scale-[0.97] min-h-[44px]"
-        title="Share all houses near you"
-      >
-        {copied ? <Check className="h-4 w-4 text-success" /> : <Share2 className="h-4 w-4" />}
-        {copied ? 'Copied!' : 'Share'}
-      </button>
-    </div>
-  );
+  return null;
 }
