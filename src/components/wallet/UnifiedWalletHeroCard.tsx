@@ -174,14 +174,6 @@ export function UnifiedWalletHeroCard({
       animate={{ padding: collapsed ? 14 : 24, borderRadius: collapsed ? 28 : 24 }}
       transition={morph ?? { duration: collapsed ? 0.25 : 0.6, ease: MORPH_EASE }}
     >
-      {/* Wallet illustration grazing the top-left border */}
-      <img
-        src={walletRafiki2Asset.url}
-        alt=""
-        aria-hidden="true"
-        className="absolute -top-4 -left-4 w-20 sm:w-24 h-auto pointer-events-none opacity-90 z-0"
-      />
-
       {/* Decorative elements for depth and text clarity */}
       <div className="absolute -top-20 -right-20 w-56 h-56 rounded-full bg-primary-foreground/[0.06] pointer-events-none" />
       <div className="absolute -bottom-16 -left-16 w-44 h-44 rounded-full bg-primary-foreground/[0.04] pointer-events-none" />
