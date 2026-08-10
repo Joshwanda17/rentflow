@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CheckCircle2, Home, Loader2, MapPin, Phone, XCircle } from 'lucide-react';
+import { CheckCircle2, Eye, Home, Loader2, MapPin, Phone, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
+import { HouseDetailsDialog } from '@/components/agent/service-center/HouseDetailsDialog';
 import {
   ServiceCenterListing,
   useServiceCenterListingQueue,
@@ -25,6 +26,7 @@ export function ServiceCenterListingVettingQueue() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [returnId, setReturnId] = useState<string | null>(null);
   const [reason, setReason] = useState('');
+  const [detailsRow, setDetailsRow] = useState<ServiceCenterListing | null>(null);
 
   const act = async (row: ServiceCenterListing, decision: 'pass' | 'return', comment?: string) => {
     setBusyId(row.id);
@@ -78,7 +80,7 @@ export function ServiceCenterListingVettingQueue() {
         data.map((row) => (
           <Card key={row.id}>
             <CardContent className="space-y-2.5 p-3">
-              <div className="flex items-start gap-3">
+               <button type="button" onClick={() => setDetailsRow(row)} className="flex w-full items-start gap-3 text-left">
                 {row.images?.[0] ? (
                   <img
                     src={row.images[0]}
@@ -102,8 +104,12 @@ export function ServiceCenterListingVettingQueue() {
                     {row.bedrooms ? ` · ${row.bedrooms} bedroom${row.bedrooms === 1 ? '' : 's'}` : ''}
                     {row.latitude && row.longitude ? ' · GPS captured' : ' · no GPS'}
                   </p>
+                  <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-primary">
+                    <Eye className="h-3 w-3" /> View photos & full details
+                    {row.images?.length ? ` (${row.images.length} photo${row.images.length === 1 ? '' : 's'})` : ''}
+                  </span>
                 </div>
-              </div>
+              </button>
 
               <div className="grid gap-1 rounded-lg bg-muted/50 p-2 text-xs text-muted-foreground sm:grid-cols-2">
                 <span>Listed by <span className="font-medium text-foreground">{row.agent_name ?? 'Unknown agent'}</span></span>
@@ -153,6 +159,20 @@ export function ServiceCenterListingVettingQueue() {
           </Card>
         ))
       )}
+
+      <HouseDetailsDialog
+        open={!!detailsRow}
+        onOpenChange={(v) => { if (!v) setDetailsRow(null); }}
+        listingId={detailsRow?.id}
+        title={detailsRow?.title}
+        images={detailsRow?.images}
+        extras={[
+          { label: 'Listed by', value: detailsRow?.agent_name },
+          { label: 'Agent phone', value: detailsRow?.agent_phone },
+          { label: 'Landlord', value: detailsRow?.landlord_name ?? 'Not linked' },
+          { label: 'Landlord phone', value: detailsRow?.landlord_phone },
+        ]}
+      />
     </div>
   );
 }
