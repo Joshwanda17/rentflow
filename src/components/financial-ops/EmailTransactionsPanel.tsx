@@ -1167,19 +1167,46 @@ export function EmailTransactionsPanel() {
 
     const all: GmailTx[] = [];
     let offset = 0;
+    let readError: { message: string; denied: boolean } | null = null;
     // eslint-disable-next-line no-constant-condition
     while (true) {
       const end = offset + PAGE - 1;
       const { data: page, error } = await buildQuery().range(offset, end);
-      if (error || !page || page.length === 0) break;
+      if (error) {
+        // Distinguish "you cannot read this" from "there is nothing to read".
+        const code = (error as any)?.code as string | undefined;
+        const msg = error.message || 'Unknown error';
+        const denied = code === '42501' || /permission denied|row-level security|not authoriz/i.test(msg);
+        readError = { message: msg, denied };
+        console.error('[EmailTransactionsPanel] gmail_transactions read failed:', code, msg);
+        break;
+      }
+      if (!page || page.length === 0) break;
       all.push(...(page as unknown as GmailTx[]));
       if (page.length < PAGE) break;          // last page
       if (all.length >= MAX_ROWS) break;       // safety ceiling
       offset += PAGE;
     }
     const { data: ps } = await psPromise;
+    setLoadError(readError);
     setRows(all);
     setState((ps as PollState) ?? null);
+
+    // Intake heartbeat — poller status vs. the newest actual insert. Read
+    // through the security-definer RPC so it works for every FinOps surface.
+    try {
+      const { data: health, error: healthErr } = await (supabase.rpc as any)('get_gmail_intake_health', {
+        p_silence_minutes: INTAKE_SILENCE_MINUTES,
+      });
+      if (healthErr) {
+        console.error('[EmailTransactionsPanel] intake health check failed:', healthErr.message);
+        setIntakeHealth(null);
+      } else {
+        setIntakeHealth((Array.isArray(health) ? health[0] : health) ?? null);
+      }
+    } catch {
+      setIntakeHealth(null);
+    }
     const psTyped = ps as PollState | null;
     if (psTyped?.last_status === 'ok' && psTyped.last_polled_at) {
       setLastSuccessAt(psTyped.last_polled_at);
