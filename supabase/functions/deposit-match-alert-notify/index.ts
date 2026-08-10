@@ -103,16 +103,25 @@ function table(title: string, rows: AlertRow[], refLabel: string): string {
 </table>`;
 }
 
-async function postSlack(deposits: AlertRow[], receipts: AlertRow[], windowMinutes: number) {
+async function postSlack(
+  deposits: AlertRow[],
+  receipts: AlertRow[],
+  windowMinutes: number,
+  pipelineAlerts: AlertRow[] = [],
+) {
   if (!SLACK_WEBHOOK) return { ok: false, error: "OPS_SLACK_WEBHOOK_URL not configured" };
   const total = deposits.length + receipts.length;
   const line = (r: AlertRow, kind: string) =>
     `• *${kind}* ${r.subject_label ?? "—"} • ${fmtUGX(r.amount)} • ref \`${r.transaction_reference ?? "—"}\` • ${r.age_minutes}m • _${r.severity}_`;
+  const pipelineLines = pipelineAlerts.map(
+    (a) => `:rotating_light: *PIPELINE* ${a.subject_label ?? "—"} — ${(a.details as any)?.message ?? "see details"} • ${a.age_minutes}m`,
+  );
   const lines = [
+    ...pipelineLines,
     ...deposits.slice(0, 15).map((d) => line(d, "DEPOSIT")),
     ...receipts.slice(0, 15).map((r) => line(r, "RECEIPT")),
   ];
-  const overflow = total > lines.length ? `\n_+ ${total - lines.length} more…_` : "";
+  const overflow = total > lines.length - pipelineLines.length ? `\n_+ ${total - (lines.length - pipelineLines.length)} more…_` : "";
   const text =
     `:warning: *Deposit-match alert — ${total} unmatched* after ${windowMinutes}m ` +
     `(${deposits.length} deposits, ${receipts.length} receipts)\n${lines.join("\n")}${overflow}`;
@@ -179,27 +188,59 @@ Deno.serve(async (req) => {
 
     const deposits = pending.filter((a) => a.alert_type === "deposit_unmatched");
     const receipts = pending.filter((a) => a.alert_type === "email_receipt_unmatched");
+    // Pipeline-health alerts (Gmail auth failures, poll-heartbeat staleness)
+    // are a different failure class entirely — surface them prominently
+    // rather than letting them ride along unnoticed in `pending` (they
+    // still get marked notified_at below with everything else, so without
+    // this block they'd be silently swallowed: fetched, marked handled,
+    // never actually shown to anyone).
+    const pipelineAlerts = pending.filter(
+      (a) => a.alert_type === "gmail_auth_failure" || a.alert_type === "gmail_poll_stale",
+    );
 
-    const subject =
-      `Deposit match alert — ${pending.length} unmatched ` +
-      `(${deposits.length} deposits, ${receipts.length} receipts) after ${windowMinutes} min`;
+    const parts: string[] = [];
+    if (deposits.length || receipts.length) {
+      parts.push(`${deposits.length} deposits, ${receipts.length} receipts unmatched after ${windowMinutes} min`);
+    }
+    if (pipelineAlerts.length) {
+      parts.push(`${pipelineAlerts.length} pipeline health alert${pipelineAlerts.length === 1 ? "" : "s"}`);
+    }
+    const subject = `Deposit match alert — ${parts.join("; ")}`;
+
+    const pipelineHtml = pipelineAlerts.length
+      ? `<div style="margin:0 0 18px;padding:12px;border:1px solid #b91c1c;border-radius:6px;background:#fef2f2">
+    <h3 style="margin:0 0 6px;font:700 15px system-ui;color:#b91c1c">Pipeline health (${pipelineAlerts.length})</h3>
+    ${pipelineAlerts
+      .map(
+        (a) => `<p style="margin:4px 0;font-size:13px">
+      <b>${esc(a.subject_label)}</b> — ${esc((a.details as any)?.message ?? "see details")}
+      ${a.age_minutes ? `<span style="color:#777"> (${a.age_minutes}m)</span>` : ""}
+    </p>`,
+      )
+      .join("")}
+  </div>`
+      : "";
 
     const html = `<div style="font:14px system-ui;color:#111;max-width:760px">
   <h2 style="margin:0 0 6px;font:700 18px system-ui">Deposit matching needs attention</h2>
-  <p style="margin:0 0 4px;color:#555">
+  ${pipelineHtml}
+  ${deposits.length || receipts.length ? `<p style="margin:0 0 4px;color:#555">
     These items have not matched within the configured ${windowMinutes}-minute window.
-  </p>
+  </p>` : ""}
   ${table("Deposit submissions with no email receipt", deposits, "Reference typed")}
   ${table("Email receipts not attached to any deposit", receipts, "Receipt TID")}
   <p style="margin:20px 0 0;color:#777;font-size:12px">
     Resolve in Financial Ops → Email Transactions. Alerts clear automatically once the
-    deposit is approved or the receipt is linked/routed.
+    deposit is approved, the receipt is linked/routed, or the pipeline recovers.
   </p>
 </div>`;
 
     const text = [
       subject,
       "",
+      ...pipelineAlerts.map(
+        (a) => `PIPELINE  ${a.subject_label} — ${(a.details as any)?.message ?? "see details"} (${a.age_minutes}m)`,
+      ),
       ...deposits.map(
         (d) =>
           `DEPOSIT  ${d.subject_label} ${fmtUGX(d.amount)} ref=${d.transaction_reference ?? "-"} age=${d.age_minutes}m ${d.severity}`,
@@ -251,7 +292,7 @@ Deno.serve(async (req) => {
         .in("id", pending.map((a) => a.id));
     }
 
-    const slackResult = await postSlack(deposits, receipts, windowMinutes);
+    const slackResult = await postSlack(deposits, receipts, windowMinutes, pipelineAlerts);
 
     await admin.from("system_events").insert({
       event_type: "deposit_match_alert_notified",
