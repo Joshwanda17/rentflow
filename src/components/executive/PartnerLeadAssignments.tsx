@@ -111,6 +111,29 @@ export function PartnerLeadAssignments() {
   });
 
   const reasonOk = reason.trim().length >= MIN_REASON;
+
+  // Mirror observers on the exact same query keys as the three loaders above.
+  // They are disabled, so they never fetch — they exist only to expose the
+  // isError / error state those destructures discard, so a failed load is
+  // shown verbatim instead of silently reading as an empty list.
+  const attachmentsState = useQuery({
+    queryKey: ['partner-lead-assignments', 'active'],
+    enabled: false,
+    queryFn: async () => [] as AssignmentRow[],
+  });
+  const namesState = useQuery({
+    queryKey: ['partner-lead-assignments', 'names', personIds],
+    enabled: false,
+    queryFn: async () => ({}) as Record<string, string>,
+  });
+  const consentsState = useQuery({
+    queryKey: ['proxy-agreement-consents', 'current-month', personIds],
+    enabled: false,
+    queryFn: async () => ({}) as Record<string, { accepted_at: string; version_code: string }>,
+  });
+  const errText = (e: unknown, fallback: string) =>
+    e instanceof Error ? e.message : typeof e === 'string' ? e : fallback;
+
   const canSubmit = !!lead && !!agent && reasonOk && !submitting;
 
   const handleSubmit = async () => {
@@ -235,9 +258,25 @@ export function PartnerLeadAssignments() {
             <Badge variant="secondary">{rows.length}</Badge>
           </div>
 
+          {namesState.isError && (
+            <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+              Could not load names: {errText(namesState.error, 'unknown error')}
+            </div>
+          )}
+
+          {consentsState.isError && (
+            <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+              Could not load agreement consents: {errText(consentsState.error, 'unknown error')}
+            </div>
+          )}
+
           {isLoading ? (
             <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" /> Loading attachments...
+            </div>
+          ) : attachmentsState.isError ? (
+            <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+              Could not load attachments: {errText(attachmentsState.error, 'unknown error')}
             </div>
           ) : rows.length === 0 ? (
             <p className="py-4 text-sm text-muted-foreground">No active attachments.</p>
