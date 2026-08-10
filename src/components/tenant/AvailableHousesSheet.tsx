@@ -408,6 +408,11 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
         }}
       >
         <SheetHeader className="px-5 pt-5 pb-3 border-b border-border space-y-3">
+          <img
+            src="/House_searching-bro.svg"
+            alt="House searching illustration"
+            className="mx-auto h-32 w-auto object-contain"
+          />
           <div className="flex items-center justify-between gap-2">
             <SheetTitle className="flex items-center gap-2">
               <Home className="h-5 w-5 text-primary" />
