@@ -3152,33 +3152,35 @@ export function EmailTransactionsPanel() {
   };
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-3">
-        <div className="flex items-start gap-3 min-w-0">
-          <div className="hidden sm:flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            <Mail className="h-5 w-5" />
-          </div>
-          <div className="min-w-0">
-            <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Email Transaction Extractor</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              Live feed from your Gmail inbox. Reads MoMo, Airtel &amp; bank confirmation emails automatically every minute.
-            </p>
-          </div>
+    <div className="space-y-4">
+      {/* Minimal page header: quiet type, no coloured icon tile, single
+          low-emphasis layout switch on the right. */}
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+            Financial operations
+          </p>
+          <h2 className="text-lg sm:text-xl font-semibold tracking-tight mt-1">
+            Email transactions
+          </h2>
+          <p className="text-xs text-muted-foreground mt-1 max-w-xl">
+            Live Gmail feed — MoMo, Airtel and bank confirmations parsed every minute.
+          </p>
         </div>
         {/* Page-wide layout switch: Gmail arrangement (default) vs the
             detailed ops rows that carry routing / charging actions. */}
         <Button
           size="sm"
-          variant="outline"
-          className="shrink-0 h-8 text-xs"
+          variant="ghost"
+          className="shrink-0 h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground"
           onClick={() => setFocusView(focusView === 'gmail' ? 'ops' : 'gmail')}
         >
-          {focusView === 'gmail' ? 'Ops layout (routing actions)' : 'Gmail layout'}
+          {focusView === 'gmail' ? 'Ops layout' : 'Inbox layout'}
         </Button>
       </div>
       {/* Gmail-style category tabs — mirrors the Inbox / category strip. */}
       {focusView === 'gmail' && (
-        <div className="flex items-center gap-1 border-b -mb-2">
+        <div className="flex items-center gap-4 border-b">
           {([
             { key: 'all' as const, label: 'All mail', Icon: Mail },
             { key: 'in' as const, label: 'Money in', Icon: ArrowDownLeft },
@@ -3194,13 +3196,13 @@ export function EmailTransactionsPanel() {
                   setDirectionFilter(key === 'all' ? 'all' : key);
                   setFocusDirection(key === 'all' ? null : key);
                 }}
-                className={`inline-flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                className={`inline-flex items-center gap-1.5 pb-2.5 pt-1 text-[13px] font-medium border-b-2 -mb-px transition-colors ${
                   active
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/40'
+                    ? 'border-foreground text-foreground'
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
                 }`}
               >
-                <Icon className="h-4 w-4" />
+                <Icon className="h-3.5 w-3.5" />
                 {label}
               </button>
             );
@@ -3218,31 +3220,27 @@ export function EmailTransactionsPanel() {
             0,
           );
           return (
-            <div
-              className={`rounded-xl border p-4 ${
-                isIn
-                  ? 'border-emerald-600/40 bg-emerald-600/10'
-                  : 'border-rose-600/40 bg-rose-600/10'
-              }`}
-            >
+            <div className="rounded-lg border bg-card p-4">
               <div className="flex items-start gap-3">
                 <span
-                  className={`h-10 w-10 shrink-0 rounded-lg flex items-center justify-center text-white ${
-                    isIn ? 'bg-emerald-600' : 'bg-rose-600'
+                  className={`h-8 w-8 shrink-0 rounded-md flex items-center justify-center ${
+                    isIn
+                      ? 'bg-emerald-600/10 text-emerald-600'
+                      : 'bg-rose-600/10 text-rose-600'
                   }`}
                 >
-                  {isIn ? <ArrowDownLeft className="h-5 w-5" /> : <ArrowUpRight className="h-5 w-5" />}
+                  {isIn ? <ArrowDownLeft className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <h3 className="font-bold text-base sm:text-lg leading-tight">
-                    {isIn ? 'Money in emails' : 'Money out emails'}
+                  <h3 className="font-semibold text-sm leading-tight">
+                    {isIn ? 'Money in' : 'Money out'}
                   </h3>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {isIn
                       ? 'Only extracted deposits and incoming credits are listed below.'
                       : 'Only extracted payouts, debits and provider charges are listed below.'}
                   </p>
-                  <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+                  <div className="mt-2.5 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs">
                     <span>
                       <span className="font-mono tabular-nums font-semibold">{count}</span>{' '}
                       <span className="text-muted-foreground">email{count === 1 ? '' : 's'}</span>
@@ -3255,21 +3253,21 @@ export function EmailTransactionsPanel() {
                 </div>
                 <Button
                   size="sm"
-                  variant="outline"
-                  className="shrink-0 h-8 text-xs bg-background"
+                  variant="ghost"
+                  className="shrink-0 h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
                   onClick={() => {
                     setFocusDirection(null);
                     setDirectionFilter('all');
                   }}
                 >
                   <X className="h-3.5 w-3.5 mr-1" />
-                  Back to all emails
+                  All emails
                 </Button>
               </div>
-              <div className="mt-3">
+              <div className="mt-3 flex items-center gap-2">
                 <Button
                   size="sm"
-                  variant="secondary"
+                  variant="outline"
                   className="h-8 text-xs"
                   onClick={() => {
                     const next = isIn ? 'out' : 'in';
@@ -3279,21 +3277,21 @@ export function EmailTransactionsPanel() {
                 >
                   {isIn ? (
                     <>
-                      <ArrowUpRight className="h-3.5 w-3.5 mr-1" /> Switch to money out
+                      <ArrowUpRight className="h-3.5 w-3.5 mr-1" /> Money out
                     </>
                   ) : (
                     <>
-                      <ArrowDownLeft className="h-3.5 w-3.5 mr-1" /> Switch to money in
+                      <ArrowDownLeft className="h-3.5 w-3.5 mr-1" /> Money in
                     </>
                   )}
                 </Button>
                 <Button
                   size="sm"
-                  variant="outline"
-                  className="h-8 text-xs ml-2 bg-background"
+                  variant="ghost"
+                  className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground"
                   onClick={() => setFocusView('gmail')}
                 >
-                  Gmail layout
+                  Inbox layout
                 </Button>
               </div>
             </div>
@@ -3336,39 +3334,40 @@ export function EmailTransactionsPanel() {
                   document.getElementById('email-tx-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }
               }}
-              className={`w-full text-left rounded-xl border p-4 transition-colors flex items-center gap-3 ${
+              className={`w-full text-left rounded-lg border p-3.5 transition-colors flex items-center gap-3 ${
                 active
-                  ? 'border-primary bg-primary/10 ring-1 ring-primary'
-                  : 'bg-card hover:bg-muted/50'
+                  ? 'border-foreground/30 bg-muted/60'
+                  : 'bg-card hover:bg-muted/40'
               }`}
             >
-              <span className={`h-10 w-10 shrink-0 rounded-lg flex items-center justify-center ${active ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
-                <Icon className="h-5 w-5" />
+              <span className="h-8 w-8 shrink-0 rounded-md flex items-center justify-center bg-muted text-muted-foreground">
+                <Icon className="h-4 w-4" />
               </span>
               <span className="min-w-0">
-                <span className="block font-semibold text-sm">{title}</span>
+                <span className="block font-medium text-sm">{title}</span>
                 <span className="block text-xs text-muted-foreground truncate">{hint}</span>
               </span>
               {active && (
-                <Badge variant="secondary" className="ml-auto text-[10px] shrink-0">Showing</Badge>
+                <Badge variant="outline" className="ml-auto text-[10px] shrink-0 font-normal">Showing</Badge>
               )}
             </button>
           );
         })}
       </div>
       )}
-      <div id="email-tx-results" className="rounded-xl border bg-card overflow-hidden scroll-mt-20">
+      <div id="email-tx-results" className="rounded-lg border bg-card overflow-hidden scroll-mt-20">
         {/* Prominent, full-width search bar — lets ops find any email by
             amount, name, phone (any format), reference id, or any word in
             the body / subject. Sticky on scroll so it's always reachable. */}
-        <div className="p-4 border-b bg-muted/30 sm:sticky sm:top-0 sm:z-10 space-y-2">
+        <div className="p-3.5 border-b bg-card/95 backdrop-blur sm:sticky sm:top-0 sm:z-10 space-y-2">
           <div className="flex items-center justify-between gap-2 flex-wrap">
-            <h3 className="font-semibold text-sm flex items-center gap-2">
-              <Mail className="h-4 w-4 text-muted-foreground" />
+            <h3 className="font-medium text-sm flex items-center gap-2">
+              <Mail className="h-3.5 w-3.5 text-muted-foreground" />
               Recent emails
               {unreadAlertCount > 0 && (
                 <Badge
-                  className="bg-orange-600 text-white hover:bg-orange-600 text-[10px] font-mono"
+                  variant="outline"
+                  className="border-orange-600/40 text-orange-600 text-[10px] font-mono font-normal"
                   aria-label={`${unreadAlertCount} unread items needing attention`}
                 >
                   {unreadAlertCount} new
@@ -3392,7 +3391,7 @@ export function EmailTransactionsPanel() {
                 </span>
               )}
               <Select value={sortMode} onValueChange={(v) => setSortMode(v as SortMode)}>
-                <SelectTrigger className="h-9 w-[160px] text-xs" aria-label="Sort emails">
+                <SelectTrigger className="h-8 w-[150px] text-xs border-transparent bg-muted/50 hover:bg-muted" aria-label="Sort emails">
                   <span className="text-muted-foreground mr-1">Sort:</span>
                   <SelectValue />
                 </SelectTrigger>
@@ -3407,14 +3406,14 @@ export function EmailTransactionsPanel() {
             </div>
           </div>
           <div className="relative w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             <input
               type="search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search by amount, name, phone, transaction id, or any word in the email…"
               aria-label="Search emails"
-              className="h-12 w-full rounded-lg border-2 border-input bg-background pl-10 pr-10 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent placeholder:text-muted-foreground/70"
+              className="h-11 w-full rounded-full border border-input bg-muted/40 pl-10 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:bg-background focus:border-transparent placeholder:text-muted-foreground/70 transition-colors"
             />
             {searchQuery && (
               <button
@@ -3430,7 +3429,7 @@ export function EmailTransactionsPanel() {
           {/* Dedicated depositor-phone filter — instantly narrow to one number
               in any format (0…, 256…, +256…, bare 7…). */}
           <div className="relative w-full">
-            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
+            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             <input
               type="search"
               inputMode="tel"
@@ -3438,7 +3437,7 @@ export function EmailTransactionsPanel() {
               onChange={(e) => setPhoneQuery(e.target.value)}
               placeholder="Filter by depositor phone number (e.g. 0783673998)…"
               aria-label="Filter by depositor phone number"
-              className="h-12 w-full rounded-lg border-2 border-input bg-background pl-10 pr-10 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent placeholder:text-muted-foreground/70"
+              className="h-11 w-full rounded-full border border-input bg-muted/40 pl-10 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:bg-background focus:border-transparent placeholder:text-muted-foreground/70 transition-colors"
             />
             {phoneQuery && (
               <button

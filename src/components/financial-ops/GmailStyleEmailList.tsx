@@ -23,9 +23,13 @@ export interface GmailStyleRow {
   balance?: number | null;
 }
 
+// Muted tonal avatars keep the inbox calm and professional instead of
+// scattering saturated blocks of colour down the list.
 const AVATAR_TONES = [
-  'bg-rose-600', 'bg-amber-600', 'bg-emerald-600', 'bg-sky-600',
-  'bg-indigo-600', 'bg-violet-600', 'bg-teal-600', 'bg-orange-600',
+  'bg-rose-500/12 text-rose-600', 'bg-amber-500/12 text-amber-600',
+  'bg-emerald-500/12 text-emerald-600', 'bg-sky-500/12 text-sky-600',
+  'bg-indigo-500/12 text-indigo-600', 'bg-violet-500/12 text-violet-600',
+  'bg-teal-500/12 text-teal-600', 'bg-orange-500/12 text-orange-600',
 ];
 
 function toneFor(seed: string) {
@@ -91,12 +95,12 @@ export function GmailStyleEmailList({ rows }: { rows: GmailStyleRow[] }) {
           </Button>
         </div>
         <div className="px-4 sm:px-6 py-4">
-          <h3 className="text-lg sm:text-xl font-normal leading-snug break-words">
+          <h3 className="text-base sm:text-lg font-medium leading-snug break-words tracking-tight">
             {open.subject || '(no subject)'}
           </h3>
           <div className="mt-4 flex items-start gap-3">
             <span
-              className={`h-10 w-10 shrink-0 rounded-full flex items-center justify-center text-white font-semibold ${toneFor(name)}`}
+              className={`h-9 w-9 shrink-0 rounded-full flex items-center justify-center text-sm font-semibold ${toneFor(name)}`}
               aria-hidden
             >
               {name.charAt(0).toUpperCase()}
@@ -121,30 +125,30 @@ export function GmailStyleEmailList({ rows }: { rows: GmailStyleRow[] }) {
           <div className="mt-4 text-sm leading-relaxed whitespace-pre-wrap break-words">
             {open.snippet || 'No message body was captured for this email.'}
           </div>
-          <div className="mt-5 flex flex-wrap gap-2 text-xs">
+          <div className="mt-5 flex flex-wrap gap-1.5 text-[11px] text-muted-foreground">
             {amount && (
-              <span className="rounded-full border px-2.5 py-1 font-mono tabular-nums">
+              <span className="rounded-full border bg-muted/40 px-2.5 py-1 font-mono tabular-nums text-foreground">
                 {amount}
               </span>
             )}
             {open.transaction_id && (
-              <span className="rounded-full border px-2.5 py-1 font-mono">
+              <span className="rounded-full border bg-muted/40 px-2.5 py-1 font-mono">
                 Ref {open.transaction_id}
               </span>
             )}
             {open.channel && (
-              <span className="rounded-full border px-2.5 py-1 capitalize">{open.channel}</span>
+              <span className="rounded-full border bg-muted/40 px-2.5 py-1 capitalize">{open.channel}</span>
             )}
             {open.counterparty && (
-              <span className="rounded-full border px-2.5 py-1">{open.counterparty}</span>
+              <span className="rounded-full border bg-muted/40 px-2.5 py-1">{open.counterparty}</span>
             )}
             {fmtUgx(open.fee) && (
-              <span className="rounded-full border px-2.5 py-1 font-mono tabular-nums">
+              <span className="rounded-full border bg-muted/40 px-2.5 py-1 font-mono tabular-nums">
                 Fee {fmtUgx(open.fee)}
               </span>
             )}
             {fmtUgx(open.balance) && (
-              <span className="rounded-full border px-2.5 py-1 font-mono tabular-nums">
+              <span className="rounded-full border bg-muted/40 px-2.5 py-1 font-mono tabular-nums">
                 Balance {fmtUgx(open.balance)}
               </span>
             )}
@@ -163,7 +167,7 @@ export function GmailStyleEmailList({ rows }: { rows: GmailStyleRow[] }) {
   }
 
   return (
-    <ul className="divide-y">
+    <ul className="divide-y divide-border/60">
       {sortedRows.map((r) => {
         const name = senderName(r);
         const amount = fmtUgx(r.amount);
@@ -172,33 +176,33 @@ export function GmailStyleEmailList({ rows }: { rows: GmailStyleRow[] }) {
             <button
               type="button"
               onClick={() => setOpenId(r.id)}
-              className="w-full text-left flex items-center gap-3 px-3 sm:px-4 py-2.5 hover:bg-muted/50 hover:shadow-[inset_0_-1px_0_hsl(var(--border))] transition-colors"
+              className="w-full text-left flex items-center gap-3 px-3 sm:px-4 py-2.5 hover:bg-muted/40 transition-colors"
             >
-              <Star className="hidden sm:block h-4 w-4 shrink-0 text-muted-foreground/40" aria-hidden />
+              <Star className="hidden sm:block h-3.5 w-3.5 shrink-0 text-muted-foreground/30" aria-hidden />
               <span
-                className={`h-8 w-8 shrink-0 rounded-full flex items-center justify-center text-white text-xs font-semibold ${toneFor(name)}`}
+                className={`h-7 w-7 shrink-0 rounded-full flex items-center justify-center text-[11px] font-semibold ${toneFor(name)}`}
                 aria-hidden
               >
                 {name.charAt(0).toUpperCase()}
               </span>
-              <span className="w-28 sm:w-44 shrink-0 truncate text-sm font-semibold">
+              <span className="w-28 sm:w-44 shrink-0 truncate text-[13px] font-medium">
                 {name}
               </span>
-              <span className="min-w-0 flex-1 truncate text-sm">
-                <span className="font-semibold">{r.subject || '(no subject)'}</span>
+              <span className="min-w-0 flex-1 truncate text-[13px]">
+                <span className="font-medium">{r.subject || '(no subject)'}</span>
                 {r.snippet && (
                   <span className="text-muted-foreground"> &ndash; {r.snippet}</span>
                 )}
               </span>
               {amount && (
-                <span className="hidden md:inline shrink-0 text-xs font-mono tabular-nums text-muted-foreground">
+                <span className="hidden md:inline shrink-0 text-[11px] font-mono tabular-nums text-muted-foreground">
                   {amount}
                 </span>
               )}
               {r.transaction_id && (
                 <Paperclip className="hidden lg:block h-3.5 w-3.5 shrink-0 text-muted-foreground/60" aria-hidden />
               )}
-              <span className="shrink-0 w-14 text-right text-xs font-medium tabular-nums text-muted-foreground">
+              <span className="shrink-0 w-14 text-right text-[11px] font-medium tabular-nums text-muted-foreground">
                 {gmailDate(r.internal_date)}
               </span>
             </button>
