@@ -154,7 +154,7 @@ export function GmailStyleEmailList({ rows }: { rows: GmailStyleRow[] }) {
     );
   }
 
-  if (rows.length === 0) {
+  if (sortedRows.length === 0) {
     return (
       <div className="p-10 text-center text-sm text-muted-foreground">
         No emails in this view.
@@ -164,7 +164,7 @@ export function GmailStyleEmailList({ rows }: { rows: GmailStyleRow[] }) {
 
   return (
     <ul className="divide-y">
-      {rows.map((r) => {
+      {sortedRows.map((r) => {
         const name = senderName(r);
         const amount = fmtUgx(r.amount);
         return (
