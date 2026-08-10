@@ -3627,6 +3627,23 @@ export function EmailTransactionsPanel() {
         </div>
         {loading ? (
           <div className="p-8 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+        ) : rows.length === 0 && loadError?.denied ? (
+          <div className="p-10 text-center text-sm space-y-2">
+            <ShieldAlert className="h-8 w-8 mx-auto text-destructive opacity-70" />
+            <p className="font-semibold text-destructive">Access denied — you can't read the transaction emails</p>
+            <p className="text-xs text-muted-foreground max-w-md mx-auto">
+              This is a permission problem, not an empty inbox. Your account can open Financial Ops but is not
+              allowed to read captured emails. Ask a manager to grant you the Financial Ops dashboard permission.
+            </p>
+            <p className="text-[10px] text-muted-foreground/80 font-mono break-all">{loadError.message}</p>
+          </div>
+        ) : rows.length === 0 && loadError ? (
+          <div className="p-10 text-center text-sm space-y-2">
+            <AlertTriangle className="h-8 w-8 mx-auto text-warning opacity-70" />
+            <p className="font-semibold">Could not load transaction emails</p>
+            <p className="text-[10px] text-muted-foreground/80 font-mono break-all">{loadError.message}</p>
+            <Button size="sm" variant="outline" className="mt-2" onClick={() => load()}>Try again</Button>
+          </div>
         ) : rows.length === 0 ? (
           <div className="p-10 text-center text-sm text-muted-foreground space-y-2">
             <Mail className="h-8 w-8 mx-auto opacity-30" />
