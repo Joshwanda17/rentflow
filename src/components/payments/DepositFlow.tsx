@@ -41,6 +41,7 @@ import { archiveToDrive } from '@/lib/archiveToDrive';
 import { useHorizontalSwipe } from '@/hooks/useHorizontalSwipe';
 import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
 import savingsBroAsset from '@/assets/Savings-bro.svg.asset.json';
+import mtnLogoAsset from '@/assets/mtn-logo.jpg.asset.json';
 
 /**
  * Extract a Mobile Money / bank reference from arbitrary SMS text.
@@ -1677,8 +1678,16 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                   }}
                   className={`flex items-center gap-3 p-4 min-h-[76px] rounded-2xl border-2 text-left transition-all active:scale-[0.98] touch-manipulation ${ch.tone}`}
                 >
-                  <div className="w-11 h-11 rounded-xl bg-background flex items-center justify-center shrink-0 shadow-sm">
-                    <ch.icon className="h-5 w-5 text-foreground" />
+                  <div className="w-11 h-11 rounded-xl bg-background flex items-center justify-center shrink-0 shadow-sm overflow-hidden">
+                    {ch.provider === 'mtn' ? (
+                      <img
+                        src={mtnLogoAsset.url}
+                        alt="MTN"
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <ch.icon className="h-5 w-5 text-foreground" />
+                    )}
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold text-base leading-tight">{ch.label}</p>
