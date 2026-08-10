@@ -143,86 +143,32 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
       const newTotal = principal + newAccessFee + registrationFee;
       const newDaily = Math.ceil(newTotal / cycleDays);
 
-      // 1. Update the request as paid
-      const { error: updateErr } = await supabase.from('agent_advance_requests').update({
-        status: 'cfo_paid',
-        paid_by_cfo: user.id,
-        cfo_paid_at: new Date().toISOString(),
-        cfo_adjusted_rate: adjustedRate !== Number(req.monthly_rate) ? adjustedRate : null,
-        cfo_notes: notes[req.id] || null,
-        principal,
-        cycle_days: cycleDays,
-        registration_fee: registrationFee,
-        access_fee: newAccessFee,
-        total_payable: newTotal,
-        daily_payment: newDaily,
-        monthly_rate: adjustedRate,
-      }).eq('id', req.id);
-      if (updateErr) throw updateErr;
-
-      // 2. Create agent_advances record (starts daily deductions via existing edge function)
+      // Single atomic transaction: stamp the request paid, create the advance row
+      // (linked by request_id) and post both ledger legs. If any part fails the
+      // whole payout rolls back, so a request can never be marked paid without
+      // the agent actually receiving the money.
       if (isTopup) {
         await applyAdvanceTopupForRequest(req, principal, Number(req.extend_days ?? cycleDays));
       } else {
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + cycleDays);
-      
-      const { error: advErr } = await supabase.from('agent_advances').insert({
-        agent_id: req.agent_id,
-        issued_by: user.id,
-        principal,
-        outstanding_balance: newTotal,
-        cycle_days: cycleDays,
-        monthly_rate: adjustedRate,
-        daily_rate: adjustedRate,
-        access_fee: newAccessFee,
-        registration_fee: registrationFee,
-        access_fee_collected: 0,
-        access_fee_status: 'unpaid',
-        status: 'active',
-        expires_at: expiresAt.toISOString(),
-      });
-      if (advErr) throw advErr;
+        const { error: disburseErr } = await supabase.rpc('disburse_agent_advance_request' as any, {
+          p_request_id: req.id,
+          p_principal: principal,
+          p_cycle_days: cycleDays,
+          p_monthly_rate: adjustedRate,
+          p_repayment_frequency: req.repayment_frequency ?? 'daily',
+          p_notes: notes[req.id] || null,
+          p_skip_reason: null,
+          p_recovery_source: 'wallet_daily',
+          p_roi_recovery_percent: 0,
+        } as any);
+        if (disburseErr) throw disburseErr;
       }
 
-      // 3. Credit agent wallet via ledger RPC
-      const { error: rpcErr } = await supabase.rpc('create_ledger_transaction', {
-        entries: [
-          {
-            user_id: req.agent_id,
-            ledger_scope: 'wallet',
-            direction: 'cash_in',
-            amount: principal,
-            category: 'agent_advance_credit',
-            recipient_type: 'user',
-            wallet_bucket: 'withdrawable',
-            source_table: 'agent_advance_requests',
-            source_id: req.id,
-            description: `Agent advance disbursement - ${cycleDays}d @ ${Math.round(adjustedRate * 100)}%`,
-            currency: 'UGX',
-            transaction_date: new Date().toISOString(),
-          },
-          {
-            user_id: req.agent_id,
-            ledger_scope: 'platform',
-            direction: 'cash_out',
-            amount: principal,
-            category: 'rent_disbursement',
-            source_table: 'agent_advance_requests',
-            source_id: req.id,
-            description: `Agent advance disbursed to wallet`,
-            currency: 'UGX',
-            transaction_date: new Date().toISOString(),
-          },
-        ],
-      });
-      if (rpcErr) throw rpcErr;
-
-      // 4. Registration fee is already included in `total_payable` and is recovered
+      // Registration fee is already included in `total_payable` and is recovered
       //    through the repayment schedule — it must NOT be debited from the wallet
       //    at disbursement (that double-charged the agent and zeroed small advances).
 
-      // 5. Notify the agent by SMS that the advance was disbursed (fire-and-forget).
+      // Notify the agent by SMS that the advance was disbursed (fire-and-forget).
       supabase.functions.invoke('notify-agent-advance-disbursed', {
         body: { agent_id: req.agent_id, amount: principal, request_id: req.id },
       }).catch((e) => console.error('advance disbursement SMS failed', e));
