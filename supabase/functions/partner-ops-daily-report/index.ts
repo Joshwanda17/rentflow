@@ -466,7 +466,7 @@ function buildHtml(r: Report, prettyDate: string): string {
       <table style="width:100%;border-collapse:separate;border-spacing:6px 0;"><tr>
         ${tile("Partners", num(k.total_partners), `${num(k.onboarded_partners)} onboarded`, "#6c21c4")}
         ${tile("Portfolios", num(k.total_portfolios), `${num(k.new_portfolios_today)} new today`, "#2563eb")}
-        ${tile("Paid out today", compactUGX(k.paid_out_today_amount), `${num(k.paid_out_today_count)} payouts`, "#db2777")}
+        ${tile("Paid out today", compactUGX(k.paid_out_today_amount), `${num(k.paid_out_today_count)} payouts · ${num(k.paid_out_today_partners)} partners`, "#db2777")}
         ${tile("Compounded today", compactUGX(k.compounded_today_amount), `${num(k.compounded_today_count)} portfolios`, "#0d9488")}
       </tr></table>
       <table style="width:100%;border-collapse:collapse;margin-top:18px;">
@@ -506,7 +506,7 @@ function buildText(r: Report, prettyDate: string): string {
     `Total partners: ${num(k.total_partners)} (onboarded ${num(k.onboarded_partners)})`,
     `Portfolios: ${num(k.total_portfolios)} - new today ${num(k.new_portfolios_today)}`,
     `Compounding: ${num(k.compounding_portfolios)} · Monthly payouts: ${num(k.monthly_payout_portfolios)}`,
-    `Paid out today: ${num(k.paid_out_today_count)} - ${fmtUGX(k.paid_out_today_amount)}`,
+    `Paid out today: ${num(k.paid_out_today_count)} payouts to ${num(k.paid_out_today_partners)} partners - ${fmtUGX(k.paid_out_today_amount)}`,
     `Compounded today: ${num(k.compounded_today_count)} - ${fmtUGX(k.compounded_today_amount)}`,
     `Forecast Mon-Fri: ${fmtUGX(r.forecast.weekdays_total)} · weekend: ${fmtUGX(r.forecast.weekend_total)}`,
     `Full report attached as PDF.`,
