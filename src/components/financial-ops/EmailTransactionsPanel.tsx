@@ -67,6 +67,22 @@ interface PollState {
   last_error: string | null;
 }
 
+/** Shape returned by public.get_gmail_intake_health(). */
+interface IntakeHealth {
+  last_polled_at: string | null;
+  last_status: string | null;
+  last_error: string | null;
+  cutoff_at: string | null;
+  cutoff_is_future: boolean | null;
+  last_insert_at: string | null;
+  silence_minutes: number | null;
+  poll_stale: boolean | null;
+  intake_silent: boolean | null;
+}
+
+/** Minutes of zero inserts (while the cron still reports ok) that raise the alert. */
+const INTAKE_SILENCE_MINUTES = 30;
+
 const fmtUgx = (n: number | null) =>
   n === null || n === undefined ? '—' : `UGX ${Math.round(n).toLocaleString()}`;
 
