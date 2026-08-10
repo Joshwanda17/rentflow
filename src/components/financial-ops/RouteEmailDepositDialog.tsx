@@ -1287,7 +1287,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
               on_behalf_of_partner: useProxyAgent ? user.full_name : null,
             },
           });
-          if (smsErr) smsError = (smsErr as any)?.message || 'SMS dispatch failed';
+          if (smsErr) smsError = (await edgeErrorMessage({ data: smsRes, error: smsErr }, 'SMS dispatch failed')) || 'SMS dispatch failed';
           else if ((smsRes as any)?.success) smsSent = true;
           else smsError = (smsRes as any)?.error || 'SMS not delivered';
         } catch (e: any) {
@@ -1742,7 +1742,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
             transaction_id: row.transaction_id,
           },
         });
-        if (smsErr) smsError = (smsErr as any)?.message || 'SMS dispatch failed';
+        if (smsErr) smsError = (await edgeErrorMessage({ data: smsRes, error: smsErr }, 'SMS dispatch failed')) || 'SMS dispatch failed';
         else if ((smsRes as any)?.success) smsSent = true;
         else smsError = (smsRes as any)?.error || 'SMS not delivered';
       } catch (e: any) {
