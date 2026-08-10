@@ -23,6 +23,60 @@ import {
 } from '@/lib/referenceExtractionConfidence';
 
 /**
+ * Reads the REAL error out of a `supabase.functions.invoke()` result.
+ *
+ * On a non-2xx response supabase-js (2.89) throws a `FunctionsHttpError`
+ * whose `.message` is always the generic
+ * "Edge Function returned a non-2xx status code" — the JSON body our
+ * functions return (`{ error: "INSUFFICIENT_FUNDS", message: "...",
+ * available, requested }`) lives on `.context`, which is the raw Response.
+ * Returns `null` when the call actually succeeded.
+ */
+async function edgeErrorMessage(
+  res: { data: any; error: any } | null | undefined,
+  fallback = 'Request failed',
+): Promise<string | null> {
+  const err: any = res?.error;
+  const data: any = res?.data;
+  let body: any = null;
+
+  if (err) {
+    const ctx: any = err.context;
+    try {
+      if (ctx && typeof ctx.json === 'function') {
+        const src = typeof ctx.clone === 'function' ? ctx.clone() : ctx;
+        body = await src.json();
+      } else if (ctx?.body) {
+        body = typeof ctx.body === 'string' ? JSON.parse(ctx.body) : ctx.body;
+      }
+    } catch { body = null; }
+    if (!body && ctx && typeof ctx.text === 'function') {
+      try { body = JSON.parse(await ctx.text()); } catch { body = null; }
+    }
+  } else if (data?.error) {
+    body = data;
+  } else {
+    return null;
+  }
+
+  if (!body) return err?.message || fallback;
+
+  const code = typeof body.error === 'string' ? body.error : null;
+  const detail = typeof body.message === 'string' ? body.message : null;
+  // Some guards (e.g. INSUFFICIENT_FUNDS) also return the numbers — show
+  // them so the operator sees available vs requested instead of guessing.
+  const amounts =
+    !detail && typeof body.available === 'number' && typeof body.requested === 'number'
+      ? ` (available ${formatUGX(body.available)}, requested ${formatUGX(body.requested)})`
+      : '';
+
+  // Keep the machine code in the string: downstream branches match on it
+  // (e.g. NEGATIVE_WALLET_BLOCKED) to offer bucket-switch / forced-reversal.
+  if (code && detail) return `${code}: ${detail}`;
+  return (code || detail || err?.message || fallback) + amounts;
+}
+
+/**
  * Fetches current wallet bucket balances (cache view) for a user so the
  * confirmation step can render before → after deltas.
  */
