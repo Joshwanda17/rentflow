@@ -15,6 +15,7 @@ import {
 import { cn } from '@/lib/utils';
 import { formatUGX } from '@/lib/rentCalculations';
 import { MerchantPayoutDisputeAlarm } from '@/components/payouts/MerchantPayoutDisputeAlarm';
+import { ProoflessPayoutBlocker } from '@/components/payouts/ProoflessPayoutBlocker';
 import { getTelecomSendingCharge, getCashoutCommission } from '@/lib/cashoutCharges';
 import { format, startOfMonth, subDays } from 'date-fns';
 import {
@@ -1196,6 +1197,9 @@ export function AgentCashPayoutsTab() {
   return (
     <MerchantAgreementGate>
     <div className="space-y-5">
+      {/* Hard block: proofless wallet deductions overshadow the whole page until
+          the merchant attaches proof for every affected customer. */}
+      <ProoflessPayoutBlocker />
       {/* Customer "money not delivered" alarms — must be the first thing a
           merchant agent sees when they open the payout dashboard. */}
       <MerchantPayoutDisputeAlarm />
