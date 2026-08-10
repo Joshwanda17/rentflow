@@ -36,6 +36,7 @@ import { CashDepositCodesPanel } from './CashDepositCodesPanel';
 import { ProxyDebitBreakdownDialog } from './ProxyDebitBreakdownDialog';
 import { EmailPeriodComparison } from './EmailPeriodComparison';
 import { SwipeableEmailRow, type SwipeAction } from './SwipeableEmailRow';
+import { GmailStyleEmailList } from './GmailStyleEmailList';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -693,6 +694,9 @@ export function EmailTransactionsPanel() {
   // narrowing filter is reset so nothing is silently hidden, and a banner with
   // a Back action replaces the tiles.
   const [focusDirection, setFocusDirection] = useState<'in' | 'out' | null>(null);
+  // Inside a money-in / money-out focused view, emails render Gmail-style by
+  // default; operators can flip to the detailed ops rows for routing actions.
+  const [focusView, setFocusView] = useState<'gmail' | 'ops'>('gmail');
   // Keep the focused view honest: if the operator changes the direction chips
   // lower down (or restores a preset), the banner follows or closes.
   useEffect(() => {
