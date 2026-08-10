@@ -58,16 +58,32 @@ export function StartCashDepositDialog({ open, onOpenChange, onIssued }: StartCa
     });
     setSubmitting(false);
 
-    const payloadError = (data as any)?.error ? ((data as any)?.message || (data as any)?.error) : null;
+    // On a non-2xx the supabase client leaves `data` null and only exposes the
+    // real body through fnErr.context (a Response), so the specific reason
+    // (user_not_found / code_in_progress / …) must be read from there —
+    // otherwise the operator only ever sees "non-2xx status code".
+    let payload: any = data ?? null;
+    if (fnErr && (fnErr as any).context?.json) {
+      payload = await (fnErr as any).context.json().catch(() => null);
+    }
+
+    const payloadError = payload?.error ? (payload.message || payload.error) : null;
     if (fnErr || payloadError) {
-      const msg = payloadError || fnErr?.message || 'Could not start the cash deposit';
+      let msg = payloadError || fnErr?.message || 'Could not start the cash deposit';
+      // A live code is a wait-it-out condition, not a failure — tell the
+      // operator exactly how long is left instead of a bare conflict.
+      if (payload?.error === 'code_in_progress' && payload?.expires_at) {
+        const secs = Math.max(0, Math.round((new Date(payload.expires_at).getTime() - Date.now()) / 1000));
+        const mins = Math.floor(secs / 60);
+        msg = `${msg} It expires in ${mins > 0 ? `${mins}m ` : ''}${secs % 60}s — or read the existing code back from the list below.`;
+      }
       setError(msg);
       toast({ title: 'Could not start the cash deposit', description: msg, variant: 'destructive' });
       return;
     }
 
-    const smsSent = Boolean((data as any)?.sms_sent);
-    const name = (data as any)?.depositor_name || 'the depositor';
+    const smsSent = Boolean(payload?.sms_sent);
+    const name = payload?.depositor_name || 'the depositor';
     toast({
       title: smsSent ? 'Code sent by SMS' : 'Code issued (SMS not confirmed)',
       description: smsSent
