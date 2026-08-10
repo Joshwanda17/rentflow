@@ -7352,53 +7352,7 @@ function RecentEmailsLegend() {
     { term: 'Pencil icon', plain: 'Fix the channel (MTN, Airtel, bank…) and remember it for similar emails.' },
   ];
 
-  return (
-    <div className="border-b bg-muted/10">
-      <button
-        type="button"
-        onClick={toggle}
-        className="w-full flex items-center justify-between gap-3 p-3 text-left hover:bg-muted/30 transition-colors"
-        aria-expanded={open}
-      >
-        <span className="flex items-center gap-2.5 min-w-0">
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <HelpCircle className="h-4 w-4" />
-          </span>
-          <span className="min-w-0">
-            <span className="block text-sm font-semibold">What do the tags and buttons mean?</span>
-            <span className="block text-xs text-muted-foreground truncate">Plain-language guide to each label you see on a row.</span>
-          </span>
-        </span>
-        {open ? <ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />}
-      </button>
-      {open && (
-        <div className="border-t p-4 grid gap-5 sm:grid-cols-2">
-          <div>
-            <h4 className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">The tags on each row</h4>
-            <dl className="space-y-2">
-              {badges.map((b) => (
-                <div key={b.term} className="text-sm">
-                  <dt className="font-medium">{b.term}</dt>
-                  <dd className="text-muted-foreground leading-snug">{b.plain}</dd>
-                </div>
-              ))}
-            </dl>
-          </div>
-          <div>
-            <h4 className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">The buttons</h4>
-            <dl className="space-y-2">
-              {actions.map((a) => (
-                <div key={a.term} className="text-sm">
-                  <dt className="font-medium">{a.term}</dt>
-                  <dd className="text-muted-foreground leading-snug">{a.plain}</dd>
-                </div>
-              ))}
-            </dl>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+  return null;
 }
 
 function friendlyPollErrorImpl(raw: string | null | undefined): { title: string; description: string; kind: 'expired' | 'scope' | 'rate' | 'network' | 'config' | 'gmail' | 'unknown' } {
