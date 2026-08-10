@@ -34999,6 +34999,10 @@ export type Database = {
       get_public_trust_profile: { Args: { p_ai_id: string }; Returns: Json }
       get_referral_progress: { Args: { p_referred_id: string }; Returns: Json }
       get_rent_requests_summary: { Args: never; Returns: Json }
+      get_roi_disbursement_report: {
+        Args: { p_end: string; p_start: string }
+        Returns: Json
+      }
       get_service_center_listing_queue: {
         Args: { p_manager_id?: string }
         Returns: Json

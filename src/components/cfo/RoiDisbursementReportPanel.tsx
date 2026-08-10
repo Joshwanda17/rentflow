@@ -1,0 +1,445 @@
+import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Loader2, FileDown, Printer, RefreshCw, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { downloadCsv } from '@/lib/csvExport';
+import { toast } from 'sonner';
+
+type Period = 'daily' | 'weekly' | 'monthly' | 'yearly';
+
+const fmtUGX = (n: number | null | undefined) =>
+  `UGX ${Math.round(Number(n ?? 0)).toLocaleString('en-US')}`;
+
+/** EAT (UTC+3) day boundaries expressed as UTC instants. */
+function periodRange(period: Period, anchor: string) {
+  const [y, m, d] = anchor.split('-').map(Number);
+  const startEatDay = (yy: number, mm: number, dd: number) =>
+    new Date(Date.UTC(yy, mm - 1, dd, 0, 0, 0) - 3 * 3600 * 1000);
+  let start: Date;
+  let end: Date;
+  if (period === 'daily') {
+    start = startEatDay(y, m, d);
+    end = new Date(start.getTime() + 24 * 3600 * 1000);
+  } else if (period === 'weekly') {
+    const base = startEatDay(y, m, d);
+    // Week starts Monday in EAT
+    const eatDow = new Date(base.getTime() + 3 * 3600 * 1000).getUTCDay();
+    const back = (eatDow + 6) % 7;
+    start = new Date(base.getTime() - back * 24 * 3600 * 1000);
+    end = new Date(start.getTime() + 7 * 24 * 3600 * 1000);
+  } else if (period === 'monthly') {
+    start = startEatDay(y, m, 1);
+    end = startEatDay(m === 12 ? y + 1 : y, m === 12 ? 1 : m + 1, 1);
+  } else {
+    start = startEatDay(y, 1, 1);
+    end = startEatDay(y + 1, 1, 1);
+  }
+  return { start: start.toISOString(), end: end.toISOString() };
+}
+
+interface CashRow {
+  n: number; portfolio_phone: string; partner: string; paid_to: string;
+  principal: number; returns_paid: number; time_eat: string; date_eat: string; portfolio_code: string | null;
+}
+interface CompRow {
+  n: number; portfolio_phone: string; partner: string; new_principal: number;
+  returns_compounded: number; executed_by: string; time_eat: string; date_eat: string; portfolio_code: string | null;
+}
+interface ApprovalRow { stage: string; authorised_by: string; role: string; items: number; amount: number; window: string; }
+interface RoutingRow { name: string; phone: string; credits: number; amount: number; }
+interface ExceptionRow { portfolio_code: string | null; partner: string; amount: number; compounded_at: string; paid_at: string; }
+
+interface Report {
+  period: { start: string; end: string; start_eat: string; end_eat: string };
+  generated_at: string;
+  summary: {
+    total_approved: number; cash_total: number; compounded_total: number;
+    partners_affected: number; payouts_count: number; compounded_portfolios: number;
+    portfolios_total: number; principal_total: number;
+  };
+  cash: CashRow[];
+  compounded: CompRow[];
+  approvals: ApprovalRow[];
+  reconciliation: {
+    wallet_credits: { legs: number; amount: number };
+    reinvestments: { legs: number; amount: number };
+    platform_expense: { legs: number; amount: number };
+    balanced: boolean;
+  };
+  routing: RoutingRow[];
+  proxy_credits: number;
+  exceptions: ExceptionRow[];
+}
+
+const PERIOD_LABEL: Record<Period, string> = {
+  daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly', yearly: 'Yearly',
+};
+
+export default function RoiDisbursementReportPanel() {
+  const today = new Date(Date.now() + 3 * 3600 * 1000).toISOString().slice(0, 10);
+  const [period, setPeriod] = useState<Period>('daily');
+  const [anchor, setAnchor] = useState<string>(today);
+  const range = useMemo(() => periodRange(period, anchor), [period, anchor]);
+
+  const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
+    queryKey: ['roi-disbursement-report', range.start, range.end],
+    queryFn: async (): Promise<Report> => {
+      const { data, error } = await supabase.rpc('get_roi_disbursement_report' as any, {
+        p_start: range.start,
+        p_end: range.end,
+      });
+      if (error) throw error;
+      return data as unknown as Report;
+    },
+    staleTime: 60_000,
+  });
+
+  const periodTitle = `${PERIOD_LABEL[period]} Returns Disbursement Report`;
+  const fileStem = `ROI_Disbursement_Report_${period}_${anchor}`;
+
+  const exportCash = () => {
+    if (!data) return;
+    downloadCsv(
+      `${fileStem}_cash.csv`,
+      ['#', 'Portfolio phone', 'Partner', 'Paid to (wallet)', 'Principal (UGX)', 'Returns paid (UGX)', 'Date (EAT)', 'Time (EAT)', 'Portfolio'],
+      data.cash.map((r) => [r.n, r.portfolio_phone, r.partner, r.paid_to, r.principal, r.returns_paid, r.date_eat, r.time_eat, r.portfolio_code ?? '—']),
+    );
+  };
+
+  const exportCompounded = () => {
+    if (!data) return;
+    downloadCsv(
+      `${fileStem}_compounded.csv`,
+      ['#', 'Portfolio phone', 'Partner', 'New principal (UGX)', 'Returns compounded (UGX)', 'Executed by', 'Date (EAT)', 'Time (EAT)', 'Portfolio'],
+      data.compounded.map((r) => [r.n, r.portfolio_phone, r.partner, r.new_principal, r.returns_compounded, r.executed_by, r.date_eat, r.time_eat, r.portfolio_code ?? '—']),
+    );
+  };
+
+  const exportPdf = async () => {
+    if (!data) return;
+    try {
+      const { downloadAuditPdf } = await import('@/lib/pdfAuditReport');
+      await downloadAuditPdf(
+        `${fileStem}.pdf`,
+        ['#', 'Portfolio phone', 'Partner', 'Paid to (wallet)', 'Principal', 'Returns paid', 'Time (EAT)'],
+        data.cash.map((r) => [r.n, r.portfolio_phone, r.partner, r.paid_to, fmtUGX(r.principal), fmtUGX(r.returns_paid), r.time_eat]),
+        {
+          title: `${periodTitle} — Cash Returns disbursed to wallets`,
+          subtitle: `Welile Returns disbursement · ${data.period.start_eat} to ${data.period.end_eat} (EAT)`,
+          filters: [
+            `Period: ${PERIOD_LABEL[period]}`,
+            `Partners affected: ${data.summary.partners_affected}`,
+            `Compounded portfolios: ${data.summary.compounded_portfolios}`,
+          ],
+          footerLabel: 'Welile Returns Disbursement Report',
+          kpis: [
+            { label: 'Total Returns approved', value: fmtUGX(data.summary.total_approved) },
+            { label: 'Cash disbursed to wallets', value: fmtUGX(data.summary.cash_total) },
+            { label: 'Compounded to principal', value: fmtUGX(data.summary.compounded_total) },
+            { label: 'Partners affected', value: String(data.summary.partners_affected) },
+          ],
+        },
+      );
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Could not build the PDF');
+    }
+  };
+
+  return (
+    <div className="space-y-4 printable">
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <CardTitle className="text-lg">Returns (ROI) Disbursement Report</CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                Read-only report generated from the ledger and approval history. Daily, weekly, monthly and yearly windows in EAT.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 no-print">
+              <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
+                {isFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                <span className="ml-2">Refresh</span>
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => window.print()} disabled={!data}>
+                <Printer className="h-4 w-4 mr-2" />Print
+              </Button>
+              <Button variant="outline" size="sm" onClick={exportPdf} disabled={!data}>
+                <FileDown className="h-4 w-4 mr-2" />PDF
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap items-end gap-3 no-print">
+            <Tabs value={period} onValueChange={(v) => setPeriod(v as Period)}>
+              <TabsList>
+                {(Object.keys(PERIOD_LABEL) as Period[]).map((p) => (
+                  <TabsTrigger key={p} value={p}>{PERIOD_LABEL[p]}</TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
+            <div className="space-y-1">
+              <Label htmlFor="roi-report-anchor" className="text-xs">
+                {period === 'daily' ? 'Report date' : period === 'weekly' ? 'Any date in the week' : period === 'monthly' ? 'Any date in the month' : 'Any date in the year'}
+              </Label>
+              <Input id="roi-report-anchor" type="date" value={anchor} onChange={(e) => setAnchor(e.target.value || today)} className="w-[170px]" />
+            </div>
+          </div>
+
+          {isLoading ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground py-8">
+              <Loader2 className="h-4 w-4 animate-spin" /> Building the report…
+            </div>
+          ) : isError ? (
+            <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+              {(error as any)?.message ?? 'Could not load the report'}
+            </div>
+          ) : data ? (
+            <div className="space-y-6">
+              {/* Report header block */}
+              <div className="rounded-lg border p-4">
+                <h2 className="text-base font-semibold">Welile — {periodTitle}</h2>
+                <p className="text-sm text-muted-foreground">
+                  Window: {data.period.start_eat} to {data.period.end_eat} (EAT) · Generated {new Date(data.generated_at).toLocaleString()}
+                </p>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 mt-4">
+                  <Kpi label="Total Returns approved" value={fmtUGX(data.summary.total_approved)} hint={`${data.summary.portfolios_total} portfolio entries`} />
+                  <Kpi label="Cash disbursed to wallets" value={fmtUGX(data.summary.cash_total)} hint={`${data.summary.payouts_count} payouts`} />
+                  <Kpi label="Compounded to principal" value={fmtUGX(data.summary.compounded_total)} hint={`${data.summary.compounded_portfolios} portfolios`} />
+                  <Kpi label="Partners affected" value={String(data.summary.partners_affected)} hint={`Principal base ${fmtUGX(data.summary.principal_total)}`} />
+                </div>
+              </div>
+
+              {/* Section 1 */}
+              <section className="space-y-2">
+                <SectionTitle
+                  index={1}
+                  title="Cash Returns disbursed to wallets"
+                  right={<Button variant="ghost" size="sm" className="no-print" onClick={exportCash} disabled={!data.cash.length}><FileDown className="h-4 w-4 mr-1" />CSV</Button>}
+                />
+                {data.cash.length === 0 ? (
+                  <Empty text="No cash Returns were disbursed in this window." />
+                ) : (
+                  <div className="overflow-x-auto rounded-md border">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/60">
+                        <tr>
+                          <Th>#</Th><Th>Portfolio phone</Th><Th>Partner</Th><Th>Paid to (wallet)</Th>
+                          <Th align="right">Principal</Th><Th align="right">Returns paid</Th><Th>Time (EAT)</Th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {data.cash.map((r) => (
+                          <tr key={`${r.n}-${r.portfolio_code}`} className="border-t">
+                            <Td>{r.n}</Td>
+                            <Td className="font-mono text-xs">{r.portfolio_phone}</Td>
+                            <Td>{r.partner}</Td>
+                            <Td>{r.paid_to}</Td>
+                            <Td align="right">{fmtUGX(r.principal)}</Td>
+                            <Td align="right" className="font-semibold">{fmtUGX(r.returns_paid)}</Td>
+                            <Td className="whitespace-nowrap">{r.date_eat} {r.time_eat}</Td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr className="border-t bg-muted/40 font-semibold">
+                          <Td colSpan={5}>Total cash disbursed</Td>
+                          <Td align="right">{fmtUGX(data.summary.cash_total)}</Td>
+                          <Td />
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                )}
+              </section>
+
+              {/* Section 2 */}
+              <section className="space-y-2">
+                <SectionTitle
+                  index={2}
+                  title="Returns compounded into principal"
+                  right={<Button variant="ghost" size="sm" className="no-print" onClick={exportCompounded} disabled={!data.compounded.length}><FileDown className="h-4 w-4 mr-1" />CSV</Button>}
+                />
+                {data.compounded.length === 0 ? (
+                  <Empty text="No Returns were compounded in this window." />
+                ) : (
+                  <div className="overflow-x-auto rounded-md border">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/60">
+                        <tr>
+                          <Th>#</Th><Th>Portfolio phone</Th><Th>Partner</Th>
+                          <Th align="right">New principal</Th><Th align="right">Returns compounded</Th><Th>Executed by</Th><Th>Time (EAT)</Th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {data.compounded.map((r) => (
+                          <tr key={`${r.n}-${r.portfolio_code}`} className="border-t">
+                            <Td>{r.n}</Td>
+                            <Td className="font-mono text-xs">{r.portfolio_phone}</Td>
+                            <Td>{r.partner}</Td>
+                            <Td align="right">{fmtUGX(r.new_principal)}</Td>
+                            <Td align="right" className="font-semibold">{fmtUGX(r.returns_compounded)}</Td>
+                            <Td>{r.executed_by}</Td>
+                            <Td className="whitespace-nowrap">{r.date_eat} {r.time_eat}</Td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr className="border-t bg-muted/40 font-semibold">
+                          <Td colSpan={4}>Total compounded</Td>
+                          <Td align="right">{fmtUGX(data.summary.compounded_total)}</Td>
+                          <Td colSpan={2} />
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                )}
+              </section>
+
+              {/* Section 3 */}
+              <section className="space-y-2">
+                <SectionTitle index={3} title="Approval chain — who authorised the disbursement" />
+                <div className="overflow-x-auto rounded-md border">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/60">
+                      <tr><Th>Stage</Th><Th>Authorised by</Th><Th>Role</Th><Th align="right">Items</Th><Th align="right">Amount</Th><Th>Window (EAT)</Th></tr>
+                    </thead>
+                    <tbody>
+                      {data.approvals.map((a) => (
+                        <tr key={a.stage} className="border-t">
+                          <Td>{a.stage}</Td>
+                          <Td className="font-medium">{a.authorised_by}</Td>
+                          <Td><Badge variant="secondary">{a.role}</Badge></Td>
+                          <Td align="right">{a.items}</Td>
+                          <Td align="right">{fmtUGX(a.amount)}</Td>
+                          <Td className="whitespace-nowrap">{a.window}</Td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+
+              {/* Section 4 */}
+              <section className="space-y-2">
+                <SectionTitle index={4} title="Ledger reconciliation" />
+                <div className="overflow-x-auto rounded-md border">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/60">
+                      <tr><Th>Ledger leg</Th><Th align="right">Entries</Th><Th align="right">Amount</Th></tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-t"><Td>Wallet credits (cash Returns)</Td><Td align="right">{data.reconciliation.wallet_credits.legs}</Td><Td align="right">{fmtUGX(data.reconciliation.wallet_credits.amount)}</Td></tr>
+                      <tr className="border-t"><Td>Reinvestments (compounded)</Td><Td align="right">{data.reconciliation.reinvestments.legs}</Td><Td align="right">{fmtUGX(data.reconciliation.reinvestments.amount)}</Td></tr>
+                      <tr className="border-t bg-muted/40 font-semibold"><Td>Platform Returns expense</Td><Td align="right">{data.reconciliation.platform_expense.legs}</Td><Td align="right">{fmtUGX(data.reconciliation.platform_expense.amount)}</Td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div className={`flex items-start gap-2 rounded-md border p-3 text-sm ${data.reconciliation.balanced ? 'border-emerald-500/40 bg-emerald-500/10' : 'border-amber-500/40 bg-amber-500/10'}`}>
+                  {data.reconciliation.balanced
+                    ? <CheckCircle2 className="h-4 w-4 mt-0.5 text-emerald-600" />
+                    : <AlertTriangle className="h-4 w-4 mt-0.5 text-amber-600" />}
+                  <span>
+                    Wallet credits + reinvestments = {fmtUGX(data.reconciliation.wallet_credits.amount + data.reconciliation.reinvestments.amount)} against platform Returns expense {fmtUGX(data.reconciliation.platform_expense.amount)}.
+                    {data.reconciliation.balanced ? ' Balanced.' : ' Variance present — review the ledger for this window.'}
+                  </span>
+                </div>
+              </section>
+
+              {/* Section 5 */}
+              <section className="space-y-2">
+                <SectionTitle index={5} title="Payout routing note (managed proxy wallets)" />
+                {data.routing.length === 0 ? (
+                  <Empty text="Every cash payout landed in the partner's own wallet." />
+                ) : (
+                  <div className="overflow-x-auto rounded-md border">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/60">
+                        <tr><Th>Receiving wallet</Th><Th>Phone</Th><Th align="right">Credits</Th><Th align="right">Amount</Th></tr>
+                      </thead>
+                      <tbody>
+                        {data.routing.map((r) => (
+                          <tr key={`${r.name}-${r.phone}`} className="border-t">
+                            <Td>{r.name}</Td>
+                            <Td className="font-mono text-xs">{r.phone}</Td>
+                            <Td align="right">{r.credits}</Td>
+                            <Td align="right">{fmtUGX(r.amount)}</Td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </section>
+
+              {/* Section 6 */}
+              <section className="space-y-2">
+                <SectionTitle index={6} title="Exceptions to review" />
+                {data.exceptions.length === 0 ? (
+                  <Empty text="No exceptions detected for this window." />
+                ) : (
+                  <div className="overflow-x-auto rounded-md border">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/60">
+                        <tr><Th>Portfolio</Th><Th>Partner</Th><Th align="right">Amount</Th><Th>Compounded at</Th><Th>Paid at</Th></tr>
+                      </thead>
+                      <tbody>
+                        {data.exceptions.map((e, i) => (
+                          <tr key={`${e.portfolio_code}-${i}`} className="border-t">
+                            <Td className="font-mono text-xs">{e.portfolio_code ?? '—'}</Td>
+                            <Td>{e.partner}</Td>
+                            <Td align="right">{fmtUGX(e.amount)}</Td>
+                            <Td className="whitespace-nowrap">{e.compounded_at}</Td>
+                            <Td className="whitespace-nowrap">{e.paid_at}</Td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </section>
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function Kpi({ label, value, hint }: { label: string; value: string; hint?: string }) {
+  return (
+    <div className="rounded-md border p-3">
+      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="text-lg font-bold mt-1 break-words">{value}</p>
+      {hint ? <p className="text-xs text-muted-foreground mt-0.5">{hint}</p> : null}
+    </div>
+  );
+}
+
+function SectionTitle({ index, title, right }: { index: number; title: string; right?: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <h3 className="text-sm font-semibold">{index}. {title}</h3>
+      {right}
+    </div>
+  );
+}
+
+function Th({ children, align = 'left' }: { children?: React.ReactNode; align?: 'left' | 'right' }) {
+  return <th className={`px-3 py-2 text-${align} text-xs font-semibold text-muted-foreground whitespace-nowrap`}>{children}</th>;
+}
+
+function Td({ children, align = 'left', className = '', colSpan }: { children?: React.ReactNode; align?: 'left' | 'right'; className?: string; colSpan?: number }) {
+  return <td colSpan={colSpan} className={`px-3 py-2 text-${align} ${className}`}>{children}</td>;
+}
+
+function Empty({ text }: { text: string }) {
+  return <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">{text}</div>;
+}
