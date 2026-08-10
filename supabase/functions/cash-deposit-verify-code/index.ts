@@ -438,7 +438,10 @@ Deno.serve(async (req) => {
     await logEvent(admin, {
       verification_id: ver.id, deposit_request_id: depositId, user_id: depositorId,
       event_type: "verified", attempt_no: Number(ver.attempts) + 1, amount: Number(ver.amount),
-      detail: "Receipt code matched — verification successful.",
+      detail: onBehalf
+        ? "Receipt code matched — entered by a Financial Ops operator on the depositor's behalf."
+        : "Receipt code matched — verification successful.",
+      metadata: { entered_by: user.id, on_behalf: onBehalf },
     });
 
     // Stamp the verified RCT code onto the deposit request for traceability.
