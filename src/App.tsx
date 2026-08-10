@@ -392,7 +392,9 @@ function GlobalOnboardingGates() {
 
 function AppRoutes() {
   const location = useLocation();
-  const PTR_DISABLED_PREFIXES = ['/', '/index', '/auth', '/welcome', '/funder-onboarding', '/executive-hub'];
+  // Financial Ops is added here because a stray pull-to-refresh inside a long
+  // panel (e.g. Merchant Agents) reloads the whole app mid-task.
+  const PTR_DISABLED_PREFIXES = ['/', '/index', '/auth', '/welcome', '/funder-onboarding', '/executive-hub', '/admin/financial-ops'];
   const disablePullToRefresh = PTR_DISABLED_PREFIXES.some(
     (p) => location.pathname === p || location.pathname.startsWith(p + '/'),
   );
