@@ -834,6 +834,7 @@ export type Database = {
           recovery_source: string
           registration_fee: number | null
           repayment_frequency: string
+          request_id: string | null
           resumed_at: string | null
           resumed_by: string | null
           roi_recovery_percent: number
@@ -871,6 +872,7 @@ export type Database = {
           recovery_source?: string
           registration_fee?: number | null
           repayment_frequency?: string
+          request_id?: string | null
           resumed_at?: string | null
           resumed_by?: string | null
           roi_recovery_percent?: number
@@ -908,6 +910,7 @@ export type Database = {
           recovery_source?: string
           registration_fee?: number | null
           repayment_frequency?: string
+          request_id?: string | null
           resumed_at?: string | null
           resumed_by?: string | null
           roi_recovery_percent?: number
@@ -1061,6 +1064,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
+          },
+          {
+            foreignKeyName: "agent_advances_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "agent_advance_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_advances_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "agent_advance_requests_privileged"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -33214,6 +33231,20 @@ export type Database = {
       disable_campaign_link: {
         Args: { p_link_id: string; p_reason?: string }
         Returns: undefined
+      }
+      disburse_agent_advance_request: {
+        Args: {
+          p_cycle_days?: number
+          p_monthly_rate?: number
+          p_notes?: string
+          p_principal?: number
+          p_recovery_source?: string
+          p_repayment_frequency?: string
+          p_request_id: string
+          p_roi_recovery_percent?: number
+          p_skip_reason?: string
+        }
+        Returns: Json
       }
       drain_withdrawable_buckets: {
         Args: { p_amount: number; p_user_id: string }
