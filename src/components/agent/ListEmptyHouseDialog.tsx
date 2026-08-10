@@ -1321,6 +1321,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                 town_council: lc1Selection.town_council || null,
                 cell: lc1Selection.cell || null,
                 zone: lc1Selection.zone || null,
+                ug_village_id: lc1Selection.ug_village_id ?? null,
                 registered_by: user.id,
               } as any)
               .select('id')
@@ -2520,6 +2521,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
             defaultRegion={ugLoc ? (DISTRICT_TO_BACKEND_REGION[ugLoc.district] ?? 'Central') : ''}
             defaultDistrict={ugLoc?.district ?? ''}
             defaultVillage={ugLoc?.village ?? ''}
+            scopeDistrictName={ugLoc?.district ?? null}
             attempted={attempted}
           />
 
