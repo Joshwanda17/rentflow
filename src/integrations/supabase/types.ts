@@ -34455,6 +34455,20 @@ export type Database = {
           total_buckets: number
         }[]
       }
+      get_gmail_intake_health: {
+        Args: { p_silence_minutes?: number }
+        Returns: {
+          cutoff_at: string
+          cutoff_is_future: boolean
+          intake_silent: boolean
+          last_error: string
+          last_insert_at: string
+          last_polled_at: string
+          last_status: string
+          poll_stale: boolean
+          silence_minutes: number
+        }[]
+      }
       get_house_activity_timeline: {
         Args: { p_house_id: string }
         Returns: {
