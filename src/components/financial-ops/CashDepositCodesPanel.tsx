@@ -200,7 +200,10 @@ export function CashDepositCodesPanel() {
       toast({ title: 'Could not reissue code', description: error.message, variant: 'destructive' });
       return;
     }
-    toast({ title: `New code: ${data}`, description: 'Valid for 10 minutes. Read it back to the depositor.' });
+    toast({
+      title: 'New code sent by SMS',
+      description: 'Valid for 10 minutes. Ask the depositor to read the code from their SMS.',
+    });
     load();
   };
 
@@ -262,7 +265,7 @@ export function CashDepositCodesPanel() {
               )}
             </h3>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Read the active code back to the depositor only after you have received the matching cash. Codes expire in 10 minutes.
+              Codes are never shown here — ask the depositor to read the code from their SMS, then enter it once you have received the matching cash. Codes expire in 10 minutes.
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -330,23 +333,14 @@ export function CashDepositCodesPanel() {
                   {displayRows.map((r) => (
                     <tr key={r.verification_id} className="border-b last:border-0 hover:bg-muted/40">
                       <td className="py-2 px-2 align-top">
-                        {r.code ? (
-                          <div className="flex flex-col gap-1">
-                            <button
-                              type="button"
-                              onClick={() => copy(r.code!)}
-                              className="inline-flex items-center gap-1.5 font-mono text-base font-bold tracking-widest text-foreground rounded-md px-2 py-1 bg-amber-500/10 hover:bg-amber-500/20 transition-colors w-fit"
-                              title="Click to copy"
-                            >
-                              {r.code}
-                              {copied === r.code ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5 text-muted-foreground" />}
-                            </button>
-                            <Countdown expiresAt={r.expires_at} inline />
-                          </div>
-                        ) : (
-                          <div className="flex flex-col gap-1">
-                            <span className="text-xs text-muted-foreground">Code not stored</span>
-                            {r.status !== 'verified' && (
+                        <div className="flex flex-col gap-1">
+                          <span className="inline-flex items-center gap-1.5 font-mono text-base font-bold tracking-widest text-muted-foreground rounded-md px-2 py-1 bg-muted w-fit">
+                            ••••
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {r.status === 'verified' ? 'Verified' : 'Sent to depositor by SMS'}
+                          </span>
+                          {r.status !== 'verified' && (
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -359,12 +353,11 @@ export function CashDepositCodesPanel() {
                                 ) : (
                                   <KeyRound className="h-3 w-3" />
                                 )}
-                                Reissue code
+                                Resend code
                               </Button>
-                            )}
-                            <Countdown expiresAt={r.expires_at} inline />
-                          </div>
-                        )}
+                          )}
+                          <Countdown expiresAt={r.expires_at} inline />
+                        </div>
                       </td>
                       <td className="py-2 px-2 font-medium whitespace-nowrap">{fmtUgx(r.amount)}</td>
                       <td className="py-2 px-2">
