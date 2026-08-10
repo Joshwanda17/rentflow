@@ -118,6 +118,8 @@ Deno.serve(async (req) => {
       return json(409, {
         error: "code_in_progress",
         message: "This depositor already has a live cash deposit code. Wait for it to expire or be used.",
+        // Surfaced so the operator sees the countdown instead of a bare conflict.
+        expires_at: (live[0] as any).expires_at,
       });
     }
 
