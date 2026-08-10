@@ -606,7 +606,8 @@ async function queueFallback(
   return error ? `queue error: ${error.message}` : "queued (no attachment)";
 }
 
-async function sendForDate(admin: Admin, dateStr: string, force: boolean) {
+async function sendForDate(admin: Admin, dateStr: string, force: boolean, overrideTo?: string[]) {
+  const recipients = overrideTo && overrideTo.length ? overrideTo : REPORT_RECIPIENTS;
   if (!force) {
     const { data: existing } = await admin
       .from("system_events").select("id").eq("event_type", EVENT_TYPE)
@@ -626,7 +627,7 @@ async function sendForDate(admin: Admin, dateStr: string, force: boolean) {
 
   const results: Record<string, string> = {};
   let usedQueue = false;
-  for (const to of REPORT_RECIPIENTS) {
+  for (const to of recipients) {
     const sent = await sendWithAttachment(to, subject, html, text, pdf, filename);
     if (sent.ok) {
       results[to] = "sent with PDF";
@@ -639,10 +640,10 @@ async function sendForDate(admin: Admin, dateStr: string, force: boolean) {
 
   await admin.from("system_events").insert({
     event_type: EVENT_TYPE,
-    metadata: { date: dateStr, recipients: REPORT_RECIPIENTS, kpis: report.kpis, results, pdf_bytes: pdf.length },
+    metadata: { date: dateStr, recipients, kpis: report.kpis, results, pdf_bytes: pdf.length },
   });
 
-  return { date: dateStr, recipients: REPORT_RECIPIENTS, results, pdf_bytes: pdf.length, usedQueue, kpis: report.kpis };
+  return { date: dateStr, recipients, results, pdf_bytes: pdf.length, usedQueue, kpis: report.kpis };
 }
 
 Deno.serve(async (req) => {
