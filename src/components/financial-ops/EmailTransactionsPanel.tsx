@@ -3599,7 +3599,7 @@ export function EmailTransactionsPanel() {
             )}
           </div>
           <div
-            className={`${chipFiltersOpen ? 'flex' : 'hidden sm:flex'} mt-2 sm:mt-0 flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-2 sm:gap-3`}
+            className={`${chipFiltersOpen ? 'flex' : 'hidden sm:flex'} mt-2 sm:mt-0 flex-col rounded-xl border bg-muted/20 divide-y overflow-hidden`}
           >
           {(() => {
             // Money-in vs money-out chips. Counts respect the active date /
@@ -3614,7 +3614,8 @@ export function EmailTransactionsPanel() {
               { key: 'out', label: 'Money out', count: outCount },
             ];
             return (
-              <div className="flex items-center gap-1 flex-nowrap sm:flex-wrap w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0" role="group" aria-label="Filter by money direction">
+              <div className="flex items-center gap-1 flex-nowrap sm:flex-wrap w-full overflow-x-auto px-3 py-2" role="group" aria-label="Filter by money direction">
+                <span className="w-[86px] shrink-0 text-[10px] uppercase tracking-wider text-muted-foreground">Flow</span>
                 {dirChips.map((c) => {
                   const active = directionFilter === c.key;
                   const tone =
@@ -3663,7 +3664,8 @@ export function EmailTransactionsPanel() {
               { key: 'from', label: 'Matched by phone', count: fromCount },
             ];
             return (
-              <div className="flex items-center gap-1 flex-nowrap sm:flex-wrap w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
+              <div className="flex items-center gap-1 flex-nowrap sm:flex-wrap w-full overflow-x-auto px-3 py-2" role="group" aria-label="Filter by sender match">
+                <span className="w-[86px] shrink-0 text-[10px] uppercase tracking-wider text-muted-foreground">Sender</span>
                 {chips.map((c) => {
                   const active = matchFilter === c.key;
                   return (
@@ -3701,7 +3703,8 @@ export function EmailTransactionsPanel() {
               { key: 'unparsed', label: 'Unparsed', count: unparsed, tone: 'bg-slate-600 text-white border-slate-600' },
             ];
             return (
-              <div className="flex items-center gap-1 flex-nowrap sm:flex-wrap w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0" role="group" aria-label="Filter by status">
+              <div className="flex items-center gap-1 flex-nowrap sm:flex-wrap w-full overflow-x-auto px-3 py-2" role="group" aria-label="Filter by status">
+                <span className="w-[86px] shrink-0 text-[10px] uppercase tracking-wider text-muted-foreground">Status</span>
                 {chips.map((c) => {
                   const active = statusFilter === c.key;
                   return (
@@ -3729,6 +3732,8 @@ export function EmailTransactionsPanel() {
             // incoming deposits so ops can triage exactly what still needs action.
             const needsCount = filteredRows.filter(isNeedsRouting).length;
             return (
+              <div className="flex items-center gap-1 flex-nowrap w-full overflow-x-auto px-3 py-2" role="group" aria-label="Triage filter">
+                <span className="w-[86px] shrink-0 text-[10px] uppercase tracking-wider text-muted-foreground">Triage</span>
               <button
                 type="button"
                 onClick={() => setNeedsRoutingOnly((v) => !v)}
@@ -3746,6 +3751,7 @@ export function EmailTransactionsPanel() {
                   {needsCount}
                 </span>
               </button>
+              </div>
             );
           })()}
           {(() => {
@@ -3773,7 +3779,8 @@ export function EmailTransactionsPanel() {
               { key: 'none', label: 'Not debited', count: noneDebitCount, activeClass: 'bg-slate-600 text-white border-slate-600', inactiveClass: 'bg-background hover:bg-muted text-slate-700 border-slate-500/40' },
             ];
             return (
-              <div className="flex items-center gap-1 flex-nowrap sm:flex-wrap w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0" role="group" aria-label="Filter by debit target">
+              <div className="flex items-center gap-1 flex-nowrap sm:flex-wrap w-full overflow-x-auto px-3 py-2" role="group" aria-label="Filter by debit target">
+                <span className="w-[86px] shrink-0 text-[10px] uppercase tracking-wider text-muted-foreground">Charged to</span>
                 {chips.map((c) => {
                   const active = debitFilter === c.key;
                   return (
@@ -3805,8 +3812,8 @@ export function EmailTransactionsPanel() {
               { key: 'debitName', label: 'Charged name' },
             ];
             return (
-              <div className="flex items-center gap-1 flex-nowrap w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0" role="group" aria-label="Sort by debit breakdown">
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground mr-1 shrink-0">Sort</span>
+              <div className="flex items-center gap-1 flex-nowrap w-full overflow-x-auto px-3 py-2" role="group" aria-label="Sort by debit breakdown">
+                <span className="w-[86px] shrink-0 text-[10px] uppercase tracking-wider text-muted-foreground">Order</span>
                 {sortOptions.map((opt) => {
                   const active = debitSort === opt.key;
                   return (
