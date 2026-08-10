@@ -40,6 +40,7 @@ import { validateDepositReference } from '@/lib/depositReferenceValidator';
 import { archiveToDrive } from '@/lib/archiveToDrive';
 import { useHorizontalSwipe } from '@/hooks/useHorizontalSwipe';
 import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
+import savingsBroAsset from '@/assets/Savings-bro.svg.asset.json';
 
 /**
  * Extract a Mobile Money / bank reference from arbitrary SMS text.
@@ -1445,6 +1446,14 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
         onInteractOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
+        {/* Hero illustration */}
+        <div className="flex justify-center pt-4 pb-2 bg-background">
+          <img
+            src={savingsBroAsset.url}
+            alt="Savings illustration"
+            className="h-28 w-auto object-contain"
+          />
+        </div>
         {/* Sticky header */}
         <DialogHeader className="px-4 py-3 border-b bg-background sticky top-0 z-10 space-y-0">
           <div className="flex items-center gap-3">
