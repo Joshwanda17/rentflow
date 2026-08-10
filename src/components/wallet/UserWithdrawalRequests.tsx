@@ -12,11 +12,13 @@ import {
   Smartphone,
   ChevronDown,
   ChevronUp,
+  AlertTriangle,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { format, formatDistanceToNow, parseISO, isToday, isYesterday } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { ReportPayoutNotReceivedDialog } from '@/components/payouts/ReportPayoutNotReceivedDialog';
 
 interface WithdrawalRequest {
   id: string;
@@ -48,6 +50,9 @@ export function UserWithdrawalRequests() {
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
+  // Withdrawal ids the user already reported as "not received" -> status.
+  const [disputes, setDisputes] = useState<Record<string, string>>({});
+  const [reportTarget, setReportTarget] = useState<WithdrawalRequest | null>(null);
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('en-UG', {
@@ -69,6 +74,16 @@ export function UserWithdrawalRequests() {
         .limit(10);
       if (error) throw error;
       setRequests((data as any[]) || []);
+      const ids = ((data as any[]) || []).map((r) => r.id);
+      if (ids.length > 0) {
+        const { data: dRows } = await (supabase as any)
+          .from('payout_delivery_disputes')
+          .select('withdrawal_id, status')
+          .in('withdrawal_id', ids);
+        const map: Record<string, string> = {};
+        for (const row of (dRows as any[]) || []) map[row.withdrawal_id] = row.status;
+        setDisputes(map);
+      }
     } catch (error) {
       console.error('Error fetching withdrawal requests:', error);
     } finally {
