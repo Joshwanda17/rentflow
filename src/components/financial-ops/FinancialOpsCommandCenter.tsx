@@ -237,7 +237,25 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
   const { user } = useAuth();
   const userId = user?.id;
   const [view, setView] = useState<View>('home');
-  const [activeTool, setActiveTool] = useState<Tool>(null);
+  const [activeTool, setActiveTool] = useState<Tool>(() => {
+    // Survive an app-level remount (failed chunk, recovered error) so the
+    // operator stays on the panel they opened instead of being dropped on
+    // Overview with no explanation.
+    if (typeof window === 'undefined') return null;
+    try {
+      return (sessionStorage.getItem('finops_active_tool') as Tool) || null;
+    } catch {
+      return null;
+    }
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      if (activeTool) sessionStorage.setItem('finops_active_tool', activeTool);
+      else sessionStorage.removeItem('finops_active_tool');
+    } catch { /* noop */ }
+  }, [activeTool]);
   const [moreSheet, setMoreSheet] = useState(false);
   const [focusBucket, setFocusBucket] = useState<'float' | 'withdrawable' | null>(null);
   const [walletBreakdownOpen, setWalletBreakdownOpen] = useState(() => getStoredOpen(userId));
@@ -309,6 +327,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
     content = (
       <div className="space-y-5 pb-24 sm:pb-16">
         <SubBack onClick={() => setActiveTool(null)} />
+        <ToolErrorBoundary toolKey={String(activeTool)}>
         <Suspense fallback={<PanelFallback />}>
         {activeTool === 'ops' && <ScaleDashboard />}
         {activeTool === 'email_tx' && <EmailTransactionsPanel />}
@@ -422,6 +441,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
         )}
         {activeTool === 'merchant_float_requisition' && <MerchantFloatRequisitionPanel mode="finops" />}
         </Suspense>
+        </ToolErrorBoundary>
       </div>
     );
   } else {
