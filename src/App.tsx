@@ -4,7 +4,7 @@
 import { Suspense, memo, useEffect, useState, Component, type ReactNode } from "react";
 import { HelmetProvider } from "react-helmet-async";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import ChunkErrorBoundary from "@/components/ChunkErrorBoundary";
@@ -79,6 +79,7 @@ const CreditLoadingDebugPanel = optionalLazyWithRetry(() => import("@/components
 const DeferredExtras = optionalLazyWithRetry(() => import("@/components/DeferredExtras"), "DeferredExtras");
 const FloatingToolbar = optionalLazyWithRetry(() => import("@/components/FloatingToolbar"), "FloatingToolbar");
 const MerchantDispatchListener = optionalLazyWithRetry(() => import("@/components/agent/MerchantDispatchListener"), "MerchantDispatchListener");
+const GlobalInstallPrompt = optionalLazyWithRetry(() => import("@/components/GlobalInstallPrompt"), "GlobalInstallPrompt");
 
 // Index is the entry router — must be eager for instant redirect
 
@@ -360,6 +361,7 @@ function GlobalFloatingWidgets() {
     <>
       <FloatingToolbar />
       <MerchantDispatchListener />
+      <GlobalInstallPrompt />
     </>
 
   );
@@ -390,7 +392,9 @@ function GlobalOnboardingGates() {
 
 function AppRoutes() {
   const location = useLocation();
-  const PTR_DISABLED_PREFIXES = ['/', '/index', '/auth', '/welcome', '/funder-onboarding', '/executive-hub'];
+  // Financial Ops is added here because a stray pull-to-refresh inside a long
+  // panel (e.g. Merchant Agents) reloads the whole app mid-task.
+  const PTR_DISABLED_PREFIXES = ['/', '/index', '/auth', '/welcome', '/funder-onboarding', '/executive-hub', '/admin/financial-ops'];
   const disablePullToRefresh = PTR_DISABLED_PREFIXES.some(
     (p) => location.pathname === p || location.pathname.startsWith(p + '/'),
   );
@@ -598,6 +602,9 @@ function AppRoutes() {
           <Route path="/cto/dashboard" element={<RoleGuard allowedRoles={['cto', 'super_admin']} requiredPermission="cto"><CTODashboardPage /></RoleGuard>} />
           <Route path="/ceo/dashboard" element={<RoleGuard allowedRoles={['ceo', 'super_admin', 'cto']} requiredPermission="ceo"><CEODashboardPage /></RoleGuard>} />
           <Route path="/cfo/dashboard" element={<RoleGuard allowedRoles={['cfo', 'super_admin', 'cto']} requiredPermission="cfo"><CFODashboardPage /></RoleGuard>} />
+          <Route path="/cfo" element={<Navigate to="/cfo/dashboard" replace />} />
+          <Route path="/dashboard/cfo" element={<Navigate to="/cfo/dashboard" replace />} />
+          <Route path="/admin/cfo" element={<Navigate to="/cfo/dashboard" replace />} />
           <Route path="/cfo/investor-report" element={<RoleGuard allowedRoles={['cfo', 'ceo', 'coo', 'super_admin', 'cto']} requiredPermission="cfo"><InvestorReportPage /></RoleGuard>} />
           <Route path="/cfo/money-flow-trace" element={<RoleGuard allowedRoles={['cfo', 'ceo', 'coo', 'super_admin', 'cto', 'manager']} requiredPermission="cfo"><MoneyFlowTracePage /></RoleGuard>} />
           <Route path="/cfo/ledger/:id" element={<RoleGuard allowedRoles={['cfo', 'ceo', 'coo', 'super_admin', 'cto', 'manager']} requiredPermission="cfo"><LedgerEntryDetailPage /></RoleGuard>} />
@@ -638,7 +645,12 @@ function AppRoutes() {
           <Route path="/director/dashboard" element={<RoleGuard allowedRoles={['ceo', 'super_admin', 'manager']} requiredPermission="director"><DirectorDashboardPage /></RoleGuard>} />
           <Route path="/admin/users" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'cto']} requiredPermission="company-ops"><AdminUsersPage /></RoleGuard>} />
           <Route path="/admin/access-audit" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'cto']}><AdminAccessAuditPage /></RoleGuard>} />
-          <Route path="/admin/financial-ops" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'coo', 'cfo']} requiredPermission="financial-ops"><AdminFinancialOpsPage /></RoleGuard>} />
+          <Route path="/admin/financial-ops" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'coo', 'cfo', 'employee', 'operations']} requiredPermission="financial-ops"><AdminFinancialOpsPage /></RoleGuard>} />
+          {/* Legacy/bookmarked paths staff type or tap from older links — these
+              previously fell through to the catch-all NotFound (404). */}
+          <Route path="/financial-ops" element={<Navigate to="/admin/financial-ops" replace />} />
+          <Route path="/dashboard/financial-ops" element={<Navigate to="/admin/financial-ops" replace />} />
+          <Route path="/financial_ops" element={<Navigate to="/admin/financial-ops" replace />} />
           <Route path="/admin/referrals" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'cfo', 'coo', 'cto']} requiredPermission="financial-ops"><AdminReferralsPage /></RoleGuard>} />
           <Route path="/admin/oauth-failures" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'ceo', 'coo', 'cto']} requiredPermission="cto"><AdminOAuthFailuresPage /></RoleGuard>} />
           <Route path="/admin/recovery-sms-log" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'cfo', 'ceo', 'coo', 'cto']} requiredPermission="financial-ops"><AdminRecoverySmsLogPage /></RoleGuard>} />

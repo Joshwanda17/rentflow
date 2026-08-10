@@ -33,6 +33,7 @@ import { useAgentBalances } from '@/hooks/useAgentBalances';
 import { UserAvatar } from '@/components/UserAvatar';
 import { hapticTap } from '@/lib/haptics';
 
+import walletRafiki3Asset from '@/assets/wallet-rafiki-3.svg.asset.json';
 import { WalletLedgerStatement } from './WalletLedgerStatement';
 import { PaymentMethodIcons } from './PaymentMethodIcons';
 import { ProxyPartnerFunds } from '@/components/agent/ProxyPartnerFunds';
@@ -149,6 +150,12 @@ export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: Full
             <div className="p-4 space-y-4">
               {/* Wallet Statement section */}
               <div ref={statementSectionRef} id="wallet-statement-section" className="scroll-mt-4">
+                <img
+                  src={walletRafiki3Asset.url}
+                  alt=""
+                  aria-hidden="true"
+                  className="mx-auto mb-3 h-40 w-auto pointer-events-none select-none"
+                />
                 <div className="flex items-center justify-between mb-3">
                   <div>
                     <h3 className="text-base font-bold text-foreground">Wallet Statement</h3>

@@ -239,21 +239,10 @@ export default function WithdrawFlow({
     : ledgerAvailable !== null
       ? Math.min(availableBalance, ledgerAvailable)
       : availableBalance;
-  // Clamp additionally by KYC daily remaining (from the unified context).
-  // Cap of 0 while the context loads is avoided by using Infinity as the
-  // sentinel until we have a real number, so the amount input isn't
-  // needlessly zero-locked on first render.
-  const kycRemainingToday = withdrawCtx.isLoading
-    ? Number.POSITIVE_INFINITY
-    : withdrawCtx.usageToday.remainingAmount;
+  // Daily withdrawal limits removed globally (2026-08-10). The only cap is
+  // the caller-supplied or ledger-true available balance.
   const rawMax = source === 'available' ? trueAvailable : roiBalance;
-  const maxAmount = Math.min(rawMax, kycRemainingToday);
-  // True when the binding constraint is the KYC daily cap rather than the
-  // ledger balance. Without this, a level-1 user with money in the ledger
-  // sees "Verified against live ledger · UGX 50,000 available" and believes
-  // the ledger lost their funds.
-  const isKycCapped =
-    Number.isFinite(kycRemainingToday) && kycRemainingToday < rawMax;
+  const maxAmount = rawMax;
 
   // 20% daily-collection withdrawal gate REMOVED (2026-08-01) — agents can
   // withdraw regardless of today's collection performance. Kept as a constant
@@ -1113,9 +1102,7 @@ export default function WithdrawFlow({
               )}
               {amount > maxAmount && (
                 <p className="text-xs text-destructive text-center font-medium">
-                  {isKycCapped
-                    ? `Daily withdrawal limit reached — your account level allows up to ${formatCurrency(maxAmount, currency)} today. Your balance is ${formatCurrency(trueAvailable, currency)}.`
-                    : `Insufficient funds — exceeds available balance (${formatCurrency(maxAmount, currency)})`}
+                  Insufficient funds — exceeds available balance ({formatCurrency(maxAmount, currency)})
                 </p>
               )}
               {/* Live ledger sync indicator — gates Continue */}
@@ -1124,9 +1111,7 @@ export default function WithdrawFlow({
                   ? 'Checking live ledger balance…'
                   : isStale
                     ? 'Balance may be stale — re-checking…'
-                    : isKycCapped
-                      ? `Ledger balance ${formatCurrency(trueAvailable, currency)} · daily account limit caps today's withdrawal at ${formatCurrency(maxAmount, currency)}`
-                      : `Verified against live ledger · ${formatCurrency(maxAmount, currency)} available`}
+                    : `Verified against live ledger · ${formatCurrency(maxAmount, currency)} available`}
               </p>
               {/* Zero-fee assurance — Welile wallet has no withdrawal fees,
                   so users see the full amount on the other side. */}

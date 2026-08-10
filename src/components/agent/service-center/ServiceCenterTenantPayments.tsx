@@ -21,6 +21,26 @@ const METHOD_LABEL: Record<string, string> = {
   in_app_wallet: 'Wallet',
 };
 
+/** Postgrest errors are plain objects, so String(err) yields "[object Object]". */
+function describeError(err: unknown): string {
+  if (!err) return 'Unknown error';
+  if (err instanceof Error && err.message) return err.message;
+  if (typeof err === 'string') return err;
+  if (typeof err === 'object') {
+    const e = err as Record<string, unknown>;
+    const parts = [e.message, e.details, e.hint]
+      .filter((p): p is string => typeof p === 'string' && p.trim().length > 0);
+    const code = typeof e.code === 'string' && e.code ? ` (${e.code})` : '';
+    if (parts.length) return `${parts.join(' — ')}${code}`;
+    try {
+      return JSON.stringify(err);
+    } catch {
+      return 'Unknown error';
+    }
+  }
+  return String(err);
+}
+
 /** Paged payment history for a single tenant rent plan. */
 export function ServiceCenterTenantPayments({ rentRequestId }: { rentRequestId: string }) {
   const [page, setPage] = useState(0);
@@ -39,7 +59,7 @@ export function ServiceCenterTenantPayments({ rentRequestId }: { rentRequestId: 
       <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-2.5">
         <p className="text-xs font-semibold text-destructive">Could not load payment history</p>
         <p className="mt-1 break-words text-[11px] text-destructive/90">
-          {error instanceof Error ? error.message : String(error)}
+          {describeError(error)}
         </p>
       </div>
     );

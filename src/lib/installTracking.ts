@@ -23,6 +23,9 @@ export type InstallEventType =
   | 'diagnostics_opened'
   | 'diagnostics_report_copied'
   | 'install_preflight_failed'
+  | 'install_card_suppressed'
+  | 'install_card_degraded'
+  | 'install_instructions_opened'
   | 'whatsapp_banner_shown';
 
 function detectInAppName(): string | null {

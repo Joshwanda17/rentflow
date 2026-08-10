@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { ChevronLeft, X, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import eWalletPanaAsset from '@/assets/e-wallet-pana.svg.asset.json';
 
 export interface Step {
   id: string;
@@ -89,7 +90,12 @@ export default function StepperModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[90vh] p-0 gap-0 overflow-hidden">
+      <DialogContent className="max-w-md max-h-[90vh] p-0 gap-0 overflow-hidden flex flex-col">
+        <img
+          src={eWalletPanaAsset.url}
+          alt="Withdraw illustration"
+          className="w-full h-28 object-contain mt-4"
+        />
         {/* Header */}
         <DialogHeader className="p-4 pb-3 border-b">
           <div className="flex items-center gap-3">
@@ -137,7 +143,7 @@ export default function StepperModal({
         )}
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 max-h-[60vh]">
+        <div className="flex-1 overflow-y-auto p-4 min-h-0">
           {children}
         </div>
 

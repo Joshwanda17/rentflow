@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CheckCircle2, ClipboardCheck, Loader2, MapPin, Phone, XCircle } from 'lucide-react';
+import { CheckCircle2, ClipboardCheck, Eye, Loader2, MapPin, Phone, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
+import { HouseDetailsDialog } from '@/components/agent/service-center/HouseDetailsDialog';
 import {
   ServiceCenterQueueRequest,
   useServiceCenterRentQueue,
@@ -26,6 +27,7 @@ export function ServiceCenterRentVettingQueue() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [reason, setReason] = useState('');
+  const [detailsReq, setDetailsReq] = useState<ServiceCenterQueueRequest | null>(null);
 
   const act = async (req: ServiceCenterQueueRequest, decision: 'verify' | 'reject', comment?: string) => {
     setBusyId(req.id);
@@ -116,19 +118,25 @@ export function ServiceCenterRentVettingQueue() {
                 {req.landlord_name && <span className="truncate">Landlord: {req.landlord_name}</span>}
               </div>
 
-              {!!req.house_image_urls?.length && (
-                <div className="flex gap-2 overflow-x-auto pb-1">
-                  {req.house_image_urls.slice(0, 6).map((url, i) => (
-                    <img
-                      key={`${req.id}-${i}`}
-                      src={url}
-                      alt={`House photo ${i + 1} for ${req.tenant_name ?? 'tenant'}`}
-                      loading="lazy"
-                      className="h-16 w-24 shrink-0 rounded-md object-cover"
-                    />
-                  ))}
-                </div>
-              )}
+              <button type="button" onClick={() => setDetailsReq(req)} className="w-full text-left">
+                {!!req.house_image_urls?.length && (
+                  <div className="flex gap-2 overflow-x-auto pb-1">
+                    {req.house_image_urls.slice(0, 6).map((url, i) => (
+                      <img
+                        key={`${req.id}-${i}`}
+                        src={url}
+                        alt={`House photo ${i + 1} for ${req.tenant_name ?? 'tenant'}`}
+                        loading="lazy"
+                        className="h-16 w-24 shrink-0 rounded-md object-cover"
+                      />
+                    ))}
+                  </div>
+                )}
+                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-primary">
+                  <Eye className="h-3 w-3" /> View house photos &amp; full details
+                  {req.house_image_urls?.length ? ` (${req.house_image_urls.length})` : ''}
+                </span>
+              </button>
 
               {rejectId === req.id ? (
                 <div className="space-y-2">
@@ -192,6 +200,28 @@ export function ServiceCenterRentVettingQueue() {
           ))}
         </div>
       )}
+
+      <HouseDetailsDialog
+        open={!!detailsReq}
+        onOpenChange={(v) => { if (!v) setDetailsReq(null); }}
+        title={detailsReq ? `${detailsReq.tenant_name ?? 'Tenant'} — house` : null}
+        images={detailsReq?.house_image_urls}
+        extras={[
+          { label: 'Tenant', value: detailsReq?.tenant_name },
+          { label: 'Tenant phone', value: detailsReq?.tenant_phone },
+          { label: 'Submitted by', value: detailsReq?.agent_name },
+          { label: 'Agent phone', value: detailsReq?.agent_phone },
+          { label: 'Landlord', value: detailsReq?.landlord_name },
+          { label: 'Landlord phone', value: detailsReq?.landlord_phone },
+          { label: 'House type', value: detailsReq?.house_category ? String(detailsReq.house_category).replace(/_/g, ' ') : null },
+          { label: 'Location', value: detailsReq?.request_city },
+          { label: 'Rent', value: detailsReq ? formatUGX(Number(detailsReq.rent_amount || 0)) : null },
+          { label: 'Daily repayment', value: detailsReq?.daily_repayment ? formatUGX(Number(detailsReq.daily_repayment)) : null },
+          { label: 'Total repayment', value: detailsReq?.total_repayment ? formatUGX(Number(detailsReq.total_repayment)) : null },
+          { label: 'Duration', value: detailsReq?.duration_days ? `${detailsReq.duration_days} days` : null },
+          { label: 'Submitted', value: detailsReq?.created_at ? new Date(detailsReq.created_at).toLocaleString() : null },
+        ]}
+      />
     </div>
   );
 }

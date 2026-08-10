@@ -23,11 +23,15 @@ export const CANONICAL_DOMAIN =
 export const CANONICAL_ORIGIN =
   trim(process.env.SITE_CANONICAL_ORIGIN) || `https://${CANONICAL_DOMAIN}`;
 
+// NOTE: order matters — LEGACY_ORIGIN below uses the FIRST entry as the base
+// for the 301 sitemap, so a fully retired host must never sit at index 0.
+// welile.tech is retired: it is listed here ONLY so guard-legacy-domain.mjs
+// keeps rejecting it in shipping code. Nothing may emit URLs on it.
 const DEFAULT_LEGACY = [
-  'welileapp.com',
   'welilereceipts.com',
   'welilereciept.com',
   'welilereceipts-com.lovable.app',
+  'welile.tech', // retired host — blocked, never emitted
 ];
 
 export const LEGACY_DOMAINS = (

@@ -23,8 +23,16 @@ interface PartnerLeadInvite {
   revoked: boolean;
 }
 
+interface EnrolledAgent {
+  agent_id: string;
+  full_name: string;
+  phone: string | null;
+  attached_at: string;
+}
+
 export default function MyProxyInviteLink() {
   const [invite, setInvite] = useState<PartnerLeadInvite | null>(null);
+  const [agents, setAgents] = useState<EnrolledAgent[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<Error | null>(null);
@@ -48,8 +56,41 @@ export default function MyProxyInviteLink() {
     }
   };
 
+  const fetchAgents = async () => {
+    const { data, error: rpcError } = await supabase.rpc('my_partner_lead_agents');
+    if (rpcError) return;
+    setAgents((data ?? []) as unknown as EnrolledAgent[]);
+  };
+
   useEffect(() => {
     void fetchInvite();
+    void fetchAgents();
+
+    const channel = supabase
+      .channel('my-partner-lead-agents')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'partner_lead_assignments' },
+        () => {
+          void fetchAgents();
+        },
+      )
+      .subscribe();
+
+    const interval = window.setInterval(() => {
+      void fetchAgents();
+    }, 30000);
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void fetchAgents();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+
+    return () => {
+      supabase.removeChannel(channel);
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, []);
 
   const handleCopy = async () => {
@@ -83,6 +124,7 @@ export default function MyProxyInviteLink() {
       }
       toast.success('Invite link revoked');
       await fetchInvite();
+      await fetchAgents();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Could not revoke invite');
     } finally {
@@ -146,9 +188,31 @@ export default function MyProxyInviteLink() {
           </AlertDialog>
         </div>
         <p className="text-xs text-muted-foreground">
-          {invite.uses_count} proxy agent{invite.uses_count === 1 ? '' : 's'} joined
-          through this link
+          {agents.length} proxy agent{agents.length === 1 ? '' : 's'} enrolled under you
         </p>
+
+        {agents.length > 0 && (
+          <div className="divide-y divide-border rounded-md border border-border">
+            {agents.map((a, i) => (
+              <div
+                key={a.agent_id}
+                className="flex items-center justify-between gap-2 p-2"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-foreground">
+                    {i + 1}. {a.full_name}
+                  </p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {a.phone ?? 'No phone'}
+                  </p>
+                </div>
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  {new Date(a.attached_at).toLocaleDateString()}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </CardContent>
     </Card>
   );

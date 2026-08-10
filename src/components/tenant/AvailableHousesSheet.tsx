@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
+import houseSearchingIllustration from '@/assets/House_searching-bro-2.svg.asset.json';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useMapLinkAnnouncer } from '@/hooks/useMapLinkAnnouncer';
 import { Input } from '@/components/ui/input';
@@ -408,6 +409,11 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
         }}
       >
         <SheetHeader className="px-5 pt-5 pb-3 border-b border-border space-y-3">
+          <img
+            src={houseSearchingIllustration.url}
+            alt="House searching illustration"
+            className="mx-auto h-44 w-auto object-contain"
+          />
           <div className="flex items-center justify-between gap-2">
             <SheetTitle className="flex items-center gap-2">
               <Home className="h-5 w-5 text-primary" />
@@ -435,16 +441,16 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
                     onClick={() => setFiltersOpen(o => !o)}
                     aria-expanded={filtersOpen}
                     aria-controls="available-houses-filters"
-                    className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted transition"
+                    className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2 py-1 text-[10px] font-semibold text-foreground hover:bg-muted transition"
                   >
-                    <SlidersHorizontal className="h-3.5 w-3.5" />
+                    <SlidersHorizontal className="h-3 w-3" />
                     Filters
                     {activeCount > 0 && (
-                      <span className="ml-0.5 inline-flex items-center justify-center h-4 min-w-[16px] px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold leading-none">
+                      <span className="ml-0.5 inline-flex items-center justify-center h-3.5 min-w-[14px] px-1 rounded-full bg-primary text-primary-foreground text-[9px] font-bold leading-none">
                         {activeCount}
                       </span>
                     )}
-                    {filtersOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                    {filtersOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
                   </button>
                 );
               })()}
@@ -453,17 +459,17 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
                 type="button"
                 onClick={() => setView('list')}
                 aria-pressed={view === 'list'}
-                className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold transition ${view === 'list' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground'}`}
+                className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold transition ${view === 'list' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground'}`}
               >
-                <List className="h-3.5 w-3.5" /> List
+                <List className="h-3 w-3" /> List
               </button>
               <button
                 type="button"
                 onClick={() => setView('map')}
                 aria-pressed={view === 'map'}
-                className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold transition ${view === 'map' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground'}`}
+                className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold transition ${view === 'map' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground'}`}
               >
-                <MapIcon className="h-3.5 w-3.5" /> Map
+                <MapIcon className="h-3 w-3" /> Map
               </button>
               </div>
             </div>

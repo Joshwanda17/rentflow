@@ -834,6 +834,7 @@ export type Database = {
           recovery_source: string
           registration_fee: number | null
           repayment_frequency: string
+          request_id: string | null
           resumed_at: string | null
           resumed_by: string | null
           roi_recovery_percent: number
@@ -871,6 +872,7 @@ export type Database = {
           recovery_source?: string
           registration_fee?: number | null
           repayment_frequency?: string
+          request_id?: string | null
           resumed_at?: string | null
           resumed_by?: string | null
           roi_recovery_percent?: number
@@ -908,6 +910,7 @@ export type Database = {
           recovery_source?: string
           registration_fee?: number | null
           repayment_frequency?: string
+          request_id?: string | null
           resumed_at?: string | null
           resumed_by?: string | null
           roi_recovery_percent?: number
@@ -1061,6 +1064,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
+          },
+          {
+            foreignKeyName: "agent_advances_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "agent_advance_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_advances_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "agent_advance_requests_privileged"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -15198,6 +15215,11 @@ export type Database = {
           rent_balance_due: number
           rent_last_paid_amount: number | null
           rent_last_paid_at: string | null
+          service_center_comment: string | null
+          service_center_manager_id: string | null
+          service_center_reviewed_at: string | null
+          service_center_reviewed_by: string | null
+          service_center_status: string
           sub_county: string | null
           tenant_id: string | null
           tin: string | null
@@ -15265,6 +15287,11 @@ export type Database = {
           rent_balance_due?: number
           rent_last_paid_amount?: number | null
           rent_last_paid_at?: string | null
+          service_center_comment?: string | null
+          service_center_manager_id?: string | null
+          service_center_reviewed_at?: string | null
+          service_center_reviewed_by?: string | null
+          service_center_status?: string
           sub_county?: string | null
           tenant_id?: string | null
           tin?: string | null
@@ -15332,6 +15359,11 @@ export type Database = {
           rent_balance_due?: number
           rent_last_paid_amount?: number | null
           rent_last_paid_at?: string | null
+          service_center_comment?: string | null
+          service_center_manager_id?: string | null
+          service_center_reviewed_at?: string | null
+          service_center_reviewed_by?: string | null
+          service_center_status?: string
           sub_county?: string | null
           tenant_id?: string | null
           tin?: string | null
@@ -15419,6 +15451,11 @@ export type Database = {
           registered_by: string | null
           registration_verification_bonus_paid: boolean
           registration_verification_bonus_paid_at: string | null
+          service_center_comment: string | null
+          service_center_manager_id: string | null
+          service_center_reviewed_at: string | null
+          service_center_reviewed_by: string | null
+          service_center_status: string
           sub_county: string | null
           town_council: string | null
           verification_bonus_paid: boolean
@@ -15448,6 +15485,11 @@ export type Database = {
           registered_by?: string | null
           registration_verification_bonus_paid?: boolean
           registration_verification_bonus_paid_at?: string | null
+          service_center_comment?: string | null
+          service_center_manager_id?: string | null
+          service_center_reviewed_at?: string | null
+          service_center_reviewed_by?: string | null
+          service_center_status?: string
           sub_county?: string | null
           town_council?: string | null
           verification_bonus_paid?: boolean
@@ -15477,6 +15519,11 @@ export type Database = {
           registered_by?: string | null
           registration_verification_bonus_paid?: boolean
           registration_verification_bonus_paid_at?: string | null
+          service_center_comment?: string | null
+          service_center_manager_id?: string | null
+          service_center_reviewed_at?: string | null
+          service_center_reviewed_by?: string | null
+          service_center_status?: string
           sub_county?: string | null
           town_council?: string | null
           verification_bonus_paid?: boolean
@@ -24939,18 +24986,21 @@ export type Database = {
           alert_email: string
           alerts_enabled: boolean
           id: boolean
+          sample_cursor: number
           updated_at: string
         }
         Insert: {
           alert_email?: string
           alerts_enabled?: boolean
           id?: boolean
+          sample_cursor?: number
           updated_at?: string
         }
         Update: {
           alert_email?: string
           alerts_enabled?: boolean
           id?: boolean
+          sample_cursor?: number
           updated_at?: string
         }
         Relationships: []
@@ -24962,18 +25012,26 @@ export type Database = {
           checked_at: string
           coverage_state: string | null
           created_at: string
+          data_quality: Json | null
           google_canonical: string | null
           has_errors: boolean
           id: string
           indexing_state: string | null
+          monitor_degraded: boolean
           pages_indexed: boolean
           raw: Json | null
           robots_state: string | null
+          sampled_indexed_count: number | null
+          sampled_total_count: number | null
+          serving_pages_count: number | null
+          serving_window_days: number | null
           site_url: string
           sitemap_errors: number | null
           sitemap_indexed_count: number | null
+          sitemap_last_downloaded: string | null
           sitemap_submitted_count: number | null
           sitemap_warnings: number | null
+          url_samples: Json | null
           url_verdict: string | null
         }
         Insert: {
@@ -24982,18 +25040,26 @@ export type Database = {
           checked_at?: string
           coverage_state?: string | null
           created_at?: string
+          data_quality?: Json | null
           google_canonical?: string | null
           has_errors?: boolean
           id?: string
           indexing_state?: string | null
+          monitor_degraded?: boolean
           pages_indexed?: boolean
           raw?: Json | null
           robots_state?: string | null
+          sampled_indexed_count?: number | null
+          sampled_total_count?: number | null
+          serving_pages_count?: number | null
+          serving_window_days?: number | null
           site_url: string
           sitemap_errors?: number | null
           sitemap_indexed_count?: number | null
+          sitemap_last_downloaded?: string | null
           sitemap_submitted_count?: number | null
           sitemap_warnings?: number | null
+          url_samples?: Json | null
           url_verdict?: string | null
         }
         Update: {
@@ -25002,18 +25068,26 @@ export type Database = {
           checked_at?: string
           coverage_state?: string | null
           created_at?: string
+          data_quality?: Json | null
           google_canonical?: string | null
           has_errors?: boolean
           id?: string
           indexing_state?: string | null
+          monitor_degraded?: boolean
           pages_indexed?: boolean
           raw?: Json | null
           robots_state?: string | null
+          sampled_indexed_count?: number | null
+          sampled_total_count?: number | null
+          serving_pages_count?: number | null
+          serving_window_days?: number | null
           site_url?: string
           sitemap_errors?: number | null
           sitemap_indexed_count?: number | null
+          sitemap_last_downloaded?: string | null
           sitemap_submitted_count?: number | null
           sitemap_warnings?: number | null
+          url_samples?: Json | null
           url_verdict?: string | null
         }
         Relationships: []
@@ -31438,6 +31512,8 @@ export type Database = {
           resolved_at: string | null
           resolved_by_name: string | null
           reviewer_name: string | null
+          service_center_manager_id: string | null
+          service_center_status: string | null
           source: string | null
           status: string | null
           verification_bonus_paid: boolean | null
@@ -31841,9 +31917,10 @@ export type Database = {
           test_name: string
         }[]
       }
-      accept_proxy_agreement:
-        | { Args: { p_code: string }; Returns: Json }
-        | { Args: { p_code: string; p_nin?: string }; Returns: Json }
+      accept_proxy_agreement: {
+        Args: { p_code: string; p_nin?: string }
+        Returns: Json
+      }
       accept_withdrawal_dispatch: {
         Args: { p_withdrawal_id: string }
         Returns: Json
@@ -33154,6 +33231,20 @@ export type Database = {
       disable_campaign_link: {
         Args: { p_link_id: string; p_reason?: string }
         Returns: undefined
+      }
+      disburse_agent_advance_request: {
+        Args: {
+          p_cycle_days?: number
+          p_monthly_rate?: number
+          p_notes?: string
+          p_principal?: number
+          p_recovery_source?: string
+          p_repayment_frequency?: string
+          p_request_id: string
+          p_roi_recovery_percent?: number
+          p_skip_reason?: string
+        }
+        Returns: Json
       }
       drain_withdrawable_buckets: {
         Args: { p_amount: number; p_user_id: string }
@@ -34829,6 +34920,10 @@ export type Database = {
         Args: { p_limit?: number; p_offset?: number; p_rent_request_id: string }
         Returns: Json
       }
+      get_service_center_verification_queue: {
+        Args: { p_manager_id?: string }
+        Returns: Json
+      }
       get_shadow_match_rate: {
         Args: { p_hours?: number }
         Returns: {
@@ -35581,6 +35676,10 @@ export type Database = {
       }
       is_active_cashout_agent: { Args: { _user_id: string }; Returns: boolean }
       is_agent_frozen: { Args: { p_agent_id: string }; Returns: boolean }
+      is_agent_in_service_center_team: {
+        Args: { p_agent_id: string; p_manager_id: string; p_max_depth?: number }
+        Returns: boolean
+      }
       is_agent_perf_gate_disabled: { Args: never; Returns: boolean }
       is_business_advance_ops: { Args: { _uid: string }; Returns: boolean }
       is_conversation_participant: {
@@ -35626,6 +35725,7 @@ export type Database = {
       is_ops_role: { Args: { _user_id: string }; Returns: boolean }
       is_parent_agent: { Args: { _agent_id: string }; Returns: boolean }
       is_partner_ops: { Args: { _uid: string }; Returns: boolean }
+      is_payout_ops_staff: { Args: { _user_id: string }; Returns: boolean }
       is_phone_available: { Args: { p_phone: string }; Returns: boolean }
       is_platform_user_admin: { Args: { _user_id?: string }; Returns: boolean }
       is_proxy_agent_for_partner: {
@@ -35839,6 +35939,15 @@ export type Database = {
           source_queue: string
         }
         Returns: number
+      }
+      my_partner_lead_agents: {
+        Args: never
+        Returns: {
+          agent_id: string
+          attached_at: string
+          full_name: string
+          phone: string
+        }[]
       }
       my_partner_lead_invite: {
         Args: never
@@ -36077,6 +36186,8 @@ export type Database = {
           resolved_at: string | null
           resolved_by_name: string | null
           reviewer_name: string | null
+          service_center_manager_id: string | null
+          service_center_status: string | null
           source: string | null
           status: string | null
           verification_bonus_paid: boolean | null
@@ -37235,6 +37346,15 @@ export type Database = {
       }
       service_center_review_rent_request: {
         Args: { p_comment?: string; p_decision: string; p_request_id: string }
+        Returns: Json
+      }
+      service_center_review_verification: {
+        Args: {
+          p_comment?: string
+          p_decision: string
+          p_kind: string
+          p_record_id: string
+        }
         Returns: Json
       }
       set_landlord_verification: {

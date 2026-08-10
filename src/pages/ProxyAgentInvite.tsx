@@ -32,6 +32,11 @@ export default function ProxyAgentInvite() {
   const [agreed, setAgreed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [accepted, setAccepted] = useState(false);
+  // Whether the accepted invite actually attached a lead partner.
+  // Null until an acceptance response is seen.
+  const [leadAttached, setLeadAttached] = useState<boolean | null>(null);
+  // Bumps the load effect so the Retry button can re-run current_proxy_agreement.
+  const [retryCount, setRetryCount] = useState(0);
 
   // Remember the invite code so the user can resume after signing in.
   useEffect(() => {
@@ -54,11 +59,29 @@ export default function ProxyAgentInvite() {
   useEffect(() => {
     if (authLoading || !user) return;
     let cancelled = false;
+    let timedOut = false;
+    let loadTimeout: ReturnType<typeof setTimeout> | null = null;
 
-    (async () => {
+    const fetchAgreement = async () => {
       setLoading(true);
+      setError(null);
+
+      // 10-second watchdog: if the RPC hangs without rejecting, force the spinner off
+      // and surface a retryable error. This mirrors the 8-second init watchdog in useAuth.
+      loadTimeout = setTimeout(() => {
+        if (!cancelled) {
+          timedOut = true;
+          setLoading(false);
+          setError('Could not load the agreement. Check your connection and try again.');
+        }
+      }, 10000);
+
       const { data, error: rpcError } = await supabase.rpc('current_proxy_agreement');
-      if (cancelled) return;
+      if (loadTimeout) {
+        clearTimeout(loadTimeout);
+        loadTimeout = null;
+      }
+      if (cancelled || timedOut) return;
 
       if (rpcError) {
         setError(rpcError.message);
@@ -71,12 +94,15 @@ export default function ProxyAgentInvite() {
         }
       }
       setLoading(false);
-    })();
+    };
+
+    fetchAgreement();
 
     return () => {
       cancelled = true;
+      if (loadTimeout) clearTimeout(loadTimeout);
     };
-  }, [authLoading, user]);
+  }, [authLoading, user, retryCount]);
 
   const canAccept = useMemo(
     () => agreed && nin.trim().length >= 8 && !submitting,
@@ -86,25 +112,55 @@ export default function ProxyAgentInvite() {
   const handleAccept = async () => {
     setSubmitting(true);
     setError(null);
+    let submitTimedOut = false;
+    let submitTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    // 10-second watchdog for the acceptance RPC, matching the useAuth init timeout pattern.
+    submitTimeout = setTimeout(() => {
+      submitTimedOut = true;
+      setSubmitting(false);
+      setError('The request timed out. Your acceptance may not have been recorded — reload this page to check.');
+    }, 10000);
+
     const { data, error: rpcError } = await supabase.rpc('accept_proxy_agreement', {
       p_code: code,
       p_nin: nin.trim(),
     });
+
+    if (submitTimeout) {
+      clearTimeout(submitTimeout);
+      submitTimeout = null;
+    }
+
+    // If the watchdog fired, the RPC result is stale/unknown — do not overwrite the timeout message.
+    if (submitTimedOut) return;
+
     setSubmitting(false);
 
     if (rpcError) {
       setError(rpcError.message);
+      // Surface the backend failure verbatim, prefixed for context, and stay
+      // on the form: no success screen, no redirect.
+      setError(`Could not accept: ${rpcError.message}`);
       return;
     }
 
     const row: any = Array.isArray(data) ? data[0] : data;
     if (row?.status === 'accepted') {
+      // An accepted agreement without a lead attachment is still a success,
+      // but the proxy must be told the link did not happen.
+      setLeadAttached(row?.lead_attached === true);
       try {
         localStorage.removeItem(STORAGE_KEY);
       } catch {
         /* ignore */
       }
       setAccepted(true);
+      return;
+    }
+
+    if (row?.status === 'error') {
+      setError(`Could not accept: ${row?.message || 'the agreement could not be accepted.'}`);
       return;
     }
 
@@ -172,9 +228,20 @@ export default function ProxyAgentInvite() {
             )}
 
             {error && (
-              <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                <span className="break-words">{error}</span>
+              <div className="space-y-2">
+                <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span className="break-words">{error}</span>
+                </div>
+                {error === 'Could not load the agreement. Check your connection and try again.' && !loading && (
+                  <Button
+                    onClick={() => setRetryCount((c) => c + 1)}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    Retry
+                  </Button>
+                )}
               </div>
             )}
 
@@ -186,6 +253,14 @@ export default function ProxyAgentInvite() {
                     You're connected. Taking you to My Partners…
                   </span>
                 </div>
+                {leadAttached === false && (
+                  <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span className="break-words">
+                      Accepted, but no lead was attached — the invite code may have expired or reached its limit.
+                    </span>
+                  </div>
+                )}
                 <Button onClick={() => navigate('/agent/partners', { replace: true })} className="w-full">
                   Go to My Partners now
                 </Button>

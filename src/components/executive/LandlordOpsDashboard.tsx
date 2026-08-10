@@ -875,6 +875,8 @@ export function LandlordOpsDashboard() {
     queryFn: async () => {
       const { data } = await supabase.from('house_listings')
         .select(HOUSE_LISTING_SELECT)
+        // Houses still in Service Centre vetting are not yet Landlord Ops' to see.
+        .in('service_center_status', ['not_required', 'passed'])
         .order('created_at', { ascending: false })
         .limit(500);
       const rows = (data ?? []) as any[];
@@ -958,6 +960,7 @@ export function LandlordOpsDashboard() {
       const { data } = await supabase.from('house_listings')
         .select(HOUSE_LISTING_SELECT)
         .or(orParts.join(','))
+        .in('service_center_status', ['not_required', 'passed'])
         .order('created_at', { ascending: false })
         .limit(500);
 
@@ -980,6 +983,7 @@ export function LandlordOpsDashboard() {
     queryFn: async () => {
       let query = supabase.from('house_listings')
         .select(HOUSE_LISTING_SELECT)
+        .in('service_center_status', ['not_required', 'passed'])
         .order('created_at', { ascending: false })
         .limit(2000);
       if (verifyDateFrom) query = query.gte('created_at', new Date(verifyDateFrom).toISOString());
@@ -1540,6 +1544,8 @@ export function LandlordOpsDashboard() {
       const { count } = await supabase
         .from('landlords')
         .select('id', { count: 'exact', head: true })
+        // Still with a Service Centre manager → not yet Landlord Ops work.
+        .neq('service_center_status', 'pending')
         .or('verified.is.null,verified.eq.false');
       return count || 0;
     },

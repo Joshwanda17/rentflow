@@ -50,9 +50,12 @@ const TAB_META: Record<Lc1InboxStatus, { label: string; icon: typeof Clock; cls:
 
 /** Applies the bucket filter to a `v_lc1_verification_inbox` query. */
 function applyBucket(q: any, bucket: Lc1InboxStatus) {
-  if (bucket === 'agent_requested') return q.eq('status', 'pending').eq('agent_request_open', true);
-  if (bucket === 'rent_linked') return q.eq('status', 'pending').eq('has_open_rent_request', true);
-  return q.eq('status', bucket);
+  // Chairpersons still being vetted by their Service Centre manager are not yet
+  // Landlord Ops work — they arrive here only once the manager passes them on.
+  const base = q.neq('service_center_status', 'pending');
+  if (bucket === 'agent_requested') return base.eq('status', 'pending').eq('agent_request_open', true);
+  if (bucket === 'rent_linked') return base.eq('status', 'pending').eq('has_open_rent_request', true);
+  return base.eq('status', bucket);
 }
 
 function StatusBadge({ status }: { status: string | null }) {

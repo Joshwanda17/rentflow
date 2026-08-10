@@ -19,8 +19,11 @@ import { SubAgentRosterCard } from '@/components/agent/service-center/SubAgentRo
 import { SubAgentDetailSheet } from '@/components/agent/service-center/SubAgentDetailSheet';
 import { ServiceCenterRentVettingQueue } from '@/components/agent/service-center/ServiceCenterRentVettingQueue';
 import { ServiceCenterListingVettingQueue } from '@/components/agent/service-center/ServiceCenterListingVettingQueue';
+import { ServiceCenterVerificationVettingQueue } from '@/components/agent/service-center/ServiceCenterVerificationVettingQueue';
 import { ServiceCenterPipelineTracker } from '@/components/agent/service-center/ServiceCenterPipelineTracker';
 import { useServiceCenterRentQueue } from '@/hooks/useServiceCenterRentQueue';
+import { useServiceCenterVerificationQueue } from '@/hooks/useServiceCenterVerificationQueue';
+import { useServiceCenterListingQueue } from '@/hooks/useServiceCenterListingQueue';
 import {
   SuspendSubAgentDialog,
   TransferTenantDialog,
@@ -35,6 +38,8 @@ export default function AgentServiceCenter() {
   const { data: transfers = [] } = useServiceCenterTransfers();
   const { data: catalog = [], isLoading: loadingCatalog } = useServiceCenterCatalog();
   const { data: vetting } = useServiceCenterRentQueue();
+  const { data: verificationQueue } = useServiceCenterVerificationQueue();
+  const { data: listingQueue = [] } = useServiceCenterListingQueue();
 
   const [query, setQuery] = useState('');
   const [visible, setVisible] = useState(20);
@@ -127,6 +132,7 @@ export default function AgentServiceCenter() {
             { label: 'Landlords registered', value: String(totals.landlords) },
             { label: 'Houses listed', value: String(totals.houses) },
             { label: 'Rent requests to vet', value: String(vetting?.pending_count ?? 0) },
+            { label: 'Landlords & LC1 to vet', value: String(verificationQueue?.pending_count ?? 0) },
             { label: 'Houses pending verification', value: String(totals.housesPending) },
             { label: 'Landlords pending verification', value: String(totals.landlordsPending) },
             { label: 'Tenants pending funding', value: String(totals.tenantsPending) },
@@ -161,8 +167,35 @@ export default function AgentServiceCenter() {
           </TabsList>
 
           <TabsContent value="vetting" className="mt-3 space-y-3">
-            <ServiceCenterRentVettingQueue />
-            <ServiceCenterListingVettingQueue />
+            <Tabs defaultValue="rent">
+              <TabsList className="grid w-full grid-cols-4">
+                <TabsTrigger value="rent" className="text-[11px] sm:text-xs">
+                  Rent{vetting?.pending_count ? ` (${vetting.pending_count})` : ''}
+                </TabsTrigger>
+                <TabsTrigger value="houses" className="text-[11px] sm:text-xs">
+                  Houses{listingQueue.length ? ` (${listingQueue.length})` : ''}
+                </TabsTrigger>
+                <TabsTrigger value="landlords" className="text-[11px] sm:text-xs">
+                  Landlords{verificationQueue?.landlords?.length ? ` (${verificationQueue.landlords.length})` : ''}
+                </TabsTrigger>
+                <TabsTrigger value="lc1" className="text-[11px] sm:text-xs">
+                  LC1{verificationQueue?.lc1?.length ? ` (${verificationQueue.lc1.length})` : ''}
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="rent" className="mt-3">
+                <ServiceCenterRentVettingQueue />
+              </TabsContent>
+              <TabsContent value="houses" className="mt-3">
+                <ServiceCenterListingVettingQueue />
+              </TabsContent>
+              <TabsContent value="landlords" className="mt-3">
+                <ServiceCenterVerificationVettingQueue only="landlord" />
+              </TabsContent>
+              <TabsContent value="lc1" className="mt-3">
+                <ServiceCenterVerificationVettingQueue only="lc1" />
+              </TabsContent>
+            </Tabs>
           </TabsContent>
 
           <TabsContent value="followup" className="mt-3 space-y-3">

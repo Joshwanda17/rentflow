@@ -207,8 +207,8 @@ export function useWithdrawContext(userIdOverride?: string) {
 
   /**
    * Layer per-amount checks on top of the server gate. Order matters: the
-   * server gate is checked FIRST so a paused platform, frozen account, or
-   * exhausted daily count always wins.
+   * server gate is checked FIRST so a paused platform or frozen account always wins.
+   * Daily withdrawal limits have been removed globally; only available balance gates here.
    */
   const checkAmount = (amount: number, opts?: { min?: number }): AmountCheck => {
     if (query.isLoading) return { ok: false, reason: 'Checking limits…' };
@@ -222,13 +222,6 @@ export function useWithdrawContext(userIdOverride?: string) {
         ok: false,
         reason: `Exceeds available balance (UGX ${ctx.wallet.withdrawable.toLocaleString()}).`,
         cappedAt: ctx.wallet.withdrawable,
-      };
-    }
-    if (amount > ctx.usageToday.remainingAmount) {
-      return {
-        ok: false,
-        reason: `Only UGX ${ctx.usageToday.remainingAmount.toLocaleString()} remaining today at KYC Level ${ctx.kyc.level}. Verify identity to raise limits.`,
-        cappedAt: ctx.usageToday.remainingAmount,
       };
     }
     return { ok: true };

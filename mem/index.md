@@ -78,3 +78,5 @@
 - [Agent advance activity gate](mem://business-model/agent-advance-activity-gate) — zero-activity agents blocked from advance requests; one field-work signal required; also documents the agent limit build-up (base 20K → 9M cap)
 - [Agent advance deduction pause](mem://features/agent/advance-deduction-pause) — `deduction_paused` switch + `pause_agent_advance`/`resume_agent_advance` RPCs; every auto-recovery path must exclude paused advances
 - [Canonical domain is welileapp.com](mem://constraints/canonical-domain) — Single public origin `https://welileapp.com`; use `getPublicOrigin()`, never hardcode; welile.tech / welilereceipts.com are legacy and CI-guarded
+- [Absent vs zero API fields](mem://constraints/absent-vs-zero-api-fields) — Never `Number(x ?? 0)` on external API fields; nulls never alert (raise monitor-degraded instead); deprecated sitemap `contents[].indexed` banned as an indexing signal; per-run `data_quality` required
+- [Cash code resend must SMS](mem://constraints/cash-code-resend-must-sms) — Resend code goes through finops-cash-deposit-resend edge fn; the reissue RPC never delivers an SMS
