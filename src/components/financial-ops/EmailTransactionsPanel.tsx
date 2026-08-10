@@ -5302,8 +5302,6 @@ export function EmailTransactionsPanel() {
         })()}
       </div>
 
-      <StatHelpPanel />
-
       <DebitBucketAuditSearch />
 
       <CashDepositCodesPanel />
@@ -6861,98 +6859,6 @@ function StatCard({
   );
 }
 
-/**
- * Plain-language help panel. Explains what each stat card and toolbar action
- * means for an operator who doesn't read fine print. Pure presentation —
- * collapsible, remembers its open/closed state in localStorage so it stays
- * tucked away once the operator is comfortable.
- */
-const HELP_PANEL_KEY = 'gmail_help_panel_open_v1';
-
-function StatHelpPanel() {
-  const [open, setOpen] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    try { return localStorage.getItem(HELP_PANEL_KEY) === '1'; } catch { return false; }
-  });
-  const toggle = () => {
-    setOpen((v) => {
-      const next = !v;
-      try { localStorage.setItem(HELP_PANEL_KEY, next ? '1' : '0'); } catch { /* ignore */ }
-      return next;
-    });
-  };
-
-  const stats: Array<{ term: string; plain: string }> = [
-    { term: 'Emails captured', plain: 'How many confirmation emails we have pulled in from Gmail.' },
-    { term: 'Parsed transactions', plain: 'Emails we successfully read and turned into a money amount.' },
-    { term: 'Total amount (parsed)', plain: 'All the money values added up across every readable email.' },
-    { term: 'Total in (received)', plain: 'Money that came IN — deposits and payments received.' },
-    { term: 'Total out (sent + charges)', plain: 'Money that went OUT — payments sent plus provider fees.' },
-    { term: 'Total provider fees', plain: 'Charges taken by MTN, Airtel or the banks for the transactions.' },
-    { term: 'Net (in − out)', plain: 'What is left after subtracting money out from money in.' },
-    { term: 'Last poll', plain: 'The time we last checked Gmail for new emails (happens every minute).' },
-    { term: 'Flagged (review)', plain: 'Rows that look unusual and are worth a quick human check.' },
-    { term: 'Unmatched deposits', plain: 'Incoming money not yet linked to a deposit request — may need routing.' },
-    { term: 'Unmatched payouts', plain: 'Outgoing money not yet linked to a withdrawal — may need routing.' },
-  ];
-
-  const actions: Array<{ term: string; plain: string }> = [
-    { term: 'Poll now', plain: 'Check Gmail immediately instead of waiting for the next automatic check.' },
-    { term: 'Export CSV', plain: 'Download the current list as a spreadsheet you can open in Excel.' },
-    { term: 'Export PDF', plain: 'Download a printable report of the current totals and rows.' },
-    { term: 'Date range', plain: 'Pick a period (Today, 7d, 30d…) to recalculate the totals above.' },
-    { term: 'More tools', plain: 'Extra utilities: reconnect Gmail, archived reports, setup guides and bulk fixes.' },
-  ];
-
-  return (
-    <div className="rounded-xl border bg-card overflow-hidden">
-      <button
-        type="button"
-        onClick={toggle}
-        className="w-full flex items-center justify-between gap-3 p-4 text-left hover:bg-muted/30 transition-colors"
-        aria-expanded={open}
-      >
-        <span className="flex items-center gap-2.5 min-w-0">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <HelpCircle className="h-4 w-4" />
-          </span>
-          <span className="min-w-0">
-            <span className="block text-sm font-semibold">What does everything mean?</span>
-            <span className="block text-xs text-muted-foreground truncate">Plain-language guide to each number and button on this page.</span>
-          </span>
-        </span>
-        {open ? <ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />}
-      </button>
-
-      {open && (
-        <div className="border-t p-4 grid gap-5 sm:grid-cols-2">
-          <div>
-            <h4 className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">The numbers (summary cards)</h4>
-            <dl className="space-y-2">
-              {stats.map((s) => (
-                <div key={s.term} className="text-sm">
-                  <dt className="font-medium">{s.term}</dt>
-                  <dd className="text-muted-foreground leading-snug">{s.plain}</dd>
-                </div>
-              ))}
-            </dl>
-          </div>
-          <div>
-            <h4 className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">The buttons (actions)</h4>
-            <dl className="space-y-2">
-              {actions.map((a) => (
-                <div key={a.term} className="text-sm">
-                  <dt className="font-medium">{a.term}</dt>
-                  <dd className="text-muted-foreground leading-snug">{a.plain}</dd>
-                </div>
-              ))}
-            </dl>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
 /**
  * Maps a raw poll error message into a friendly headline + description.
