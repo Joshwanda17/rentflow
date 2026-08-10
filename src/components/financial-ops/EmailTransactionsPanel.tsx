@@ -3089,1081 +3089,6 @@ export function EmailTransactionsPanel() {
           </div>
         </div>
       </div>
-
-      <StatHelpPanel />
-
-      <DebitBucketAuditSearch />
-
-      <CashDepositCodesPanel />
-
-      <div className="rounded-xl border bg-card p-3 flex flex-col gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <Button onClick={pollNow} disabled={polling} className="gap-2 flex-1 sm:flex-none min-w-[130px]">
-            {polling ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            Poll now
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => exportTotalsCsv({ rows: filteredRows, totalIn, totalOut, netAmount, channelBreakdown })}
-            disabled={filteredRows.length === 0}
-            className="gap-2 flex-1 sm:flex-none min-w-[120px]"
-          >
-            <FileDown className="h-4 w-4" /> Export CSV
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => exportTotalsPdf({ rows: filteredRows, totalIn, totalOut, netAmount, channelBreakdown })}
-            disabled={filteredRows.length === 0}
-            className="gap-2 flex-1 sm:flex-none min-w-[120px]"
-          >
-            <FileText className="h-4 w-4" /> Export PDF
-          </Button>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 border-t pt-3">
-          <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium w-full sm:w-auto sm:mr-1">More tools</span>
-          <ArchivedPdfsDrawer />
-          <ReconnectGmailDialog />
-          <DebugPollDialog />
-          <SmsSetupGuide />
-          <BucketTransferLauncher />
-          <BacklogSweepLauncher />
-        </div>
-      </div>
-
-      {/* Mobile fast-search — sits at the very top of the page (sticky) so ops
-          can find a transaction by reference / TID / amount / sender name or
-          phone without scrolling past the summary cards. Bound to the same
-          `searchQuery` state as the full search bar in the list card, so the
-          two always stay in sync. */}
-      <div className="sm:hidden sticky top-0 z-20 -mx-1 px-1 py-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b space-y-2">
-        <div className="relative w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
-          <input
-            type="search"
-            inputMode="search"
-            enterKeyHint="search"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.currentTarget.blur();
-                document
-                  .getElementById('email-tx-results')
-                  ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              }
-            }}
-            placeholder="Search reference, TID, amount or sender…"
-            aria-label="Quick search email transactions"
-            className="h-11 w-full rounded-full border-2 border-input bg-background pl-10 pr-10 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent placeholder:text-muted-foreground/70"
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground rounded-full p-1 hover:bg-muted"
-              aria-label="Clear quick search"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
-        </div>
-        {searchActive && (
-          <button
-            type="button"
-            onClick={() =>
-              document
-                .getElementById('email-tx-results')
-                ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-            }
-            className="w-full rounded-lg bg-primary/10 text-primary text-xs font-semibold py-2"
-          >
-            {filteredRows.length} match{filteredRows.length === 1 ? '' : 'es'} — tap to view results
-          </button>
-        )}
-      </div>
-
-      {/* Date-range selector — recomputes totals/breakdown/exports for the chosen
-          period. Pinned under the quick-search bar on mobile so filters are
-          always one tap away, no scrolling back up. */}
-      <div className="sm:hidden sticky top-[60px] z-[19] flex items-center justify-between gap-2 -mx-1 px-1 py-1.5 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b">
-        <Button
-          variant="outline"
-          size="sm"
-          className="flex-1 gap-2"
-          onClick={() => setMobileFiltersOpen((v) => !v)}
-        >
-          {mobileFiltersOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          {mobileFiltersOpen ? 'Hide filters' : 'Filters & date range'}
-          {(rangeActive || searchActive) && (
-            <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px]">active</Badge>
-          )}
-        </Button>
-        {/* One-tap audit export of exactly what is on screen (all filters,
-            search and sort applied) — one CSV line per email. */}
-        <Button
-          variant="secondary"
-          size="sm"
-          className="gap-1.5 shrink-0"
-          disabled={visibleRows.length === 0}
-          onClick={() => {
-            try { navigator.vibrate?.(15); } catch { /* haptics optional */ }
-            const count = exportFilteredRowsCsv(visibleRows, getRowStatus);
-            toast({
-              title: 'CSV exported',
-              description: `${count} filtered transaction${count === 1 ? '' : 's'} downloaded.`,
-            });
-          }}
-        >
-          <FileDown className="h-4 w-4" />
-          CSV ({visibleRows.length})
-        </Button>
-      </div>
-      <div className={`rounded-xl border bg-card p-3 sm:p-4 flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3 sm:gap-4 ${mobileFiltersOpen ? 'flex' : 'hidden sm:flex'}`}>
-        <div className="flex-1 min-w-full sm:min-w-[200px]">
-          <h3 className="font-semibold text-sm">Date range</h3>
-          <p className="text-[11px] text-muted-foreground mt-0.5">
-            {searchActive
-              ? `Showing ${filteredRows.length} of ${rows.length} emails — search "${searchQuery}" (date range ignored while searching) · timezone ${tz}`
-              : rangeActive
-              ? `Showing ${filteredRows.length} of ${rows.length} emails — totals recomputed for ${fromDate || '…'} → ${toDate || '…'} (${tz})`
-              : `No range selected — showing all ${rows.length} emails · timezone ${tz}`}
-          </p>
-        </div>
-        <div className="flex flex-col flex-1 sm:flex-none min-w-[140px]">
-          <label
-            className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1"
-            title="Date boundaries and daily buckets are interpreted in this timezone."
-          >
-            Timezone
-          </label>
-          <select
-            value={tz}
-            onChange={(e) => setTz(e.target.value)}
-            className="h-9 rounded-md border border-input bg-background px-2 text-sm"
-          >
-            {TIMEZONE_OPTIONS.includes(tz) ? null : <option value={tz}>{tz}</option>}
-            {TIMEZONE_OPTIONS.map((z) => (
-              <option key={z} value={z}>{z}</option>
-            ))}
-            {browserTz && !TIMEZONE_OPTIONS.includes(browserTz) && (
-              <option value={browserTz}>{browserTz} (browser)</option>
-            )}
-          </select>
-        </div>
-        <div className="flex flex-col flex-1 sm:flex-none min-w-[130px]">
-          <label className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">From</label>
-          <input
-            type="date"
-            value={fromDate}
-            max={toDate || undefined}
-            onChange={(e) => setFromDate(e.target.value)}
-            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-          />
-        </div>
-        <div className="flex flex-col flex-1 sm:flex-none min-w-[130px]">
-          <label className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">To</label>
-          <input
-            type="date"
-            value={toDate}
-            min={fromDate || undefined}
-            onChange={(e) => setToDate(e.target.value)}
-            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-          />
-        </div>
-        <div className="flex flex-col flex-1 sm:flex-none min-w-[160px]">
-          <label
-            className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1"
-            title="Warn when the absolute Net (in − out) exceeds this amount — flags potentially unusual parsing."
-          >
-            Net warning ≥
-          </label>
-          <div className="relative">
-            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground pointer-events-none">UGX</span>
-            <input
-              type="number"
-              min={0}
-              step={10000}
-              value={netThreshold}
-              onChange={(e) => {
-                const v = Number(e.target.value);
-                setNetThreshold(Number.isFinite(v) && v >= 0 ? v : 0);
-              }}
-              className="h-9 w-full sm:w-36 rounded-md border border-input bg-background pl-10 pr-2 text-sm tabular-nums"
-            />
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-          {[
-            { label: 'Today', days: 1 },
-            { label: 'Yesterday', days: 1, offset: 1 },
-            { label: '7d', days: 7 },
-            { label: '30d', days: 30 },
-            { label: '90d', days: 90 },
-          ].map((p) => (
-            <Button
-              key={p.label}
-              variant="outline"
-              size="sm"
-              className="flex-1 sm:flex-none"
-              onClick={() => {
-                // Anchor presets to "today" as seen in the selected timezone.
-                const todayKey = dateKeyInTz(new Date(), tz);
-                const [y, m, d] = todayKey.split('-').map(Number);
-                const offsetDays = (p as { offset?: number }).offset ?? 0;
-                const toUtc = Date.UTC(y, m - 1, d) - offsetDays * 86_400_000;
-                const fromUtc = toUtc - (p.days - 1) * 86_400_000;
-                const fmtKey = (ms: number) => {
-                  const dt = new Date(ms);
-                  return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`;
-                };
-                setFromDate(fmtKey(fromUtc));
-                setToDate(fmtKey(toUtc));
-              }}
-            >
-              {p.label}
-            </Button>
-          ))}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="flex-1 sm:flex-none"
-            onClick={() => { setFromDate(''); setToDate(''); }}
-            disabled={!rangeActive}
-          >
-            Clear
-          </Button>
-        </div>
-      </div>
-
-      <GmailConnectionStatus
-        state={state}
-        lastSuccessAt={lastSuccessAt}
-        onRetry={pollNow}
-        retrying={polling}
-      />
-
-      <GmailReconnectAuditPanel />
-
-      <EmailPeriodComparison />
-
-      <div className="sm:hidden">
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full gap-2"
-          onClick={() => setMobileStatsOpen((v) => !v)}
-        >
-          {mobileStatsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          {mobileStatsOpen ? 'Hide summary' : `Summary · ${rows.length} emails · net ${netAmount < 0 ? '-' : ''}${fmtUgx(Math.abs(netAmount))}`}
-        </Button>
-      </div>
-      <div className="flex items-center justify-end gap-2">
-        <Label htmlFor="tooltip-placement" className="text-[11px] uppercase tracking-wider text-muted-foreground">
-          Tooltip position
-        </Label>
-        <Select value={tooltipPlacement} onValueChange={(v) => setTooltipPlacement(v as typeof tooltipPlacement)}>
-          <SelectTrigger id="tooltip-placement" className="h-8 w-[120px] text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="auto">Auto</SelectItem>
-            <SelectItem value="top">Top</SelectItem>
-            <SelectItem value="bottom">Bottom</SelectItem>
-            <SelectItem value="left">Left</SelectItem>
-            <SelectItem value="right">Right</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      <div className={`grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 ${mobileStatsOpen ? 'grid' : 'hidden sm:grid'}`}>
-        <StatCard
-          tooltipSide={statTooltipSide}
-          label="Emails captured"
-          value={rows.length.toString()}
-          info={<p className="text-xs leading-relaxed">How many confirmation emails we have pulled in from Gmail.</p>}
-        />
-        <StatCard
-          tooltipSide={statTooltipSide}
-          label="Parsed transactions"
-          value={parsedCount.toString()}
-          info={<p className="text-xs leading-relaxed">Emails we successfully read and turned into a money amount.</p>}
-        />
-        <StatCard
-          tooltipSide={statTooltipSide}
-          label="Total amount (parsed)"
-          value={fmtUgx(totalAmount)}
-          info={<p className="text-xs leading-relaxed">All the money values added up across every readable email.</p>}
-        />
-        <StatCard
-          tooltipSide={statTooltipSide}
-          label="Total in (received)"
-          value={fmtUgx(totalIn)}
-          info={<p className="text-xs leading-relaxed">Money that came IN — deposits and payments received.</p>}
-          sub={<span className="text-[10px] text-emerald-600">↓ money received</span>}
-        />
-        <StatCard
-          tooltipSide={statTooltipSide}
-          label="Total out (sent + charges)"
-          value={fmtUgx(totalOut)}
-          info={<p className="text-xs leading-relaxed">Money that went OUT — payments sent plus provider fees.</p>}
-          sub={<span className="text-[10px] text-rose-600">↑ money sent</span>}
-        />
-        <StatCard
-          tooltipSide={statTooltipSide}
-          label="Total provider fees"
-          value={fmtUgx(totalFees)}
-          info={<p className="text-xs leading-relaxed">Charges taken by MTN, Airtel or the banks for these transactions.</p>}
-          sub={<span className="text-[10px] text-amber-600">{feeCount} row{feeCount === 1 ? '' : 's'} · MTN / Airtel / banks</span>}
-        />
-        <StatCard
-          tooltipSide={statTooltipSide}
-          label="Net (in − out)"
-          value={`${netAmount < 0 ? '-' : ''}${fmtUgx(Math.abs(netAmount))}`}
-          info={
-            <div className="space-y-1.5 text-xs leading-relaxed">
-              <p className="font-semibold">How Net is calculated</p>
-              <p>
-                <span className="font-mono">Net = Total in − Total out</span>
-              </p>
-              <ul className="list-disc pl-4 space-y-0.5">
-                <li><span className="text-emerald-300">Total in</span> = sum of <code>amount</code> for rows where <code>direction = 'in'</code> (money received).</li>
-                <li><span className="text-rose-300">Total out</span> = sum of <code>amount</code> for rows where <code>direction = 'out'</code> or <code>'charge'</code> (sent + fees).</li>
-              </ul>
-              <p className="pt-1 border-t border-border/40">
-                Counts every <strong>parsed</strong> row with a usable amount that falls inside the selected date range. Flagged rows are still included — they are highlighted in amber for manual review but no longer excluded from totals.
-              </p>
-              <p className="text-muted-foreground">
-                Currently: {fmtUgx(totalIn)} − {fmtUgx(totalOut)} = {netAmount < 0 ? '-' : ''}{fmtUgx(Math.abs(netAmount))}
-              </p>
-            </div>
-          }
-          sub={
-            <div className="flex flex-col gap-1">
-              <span className={`text-[10px] ${netAmount >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                {netAmount >= 0 ? 'net inflow' : 'net outflow'}
-              </span>
-              {netThreshold > 0 && Math.abs(netAmount) >= netThreshold && (
-                <Badge
-                  variant="outline"
-                  className="text-[10px] bg-amber-500/10 text-amber-700 border-amber-500/30 gap-1 w-fit"
-                  title={`|Net| ${fmtUgx(Math.abs(netAmount))} ≥ threshold ${fmtUgx(netThreshold)}. Review parsed emails for duplicates, misclassified direction, or unusually large amounts.`}
-                >
-                  <AlertTriangle className="h-3 w-3" /> unusual · review
-                </Badge>
-              )}
-            </div>
-          }
-        />
-        <StatCard
-          tooltipSide={statTooltipSide}
-          label="Last poll"
-          value={state?.last_polled_at ? format(new Date(state.last_polled_at), 'HH:mm:ss') : '—'}
-          info={<p className="text-xs leading-relaxed">The time we last checked Gmail for new emails (happens automatically every minute).</p>}
-          sub={state?.last_status === 'error' ? (
-            <span className="inline-flex items-center gap-1 text-destructive text-xs"><AlertCircle className="h-3 w-3" /> {state.last_error?.slice(0, 60)}</span>
-          ) : state?.last_status === 'ok' ? (
-            <span className="inline-flex items-center gap-1 text-emerald-600 text-xs"><CheckCircle2 className="h-3 w-3" /> ok</span>
-          ) : null}
-        />
-        <StatCard
-          tooltipSide={statTooltipSide}
-          label="Flagged (review)"
-          value={flaggedCount.toString()}
-          info={<p className="text-xs leading-relaxed">Rows that look unusual and are worth a quick human check. They still count toward totals.</p>}
-          sub={
-            flaggedCount > 0 ? (
-              <span className="inline-flex items-center gap-1 text-amber-600 text-[10px]">
-                <AlertTriangle className="h-3 w-3" /> counted, but verify
-              </span>
-            ) : (
-              <span className="text-[10px] text-emerald-600">all parsed rows valid</span>
-            )
-          }
-        />
-        <StatCard
-          tooltipSide={statTooltipSide}
-          label="Unmatched deposits"
-          value={unmatchedInCount.toString()}
-          info={<p className="text-xs leading-relaxed">Incoming money not yet linked to a deposit request — may still need routing.</p>}
-          sub={
-            unmatchedInCount > 0 ? (
-              <span className="inline-flex items-center gap-1 text-amber-600 text-[10px]">
-                <AlertTriangle className="h-3 w-3" /> not linked to any deposit request
-              </span>
-            ) : (
-              <span className="text-[10px] text-emerald-600">all deposits matched</span>
-            )
-          }
-        />
-        <StatCard
-          tooltipSide={statTooltipSide}
-          label="Unmatched payouts"
-          value={unmatchedOutCount.toString()}
-          info={<p className="text-xs leading-relaxed">Outgoing money not yet linked to a withdrawal — may still need routing.</p>}
-          sub={
-            unmatchedOutCount > 0 ? (
-              <span className="inline-flex items-center gap-1 text-rose-600 text-[10px]">
-                <AlertTriangle className="h-3 w-3" /> not routed or matched to withdrawal
-              </span>
-            ) : (
-              <span className="text-[10px] text-emerald-600">all payouts settled</span>
-            )
-          }
-        />
-      </div>
-
-      {channelBreakdown.length > 0 && (
-        <div className="rounded-xl border bg-card overflow-hidden">
-          <div className="p-4 border-b flex items-center justify-between">
-            <h3 className="font-semibold text-sm">Breakdown by channel</h3>
-            <span className="text-[11px] text-muted-foreground">parsed transactions only</span>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground">
-                <tr>
-                  <th className="text-left px-4 py-2 font-semibold">Channel</th>
-                  <th className="text-right px-4 py-2 font-semibold">In (count)</th>
-                  <th className="text-right px-4 py-2 font-semibold text-emerald-700">Total in</th>
-                  <th className="text-right px-4 py-2 font-semibold">Out (count)</th>
-                  <th className="text-right px-4 py-2 font-semibold text-rose-700">Total out</th>
-                  <th className="text-right px-4 py-2 font-semibold">Fees (count)</th>
-                  <th className="text-right px-4 py-2 font-semibold text-amber-700">Total fees</th>
-                  <th className="text-right px-4 py-2 font-semibold">Net</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {channelBreakdown.map((b) => (
-                  <tr key={b.channel} className="hover:bg-muted/30">
-                    <td className="px-4 py-2 capitalize font-medium">{b.channel}</td>
-                    <td className="px-4 py-2 text-right tabular-nums text-muted-foreground">{b.inCount}</td>
-                    <td className="px-4 py-2 text-right tabular-nums font-mono text-emerald-700">{fmtUgx(b.inTotal)}</td>
-                    <td className="px-4 py-2 text-right tabular-nums text-muted-foreground">{b.outCount}</td>
-                    <td className="px-4 py-2 text-right tabular-nums font-mono text-rose-700">{fmtUgx(b.outTotal)}</td>
-                    <td className="px-4 py-2 text-right tabular-nums text-muted-foreground">{b.feeCount}</td>
-                    <td className="px-4 py-2 text-right tabular-nums font-mono text-amber-700">{fmtUgx(b.feeTotal)}</td>
-                    <td className={`px-4 py-2 text-right tabular-nums font-mono font-semibold ${b.net >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
-                      {b.net < 0 ? '-' : ''}{fmtUgx(Math.abs(b.net))}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot className="bg-muted/30 font-semibold">
-                <tr>
-                  <td className="px-4 py-2">Total</td>
-                  <td className="px-4 py-2 text-right tabular-nums">{channelBreakdown.reduce((s, b) => s + b.inCount, 0)}</td>
-                  <td className="px-4 py-2 text-right tabular-nums font-mono text-emerald-700">{fmtUgx(totalIn)}</td>
-                  <td className="px-4 py-2 text-right tabular-nums">{channelBreakdown.reduce((s, b) => s + b.outCount, 0)}</td>
-                  <td className="px-4 py-2 text-right tabular-nums font-mono text-rose-700">{fmtUgx(totalOut)}</td>
-                  <td className="px-4 py-2 text-right tabular-nums">{channelBreakdown.reduce((s, b) => s + b.feeCount, 0)}</td>
-                  <td className="px-4 py-2 text-right tabular-nums font-mono text-amber-700">{fmtUgx(totalFees)}</td>
-                  <td className={`px-4 py-2 text-right tabular-nums font-mono ${netAmount >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
-                    {netAmount < 0 ? '-' : ''}{fmtUgx(Math.abs(netAmount))}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {dailySeries.length > 0 && (
-        <div className="rounded-xl border bg-card overflow-hidden">
-          <div className="p-4 border-b flex items-center justify-between">
-            <h3 className="font-semibold text-sm">In vs Out — daily</h3>
-            <span className="text-[11px] text-muted-foreground">
-              {dailySeries.length} day{dailySeries.length === 1 ? '' : 's'}
-              {rangeActive ? ' in selected range' : ''}
-              {dailySeries.length > 1 ? ' · drag the slider below to zoom' : ''}
-            </span>
-          </div>
-          {(() => {
-            // Summary for the currently-zoomed window. Defaults to the full series
-            // when no brush selection is active.
-            const start = chartBrush ? Math.max(0, Math.min(chartBrush.start, dailySeries.length - 1)) : 0;
-            const end = chartBrush ? Math.max(start, Math.min(chartBrush.end, dailySeries.length - 1)) : dailySeries.length - 1;
-            const windowDays = dailySeries.slice(start, end + 1);
-            if (windowDays.length === 0) return null;
-            const winIn = windowDays.reduce((s, d) => s + d.in, 0);
-            const winOut = windowDays.reduce((s, d) => s + d.out, 0);
-            const winNet = winIn - winOut;
-            const isZoomed = !!chartBrush && (start > 0 || end < dailySeries.length - 1);
-            return (
-              <div className="px-4 pt-3 pb-1 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs">
-                <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
-                  <span className="text-muted-foreground">{isZoomed ? 'Zoomed' : 'Full range'}:</span>
-                  {format(new Date(windowDays[0].date), 'MMM d')}
-                  {windowDays.length > 1 ? ` – ${format(new Date(windowDays[windowDays.length - 1].date), 'MMM d, yyyy')}` : `, ${format(new Date(windowDays[0].date), 'yyyy')}`}
-                  <span className="text-muted-foreground">({windowDays.length} day{windowDays.length === 1 ? '' : 's'})</span>
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full" style={{ background: 'hsl(142 71% 45%)' }} />
-                  <span className="text-muted-foreground">In</span>
-                  <span className="font-mono font-semibold text-emerald-600">{fmtUgx(winIn)}</span>
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full" style={{ background: 'hsl(0 72% 51%)' }} />
-                  <span className="text-muted-foreground">Out</span>
-                  <span className="font-mono font-semibold text-rose-600">{fmtUgx(winOut)}</span>
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="text-muted-foreground">Net</span>
-                  <span className={`font-mono font-semibold ${winNet >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                    {winNet < 0 ? '-' : ''}{fmtUgx(Math.abs(winNet))}
-                  </span>
-                </span>
-                {isZoomed && (
-                  <button
-                    type="button"
-                    onClick={() => setChartBrush(null)}
-                    className="ml-auto text-[11px] font-medium text-primary hover:underline"
-                  >
-                    Reset zoom
-                  </button>
-                )}
-                <div className={`flex items-center gap-1.5 ${isZoomed ? '' : 'ml-auto'}`}>
-                  <button
-                    type="button"
-                    onClick={() => exportZoomWindowCsv({ days: windowDays, totalIn: winIn, totalOut: winOut, net: winNet, zoomed: isZoomed })}
-                    className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[11px] font-medium text-foreground hover:bg-muted transition-colors"
-                    title="Export this date-range summary to CSV"
-                  >
-                    <FileDown className="h-3 w-3" /> CSV
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => exportZoomWindowPdf({ days: windowDays, totalIn: winIn, totalOut: winOut, net: winNet, zoomed: isZoomed })}
-                    className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[11px] font-medium text-foreground hover:bg-muted transition-colors"
-                    title="Export this date-range summary to PDF"
-                  >
-                    <FileText className="h-3 w-3" /> PDF
-                  </button>
-                </div>
-              </div>
-            );
-          })()}
-          <div className="p-4 h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={dailySeries} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis
-                  dataKey="date"
-                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
-                  tickFormatter={(v) => format(new Date(v), 'MMM d')}
-                />
-                <YAxis
-                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
-                  tickFormatter={(v) => (v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1)}M` : v >= 1_000 ? `${Math.round(v / 1_000)}k` : `${v}`)}
-                  width={50}
-                />
-                <RTooltip
-                  contentStyle={{
-                    background: 'hsl(var(--popover))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: 8,
-                    fontSize: 12,
-                  }}
-                  labelFormatter={(v) => format(new Date(v as string), 'PPP')}
-                  formatter={(v: number, name) => [fmtUgx(v), name]}
-                />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Line type="monotone" dataKey="in" name="In" stroke="hsl(142 71% 45%)" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="out" name="Out" stroke="hsl(0 72% 51%)" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="net" name="Net" stroke="hsl(var(--primary))" strokeWidth={1.5} strokeDasharray="4 4" dot={false} />
-                {dailySeries.length > 1 && (
-                  <Brush
-                    dataKey="date"
-                    height={22}
-                    travellerWidth={10}
-                    stroke="hsl(var(--primary))"
-                    fill="hsl(var(--muted))"
-                    tickFormatter={(v) => format(new Date(v as string), 'MMM d')}
-                    startIndex={chartBrush ? Math.min(chartBrush.start, dailySeries.length - 1) : 0}
-                    endIndex={chartBrush ? Math.min(chartBrush.end, dailySeries.length - 1) : dailySeries.length - 1}
-                    onChange={(range: { startIndex?: number; endIndex?: number }) => {
-                      if (typeof range.startIndex === 'number' && typeof range.endIndex === 'number') {
-                        setChartBrush({ start: range.startIndex, end: range.endIndex });
-                      }
-                    }}
-                  />
-                )}
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      )}
-
-      {(() => {
-        // Unrouted money-out banner. Counts every payable outgoing row in the
-        // active date/search window that has NOT yet been routed to a wallet.
-        // The "Auto-debit" button acts on EVERY row that has a possible
-        // recipient match — as soon as the system detects a possible recipient
-        // (TID = 100, "to/from <phone>" = 90, name match = 75, weak match = 60),
-        // the wallet is eligible for an automatic reduction.
-        const AUTO_DEBIT_MIN_SCORE = 0;
-        const outRows = filteredRows.filter(
-          (r) => isCountable(r) && (r.direction === 'out' || r.direction === 'charge'),
-        );
-        const unrouted = outRows.filter((r) => !(routingHistory[r.id]?.length));
-        type HighConfRow = { row: GmailTx; top: MatchedUser; score: number };
-        const highConf: HighConfRow[] = [];
-        for (const r of unrouted) {
-          const matches = userMatches[r.id] ?? [];
-          const ranked = matches
-            .map((u) => ({
-              u,
-              s: u.matched_on.startsWith('reference ') ? 100
-                : u.matched_on.startsWith('to ') ? 90
-                : u.matched_on.startsWith('from ') ? 90
-                : u.matched_on.startsWith('name-') ? 75
-                : 60,
-            }))
-            .sort((a, b) => b.s - a.s);
-          const top = ranked[0];
-          if (top && top.s >= AUTO_DEBIT_MIN_SCORE) highConf.push({ row: r, top: top.u, score: top.s });
-        }
-        if (outRows.length === 0) return null;
-        const unroutedAmt = unrouted.reduce((s, r) => s + (r.amount ?? 0), 0);
-        const highConfAmt = highConf.reduce((s, x) => s + (x.row.amount ?? 0), 0);
-
-        const runAutoDebit = async () => {
-          if (!highConf.length) return;
-          setAutoDebitBusy(true);
-          setAutoDebitProgress({ done: 0, total: highConf.length, ok: 0, failed: 0 });
-          let okCount = 0;
-          let failCount = 0;
-          let me: { id: string } | null = null;
-          let routedByName: string | null = null;
-          try {
-            const { data: meRes } = await supabase.auth.getUser();
-            if (meRes?.user?.id) {
-              me = { id: meRes.user.id };
-              const { data: rp } = await (supabase.from('profiles') as any)
-                .select('full_name').eq('id', meRes.user.id).maybeSingle();
-              routedByName = rp?.full_name ?? null;
-            }
-          } catch { /* ignore */ }
-          for (let i = 0; i < highConf.length; i++) {
-            const { row, top, score } = highConf[i];
-            const amt = row.amount ?? 0;
-            const matchedLabel = top.matched_on;
-            const reason = `Auto-debit (score ${score}%, ${matchedLabel}) — outgoing payment email from ${row.from_name || row.from_email || 'provider'}${row.transaction_id ? ` TID ${row.transaction_id}` : ''} charged against ${top.full_name}'s wallet.`;
-            try {
-              // Guard: the ledger rejects amount 0. Emails with no parsed
-              // amount must never be sent to cfo-direct-credit — skip cleanly.
-              if (!Number.isFinite(amt) || amt <= 0) {
-                failCount++;
-                console.warn(`[auto-debit] skip ${row.id}: no usable amount on email (got ${amt})`);
-                setAutoDebitProgress({ done: i + 1, total: highConf.length, ok: okCount, failed: failCount });
-                continue;
-              }
-              // Pre-check strict available balance. The ledger blocks
-              // negative wallets, so calling cfo-direct-credit when the
-              // user has < amt withdrawable just produces a NEGATIVE_WALLET
-              // 400. Skip cleanly with a clear console reason instead.
-              const { data: availRaw } = await (supabase.rpc as any)(
-                'get_user_available_balance',
-                { p_user_id: top.id },
-              );
-              const avail = Number(availRaw ?? 0);
-              // Nothing to take — skip cleanly.
-              if (!Number.isFinite(avail) || avail <= 0) {
-                failCount++;
-                console.warn(
-                  `[auto-debit] skip ${row.id}: ${top.full_name} has UGX ${Math.max(0, avail).toLocaleString()} available, needs UGX ${amt.toLocaleString()}`,
-                );
-                setAutoDebitProgress({ done: i + 1, total: highConf.length, ok: okCount, failed: failCount });
-                continue;
-              }
-              // The ledger blocks negative wallets, so never try to debit more
-              // than the strict available balance — clamp to drain to zero.
-              const debitAmt = Math.min(Math.floor(amt), Math.floor(avail));
-              if (!Number.isFinite(debitAmt) || debitAmt <= 0) {
-                failCount++;
-                console.warn(
-                  `[auto-debit] skip ${row.id}: computed debit amount was UGX ${debitAmt.toLocaleString()} after clamping available balance UGX ${avail.toLocaleString()}`,
-                );
-                setAutoDebitProgress({ done: i + 1, total: highConf.length, ok: okCount, failed: failCount });
-                continue;
-              }
-              const isPartial = debitAmt < amt;
-              const { data: debitData, error: debitErr } = await supabase.functions.invoke('cfo-direct-credit', {
-                body: {
-                  target_user_id: top.id,
-                  amount: debitAmt,
-                  reason,
-                  operation: 'debit' as const,
-                  wallet_category: 'wallet_transfer',
-                  platform_category: 'wallet_transfer',
-                  financial_impact: 'neutral' as const,
-                  category_label: 'Email charge → Withdrawable (auto)',
-                  recipient_type: 'user',
-                  sub_category: row.transaction_id ?? null,
-                },
-              });
-              if (debitErr) throw new Error((debitErr as any)?.message || 'Debit failed');
-              if ((debitData as any)?.error) throw new Error((debitData as any).error);
-              const referenceId = (debitData as any)?.reference_id ?? null;
-              if (isPartial) {
-                console.warn(
-                  `[auto-debit] partial ${row.id}: debited UGX ${debitAmt.toLocaleString()} of UGX ${amt.toLocaleString()} (wallet drained to zero)`,
-                );
-              }
-              // Capture the wallet impact: re-read the strict available balance
-              // after the debit so the row can show how much is left.
-              let newAvail: number | null = null;
-              try {
-                const { data: afterRaw } = await (supabase.rpc as any)(
-                  'get_user_available_balance',
-                  { p_user_id: top.id },
-                );
-                const n = Number(afterRaw);
-                newAvail = Number.isFinite(n) ? n : null;
-              } catch { /* ignore — impact display is best-effort */ }
-              setAutoDebitResults((prev) => ({
-                ...prev,
-                [row.id]: { amount: debitAmt, newAvail, userName: top.full_name },
-              }));
-              // Refresh the displayed wallet figure for this user immediately so
-              // the panel reflects the reduced balance instead of the stale
-              // pre-debit value cached in `userBalances`.
-              if (newAvail !== null) {
-                setUserBalances((cur) => ({ ...cur, [top.id]: newAvail as number }));
-              } else {
-                setUserBalances((cur) => {
-                  const next = { ...cur };
-                  delete next[top.id];
-                  return next;
-                });
-              }
-              // Best-effort history insert so the row immediately shows as routed.
-              if (me?.id) {
-                try {
-                  await (supabase.from('email_routing_history') as any).insert({
-                    gmail_transaction_id: row.id,
-                    gmail_message_id: row.gmail_message_id ?? null,
-                    transaction_id: row.transaction_id,
-                    from_email: row.from_email,
-                    from_name: row.from_name,
-                    subject: row.subject,
-                    amount: debitAmt,
-                    route: 'withdrawable_debit',
-                    target_user_id: top.id,
-                    target_user_name: top.full_name,
-                    target_user_phone: top.phone,
-                    reason: `DEBIT (auto, ${matchedLabel}${isPartial ? `, partial ${debitAmt.toLocaleString()}/${amt.toLocaleString()}` : ''}): ${reason}`,
-                    ledger_reference_id: referenceId,
-                    routed_by: me.id,
-                    routed_by_name: routedByName,
-                    sms_sent: false,
-                    sms_error: null,
-                  });
-                } catch (e) {
-                  console.warn('[auto-debit] history insert failed', e);
-                }
-              }
-              okCount++;
-            } catch (e: any) {
-              failCount++;
-              console.error('[auto-debit] row failed', row.id, e?.message);
-            }
-            setAutoDebitProgress({ done: i + 1, total: highConf.length, ok: okCount, failed: failCount });
-          }
-          setAutoDebitBusy(false);
-          // Force an authoritative re-fetch of every displayed strict balance so
-          // each charged wallet visibly drops by the debited amount. Without this
-          // the cache only fetches missing ids and keeps showing pre-debit values.
-          setUserBalances({});
-          // Stamp the refresh so the UI can show a visible "Balance refreshed"
-          // confirmation that the figures on screen are now post-debit.
-          setBalanceRefreshedAt(Date.now());
-          toast({
-            title: `Auto-debit complete`,
-            description: `${okCount} succeeded, ${failCount} skipped/failed of ${highConf.length}. Skips usually mean the matched user has 0 withdrawable balance — see console for details.`,
-            variant: failCount > 0 ? 'destructive' : 'default',
-          });
-        };
-
-        return (
-          <div className={`rounded-xl border p-3 flex flex-col gap-3 sm:flex-row sm:items-start ${unrouted.length > 0 ? 'border-rose-300 bg-rose-50/60 dark:border-rose-900/60 dark:bg-rose-950/30' : 'border-emerald-300 bg-emerald-50/60 dark:border-emerald-900/60 dark:bg-emerald-950/30'}`}>
-            <div className="flex items-start gap-3 flex-1 min-w-0">
-            <div className={`mt-0.5 h-8 w-8 rounded-full flex items-center justify-center shrink-0 ${unrouted.length > 0 ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-200' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-200'}`}>
-              {unrouted.length > 0 ? <AlertTriangle className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold">
-                {unrouted.length > 0
-                  ? `${unrouted.length} money-out email${unrouted.length === 1 ? '' : 's'} not yet charged to any wallet`
-                  : `All ${outRows.length} money-out email${outRows.length === 1 ? '' : 's'} routed to wallets`}
-              </p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                {unrouted.length > 0 ? (
-                  <>
-                    Unrouted total <strong className="font-mono text-foreground/80">{fmtUgx(unroutedAmt)}</strong>
-                    {' '}· {highConf.length} of them have a possible recipient
-                    {highConf.length > 0 && <> ({fmtUgx(highConfAmt)})</>}.
-                    {' '}Until they're routed, no user wallet is reduced for these payouts.
-                  </>
-                ) : (
-                  <>Every outgoing email in this window has a matching wallet debit on the ledger.</>
-                )}
-              </p>
-              {autoDebitProgress && (
-                <p className="text-[11px] mt-1 font-mono">
-                  Progress: {autoDebitProgress.done}/{autoDebitProgress.total}
-                  {' '}· <span className="text-emerald-700">{autoDebitProgress.ok} ok</span>
-                  {autoDebitProgress.failed > 0 && <> · <span className="text-rose-700">{autoDebitProgress.failed} failed</span></>}
-                </p>
-              )}
-              {balanceRefreshedAt && !autoDebitBusy && (
-                <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-200">
-                  <RefreshCw className="h-3 w-3" />
-                  Balances refreshed · {new Date(balanceRefreshedAt).toLocaleTimeString()}
-                </span>
-              )}
-            </div>
-            </div>
-            {highConf.length > 0 && (
-              <Button
-                size="sm"
-                variant="default"
-                className="w-full sm:w-auto shrink-0 bg-rose-600 hover:bg-rose-700 text-white gap-1.5"
-                disabled={autoDebitBusy}
-                onClick={runAutoDebit}
-                title={`Posts a withdrawable debit via CFO Direct Debit for each of the ${highConf.length} payout(s) with a possible recipient.`}
-              >
-                {autoDebitBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
-                Auto-debit {highConf.length} possible recipient{highConf.length === 1 ? '' : 's'}
-              </Button>
-            )}
-          </div>
-        );
-      })()}
-
-      {/* ── Unparsed-email queue ─────────────────────────────────────────
-          Every Gmail row the parser skipped (no usable amount), each with
-          the exact reason(s) it failed. Collapsed by default. */}
-      {unparsedRows.length > 0 && (
-        <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 overflow-hidden">
-          <button
-            type="button"
-            onClick={() => setUnparsedOpen((o) => !o)}
-            className="w-full flex items-center justify-between gap-2 p-4 text-left hover:bg-amber-500/10 transition-colors"
-          >
-            <span className="flex items-center gap-2 font-semibold text-sm text-amber-700 dark:text-amber-400">
-              <AlertTriangle className="h-4 w-4 shrink-0" />
-              Unparsed email queue
-              <Badge variant="outline" className="border-amber-500/40 text-amber-700 dark:text-amber-400">
-                {unparsedRows.length} skipped
-              </Badge>
-            </span>
-            {unparsedOpen ? <ChevronUp className="h-4 w-4 text-amber-700 dark:text-amber-400" /> : <ChevronDown className="h-4 w-4 text-amber-700 dark:text-amber-400" />}
-          </button>
-          {unparsedOpen && (
-            <div className="border-t border-amber-500/20 divide-y divide-amber-500/10">
-              <p className="px-4 py-2 text-xs text-muted-foreground">
-                These rows were skipped by the parser and never counted toward any total. Each shows the exact reason it could not be parsed.
-              </p>
-              {unparsedRows.map((r) => {
-                const reasons = parseFailureReasons(r);
-                const when = r.internal_date
-                  ? new Date(r.internal_date).toLocaleString('en-GB', { timeZone: tz })
-                  : '—';
-                return (
-                  <div key={r.id} className="px-4 py-3 space-y-1.5">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{r.subject || '(no subject)'}</p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {r.from_name || r.from_email || 'unknown sender'} · {when}
-                        </p>
-                      </div>
-                      <Badge variant="outline" className="text-[10px] shrink-0">unparsed</Badge>
-                    </div>
-                    {r.snippet && (
-                      <p className="text-xs text-muted-foreground line-clamp-2">{r.snippet}</p>
-                    )}
-                    <div className="flex flex-wrap gap-1.5 pt-0.5">
-                      {reasons.map((reason) => (
-                        <Badge
-                          key={reason}
-                          variant="outline"
-                          className="text-[10px] gap-1 border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400"
-                        >
-                          <AlertCircle className="h-3 w-3" />
-                          {reason}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Unread alert banner — first thing ops sees: how many attention-needing
-          emails (needs routing / unparsed) arrived since they last acknowledged
-          the queue, with one tap to jump straight to them. */}
-      {unreadAlertCount > 0 && (
-        <div className="rounded-xl border border-orange-500/40 bg-orange-500/10 p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <div className="flex items-start gap-2 min-w-0">
-            <span className="relative mt-0.5 shrink-0">
-              <AlertCircle className="h-4 w-4 text-orange-700 dark:text-orange-400" />
-              <span className="absolute -top-1.5 -right-1.5 h-2 w-2 rounded-full bg-orange-600 animate-pulse" aria-hidden />
-            </span>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-orange-800 dark:text-orange-300">
-                {unreadAlertCount} new item{unreadAlertCount === 1 ? '' : 's'} need attention
-                <Badge className="ml-2 bg-orange-600 text-white hover:bg-orange-600 text-[10px] font-mono">
-                  {unreadAlertCount} unread
-                </Badge>
-              </p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                {alertRows.length} total unresolved in this window (awaiting routing or unparsed).
-              </p>
-              {unreadArrivalSpan && (
-                <>
-                  <p className="text-[11px] text-orange-800/90 dark:text-orange-300/90 mt-1">
-                    Newest arrived {formatAlertArrival(unreadArrivalSpan.newest)}
-                    {unreadAlertCount > 1 && <> · oldest unread {formatAlertArrival(unreadArrivalSpan.oldest)}</>}
-                  </p>
-                  <ul className="mt-1.5 space-y-0.5">
-                    {unreadArrivalSpan.sorted.slice(0, 3).map((r) => (
-                      <li key={r.id}>
-                        <button
-                          type="button"
-                          onClick={() => setAlertDetailsRow(r)}
-                          className="w-full text-left text-[11px] text-muted-foreground flex items-center gap-1.5 min-w-0 rounded px-1 py-0.5 hover:bg-orange-500/10 hover:text-foreground transition-colors"
-                          aria-label="Open alert details"
-                        >
-                          <Clock className="h-3 w-3 shrink-0" aria-hidden />
-                          <span className="font-mono shrink-0">{formatAlertArrival(r)}</span>
-                          <span className="truncate">
-                            — {r.counterparty || r.from_name || r.from_email || 'Unknown sender'}
-                            {r.amount ? ` · UGX ${Number(r.amount).toLocaleString()}` : ''}
-                          </span>
-                          <ArrowRight className="h-3 w-3 shrink-0 ml-auto" aria-hidden />
-                        </button>
-                      </li>
-                    ))}
-                    {unreadAlertCount > 3 && (
-                      <li className="text-[11px] text-muted-foreground/80">
-                        +{unreadAlertCount - 3} more unread…
-                      </li>
-                    )}
-                  </ul>
-                </>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 text-xs"
-              onClick={() => {
-                setStatusFilter('needs_routing');
-                document.getElementById('email-tx-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              }}
-            >
-              Review now
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 text-xs"
-              disabled={bulkBusy || alertRows.length === 0}
-              onClick={() => { selectAllAlertRows(); document.getElementById('email-tx-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
-            >
-              Select all {alertRows.length}
-            </Button>
-            <Button
-              size="sm"
-              className="h-8 text-xs"
-              disabled={bulkBusy || alertRows.length === 0}
-              onClick={() => resolveAlertRows(alertRows)}
-            >
-              {bulkBusy ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1" />}
-              Resolve all
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 text-xs"
-              disabled={!unreadArrivalSpan}
-              onClick={() => unreadArrivalSpan && setAlertDetailsRow(unreadArrivalSpan.newest)}
-            >
-              Open details
-            </Button>
-            <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={markAlertsSeen}>
-              Mark all seen
-            </Button>
-            <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setAlertSettingsOpen(true)}>
-              <SlidersHorizontal className="h-3.5 w-3.5 mr-1" /> Alert settings
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Alert notification settings — which alert types count toward badges and
-          whether new arrivals raise an in-app prompt. Stored per browser. */}
-      <Dialog open={alertSettingsOpen} onOpenChange={setAlertSettingsOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <AlertCircle className="h-4 w-4" /> Alert notification settings
-            </DialogTitle>
-            <DialogDescription>
-              Choose which email alert types show unread badges and trigger in-app prompts.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            <label className="flex items-start gap-3 rounded-md border p-3 cursor-pointer">
-              <Checkbox
-                checked={alertPrefs.needsRouting}
-                onCheckedChange={(v) => updateAlertPrefs({ needsRouting: !!v })}
-              />
-              <span className="text-sm">
-                Awaiting routing
-                <span className="block text-[11px] text-muted-foreground">
-                  Parsed emails not yet routed to a wallet or deposit.
-                </span>
-              </span>
-            </label>
-            <label className="flex items-start gap-3 rounded-md border p-3 cursor-pointer">
-              <Checkbox
-                checked={alertPrefs.unparsed}
-                onCheckedChange={(v) => updateAlertPrefs({ unparsed: !!v })}
-              />
-              <span className="text-sm">
-                Unparsed emails
-                <span className="block text-[11px] text-muted-foreground">
-                  Messages the reader could not extract amount / TID from.
-                </span>
-              </span>
-            </label>
-            <label className="flex items-start gap-3 rounded-md border p-3 cursor-pointer">
-              <Checkbox
-                checked={alertPrefs.toastPrompt}
-                onCheckedChange={(v) => updateAlertPrefs({ toastPrompt: !!v })}
-              />
-              <span className="text-sm">
-                In-app prompts
-                <span className="block text-[11px] text-muted-foreground">
-                  Pop a toast with a "Review" shortcut when new alerts arrive.
-                </span>
-              </span>
-            </label>
-            {!alertPrefs.needsRouting && !alertPrefs.unparsed && (
-              <p className="text-[11px] text-amber-600 dark:text-amber-400">
-                All alert types are off — no badges or prompts will show.
-              </p>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-
       <div id="email-tx-results" className="rounded-xl border bg-card overflow-hidden scroll-mt-20">
         {/* Prominent, full-width search bar — lets ops find any email by
             amount, name, phone (any format), reference id, or any word in
@@ -6354,6 +5279,1081 @@ export function EmailTransactionsPanel() {
           );
         })()}
       </div>
+
+      <StatHelpPanel />
+
+      <DebitBucketAuditSearch />
+
+      <CashDepositCodesPanel />
+
+      <div className="rounded-xl border bg-card p-3 flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button onClick={pollNow} disabled={polling} className="gap-2 flex-1 sm:flex-none min-w-[130px]">
+            {polling ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            Poll now
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => exportTotalsCsv({ rows: filteredRows, totalIn, totalOut, netAmount, channelBreakdown })}
+            disabled={filteredRows.length === 0}
+            className="gap-2 flex-1 sm:flex-none min-w-[120px]"
+          >
+            <FileDown className="h-4 w-4" /> Export CSV
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => exportTotalsPdf({ rows: filteredRows, totalIn, totalOut, netAmount, channelBreakdown })}
+            disabled={filteredRows.length === 0}
+            className="gap-2 flex-1 sm:flex-none min-w-[120px]"
+          >
+            <FileText className="h-4 w-4" /> Export PDF
+          </Button>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+          <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium w-full sm:w-auto sm:mr-1">More tools</span>
+          <ArchivedPdfsDrawer />
+          <ReconnectGmailDialog />
+          <DebugPollDialog />
+          <SmsSetupGuide />
+          <BucketTransferLauncher />
+          <BacklogSweepLauncher />
+        </div>
+      </div>
+
+      {/* Mobile fast-search — sits at the very top of the page (sticky) so ops
+          can find a transaction by reference / TID / amount / sender name or
+          phone without scrolling past the summary cards. Bound to the same
+          `searchQuery` state as the full search bar in the list card, so the
+          two always stay in sync. */}
+      <div className="sm:hidden sticky top-0 z-20 -mx-1 px-1 py-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b space-y-2">
+        <div className="relative w-full">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
+          <input
+            type="search"
+            inputMode="search"
+            enterKeyHint="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.currentTarget.blur();
+                document
+                  .getElementById('email-tx-results')
+                  ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }
+            }}
+            placeholder="Search reference, TID, amount or sender…"
+            aria-label="Quick search email transactions"
+            className="h-11 w-full rounded-full border-2 border-input bg-background pl-10 pr-10 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent placeholder:text-muted-foreground/70"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground rounded-full p-1 hover:bg-muted"
+              aria-label="Clear quick search"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+        {searchActive && (
+          <button
+            type="button"
+            onClick={() =>
+              document
+                .getElementById('email-tx-results')
+                ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            }
+            className="w-full rounded-lg bg-primary/10 text-primary text-xs font-semibold py-2"
+          >
+            {filteredRows.length} match{filteredRows.length === 1 ? '' : 'es'} — tap to view results
+          </button>
+        )}
+      </div>
+
+      {/* Date-range selector — recomputes totals/breakdown/exports for the chosen
+          period. Pinned under the quick-search bar on mobile so filters are
+          always one tap away, no scrolling back up. */}
+      <div className="sm:hidden sticky top-[60px] z-[19] flex items-center justify-between gap-2 -mx-1 px-1 py-1.5 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b">
+        <Button
+          variant="outline"
+          size="sm"
+          className="flex-1 gap-2"
+          onClick={() => setMobileFiltersOpen((v) => !v)}
+        >
+          {mobileFiltersOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          {mobileFiltersOpen ? 'Hide filters' : 'Filters & date range'}
+          {(rangeActive || searchActive) && (
+            <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px]">active</Badge>
+          )}
+        </Button>
+        {/* One-tap audit export of exactly what is on screen (all filters,
+            search and sort applied) — one CSV line per email. */}
+        <Button
+          variant="secondary"
+          size="sm"
+          className="gap-1.5 shrink-0"
+          disabled={visibleRows.length === 0}
+          onClick={() => {
+            try { navigator.vibrate?.(15); } catch { /* haptics optional */ }
+            const count = exportFilteredRowsCsv(visibleRows, getRowStatus);
+            toast({
+              title: 'CSV exported',
+              description: `${count} filtered transaction${count === 1 ? '' : 's'} downloaded.`,
+            });
+          }}
+        >
+          <FileDown className="h-4 w-4" />
+          CSV ({visibleRows.length})
+        </Button>
+      </div>
+      <div className={`rounded-xl border bg-card p-3 sm:p-4 flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3 sm:gap-4 ${mobileFiltersOpen ? 'flex' : 'hidden sm:flex'}`}>
+        <div className="flex-1 min-w-full sm:min-w-[200px]">
+          <h3 className="font-semibold text-sm">Date range</h3>
+          <p className="text-[11px] text-muted-foreground mt-0.5">
+            {searchActive
+              ? `Showing ${filteredRows.length} of ${rows.length} emails — search "${searchQuery}" (date range ignored while searching) · timezone ${tz}`
+              : rangeActive
+              ? `Showing ${filteredRows.length} of ${rows.length} emails — totals recomputed for ${fromDate || '…'} → ${toDate || '…'} (${tz})`
+              : `No range selected — showing all ${rows.length} emails · timezone ${tz}`}
+          </p>
+        </div>
+        <div className="flex flex-col flex-1 sm:flex-none min-w-[140px]">
+          <label
+            className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1"
+            title="Date boundaries and daily buckets are interpreted in this timezone."
+          >
+            Timezone
+          </label>
+          <select
+            value={tz}
+            onChange={(e) => setTz(e.target.value)}
+            className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+          >
+            {TIMEZONE_OPTIONS.includes(tz) ? null : <option value={tz}>{tz}</option>}
+            {TIMEZONE_OPTIONS.map((z) => (
+              <option key={z} value={z}>{z}</option>
+            ))}
+            {browserTz && !TIMEZONE_OPTIONS.includes(browserTz) && (
+              <option value={browserTz}>{browserTz} (browser)</option>
+            )}
+          </select>
+        </div>
+        <div className="flex flex-col flex-1 sm:flex-none min-w-[130px]">
+          <label className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">From</label>
+          <input
+            type="date"
+            value={fromDate}
+            max={toDate || undefined}
+            onChange={(e) => setFromDate(e.target.value)}
+            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+          />
+        </div>
+        <div className="flex flex-col flex-1 sm:flex-none min-w-[130px]">
+          <label className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">To</label>
+          <input
+            type="date"
+            value={toDate}
+            min={fromDate || undefined}
+            onChange={(e) => setToDate(e.target.value)}
+            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+          />
+        </div>
+        <div className="flex flex-col flex-1 sm:flex-none min-w-[160px]">
+          <label
+            className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1"
+            title="Warn when the absolute Net (in − out) exceeds this amount — flags potentially unusual parsing."
+          >
+            Net warning ≥
+          </label>
+          <div className="relative">
+            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground pointer-events-none">UGX</span>
+            <input
+              type="number"
+              min={0}
+              step={10000}
+              value={netThreshold}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                setNetThreshold(Number.isFinite(v) && v >= 0 ? v : 0);
+              }}
+              className="h-9 w-full sm:w-36 rounded-md border border-input bg-background pl-10 pr-2 text-sm tabular-nums"
+            />
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+          {[
+            { label: 'Today', days: 1 },
+            { label: 'Yesterday', days: 1, offset: 1 },
+            { label: '7d', days: 7 },
+            { label: '30d', days: 30 },
+            { label: '90d', days: 90 },
+          ].map((p) => (
+            <Button
+              key={p.label}
+              variant="outline"
+              size="sm"
+              className="flex-1 sm:flex-none"
+              onClick={() => {
+                // Anchor presets to "today" as seen in the selected timezone.
+                const todayKey = dateKeyInTz(new Date(), tz);
+                const [y, m, d] = todayKey.split('-').map(Number);
+                const offsetDays = (p as { offset?: number }).offset ?? 0;
+                const toUtc = Date.UTC(y, m - 1, d) - offsetDays * 86_400_000;
+                const fromUtc = toUtc - (p.days - 1) * 86_400_000;
+                const fmtKey = (ms: number) => {
+                  const dt = new Date(ms);
+                  return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`;
+                };
+                setFromDate(fmtKey(fromUtc));
+                setToDate(fmtKey(toUtc));
+              }}
+            >
+              {p.label}
+            </Button>
+          ))}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="flex-1 sm:flex-none"
+            onClick={() => { setFromDate(''); setToDate(''); }}
+            disabled={!rangeActive}
+          >
+            Clear
+          </Button>
+        </div>
+      </div>
+
+      <GmailConnectionStatus
+        state={state}
+        lastSuccessAt={lastSuccessAt}
+        onRetry={pollNow}
+        retrying={polling}
+      />
+
+      <GmailReconnectAuditPanel />
+
+      <EmailPeriodComparison />
+
+      <div className="sm:hidden">
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full gap-2"
+          onClick={() => setMobileStatsOpen((v) => !v)}
+        >
+          {mobileStatsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          {mobileStatsOpen ? 'Hide summary' : `Summary · ${rows.length} emails · net ${netAmount < 0 ? '-' : ''}${fmtUgx(Math.abs(netAmount))}`}
+        </Button>
+      </div>
+      <div className="flex items-center justify-end gap-2">
+        <Label htmlFor="tooltip-placement" className="text-[11px] uppercase tracking-wider text-muted-foreground">
+          Tooltip position
+        </Label>
+        <Select value={tooltipPlacement} onValueChange={(v) => setTooltipPlacement(v as typeof tooltipPlacement)}>
+          <SelectTrigger id="tooltip-placement" className="h-8 w-[120px] text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="auto">Auto</SelectItem>
+            <SelectItem value="top">Top</SelectItem>
+            <SelectItem value="bottom">Bottom</SelectItem>
+            <SelectItem value="left">Left</SelectItem>
+            <SelectItem value="right">Right</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div className={`grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 ${mobileStatsOpen ? 'grid' : 'hidden sm:grid'}`}>
+        <StatCard
+          tooltipSide={statTooltipSide}
+          label="Emails captured"
+          value={rows.length.toString()}
+          info={<p className="text-xs leading-relaxed">How many confirmation emails we have pulled in from Gmail.</p>}
+        />
+        <StatCard
+          tooltipSide={statTooltipSide}
+          label="Parsed transactions"
+          value={parsedCount.toString()}
+          info={<p className="text-xs leading-relaxed">Emails we successfully read and turned into a money amount.</p>}
+        />
+        <StatCard
+          tooltipSide={statTooltipSide}
+          label="Total amount (parsed)"
+          value={fmtUgx(totalAmount)}
+          info={<p className="text-xs leading-relaxed">All the money values added up across every readable email.</p>}
+        />
+        <StatCard
+          tooltipSide={statTooltipSide}
+          label="Total in (received)"
+          value={fmtUgx(totalIn)}
+          info={<p className="text-xs leading-relaxed">Money that came IN — deposits and payments received.</p>}
+          sub={<span className="text-[10px] text-emerald-600">↓ money received</span>}
+        />
+        <StatCard
+          tooltipSide={statTooltipSide}
+          label="Total out (sent + charges)"
+          value={fmtUgx(totalOut)}
+          info={<p className="text-xs leading-relaxed">Money that went OUT — payments sent plus provider fees.</p>}
+          sub={<span className="text-[10px] text-rose-600">↑ money sent</span>}
+        />
+        <StatCard
+          tooltipSide={statTooltipSide}
+          label="Total provider fees"
+          value={fmtUgx(totalFees)}
+          info={<p className="text-xs leading-relaxed">Charges taken by MTN, Airtel or the banks for these transactions.</p>}
+          sub={<span className="text-[10px] text-amber-600">{feeCount} row{feeCount === 1 ? '' : 's'} · MTN / Airtel / banks</span>}
+        />
+        <StatCard
+          tooltipSide={statTooltipSide}
+          label="Net (in − out)"
+          value={`${netAmount < 0 ? '-' : ''}${fmtUgx(Math.abs(netAmount))}`}
+          info={
+            <div className="space-y-1.5 text-xs leading-relaxed">
+              <p className="font-semibold">How Net is calculated</p>
+              <p>
+                <span className="font-mono">Net = Total in − Total out</span>
+              </p>
+              <ul className="list-disc pl-4 space-y-0.5">
+                <li><span className="text-emerald-300">Total in</span> = sum of <code>amount</code> for rows where <code>direction = 'in'</code> (money received).</li>
+                <li><span className="text-rose-300">Total out</span> = sum of <code>amount</code> for rows where <code>direction = 'out'</code> or <code>'charge'</code> (sent + fees).</li>
+              </ul>
+              <p className="pt-1 border-t border-border/40">
+                Counts every <strong>parsed</strong> row with a usable amount that falls inside the selected date range. Flagged rows are still included — they are highlighted in amber for manual review but no longer excluded from totals.
+              </p>
+              <p className="text-muted-foreground">
+                Currently: {fmtUgx(totalIn)} − {fmtUgx(totalOut)} = {netAmount < 0 ? '-' : ''}{fmtUgx(Math.abs(netAmount))}
+              </p>
+            </div>
+          }
+          sub={
+            <div className="flex flex-col gap-1">
+              <span className={`text-[10px] ${netAmount >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                {netAmount >= 0 ? 'net inflow' : 'net outflow'}
+              </span>
+              {netThreshold > 0 && Math.abs(netAmount) >= netThreshold && (
+                <Badge
+                  variant="outline"
+                  className="text-[10px] bg-amber-500/10 text-amber-700 border-amber-500/30 gap-1 w-fit"
+                  title={`|Net| ${fmtUgx(Math.abs(netAmount))} ≥ threshold ${fmtUgx(netThreshold)}. Review parsed emails for duplicates, misclassified direction, or unusually large amounts.`}
+                >
+                  <AlertTriangle className="h-3 w-3" /> unusual · review
+                </Badge>
+              )}
+            </div>
+          }
+        />
+        <StatCard
+          tooltipSide={statTooltipSide}
+          label="Last poll"
+          value={state?.last_polled_at ? format(new Date(state.last_polled_at), 'HH:mm:ss') : '—'}
+          info={<p className="text-xs leading-relaxed">The time we last checked Gmail for new emails (happens automatically every minute).</p>}
+          sub={state?.last_status === 'error' ? (
+            <span className="inline-flex items-center gap-1 text-destructive text-xs"><AlertCircle className="h-3 w-3" /> {state.last_error?.slice(0, 60)}</span>
+          ) : state?.last_status === 'ok' ? (
+            <span className="inline-flex items-center gap-1 text-emerald-600 text-xs"><CheckCircle2 className="h-3 w-3" /> ok</span>
+          ) : null}
+        />
+        <StatCard
+          tooltipSide={statTooltipSide}
+          label="Flagged (review)"
+          value={flaggedCount.toString()}
+          info={<p className="text-xs leading-relaxed">Rows that look unusual and are worth a quick human check. They still count toward totals.</p>}
+          sub={
+            flaggedCount > 0 ? (
+              <span className="inline-flex items-center gap-1 text-amber-600 text-[10px]">
+                <AlertTriangle className="h-3 w-3" /> counted, but verify
+              </span>
+            ) : (
+              <span className="text-[10px] text-emerald-600">all parsed rows valid</span>
+            )
+          }
+        />
+        <StatCard
+          tooltipSide={statTooltipSide}
+          label="Unmatched deposits"
+          value={unmatchedInCount.toString()}
+          info={<p className="text-xs leading-relaxed">Incoming money not yet linked to a deposit request — may still need routing.</p>}
+          sub={
+            unmatchedInCount > 0 ? (
+              <span className="inline-flex items-center gap-1 text-amber-600 text-[10px]">
+                <AlertTriangle className="h-3 w-3" /> not linked to any deposit request
+              </span>
+            ) : (
+              <span className="text-[10px] text-emerald-600">all deposits matched</span>
+            )
+          }
+        />
+        <StatCard
+          tooltipSide={statTooltipSide}
+          label="Unmatched payouts"
+          value={unmatchedOutCount.toString()}
+          info={<p className="text-xs leading-relaxed">Outgoing money not yet linked to a withdrawal — may still need routing.</p>}
+          sub={
+            unmatchedOutCount > 0 ? (
+              <span className="inline-flex items-center gap-1 text-rose-600 text-[10px]">
+                <AlertTriangle className="h-3 w-3" /> not routed or matched to withdrawal
+              </span>
+            ) : (
+              <span className="text-[10px] text-emerald-600">all payouts settled</span>
+            )
+          }
+        />
+      </div>
+
+      {channelBreakdown.length > 0 && (
+        <div className="rounded-xl border bg-card overflow-hidden">
+          <div className="p-4 border-b flex items-center justify-between">
+            <h3 className="font-semibold text-sm">Breakdown by channel</h3>
+            <span className="text-[11px] text-muted-foreground">parsed transactions only</span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground">
+                <tr>
+                  <th className="text-left px-4 py-2 font-semibold">Channel</th>
+                  <th className="text-right px-4 py-2 font-semibold">In (count)</th>
+                  <th className="text-right px-4 py-2 font-semibold text-emerald-700">Total in</th>
+                  <th className="text-right px-4 py-2 font-semibold">Out (count)</th>
+                  <th className="text-right px-4 py-2 font-semibold text-rose-700">Total out</th>
+                  <th className="text-right px-4 py-2 font-semibold">Fees (count)</th>
+                  <th className="text-right px-4 py-2 font-semibold text-amber-700">Total fees</th>
+                  <th className="text-right px-4 py-2 font-semibold">Net</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {channelBreakdown.map((b) => (
+                  <tr key={b.channel} className="hover:bg-muted/30">
+                    <td className="px-4 py-2 capitalize font-medium">{b.channel}</td>
+                    <td className="px-4 py-2 text-right tabular-nums text-muted-foreground">{b.inCount}</td>
+                    <td className="px-4 py-2 text-right tabular-nums font-mono text-emerald-700">{fmtUgx(b.inTotal)}</td>
+                    <td className="px-4 py-2 text-right tabular-nums text-muted-foreground">{b.outCount}</td>
+                    <td className="px-4 py-2 text-right tabular-nums font-mono text-rose-700">{fmtUgx(b.outTotal)}</td>
+                    <td className="px-4 py-2 text-right tabular-nums text-muted-foreground">{b.feeCount}</td>
+                    <td className="px-4 py-2 text-right tabular-nums font-mono text-amber-700">{fmtUgx(b.feeTotal)}</td>
+                    <td className={`px-4 py-2 text-right tabular-nums font-mono font-semibold ${b.net >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                      {b.net < 0 ? '-' : ''}{fmtUgx(Math.abs(b.net))}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="bg-muted/30 font-semibold">
+                <tr>
+                  <td className="px-4 py-2">Total</td>
+                  <td className="px-4 py-2 text-right tabular-nums">{channelBreakdown.reduce((s, b) => s + b.inCount, 0)}</td>
+                  <td className="px-4 py-2 text-right tabular-nums font-mono text-emerald-700">{fmtUgx(totalIn)}</td>
+                  <td className="px-4 py-2 text-right tabular-nums">{channelBreakdown.reduce((s, b) => s + b.outCount, 0)}</td>
+                  <td className="px-4 py-2 text-right tabular-nums font-mono text-rose-700">{fmtUgx(totalOut)}</td>
+                  <td className="px-4 py-2 text-right tabular-nums">{channelBreakdown.reduce((s, b) => s + b.feeCount, 0)}</td>
+                  <td className="px-4 py-2 text-right tabular-nums font-mono text-amber-700">{fmtUgx(totalFees)}</td>
+                  <td className={`px-4 py-2 text-right tabular-nums font-mono ${netAmount >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                    {netAmount < 0 ? '-' : ''}{fmtUgx(Math.abs(netAmount))}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {dailySeries.length > 0 && (
+        <div className="rounded-xl border bg-card overflow-hidden">
+          <div className="p-4 border-b flex items-center justify-between">
+            <h3 className="font-semibold text-sm">In vs Out — daily</h3>
+            <span className="text-[11px] text-muted-foreground">
+              {dailySeries.length} day{dailySeries.length === 1 ? '' : 's'}
+              {rangeActive ? ' in selected range' : ''}
+              {dailySeries.length > 1 ? ' · drag the slider below to zoom' : ''}
+            </span>
+          </div>
+          {(() => {
+            // Summary for the currently-zoomed window. Defaults to the full series
+            // when no brush selection is active.
+            const start = chartBrush ? Math.max(0, Math.min(chartBrush.start, dailySeries.length - 1)) : 0;
+            const end = chartBrush ? Math.max(start, Math.min(chartBrush.end, dailySeries.length - 1)) : dailySeries.length - 1;
+            const windowDays = dailySeries.slice(start, end + 1);
+            if (windowDays.length === 0) return null;
+            const winIn = windowDays.reduce((s, d) => s + d.in, 0);
+            const winOut = windowDays.reduce((s, d) => s + d.out, 0);
+            const winNet = winIn - winOut;
+            const isZoomed = !!chartBrush && (start > 0 || end < dailySeries.length - 1);
+            return (
+              <div className="px-4 pt-3 pb-1 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs">
+                <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
+                  <span className="text-muted-foreground">{isZoomed ? 'Zoomed' : 'Full range'}:</span>
+                  {format(new Date(windowDays[0].date), 'MMM d')}
+                  {windowDays.length > 1 ? ` – ${format(new Date(windowDays[windowDays.length - 1].date), 'MMM d, yyyy')}` : `, ${format(new Date(windowDays[0].date), 'yyyy')}`}
+                  <span className="text-muted-foreground">({windowDays.length} day{windowDays.length === 1 ? '' : 's'})</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full" style={{ background: 'hsl(142 71% 45%)' }} />
+                  <span className="text-muted-foreground">In</span>
+                  <span className="font-mono font-semibold text-emerald-600">{fmtUgx(winIn)}</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full" style={{ background: 'hsl(0 72% 51%)' }} />
+                  <span className="text-muted-foreground">Out</span>
+                  <span className="font-mono font-semibold text-rose-600">{fmtUgx(winOut)}</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="text-muted-foreground">Net</span>
+                  <span className={`font-mono font-semibold ${winNet >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                    {winNet < 0 ? '-' : ''}{fmtUgx(Math.abs(winNet))}
+                  </span>
+                </span>
+                {isZoomed && (
+                  <button
+                    type="button"
+                    onClick={() => setChartBrush(null)}
+                    className="ml-auto text-[11px] font-medium text-primary hover:underline"
+                  >
+                    Reset zoom
+                  </button>
+                )}
+                <div className={`flex items-center gap-1.5 ${isZoomed ? '' : 'ml-auto'}`}>
+                  <button
+                    type="button"
+                    onClick={() => exportZoomWindowCsv({ days: windowDays, totalIn: winIn, totalOut: winOut, net: winNet, zoomed: isZoomed })}
+                    className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[11px] font-medium text-foreground hover:bg-muted transition-colors"
+                    title="Export this date-range summary to CSV"
+                  >
+                    <FileDown className="h-3 w-3" /> CSV
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => exportZoomWindowPdf({ days: windowDays, totalIn: winIn, totalOut: winOut, net: winNet, zoomed: isZoomed })}
+                    className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[11px] font-medium text-foreground hover:bg-muted transition-colors"
+                    title="Export this date-range summary to PDF"
+                  >
+                    <FileText className="h-3 w-3" /> PDF
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
+          <div className="p-4 h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={dailySeries} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                  tickFormatter={(v) => format(new Date(v), 'MMM d')}
+                />
+                <YAxis
+                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                  tickFormatter={(v) => (v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1)}M` : v >= 1_000 ? `${Math.round(v / 1_000)}k` : `${v}`)}
+                  width={50}
+                />
+                <RTooltip
+                  contentStyle={{
+                    background: 'hsl(var(--popover))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: 8,
+                    fontSize: 12,
+                  }}
+                  labelFormatter={(v) => format(new Date(v as string), 'PPP')}
+                  formatter={(v: number, name) => [fmtUgx(v), name]}
+                />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Line type="monotone" dataKey="in" name="In" stroke="hsl(142 71% 45%)" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="out" name="Out" stroke="hsl(0 72% 51%)" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="net" name="Net" stroke="hsl(var(--primary))" strokeWidth={1.5} strokeDasharray="4 4" dot={false} />
+                {dailySeries.length > 1 && (
+                  <Brush
+                    dataKey="date"
+                    height={22}
+                    travellerWidth={10}
+                    stroke="hsl(var(--primary))"
+                    fill="hsl(var(--muted))"
+                    tickFormatter={(v) => format(new Date(v as string), 'MMM d')}
+                    startIndex={chartBrush ? Math.min(chartBrush.start, dailySeries.length - 1) : 0}
+                    endIndex={chartBrush ? Math.min(chartBrush.end, dailySeries.length - 1) : dailySeries.length - 1}
+                    onChange={(range: { startIndex?: number; endIndex?: number }) => {
+                      if (typeof range.startIndex === 'number' && typeof range.endIndex === 'number') {
+                        setChartBrush({ start: range.startIndex, end: range.endIndex });
+                      }
+                    }}
+                  />
+                )}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
+      {(() => {
+        // Unrouted money-out banner. Counts every payable outgoing row in the
+        // active date/search window that has NOT yet been routed to a wallet.
+        // The "Auto-debit" button acts on EVERY row that has a possible
+        // recipient match — as soon as the system detects a possible recipient
+        // (TID = 100, "to/from <phone>" = 90, name match = 75, weak match = 60),
+        // the wallet is eligible for an automatic reduction.
+        const AUTO_DEBIT_MIN_SCORE = 0;
+        const outRows = filteredRows.filter(
+          (r) => isCountable(r) && (r.direction === 'out' || r.direction === 'charge'),
+        );
+        const unrouted = outRows.filter((r) => !(routingHistory[r.id]?.length));
+        type HighConfRow = { row: GmailTx; top: MatchedUser; score: number };
+        const highConf: HighConfRow[] = [];
+        for (const r of unrouted) {
+          const matches = userMatches[r.id] ?? [];
+          const ranked = matches
+            .map((u) => ({
+              u,
+              s: u.matched_on.startsWith('reference ') ? 100
+                : u.matched_on.startsWith('to ') ? 90
+                : u.matched_on.startsWith('from ') ? 90
+                : u.matched_on.startsWith('name-') ? 75
+                : 60,
+            }))
+            .sort((a, b) => b.s - a.s);
+          const top = ranked[0];
+          if (top && top.s >= AUTO_DEBIT_MIN_SCORE) highConf.push({ row: r, top: top.u, score: top.s });
+        }
+        if (outRows.length === 0) return null;
+        const unroutedAmt = unrouted.reduce((s, r) => s + (r.amount ?? 0), 0);
+        const highConfAmt = highConf.reduce((s, x) => s + (x.row.amount ?? 0), 0);
+
+        const runAutoDebit = async () => {
+          if (!highConf.length) return;
+          setAutoDebitBusy(true);
+          setAutoDebitProgress({ done: 0, total: highConf.length, ok: 0, failed: 0 });
+          let okCount = 0;
+          let failCount = 0;
+          let me: { id: string } | null = null;
+          let routedByName: string | null = null;
+          try {
+            const { data: meRes } = await supabase.auth.getUser();
+            if (meRes?.user?.id) {
+              me = { id: meRes.user.id };
+              const { data: rp } = await (supabase.from('profiles') as any)
+                .select('full_name').eq('id', meRes.user.id).maybeSingle();
+              routedByName = rp?.full_name ?? null;
+            }
+          } catch { /* ignore */ }
+          for (let i = 0; i < highConf.length; i++) {
+            const { row, top, score } = highConf[i];
+            const amt = row.amount ?? 0;
+            const matchedLabel = top.matched_on;
+            const reason = `Auto-debit (score ${score}%, ${matchedLabel}) — outgoing payment email from ${row.from_name || row.from_email || 'provider'}${row.transaction_id ? ` TID ${row.transaction_id}` : ''} charged against ${top.full_name}'s wallet.`;
+            try {
+              // Guard: the ledger rejects amount 0. Emails with no parsed
+              // amount must never be sent to cfo-direct-credit — skip cleanly.
+              if (!Number.isFinite(amt) || amt <= 0) {
+                failCount++;
+                console.warn(`[auto-debit] skip ${row.id}: no usable amount on email (got ${amt})`);
+                setAutoDebitProgress({ done: i + 1, total: highConf.length, ok: okCount, failed: failCount });
+                continue;
+              }
+              // Pre-check strict available balance. The ledger blocks
+              // negative wallets, so calling cfo-direct-credit when the
+              // user has < amt withdrawable just produces a NEGATIVE_WALLET
+              // 400. Skip cleanly with a clear console reason instead.
+              const { data: availRaw } = await (supabase.rpc as any)(
+                'get_user_available_balance',
+                { p_user_id: top.id },
+              );
+              const avail = Number(availRaw ?? 0);
+              // Nothing to take — skip cleanly.
+              if (!Number.isFinite(avail) || avail <= 0) {
+                failCount++;
+                console.warn(
+                  `[auto-debit] skip ${row.id}: ${top.full_name} has UGX ${Math.max(0, avail).toLocaleString()} available, needs UGX ${amt.toLocaleString()}`,
+                );
+                setAutoDebitProgress({ done: i + 1, total: highConf.length, ok: okCount, failed: failCount });
+                continue;
+              }
+              // The ledger blocks negative wallets, so never try to debit more
+              // than the strict available balance — clamp to drain to zero.
+              const debitAmt = Math.min(Math.floor(amt), Math.floor(avail));
+              if (!Number.isFinite(debitAmt) || debitAmt <= 0) {
+                failCount++;
+                console.warn(
+                  `[auto-debit] skip ${row.id}: computed debit amount was UGX ${debitAmt.toLocaleString()} after clamping available balance UGX ${avail.toLocaleString()}`,
+                );
+                setAutoDebitProgress({ done: i + 1, total: highConf.length, ok: okCount, failed: failCount });
+                continue;
+              }
+              const isPartial = debitAmt < amt;
+              const { data: debitData, error: debitErr } = await supabase.functions.invoke('cfo-direct-credit', {
+                body: {
+                  target_user_id: top.id,
+                  amount: debitAmt,
+                  reason,
+                  operation: 'debit' as const,
+                  wallet_category: 'wallet_transfer',
+                  platform_category: 'wallet_transfer',
+                  financial_impact: 'neutral' as const,
+                  category_label: 'Email charge → Withdrawable (auto)',
+                  recipient_type: 'user',
+                  sub_category: row.transaction_id ?? null,
+                },
+              });
+              if (debitErr) throw new Error((debitErr as any)?.message || 'Debit failed');
+              if ((debitData as any)?.error) throw new Error((debitData as any).error);
+              const referenceId = (debitData as any)?.reference_id ?? null;
+              if (isPartial) {
+                console.warn(
+                  `[auto-debit] partial ${row.id}: debited UGX ${debitAmt.toLocaleString()} of UGX ${amt.toLocaleString()} (wallet drained to zero)`,
+                );
+              }
+              // Capture the wallet impact: re-read the strict available balance
+              // after the debit so the row can show how much is left.
+              let newAvail: number | null = null;
+              try {
+                const { data: afterRaw } = await (supabase.rpc as any)(
+                  'get_user_available_balance',
+                  { p_user_id: top.id },
+                );
+                const n = Number(afterRaw);
+                newAvail = Number.isFinite(n) ? n : null;
+              } catch { /* ignore — impact display is best-effort */ }
+              setAutoDebitResults((prev) => ({
+                ...prev,
+                [row.id]: { amount: debitAmt, newAvail, userName: top.full_name },
+              }));
+              // Refresh the displayed wallet figure for this user immediately so
+              // the panel reflects the reduced balance instead of the stale
+              // pre-debit value cached in `userBalances`.
+              if (newAvail !== null) {
+                setUserBalances((cur) => ({ ...cur, [top.id]: newAvail as number }));
+              } else {
+                setUserBalances((cur) => {
+                  const next = { ...cur };
+                  delete next[top.id];
+                  return next;
+                });
+              }
+              // Best-effort history insert so the row immediately shows as routed.
+              if (me?.id) {
+                try {
+                  await (supabase.from('email_routing_history') as any).insert({
+                    gmail_transaction_id: row.id,
+                    gmail_message_id: row.gmail_message_id ?? null,
+                    transaction_id: row.transaction_id,
+                    from_email: row.from_email,
+                    from_name: row.from_name,
+                    subject: row.subject,
+                    amount: debitAmt,
+                    route: 'withdrawable_debit',
+                    target_user_id: top.id,
+                    target_user_name: top.full_name,
+                    target_user_phone: top.phone,
+                    reason: `DEBIT (auto, ${matchedLabel}${isPartial ? `, partial ${debitAmt.toLocaleString()}/${amt.toLocaleString()}` : ''}): ${reason}`,
+                    ledger_reference_id: referenceId,
+                    routed_by: me.id,
+                    routed_by_name: routedByName,
+                    sms_sent: false,
+                    sms_error: null,
+                  });
+                } catch (e) {
+                  console.warn('[auto-debit] history insert failed', e);
+                }
+              }
+              okCount++;
+            } catch (e: any) {
+              failCount++;
+              console.error('[auto-debit] row failed', row.id, e?.message);
+            }
+            setAutoDebitProgress({ done: i + 1, total: highConf.length, ok: okCount, failed: failCount });
+          }
+          setAutoDebitBusy(false);
+          // Force an authoritative re-fetch of every displayed strict balance so
+          // each charged wallet visibly drops by the debited amount. Without this
+          // the cache only fetches missing ids and keeps showing pre-debit values.
+          setUserBalances({});
+          // Stamp the refresh so the UI can show a visible "Balance refreshed"
+          // confirmation that the figures on screen are now post-debit.
+          setBalanceRefreshedAt(Date.now());
+          toast({
+            title: `Auto-debit complete`,
+            description: `${okCount} succeeded, ${failCount} skipped/failed of ${highConf.length}. Skips usually mean the matched user has 0 withdrawable balance — see console for details.`,
+            variant: failCount > 0 ? 'destructive' : 'default',
+          });
+        };
+
+        return (
+          <div className={`rounded-xl border p-3 flex flex-col gap-3 sm:flex-row sm:items-start ${unrouted.length > 0 ? 'border-rose-300 bg-rose-50/60 dark:border-rose-900/60 dark:bg-rose-950/30' : 'border-emerald-300 bg-emerald-50/60 dark:border-emerald-900/60 dark:bg-emerald-950/30'}`}>
+            <div className="flex items-start gap-3 flex-1 min-w-0">
+            <div className={`mt-0.5 h-8 w-8 rounded-full flex items-center justify-center shrink-0 ${unrouted.length > 0 ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-200' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-200'}`}>
+              {unrouted.length > 0 ? <AlertTriangle className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold">
+                {unrouted.length > 0
+                  ? `${unrouted.length} money-out email${unrouted.length === 1 ? '' : 's'} not yet charged to any wallet`
+                  : `All ${outRows.length} money-out email${outRows.length === 1 ? '' : 's'} routed to wallets`}
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                {unrouted.length > 0 ? (
+                  <>
+                    Unrouted total <strong className="font-mono text-foreground/80">{fmtUgx(unroutedAmt)}</strong>
+                    {' '}· {highConf.length} of them have a possible recipient
+                    {highConf.length > 0 && <> ({fmtUgx(highConfAmt)})</>}.
+                    {' '}Until they're routed, no user wallet is reduced for these payouts.
+                  </>
+                ) : (
+                  <>Every outgoing email in this window has a matching wallet debit on the ledger.</>
+                )}
+              </p>
+              {autoDebitProgress && (
+                <p className="text-[11px] mt-1 font-mono">
+                  Progress: {autoDebitProgress.done}/{autoDebitProgress.total}
+                  {' '}· <span className="text-emerald-700">{autoDebitProgress.ok} ok</span>
+                  {autoDebitProgress.failed > 0 && <> · <span className="text-rose-700">{autoDebitProgress.failed} failed</span></>}
+                </p>
+              )}
+              {balanceRefreshedAt && !autoDebitBusy && (
+                <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-200">
+                  <RefreshCw className="h-3 w-3" />
+                  Balances refreshed · {new Date(balanceRefreshedAt).toLocaleTimeString()}
+                </span>
+              )}
+            </div>
+            </div>
+            {highConf.length > 0 && (
+              <Button
+                size="sm"
+                variant="default"
+                className="w-full sm:w-auto shrink-0 bg-rose-600 hover:bg-rose-700 text-white gap-1.5"
+                disabled={autoDebitBusy}
+                onClick={runAutoDebit}
+                title={`Posts a withdrawable debit via CFO Direct Debit for each of the ${highConf.length} payout(s) with a possible recipient.`}
+              >
+                {autoDebitBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
+                Auto-debit {highConf.length} possible recipient{highConf.length === 1 ? '' : 's'}
+              </Button>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* ── Unparsed-email queue ─────────────────────────────────────────
+          Every Gmail row the parser skipped (no usable amount), each with
+          the exact reason(s) it failed. Collapsed by default. */}
+      {unparsedRows.length > 0 && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setUnparsedOpen((o) => !o)}
+            className="w-full flex items-center justify-between gap-2 p-4 text-left hover:bg-amber-500/10 transition-colors"
+          >
+            <span className="flex items-center gap-2 font-semibold text-sm text-amber-700 dark:text-amber-400">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              Unparsed email queue
+              <Badge variant="outline" className="border-amber-500/40 text-amber-700 dark:text-amber-400">
+                {unparsedRows.length} skipped
+              </Badge>
+            </span>
+            {unparsedOpen ? <ChevronUp className="h-4 w-4 text-amber-700 dark:text-amber-400" /> : <ChevronDown className="h-4 w-4 text-amber-700 dark:text-amber-400" />}
+          </button>
+          {unparsedOpen && (
+            <div className="border-t border-amber-500/20 divide-y divide-amber-500/10">
+              <p className="px-4 py-2 text-xs text-muted-foreground">
+                These rows were skipped by the parser and never counted toward any total. Each shows the exact reason it could not be parsed.
+              </p>
+              {unparsedRows.map((r) => {
+                const reasons = parseFailureReasons(r);
+                const when = r.internal_date
+                  ? new Date(r.internal_date).toLocaleString('en-GB', { timeZone: tz })
+                  : '—';
+                return (
+                  <div key={r.id} className="px-4 py-3 space-y-1.5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{r.subject || '(no subject)'}</p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {r.from_name || r.from_email || 'unknown sender'} · {when}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="text-[10px] shrink-0">unparsed</Badge>
+                    </div>
+                    {r.snippet && (
+                      <p className="text-xs text-muted-foreground line-clamp-2">{r.snippet}</p>
+                    )}
+                    <div className="flex flex-wrap gap-1.5 pt-0.5">
+                      {reasons.map((reason) => (
+                        <Badge
+                          key={reason}
+                          variant="outline"
+                          className="text-[10px] gap-1 border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                        >
+                          <AlertCircle className="h-3 w-3" />
+                          {reason}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Unread alert banner — first thing ops sees: how many attention-needing
+          emails (needs routing / unparsed) arrived since they last acknowledged
+          the queue, with one tap to jump straight to them. */}
+      {unreadAlertCount > 0 && (
+        <div className="rounded-xl border border-orange-500/40 bg-orange-500/10 p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div className="flex items-start gap-2 min-w-0">
+            <span className="relative mt-0.5 shrink-0">
+              <AlertCircle className="h-4 w-4 text-orange-700 dark:text-orange-400" />
+              <span className="absolute -top-1.5 -right-1.5 h-2 w-2 rounded-full bg-orange-600 animate-pulse" aria-hidden />
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-orange-800 dark:text-orange-300">
+                {unreadAlertCount} new item{unreadAlertCount === 1 ? '' : 's'} need attention
+                <Badge className="ml-2 bg-orange-600 text-white hover:bg-orange-600 text-[10px] font-mono">
+                  {unreadAlertCount} unread
+                </Badge>
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                {alertRows.length} total unresolved in this window (awaiting routing or unparsed).
+              </p>
+              {unreadArrivalSpan && (
+                <>
+                  <p className="text-[11px] text-orange-800/90 dark:text-orange-300/90 mt-1">
+                    Newest arrived {formatAlertArrival(unreadArrivalSpan.newest)}
+                    {unreadAlertCount > 1 && <> · oldest unread {formatAlertArrival(unreadArrivalSpan.oldest)}</>}
+                  </p>
+                  <ul className="mt-1.5 space-y-0.5">
+                    {unreadArrivalSpan.sorted.slice(0, 3).map((r) => (
+                      <li key={r.id}>
+                        <button
+                          type="button"
+                          onClick={() => setAlertDetailsRow(r)}
+                          className="w-full text-left text-[11px] text-muted-foreground flex items-center gap-1.5 min-w-0 rounded px-1 py-0.5 hover:bg-orange-500/10 hover:text-foreground transition-colors"
+                          aria-label="Open alert details"
+                        >
+                          <Clock className="h-3 w-3 shrink-0" aria-hidden />
+                          <span className="font-mono shrink-0">{formatAlertArrival(r)}</span>
+                          <span className="truncate">
+                            — {r.counterparty || r.from_name || r.from_email || 'Unknown sender'}
+                            {r.amount ? ` · UGX ${Number(r.amount).toLocaleString()}` : ''}
+                          </span>
+                          <ArrowRight className="h-3 w-3 shrink-0 ml-auto" aria-hidden />
+                        </button>
+                      </li>
+                    ))}
+                    {unreadAlertCount > 3 && (
+                      <li className="text-[11px] text-muted-foreground/80">
+                        +{unreadAlertCount - 3} more unread…
+                      </li>
+                    )}
+                  </ul>
+                </>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs"
+              onClick={() => {
+                setStatusFilter('needs_routing');
+                document.getElementById('email-tx-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+            >
+              Review now
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs"
+              disabled={bulkBusy || alertRows.length === 0}
+              onClick={() => { selectAllAlertRows(); document.getElementById('email-tx-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
+            >
+              Select all {alertRows.length}
+            </Button>
+            <Button
+              size="sm"
+              className="h-8 text-xs"
+              disabled={bulkBusy || alertRows.length === 0}
+              onClick={() => resolveAlertRows(alertRows)}
+            >
+              {bulkBusy ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1" />}
+              Resolve all
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs"
+              disabled={!unreadArrivalSpan}
+              onClick={() => unreadArrivalSpan && setAlertDetailsRow(unreadArrivalSpan.newest)}
+            >
+              Open details
+            </Button>
+            <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={markAlertsSeen}>
+              Mark all seen
+            </Button>
+            <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setAlertSettingsOpen(true)}>
+              <SlidersHorizontal className="h-3.5 w-3.5 mr-1" /> Alert settings
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Alert notification settings — which alert types count toward badges and
+          whether new arrivals raise an in-app prompt. Stored per browser. */}
+      <Dialog open={alertSettingsOpen} onOpenChange={setAlertSettingsOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4" /> Alert notification settings
+            </DialogTitle>
+            <DialogDescription>
+              Choose which email alert types show unread badges and trigger in-app prompts.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <label className="flex items-start gap-3 rounded-md border p-3 cursor-pointer">
+              <Checkbox
+                checked={alertPrefs.needsRouting}
+                onCheckedChange={(v) => updateAlertPrefs({ needsRouting: !!v })}
+              />
+              <span className="text-sm">
+                Awaiting routing
+                <span className="block text-[11px] text-muted-foreground">
+                  Parsed emails not yet routed to a wallet or deposit.
+                </span>
+              </span>
+            </label>
+            <label className="flex items-start gap-3 rounded-md border p-3 cursor-pointer">
+              <Checkbox
+                checked={alertPrefs.unparsed}
+                onCheckedChange={(v) => updateAlertPrefs({ unparsed: !!v })}
+              />
+              <span className="text-sm">
+                Unparsed emails
+                <span className="block text-[11px] text-muted-foreground">
+                  Messages the reader could not extract amount / TID from.
+                </span>
+              </span>
+            </label>
+            <label className="flex items-start gap-3 rounded-md border p-3 cursor-pointer">
+              <Checkbox
+                checked={alertPrefs.toastPrompt}
+                onCheckedChange={(v) => updateAlertPrefs({ toastPrompt: !!v })}
+              />
+              <span className="text-sm">
+                In-app prompts
+                <span className="block text-[11px] text-muted-foreground">
+                  Pop a toast with a "Review" shortcut when new alerts arrive.
+                </span>
+              </span>
+            </label>
+            {!alertPrefs.needsRouting && !alertPrefs.unparsed && (
+              <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                All alert types are off — no badges or prompts will show.
+              </p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
 
       <DedupAuditPanel />
 
