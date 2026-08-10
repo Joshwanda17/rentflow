@@ -33,6 +33,7 @@ import { useAgentBalances } from '@/hooks/useAgentBalances';
 import { UserAvatar } from '@/components/UserAvatar';
 import { hapticTap } from '@/lib/haptics';
 
+import walletRafiki3Asset from '@/assets/wallet-rafiki-3.svg.asset.json';
 import { WalletLedgerStatement } from './WalletLedgerStatement';
 import { PaymentMethodIcons } from './PaymentMethodIcons';
 import { ProxyPartnerFunds } from '@/components/agent/ProxyPartnerFunds';
