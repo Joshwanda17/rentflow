@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { ChevronLeft, X, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import eWalletPanaAsset from '@/assets/e-wallet-pana.svg.asset.json';
 
 export interface Step {
   id: string;
