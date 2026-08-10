@@ -1634,14 +1634,6 @@ export function EmailTransactionsPanel() {
     return () => { cancelled = true; };
   }, [rows]);
 
-  // Load the LATEST manual credit-mark per visible gmail transaction so the
-  // list can honor operator overrides immediately. Re-runs whenever the row
-  // set changes (e.g. after bulk actions or new polls).
-  useEffect(() => {
-    if (!rows.length) { setManualMarks({}); return; }
-    return undefined as unknown as void;
-  }, []);
-
   // Ledger-reference credits: match every visible incoming email's reference
   // (MoMo TID / Airtel TID / cash receipt code) against wallet credits already
   // posted in general_ledger. Batched so the reference array stays small.
@@ -1691,6 +1683,9 @@ export function EmailTransactionsPanel() {
     return () => { cancelled = true; };
   }, [rows]);
 
+  // Load the LATEST manual credit-mark per visible gmail transaction so the
+  // list can honor operator overrides immediately. Re-runs whenever the row
+  // set changes (e.g. after bulk actions or new polls).
   useEffect(() => {
     if (!rows.length) { setManualMarks({}); return; }
     let cancelled = false;
