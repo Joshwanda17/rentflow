@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { ChevronLeft, Paperclip, Star, Inbox, Clock, Archive, Trash2, MailOpen } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ChevronLeft, Paperclip, Star, Inbox, Clock, Archive, Trash2, MailOpen, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 /**
@@ -58,6 +58,24 @@ function fmtUgx(n?: number | null) {
   if (n == null || !Number.isFinite(n)) return null;
   return `UGX ${Math.round(n).toLocaleString('en-US')}`;
 }
+
+/** Gmail groups its inbox under date rollups: Today, Yesterday, then dates. */
+function dateGroupLabel(iso?: string | null) {
+  if (!iso) return 'No date';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return 'No date';
+  const now = new Date();
+  const dayKey = (x: Date) => `${x.getFullYear()}-${x.getMonth()}-${x.getDate()}`;
+  const yesterday = new Date(now.getTime() - 86_400_000);
+  if (dayKey(d) === dayKey(now)) return 'Today';
+  if (dayKey(d) === dayKey(yesterday)) return 'Yesterday';
+  const sameYear = d.getFullYear() === now.getFullYear();
+  return d.toLocaleDateString(undefined, sameYear
+    ? { weekday: 'short', month: 'short', day: 'numeric' }
+    : { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+const BATCH = 40;
 
 /**
  * Renders the extracted money-in / money-out emails exactly the way Gmail
