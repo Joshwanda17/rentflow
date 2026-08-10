@@ -387,6 +387,15 @@ export function UserWithdrawalRequests() {
           </Button>
         )}
       </CardContent>
+      {reportTarget && (
+        <ReportPayoutNotReceivedDialog
+          open={!!reportTarget}
+          onOpenChange={(v) => !v && setReportTarget(null)}
+          withdrawalId={reportTarget.id}
+          amount={reportTarget.amount}
+          onReported={fetchRequests}
+        />
+      )}
     </Card>
   );
 }
