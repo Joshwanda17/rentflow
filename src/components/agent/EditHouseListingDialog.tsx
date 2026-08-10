@@ -273,12 +273,41 @@ export function EditHouseListingDialog({ open, onOpenChange, listing, onSaved }:
             <Input id="edit-title" value={title} onChange={(e) => setTitle(e.target.value)} />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="edit-address">Address</Label>
-            <Input id="edit-address" value={address} onChange={(e) => setAddress(e.target.value)} />
+            <Label htmlFor="edit-address">Street / plot / house detail</Label>
+            <Input
+              id="edit-address"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="e.g. Plot 14, Kisaasi–Kyanja Road, house behind the mosque"
+            />
+            {attempted && !address.trim() ? <FieldError message="Street / plot detail is required" /> : null}
           </div>
+
+          {/* Official Uganda administrative location — shared picker + shared dataset. */}
           <div className="space-y-1">
-            <Label htmlFor="edit-region">Region</Label>
-            <Input id="edit-region" value={region} onChange={(e) => setRegion(e.target.value)} />
+            {locLoading ? (
+              <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                <Loader2 className="h-3 w-3 animate-spin" /> Matching the saved location to the official list…
+              </div>
+            ) : (
+              <>
+                <UgLocationPicker
+                  label="Official location (village)"
+                  value={ugLoc}
+                  onChange={(sel) => { setUgLoc(sel); if (sel) setLocError(null); }}
+                  required
+                  error={attempted && !ugLoc ? 'Select the official village where the house is located' : null}
+                />
+                {!ugLoc && locError ? (
+                  <p className="text-[11px] text-amber-600 dark:text-amber-400">{locError}</p>
+                ) : null}
+                {!ugLoc && storedLocationLabel ? (
+                  <p className="text-[11px] text-muted-foreground">
+                    Currently saved: {storedLocationLabel} — kept until you pick an official village.
+                  </p>
+                ) : null}
+              </>
+            )}
           </div>
           <div className="space-y-1">
             <Label htmlFor="edit-rent">Monthly rent (UGX)</Label>
@@ -406,9 +435,9 @@ export function EditHouseListingDialog({ open, onOpenChange, listing, onSaved }:
               images={newImages}
               onChange={setNewImages}
               maxImages={remainingSlots}
-              region={region}
-              district={listing.district ?? undefined}
-              village={listing.village ?? undefined}
+              region={regionForPhotos}
+              district={ugLoc?.district ?? listing.district ?? undefined}
+              village={ugLoc?.village ?? listing.village ?? undefined}
             />
             {totalPhotos === 0 && (
               <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
