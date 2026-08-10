@@ -200,6 +200,28 @@ export function ServiceCenterRentVettingQueue() {
           ))}
         </div>
       )}
+
+      <HouseDetailsDialog
+        open={!!detailsReq}
+        onOpenChange={(v) => { if (!v) setDetailsReq(null); }}
+        title={detailsReq ? `${detailsReq.tenant_name ?? 'Tenant'} — house` : null}
+        images={detailsReq?.house_image_urls}
+        extras={[
+          { label: 'Tenant', value: detailsReq?.tenant_name },
+          { label: 'Tenant phone', value: detailsReq?.tenant_phone },
+          { label: 'Submitted by', value: detailsReq?.agent_name },
+          { label: 'Agent phone', value: detailsReq?.agent_phone },
+          { label: 'Landlord', value: detailsReq?.landlord_name },
+          { label: 'Landlord phone', value: detailsReq?.landlord_phone },
+          { label: 'House type', value: detailsReq?.house_category ? String(detailsReq.house_category).replace(/_/g, ' ') : null },
+          { label: 'Location', value: detailsReq?.request_city },
+          { label: 'Rent', value: detailsReq ? formatUGX(Number(detailsReq.rent_amount || 0)) : null },
+          { label: 'Daily repayment', value: detailsReq?.daily_repayment ? formatUGX(Number(detailsReq.daily_repayment)) : null },
+          { label: 'Total repayment', value: detailsReq?.total_repayment ? formatUGX(Number(detailsReq.total_repayment)) : null },
+          { label: 'Duration', value: detailsReq?.duration_days ? `${detailsReq.duration_days} days` : null },
+          { label: 'Submitted', value: detailsReq?.created_at ? new Date(detailsReq.created_at).toLocaleString() : null },
+        ]}
+      />
     </div>
   );
 }
