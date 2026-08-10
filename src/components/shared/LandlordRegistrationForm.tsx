@@ -999,6 +999,18 @@ export default function LandlordRegistrationForm({
           </div>
 
           {/* Minimal-mode LC1 fields (Outstanding Balance flow) */}
+          {/* Official location — mandatory in every mode. Single shared picker,
+              same ug_* dataset as house listings and rent requests. */}
+          <div data-field="ugLocation" className="space-y-1">
+            <UgLocationPicker
+              value={ugLoc}
+              onChange={(sel) => { setUgLoc(sel); setUgLocError(null); }}
+              label="Official location (region → village)"
+              required
+              error={ugLocError}
+            />
+          </div>
+
           {minimal && (
             <div className="space-y-2 p-2.5 rounded-lg border bg-muted/30">
               <div className="flex items-center gap-1.5">
