@@ -1099,7 +1099,6 @@ export function EmailTransactionsPanel() {
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   // Mobile-only collapse for the status / debit / sort chip groups. Keeps the
   // email list within reach on a phone instead of six wrapped chip rows.
-  const [chipFiltersOpen, setChipFiltersOpen] = useState(false);
   const [mobileStatsOpen, setMobileStatsOpen] = useState(false);
   // Selected zoom window on the In-vs-Out daily chart (Brush start/end indices).
   // null = full range. Drives the summary card above the chart.
@@ -3443,9 +3442,9 @@ export function EmailTransactionsPanel() {
               )}
             </div>
           </div>
-          {/* Mobile-friendly quick filters: date, direction & status in one
-              horizontally-scrollable strip so ops can narrow results on a phone
-              without scrolling back up to the full filter panel. */}
+          {/* Mobile quick date windows. Flow/status narrowing lives in the
+              left label rail (Inbox / Money in / Money out / Needs routing /
+              Unparsed / Credited). */}
           <div className="sm:hidden -mx-1 overflow-x-auto">
             <div className="flex items-center gap-1.5 px-1 pb-1 w-max">
               {([
@@ -3477,69 +3476,11 @@ export function EmailTransactionsPanel() {
                   </button>
                 );
               })}
-              <span className="shrink-0 mx-0.5 h-4 w-px bg-border" aria-hidden />
-              {([
-                { key: 'all', label: 'All' },
-                { key: 'in', label: 'In' },
-                { key: 'out', label: 'Out' },
-              ] as Array<{ key: DirectionFilter; label: string }>).map((c) => (
-                <button
-                  key={c.key}
-                  type="button"
-                  onClick={() => setDirectionFilter(c.key)}
-                  aria-pressed={directionFilter === c.key}
-                  className={`shrink-0 text-[11px] px-2.5 py-1 rounded-full border transition-colors ${
-                    directionFilter === c.key
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-background hover:bg-muted text-muted-foreground border-border'
-                  }`}
-                >
-                  {c.label}
-                </button>
-              ))}
-              <span className="shrink-0 mx-0.5 h-4 w-px bg-border" aria-hidden />
-              {([
-                { key: 'all', label: 'Any' },
-                { key: 'credited', label: 'Credited' },
-                { key: 'needs_routing', label: 'Needs routing' },
-                { key: 'unparsed', label: 'Unparsed' },
-              ] as Array<{ key: StatusFilter; label: string }>).map((c) => (
-                <button
-                  key={c.key}
-                  type="button"
-                  onClick={() => setStatusFilter(c.key)}
-                  aria-pressed={statusFilter === c.key}
-                  className={`shrink-0 text-[11px] px-2.5 py-1 rounded-full border transition-colors ${
-                    statusFilter === c.key
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-background hover:bg-muted text-muted-foreground border-border'
-                  }`}
-                >
-                  {c.label}
-                </button>
-              ))}
             </div>
           </div>
         </div>
         
         <div className="p-3 sm:p-4 border-b sticky top-[104px] z-[18] bg-card sm:static sm:z-auto">
-          {/* Mobile: the filter/sort chip groups are collapsed behind one tap so
-              the email list stays reachable without scrolling past six rows of
-              chips. On sm+ they render inline exactly as before. */}
-          <button
-            type="button"
-            onClick={() => setChipFiltersOpen((v) => !v)}
-            aria-expanded={chipFiltersOpen}
-            className="sm:hidden w-full flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs font-semibold"
-          >
-            <span className="inline-flex items-center gap-2">
-              <SlidersHorizontal className="h-3.5 w-3.5" />
-              Filters &amp; sort
-            </span>
-            <ChevronDown
-              className={`h-4 w-4 transition-transform ${chipFiltersOpen ? 'rotate-180' : ''}`}
-            />
-          </button>
           {/* Saved filter presets — one-tap switching between saved views.
               Always visible (mobile-first) so operators never have to expand the
               chip groups to restore a triage view. */}
@@ -3597,244 +3538,6 @@ export function EmailTransactionsPanel() {
                 </Button>
               </div>
             )}
-          </div>
-          <div
-            className={`${chipFiltersOpen ? 'flex' : 'hidden sm:flex'} mt-2 sm:mt-0 flex-col rounded-xl border bg-muted/20 divide-y overflow-hidden`}
-          >
-          {(() => {
-            // Money-in vs money-out chips. Counts respect the active date /
-            // search filters so the numbers always match what's listed below.
-            const inCount = filteredRows.filter((r) => r.direction === 'in').length;
-            const outCount = filteredRows.filter(
-              (r) => r.direction === 'out' || r.direction === 'charge',
-            ).length;
-            const dirChips: Array<{ key: DirectionFilter; label: string; count: number }> = [
-              { key: 'all', label: 'All flows', count: filteredRows.length },
-              { key: 'in', label: 'Money in', count: inCount },
-              { key: 'out', label: 'Money out', count: outCount },
-            ];
-            return (
-              <div className="flex items-center gap-1 flex-nowrap sm:flex-wrap w-full overflow-x-auto px-3 py-2" role="group" aria-label="Filter by money direction">
-                <span className="w-[86px] shrink-0 text-[10px] uppercase tracking-wider text-muted-foreground">Flow</span>
-                {dirChips.map((c) => {
-                  const active = directionFilter === c.key;
-                  const tone =
-                    active && c.key === 'in'
-                      ? 'bg-emerald-600 text-white border-emerald-600'
-                      : active && c.key === 'out'
-                        ? 'bg-rose-600 text-white border-rose-600'
-                        : active
-                          ? 'bg-primary text-primary-foreground border-primary'
-                          : 'bg-background hover:bg-muted text-muted-foreground border-border';
-                  return (
-                    <button
-                      key={c.key}
-                      type="button"
-                      onClick={() => setDirectionFilter(c.key)}
-                      aria-pressed={active}
-                      className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors shrink-0 whitespace-nowrap ${tone}`}
-                    >
-                      {c.label}
-                      <span className={`ml-1.5 font-mono tabular-nums ${active ? 'opacity-90' : 'opacity-60'}`}>
-                        {c.count}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            );
-          })()}
-          {(() => {
-            // Pre-compute counts so the user knows what each chip will narrow to.
-            const refCount = filteredRows.filter((r) =>
-              (userMatches[r.id] ?? []).some((u) => u.matched_on.startsWith('reference '))
-            ).length;
-            const fromCount = filteredRows.filter((r) =>
-              (userMatches[r.id] ?? []).some((u) => u.matched_on.startsWith('from '))
-            ).length;
-            const confCount = filteredRows.filter((r) =>
-              (userMatches[r.id] ?? []).some(
-                (u) => u.matched_on.startsWith('reference ') || u.matched_on.startsWith('from ')
-              )
-            ).length;
-            const chips: Array<{ key: MatchFilter; label: string; count: number }> = [
-              { key: 'all', label: 'All', count: filteredRows.length },
-              { key: 'confident', label: 'We know who sent it', count: confCount },
-              { key: 'reference', label: 'Has a receipt code', count: refCount },
-              { key: 'from', label: 'Matched by phone', count: fromCount },
-            ];
-            return (
-              <div className="flex items-center gap-1 flex-nowrap sm:flex-wrap w-full overflow-x-auto px-3 py-2" role="group" aria-label="Filter by sender match">
-                <span className="w-[86px] shrink-0 text-[10px] uppercase tracking-wider text-muted-foreground">Sender</span>
-                {chips.map((c) => {
-                  const active = matchFilter === c.key;
-                  return (
-                    <button
-                      key={c.key}
-                      type="button"
-                      onClick={() => setMatchFilter(c.key)}
-                      className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors shrink-0 whitespace-nowrap ${
-                        active
-                          ? 'bg-primary text-primary-foreground border-primary'
-                          : 'bg-background hover:bg-muted text-muted-foreground border-border'
-                      }`}
-                    >
-                      {c.label}
-                      <span className={`ml-1.5 font-mono tabular-nums ${active ? 'opacity-90' : 'opacity-60'}`}>
-                        {c.count}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            );
-          })()}
-          {(() => {
-            // Status chips — slice the list by settlement state (credited,
-            // still needs routing, or unreadable/unparsed) in one tap. Counts
-            // respect the active date/search/direction filters above.
-            const credited = filteredRows.filter((r) => getRowStatus(r) === 'credited').length;
-            const needs = filteredRows.filter((r) => getRowStatus(r) === 'needs_routing').length;
-            const unparsed = filteredRows.filter((r) => getRowStatus(r) === 'unparsed').length;
-            const chips: Array<{ key: StatusFilter; label: string; count: number; tone: string }> = [
-              { key: 'all', label: 'Any status', count: filteredRows.length, tone: 'bg-primary text-primary-foreground border-primary' },
-              { key: 'credited', label: 'Credited', count: credited, tone: 'bg-emerald-600 text-white border-emerald-600' },
-              { key: 'needs_routing', label: 'Needs routing', count: needs, tone: 'bg-orange-600 text-white border-orange-600' },
-              { key: 'unparsed', label: 'Unparsed', count: unparsed, tone: 'bg-slate-600 text-white border-slate-600' },
-            ];
-            return (
-              <div className="flex items-center gap-1 flex-nowrap sm:flex-wrap w-full overflow-x-auto px-3 py-2" role="group" aria-label="Filter by status">
-                <span className="w-[86px] shrink-0 text-[10px] uppercase tracking-wider text-muted-foreground">Status</span>
-                {chips.map((c) => {
-                  const active = statusFilter === c.key;
-                  return (
-                    <button
-                      key={c.key}
-                      type="button"
-                      onClick={() => setStatusFilter(c.key)}
-                      aria-pressed={active}
-                      className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors shrink-0 whitespace-nowrap ${
-                        active ? c.tone : 'bg-background hover:bg-muted text-muted-foreground border-border'
-                      }`}
-                    >
-                      {c.label}
-                      <span className={`ml-1.5 font-mono tabular-nums ${active ? 'opacity-90' : 'opacity-60'}`}>
-                        {c.count}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            );
-          })()}
-          {(() => {
-            // "Needs Routing" toggle — narrows the list to uncredited, unrouted
-            // incoming deposits so ops can triage exactly what still needs action.
-            const needsCount = filteredRows.filter(isNeedsRouting).length;
-            return (
-              <div className="flex items-center gap-1 flex-nowrap w-full overflow-x-auto px-3 py-2" role="group" aria-label="Triage filter">
-                <span className="w-[86px] shrink-0 text-[10px] uppercase tracking-wider text-muted-foreground">Triage</span>
-              <button
-                type="button"
-                onClick={() => setNeedsRoutingOnly((v) => !v)}
-                aria-pressed={needsRoutingOnly}
-                title="Show only incoming deposits that have not been credited or routed to any wallet"
-                className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors inline-flex items-center gap-1 self-start shrink-0 whitespace-nowrap ${
-                  needsRoutingOnly
-                    ? 'bg-orange-600 text-white border-orange-600'
-                    : 'bg-background hover:bg-muted text-orange-700 border-orange-500/40'
-                }`}
-              >
-                <AlertTriangle className="h-3 w-3" />
-                Still needs sorting
-                <span className={`ml-0.5 font-mono tabular-nums ${needsRoutingOnly ? 'opacity-90' : 'opacity-70'}`}>
-                  {needsCount}
-                </span>
-              </button>
-              </div>
-            );
-          })()}
-          {(() => {
-            // Debit-breakdown filter chips: show only outgoing emails grouped by
-            // who was charged (user wallet, proxy agent, not yet debited).
-            const outRows = filteredRows.filter(
-              (r) => r.direction === 'out' || r.direction === 'charge',
-            );
-            const userDebitCount = outRows.filter((r) => {
-              const m = getDebitMeta(r);
-              return m.isAutoDebited && !m.isProxyDebit;
-            }).length;
-            const proxyDebitCount = outRows.filter((r) => {
-              const m = getDebitMeta(r);
-              return m.isAutoDebited && m.isProxyDebit;
-            }).length;
-            const noneDebitCount = outRows.filter((r) => {
-              const m = getDebitMeta(r);
-              return !m.isAutoDebited;
-            }).length;
-            const chips: Array<{ key: DebitFilter; label: string; count: number; activeClass: string; inactiveClass: string }> = [
-              { key: 'all', label: 'All debits', count: outRows.length, activeClass: 'bg-primary text-primary-foreground border-primary', inactiveClass: 'bg-background hover:bg-muted text-muted-foreground border-border' },
-              { key: 'user_debit', label: 'User wallet', count: userDebitCount, activeClass: 'bg-rose-600 text-white border-rose-600', inactiveClass: 'bg-background hover:bg-muted text-rose-700 border-rose-500/40' },
-              { key: 'proxy_debit', label: 'Proxy agent', count: proxyDebitCount, activeClass: 'bg-amber-600 text-white border-amber-600', inactiveClass: 'bg-background hover:bg-muted text-amber-700 border-amber-500/40' },
-              { key: 'none', label: 'Not debited', count: noneDebitCount, activeClass: 'bg-slate-600 text-white border-slate-600', inactiveClass: 'bg-background hover:bg-muted text-slate-700 border-slate-500/40' },
-            ];
-            return (
-              <div className="flex items-center gap-1 flex-nowrap sm:flex-wrap w-full overflow-x-auto px-3 py-2" role="group" aria-label="Filter by debit target">
-                <span className="w-[86px] shrink-0 text-[10px] uppercase tracking-wider text-muted-foreground">Charged to</span>
-                {chips.map((c) => {
-                  const active = debitFilter === c.key;
-                  return (
-                    <button
-                      key={c.key}
-                      type="button"
-                      onClick={() => setDebitFilter(c.key)}
-                      aria-pressed={active}
-                      className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors inline-flex items-center gap-1 shrink-0 whitespace-nowrap ${
-                        active ? c.activeClass : c.inactiveClass
-                      }`}
-                    >
-                      {c.label}
-                      <span className={`ml-0.5 font-mono tabular-nums ${active ? 'opacity-90' : 'opacity-70'}`}>
-                        {c.count}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            );
-          })()}
-          {(() => {
-            // Debit-breakdown sort toggle: only shown when the list is not empty.
-            const sortOptions: Array<{ key: DebitSort; label: string }> = [
-              { key: 'none', label: 'Chronological' },
-              { key: 'debitType', label: 'Debit type' },
-              { key: 'debitAmount', label: 'Debit amount' },
-              { key: 'debitName', label: 'Charged name' },
-            ];
-            return (
-              <div className="flex items-center gap-1 flex-nowrap w-full overflow-x-auto px-3 py-2" role="group" aria-label="Sort by debit breakdown">
-                <span className="w-[86px] shrink-0 text-[10px] uppercase tracking-wider text-muted-foreground">Order</span>
-                {sortOptions.map((opt) => {
-                  const active = debitSort === opt.key;
-                  return (
-                    <button
-                      key={opt.key}
-                      type="button"
-                      onClick={() => setDebitSort(opt.key)}
-                      aria-pressed={active}
-                      className={`text-[11px] px-2 py-0.5 rounded-full border transition-colors shrink-0 whitespace-nowrap ${
-                        active
-                          ? 'bg-primary text-primary-foreground border-primary'
-                          : 'bg-background hover:bg-muted text-muted-foreground border-border'
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  );
-                })}
-              </div>
-            );
-          })()}
           </div>
         </div>
         {/* ── Intake heartbeat ───────────────────────────────────────────────
