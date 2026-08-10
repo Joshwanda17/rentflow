@@ -28,6 +28,8 @@ import { LandlordAutocompleteInput } from '@/components/agent/LandlordAutocomple
 import type { LandlordOption } from '@/components/agent/LandlordSearchSelect';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import { validateFullName } from '@/lib/authValidation';
+import { UgLocationPicker } from '@/components/location/UgLocationPicker';
+import { ugLocationLabel, type UgLocationSelection } from '@/hooks/useUgLocations';
 
 const HOUSE_CATEGORIES = [
   'Single Room', 'Double Room', 'Bedsitter', 'One Bedroom',
@@ -224,6 +226,11 @@ export default function LandlordRegistrationForm({
   const [landlordName, setLandlordName] = useState('');
   const [landlordPhone, setLandlordPhone] = useState('');
   const [propertyAddress, setPropertyAddress] = useState('');
+  // Official Uganda administrative location (region → village) from the shared
+  // ug_* dataset. Mandatory: it replaces every free-text location guess and is
+  // what lets us drop the old village: 'To be confirmed' placeholder.
+  const [ugLoc, setUgLoc] = useState<UgLocationSelection | null>(null);
+  const [ugLocError, setUgLocError] = useState<string | null>(null);
   const [numberOfRentals, setNumberOfRentals] = useState('');
   const [houseCategory, setHouseCategory] = useState('');
 
@@ -426,6 +433,17 @@ export default function LandlordRegistrationForm({
     }
 
     // Confirm the phone number is free before advancing to Step 2.
+    if (!ugLoc) {
+      setUgLocError('Pick the official location (region → village) from the list.');
+      hapticWarning();
+      focusField('ugLocation');
+      toastFn({
+        title: 'Location required',
+        description: 'Choose the official village so ops can find this property.',
+        variant: 'destructive',
+      });
+      return;
+    }
     if (!phoneVerified) {
       const available = await checkPhoneAvailable(landlordPhone);
       if (!available) {
@@ -486,6 +504,18 @@ export default function LandlordRegistrationForm({
 
     // Pre-save duplicate check: if the phone hasn't already been verified as
     // free, run the check now and surface the exact field error before saving.
+    if (!ugLoc) {
+      setUgLocError('Pick the official location (region → village) from the list.');
+      hapticWarning();
+      setStep(1);
+      focusField('ugLocation');
+      toastFn({
+        title: 'Location required',
+        description: 'Choose the official village so ops can find this property.',
+        variant: 'destructive',
+      });
+      return;
+    }
     if (!phoneVerified) {
       const available = await checkPhoneAvailable(landlordPhone);
       if (!available) {
@@ -504,9 +534,9 @@ export default function LandlordRegistrationForm({
     // It's auto-generated silently so an ordinary agent never has to think
     // about it — they only ever type a name and phone.
     const passwordToUse = tempPassword || generateTempPassword();
-    // landlords.property_address is NOT NULL — when no address is given, fall
-    // back to a placeholder that ops can update later.
-    const addressToUse = propertyAddress.trim() || 'To be confirmed';
+    // landlords.property_address is NOT NULL — when no street detail is typed we
+    // use the official location path (never a "To be confirmed" placeholder).
+    const addressToUse = propertyAddress.trim() || (ugLoc ? ugLocationLabel(ugLoc) : '');
 
     setLoading(true);
     setProgressMsg('Saving details…');
@@ -597,6 +627,17 @@ export default function LandlordRegistrationForm({
         house_category: houseCategory || null,
       };
 
+      // Official location — resolved names exactly as spelled in the dataset,
+      // plus the village id for a hard link back to the hierarchy.
+      if (ugLoc) {
+        insertData.region = ugLoc.region ?? null;
+        insertData.district = ugLoc.district;
+        insertData.county = ugLoc.county;
+        insertData.sub_county = ugLoc.subcounty;
+        insertData.village = ugLoc.village;
+        insertData.ug_village_id = ugLoc.villageId;
+      }
+
       if (registeredByRole === 'tenant') {
         insertData.tenant_id = user.id;
       }
@@ -622,7 +663,7 @@ export default function LandlordRegistrationForm({
               await supabase.from('lc1_chairpersons').insert({
                 name: lc1Name.trim(),
                 phone: lc1PhoneClean,
-                village: 'To be confirmed',
+                village: ugLoc?.village ?? null,
                 registered_by: user.id,
               } as any)
             ).error;
@@ -671,6 +712,9 @@ export default function LandlordRegistrationForm({
         name: newLandlord.name,
         phone: newLandlord.phone,
         property_address: (newLandlord as any).property_address ?? null,
+        district: ugLoc?.district ?? null,
+        county: ugLoc?.county ?? null,
+        village: ugLoc?.village ?? null,
         house_category: (newLandlord as any).house_category ?? null,
         latitude: (newLandlord as any).latitude ?? null,
         longitude: (newLandlord as any).longitude ?? null,
@@ -958,6 +1002,18 @@ export default function LandlordRegistrationForm({
           </div>
 
           {/* Minimal-mode LC1 fields (Outstanding Balance flow) */}
+          {/* Official location — mandatory in every mode. Single shared picker,
+              same ug_* dataset as house listings and rent requests. */}
+          <div data-field="ugLocation" className="space-y-1">
+            <UgLocationPicker
+              value={ugLoc}
+              onChange={(sel) => { setUgLoc(sel); setUgLocError(null); }}
+              label="Official location (region → village)"
+              required
+              error={ugLocError}
+            />
+          </div>
+
           {minimal && (
             <div className="space-y-2 p-2.5 rounded-lg border bg-muted/30">
               <div className="flex items-center gap-1.5">
@@ -1057,7 +1113,7 @@ export default function LandlordRegistrationForm({
             const phoneOk =
               /^\d{9,10}$/.test(toUgandaLocalDigits(landlordPhone)) && !errors.landlordPhone;
             const lcOk = !minimal || (lc1Name.trim().length >= 2 && /^\d{9,10}$/.test(toUgandaLocalDigits(lc1Phone)));
-            const ready = nameOk && phoneOk && lcOk && !loading;
+            const ready = nameOk && phoneOk && lcOk && !!ugLoc && !loading;
             if (!ready) return null;
             return (
               <motion.div

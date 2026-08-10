@@ -39,6 +39,8 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
+import { UgLocationPicker } from '@/components/location/UgLocationPicker';
+import { ugLocationLabel, type UgLocationSelection } from '@/hooks/useUgLocations';
 
 interface RegisterPropertyDialogProps {
   open: boolean;
@@ -83,7 +85,12 @@ export default function RegisterPropertyDialog({
   // LC1
   const [lc1Name, setLc1Name] = useState('');
   const [lc1Phone, setLc1Phone] = useState('');
-  const [lc1Village, setLc1Village] = useState('');
+
+  // Official Uganda location (region → village) from the shared ug_* dataset.
+  // Mandatory, and it also supplies the LC1 chairperson's village.
+  const [ugLoc, setUgLoc] = useState<UgLocationSelection | null>(null);
+  const [ugLocError, setUgLocError] = useState<string | null>(null);
+  const lc1Village = ugLoc?.village ?? '';
 
   const platformFee = monthlyRent ? Math.round(parseInt(monthlyRent) * 0.10) : 0;
 
@@ -103,7 +110,8 @@ export default function RegisterPropertyDialog({
     setTenantPhone('');
     setLc1Name('');
     setLc1Phone('');
-    setLc1Village('');
+    setUgLoc(null);
+    setUgLocError(null);
     setAcceptedTerms(false);
     setSuccess(false);
   };
@@ -137,6 +145,12 @@ export default function RegisterPropertyDialog({
 
     if (!propertyAddress.trim()) {
       toast.error('Please provide the property address');
+      return;
+    }
+
+    if (!ugLoc) {
+      setUgLocError('Pick your official location (region → village) from the list.');
+      toast.error('Please select the official location of the property');
       return;
     }
 
@@ -192,6 +206,12 @@ export default function RegisterPropertyDialog({
         name: landlordProfile.full_name || 'Landlord',
         phone: landlordProfile.phone || '',
         property_address: propertyAddress.trim(),
+        region: ugLoc.region ?? null,
+        district: ugLoc.district,
+        county: ugLoc.county,
+        sub_county: ugLoc.subcounty,
+        village: ugLoc.village,
+        ug_village_id: ugLoc.villageId,
         monthly_rent: parseInt(monthlyRent),
         number_of_houses: numberOfHouses ? parseInt(numberOfHouses) : null,
         electricity_meter_number: electricityMeter.trim() || null,
@@ -347,6 +367,14 @@ export default function RegisterPropertyDialog({
                     required
                   />
                 </div>
+
+                <UgLocationPicker
+                  value={ugLoc}
+                  onChange={(sel) => { setUgLoc(sel); setUgLocError(null); }}
+                  label="Official location (region → village)"
+                  required
+                  error={ugLocError}
+                />
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
@@ -659,16 +687,12 @@ export default function RegisterPropertyDialog({
                       />
                     </div>
                   </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="rp-lc1-village" className="text-xs">Village / Zone</Label>
-                    <Input
-                      id="rp-lc1-village"
-                      value={lc1Village}
-                      onChange={(e) => setLc1Village(e.target.value)}
-                      placeholder="e.g. Bukoto Zone A"
-                      className="h-9"
-                    />
-                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Village / Zone:{' '}
+                    <span className="font-medium text-foreground">
+                      {ugLoc ? ugLocationLabel(ugLoc) : 'select the official location above'}
+                    </span>
+                  </p>
                 </div>
               </div>
 
