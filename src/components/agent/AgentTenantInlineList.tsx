@@ -28,6 +28,10 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'owing'>('all');
   const [activeTenantIds, setActiveTenantIds] = useState<Set<string>>(new Set());
   const [tenantBalances, setTenantBalances] = useState<Record<string, number>>({});
+  // Tenants whose only rent requests are still pre-funding (pending / approved /
+  // returned for correction). They have no plan running yet, so a zero balance
+  // must NOT be shown as "Paid up".
+  const [inReviewIds, setInReviewIds] = useState<Set<string>>(new Set());
   const [tenantAvatars, setTenantAvatars] = useState<Record<string, string>>({});
   const [failedAvatars, setFailedAvatars] = useState<Set<string>>(new Set());
   const fetchSeqRef = useRef(0);
@@ -62,13 +66,19 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
 
       const balances: Record<string, number> = {};
       const activeIds = new Set<string>();
+      const reviewIds = new Set<string>();
       rows.forEach((row) => {
         balances[row.id] = Number(row.balance || 0);
         const statuses = ((row.statuses || []) as string[]).filter(Boolean);
         if (statuses.some((status) => status !== 'completed')) activeIds.add(row.id);
+        const hasLivePlan = statuses.some((status) =>
+          ['funded', 'disbursed', 'repaying', 'completed'].includes(status)
+        );
+        if (!hasLivePlan && statuses.length > 0) reviewIds.add(row.id);
       });
       setTenantBalances(balances);
       setActiveTenantIds(activeIds);
+      setInReviewIds(reviewIds);
 
       // Fetch passport / avatar photos for the tenant list (fallback to initials on missing/broken).
       const ids = tenantList.map((t) => t.id);
@@ -277,6 +287,12 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
           {visible.map((tenant) => {
             const balance = tenantBalances[tenant.id] || 0;
             const hasDebt = balance > 0;
+            const isInReview = !hasDebt && inReviewIds.has(tenant.id);
+            const toneText = hasDebt
+              ? 'text-rose-600'
+              : isInReview
+                ? 'text-amber-600'
+                : 'text-emerald-600';
             const initial = (tenant.full_name?.trim()?.charAt(0) || tenant.phone?.charAt(0) || '?').toUpperCase();
             const photoUrl = tenantAvatars[tenant.id];
             const showPhoto = !!photoUrl && !failedAvatars.has(tenant.id);
@@ -289,7 +305,11 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
               >
                 <div
                   className={`w-16 h-16 rounded-full flex items-center justify-center shrink-0 text-2xl font-bold ${
-                    hasDebt ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'
+                    hasDebt
+                      ? 'bg-rose-100 text-rose-700'
+                      : isInReview
+                        ? 'bg-amber-100 text-amber-700'
+                        : 'bg-emerald-100 text-emerald-700'
                   } overflow-hidden`}
                 >
                   {showPhoto ? (
@@ -323,11 +343,11 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
                   )}
                 </div>
                 <div className="text-right shrink-0">
-                  <p className={`text-sm font-bold uppercase tracking-wide ${hasDebt ? 'text-rose-600' : 'text-emerald-600'}`}>
-                    {hasDebt ? 'Owing' : 'Paid up'}
+                  <p className={`text-sm font-bold uppercase tracking-wide ${toneText}`}>
+                    {hasDebt ? 'Owing' : isInReview ? 'In review' : 'Paid up'}
                   </p>
-                  <p className={`font-bold font-mono text-xl ${hasDebt ? 'text-rose-600' : 'text-emerald-600'}`}>
-                    {hasDebt ? formatUGX(balance) : 'UGX 0'}
+                  <p className={`font-bold font-mono text-xl ${toneText}`}>
+                    {hasDebt ? formatUGX(balance) : isInReview ? 'Not funded' : 'UGX 0'}
                   </p>
                 </div>
               </button>
