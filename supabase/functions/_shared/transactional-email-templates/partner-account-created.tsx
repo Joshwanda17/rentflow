@@ -16,6 +16,7 @@ interface PartnerAccountCreatedProps {
   partner_email?: string
   partner_reference?: string
   agreement_download_url?: string
+  portal_url?: string
   company_name?: string
   logo_url?: string
   unsubscribe_url?: string
@@ -25,7 +26,8 @@ export function PartnerAccountCreated({
   partner_name = 'Partner',
   partner_email = '',
   partner_reference = '',
-  agreement_download_url = 'https://welileapp.com/legal/welile-partnership-agreement.pdf',
+  agreement_download_url = 'https://welileapp.com/dashboard',
+  portal_url = 'https://welileapp.com/dashboard',
   company_name = 'WELILE TECHNOLOGIES LTD',
   logo_url = 'https://welileapp.com/welile-logo.png',
   unsubscribe_url = 'https://welile.com/unsubscribe',
@@ -38,7 +40,7 @@ export function PartnerAccountCreated({
         <style>{clientOverrides}</style>
       </Head>
       <Preview>
-        Your partner account with {company_name} has been created — next step: submit your documents
+        Your partner account with {company_name} has been created — your agreement follows shortly
       </Preview>
       <Body style={main}>
         <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={bgTable}>
@@ -81,7 +83,9 @@ export function PartnerAccountCreated({
                       Your partnership account has been successfully created with <b>{company_name}.</b>
                     </Text>
                     <Text style={{ ...introText, marginTop: '15px' }}>
-                      To complete your onboarding, please download and fill in the partnership agreement, then submit it together with a valid copy of your National ID for verification.
+                      The details you submitted in the onboarding form have been captured. Your personalised
+                      partnership agreement is generated automatically from those details and is sent to you in a
+                      separate email — there is nothing to download, print or fill in by hand.
                     </Text>
                   </td>
                 </tr>
@@ -94,7 +98,7 @@ export function PartnerAccountCreated({
                         <tr>
                           <td style={docsHeader}>
                             <Text style={docsHeaderTag}>Onboarding Details</Text>
-                            <Text style={docsHeaderTitle}>Required Documents</Text>
+                            <Text style={docsHeaderTitle}>Your Account</Text>
                           </td>
                         </tr>
                         <tr>
@@ -114,17 +118,17 @@ export function PartnerAccountCreated({
                                 <tr>
                                   <td width="50%" valign="top" className="td-block mobile-padding-bottom" style={{ paddingBottom: '20px' }}>
                                     <Text style={docKey}>Partnership Agreement</Text>
-                                    <Text style={docValBody}>Download, complete, and sign</Text>
+                                    <Text style={docValBody}>Pre-filled from your form — sent separately</Text>
                                   </td>
                                   <td width="50%" valign="top" className="td-block" style={{ paddingBottom: '20px' }}>
-                                    <Text style={docKey}>National ID</Text>
-                                    <Text style={docValBody}>Provide a clear valid copy</Text>
+                                    <Text style={docKey}>Next Step</Text>
+                                    <Text style={docValBody}>Sign in and review your dashboard</Text>
                                   </td>
                                 </tr>
                                 <tr>
                                   <td colSpan={2} valign="top" style={statusRow}>
-                                    <Text style={docKey}>Submission Status</Text>
-                                    <Text style={statusPending}>Pending</Text>
+                                    <Text style={docKey}>Account Status</Text>
+                                    <Text style={statusPending}>Active</Text>
                                   </td>
                                 </tr>
                               </tbody>
@@ -142,8 +146,8 @@ export function PartnerAccountCreated({
                     <table border={0} cellSpacing={0} cellPadding={0} role="presentation">
                       <tbody><tr>
                         <td align="center" style={ctaCell} bgcolor={BRAND}>
-                          <a href={agreement_download_url} target="_blank" style={ctaLink}>
-                            Download Partnership Agreement
+                          <a href={portal_url || agreement_download_url} target="_blank" style={ctaLink}>
+                            Open Your Partner Dashboard
                           </a>
                         </td>
                       </tr></tbody>
@@ -155,7 +159,8 @@ export function PartnerAccountCreated({
                 <tr>
                   <td align="left" className="padding-mobile" style={{ padding: '0 40px 25px 40px' }}>
                     <Text style={introText}>
-                      Once completed, please reply directly to this email with your signed agreement and a valid copy of your National ID attached.
+                      Watch for the follow-up email titled “Your Partnership Agreement” — it contains your
+                      personalised, pre-filled PDF with your name, amount and payout details already on it.
                     </Text>
                   </td>
                 </tr>
@@ -168,7 +173,8 @@ export function PartnerAccountCreated({
                         <td style={{ padding: '15px 20px' }}>
                           <Text style={noteTitle}>Note</Text>
                           <Text style={noteBody}>
-                            If you have already submitted these documents, please allow time for verification. You will be notified once your onboarding review is completed.
+                            If your agreement email has not arrived within a few minutes, check your spam folder or
+                            reply here and our Partnership Team will re-send it. Do not send us a hand-filled copy.
                           </Text>
                         </td>
                       </tr></tbody>
