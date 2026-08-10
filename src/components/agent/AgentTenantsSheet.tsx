@@ -836,7 +836,8 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
         list = list.filter(t => {
           const s = tenantStatuses[t.id];
           if (!s || s.size === 0) return false;
-          return (tenantBalances[t.id] || 0) === 0;
+          if ((tenantBalances[t.id] || 0) !== 0) return false;
+          return s.has('funded') || s.has('disbursed') || s.has('repaying') || s.has('completed');
         });
         break;
       case 'all':
