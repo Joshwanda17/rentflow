@@ -36,6 +36,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Trash2 } from "lucide-react";
+import { UgDistrictSelect, type UgDistrictValue } from "@/components/location/UgDistrictSelect";
+import { useUgDistricts, findUgDistrictByName } from "@/hooks/useUgLocations";
 
 type Campaign = {
   id: string;
@@ -80,7 +82,7 @@ export default function AdminRecruitmentCampaignsPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("recruitment_locations")
-        .select("id, district, display_name, slug, region")
+        .select("id, district, display_name, slug, region, ug_district_id, city, division, is_active")
         .eq("is_active", true)
         .order("district");
       if (error) throw error;
@@ -356,6 +358,11 @@ export default function AdminRecruitmentCampaignsPage() {
           ]}
         />
       </div>
+
+      <RecruitmentLocationsCard
+        locations={locationsQ.data ?? []}
+        onChanged={() => qc.invalidateQueries({ queryKey: ["recruitment-locations"] })}
+      />
 
       <PerfTable
         title="Performance by agent"
