@@ -805,6 +805,22 @@ function ReviewSubmissionDialog({
                     </p>
                   </div>
                   <div className="space-y-1">
+                    <Label className="text-[11px]">Monthly return in contract (%)</Label>
+                    <Input
+                      type="number"
+                      min={0.1}
+                      max={100}
+                      step={0.5}
+                      value={returnPct}
+                      onChange={(e) => setReturnPct(e.target.value)}
+                      placeholder="15"
+                      className="h-8 text-xs"
+                    />
+                    <p className="text-[10px] text-muted-foreground">
+                      Prints in the returns clause: “monthly return of {Number(returnPct) > 0 ? Number(returnPct) : 15}% on the principal partnership amount.”
+                    </p>
+                  </div>
+                  <div className="space-y-1">
                     <Label className="text-[11px]">Signature image</Label>
                     <div className="flex items-center gap-2">
                       <Button asChild variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
