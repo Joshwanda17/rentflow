@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, ChevronDown, ChevronRight, Copy, Download, Loader2, MoreHorizontal, Plus, UserPlus } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronRight, Copy, Download, Loader2, MoreHorizontal, Plus, Trash2, UserPlus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -48,6 +48,7 @@ import {
   addAssignment,
   changeDepartment,
   transferPosition,
+  endAssignment,
   enrollStaff,
   getActiveAssignmentsByStaff,
   getDepartments,
@@ -88,6 +89,7 @@ export default function StaffDirectory() {
   const [addFor, setAddFor] = useState<Employee | null>(null);
   const [transferFor, setTransferFor] = useState<Employee | null>(null);
   const [deptChangeFor, setDeptChangeFor] = useState<Employee | null>(null);
+  const [removeFor, setRemoveFor] = useState<Employee | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
@@ -474,6 +476,14 @@ export default function StaffDirectory() {
                                 <DropdownMenuItem onClick={() => setDeptChangeFor(s)}>
                                   Change department
                                 </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="text-destructive focus:text-destructive"
+                                  disabled={rows.length === 0}
+                                  onClick={() => setRemoveFor(s)}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5 mr-2" />
+                                  Remove position / department
+                                </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </TableCell>
@@ -568,7 +578,148 @@ export default function StaffDirectory() {
         }}
         onDone={() => void load()}
       />
+
+      <RemoveAssignmentDialog
+        staff={removeFor}
+        assignments={removeFor ? (assignments[removeFor.id] ?? []) : []}
+        onOpenChange={(v) => {
+          if (!v) setRemoveFor(null);
+        }}
+        onDone={() => void load()}
+      />
     </div>
+  );
+}
+
+/**
+ * Removes one existing position (and with it, that department placement) from
+ * a staff member. The assignment row is closed, not deleted, so payroll and
+ * historical reporting for past periods stay intact.
+ */
+function RemoveAssignmentDialog({
+  staff,
+  assignments,
+  onOpenChange,
+  onDone,
+}: {
+  staff: Employee | null;
+  assignments: ActiveAssignment[];
+  onOpenChange: (open: boolean) => void;
+  onDone: () => void;
+}) {
+  const open = staff !== null;
+  const [assignmentId, setAssignmentId] = useState('');
+  const [reason, setReason] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setAssignmentId(assignments.length === 1 ? assignments[0].id : '');
+    setReason('');
+    setError(null);
+  }, [open, assignments]);
+
+  const selected = assignments.find((a) => a.id === assignmentId) ?? null;
+  const reasonOk = reason.trim().length >= 10;
+
+  async function submit() {
+    if (!assignmentId || !reasonOk) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await endAssignment({ assignmentId, reason: reason.trim() });
+      toast.success('Position and department removed');
+      onOpenChange(false);
+      onDone();
+    } catch (e) {
+      setError(readableError(e, 'Removing the position'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Remove position / department</DialogTitle>
+          <DialogDescription>
+            {staff?.full_name
+              ? `Closes one of ${staff.full_name}'s active positions. The record is kept for history — it is not deleted.`
+              : 'Closes one active position. The record is kept for history.'}
+          </DialogDescription>
+        </DialogHeader>
+
+        {assignments.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            This person has no active position to remove.
+          </p>
+        ) : (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Position to remove</Label>
+              <Select value={assignmentId} onValueChange={setAssignmentId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a position" />
+                </SelectTrigger>
+                <SelectContent>
+                  {assignments.map((a) => (
+                    <SelectItem key={a.id} value={a.id}>
+                      {a.position_title || 'Untitled'} — {a.department_name || 'No department'}
+                      {a.is_primary ? ' (primary)' : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {selected?.is_primary && assignments.length > 1 && (
+              <p className="text-xs text-muted-foreground">
+                This is the primary position. After removing it, set another position as primary.
+              </p>
+            )}
+            {selected && assignments.length === 1 && (
+              <p className="text-xs text-muted-foreground">
+                This is their only position, so they will be left with no role or department until a
+                new one is added.
+              </p>
+            )}
+
+            <div className="space-y-2">
+              <Label>Reason (at least 10 characters)</Label>
+              <Textarea
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="Why is this position being removed?"
+                rows={3}
+              />
+            </div>
+
+            {error && (
+              <p className="text-sm text-destructive flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                <span>{error}</span>
+              </p>
+            )}
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={() => void submit()}
+            disabled={saving || !assignmentId || !reasonOk}
+          >
+            {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Remove
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
