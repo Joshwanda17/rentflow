@@ -646,7 +646,7 @@ function buildHtml(r: Report, win: { title: string; pretty: string }): string {
   const f = r.forecast;
   const days = Math.max(1, Number(r.days) || 1);
   const inflow = (Number(k.new_capital) || 0) + (Number(t.applied_amount) || 0) + (Number(k.compounded_amount) || 0);
-  const outflow = (Number(k.paid_out_amount) || 0) + (Number(k.withdrawals_completed_amount) || 0);
+  const outflow = Number(k.paid_out_amount) || 0;
   const tile = (label: string, value: string, sub: string, color: string) =>
     `<table class="tile" role="presentation" cellpadding="0" cellspacing="0" border="0" width="25%" align="left" style="width:25%;max-width:25%;border-collapse:collapse;">
        <tr><td style="padding:0 4px 8px 4px;vertical-align:top">
@@ -720,14 +720,14 @@ function buildHtml(r: Report, win: { title: string; pretty: string }): string {
         </tr></thead>
         <tbody>
           ${row("Capital in (new + top-ups + compounded)", "-", fmtUGX(inflow))}
-          ${row("Capital out (returns + withdrawals)", "-", fmtUGX(outflow))}
+          ${row("Capital out (returns paid to wallets)", "-", fmtUGX(outflow))}
           ${row("Net capital movement", "-", fmtUGX(inflow - outflow))}
           ${row("Returns compounded", num(k.compounded_count), fmtUGX(k.compounded_amount))}
           ${row("Top-ups requested", num(t.requested_count), fmtUGX(t.requested_amount))}
           ${row("Top-ups applied", num(t.applied_count), fmtUGX(t.applied_amount))}
-          ${row("Top-up backlog (as at now)", num(t.backlog_count), fmtUGX(t.backlog_amount))}
+          ${row("Top-ups still waiting to be applied (now)", num(t.backlog_count), fmtUGX(t.backlog_amount))}
           ${row("Renewals", num(k.renewals_count), fmtUGX(k.renewals_topup_amount))}
-          ${row("Partner withdrawals completed", num(k.withdrawals_completed_count), fmtUGX(k.withdrawals_completed_amount))}
+          ${row("Partner cash-out of paid returns", num(k.withdrawals_completed_count), fmtUGX(k.withdrawals_completed_amount))}
           ${row("Forecast - working days (Mon-Fri)", num(f.weekdays_count), fmtUGX(f.weekdays_total))}
           ${row("Forecast - weekend (Sat-Sun)", num(f.weekend_count), fmtUGX(f.weekend_total))}
           ${row("Portfolios awaiting ops approval", num(b.pending_portfolios_count), fmtUGX(b.pending_portfolios_amount))}
