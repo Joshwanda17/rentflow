@@ -819,8 +819,9 @@ export function SubAgentVerificationQueue() {
               <p className="text-sm text-muted-foreground">
                 <span className="font-medium text-foreground">{unlinkRecord.sub_name}</span> will be detached from{' '}
                 <span className="font-medium text-foreground">{unlinkRecord.parent_name}</span> and will operate as a fully
-                independent agent. Pending tenant transfers between them are cancelled and any suspension placed by the
-                parent is lifted. Blocked if the agent still has funded or repaying tenants — transfer those first.
+                independent agent. Their tenants stay with them — nothing is transferred — and they keep the full
+                commission going forward. Pending tenant transfers between them are cancelled and any suspension
+                placed by the parent is lifted.
               </p>
               <div className="space-y-1">
                 <label className="text-xs font-medium text-muted-foreground uppercase">Reason (for audit log)</label>
