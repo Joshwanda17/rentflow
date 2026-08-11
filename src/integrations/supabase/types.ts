@@ -33017,6 +33017,17 @@ export type Database = {
         Args: { p_reason: string; p_sub_agent_id: string }
         Returns: Json
       }
+      agent_update_tenant_property: {
+        Args: {
+          p_district?: string
+          p_house_category?: string
+          p_request_id: string
+          p_sub_county?: string
+          p_ug_village_id?: number
+          p_village?: string
+        }
+        Returns: Json
+      }
       apply_advance_topup: {
         Args: {
           p_advance_id: string
