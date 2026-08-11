@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import apartmentRentIllustration from '@/assets/apartment-rent-rafiki.svg.asset.json';
 import apartmentRentAmicoIllustration from '@/assets/apartment-rent-amico.svg.asset.json';
+import investingBroIllustration from '@/assets/investing-bro.svg.asset.json';
 import {
   TrendingUp, Shield, Rocket, Home, Wallet, ChevronLeft, ChevronRight,
   Coins, Lock, Clock, HandCoins, Handshake,
