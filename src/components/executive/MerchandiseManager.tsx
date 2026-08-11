@@ -1477,14 +1477,12 @@ function AddCatalogItemDialog({ userId, onSaved }: { userId?: string; onSaved: (
               <Input type="number" min={0} value={unitCost} onChange={(e) => setUnitCost(e.target.value)} placeholder="Optional" />
             </div>
           </div>
-          <div className="space-y-2">
-            <Label className="text-xs">Product photos ({images.length}/2)</Label>
-          </div>
           <div className="space-y-1">
             <Label className="text-xs">Available sizes</Label>
             <SizeEditor sizes={sizes} onChange={setSizes} input={sizeInput} onInputChange={setSizeInput} />
           </div>
           <div className="space-y-2">
+            <Label className="text-xs">Product photos ({images.length}/2)</Label>
             {images.length > 0 && (
               <div className="grid grid-cols-2 gap-2">
                 {images.map((img, i) => (
