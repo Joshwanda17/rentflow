@@ -446,11 +446,9 @@ export function InvitedPortfoliosPanel() {
                         {resendingId === row.id
                           ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
                           : <Send className="h-3.5 w-3.5" />}
-                        {row.status === 'pending_ops_approval'
-                          ? 'Resend confirmation'
-                          : expired
-                            ? 'Resend — new 7-day link'
-                            : 'Resend invite (new 7-day link)'}
+                        {expired
+                          ? 'Resend — new 7-day link'
+                          : 'Resend invite (new 7-day link)'}
                       </Button>
                     )}
                     <Button
