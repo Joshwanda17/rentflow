@@ -783,15 +783,13 @@ export default function FindAHouse() {
 
   const filtered = useMemo(() => {
     let result = [...listings];
-    if (selectedDistrict !== 'all') {
-      result = result.filter(l => (l.district || '').trim() === selectedDistrict);
-    }
-    if (selectedSubCounty !== 'all') {
-      result = result.filter(l => (l.sub_county || '').trim() === selectedSubCounty);
-    }
-    if (selectedVillage !== 'all') {
-      result = result.filter(l => (l.village || '').trim() === selectedVillage);
-    }
+    // Same matching rules as the server query (ids where upgraded, normalised
+    // text otherwise) so the list, the map and the counters agree.
+    result = result.filter(l => matchesArea(l, {
+      district: selectedDistrict !== 'all' ? selectedDistrict : undefined,
+      subCounty: selectedSubCounty !== 'all' ? selectedSubCounty : undefined,
+      village: selectedVillage !== 'all' ? selectedVillage : undefined,
+    }));
     if (debouncedSearch.trim()) {
       const q = debouncedSearch.toLowerCase();
       result = result.filter(l =>
