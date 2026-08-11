@@ -16,7 +16,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Loader2, CheckCircle2, Banknote, Home, TrendingUp, Users, Wallet, AlertTriangle, XCircle, CalendarDays, Search, MapPin } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Loader2, CheckCircle2, Banknote, Home, TrendingUp, Users, Wallet, AlertTriangle, XCircle, CalendarDays, Search, MapPin, Filter } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -639,6 +640,78 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
             </p>
 
             {/* Grouped list (by agent) */}
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs text-muted-foreground">
+                {visibleGroups.length} agent{visibleGroups.length === 1 ? '' : 's'} shown
+              </span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-9 rounded-xl gap-2">
+                    <Filter className="h-4 w-4" />
+                    Filter
+                    {(agentFilter !== 'all' || countryFilter !== 'all' || dateFilter !== 'all') && (
+                      <Badge className="h-5 min-w-5 px-1.5 text-[10px] bg-primary text-primary-foreground border-0">
+                        {[agentFilter !== 'all', countryFilter !== 'all', dateFilter !== 'all'].filter(Boolean).length}
+                      </Badge>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-72 space-y-3 p-3">
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-semibold text-muted-foreground">Agent</p>
+                    <Select value={agentFilter} onValueChange={setAgentFilter}>
+                      <SelectTrigger className="h-9 rounded-lg text-sm">
+                        <SelectValue placeholder="Filter by agent" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[280px]">
+                        <SelectItem value="all">All agents ({grouped.length})</SelectItem>
+                        {grouped.map(g => (
+                          <SelectItem key={g.agent_id} value={g.agent_id}>
+                            <span className="truncate">{g.agent_name} · {g.rows.length}</span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-semibold text-muted-foreground">Country</p>
+                    <Select value={countryFilter} onValueChange={setCountryFilter}>
+                      <SelectTrigger className="h-9 rounded-lg text-sm">
+                        <SelectValue placeholder="All countries" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[280px]">
+                        <SelectItem value="all">All countries</SelectItem>
+                        {countryStats.map(c => (
+                          <SelectItem key={c.country} value={c.country}>
+                            <span className="truncate">{c.country} · {c.count}</span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-semibold text-muted-foreground">Date range</p>
+                    <Select value={dateFilter} onValueChange={(v) => { setDateFilter(v as any); setSelected(new Set()); }}>
+                      <SelectTrigger className="h-9 rounded-lg text-sm">
+                        <SelectValue placeholder="Date range" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All time</SelectItem>
+                        <SelectItem value="7d">Last 7 days</SelectItem>
+                        <SelectItem value="30d">Last 30 days</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <button
+                    type="button"
+                    className="text-xs font-medium text-primary hover:underline"
+                    onClick={() => { setAgentFilter('all'); setCountryFilter('all'); setDateFilter('all'); }}
+                  >
+                    Clear all filters
+                  </button>
+                </PopoverContent>
+              </Popover>
+            </div>
             <div className="space-y-3 max-h-[560px] overflow-y-auto pr-0.5">
               {visibleGroups.length === 0 && (
                 <div className="text-center py-6 text-xs text-muted-foreground">
