@@ -15,7 +15,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { CheckCircle2, XCircle, Clock, MapPin, User, UserCheck, Home, Banknote, ArrowRight, Loader2, Search, MessageCircle, Phone, Pencil, Check, X, PhoneCall, ShieldCheck, AlertCircle, Image as ImageIcon, Camera, Cloud, HardDrive, RotateCcw } from 'lucide-react';
+import { CheckCircle2, XCircle, Clock, MapPin, User, UserCheck, Home, Banknote, ArrowRight, ArrowRightLeft, Loader2, Search, MessageCircle, Phone, Pencil, Check, X, PhoneCall, ShieldCheck, AlertCircle, Image as ImageIcon, Camera, Cloud, HardDrive, RotateCcw } from 'lucide-react';
 import { calculateRentRepayment } from '@/lib/rentCalculations';
 import { formatTenantSync } from '@/lib/tenantFilterSyncFormat';
 import { formatLocation, locationHaystack } from '@/lib/locationText';
@@ -23,6 +23,7 @@ import { toast as sonnerToast } from 'sonner';
 import { format } from 'date-fns';
 import { AgentProximitySelector } from './AgentProximitySelector';
 import { UserDrilldownDrawer } from '@/components/ops/UserDrilldownDrawer';
+import { PipelineAgentTransferDialog } from './PipelineAgentTransferDialog';
 
 // Per-user preference key for the CFO's selected tenant filter (cross-device).
 const TENANT_FILTER_PREF_KEY = 'rentPipeline.selectedTenantId';
@@ -196,6 +197,8 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
+  // Ops-only mid-pipeline agent transfer dialog
+  const [transferOpen, setTransferOpen] = useState(false);
   // Landlord verification checklist state
   const [landlordCalled, setLandlordCalled] = useState(false);
   const [landlordAcknowledged, setLandlordAcknowledged] = useState(false);
@@ -1414,6 +1417,16 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
                   <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                     <span className="text-xs text-muted-foreground">{selectedRequest.agent_phone}</span>
                     <WhatsAppButton phone={selectedRequest.agent_phone} name={selectedRequest.assigned_agent_name || selectedRequest.agent_name} label="WhatsApp" />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 px-2 text-xs gap-1"
+                      onClick={() => setTransferOpen(true)}
+                    >
+                      <ArrowRightLeft className="h-3 w-3" />
+                      Transfer Agent
+                    </Button>
                   </div>
                   {selectedRequest.agent_email && (
                     <p className="text-xs text-muted-foreground mt-0.5">✉️ {selectedRequest.agent_email}</p>
@@ -1801,6 +1814,20 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
         agentId={drilldownAgentId}
         defaultTab="agent"
       />
+      {selectedRequest && (
+        <PipelineAgentTransferDialog
+          open={transferOpen}
+          onOpenChange={setTransferOpen}
+          requestId={selectedRequest.id}
+          tenantName={selectedRequest.tenant_name}
+          currentAgentId={selectedRequest.assigned_agent_id || selectedRequest.agent_id}
+          currentAgentName={selectedRequest.assigned_agent_name || selectedRequest.agent_name}
+          onTransferred={() => {
+            queryClient.invalidateQueries({ queryKey: ['rent-pipeline'] });
+            setSelectedRequest(null);
+          }}
+        />
+      )}
       <UserDrilldownDrawer
         open={!!drilldownLandlordId}
         onOpenChange={(v) => { if (!v) setDrilldownLandlordId(null); }}
