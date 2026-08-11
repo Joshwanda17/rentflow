@@ -12,7 +12,7 @@ export function LocationBreadcrumbs({ path, onJump }: Props) {
   ];
   if (path.country) crumbs.push({ label: path.country, path: { country: path.country } });
   if (path.region) crumbs.push({ label: path.region, path: { country: path.country, region: path.region } });
-  if (path.district) crumbs.push({ label: path.district, path: { ...path, ward: undefined, agentId: undefined, landlordId: undefined } });
+  if (path.district) crumbs.push({ label: path.district, path: { ...path, ward: undefined, subcountyId: undefined, agentId: undefined, landlordId: undefined } });
   if (path.ward) crumbs.push({ label: path.ward, path: { ...path, agentId: undefined, landlordId: undefined } });
   if (path.agentId) crumbs.push({ label: path.agentName ?? 'Agent', path: { ...path, landlordId: undefined } });
   if (path.landlordId) crumbs.push({ label: path.landlordName ?? 'Landlord', path: { ...path } });
