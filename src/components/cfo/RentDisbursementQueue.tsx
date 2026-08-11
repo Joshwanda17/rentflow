@@ -23,6 +23,7 @@ import { cn } from '@/lib/utils';
 import { TreasuryImpactBanner } from './TreasuryImpactBanner';
 import { useAuth } from '@/hooks/useAuth';
 import { UserDrilldownDrawer } from '@/components/ops/UserDrilldownDrawer';
+import { PayByLocationRecipientPicker } from './PayByLocationRecipientPicker';
 
 const fmt = (n: number) =>
   new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX', maximumFractionDigits: 0 }).format(n);
@@ -69,6 +70,14 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
   const [rejectTarget, setRejectTarget] = useState<ApprovedRentItem | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [drilldownAgentId, setDrilldownAgentId] = useState<string | null>(null);
+  /**
+   * Pay by Location/Category scope, selected *inside this section*. It holds
+   * rent_request ids only — a recipient filter. Every amount, validation,
+   * approval requirement, disbursement call, wallet and ledger effect below
+   * stays exactly the same as the normal queue.
+   */
+  const [locationScopeIds, setLocationScopeIds] = useState<string[] | null>(null);
+  const [locationScopeLabel, setLocationScopeLabel] = useState<string | null>(null);
   const qc = useQueryClient();
   const { user } = useAuth();
 
@@ -144,9 +153,15 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
     setSelected(new Set(autoSelectIds));
   }, [autoSelectIds?.join(',')]);
 
+  // Caller-supplied restriction wins; otherwise the in-section
+  // Location/Category selection scopes the very same queue.
+  const effectiveRestrictIds = useMemo(
+    () => (restrictToIds && restrictToIds.length ? restrictToIds : locationScopeIds),
+    [restrictToIds?.join(','), locationScopeIds?.join(',')],
+  );
   const restrictSet = useMemo(
-    () => (restrictToIds && restrictToIds.length ? new Set(restrictToIds) : null),
-    [restrictToIds?.join(',')],
+    () => (effectiveRestrictIds && effectiveRestrictIds.length ? new Set(effectiveRestrictIds) : null),
+    [effectiveRestrictIds?.join(',')],
   );
   const totalRent = useMemo(() => selectedItems.reduce((s, i) => s + i.rent_amount, 0), [selectedItems]);
   const totalRevenue = useMemo(() => selectedItems.reduce((s, i) => s + i.access_fee + i.request_fee, 0), [selectedItems]);
