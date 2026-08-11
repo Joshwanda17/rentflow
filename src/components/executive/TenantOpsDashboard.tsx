@@ -60,9 +60,7 @@ import ResidenceAddressForm from '@/components/profile/ResidenceAddressForm';
 import { generateTenantOpsReportPdf } from '@/lib/generateTenantOpsReportPdf';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown } from 'lucide-react';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { Gauge } from 'lucide-react';
 
 type ActiveView = 'overview' | 'pipeline' | 'daily' | 'missed' | 'behavior' | 'history' | 'all-requests' | 'link-agent' | 'transfer-audit' | 'collect-rent' | 'agent-tenants' | 'tenant-detail' | 'registration-review' | 'advance-requests' | 'agent-allocations' | 'daily-collections' | 'landlord-float' | 'landlord-float-timeline' | 'location-browser' | 'tenant-location-browser' | 'global-verification' | 'welile-operations' | 'daily-repayments-report' | 'agent-capacity-hub' | 'all-tenants-hub' | 'reports-hub';
 
@@ -79,14 +77,6 @@ interface NavCard {
 export function TenantOpsDashboard() {
   const [activeView, setActiveView] = useState<ActiveView>('overview');
   const queryClient = useQueryClient();
-  const isMobile = useIsMobile();
-  // Collapsible panel state — collapsed by default on phones so the
-  // action grid + tenant list are reachable without scrolling past
-  // heavy dashboards.
-  const [openCapacity, setOpenCapacity] = useState(false);
-  const [openTenants, setOpenTenants] = useState(false);
-  const [openDaily, setOpenDaily] = useState(false);
-  const [openReports, setOpenReports] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; tenantId: string; tenantName: string }>({ open: false, tenantId: '', tenantName: '' });
   const [locationDialog, setLocationDialog] = useState<{ open: boolean; tenantId: string; tenantName: string }>({ open: false, tenantId: '', tenantName: '' });
   const [selectedTenantIds, setSelectedTenantIds] = useState<string[]>([]);
