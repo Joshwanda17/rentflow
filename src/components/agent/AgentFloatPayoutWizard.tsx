@@ -435,8 +435,9 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
           qc.invalidateQueries({ queryKey: ['landlord-otp-challenge', landlordOtp.challengeId] });
         }
       } catch (e: any) {
-        setDisburseError(e?.message || 'Verification failed');
-        toast.error(e?.message || 'Verification failed');
+        const msg = await extractFromErrorObject(e, 'Verification failed');
+        setDisburseError(msg);
+        toast.error(msg);
       } finally {
         setIsDisbursing(false);
       }
