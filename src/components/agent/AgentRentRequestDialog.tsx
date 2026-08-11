@@ -756,6 +756,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [gpsLoading, setGpsLoading] = useState(false);
   const [housePhotos, setHousePhotos] = useState<{ file: File; preview: string }[]>([]);
   const [tenantPhoto, setTenantPhoto] = useState<{ file: File; preview: string } | null>(null);
+  // Renewal document custody: what the tenant already has on file (null until
+  // a renewal is started or the lookup finishes).
+  const [renewDocs, setRenewDocs] = useState<{ passport: boolean; lcLetter: boolean; houseImages: number } | null>(null);
+  const [renewDocsLoading, setRenewDocsLoading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLabel, setPreviewLabel] = useState<string>('');
 
@@ -2139,6 +2143,32 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     if (m.national_id) setTenantNationalId(cleanNationalIdInput(m.national_id));
     setIncomeType('outstanding');
     setStep('details');
+    // Renewal document custody: look up what the tenant already has on file so
+    // the agent is told plainly whether documents carry forward or must be
+    // uploaded fresh.
+    setRenewDocs(null);
+    setRenewDocsLoading(true);
+    try {
+      const { data: docs, error: docsErr } = await supabase.rpc('get_tenant_documents' as any, {
+        p_tenant_id: m.id,
+      });
+      if (docsErr) throw docsErr;
+      const rows: { doc_type?: string | null }[] = Array.isArray(docs) ? docs : [];
+      const summary = {
+        passport: rows.some((d) => d.doc_type === 'tenant_passport'),
+        lcLetter: rows.some((d) => d.doc_type === 'lc_letter'),
+        houseImages: rows.filter((d) => d.doc_type === 'house_image').length,
+      };
+      setRenewDocs(summary);
+      if (!summary.passport || summary.houseImages < 4) {
+        toast.warning('No documents on file for this tenant — capture the passport photo, house photos and LC letter again');
+      }
+    } catch {
+      // Unknown document state — treat as missing so the agent still uploads.
+      setRenewDocs({ passport: false, lcLetter: false, houseImages: 0 });
+    } finally {
+      setRenewDocsLoading(false);
+    }
     try {
       const { data, error } = await supabase.rpc('get_tenant_rent_summary' as any, {
         p_tenant_id: m.id,
@@ -2273,6 +2303,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setGpsLoading(false);
     housePhotos.forEach(p => URL.revokeObjectURL(p.preview));
     setHousePhotos([]);
+    setRenewDocs(null);
+    setRenewDocsLoading(false);
     if (tenantPhoto) URL.revokeObjectURL(tenantPhoto.preview);
     setTenantPhoto(null);
     setGuarantorConsent(false);
@@ -4855,6 +4887,35 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
                 {/* House Photos — 4 outside views */}
                 <div className="space-y-2">
+                  {/* Renewal document prompt — states plainly whether this
+                      tenant already has documents on file, or whether the agent
+                      must capture them fresh for this renewal. */}
+                  {renewDocsLoading && (
+                    <div className="rounded-lg border border-border bg-muted/40 p-2.5 text-[11px] text-muted-foreground inline-flex items-center gap-2">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" /> Checking this tenant's documents on file…
+                    </div>
+                  )}
+                  {!renewDocsLoading && renewDocs && (
+                    renewDocs.passport && renewDocs.houseImages >= 4 ? (
+                      <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-2.5 text-[11px]">
+                        <p className="font-semibold text-emerald-800 dark:text-emerald-300">Documents already on file</p>
+                        <p className="text-muted-foreground mt-0.5">
+                          Passport photo, {renewDocs.houseImages} house photos{renewDocs.lcLetter ? ' and the LC letter' : ''} carry forward to this renewal. Re-capture only if they have changed.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="rounded-lg border-2 border-amber-500/60 bg-amber-500/10 p-2.5 text-[11px]">
+                        <p className="font-semibold text-amber-800 dark:text-amber-300 inline-flex items-center gap-1">
+                          <AlertTriangle className="h-3.5 w-3.5" /> No documents on file — upload them now
+                        </p>
+                        <ul className="mt-1 space-y-0.5 text-muted-foreground list-disc pl-4">
+                          {!renewDocs.passport && <li>Tenant passport photo</li>}
+                          {renewDocs.houseImages < 4 && <li>All 4 house photos ({renewDocs.houseImages} of 4 on file)</li>}
+                          {!renewDocs.lcLetter && <li>LC letter</li>}
+                        </ul>
+                      </div>
+                    )
+                  )}
                   <Label className="flex items-center gap-1">
                     📸 House Photos * — capture all 4 outside views
                   </Label>
