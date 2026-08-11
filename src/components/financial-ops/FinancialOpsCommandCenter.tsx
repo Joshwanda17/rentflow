@@ -849,13 +849,7 @@ function FinOpsHome({
         <PhoneMoneyCard />
       </div>
 
-      {/* Phone Money vs Platform Money + Auto-Credit Success Rate */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 min-w-0">
-          <PhonePlatformReconciliationCard compact />
-        </div>
-        <AutoCreditSuccessRateTile onClick={() => onOpenTool('auto_credit_review')} />
-      </div>
+      <AutoCreditSuccessRateTile onClick={() => onOpenTool('auto_credit_review')} />
 
       {/* Flagship action tiles */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
