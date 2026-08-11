@@ -87,8 +87,20 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
           .from('profiles')
           .select('id, avatar_url')
           .in('id', ids);
+        // Fallback: tenants whose profile has no avatar still have the passport
+        // photo captured at registration in tenant_documents — never leave the
+        // card on initials when a passport exists.
+        const { data: passportRows } = await supabase
+          .from('tenant_documents')
+          .select('tenant_id, public_url, version')
+          .eq('doc_type', 'tenant_passport')
+          .eq('is_current', true)
+          .in('tenant_id', ids);
         if (seq === fetchSeqRef.current) {
           const map: Record<string, string> = {};
+          (passportRows || []).forEach((r: any) => {
+            if (r?.public_url && !map[r.tenant_id]) map[r.tenant_id] = r.public_url as string;
+          });
           (photoRows || []).forEach((r: any) => {
             if (r?.avatar_url) map[r.id] = r.avatar_url as string;
           });
