@@ -1765,47 +1765,12 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
 
         {/* ── Current Property ── */}
         {summary.latestLandlord && (
-          <SectionCard icon={Home} title="Current Property">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <div className="bg-muted/40 rounded-xl p-3 flex items-start gap-2.5">
-                <User className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
-                <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground font-medium">Landlord</p>
-                  <p className="text-base font-bold truncate">{summary.latestLandlord}</p>
-                </div>
-              </div>
-              {summary.latestLandlordPhone && (
-                <div className="bg-muted/40 rounded-xl p-3 flex items-start gap-2.5">
-                  <Phone className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
-                  <div className="min-w-0">
-                    <p className="text-xs text-muted-foreground font-medium">Landlord Phone</p>
-                    <a
-                      href={`tel:${summary.latestLandlordPhone}`}
-                      className="text-base font-bold text-primary break-all"
-                    >
-                      {summary.latestLandlordPhone}
-                    </a>
-                  </div>
-                </div>
-              )}
-              <div className="bg-muted/40 rounded-xl p-3 flex items-start gap-2.5">
-                <Home className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
-                <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground font-medium">House Type</p>
-                  <p className="text-base font-bold truncate">{summary.latestHouseType || 'N/A'}</p>
-                </div>
-              </div>
-              {summary.latestAddress && (
-                <div className="bg-muted/40 rounded-xl p-3 flex items-start gap-2.5 sm:col-span-2">
-                  <MapPin className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
-                  <div className="min-w-0">
-                    <p className="text-xs text-muted-foreground font-medium">Address</p>
-                    <p className="text-base font-bold">{summary.latestAddress}</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </SectionCard>
+          <TenantPropertyCard
+            requestId={summary.latestRequestId}
+            landlord={summary.latestLandlordRow}
+            lc1={summary.latestLc1}
+            onSaved={() => loadFullProfile({ silent: true })}
+          />
         )}
 
         {/* ── Rent Payment Behavior ── */}
