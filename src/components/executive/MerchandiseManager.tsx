@@ -841,6 +841,8 @@ function EditCatalogItemButton({ item, userId, onSaved }: { item: any; userId?: 
   const [description, setDescription] = useState(item.description ?? '');
   const [price, setPrice] = useState(String(item.unit_price ?? ''));
   const [cost, setCost] = useState(String(item.unit_cost ?? ''));
+  const [sizes, setSizes] = useState<string[]>(Array.isArray(item.sizes) ? item.sizes : []);
+  const [sizeInput, setSizeInput] = useState('');
   const initialImages = (): string[] => {
     if (Array.isArray(item.image_urls) && item.image_urls.length > 0) return item.image_urls.slice(0, 2);
     if (item.image_url) return [item.image_url];
@@ -907,6 +909,7 @@ function EditCatalogItemButton({ item, userId, onSaved }: { item: any; userId?: 
         description: description.trim() || null,
         unit_price: p,
         unit_cost: c,
+        sizes,
         image_url: finalUrls[0] ?? null,
         image_urls: finalUrls,
       }).eq('id', item.id);
@@ -931,6 +934,8 @@ function EditCatalogItemButton({ item, userId, onSaved }: { item: any; userId?: 
         setDescription(item.description ?? '');
         setPrice(String(item.unit_price ?? ''));
         setCost(String(item.unit_cost ?? ''));
+        setSizes(Array.isArray(item.sizes) ? item.sizes : []);
+        setSizeInput('');
         setExistingUrls(initialImages());
         newImages.forEach(i => URL.revokeObjectURL(i.previewUrl));
         setNewImages([]);
@@ -964,6 +969,12 @@ function EditCatalogItemButton({ item, userId, onSaved }: { item: any; userId?: 
           </div>
           <div className="space-y-1">
             <Label>Images (max 2)</Label>
+          </div>
+          <div className="space-y-1">
+            <Label>Available sizes</Label>
+            <SizeEditor sizes={sizes} onChange={setSizes} input={sizeInput} onInputChange={setSizeInput} />
+          </div>
+          <div className="space-y-1">
             <div className="flex flex-wrap gap-2">
               {existingUrls.map((url, idx) => (
                 <div key={`ex-${idx}`} className="relative">
