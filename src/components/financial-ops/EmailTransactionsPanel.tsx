@@ -5379,11 +5379,11 @@ export function EmailTransactionsPanel() {
                         const needsWallet = !isCredited && !isRouted;
                         return (
                       <Button
-                        size="sm"
+                        size="default"
                         variant={needsWallet ? 'default' : 'outline'}
-                        className={`mt-1.5 h-8 sm:h-7 text-[11px] gap-1 ${
+                        className={`mt-1.5 h-10 sm:h-9 text-xs sm:text-[11px] gap-1.5 font-semibold ${
                           needsWallet
-                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm ring-2 ring-emerald-500/40 ring-offset-1'
+                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/30 ring-2 ring-emerald-400/60 ring-offset-1 animate-pulse'
                             : ''
                         }`}
                         title={
@@ -5414,10 +5414,10 @@ export function EmailTransactionsPanel() {
                         }}
                       >
                         {needsWallet
-                          ? <><Wallet className="h-3 w-3" /> Put in a user's wallet</>
+                          ? <><Wallet className="h-4 w-4" /> Credit to wallet</>
                           : isRouted && !isReversed
-                            ? <>Route to another user <ArrowRight className="h-3 w-3" /></>
-                            : <>Route to user <ArrowRight className="h-3 w-3" /></>}
+                            ? <>Route to another user <ArrowRight className="h-3.5 w-3.5" /></>
+                            : <>Route to user <ArrowRight className="h-3.5 w-3.5" /></>}
                       </Button>
                         );
                       })()
