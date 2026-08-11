@@ -36016,6 +36016,7 @@ export type Database = {
               ward: string
             }[]
           }
+      get_treasury_snapshot: { Args: never; Returns: Json }
       get_trust_coverage_stats: { Args: never; Returns: Json }
       get_user_available_balance: {
         Args: { p_user_id: string }
