@@ -349,7 +349,7 @@ export function RentCategoryBulkPayout({
                           <p className="font-medium truncate">{t.full_name || 'Unnamed tenant'}</p>
                           <p className="text-[11px] text-muted-foreground truncate">
                             {t.phone || 'No phone'}
-                            {t.village ? ` · ${t.village}` : ''}
+                            {t.district ? ` · ${t.district}` : ''}
                           </p>
                         </div>
                       </label>
