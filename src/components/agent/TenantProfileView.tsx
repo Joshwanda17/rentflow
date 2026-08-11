@@ -643,6 +643,30 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
       if (!sessionData?.session) {
         throw new Error('Your session expired. Please sign in again and retry.');
       }
+      // Document custody check FIRST — the tenant must have a passport photo,
+      // 4 house photos and an LC letter on file. Anything missing is captured
+      // by the renewal document dialog before the renewal is posted.
+      let docsState: { passport: boolean; lcLetter: boolean; houseImages: number };
+      try {
+        const { data: docs, error: docsErr } = await supabase.rpc('get_tenant_documents' as any, {
+          p_tenant_id: profile.id,
+        });
+        if (docsErr) throw docsErr;
+        const rows: { doc_type?: string | null }[] = Array.isArray(docs) ? docs : [];
+        docsState = {
+          passport: rows.some((d) => d.doc_type === 'tenant_passport'),
+          lcLetter: rows.some((d) => d.doc_type === 'lc_letter'),
+          houseImages: rows.filter((d) => d.doc_type === 'house_image').length,
+        };
+      } catch {
+        // Unknown document state — treat everything as missing so the agent uploads.
+        docsState = { passport: false, lcLetter: false, houseImages: 0 };
+      }
+      if (!docsState.passport || !docsState.lcLetter || docsState.houseImages < 4) {
+        setRenewDocsGate(docsState);
+        sonnerToast.warning('Documents missing — upload the passport photo, house photos and LC letter to renew');
+        return;
+      }
       // One atomic call. The RPC re-posts the prior plan server-side, bypasses
       // the daily-eligibility gate (renewals of fully-repaid tenants are exempt)
       // and lets the rent-formula trigger fill in the canonical fees. Any guard
