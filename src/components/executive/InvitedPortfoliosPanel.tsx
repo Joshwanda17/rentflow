@@ -538,7 +538,7 @@ function ReviewSubmissionDialog({
           .limit(1)
           .maybeSingle(),
         (supabase.from('portfolio_completion_tokens') as any)
-          .select('consumed_at')
+          .select('consumed_at, expires_at, created_at')
           .eq('portfolio_id', row!.id)
           .maybeSingle(),
         (supabase.from('partner_agreement_company_defaults') as any)
@@ -885,7 +885,11 @@ function ReviewSubmissionDialog({
                 <AgreementHtmlPreview data={previewData} />
               ) : (
                 <div className="p-10 text-center text-sm text-muted-foreground">
-                  {isLoading ? 'Loading agreement…' : 'No agreement submitted yet.'}
+                  {isLoading
+                    ? 'Loading agreement…'
+                    : submission?.token && !submission.token.consumed_at
+                      ? `No agreement submitted yet — the partner still has an open completion invite (sent ${new Date(submission.token.created_at).toLocaleString()}, expires ${new Date(submission.token.expires_at).toLocaleDateString()}). The contract renders here as soon as they submit their details and signature.`
+                      : 'No agreement submitted yet. Resend the completion invite so the partner can fill in their details and sign.'}
                 </div>
               )}
             </div>
