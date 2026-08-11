@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -78,6 +78,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
    */
   const [locationScopeIds, setLocationScopeIds] = useState<string[] | null>(null);
   const [locationScopeLabel, setLocationScopeLabel] = useState<string | null>(null);
+  const step2Ref = useRef<HTMLDivElement | null>(null);
   const qc = useQueryClient();
   const { user } = useAuth();
 
@@ -466,14 +467,27 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
               setLocationScopeIds(ids);
               setLocationScopeLabel(`${recipients.length} recipient${recipients.length === 1 ? '' : 's'}`);
               setSelected(new Set(ids));
+              // Bring Step 2 into view right away — purely a scroll/position aid.
+              requestAnimationFrame(() => {
+                step2Ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              });
             }}
           />
         </div>
 
         {locationScopeIds?.length ? (
-          <p className="text-[11px] font-semibold text-primary uppercase tracking-wide px-1">
-            Step 2 · Fund the selected float payouts (unchanged process)
-          </p>
+          <div
+            ref={step2Ref}
+            className="scroll-mt-4 rounded-lg border-2 border-primary/40 bg-primary/[0.06] px-3 py-2 flex items-center justify-between gap-2 flex-wrap"
+          >
+            <p className="text-[11px] font-semibold text-primary uppercase tracking-wide flex items-center gap-1.5">
+              <Banknote className="h-3.5 w-3.5" />
+              Step 2 · Fund the selected float payouts (unchanged process)
+            </p>
+            <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/30">
+              {selected.size} ticked · {locationScopeIds.length} in scope
+            </Badge>
+          </div>
         ) : null}
 
         {isLoading ? (
