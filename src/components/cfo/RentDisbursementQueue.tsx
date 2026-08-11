@@ -410,6 +410,71 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
         )}
       </CardHeader>
       <CardContent>
+        {/*
+          Pay by Location/Category — part of Fund Agent Landlord Payout Float.
+          Recipient selection only: it ticks rows in the queue below, which then
+          runs the identical existing funding logic.
+        */}
+        <div className="mb-3 rounded-lg border border-primary/25 bg-primary/[0.04] p-2">
+          <div className="flex items-center justify-between gap-2 flex-wrap mb-1.5 px-1">
+            <p className="text-[11px] font-semibold text-primary uppercase tracking-wide flex items-center gap-1.5">
+              <MapPin className="h-3.5 w-3.5" />
+              Step 1 (optional) · Choose recipients by location / category
+            </p>
+            {locationScopeIds?.length ? (
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/30">
+                  {locationScopeLabel ? `${locationScopeLabel} · ` : ''}{locationScopeIds.length} in scope
+                </Badge>
+                <button
+                  type="button"
+                  className="text-[11px] text-primary hover:underline"
+                  onClick={() => {
+                    setLocationScopeIds(null);
+                    setLocationScopeLabel(null);
+                    setSelected(new Set());
+                  }}
+                >
+                  Show whole queue
+                </button>
+              </div>
+            ) : null}
+          </div>
+          <p className="text-[11px] text-muted-foreground px-1 mb-2">
+            This only narrows <b>who</b> appears in the float funding list below. Amounts, fees,
+            validations, approvals, wallet and ledger records are unchanged — the same
+            Fund Agent Landlord Payout Float process runs on whoever you tick in Step 2.
+          </p>
+          <PayByLocationRecipientPicker
+            mode="rent_queue"
+            queuedCount={locationScopeIds?.length ?? 0}
+            onUseRecipients={(recipients) => {
+              const ids = recipients
+                .map(r => r.rent_request_id)
+                .filter((v): v is string => Boolean(v));
+              if (!ids.length) {
+                toast.error('No eligible approved rent requests in that selection.');
+                return;
+              }
+              // Reset the other filters so the scoped rows are all visible,
+              // then pre-tick them in the existing checkboxes.
+              setSearch('');
+              setAgentFilter('all');
+              setCountryFilter('all');
+              setDateFilter('all');
+              setLocationScopeIds(ids);
+              setLocationScopeLabel(`${recipients.length} recipient${recipients.length === 1 ? '' : 's'}`);
+              setSelected(new Set(ids));
+            }}
+          />
+        </div>
+
+        {locationScopeIds?.length ? (
+          <p className="text-[11px] font-semibold text-primary uppercase tracking-wide mb-2 px-1">
+            Step 2 · Fund the selected float payouts (unchanged process)
+          </p>
+        ) : null}
+
         {isLoading ? (
           <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
         ) : filteredItems.length === 0 ? (
