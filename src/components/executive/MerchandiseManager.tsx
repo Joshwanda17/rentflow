@@ -1371,9 +1371,12 @@ function AddCatalogItemDialog({ userId, onSaved }: { userId?: string; onSaved: (
   const [unitCost, setUnitCost] = useState('');
   const [images, setImages] = useState<{ file: File; previewUrl: string }[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [sizes, setSizes] = useState<string[]>([]);
+  const [sizeInput, setSizeInput] = useState('');
 
   const reset = () => {
     setItemName(''); setDescription(''); setUnitPrice(''); setUnitCost('');
+    setSizes([]); setSizeInput('');
     images.forEach(i => URL.revokeObjectURL(i.previewUrl));
     setImages([]);
   };
@@ -1430,6 +1433,7 @@ function AddCatalogItemDialog({ userId, onSaved }: { userId?: string; onSaved: (
         description: description.trim() || null,
         unit_price: num(unitPrice),
         unit_cost: num(unitCost),
+        sizes,
         image_url: uploaded[0] ?? null,
         image_urls: uploaded,
         is_active: true,
@@ -1475,6 +1479,12 @@ function AddCatalogItemDialog({ userId, onSaved }: { userId?: string; onSaved: (
           </div>
           <div className="space-y-2">
             <Label className="text-xs">Product photos ({images.length}/2)</Label>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Available sizes</Label>
+            <SizeEditor sizes={sizes} onChange={setSizes} input={sizeInput} onInputChange={setSizeInput} />
+          </div>
+          <div className="space-y-2">
             {images.length > 0 && (
               <div className="grid grid-cols-2 gap-2">
                 {images.map((img, i) => (
