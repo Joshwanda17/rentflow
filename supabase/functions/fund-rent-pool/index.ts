@@ -163,7 +163,7 @@ Deno.serve(async (req) => {
             Authorization: `Bearer ${supabaseServiceKey}`,
           },
           body: JSON.stringify({
-            to: partnerEmail,
+            recipientEmail: partnerEmail,
             templateName: "portfolio-request-confirmation",
             userId: user.id,
             data: {
