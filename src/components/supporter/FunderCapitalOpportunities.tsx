@@ -395,6 +395,9 @@ export function FunderCapitalOpportunities() {
               />
               <OptionCard
                 icon={Rocket}
+                image={investingBroIllustration.url}
+                light
+                featured
                 title="Angel Pool"
                 description="Buy a Welile share. Invest in the long-term Welile vision."
                 tooltip="Buy equity shares in Welile. Your capital supports platform growth and long-term value creation, with ownership reflected in your shareholder account."
