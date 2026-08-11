@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Lc1VillagePicker } from '@/components/location/Lc1VillagePicker';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GuarantorConsentCheckbox } from '@/components/agent/GuarantorConsentCheckbox';
 import { supabase } from '@/integrations/supabase/client';

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { Lc1VillagePicker } from '@/components/location/Lc1VillagePicker';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -745,10 +746,10 @@ export function RentRequestButton({ userId, onSuccess }: RentRequestButtonProps)
                         onChange={(e) => setLc1Phone(e.target.value)}
                         required
                       />
-                      <Input
-                        placeholder="Village"
+                      <Lc1VillagePicker
+                        label="Village"
                         value={lc1Village}
-                        onChange={(e) => setLc1Village(e.target.value)}
+                        onChange={(name) => setLc1Village(name)}
                       />
                     </div>
                   </div>

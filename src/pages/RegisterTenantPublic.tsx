@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Lc1VillagePicker } from '@/components/location/Lc1VillagePicker';
 import { roleToSlug } from '@/lib/roleRoutes';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -553,10 +554,13 @@ export default function RegisterTenantPublic() {
             <Label>Phone <span className="text-destructive">*</span></Label>
             <Input type="tel" value={lc1Phone} onChange={e => setLc1Phone(e.target.value)} placeholder="e.g. 0700 000 000" required />
           </div>
-          <div className="space-y-2">
-            <Label>Village <span className="text-destructive">*</span></Label>
-            <Input value={lc1Village} onChange={e => setLc1Village(e.target.value)} placeholder="e.g. Bukoto Village" required />
-          </div>
+          <Lc1VillagePicker
+            className="space-y-2"
+            label="Village"
+            required
+            value={lc1Village}
+            onChange={(name) => setLc1Village(name)}
+          />
         </section>
 
         {/* G. Guarantor Consent */}
