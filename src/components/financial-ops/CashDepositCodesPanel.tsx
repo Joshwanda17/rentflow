@@ -145,6 +145,7 @@ export function CashDepositCodesPanel({
   const [reissuing, setReissuing] = useState<string | null>(null);
   const [codeInputs, setCodeInputs] = useState<Record<string, string>>({});
   const [verifying, setVerifying] = useState<string | null>(null);
+  const [banking, setBanking] = useState<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -305,6 +306,35 @@ export function CashDepositCodesPanel({
   };
 
   const [startOpen, setStartOpen] = useState(false);
+
+  // Financial Ops marks where the physical cash now sits (banked vs still at hand).
+  const setCashLocationFor = async (row: CashCodeRow, location: 'bank' | 'cash_at_hand') => {
+    setBanking(row.verification_id);
+    const { error } = await (supabase.rpc as any)('fin_ops_set_cash_location', {
+      p_deposit_request_id: row.deposit_request_id,
+      p_location: location,
+    });
+    setBanking(null);
+    if (error) {
+      toast({
+        title: 'Could not update',
+        description: /not_authorized/i.test(error.message)
+          ? 'You do not have permission to change this.'
+          : error.message,
+        variant: 'destructive',
+      });
+      return;
+    }
+    setRows((prev) =>
+      prev.map((r) => (r.deposit_request_id === row.deposit_request_id ? { ...r, cash_location: location } : r)),
+    );
+    toast({
+      title: location === 'bank' ? 'Marked as banked' : 'Marked as cash at hand',
+      description: `${fmtUgx(row.amount)} · ${row.depositor_name || 'depositor'}`,
+    });
+    load();
+  };
+
   const [query, setQuery] = useState('');
   const [tab, setTab] = useState<'all' | 'awaiting' | 'verified'>('all');
   const [cashLocation, setCashLocation] = useState<'all' | 'cash_at_hand' | 'bank'>('all');
