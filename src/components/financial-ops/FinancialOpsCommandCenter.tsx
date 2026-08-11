@@ -14,8 +14,22 @@ const lz = (
   loader: () => Promise<Record<string, any>>,
   name: string,
 ): ComponentType<any> => lazy(async () => {
-  const m = await loader();
-  return { default: m[name] };
+  // A stale/aborted chunk fetch can resolve to an undefined module namespace
+  // (seen on mobile after a redeploy). Retry once before failing, and accept
+  // either the named export or a default export.
+  let m: Record<string, any> | undefined;
+  try {
+    m = await loader();
+  } catch {
+    m = undefined;
+  }
+  let C = m?.[name] ?? m?.default;
+  if (!C) {
+    m = await loader();
+    C = m?.[name] ?? m?.default;
+  }
+  if (!C) throw new Error(`Panel "${name}" failed to load. Please reload the app.`);
+  return { default: C };
 }) as unknown as ComponentType<any>;
 
 const PanelFallback = () => (
