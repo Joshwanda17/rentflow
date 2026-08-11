@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, Paperclip, Star, Inbox, Clock, Archive, Trash2, MailOpen, Loader2, Wallet } from 'lucide-react';
+import { ChevronLeft, Paperclip, Star, Inbox, Clock, Archive, Trash2, MailOpen, Loader2, Wallet, History } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
 import { UserSearchPicker, type UserResult } from '@/components/cfo/UserSearchPicker';
 
 /**
@@ -41,6 +42,36 @@ function toneFor(seed: string) {
 
 function senderName(r: GmailStyleRow) {
   return (r.from_name || r.from_email || 'Unknown sender').trim();
+}
+
+/**
+ * The person the money actually came from — NOT the mail gateway. SMS-relayed
+ * MoMo alerts always arrive from the same forwarder ("Android SMS via IFTTT"),
+ * so the counterparty (or the "from NAME at" fragment in the body) is what
+ * identifies the payer across emails.
+ */
+function payerName(r: GmailStyleRow): string | null {
+  const cp = (r.counterparty || '').trim();
+  if (cp) return cp;
+  const body = `${r.snippet || ''} ${r.subject || ''}`;
+  const m = body.match(/from\s+([A-Za-z][A-Za-z .'-]{2,60}?)\s+(?:at|on|\d)/i);
+  return m ? m[1].trim() : null;
+}
+
+/** Stable, case-insensitive memory key for a payer name. */
+function senderKeyFor(r: GmailStyleRow): string | null {
+  const name = payerName(r);
+  if (!name) return null;
+  const key = name.replace(/\s+/g, ' ').trim().toUpperCase();
+  return key.length >= 3 ? key : null;
+}
+
+interface SenderBinding {
+  user_id: string;
+  user_name: string | null;
+  user_phone: string | null;
+  times_used: number;
+  last_routed_at: string | null;
 }
 
 /** Gmail-style date column: time for today, "MMM d" otherwise. */
@@ -95,6 +126,9 @@ interface GmailStyleEmailListProps {
 export function GmailStyleEmailList({ rows, onCreditUser }: GmailStyleEmailListProps) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [selectedUsers, setSelectedUsers] = useState<Record<string, UserResult>>({});
+  // Remembered payer → wallet bindings, keyed by the normalised payer name.
+  const [bindings, setBindings] = useState<Record<string, SenderBinding | null>>({});
+  const [showManual, setShowManual] = useState(false);
   // Always present the newest email first, even if the parent list order drifts
   // (e.g. realtime inserts, focus-direction resets, or cached presets).
   const sortedRows = useMemo(
@@ -128,6 +162,57 @@ export function GmailStyleEmailList({ rows, onCreditUser }: GmailStyleEmailListP
     io.observe(el);
     return () => io.disconnect();
   }, [open, hasMore, sortedRows.length]);
+
+  // When an inbound email is opened, look up whether this payer name was
+  // routed to a wallet before so the operator is prompted with the same
+  // recipient instead of searching for them again.
+  const openKey = open ? senderKeyFor(open) : null;
+  useEffect(() => {
+    setShowManual(false);
+    if (!openKey || openKey in bindings) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('email_sender_wallet_bindings')
+        .select('user_id, user_name, user_phone, times_used, last_routed_at')
+        .eq('sender_key', openKey)
+        .maybeSingle();
+      if (!cancelled) {
+        setBindings((c) => ({ ...c, [openKey]: (data as SenderBinding | null) ?? null }));
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openKey]);
+
+  /** Route + remember, so the next email from this payer prompts the same wallet. */
+  const routeToWallet = async (row: GmailStyleRow, user: UserResult) => {
+    const key = senderKeyFor(row);
+    if (key) {
+      setBindings((c) => ({
+        ...c,
+        [key]: {
+          user_id: user.id,
+          user_name: user.full_name,
+          user_phone: user.phone,
+          times_used: (c[key]?.user_id === user.id ? (c[key]?.times_used ?? 0) : 0) + 1,
+          last_routed_at: new Date().toISOString(),
+        },
+      }));
+      try {
+        await supabase.rpc('remember_email_sender_wallet', {
+          p_sender_key: key,
+          p_sender_label: payerName(row),
+          p_user_id: user.id,
+          p_user_name: user.full_name,
+          p_user_phone: user.phone,
+        });
+      } catch {
+        // Memory is a convenience — never block the actual routing action.
+      }
+    }
+    onCreditUser?.(row, user);
+  };
 
   if (open) {
     const name = senderName(open);
@@ -195,6 +280,45 @@ export function GmailStyleEmailList({ rows, onCreditUser }: GmailStyleEmailListP
           </div>
           {open.direction === 'in' && onCreditUser && (
             <div className="mt-5 border-y bg-muted/20 py-4">
+              {openKey && bindings[openKey] && !showManual ? (
+                <div className="space-y-3">
+                  <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-primary flex items-center gap-1.5">
+                      <History className="h-3.5 w-3.5" /> Previously routed payer
+                    </p>
+                    <p className="mt-1.5 text-sm">
+                      Payments from <span className="font-semibold">{payerName(open)}</span> were routed to{' '}
+                      <span className="font-semibold">{bindings[openKey]!.user_name || 'this wallet'}</span>
+                      {bindings[openKey]!.user_phone ? ` (${bindings[openKey]!.user_phone})` : ''}.
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      Used {bindings[openKey]!.times_used}×
+                      {bindings[openKey]!.last_routed_at
+                        ? ` · last on ${new Date(bindings[openKey]!.last_routed_at as string).toLocaleDateString()}`
+                        : ''}
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Button
+                      className="h-10 gap-2 sm:min-w-56"
+                      onClick={() => {
+                        const b = bindings[openKey]!;
+                        routeToWallet(open, {
+                          id: b.user_id,
+                          full_name: b.user_name || 'Saved recipient',
+                          phone: b.user_phone || '',
+                        });
+                      }}
+                    >
+                      <Wallet className="h-4 w-4" />
+                      Route to {bindings[openKey]!.user_name || 'saved wallet'}
+                    </Button>
+                    <Button variant="outline" className="h-10" onClick={() => setShowManual(true)}>
+                      Route to a different user
+                    </Button>
+                  </div>
+                </div>
+              ) : (
               <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
                 <div className="min-w-0 flex-1">
                   <UserSearchPicker
@@ -216,13 +340,14 @@ export function GmailStyleEmailList({ rows, onCreditUser }: GmailStyleEmailListP
                   disabled={!selectedUsers[open.id]}
                   onClick={() => {
                     const user = selectedUsers[open.id];
-                    if (user) onCreditUser(open, user);
+                    if (user) routeToWallet(open, user);
                   }}
                 >
                   <Wallet className="h-4 w-4" />
                   Route to wallet
                 </Button>
               </div>
+              )}
             </div>
           )}
           <div className="mt-5 flex flex-wrap gap-1.5 text-[11px] text-muted-foreground">

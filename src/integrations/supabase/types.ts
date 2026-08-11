@@ -9363,6 +9363,51 @@ export type Database = {
         }
         Relationships: []
       }
+      email_sender_wallet_bindings: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          last_routed_at: string
+          sender_key: string
+          sender_label: string | null
+          times_used: number
+          updated_at: string
+          updated_by: string | null
+          user_id: string
+          user_name: string | null
+          user_phone: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          last_routed_at?: string
+          sender_key: string
+          sender_label?: string | null
+          times_used?: number
+          updated_at?: string
+          updated_by?: string | null
+          user_id: string
+          user_name?: string | null
+          user_phone?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          last_routed_at?: string
+          sender_key?: string
+          sender_label?: string | null
+          times_used?: number
+          updated_at?: string
+          updated_by?: string | null
+          user_id?: string
+          user_name?: string | null
+          user_phone?: string | null
+        }
+        Relationships: []
+      }
       email_unsubscribe_tokens: {
         Row: {
           created_at: string
@@ -37835,6 +37880,16 @@ export type Database = {
       relink_stuck_pending_deposits: {
         Args: { p_max_age_days?: number; p_min_age_minutes?: number }
         Returns: Json
+      }
+      remember_email_sender_wallet: {
+        Args: {
+          p_sender_key: string
+          p_sender_label: string
+          p_user_id: string
+          p_user_name: string
+          p_user_phone: string
+        }
+        Returns: undefined
       }
       renew_rent_request: {
         Args: { p_prev_request_id: string }
