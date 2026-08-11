@@ -12,9 +12,9 @@ export function TenantLocationBreadcrumbs({ path, onJump }: Props) {
   ];
   if (path.country)  crumbs.push({ label: path.country,  path: { country: path.country } });
   if (path.region)   crumbs.push({ label: path.region,   path: { country: path.country, region: path.region } });
-  if (path.district) crumbs.push({ label: path.district, path: { country: path.country, region: path.region, district: path.district } });
-  if (path.ward)     crumbs.push({ label: path.ward,     path: { country: path.country, region: path.region, district: path.district, ward: path.ward } });
-  if (path.agentId !== undefined)  crumbs.push({ label: path.agentName ?? 'Agent',    path: { country: path.country, region: path.region, district: path.district, ward: path.ward, agentId: path.agentId, agentName: path.agentName } });
+  if (path.district) crumbs.push({ label: path.district, path: { country: path.country, region: path.region, district: path.district, districtId: path.districtId } });
+  if (path.ward)     crumbs.push({ label: path.ward,     path: { country: path.country, region: path.region, district: path.district, districtId: path.districtId, ward: path.ward, subcountyId: path.subcountyId } });
+  if (path.agentId !== undefined)  crumbs.push({ label: path.agentName ?? 'Agent',    path: { country: path.country, region: path.region, district: path.district, districtId: path.districtId, ward: path.ward, subcountyId: path.subcountyId, agentId: path.agentId, agentName: path.agentName } });
   if (path.landlordId !== undefined) crumbs.push({ label: path.landlordName ?? 'Landlord', path: { ...path } });
 
   const canGoBack = crumbs.length > 1;
