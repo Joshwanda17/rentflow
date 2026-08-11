@@ -774,22 +774,28 @@ export default function ProfileCompletionGate() {
 
         {quickMode && !editMode && (
           <div className="space-y-5 xs:space-y-6 sm:space-y-7 pt-1">
-            {/* 1) Location — one tap, sensible Kampala default */}
+            {/* 1) Location — official village pick, nothing pre-filled */}
             <div className="space-y-3">
               <p className="text-[11px] xs:text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Where you live
               </p>
               <div className="rounded-2xl border bg-card p-3 xs:p-3.5 sm:p-4 space-y-3">
-                {/* Manual entry — type your area / neighbourhood */}
+                <UgLocationPicker
+                  label="Your official village"
+                  required
+                  value={ugSelection}
+                  error={ugError}
+                  onChange={(sel) => { setUgSelection(sel); setUgError(null); }}
+                />
                 <div className="space-y-1.5">
-                  <Label htmlFor="quick-location" className="text-[12px] xs:text-[13px] font-medium">
-                    Your area, village or neighbourhood
+                  <Label htmlFor="quick-landmark" className="text-[12px] xs:text-[13px] font-medium">
+                    Nearest landmark (optional)
                   </Label>
                   <Input
-                    id="quick-location"
+                    id="quick-landmark"
                     value={town}
                     onChange={(e) => setTown(e.target.value)}
-                    placeholder="e.g. Najjera, Wakiso"
+                    placeholder="e.g. near SDA Church"
                     autoComplete="off"
                     className="h-12 xs:h-14 rounded-xl text-[15px] xs:text-base"
                   />
@@ -868,11 +874,14 @@ export default function ProfileCompletionGate() {
                 size="lg"
                 className="w-full min-h-[48px] xs:min-h-[52px] rounded-xl text-[15px] xs:text-base font-semibold"
                 onClick={handleSubmit}
-                disabled={submitting || !persona}
+                disabled={submitting || !persona || (isUganda && !ugSelection && !profile?.ug_village_id)}
               >
                 {submitting && <Loader2 className="h-5 w-5 animate-spin mr-2" />}
                 Finish
               </Button>
+              {saveError && (
+                <p className="text-[11px] text-destructive text-center">Could not save: {saveError}</p>
+              )}
               <button
                 type="button"
                 onClick={() => setQuickMode(false)}
@@ -917,23 +926,13 @@ export default function ProfileCompletionGate() {
 
             {isUganda ? (
               <>
-                <div className="grid grid-cols-1 xs:grid-cols-2 gap-4 xs:gap-3">
-                  <div className="space-y-1.5">
-                    <Label>Region</Label>
-                    <Input value={region} onChange={(e) => setRegion(e.target.value)} placeholder="e.g. Central" maxLength={60} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>District <span className="text-destructive">*</span></Label>
-                    <Select value={district} onValueChange={setDistrict}>
-                      <SelectTrigger><SelectValue placeholder="Select district" /></SelectTrigger>
-                      <SelectContent>
-                        {UGANDA_DISTRICTS.map((d) => (
-                          <SelectItem key={d} value={d}>{d}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
+                <UgLocationPicker
+                  label="Official location (village)"
+                  required
+                  value={ugSelection}
+                  error={ugError}
+                  onChange={(sel) => { setUgSelection(sel); setUgError(null); }}
+                />
                 <div className="grid grid-cols-1 xs:grid-cols-2 gap-4 xs:gap-3">
                   <div className="space-y-1.5">
                     <Label>City</Label>
@@ -942,20 +941,6 @@ export default function ProfileCompletionGate() {
                   <div className="space-y-1.5">
                     <Label>Town</Label>
                     <Input value={town} onChange={(e) => setTown(e.target.value)} placeholder="e.g. Ntinda" maxLength={60} />
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-4 xs:gap-3">
-                  <div className="space-y-1.5">
-                    <Label>Ward (Sub-county)</Label>
-                    <Input value={subCounty} onChange={(e) => setSubCounty(e.target.value)} maxLength={60} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Cell (Parish)</Label>
-                    <Input value={parish} onChange={(e) => setParish(e.target.value)} maxLength={60} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Village</Label>
-                    <Input value={village} onChange={(e) => setVillage(e.target.value)} maxLength={60} />
                   </div>
                 </div>
               </>
@@ -1009,7 +994,7 @@ export default function ProfileCompletionGate() {
                 className="gap-1.5 text-muted-foreground hover:text-foreground"
               >
                 <RotateCcw className="h-3.5 w-3.5" />
-                Reset to Kampala
+                Reset location
               </Button>
               <Button onClick={() => setStep(2)} disabled={!step1Valid}>
                 Continue
