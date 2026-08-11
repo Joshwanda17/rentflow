@@ -39,6 +39,7 @@ import { Sparkles, ChevronRight } from 'lucide-react';
 import AgentContactLocationGate from './AgentContactLocationGate';
 import { useRequireContactLocation } from '@/hooks/useRequireContactLocation';
 import { RenewDocumentsDialog, type RenewDocsState } from './RenewDocumentsDialog';
+import { TenantDocumentsSection } from './TenantDocumentsSection';
 
 interface TenantProfileViewProps {
   tenantId: string;
@@ -1611,22 +1612,8 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
           </p>
         </SectionCard>
 
-        {/* ── Earning Rating ── */}
-        <SectionCard icon={Star} title="Earning Rating">
-          <div className="flex items-center gap-3">
-            <div className="flex gap-0.5" aria-label={`${earningRating.stars} of 5 stars`}>
-              {[1, 2, 3, 4, 5].map(i => (
-                <Star key={i} className={`h-6 w-6 ${i <= earningRating.stars ? 'text-warning fill-warning' : 'text-muted-foreground/30'}`} />
-              ))}
-            </div>
-            <span className="text-base sm:text-lg font-bold">{earningRating.label}</span>
-          </div>
-          {partnershipAmount > 0 && (
-            <p className="text-sm sm:text-base text-muted-foreground">
-              Partnership investment: <span className="font-bold text-primary font-mono">{formatUGX(partnershipAmount)}</span>
-            </p>
-          )}
-        </SectionCard>
+        {/* ── Documents (passport photo, house photos, LC letter) ── */}
+        <TenantDocumentsSection tenantId={profile.id} tenantName={profile.full_name} />
 
         {/* ── Contact Details ── */}
         <SectionCard icon={Phone} title="Contact Details">
