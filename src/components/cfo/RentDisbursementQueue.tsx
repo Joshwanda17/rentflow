@@ -47,7 +47,52 @@ interface ApprovedRentItem {
   request_country: string | null;
   request_city: string | null;
   request_district: string | null;
+  /** Read-only tenant location / category attributes (for filtering only). */
+  loc_town: string | null;
+  loc_city: string | null;
+  loc_sub_county: string | null;
+  loc_parish: string | null;
+  loc_village: string | null;
+  loc_region: string | null;
+  loc_house_category: string | null;
 }
+
+/** Same category set the previous "Pay by Location / Category" picker offered. */
+type CatFieldKey =
+  | 'district'
+  | 'town'
+  | 'city'
+  | 'sub_county'
+  | 'parish'
+  | 'village'
+  | 'region'
+  | 'house_category';
+
+const CAT_FIELD_LABELS: Record<CatFieldKey, string> = {
+  district: 'District',
+  town: 'Town Council',
+  city: 'City / Municipality',
+  sub_county: 'Sub-county',
+  parish: 'Parish',
+  village: 'Village',
+  region: 'Region',
+  house_category: 'House category',
+};
+
+const CAT_FIELD_KEYS = Object.keys(CAT_FIELD_LABELS) as CatFieldKey[];
+
+const catValueOf = (it: ApprovedRentItem, field: CatFieldKey): string => {
+  const raw =
+    field === 'district' ? it.request_district
+    : field === 'town' ? it.loc_town
+    : field === 'city' ? (it.loc_city ?? it.request_city)
+    : field === 'sub_county' ? it.loc_sub_county
+    : field === 'parish' ? it.loc_parish
+    : field === 'village' ? it.loc_village
+    : field === 'region' ? it.loc_region
+    : it.loc_house_category;
+  return (raw || '').toString().trim();
+};
 
 interface RentDisbursementQueueProps {
   /**
