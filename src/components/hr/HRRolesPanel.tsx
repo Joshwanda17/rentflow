@@ -194,6 +194,7 @@ export default function HRRolesPanel() {
               onClick={() => {
                 setEditRole(role);
                 setEditTitle(role.title);
+                setEditReason('');
               }}
             >
               <Pencil className="h-3 w-3" /> Edit
@@ -205,6 +206,7 @@ export default function HRRolesPanel() {
               onClick={() => {
                 setMoveRole(role);
                 setMoveTarget(role.department_id || UNASSIGNED);
+                setMoveReason('');
               }}
             >
               <ArrowRightLeft className="h-3 w-3" /> Move
@@ -323,10 +325,17 @@ export default function HRRolesPanel() {
               <Input value={addTitle} onChange={e => setAddTitle(e.target.value)} placeholder="e.g. Field Supervisor" />
             </div>
             {derivedKey && <p className="text-[11px] text-muted-foreground">Key: {derivedKey}</p>}
+            {addTargetProtected && (
+              <p className="text-xs text-destructive">{PROTECTED_TITLE_MESSAGE}</p>
+            )}
+            <ReasonField value={addReason} onChange={setAddReason} />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddFor(null)}>Cancel</Button>
-            <Button onClick={submitAdd} disabled={!addTitle.trim() || addPosition.isPending}>
+            <Button
+              onClick={submitAdd}
+              disabled={!addTitle.trim() || addTargetProtected || !reasonOk(addReason) || addPosition.isPending}
+            >
               {addPosition.isPending ? 'Saving...' : 'Add role'}
             </Button>
           </DialogFooter>
@@ -339,13 +348,25 @@ export default function HRRolesPanel() {
           <DialogHeader>
             <DialogTitle>Edit role title</DialogTitle>
           </DialogHeader>
-          <div>
-            <Label>Title</Label>
-            <Input value={editTitle} onChange={e => setEditTitle(e.target.value)} />
+          <div className="space-y-3">
+            <div>
+              <Label>Title</Label>
+              <Input value={editTitle} onChange={e => setEditTitle(e.target.value)} disabled={editProtected} />
+            </div>
+            {(editProtected || editTargetProtected) && (
+              <p className="text-xs text-destructive">{PROTECTED_TITLE_MESSAGE}</p>
+            )}
+            <ReasonField value={editReason} onChange={setEditReason} />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditRole(null)}>Cancel</Button>
-            <Button onClick={submitEdit} disabled={!editTitle.trim() || renamePosition.isPending}>
+            <Button
+              onClick={submitEdit}
+              disabled={
+                !editTitle.trim() || editProtected || editTargetProtected ||
+                !reasonOk(editReason) || renamePosition.isPending
+              }
+            >
               {renamePosition.isPending ? 'Saving...' : 'Save'}
             </Button>
           </DialogFooter>
@@ -358,23 +379,26 @@ export default function HRRolesPanel() {
           <DialogHeader>
             <DialogTitle>Move role to another department</DialogTitle>
           </DialogHeader>
-          <div>
-            <Label>Department</Label>
-            <Select value={moveTarget} onValueChange={setMoveTarget}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select department" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
-                {departments.map(d => (
-                  <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="space-y-3">
+            <div>
+              <Label>Department</Label>
+              <Select value={moveTarget} onValueChange={setMoveTarget}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select department" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
+                  {departments.map(d => (
+                    <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <ReasonField value={moveReason} onChange={setMoveReason} />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setMoveRole(null)}>Cancel</Button>
-            <Button onClick={submitMove} disabled={movePosition.isPending}>
+            <Button onClick={submitMove} disabled={!reasonOk(moveReason) || movePosition.isPending}>
               {movePosition.isPending ? 'Moving...' : 'Move role'}
             </Button>
           </DialogFooter>
@@ -398,6 +422,7 @@ export default function HRRolesPanel() {
             <p className="text-xs text-muted-foreground">
               Deactivating a position does not remove any access binding on it, and does not move any payroll authority bound to it.
             </p>
+            <ReasonField value={statusReason} onChange={setStatusReason} />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeactivateRole(null)}>Cancel</Button>
@@ -405,10 +430,30 @@ export default function HRRolesPanel() {
               variant="destructive"
               onClick={submitDeactivate}
               disabled={
-                setPositionActive.isPending || (deactivateRole ? (heldBy[deactivateRole.id] || 0) > 0 : true)
+                setPositionActive.isPending || !reasonOk(statusReason) ||
+                (deactivateRole ? (heldBy[deactivateRole.id] || 0) > 0 : true)
               }
             >
               {setPositionActive.isPending ? 'Saving...' : 'Deactivate'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* D. Reactivate role (unconditional, still reasoned + audited) */}
+      <Dialog open={!!reactivateRole} onOpenChange={open => !open && setReactivateRole(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reactivate role</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <p className="text-sm text-foreground">{reactivateRole?.title}</p>
+            <ReasonField value={statusReason} onChange={setStatusReason} />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReactivateRole(null)}>Cancel</Button>
+            <Button onClick={submitReactivate} disabled={!reasonOk(statusReason) || setPositionActive.isPending}>
+              {setPositionActive.isPending ? 'Saving...' : 'Reactivate'}
             </Button>
           </DialogFooter>
         </DialogContent>
