@@ -588,20 +588,6 @@ export function FleetPerformanceStats({
   const [verifying, setVerifying] = useState(false);
   const [verifyResult, setVerifyResult] = useState<VerifyResult | null>(null);
 
-  // Alerts panel — flag agents whose collection rate falls below a threshold.
-  const ALERT_STORAGE_KEY = 'fleet-perf-alerts';
-  const restoredAlerts = useMemo(() => {
-    try {
-      const raw = localStorage.getItem(ALERT_STORAGE_KEY);
-      if (!raw) return null;
-      return JSON.parse(raw) as { threshold?: number; minExpected?: number };
-    } catch { return null; }
-  }, []);
-  const [alertThreshold, setAlertThreshold] = useState<number>(restoredAlerts?.threshold ?? 50);
-  const [alertMinExpected, setAlertMinExpected] = useState<number>(restoredAlerts?.minExpected ?? 10_000);
-  const [alertsOpen, setAlertsOpen] = useState<boolean>(true);
-  const [alertConfigOpen, setAlertConfigOpen] = useState<boolean>(false);
-
   // Drill-down state — every clickable number opens the appropriate sheet.
   const [drillOpen, setDrillOpen] = useState(false);
   const [drillAgentId, setDrillAgentId] = useState<string | null>(null);
@@ -622,15 +608,6 @@ export function FleetPerformanceStats({
     setExpectedAgentName(opts.agentName ?? null);
     setExpectedOpen(true);
   };
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(
-        ALERT_STORAGE_KEY,
-        JSON.stringify({ threshold: alertThreshold, minExpected: alertMinExpected }),
-      );
-    } catch { /* ignore */ }
-  }, [alertThreshold, alertMinExpected]);
 
   // Persist the selected range whenever it changes.
   useEffect(() => {
