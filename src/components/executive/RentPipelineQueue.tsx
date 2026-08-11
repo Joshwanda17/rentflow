@@ -1814,6 +1814,20 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
         agentId={drilldownAgentId}
         defaultTab="agent"
       />
+      {selectedRequest && (
+        <PipelineAgentTransferDialog
+          open={transferOpen}
+          onOpenChange={setTransferOpen}
+          requestId={selectedRequest.id}
+          tenantName={selectedRequest.tenant_name}
+          currentAgentId={selectedRequest.assigned_agent_id || selectedRequest.agent_id}
+          currentAgentName={selectedRequest.assigned_agent_name || selectedRequest.agent_name}
+          onTransferred={() => {
+            queryClient.invalidateQueries({ queryKey: ['rent-pipeline'] });
+            setSelectedRequest(null);
+          }}
+        />
+      )}
       <UserDrilldownDrawer
         open={!!drilldownLandlordId}
         onOpenChange={(v) => { if (!v) setDrilldownLandlordId(null); }}
