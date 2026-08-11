@@ -9,6 +9,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Loader2, Store } from 'lucide-react';
 import type { ServiceCenterQualification } from '@/hooks/useServiceCenterQualification';
+import { UgDistrictSelect, type UgDistrictValue } from '@/components/location/UgDistrictSelect';
+import { useUgDistricts, findUgDistrictByName } from '@/hooks/useUgLocations';
 
 interface Props {
   open: boolean;
@@ -20,6 +22,8 @@ interface Props {
 
 export function ServiceCenterRequestDialog({ open, onOpenChange, agentId, qualification, onSubmitted }: Props) {
   const [loading, setLoading] = useState(false);
+  const { data: districts } = useUgDistricts();
+  const [ugDistrict, setUgDistrict] = useState<UgDistrictValue | null>(null);
   const [form, setForm] = useState({
     name: '',
     phone: '',
@@ -51,16 +55,25 @@ export function ServiceCenterRequestDialog({ open, onOpenChange, agentId, qualif
     })();
   }, [open, agentId]);
 
+  // Best-effort: upgrade the saved typed district to an official row for pre-fill.
+  useEffect(() => {
+    if (ugDistrict || !form.district) return;
+    const match = findUgDistrictByName(districts, form.district);
+    if (match) setUgDistrict({ id: match.id, name: match.name, region: match.region ?? null });
+  }, [districts, form.district, ugDistrict]);
+
   const submit = async () => {
     if (!form.ready) { toast.error('Please confirm you are ready to operate the service center'); return; }
     if (!form.preferred.trim() || !form.reason.trim()) { toast.error('Preferred location and reason are required'); return; }
+    if (!ugDistrict) { toast.error('Select your district'); return; }
     setLoading(true);
     try {
       const { error } = await (supabase.rpc as any)('submit_service_center_request', {
         p_agent_name: form.name.trim(),
         p_agent_phone: form.phone.trim(),
         p_agent_location: form.location.trim() || null,
-        p_district: form.district.trim() || null,
+        p_district: ugDistrict.name,
+        p_ug_district_id: ugDistrict.id,
         p_preferred_location: form.preferred.trim(),
         p_reason: form.reason.trim(),
         p_ready: true,
@@ -109,10 +122,12 @@ export function ServiceCenterRequestDialog({ open, onOpenChange, agentId, qualif
               <Label>Your location</Label>
               <Input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
             </div>
-            <div className="space-y-1.5">
-              <Label>District</Label>
-              <Input value={form.district} onChange={(e) => setForm({ ...form, district: e.target.value })} />
-            </div>
+            <UgDistrictSelect
+              value={ugDistrict}
+              onChange={setUgDistrict}
+              required
+              legacyText={form.district}
+            />
           </div>
 
           <div className="space-y-1.5">
