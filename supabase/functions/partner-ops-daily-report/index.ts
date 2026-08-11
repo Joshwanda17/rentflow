@@ -501,8 +501,8 @@ function buildPdf(r: Report, win: { title: string; pretty: string }, logo: Uint8
   y += 8;
 
   // ── Daily trend ──
-  heading("Daily trend", "Per-day capital in versus returns settled - each point is one calendar day in the window.");
-  lineChart(
+  heading("Daily trend", "Per-day capital in versus returns settled - one column pair per calendar day in the window.");
+  columnChart(
     r.series.map((s: any) => ({
       label: ascii(s.label),
       a: (Number(s.new_capital) || 0) + (Number(s.topups_applied) || 0),
@@ -529,12 +529,28 @@ function buildPdf(r: Report, win: { title: string; pretty: string }, logo: Uint8
     "Top-ups only (portfolio creations are excluded). Requested = submitted inside the window; applied = merged into capital inside the window.",
   );
   miniKpis([
-    { label: "Requested in period", value: `${num(t.requested_count)} - ${compactUGX(t.requested_amount)}`, accent: BLUE },
-    { label: "Applied in period", value: `${num(t.applied_count)} - ${compactUGX(t.applied_amount)}`, accent: EMERALD },
-    { label: "Rejected / cancelled", value: `${num((Number(t.rejected_count) || 0) + (Number(t.cancelled_count) || 0))} - ${compactUGX((Number(t.rejected_amount) || 0) + (Number(t.cancelled_amount) || 0))}`, accent: ROSE },
-    { label: "At renewal", value: `${num(t.renewal_topup_count)} - ${compactUGX(t.renewal_topup_amount)}`, accent: TEAL },
+    { label: `Requested in period (${num(t.requested_count)})`, value: compactUGX(t.requested_amount), accent: BLUE },
+    { label: `Applied in period (${num(t.applied_count)})`, value: compactUGX(t.applied_amount), accent: EMERALD },
+    { label: `Pending now (${num(t.backlog_count)})`, value: compactUGX(t.backlog_amount), accent: AMBER },
+    { label: `Applied all time (${num(t.applied_all_count)})`, value: compactUGX(t.applied_all_amount), accent: TEAL },
   ]);
-  lineChart(
+  table(
+    ["Top-up state", "Count", "Amount (UGX)"],
+    [
+      ["Requested in the window", num(t.requested_count), fmtUGX(t.requested_amount)],
+      ["Applied in the window", num(t.applied_count), fmtUGX(t.applied_amount)],
+      ["Rejected in the window", num(t.rejected_count), fmtUGX(t.rejected_amount)],
+      ["Cancelled in the window", num(t.cancelled_count), fmtUGX(t.cancelled_amount)],
+      ["Pending right now (all dates)", num(t.backlog_count), fmtUGX(t.backlog_amount)],
+      ["Applied all time (all dates)", num(t.applied_all_count), fmtUGX(t.applied_all_amount)],
+      [
+        "Carried at renewal (window / last 90d)",
+        `${num(t.renewal_topup_count)} / ${num(t.renewal_topup_count_90d)}`,
+        `${fmtUGX(t.renewal_topup_amount)} / ${fmtUGX(t.renewal_topup_amount_90d)}`,
+      ],
+    ],
+  );
+  columnChart(
     r.series.map((s: any) => ({
       label: ascii(s.label),
       a: Number(s.topups_requested) || 0,
