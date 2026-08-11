@@ -24,6 +24,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { UGANDA_DISTRICTS } from "@/lib/ugandaDistricts";
 import { CountryCombobox } from "@/components/ui/country-combobox";
 import { CityCombobox } from "@/components/ui/city-combobox";
+import UgLocationPicker from "@/components/location/UgLocationPicker";
+import { resolveUgVillage, type UgLocationSelection } from "@/hooks/useUgLocations";
 import {
   continentForCountry,
   isoForCountry,
@@ -81,6 +83,7 @@ type ProfileRow = {
   primary_persona: string | null;
   occupation: string | null;
   referrer_id: string | null;
+  ug_village_id: number | null;
 };
 
 type AgentRow = {
@@ -110,7 +113,7 @@ export default function ProfileCompletionGate() {
       const { data, error } = await supabase
         .from("profiles")
         .select(
-          "id, address_complete, continent, country, region, district, city, town, sub_county, parish, village, primary_persona, occupation, referrer_id",
+          "id, address_complete, continent, country, region, district, city, town, sub_county, parish, village, primary_persona, occupation, referrer_id, ug_village_id",
         )
         .eq("id", user.id)
         .maybeSingle();
@@ -160,16 +163,22 @@ export default function ProfileCompletionGate() {
   const [residenceLat, setResidenceLat] = useState<number | null>(null);
   const [residenceLng, setResidenceLng] = useState<number | null>(null);
 
-  // Address state — defaults to Africa, Uganda, Kampala for the majority user base
+  // Address state — country defaults to Uganda, but NOTHING below country is
+  // pre-filled: the user must pick their official village themselves.
   const [continent, setContinent] = useState("Africa");
   const [country, setCountry] = useState("Uganda");
-  const [region, setRegion] = useState("Central");
-  const [district, setDistrict] = useState("Kampala");
-  const [city, setCity] = useState("Kampala");
+  const [region, setRegion] = useState("");
+  const [district, setDistrict] = useState("");
+  const [city, setCity] = useState("");
   const [town, setTown] = useState("");
   const [subCounty, setSubCounty] = useState("");
   const [parish, setParish] = useState("");
   const [village, setVillage] = useState("");
+  // Official Uganda administrative selection (ug_* dataset). Single source of
+  // truth for region/district/sub-county/parish/village when in Uganda.
+  const [ugSelection, setUgSelection] = useState<UgLocationSelection | null>(null);
+  const [ugError, setUgError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Persona state
   const [persona, setPersona] = useState("");
@@ -212,6 +221,9 @@ export default function ProfileCompletionGate() {
     if (typeof d.subCounty === "string") setSubCounty(d.subCounty);
     if (typeof d.parish === "string") setParish(d.parish);
     if (typeof d.village === "string") setVillage(d.village);
+    if (d.ugSelection && typeof d.ugSelection === "object") {
+      setUgSelection(d.ugSelection as UgLocationSelection);
+    }
     if (typeof d.persona === "string") setPersona(d.persona);
     if (typeof d.occupation === "string") setOccupation(d.occupation);
     if (typeof d.residenceLat === "number") setResidenceLat(d.residenceLat);
@@ -242,6 +254,18 @@ export default function ProfileCompletionGate() {
       seeding.current = false;
     }, 0);
   }, []);
+
+  // Rebuild the official selection from a saved village id so an existing
+  // address shows as a confirmed pick instead of an empty picker.
+  useEffect(() => {
+    const id = profile?.ug_village_id;
+    if (!id || ugSelection) return;
+    let cancelled = false;
+    resolveUgVillage(id)
+      .then((sel) => { if (!cancelled && sel) setUgSelection(sel); })
+      .catch(() => { /* stored names remain the fallback */ });
+    return () => { cancelled = true; };
+  }, [profile?.ug_village_id, ugSelection]);
 
   // Seed the form from whatever the profile already has, so users only
   // fill the blanks.
@@ -314,6 +338,7 @@ export default function ProfileCompletionGate() {
         subCounty,
         parish,
         village,
+        ugSelection,
         persona,
         occupation,
         residenceLat,
@@ -350,6 +375,7 @@ export default function ProfileCompletionGate() {
     subCounty,
     parish,
     village,
+    ugSelection,
     persona,
     occupation,
     residenceLat,
@@ -381,14 +407,11 @@ export default function ProfileCompletionGate() {
     if (cont) setContinent(cont);
 
     if (country === "Uganda") {
-      setRegion("Central");
-      setDistrict("Kampala");
-      setCity("Kampala");
-    } else {
-      setRegion("");
-      setDistrict("");
-      setCity("");
+      setUgSelection(null);
     }
+    setRegion("");
+    setDistrict("");
+    setCity("");
     setTown("");
     setSubCounty("");
     setParish("");
@@ -407,6 +430,7 @@ export default function ProfileCompletionGate() {
     setSubCounty("");
     setParish("");
     setVillage("");
+    setUgSelection(null);
   }, [continent]);
 
   const isUganda = country === "Uganda";
@@ -455,9 +479,9 @@ export default function ProfileCompletionGate() {
 
   const step1Valid = useMemo(() => {
     if (!resolvedCountry) return false;
-    if (isUganda && !district) return false;
+    if (isUganda && !ugSelection && !district) return false;
     return true;
-  }, [resolvedCountry, isUganda, district]);
+  }, [resolvedCountry, isUganda, ugSelection, district]);
 
   const step2Valid = !!persona;
 
@@ -469,13 +493,14 @@ export default function ProfileCompletionGate() {
   const handleResetLocation = () => {
     setContinent("Africa");
     setCountry("Uganda");
-    setRegion("Central");
-    setDistrict("Kampala");
-    setCity("Kampala");
+    setRegion("");
+    setDistrict("");
+    setCity("");
     setTown("");
     setSubCounty("");
     setParish("");
     setVillage("");
+    setUgSelection(null);
     // Return to the simple, one-field flow and forget any stale saved
     // draft (e.g. an old "France/Paris" selection) so it can't be
     // restored again on the next visit.
@@ -493,7 +518,7 @@ export default function ProfileCompletionGate() {
       void supabase.from("profile_drafts").delete().eq("user_id", user.id);
     }
     toast.success("Reset to Uganda", {
-      description: "Just type your area or village below.",
+      description: "Pick your official village below.",
     });
   };
 
