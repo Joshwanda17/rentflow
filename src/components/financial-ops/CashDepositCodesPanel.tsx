@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { KeyRound, RefreshCw, Loader2, Check, Clock, Radio, Smartphone, Search, Inbox, X, ChevronDown, ArrowLeft } from 'lucide-react';
+import { KeyRound, RefreshCw, Loader2, Check, Clock, Radio, Smartphone, Search, Inbox, X, ChevronDown, ArrowLeft, BarChart3, CheckCircle2, Menu } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { StartCashDepositDialog } from './StartCashDepositDialog';
 
 interface CashCodeRow {
@@ -291,6 +292,8 @@ export function CashDepositCodesPanel({
   const [tab, setTab] = useState<'all' | 'awaiting' | 'verified'>('all');
   const [openId, setOpenId] = useState<string | null>(null);
   const [range, setRange] = useState<'today' | '7d' | '30d' | 'all'>('today');
+  const [view, setView] = useState<'inbox' | 'report'>('inbox');
+  const [navOpen, setNavOpen] = useState(false);
 
   const rangeStart = (() => {
     const now = new Date();
@@ -340,6 +343,67 @@ export function CashDepositCodesPanel({
     { key: 'awaiting', label: 'Awaiting', count: rangeRows.filter((r) => r.status === 'awaiting_code').length },
     { key: 'verified', label: 'Verified', count: rangeRows.filter((r) => r.status === 'verified').length },
   ];
+
+  // Per-day rollups: verified cash actually banked vs cash still awaiting a code.
+  const dayKeyOf = (iso?: string | null) => (iso ? new Date(iso).toDateString() : 'unknown');
+  const dayTotals = new Map<string, { verified: number; awaiting: number; count: number }>();
+  for (const r of rangeRows) {
+    const k = dayKeyOf(r.created_at);
+    const e = dayTotals.get(k) ?? { verified: 0, awaiting: 0, count: 0 };
+    if (r.status === 'verified') e.verified += r.amount ?? 0;
+    else if (r.status === 'awaiting_code') e.awaiting += r.amount ?? 0;
+    e.count += 1;
+    dayTotals.set(k, e);
+  }
+
+  const chartData = Array.from(dayTotals.entries())
+    .filter(([k]) => k !== 'unknown')
+    .sort((a, b) => new Date(a[0]).getTime() - new Date(b[0]).getTime())
+    .map(([k, v]) => ({
+      label: new Date(k).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+      verified: v.verified,
+      awaiting: v.awaiting,
+      count: v.count,
+    }));
+
+  const navItems: { key: 'all' | 'awaiting' | 'verified' | 'report'; label: string; icon: typeof Inbox; count?: number }[] = [
+    { key: 'all', label: 'All', icon: Inbox, count: rangeRows.length },
+    { key: 'awaiting', label: 'Awaiting', icon: Clock, count: rangeRows.filter((r) => r.status === 'awaiting_code').length },
+    { key: 'verified', label: 'Verified', icon: CheckCircle2, count: rangeRows.filter((r) => r.status === 'verified').length },
+    { key: 'report', label: 'Cashflow', icon: BarChart3 },
+  ];
+
+  const selectNav = (key: 'all' | 'awaiting' | 'verified' | 'report') => {
+    setOpenId(null);
+    setNavOpen(false);
+    if (key === 'report') { setView('report'); return; }
+    setView('inbox');
+    setTab(key);
+  };
+
+  const sideNav = (
+    <nav className="p-2 space-y-0.5">
+      {navItems.map((n) => {
+        const active = n.key === 'report' ? view === 'report' : view === 'inbox' && tab === n.key;
+        const Icon = n.icon;
+        return (
+          <button
+            key={n.key}
+            onClick={() => selectNav(n.key)}
+            className={`w-full flex items-center gap-3 rounded-full px-3 py-2 text-sm transition-colors ${
+              active ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground hover:bg-muted'
+            }`}
+          >
+            <Icon className="h-4 w-4 shrink-0" />
+            <span className="truncate">{n.label}</span>
+            {typeof n.count === 'number' && (
+              <span className="ml-auto text-xs tabular-nums opacity-70">{n.count}</span>
+            )}
+          </button>
+        );
+      })}
+    </nav>
+  );
 
   const ranges: { key: 'today' | '7d' | '30d' | 'all'; label: string }[] = [
     { key: 'today', label: 'Today' },
@@ -408,6 +472,15 @@ export function CashDepositCodesPanel({
         {/* ── Gmail-style toolbar ─────────────────────────────────────────── */}
         <div className={`flex flex-wrap items-center gap-2 px-3 py-2.5 border-b ${fullScreen ? 'shrink-0' : ''}`}>
           <div className="flex items-center gap-2 min-w-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 rounded-full md:hidden"
+              aria-label="Menu"
+              onClick={() => setNavOpen((v) => !v)}
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
             {fullScreen && onClose ? (
               <Button
                 variant="ghost"
@@ -462,6 +535,13 @@ export function CashDepositCodesPanel({
           </div>
         </div>
 
+        {/* ── Gmail-style layout: side nav + content ──────────────────────── */}
+        <div className={`flex min-h-0 ${fullScreen ? 'flex-1' : ''}`}>
+          <aside className="hidden md:block w-44 shrink-0 border-r overflow-y-auto">{sideNav}</aside>
+          {navOpen && (
+            <aside className="md:hidden absolute z-20 mt-0 w-44 border-r bg-background shadow-lg">{sideNav}</aside>
+          )}
+          <div className="flex-1 min-w-0 flex flex-col min-h-0">
         {/* ── Gmail-style category tabs ───────────────────────────────────── */}
         <div className={`flex items-center gap-1 px-2 border-b overflow-x-auto ${fullScreen ? 'shrink-0' : ''}`}>
           {tabs.map((t) => (
@@ -513,7 +593,42 @@ export function CashDepositCodesPanel({
 
         {/* ── Reading pane or inbox list ──────────────────────────────────── */}
         <div className={fullScreen ? 'flex-1 min-h-0 overflow-y-auto overscroll-contain' : ''}>
-        {openRow ? (
+        {view === 'report' ? (
+          <div className="p-3 sm:p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <BarChart3 className="h-4 w-4 text-primary" />
+              <h4 className="text-sm font-semibold">Cashflow over time</h4>
+              <span className="ml-auto text-xs text-muted-foreground">{ranges.find((x) => x.key === range)?.label}</span>
+            </div>
+            <div className="h-[240px] rounded-lg border bg-card p-2">
+              {chartData.length ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData} barGap={2}>
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
+                    <XAxis dataKey="label" tick={{ fontSize: 10 }} />
+                    <YAxis tick={{ fontSize: 10 }} width={44} tickFormatter={(v: number) => (v >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : `${Math.round(v / 1000)}k`)} />
+                    <Tooltip formatter={(v: number) => fmtUgx(v)} contentStyle={{ fontSize: 11 }} />
+                    <Bar dataKey="verified" name="Verified" fill="hsl(var(--chart-2))" radius={[3, 3, 0, 0]} />
+                    <Bar dataKey="awaiting" name="Awaiting" fill="hsl(var(--chart-4))" radius={[3, 3, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full grid place-items-center text-xs text-muted-foreground">No cash deposits in this range</div>
+              )}
+            </div>
+            <div className="rounded-lg border divide-y">
+              {chartData.length === 0 && <div className="p-3 text-xs text-muted-foreground">Nothing to show.</div>}
+              {[...chartData].reverse().map((d) => (
+                <div key={d.label} className="flex items-center gap-3 px-3 py-2 text-xs">
+                  <span className="w-20 font-medium">{d.label}</span>
+                  <span className="text-emerald-600 font-semibold tabular-nums">{fmtUgx(d.verified)}</span>
+                  <span className="text-amber-600 tabular-nums">{fmtUgx(d.awaiting)} awaiting</span>
+                  <span className="ml-auto text-muted-foreground">{d.count} codes</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : openRow ? (
           <div className="p-4 space-y-4">
             <Button
               variant="ghost"
@@ -579,8 +694,14 @@ export function CashDepositCodesPanel({
               return (
                 <div key={r.verification_id}>
                   {showGroup && (
-                    <div className="px-3 py-1.5 bg-muted/40 text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
-                      {group}
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/40 text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                      <span>{group}</span>
+                      <span className="ml-auto normal-case tracking-normal">
+                        <span className="text-emerald-600 font-semibold">{fmtUgx(dayTotals.get(dayKeyOf(r.created_at))?.verified ?? 0)}</span>
+                        {' verified · '}
+                        <span className="text-amber-600 font-semibold">{fmtUgx(dayTotals.get(dayKeyOf(r.created_at))?.awaiting ?? 0)}</span>
+                        {' awaiting'}
+                      </span>
                     </div>
                   )}
                   <div
@@ -630,6 +751,8 @@ export function CashDepositCodesPanel({
             })}
           </div>
         )}
+        </div>
+          </div>
         </div>
       </div>
     </>
