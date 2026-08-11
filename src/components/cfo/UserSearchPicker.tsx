@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, Search, X, User, AlertCircle, ShieldAlert } from 'lucide-react';
 
-interface UserResult {
+export interface UserResult {
   id: string;
   full_name: string;
   phone: string;

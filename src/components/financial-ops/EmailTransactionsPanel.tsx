@@ -7,6 +7,7 @@ import { ArchivedPdfsDrawer } from '@/components/financial-ops/ArchivedPdfsDrawe
 import { Badge } from '@/components/ui/badge';
 import { Mail, RefreshCw, Loader2, CheckCircle2, AlertCircle, Smartphone, Bug, ShieldAlert, Copy, Check, Wifi, WifiOff, ShieldCheck, ShieldQuestion, History, LinkIcon, ChevronDown, ChevronUp, FileDown, FileText, AlertTriangle, Search, X, Pencil, Trash2, Star, Users, ArrowRight, Zap, Undo2, Wallet, HelpCircle, Phone, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { RouteEmailDepositDialog, type EmailRowForRouting, type PrefilledUser } from '@/components/financial-ops/RouteEmailDepositDialog';
+import { UserSearchPicker, type UserResult } from '@/components/cfo/UserSearchPicker';
 import { BucketTransferLauncher } from '@/components/financial-ops/BucketTransferDialog';
 import { BacklogSweepLauncher } from '@/components/financial-ops/BacklogSweepDialog';
 import { Info, Inbox, AlertOctagon, Send, Menu } from 'lucide-react';
@@ -1158,6 +1159,9 @@ export function EmailTransactionsPanel() {
   const [routingRow, setRoutingRow] = useState<GmailTx | null>(null);
   const [routingSuggestedUser, setRoutingSuggestedUser] = useState<PrefilledUser | null>(null);
   const [routingMode, setRoutingMode] = useState<'credit' | 'debit'>('credit');
+  // Per-row user selected via the inline search bar inside an expanded email.
+  // Keyed by gmail_transactions.id so multiple rows can keep independent picks.
+  const [inlineRouteUsers, setInlineRouteUsers] = useState<Record<string, UserResult>>({});
   // Row whose full status-history drawer is open (null = closed).
   const [historyDrawerRow, setHistoryDrawerRow] = useState<GmailTx | null>(null);
   // Search + route-type filter for the status-history drawer.
@@ -3218,8 +3222,8 @@ export function EmailTransactionsPanel() {
     return top ? { id: top.id, full_name: top.full_name, phone: top.phone ?? '', matched_phone: matchedPhone } : null;
   };
 
-  const navigateToRow = (nextRow: GmailTx, mode: 'credit' | 'debit') => {
-    setRoutingSuggestedUser(computeSuggestedFor(nextRow, mode));
+  const navigateToRow = (nextRow: GmailTx, mode: 'credit' | 'debit', overrideUser?: PrefilledUser | null) => {
+    setRoutingSuggestedUser(overrideUser ?? computeSuggestedFor(nextRow, mode));
     setRoutingMode(mode);
     setRoutingRow(nextRow);
   };
@@ -4908,23 +4912,48 @@ export function EmailTransactionsPanel() {
                             sees when they open a deposit that has not reached a
                             wallet yet. Full-width and unmissable. */}
                         {r.direction === 'in' && !isCredited && !isRouted && (
-                          <div className="rounded-lg border-2 border-emerald-500/60 bg-emerald-500/10 p-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-                            <div className="min-w-0 flex-1">
+                          <div className="rounded-lg border-2 border-emerald-500/60 bg-emerald-500/10 p-3 space-y-3">
+                            <div className="flex items-start gap-2">
                               <p className="text-[11px] font-bold uppercase tracking-wide text-emerald-800 dark:text-emerald-300 inline-flex items-center gap-1">
                                 <AlertTriangle className="h-3.5 w-3.5" /> Not in any wallet yet
                               </p>
-                              <p className="text-[11px] text-muted-foreground mt-0.5 break-words">
-                                {fmtUgx(r.amount)} received{r.counterparty ? ` from ${r.counterparty}` : ''} — search the user by phone or name and credit it.
-                              </p>
                             </div>
-                            <Button
-                              size="lg"
-                              className="w-full sm:w-auto h-12 px-6 text-sm font-bold gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/30 ring-2 ring-emerald-400/60 ring-offset-1 animate-pulse shrink-0"
-                              title="Credit this deposit to any user's wallet — search by phone number or name."
-                              onClick={() => navigateToRow(r, 'credit')}
-                            >
-                              <Wallet className="h-5 w-5" /> Credit to wallet
-                            </Button>
+                            <p className="text-[11px] text-muted-foreground break-words">
+                              {fmtUgx(r.amount)} received{r.counterparty ? ` from ${r.counterparty}` : ''} — search the user by phone or name and credit it.
+                            </p>
+                            <div className="flex flex-col sm:flex-row gap-2 items-end">
+                              <div className="flex-1 min-w-0 w-full">
+                                <UserSearchPicker
+                                  label="Search user by phone / name"
+                                  placeholder="Type phone number or name…"
+                                  selectedUser={inlineRouteUsers[r.id] ?? null}
+                                  onSelect={(user) => {
+                                    setInlineRouteUsers((cur) => {
+                                      const next = { ...cur };
+                                      if (user) next[r.id] = user;
+                                      else delete next[r.id];
+                                      return next;
+                                    });
+                                  }}
+                                />
+                              </div>
+                              <Button
+                                size="lg"
+                                disabled={!inlineRouteUsers[r.id]}
+                                className="w-full sm:w-auto h-12 px-5 text-sm font-bold gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:animate-none text-white shadow-lg shadow-emerald-500/30 ring-2 ring-emerald-400/60 ring-offset-1 animate-pulse shrink-0"
+                                title={inlineRouteUsers[r.id] ? `Credit this deposit to ${inlineRouteUsers[r.id].full_name}'s wallet` : 'Select a user first'}
+                                onClick={() => {
+                                  const u = inlineRouteUsers[r.id];
+                                  if (!u) return;
+                                  navigateToRow(r, 'credit', { id: u.id, full_name: u.full_name, phone: u.phone });
+                                }}
+                              >
+                                <Wallet className="h-5 w-5" />
+                                {inlineRouteUsers[r.id]
+                                  ? `Credit ${inlineRouteUsers[r.id].full_name.split(' ')[0] || inlineRouteUsers[r.id].full_name}`
+                                  : 'Credit to wallet'}
+                              </Button>
+                            </div>
                           </div>
                         )}
                         {/* 0) Full receipt — the complete parsed email so a phone
