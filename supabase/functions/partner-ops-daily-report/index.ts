@@ -321,7 +321,7 @@ function buildPdf(r: Report, win: { title: string; pretty: string }, logo: Uint8
       doc.setTextColor(...INK);
       doc.text(ascii(bar.label), margin, y + 3.6);
       const trackX = margin + 34;
-      const trackW = pageWidth - margin - 50 - trackX;
+      const trackW = pageWidth - margin - 62 - trackX;
       doc.setFillColor(...tint(bar.color, 0.9));
       doc.roundedRect(trackX, y, trackW, 5, 1, 1, "F");
       const w = ((Number(bar.value) || 0) / max) * trackW;
@@ -482,7 +482,7 @@ function buildPdf(r: Report, win: { title: string; pretty: string }, logo: Uint8
     { label: "Top-ups applied", value: compactUGX(t.applied_amount), accent: AMBER },
     { label: "Compounded in", value: compactUGX(k.compounded_amount), accent: TEAL },
     { label: "Returns paid out", value: compactUGX(k.paid_out_amount), accent: ROSE },
-    { label: "Cash-out of paid returns", value: compactUGX(k.withdrawals_completed_amount), accent: SLATE },
+    { label: "Partner cash-out", value: compactUGX(k.withdrawals_completed_amount), accent: SLATE },
   ]);
   const inflow = (Number(k.new_capital) || 0) + (Number(t.applied_amount) || 0) + (Number(k.compounded_amount) || 0);
   const outflow = Number(k.paid_out_amount) || 0;
