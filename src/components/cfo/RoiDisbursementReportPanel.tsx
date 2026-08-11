@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, FileDown, Printer, RefreshCw, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Loader2, FileDown, Printer, RefreshCw, AlertTriangle, CheckCircle2, FileText, CalendarDays, Clock, ShieldCheck } from 'lucide-react';
 import { downloadCsv } from '@/lib/csvExport';
 import { toast } from 'sonner';
 
