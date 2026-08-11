@@ -15,6 +15,8 @@ import { ExistingTenantPhoneNotice } from '@/components/agent/ExistingTenantPhon
 import { TenantDuplicateNotice } from '@/components/agent/TenantDuplicateNotice';
 import { useTenantDuplicateCheck, type TenantDuplicateMatch } from '@/hooks/useTenantDuplicateCheck';
 import { UgLocationPicker } from '@/components/location/UgLocationPicker';
+import { Lc1VillagePicker } from '@/components/location/Lc1VillagePicker';
+import { UgDistrictSelect, type UgDistrictValue } from '@/components/location/UgDistrictSelect';
 import type { UgLocationSelection } from '@/hooks/useUgLocations';
 
 import { useAuth } from '@/hooks/useAuth';
@@ -5118,12 +5120,13 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     <Label >Village *</Label>
                     <p className="text-xs text-muted-foreground leading-snug">The village or zone the LC1 looks after.</p>
                     <p className="text-[11px] text-muted-foreground">e.g. Kira Zone A</p>
-                    <Input
-                      value={lc1Village}
-                      onChange={(e) => setLc1Village(formatNameInput(e.target.value))}
-                      placeholder="Village"
-                      className={`${hasFieldError('lc1Village') ? 'border-destructive border-2' : ''}`}
+                    <Lc1VillagePicker
+                      label="Village"
                       required
+                      value={lc1Village}
+                      error={hasFieldError('lc1Village') ? getFieldError('lc1Village') : null}
+                      districtName={propertyDistrict || null}
+                      onChange={(name) => setLc1Village(name)}
                     />
                     <FieldError message={vPlace(lc1Village, 'Kira Zone A') || getFieldError('lc1Village')} />
                   </div>
@@ -5209,17 +5212,14 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     <Label >District</Label>
                     <p className="text-xs text-muted-foreground leading-snug">The district the house is in, like Wakiso.</p>
                     <p className="text-[11px] text-muted-foreground">e.g. Wakiso</p>
-                    <Input
-                      value={propertyDistrict}
-                      onChange={(e) => setPropertyDistrict(e.target.value)}
-                      onBlur={(e) => {
-                        const normalized = normalizeDistrict(e.target.value);
-                        if (normalized && normalized !== e.target.value.trim()) {
-                          setPropertyDistrict(normalized);
-                        }
+                    <UgDistrictSelect
+                      label="District"
+                      legacyText={propertyDistrict}
+                      value={propertyDistrictUnit}
+                      onChange={(unit) => {
+                        setPropertyDistrictUnit(unit);
+                        setPropertyDistrict(unit?.name ?? '');
                       }}
-                      placeholder="e.g. Wakiso"
-                      className={`${hasFieldError('propertyDistrict') ? 'border-destructive border-2' : ''}`}
                     />
                     <FieldError message={vPlace(propertyDistrict, 'Wakiso') || getFieldError('propertyDistrict')} />
                     {districtWarning(propertyDistrict) && (
