@@ -650,9 +650,9 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
             </div>
           </div>
 
-          {/* Exact GPS-captured location filters (from the agent's listing).
-              Only shown when houses expose these fields, cascading region →
-              district → sub-county → village so tenants can drill to a precise area. */}
+          {/* Dataset-backed area filters (ug_districts → ug_subcounties), plus
+              village from the listings themselves. Cascades Region → District →
+              Sub-county → Village so tenants drill to a precise area. */}
           {(districtOptions.length > 0 || subCountyOptions.length > 0 || villageOptions.length > 0) && (
             <div className="flex gap-2">
               <Select value={selectedDistrict} onValueChange={handleDistrictChange}>
