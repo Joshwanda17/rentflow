@@ -772,6 +772,7 @@ export function CashDepositCodesPanel({
                     </div>
 
                     <div className="hidden md:flex items-center gap-2 shrink-0">
+                      <CashLocationBadge location={r.cash_location} />
                       <StatusBadge status={r.status} />
                       <Countdown expiresAt={r.expires_at} inline />
                     </div>
