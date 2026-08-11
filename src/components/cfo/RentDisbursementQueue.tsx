@@ -412,8 +412,8 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
               </SelectContent>
             </Select>
             <Select value={dateFilter} onValueChange={(v) => { setDateFilter(v as any); setSelected(new Set()); }}>
-              <SelectTrigger className="h-8 text-xs w-full bg-background">
-                <CalendarDays className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
+              <SelectTrigger className="h-11 rounded-xl text-sm w-full bg-background border-border/70">
+                <CalendarDays className="h-4 w-4 mr-2 text-muted-foreground" />
                 <SelectValue placeholder="Date range" />
               </SelectTrigger>
               <SelectContent>
@@ -425,7 +425,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
             {agentFilter !== 'all' && (
               <button
                 type="button"
-                className="text-[11px] text-primary hover:underline justify-self-start sm:col-span-2 lg:col-span-3"
+                className="text-xs font-medium text-primary hover:underline justify-self-start sm:col-span-2 lg:col-span-3"
                 onClick={() => setAgentFilter('all')}
               >
                 Clear agent
@@ -433,13 +433,17 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
             )}
           </div>
         </div>
-        {filteredItems.length > 0 && (
-          <p className="text-xs text-muted-foreground">
-            COO-approved rent. Funding lands in the assigned agent's <b>Landlord Payout Float</b> — the agent then pays the landlord via MoMo + OTP. Revenue earned: <span className="font-bold text-emerald-600">{fmt(queueTotalRevenue)}</span>
-          </p>
-        )}
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 p-5">
+        {filteredItems.length > 0 && (
+          <div className="flex items-start gap-3 rounded-xl bg-primary/[0.06] border border-primary/15 px-4 py-3">
+            <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary text-xs font-bold">i</span>
+            <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+              Funding lands in the assigned agent's <b className="text-foreground">Landlord Payout Float</b> — the agent then pays the landlord via MoMo + OTP.
+              Revenue earned: <span className="font-bold text-emerald-600">{fmt(queueTotalRevenue)}</span>
+            </p>
+          </div>
+        )}
         {/*
           Pay by Location/Category — part of Fund Agent Landlord Payout Float.
           Recipient selection only: it ticks rows in the queue below, which then
