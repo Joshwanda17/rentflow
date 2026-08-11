@@ -382,7 +382,7 @@ export function CashDepositCodesPanel({
     .filter((r) =>
       !q
         ? true
-        : [r.depositor_name, r.depositor_phone, purposeLabel(r.deposit_purpose), cashLocationLabel(r.cash_location), String(r.amount ?? '')]
+        : [r.depositor_name, r.wallet_holder_name, r.depositor_phone, purposeLabel(r.deposit_purpose), cashLocationLabel(r.cash_location), String(r.amount ?? '')]
             .join(' ')
             .toLowerCase()
             .includes(q),
