@@ -17,7 +17,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Loader2, CheckCircle2, Banknote, Home, TrendingUp, Users, Wallet, AlertTriangle, XCircle, CalendarDays, Search, MapPin, Filter } from 'lucide-react';
+import { Loader2, CheckCircle2, Banknote, Home, TrendingUp, Users, Wallet, AlertTriangle, XCircle, Search, MapPin, Filter } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -477,11 +477,6 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
               </p>
               <div className="flex items-center gap-4 flex-wrap pt-1 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1.5">
-                  <CalendarDays className="h-3.5 w-3.5" />
-                  {dateFilterLabel[dateFilter]}
-                </span>
-                <span className="opacity-50">•</span>
-                <span className="flex items-center gap-1.5">
                   <Users className="h-3.5 w-3.5" />
                   {grouped.length} agent{grouped.length === 1 ? '' : 's'} in queue
                 </span>
@@ -500,7 +495,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
 
         {/* Filter band */}
         <div className="border-y border-border/70 bg-muted/20 px-5 py-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,11rem)_minmax(0,11rem)_minmax(0,13rem)_minmax(0,10rem)] gap-3 items-center">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,13rem)_minmax(0,10rem)_minmax(0,10rem)] gap-3 items-center">
             <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -510,37 +505,6 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                 className="h-11 rounded-xl text-sm pl-9 bg-background border-border/70"
               />
             </div>
-            <Select
-              value={districtFilter}
-              onValueChange={(v) => { setDistrictFilter(v); setCityFilter('all'); }}
-            >
-              <SelectTrigger className="h-11 rounded-xl text-sm w-full bg-background border-border/70">
-                <MapPin className="h-4 w-4 mr-2 text-muted-foreground" />
-                <SelectValue placeholder="District" />
-              </SelectTrigger>
-              <SelectContent className="max-h-[320px]">
-                <SelectItem value="all">All districts</SelectItem>
-                {districtOptions.map(d => (
-                  <SelectItem key={d.name} value={d.name}>
-                    <span className="truncate">{d.name} · {d.count}</span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={cityFilter} onValueChange={setCityFilter}>
-              <SelectTrigger className="h-11 rounded-xl text-sm w-full bg-background border-border/70">
-                <MapPin className="h-4 w-4 mr-2 text-muted-foreground" />
-                <SelectValue placeholder="Town / City" />
-              </SelectTrigger>
-              <SelectContent className="max-h-[320px]">
-                <SelectItem value="all">All towns / cities</SelectItem>
-                {cityOptions.map(c => (
-                  <SelectItem key={c.name} value={c.name}>
-                    <span className="truncate">{c.name} · {c.count}</span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
             <Select value={agentFilter} onValueChange={setAgentFilter}>
               <SelectTrigger className="h-11 rounded-xl text-sm w-full bg-background border-border/70">
                 <Users className="h-4 w-4 mr-2 text-muted-foreground" />
@@ -558,17 +522,6 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                     </SelectItem>
                   );
                 })}
-              </SelectContent>
-            </Select>
-            <Select value={dateFilter} onValueChange={(v) => { setDateFilter(v as any); setSelected(new Set()); }}>
-              <SelectTrigger className="h-11 rounded-xl text-sm w-full bg-background border-border/70">
-                <CalendarDays className="h-4 w-4 mr-2 text-muted-foreground" />
-                <SelectValue placeholder="Date range" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All time</SelectItem>
-                <SelectItem value="7d">Last 7 days</SelectItem>
-                <SelectItem value="30d">Last 30 days</SelectItem>
               </SelectContent>
             </Select>
             <Select value={catField} onValueChange={(v) => { setCatField(v as CatFieldKey); setCatValue('all'); setSelected(new Set()); }}>
@@ -598,7 +551,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
             {(agentFilter !== 'all' || locationScoped) && (
               <button
                 type="button"
-                className="text-xs font-medium text-primary hover:underline justify-self-start sm:col-span-2 lg:col-span-5"
+                className="text-xs font-medium text-primary hover:underline justify-self-start sm:col-span-2 lg:col-span-4"
                 onClick={() => { setAgentFilter('all'); clearLocation(); }}
               >
                 Clear agent &amp; location
@@ -805,38 +758,6 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                     </Select>
                   </div>
                   <div className="space-y-1.5">
-                    <p className="text-xs font-semibold text-muted-foreground">District</p>
-                    <Select value={districtFilter} onValueChange={(v) => { setDistrictFilter(v); setCityFilter('all'); }}>
-                      <SelectTrigger className="h-9 rounded-lg text-sm">
-                        <SelectValue placeholder="All districts" />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-[280px]">
-                        <SelectItem value="all">All districts</SelectItem>
-                        {districtOptions.map(d => (
-                          <SelectItem key={d.name} value={d.name}>
-                            <span className="truncate">{d.name} · {d.count}</span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <p className="text-xs font-semibold text-muted-foreground">Town / City</p>
-                    <Select value={cityFilter} onValueChange={setCityFilter}>
-                      <SelectTrigger className="h-9 rounded-lg text-sm">
-                        <SelectValue placeholder="All towns / cities" />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-[280px]">
-                        <SelectItem value="all">All towns / cities</SelectItem>
-                        {cityOptions.map(c => (
-                          <SelectItem key={c.name} value={c.name}>
-                            <span className="truncate">{c.name} · {c.count}</span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
                     <p className="text-xs font-semibold text-muted-foreground">Agent</p>
                     <Select value={agentFilter} onValueChange={setAgentFilter}>
                       <SelectTrigger className="h-9 rounded-lg text-sm">
@@ -865,19 +786,6 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                             <span className="truncate">{c.country} · {c.count}</span>
                           </SelectItem>
                         ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <p className="text-xs font-semibold text-muted-foreground">Date range</p>
-                    <Select value={dateFilter} onValueChange={(v) => { setDateFilter(v as any); setSelected(new Set()); }}>
-                      <SelectTrigger className="h-9 rounded-lg text-sm">
-                        <SelectValue placeholder="Date range" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All time</SelectItem>
-                        <SelectItem value="7d">Last 7 days</SelectItem>
-                        <SelectItem value="30d">Last 30 days</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
