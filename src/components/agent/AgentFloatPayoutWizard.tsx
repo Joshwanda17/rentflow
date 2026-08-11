@@ -368,7 +368,35 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
           property_longitude: r.landlord?.longitude ?? null,
         },
       });
-      if (error) throw error;
+      if (error) {
+        // supabase-js hides our JSON body behind a generic
+        // "Edge Function returned a non-2xx status code". Read the real reason.
+        const ctx: any = (error as any)?.context;
+        let body: any = null;
+        try {
+          body = ctx && typeof ctx.json === 'function'
+            ? await (ctx.clone?.() ?? ctx).json()
+            : null;
+        } catch { /* non-JSON body */ }
+
+        // Already paid / already queued: adopt the existing payout instead of
+        // showing a failure — the money movement really did happen.
+        const existingId = body?.existing_payout_id || body?.payout_id;
+        if (existingId) {
+          await supabase
+            .from('landlord_payout_otp_challenges')
+            .update({ resulting_payout_id: existingId })
+            .eq('id', challenge.id);
+          setActivePayoutId(existingId);
+          qc.invalidateQueries({ queryKey: ['landlord-otp-challenge', challenge.id] });
+          setStep('disburse');
+          toast.success('This payout was already queued — opening it.');
+          return;
+        }
+
+        throw new Error(body?.error || (await extractFromErrorObject(error, 'Retry failed')));
+      }
+      if ((data as any)?.error) throw new Error((data as any).error);
       if ((data as any)?.payout_id) {
         await supabase
           .from('landlord_payout_otp_challenges')
