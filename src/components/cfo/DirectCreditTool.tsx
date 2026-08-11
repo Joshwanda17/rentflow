@@ -455,6 +455,12 @@ export function DirectCreditTool() {
   );
 
   const isRentDisbursement = selectedCategoryId === 'rent_disbursement';
+  // Rent requests behind the tenants picked via Pay by Location/Category.
+  // Used only to narrow the existing rent disbursement queue.
+  const rentRequestIdsFromLocation = useMemo(
+    () => locationRecipients.map(r => r.rent_request_id).filter(Boolean) as string[],
+    [locationRecipients],
+  );
   const isBusinessAdvance = selectedCategoryId === 'business_advance';
   const isROIPayout = selectedCategoryId === 'roi_payout';
   const isQueueCategory = isRentDisbursement || isBusinessAdvance || isROIPayout;
