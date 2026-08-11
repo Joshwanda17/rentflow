@@ -243,6 +243,11 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
   );
   const visibleItems = useMemo(() => visibleGroups.flatMap(g => g.rows), [visibleGroups]);
   const allSelected = visibleItems.length > 0 && visibleItems.every(i => selected.has(i.id));
+  // Presentation only: which visible row should host the inline Step 2 panel.
+  const firstSelectedId = useMemo(
+    () => visibleItems.find(i => selected.has(i.id))?.id ?? null,
+    [visibleItems, selected],
+  );
   const toggleAll = () => {
     const next = new Set(selected);
     if (allSelected) visibleItems.forEach(i => next.delete(i.id));
