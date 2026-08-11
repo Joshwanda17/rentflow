@@ -26,6 +26,7 @@ import { TenantLocationBrowser } from './tenant-ops/TenantLocationBrowser';
 import { GlobalVerificationHub } from './GlobalVerificationHub';
 import { WelileOperationsHub } from './WelileOperationsHub';
 import { AgentNetworkBadge } from './tenant-ops/AgentNetworkBadge';
+import { PipelineStatusHub } from './tenant-ops/PipelineStatusHub';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -1247,19 +1248,17 @@ export function TenantOpsDashboard() {
       case 'pipeline':
         return (
           <div className="space-y-4">
+            <PipelineStatusHub
+              onOpenTenant={(tenantId, tenantName) => {
+                setSelectedTenant({ id: tenantId, name: tenantName });
+                setActiveView('tenant-detail');
+              }}
+            />
             <RentPipelineQueue
               stage="agent_ops_approved"
               additionalStatuses={['agent_verified']}
             />
             <RejectedRequestsQueue stageFilter="agent_ops_approved" title="Rejected at Tenant Ops" />
-            <div className="grid grid-cols-2 gap-2">
-              <KPICard title="Pending" value={pending} icon={Clock} loading={isLoading} color="bg-amber-500/10 text-amber-600" />
-              <KPICard title="In Pipeline" value={inPipeline} icon={ArrowRight} loading={isLoading} color="bg-blue-500/10 text-blue-600" />
-              <KPICard title="Funded" value={funded} icon={Banknote} loading={isLoading} color="bg-green-500/10 text-green-600" />
-              <KPICard title="Repaying" value={repaying} icon={FileCheck} loading={isLoading} color="bg-purple-500/10 text-purple-600" />
-              <KPICard title="Fully Repaid" value={fullyRepaid} icon={CheckCircle2} loading={isLoading} color="bg-emerald-500/10 text-emerald-600" />
-              <KPICard title="Defaulted" value={defaulted} icon={AlertTriangle} loading={isLoading} color="bg-destructive/10 text-destructive" />
-            </div>
           </div>
         );
       case 'daily':
