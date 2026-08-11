@@ -598,7 +598,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
 
             {/* Country breakdown — click a chip to filter the queue by country */}
             {countryStats.length > 0 && (
-              <div className="rounded-lg border border-border/60 bg-muted/30 p-2">
+              <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
                 <div className="flex items-center justify-between mb-1.5 px-1">
                   <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
                     Requests by country
@@ -618,7 +618,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                     type="button"
                     onClick={() => setCountryFilter('all')}
                     className={cn(
-                      'px-2.5 py-1 rounded-md text-xs border transition-colors',
+                      'px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
                       countryFilter === 'all'
                         ? 'bg-primary text-primary-foreground border-primary'
                         : 'bg-background hover:bg-muted border-border',
@@ -632,7 +632,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                       type="button"
                       onClick={() => setCountryFilter(c.country)}
                       className={cn(
-                        'px-2.5 py-1 rounded-md text-xs border transition-colors',
+                        'px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
                         countryFilter === c.country
                           ? 'bg-primary text-primary-foreground border-primary'
                           : 'bg-background hover:bg-muted border-border',
