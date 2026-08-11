@@ -19,6 +19,8 @@ export interface HouseListing {
   district: string | null;
   sub_county?: string | null;
   village?: string | null;
+  /** Official ug_villages id — present only on upgraded listings. */
+  ug_village_id?: number | null;
   address: string;
   latitude: number | null;
   longitude: number | null;
@@ -183,6 +185,8 @@ interface UseNearbyHousesOptions {
   district?: string;
   subCounty?: string;
   village?: string;
+  /** Official ug_villages id for the picked village (upgraded listings). */
+  villageId?: number | null;
   search?: string;
   limit?: number;
   enabled?: boolean;
@@ -246,6 +250,7 @@ function nearbyCacheKey(o: UseNearbyHousesOptions, paginate: boolean, pageSize: 
     o.district || '',
     o.subCounty || '',
     o.village || '',
+    o.villageId ?? '',
     o.search || '',
     paginate ? 1 : 0,
     pageSize,
