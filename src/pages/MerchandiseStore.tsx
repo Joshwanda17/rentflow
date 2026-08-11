@@ -598,10 +598,43 @@ export default function MerchandiseStore() {
                 <div>
                   <p className="font-semibold text-sm">{selected.item_name}</p>
                   <p className="text-xs text-muted-foreground">{formatUGX(Number(selected.unit_price))} each</p>
+                  {needsSize && selectedSize && (
+                    <p className="text-xs font-medium text-primary">Size {selectedSize}</p>
+                  )}
                 </div>
               </div>
               {!confirmStep && (
               <>
+              {needsSize && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">Choose your size</Label>
+                    <span className="text-[10px] text-muted-foreground">In stock now</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {availableSizes.map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setSelectedSize(s)}
+                        aria-pressed={selectedSize === s}
+                        className={`min-w-[44px] rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+                          selectedSize === s
+                            ? 'border-primary bg-primary text-primary-foreground'
+                            : 'border-border hover:border-primary/50'
+                        }`}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                  {sizeMissing && (
+                    <p className="text-[11px] text-muted-foreground">
+                      Pick a size to continue — only the sizes shown are available in stock.
+                    </p>
+                  )}
+                </div>
+              )}
               <div className="space-y-1">
                 <Label className="text-xs">Quantity</Label>
                 <Input
@@ -714,15 +747,15 @@ export default function MerchandiseStore() {
             {confirmStep ? (
               <>
                 <Button variant="outline" onClick={() => setConfirmStep(false)} disabled={ordering}>Back</Button>
-                <Button onClick={placeOrder} disabled={ordering || insufficient}>
+                <Button onClick={placeOrder} disabled={ordering || insufficient || sizeMissing}>
                   {ordering ? 'Placing order…' : zeroDown ? 'Yes, place order' : `Yes, pay ${formatUGX(dueNow)}`}
                 </Button>
               </>
             ) : (
               <>
                 <Button variant="outline" onClick={() => setSelected(null)} disabled={ordering}>Cancel</Button>
-                <Button onClick={() => setConfirmStep(true)} disabled={insufficient}>
-                  {insufficient ? 'Not enough balance' : 'Review order'}
+                <Button onClick={() => setConfirmStep(true)} disabled={insufficient || sizeMissing}>
+                  {insufficient ? 'Not enough balance' : sizeMissing ? 'Choose a size' : 'Review order'}
                 </Button>
               </>
             )}
