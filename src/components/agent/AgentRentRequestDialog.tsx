@@ -747,6 +747,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   // landing in the "needs verification" bucket.
   const [propertyCity, setPropertyCity] = useState('');
   const [propertyDistrict, setPropertyDistrict] = useState('');
+  /** Official ug_districts unit behind propertyDistrict (dataset-backed capture). */
+  const [propertyDistrictUnit, setPropertyDistrictUnit] = useState<UgDistrictValue | null>(null);
   const [houseCategory, setHouseCategory] = useState('');
   const [landlordPayoutDay, setLandlordPayoutDay] = useState<string>('1');
   const [noSmartphone, setNoSmartphone] = useState(false);
