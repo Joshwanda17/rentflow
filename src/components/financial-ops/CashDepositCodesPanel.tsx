@@ -19,6 +19,7 @@ interface CashCodeRow {
   attempts: number | null;
   max_attempts: number | null;
   deposit_purpose: string | null;
+  cash_location: 'cash_at_hand' | 'bank' | string | null;
   expires_at: string | null;
   created_at: string;
 }
