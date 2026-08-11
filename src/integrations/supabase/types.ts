@@ -27814,6 +27814,60 @@ export type Database = {
         }
         Relationships: []
       }
+      tenant_documents: {
+        Row: {
+          bucket: string
+          created_at: string
+          doc_type: string
+          id: string
+          is_current: boolean
+          metadata: Json
+          path: string | null
+          public_url: string | null
+          source_rent_request_id: string | null
+          tenant_id: string
+          updated_at: string
+          uploaded_by: string | null
+          verified_at: string | null
+          verified_by: string | null
+          version: number
+        }
+        Insert: {
+          bucket: string
+          created_at?: string
+          doc_type: string
+          id?: string
+          is_current?: boolean
+          metadata?: Json
+          path?: string | null
+          public_url?: string | null
+          source_rent_request_id?: string | null
+          tenant_id: string
+          updated_at?: string
+          uploaded_by?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
+          version?: number
+        }
+        Update: {
+          bucket?: string
+          created_at?: string
+          doc_type?: string
+          id?: string
+          is_current?: boolean
+          metadata?: Json
+          path?: string | null
+          public_url?: string | null
+          source_rent_request_id?: string | null
+          tenant_id?: string
+          updated_at?: string
+          uploaded_by?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
+          version?: number
+        }
+        Relationships: []
+      }
       tenant_idle_states: {
         Row: {
           agent_id: string
@@ -33151,6 +33205,10 @@ export type Database = {
         Args: { _tenant_id: string }
         Returns: Json
       }
+      can_manage_tenant_documents: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
       can_pause_agent_advance: { Args: { _user_id: string }; Returns: boolean }
       can_process_cashout: { Args: { _agent_id: string }; Returns: boolean }
       can_read_landlord_payout_receipts: {
@@ -35705,6 +35763,20 @@ export type Database = {
           warning_count: number
         }[]
       }
+      get_tenant_documents: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          bucket: string
+          created_at: string
+          doc_type: string
+          id: string
+          is_current: boolean
+          path: string
+          public_url: string
+          source_rent_request_id: string
+          version: number
+        }[]
+      }
       get_tenant_location_breakdown: {
         Args: {
           p_agent_id?: string
@@ -35984,11 +36056,6 @@ export type Database = {
           wallet_balance: number
         }[]
       }
-      get_deposit_autocredit_success_rate: {
-        Args: { p_window_hours?: number }
-        Returns: Json
-      }
-      get_phone_platform_reconciliation: { Args: never; Returns: Json }
       get_wallet_totals: { Args: never; Returns: Json }
       get_wallet_totals_strict: { Args: never; Returns: Json }
       get_wallets_batch: {
@@ -37676,6 +37743,18 @@ export type Database = {
       refund_agent_float_for_payout: {
         Args: { p_payout_id: string; p_reason: string }
         Returns: Json
+      }
+      register_tenant_document: {
+        Args: {
+          p_bucket: string
+          p_doc_type: string
+          p_path: string
+          p_public_url: string
+          p_source_rent_request_id: string
+          p_tenant_id: string
+          p_uploaded_by: string
+        }
+        Returns: string
       }
       reject_advance_as_duplicate: {
         Args: {
