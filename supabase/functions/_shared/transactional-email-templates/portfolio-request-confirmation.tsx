@@ -29,7 +29,11 @@ const formatAmount = (amount: string | number | undefined, currency: string) => 
 }
 
 const labelFor = (t?: string) =>
-  t === 'REDEMPTION_REQUEST' ? 'Capital Redemption Request' : 'Partnership Renewal Request'
+  t === 'REDEMPTION_REQUEST'
+    ? 'Capital Redemption Request'
+    : t === 'NEW_PORTFOLIO_REQUEST'
+      ? 'New Portfolio Request'
+      : 'Partnership Renewal Request'
 
 export function PortfolioRequestConfirmation({
   partner_name = 'Partner',
