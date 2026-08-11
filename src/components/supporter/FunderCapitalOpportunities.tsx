@@ -231,25 +231,25 @@ function OptionCard({
       }
     >
       <span className={`pointer-events-none absolute inset-0 group-hover:animate-[shimmer_1.2s_ease-in-out_infinite] bg-gradient-to-r from-transparent ${light ? 'via-white/50' : 'via-white/15'} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300`} aria-hidden="true" />
-      <div className="relative flex flex-col items-center justify-center h-full gap-3">
+      <div className="relative flex flex-col items-center justify-between h-full gap-2 py-1">
         {image ? (
           <img
             src={image}
             alt=""
             aria-hidden="true"
             loading="lazy"
-            className="relative h-20 w-20 object-contain shrink-0 group-hover:scale-110 group-focus-visible:scale-110 transition-transform duration-200"
+            className="relative h-24 w-24 object-contain shrink-0 group-hover:scale-110 group-focus-visible:scale-110 transition-transform duration-200"
           />
         ) : (
-          <div className={`relative p-4 rounded-2xl shrink-0 backdrop-blur-sm ring-1 shadow-inner group-hover:scale-110 group-focus-visible:scale-110 transition-all duration-200 ${light ? 'bg-white/60 text-primary ring-foreground/10' : 'bg-white/25 text-white ring-white/30 shadow-white/10 group-hover:bg-white/35 group-focus-visible:bg-white/35'}`}>
-            <Icon className="h-7 w-7" strokeWidth={2.5} />
+          <div className={`relative p-5 rounded-2xl shrink-0 backdrop-blur-sm ring-1 shadow-inner group-hover:scale-110 group-focus-visible:scale-110 transition-all duration-200 ${light ? 'bg-white/60 text-primary ring-foreground/10' : 'bg-white/25 text-white ring-white/30 shadow-white/10 group-hover:bg-white/35 group-focus-visible:bg-white/35'}`}>
+            <Icon className="h-9 w-9" strokeWidth={2.5} />
           </div>
         )}
         <div className="relative flex flex-col items-center gap-1.5">
-          <p className={`text-sm font-bold leading-tight ${light ? 'text-foreground' : 'text-white'}`}>{title}</p>
-          <p className={`text-[11px] font-medium leading-snug line-clamp-3 ${light ? 'text-foreground/70' : 'text-white/80'}`}>{description}</p>
+          <p className={`text-base font-bold leading-tight ${light ? 'text-foreground' : 'text-white'}`}>{title}</p>
+          <p className={`text-xs font-medium leading-snug line-clamp-3 ${light ? 'text-foreground/70' : 'text-white/80'}`}>{description}</p>
         </div>
-        <ChevronRight className={`relative h-5 w-5 shrink-0 group-hover:translate-x-1 group-focus-visible:translate-x-1 transition-transform duration-200 mt-1 ${light ? 'text-foreground/60' : 'text-white/80'}`} />
+        <ChevronRight className={`relative h-5 w-5 shrink-0 group-hover:translate-x-1 group-focus-visible:translate-x-1 transition-transform duration-200 ${light ? 'text-foreground/60' : 'text-white/80'}`} />
       </div>
     </motion.button>
   );
