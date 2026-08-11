@@ -464,7 +464,7 @@ export async function endAssignment(input: {
     action_type: 'hr_assignment_ended',
     table_name: 'hr_assignments',
     record_id: input.assignmentId,
-    reason: input.reason,
-    performed_by: auth?.user?.id ?? null,
+    user_id: auth?.user?.id ?? null,
+    metadata: { reason: input.reason, ended_on: endedOn },
   });
 }
