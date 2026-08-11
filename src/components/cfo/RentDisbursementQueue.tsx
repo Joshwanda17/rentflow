@@ -243,6 +243,11 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
   );
   const visibleItems = useMemo(() => visibleGroups.flatMap(g => g.rows), [visibleGroups]);
   const allSelected = visibleItems.length > 0 && visibleItems.every(i => selected.has(i.id));
+  // Presentation only: which visible row should host the inline Step 2 panel.
+  const firstSelectedId = useMemo(
+    () => visibleItems.find(i => selected.has(i.id))?.id ?? null,
+    [visibleItems, selected],
+  );
   const toggleAll = () => {
     const next = new Set(selected);
     if (allSelected) visibleItems.forEach(i => next.delete(i.id));
@@ -342,31 +347,59 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
   const dateFilterLabel: Record<string, string> = { all: 'All time', '7d': 'Last 7 days', '30d': 'Last 30 days' };
 
   return (
-    <Card>
-      <CardHeader className="pb-3 space-y-3">
-        <div className="flex flex-col gap-3">
-          <CardTitle className="text-base flex items-center gap-2 flex-wrap">
-            <Home className="h-4 w-4 text-primary" />
-            Fund Agent Landlord Payout Float
-            {filteredItems.length > 0 && (
-              <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/30">
-                {filteredItems.length} approved{dateFilter !== 'all' ? ` · ${dateFilterLabel[dateFilter]}` : ''} · {fmt(queueTotalRent)}
-              </Badge>
-            )}
-          </CardTitle>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,14rem)_minmax(0,10rem)] gap-2 items-center rounded-lg border border-border/60 bg-muted/30 p-2">
+    <Card className="overflow-hidden rounded-2xl border-border/70 shadow-sm">
+      <CardHeader className="pb-0 space-y-0 p-0">
+        {/* Title band */}
+        <div className="flex items-start justify-between gap-4 flex-wrap px-5 pt-5 pb-4">
+          <div className="flex items-start gap-3.5 min-w-0">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/25">
+              <Home className="h-6 w-6" />
+            </span>
+            <div className="min-w-0 space-y-1">
+              <CardTitle className="text-xl sm:text-2xl font-extrabold tracking-tight">
+                Fund Agent Landlord Payout Float
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                COO-approved rent, funded to the assigned agent's Landlord Payout Float.
+              </p>
+              <div className="flex items-center gap-4 flex-wrap pt-1 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <CalendarDays className="h-3.5 w-3.5" />
+                  {dateFilterLabel[dateFilter]}
+                </span>
+                <span className="opacity-50">•</span>
+                <span className="flex items-center gap-1.5">
+                  <Users className="h-3.5 w-3.5" />
+                  {grouped.length} agent{grouped.length === 1 ? '' : 's'} in queue
+                </span>
+              </div>
+            </div>
+          </div>
+          {filteredItems.length > 0 && (
+            <div className="flex items-center gap-3">
+              <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-sm font-semibold text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-400">
+                <CheckCircle2 className="h-4 w-4" />
+                {filteredItems.length} approved · {fmt(queueTotalRent)}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Filter band */}
+        <div className="border-y border-border/70 bg-muted/20 px-5 py-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,15rem)_minmax(0,11rem)] gap-3 items-center">
             <div className="relative w-full">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setSelected(new Set()); }}
                 placeholder="Search tenant, landlord, agent…"
-                className="h-8 text-xs pl-8 bg-background"
+                className="h-11 rounded-xl text-sm pl-9 bg-background border-border/70"
               />
             </div>
             <Select value={agentFilter} onValueChange={setAgentFilter}>
-              <SelectTrigger className="h-8 text-xs w-full bg-background">
-                <Users className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
+              <SelectTrigger className="h-11 rounded-xl text-sm w-full bg-background border-border/70">
+                <Users className="h-4 w-4 mr-2 text-muted-foreground" />
                 <SelectValue placeholder="Filter by agent" />
               </SelectTrigger>
               <SelectContent className="max-h-[320px]">
@@ -384,8 +417,8 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
               </SelectContent>
             </Select>
             <Select value={dateFilter} onValueChange={(v) => { setDateFilter(v as any); setSelected(new Set()); }}>
-              <SelectTrigger className="h-8 text-xs w-full bg-background">
-                <CalendarDays className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
+              <SelectTrigger className="h-11 rounded-xl text-sm w-full bg-background border-border/70">
+                <CalendarDays className="h-4 w-4 mr-2 text-muted-foreground" />
                 <SelectValue placeholder="Date range" />
               </SelectTrigger>
               <SelectContent>
@@ -397,7 +430,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
             {agentFilter !== 'all' && (
               <button
                 type="button"
-                className="text-[11px] text-primary hover:underline justify-self-start sm:col-span-2 lg:col-span-3"
+                className="text-xs font-medium text-primary hover:underline justify-self-start sm:col-span-2 lg:col-span-3"
                 onClick={() => setAgentFilter('all')}
               >
                 Clear agent
@@ -405,32 +438,38 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
             )}
           </div>
         </div>
-        {filteredItems.length > 0 && (
-          <p className="text-xs text-muted-foreground">
-            COO-approved rent. Funding lands in the assigned agent's <b>Landlord Payout Float</b> — the agent then pays the landlord via MoMo + OTP. Revenue earned: <span className="font-bold text-emerald-600">{fmt(queueTotalRevenue)}</span>
-          </p>
-        )}
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 p-5">
+        {filteredItems.length > 0 && (
+          <div className="flex items-start gap-3 rounded-xl bg-primary/[0.06] border border-primary/15 px-4 py-3">
+            <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary text-xs font-bold">i</span>
+            <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+              Funding lands in the assigned agent's <b className="text-foreground">Landlord Payout Float</b> — the agent then pays the landlord via MoMo + OTP.
+              Revenue earned: <span className="font-bold text-emerald-600">{fmt(queueTotalRevenue)}</span>
+            </p>
+          </div>
+        )}
         {/*
           Pay by Location/Category — part of Fund Agent Landlord Payout Float.
           Recipient selection only: it ticks rows in the queue below, which then
           runs the identical existing funding logic.
         */}
-        <div className="rounded-lg border border-primary/25 bg-primary/[0.04] p-3">
-          <div className="flex items-center justify-between gap-2 flex-wrap mb-1.5 px-1">
-            <p className="text-[11px] font-semibold text-primary uppercase tracking-wide flex items-center gap-1.5">
-              <MapPin className="h-3.5 w-3.5" />
+        <div className="rounded-2xl border border-border/70 bg-muted/20 p-4">
+          <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
+            <p className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-2">
+              <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/15">
+                <MapPin className="h-3.5 w-3.5" />
+              </span>
               Step 1 (optional) · Choose recipients by location / category
             </p>
             {locationScopeIds?.length ? (
               <div className="flex items-center gap-2">
-                <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/30">
+                <Badge variant="outline" className="text-[11px] rounded-full px-2.5 py-0.5 bg-primary/10 text-primary border-primary/30">
                   {locationScopeLabel ? `${locationScopeLabel} · ` : ''}{locationScopeIds.length} in scope
                 </Badge>
                 <button
                   type="button"
-                  className="text-[11px] text-primary hover:underline"
+                  className="text-xs font-medium text-primary hover:underline"
                   onClick={() => {
                     setLocationScopeIds(null);
                     setLocationScopeLabel(null);
@@ -442,7 +481,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
               </div>
             ) : null}
           </div>
-          <p className="text-[11px] text-muted-foreground px-1 mb-2">
+          <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
             This only narrows <b>who</b> appears in the float funding list below. Amounts, fees,
             validations, approvals, wallet and ledger records are unchanged — the same
             Fund Agent Landlord Payout Float process runs on whoever you tick in Step 2.
@@ -475,21 +514,6 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
           />
         </div>
 
-        {locationScopeIds?.length ? (
-          <div
-            ref={step2Ref}
-            className="scroll-mt-4 rounded-lg border-2 border-primary/40 bg-primary/[0.06] px-3 py-2 flex items-center justify-between gap-2 flex-wrap"
-          >
-            <p className="text-[11px] font-semibold text-primary uppercase tracking-wide flex items-center gap-1.5">
-              <Banknote className="h-3.5 w-3.5" />
-              Step 2 · Fund the selected float payouts (unchanged process)
-            </p>
-            <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/30">
-              {selected.size} ticked · {locationScopeIds.length} in scope
-            </Badge>
-          </div>
-        ) : null}
-
         {isLoading ? (
           <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
         ) : filteredItems.length === 0 ? (
@@ -511,29 +535,62 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
           <div className="space-y-3">
             {/* Revenue summary for selection or location scope */}
             {(selected.size > 0 || locationScopeIds?.length > 0) && (
-              <div className="rounded-lg border-2 border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20 p-3 space-y-2">
-                <p className="text-xs font-bold flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
-                  <TrendingUp className="h-3.5 w-3.5" />
+              <div className="rounded-2xl border border-border/70 bg-muted/20 p-4 space-y-3">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                  <TrendingUp className="h-3.5 w-3.5 text-emerald-600" />
                   Revenue from this disbursement
                   {locationScopeIds?.length > 0 && (
-                    <span className="ml-2 text-[10px] font-normal text-emerald-600/80">
-                      · Scoped by location
-                    </span>
+                    <span className="text-[10px] font-medium normal-case text-primary">· Scoped by location</span>
                   )}
                 </p>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-center">
-                  <div className="rounded-md bg-background/60 py-2">
-                    <p className="text-[10px] text-muted-foreground">Rent Out</p>
-                    <p className="font-bold text-sm text-orange-600">{fmt(locationScopeIds?.length ? queueTotalRent : totalRent)}</p>
-                  </div>
-                  <div className="rounded-md bg-background/60 py-2">
-                    <p className="text-[10px] text-muted-foreground">We Earn (Fees)</p>
-                    <p className="font-bold text-sm text-emerald-600">{fmt(locationScopeIds?.length ? queueTotalRevenue : totalRevenue)}</p>
-                  </div>
-                  <div className="rounded-md bg-background/60 py-2">
-                    <p className="text-[10px] text-muted-foreground">Total Repayment</p>
-                    <p className="font-bold text-sm text-primary">{fmt(locationScopeIds?.length ? queueTotalRepaymentExpected : totalRepaymentExpected)}</p>
-                  </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border/70 rounded-xl bg-background border border-border/70 overflow-hidden">
+                  {[
+                    {
+                      label: 'RENT OUT',
+                      value: fmt(locationScopeIds?.length ? queueTotalRent : totalRent),
+                      sub: `${locationScopeIds?.length ? filteredItems.length : selected.size} payout${(locationScopeIds?.length ? filteredItems.length : selected.size) === 1 ? '' : 's'}`,
+                      icon: <Banknote className="h-5 w-5" />,
+                      iconCls: 'bg-orange-100 text-orange-600 dark:bg-orange-950/40',
+                      valueCls: 'text-orange-600',
+                    },
+                    {
+                      label: 'WE EARN (FEES)',
+                      value: fmt(locationScopeIds?.length ? queueTotalRevenue : totalRevenue),
+                      sub: 'platform revenue',
+                      icon: <TrendingUp className="h-5 w-5" />,
+                      iconCls: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-950/40',
+                      valueCls: 'text-emerald-600',
+                    },
+                    {
+                      label: 'TOTAL REPAYMENT',
+                      value: fmt(locationScopeIds?.length ? queueTotalRepaymentExpected : totalRepaymentExpected),
+                      sub: 'expected back',
+                      icon: <Wallet className="h-5 w-5" />,
+                      iconCls: 'bg-primary/10 text-primary',
+                      valueCls: 'text-primary',
+                    },
+                    {
+                      label: 'TENANTS SELECTED',
+                      value: String(selected.size),
+                      sub: `${filteredItems.length} in queue`,
+                      icon: <Users className="h-5 w-5" />,
+                      iconCls: 'bg-amber-100 text-amber-600 dark:bg-amber-950/40',
+                      valueCls: 'text-amber-600',
+                    },
+                  ].map(k => (
+                    <div key={k.label} className="p-4 space-y-3">
+                      <div className="flex items-center gap-2.5">
+                        <span className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-full', k.iconCls)}>
+                          {k.icon}
+                        </span>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground leading-tight">
+                          {k.label}
+                        </p>
+                      </div>
+                      <p className={cn('text-lg font-extrabold tracking-tight break-words', k.valueCls)}>{k.value}</p>
+                      <p className="text-[11px] text-muted-foreground border-t border-border/70 pt-2">{k.sub}</p>
+                    </div>
+                  ))}
                 </div>
                 <TreasuryImpactBanner payoutAmount={locationScopeIds?.length ? queueTotalRent : totalRent} />
               </div>
@@ -541,7 +598,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
 
             {/* Country breakdown — click a chip to filter the queue by country */}
             {countryStats.length > 0 && (
-              <div className="rounded-lg border border-border/60 bg-muted/30 p-2">
+              <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
                 <div className="flex items-center justify-between mb-1.5 px-1">
                   <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
                     Requests by country
@@ -561,7 +618,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                     type="button"
                     onClick={() => setCountryFilter('all')}
                     className={cn(
-                      'px-2.5 py-1 rounded-md text-xs border transition-colors',
+                      'px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
                       countryFilter === 'all'
                         ? 'bg-primary text-primary-foreground border-primary'
                         : 'bg-background hover:bg-muted border-border',
@@ -575,7 +632,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                       type="button"
                       onClick={() => setCountryFilter(c.country)}
                       className={cn(
-                        'px-2.5 py-1 rounded-md text-xs border transition-colors',
+                        'px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
                         countryFilter === c.country
                           ? 'bg-primary text-primary-foreground border-primary'
                           : 'bg-background hover:bg-muted border-border',
@@ -590,8 +647,8 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
             )}
 
             {/* Select all + agent filter */}
-            <div className="flex items-center justify-between gap-2 flex-wrap rounded-lg border border-border/60 bg-muted/30 px-3 py-2">
-              <label className="flex items-center gap-2 text-sm cursor-pointer font-medium">
+            <div className="flex items-center justify-between gap-2 flex-wrap rounded-xl border border-border/70 bg-muted/20 px-4 py-3">
+              <label className="flex items-center gap-2.5 text-sm cursor-pointer font-semibold">
                 <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
                 Select all ({visibleItems.length}
                 {agentFilter !== 'all' && items.length !== visibleItems.length
@@ -601,7 +658,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
               </label>
               <div className="flex items-center gap-2">
                 {selected.size > 0 && (
-                  <Badge className="bg-primary/10 text-primary border-primary/30">
+                  <Badge className="rounded-full px-3 py-1 bg-primary/10 text-primary border-primary/30">
                     {selected.size} selected · {fmt(totalRent)}
                   </Badge>
                 )}
@@ -609,12 +666,12 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
             </div>
 
             {/* Helper hint */}
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-[11px] text-muted-foreground px-1">
               Tip: tick one tenant, a few, or use an agent's group toggle to fund a subset. The batch button funds only what's ticked.
             </p>
 
             {/* Grouped list (by agent) */}
-            <div className="space-y-3 max-h-[420px] overflow-y-auto">
+            <div className="space-y-3 max-h-[560px] overflow-y-auto pr-0.5">
               {visibleGroups.length === 0 && (
                 <div className="text-center py-6 text-xs text-muted-foreground">
                   No tenants match the current filters.{' '}
@@ -636,8 +693,8 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                 const isNew = Date.now() - group.latest < 24 * 60 * 60 * 1000;
                 const isRealAgent = group.agent_id && group.agent_id !== 'unassigned';
                 return (
-                  <div key={group.agent_id} className="rounded-lg border">
-                    <div className="flex items-center justify-between gap-2 px-3 py-2 bg-muted/40 rounded-t-lg">
+                  <div key={group.agent_id} className="rounded-xl border border-border/70 overflow-hidden bg-card">
+                    <div className="flex items-center justify-between gap-2 px-3.5 py-2.5 bg-muted/40 border-b border-border/70">
                       <div className="flex items-center gap-2 text-sm min-w-0 flex-1">
                         <Checkbox
                           checked={allGroupOn ? true : someGroupOn ? 'indeterminate' : false}
@@ -667,34 +724,43 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                       </div>
                       <span className="text-xs font-bold text-orange-600 shrink-0">{fmt(groupTotal)}</span>
                     </div>
-                    <div className="divide-y">
-                      {group.rows.map(item => (
+                    <div className="divide-y divide-border/70">
+                      {group.rows.map(item => {
+                        const isSel = selected.has(item.id);
+                        return (
+                        <div key={item.id}>
                         <div
-                          key={item.id}
                           className={cn(
-                            'flex items-start gap-3 p-2.5 text-sm transition-colors flex-wrap sm:flex-nowrap',
-                            selected.has(item.id) && 'bg-primary/5'
+                            'relative flex items-start gap-3 p-3 text-sm transition-colors flex-wrap sm:flex-nowrap',
+                            isSel
+                              ? 'bg-primary/[0.07] shadow-[inset_3px_0_0_0_hsl(var(--primary))]'
+                              : 'hover:bg-muted/40'
                           )}
                         >
                           <Checkbox
                             checked={selected.has(item.id)}
                             onCheckedChange={() => toggle(item.id)}
-                            className="mt-0.5"
+                            className="mt-1"
                           />
-                          <div className="flex-1 min-w-[12rem] space-y-1">
+                          <div className="flex-1 min-w-[12rem] space-y-1.5">
                             <div className="flex items-center gap-2">
-                              <p className="font-medium truncate">{item.tenant_name}</p>
-                              <span className="text-[10px] text-muted-foreground">→</span>
-                              <p className="font-medium truncate text-primary">{item.landlord_name}</p>
+                              <p className={cn('truncate', isSel ? 'font-bold' : 'font-semibold')}>{item.tenant_name}</p>
+                              <span className="text-[11px] text-muted-foreground">→</span>
+                              <p className="font-semibold truncate text-primary">{item.landlord_name}</p>
+                              {isSel && (
+                                <Badge className="text-[9px] px-1.5 py-0 shrink-0 bg-primary text-primary-foreground border-0">
+                                  SELECTED
+                                </Badge>
+                              )}
                             </div>
                             <div className="flex items-center gap-2 flex-wrap">
                               {item.payout_target === 'landlord_wallet' ? (
-                                <Badge className="text-[9px] px-1.5 py-0 bg-emerald-100 text-emerald-700 border-emerald-200">
+                                <Badge className="text-[9px] px-2 py-0 rounded-full bg-emerald-100 text-emerald-700 border-emerald-200">
                                   <Wallet className="h-2.5 w-2.5 mr-0.5" />
                                   Landlord Wallet
                                 </Badge>
                               ) : (
-                                <Badge className="text-[9px] px-1.5 py-0 bg-amber-100 text-amber-700 border-amber-200">
+                                <Badge className="text-[9px] px-2 py-0 rounded-full bg-amber-100 text-amber-700 border-amber-200">
                                   <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />
                                   Agent Float
                                 </Badge>
@@ -703,17 +769,17 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                                 {format(new Date(item.created_at), 'dd MMM')}
                               </span>
                             </div>
-                            <div className="flex items-center gap-3 text-[10px]">
-                              <span>Rent: <b className="text-orange-600">{fmt(item.rent_amount)}</b></span>
-                              <span>Fees: <b className="text-emerald-600">{fmt(item.access_fee + item.request_fee)}</b></span>
-                              <span>Repay: <b>{fmt(item.total_repayment)}</b></span>
+                            <div className="flex items-center gap-3 flex-wrap text-[11px] text-muted-foreground">
+                              <span>Rent: <b className="text-orange-600 text-xs">{fmt(item.rent_amount)}</b></span>
+                              <span>Fees: <b className="text-emerald-600 text-xs">{fmt(item.access_fee + item.request_fee)}</b></span>
+                              <span>Repay: <b className="text-foreground text-xs">{fmt(item.total_repayment)}</b></span>
                             </div>
                           </div>
                           <div className="flex items-center gap-1 shrink-0 ml-auto sm:ml-0">
                           <Button
                             size="sm"
                             variant="outline"
-                            className="shrink-0 text-xs h-7"
+                            className="shrink-0 text-xs h-8 rounded-lg"
                             onClick={() => singleDisburse.mutate(item.id)}
                             disabled={singleDisburse.isPending}
                             title={`Fund only this tenant on ${item.agent_name}'s float`}
@@ -724,7 +790,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                           <Button
                             size="sm"
                             variant="ghost"
-                            className="shrink-0 text-xs h-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            className="shrink-0 text-xs h-8 rounded-lg text-destructive hover:text-destructive hover:bg-destructive/10"
                             onClick={() => { setRejectTarget(item); setRejectReason(''); }}
                             title="Reject and return to agent with a comment"
                           >
@@ -733,7 +799,32 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                           </Button>
                           </div>
                         </div>
-                      ))}
+                        {/* Step 2 renders inline, directly under the selected tenant */}
+                        {item.id === firstSelectedId && (
+                          <div
+                            ref={step2Ref}
+                            className="scroll-mt-4 border-t-2 border-primary/30 bg-primary/[0.05] px-3.5 py-3 space-y-2"
+                          >
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                              <p className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-2">
+                                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/15">
+                                  <Banknote className="h-3.5 w-3.5" />
+                                </span>
+                                Step 2 · Fund the selected float payouts
+                              </p>
+                              <Badge variant="outline" className="text-[11px] rounded-full px-2.5 bg-primary/10 text-primary border-primary/30">
+                                {selected.size} ticked · {fmt(totalRent)}
+                              </Badge>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground leading-relaxed">
+                              Enter a batch reference below and use the funding button to run the unchanged
+                              Fund Agent Landlord Payout Float process on every ticked tenant.
+                            </p>
+                          </div>
+                        )}
+                        </div>
+                        );
+                      })}
                     </div>
                   </div>
                 );
@@ -742,16 +833,16 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
 
             {/* Batch actions */}
             {selected.size > 0 && (
-              <div className="sticky bottom-0 z-10 flex flex-col sm:flex-row sm:items-center gap-2 pt-3 mt-1 border-t bg-card">
+              <div className="sticky bottom-0 z-10 flex flex-col sm:flex-row sm:items-center gap-2 p-3 mt-1 rounded-xl border border-primary/25 bg-primary/[0.04] backdrop-blur">
                 <Input
                   placeholder="Batch ref (e.g. MoMo-2024-01)"
                   value={batchRef}
                   onChange={e => setBatchRef(e.target.value)}
-                  className="h-9 text-sm flex-1"
+                  className="h-11 rounded-xl text-sm flex-1 bg-background border-border/70"
                 />
                 <Button
                   size="sm"
-                  className="h-9 w-full sm:w-auto"
+                  className="h-11 rounded-xl px-5 font-semibold w-full sm:w-auto"
                   onClick={() => batchDisburse.mutate()}
                   disabled={batchDisburse.isPending || !batchRef.trim()}
                 >
