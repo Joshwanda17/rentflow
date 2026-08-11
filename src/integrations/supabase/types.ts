@@ -13619,37 +13619,70 @@ export type Database = {
       }
       internship_applications: {
         Row: {
+          consent_text_version: string | null
+          consented_at: string | null
+          contacted_at: string | null
+          contacted_by: string | null
           created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_reason: string | null
           email: string | null
           full_name: string
+          future_roles_consent: boolean
           id: string
           motivation: string | null
           phone: string
+          purged_at: string | null
           ready_to_learn: boolean | null
           referral_code: string | null
           skills: string | null
+          status: string
+          updated_at: string
         }
         Insert: {
+          consent_text_version?: string | null
+          consented_at?: string | null
+          contacted_at?: string | null
+          contacted_by?: string | null
           created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_reason?: string | null
           email?: string | null
           full_name: string
+          future_roles_consent?: boolean
           id?: string
           motivation?: string | null
           phone: string
+          purged_at?: string | null
           ready_to_learn?: boolean | null
           referral_code?: string | null
           skills?: string | null
+          status?: string
+          updated_at?: string
         }
         Update: {
+          consent_text_version?: string | null
+          consented_at?: string | null
+          contacted_at?: string | null
+          contacted_by?: string | null
           created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_reason?: string | null
           email?: string | null
           full_name?: string
+          future_roles_consent?: boolean
           id?: string
           motivation?: string | null
           phone?: string
+          purged_at?: string | null
           ready_to_learn?: boolean | null
           referral_code?: string | null
           skills?: string | null
+          status?: string
+          updated_at?: string
         }
         Relationships: []
       }
