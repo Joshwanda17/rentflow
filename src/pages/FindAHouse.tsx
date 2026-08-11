@@ -855,30 +855,26 @@ export default function FindAHouse() {
     document.getElementById('house-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [totalPages, hasMore, loadMore]);
 
-  // Distinct location options derived from the loaded listings, cascading from
-  // the current region/district/sub-county selection. Only areas that actually
-  // have houses are offered, so the dropdowns stay relevant for tenants & funders.
-  const districtOptions = useMemo(() => {
-    const set = new Set<string>();
-    listings.forEach(l => { const v = (l.district || '').trim(); if (v) set.add(v); });
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [listings]);
+  // District / sub-county options come from the official ug_* dataset (shared
+  // cached hooks — one request per level, cached for the session). Village stays
+  // derived from the loaded listings, compared case-insensitively so legacy rows
+  // are never dropped.
+  const isOfficialRegion = (UG_REGIONS as readonly string[]).includes(selectedRegion);
+  const { data: ugDistricts = [] } = useUgDistricts(isOfficialRegion ? selectedRegion : null);
+  const selectedDistrictId = useMemo(
+    () => ugDistricts.find(d => normalizeAreaName(d.name) === normalizeAreaName(selectedDistrict))?.id ?? null,
+    [ugDistricts, selectedDistrict],
+  );
+  const { data: ugSubcounties = [] } = useUgSubcountiesByDistrict(selectedDistrictId);
 
-  const subCountyOptions = useMemo(() => {
-    const set = new Set<string>();
-    listings.forEach(l => {
-      if (selectedDistrict !== 'all' && (l.district || '').trim() !== selectedDistrict) return;
-      const v = (l.sub_county || '').trim();
-      if (v) set.add(v);
-    });
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [listings, selectedDistrict]);
+  const districtOptions = useMemo(() => ugDistricts.map(d => d.name), [ugDistricts]);
+  const subCountyOptions = useMemo(() => ugSubcounties.map(s => s.name), [ugSubcounties]);
 
   const villageOptions = useMemo(() => {
     const set = new Set<string>();
     listings.forEach(l => {
-      if (selectedDistrict !== 'all' && (l.district || '').trim() !== selectedDistrict) return;
-      if (selectedSubCounty !== 'all' && (l.sub_county || '').trim() !== selectedSubCounty) return;
+      if (selectedDistrict !== 'all' && normalizeAreaName(l.district) !== normalizeAreaName(selectedDistrict)) return;
+      if (selectedSubCounty !== 'all' && normalizeAreaName(l.sub_county) !== normalizeAreaName(selectedSubCounty)) return;
       const v = (l.village || '').trim();
       if (v) set.add(v);
     });
