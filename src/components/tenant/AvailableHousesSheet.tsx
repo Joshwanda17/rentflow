@@ -541,7 +541,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
                 <SelectValue placeholder="Region" />
               </SelectTrigger>
               <SelectContent>
-                {REGIONS.map(r => (
+                {REGION_OPTIONS.map(r => (
                   <SelectItem key={r} value={r}>{regionLabel(r)}</SelectItem>
                 ))}
               </SelectContent>
