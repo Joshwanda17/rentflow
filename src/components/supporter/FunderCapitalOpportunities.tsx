@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import apartmentRentIllustration from '@/assets/apartment-rent-rafiki.svg.asset.json';
+import apartmentRentAmicoIllustration from '@/assets/apartment-rent-amico.svg.asset.json';
 import {
   TrendingUp, Shield, Rocket, Home, Wallet, ChevronLeft, ChevronRight,
   Coins, Lock, Clock, HandCoins, Handshake,
@@ -231,23 +232,23 @@ function OptionCard({
       }
     >
       <span className={`pointer-events-none absolute inset-0 group-hover:animate-[shimmer_1.2s_ease-in-out_infinite] bg-gradient-to-r from-transparent ${light ? 'via-white/50' : 'via-white/15'} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300`} aria-hidden="true" />
-      <div className="relative flex flex-col items-center justify-between h-full gap-2 py-1">
+      <div className="relative flex flex-col items-center justify-between h-full gap-1 pt-1 pb-0.5">
         {image ? (
           <img
             src={image}
             alt=""
             aria-hidden="true"
             loading="lazy"
-            className="relative h-24 w-24 object-contain shrink-0 group-hover:scale-110 group-focus-visible:scale-110 transition-transform duration-200"
+            className="relative w-full max-w-[92%] flex-1 min-h-0 object-contain shrink-0 group-hover:scale-105 group-focus-visible:scale-105 transition-transform duration-200"
           />
         ) : (
           <div className={`relative p-5 rounded-2xl shrink-0 backdrop-blur-sm ring-1 shadow-inner group-hover:scale-110 group-focus-visible:scale-110 transition-all duration-200 ${light ? 'bg-white/60 text-primary ring-foreground/10' : 'bg-white/25 text-white ring-white/30 shadow-white/10 group-hover:bg-white/35 group-focus-visible:bg-white/35'}`}>
             <Icon className="h-9 w-9" strokeWidth={2.5} />
           </div>
         )}
-        <div className="relative flex flex-col items-center gap-1.5">
-          <p className={`text-base font-bold leading-tight ${light ? 'text-foreground' : 'text-white'}`}>{title}</p>
-          <p className={`text-xs font-medium leading-snug line-clamp-3 ${light ? 'text-foreground/70' : 'text-white/80'}`}>{description}</p>
+        <div className={`relative flex flex-col items-center gap-1 ${image ? 'mt-auto' : ''}`}>
+          <p className={`text-lg font-bold leading-tight ${light ? 'text-foreground' : 'text-white'}`}>{title}</p>
+          <p className={`text-[13px] font-medium leading-snug line-clamp-3 ${light ? 'text-foreground/70' : 'text-white/80'}`}>{description}</p>
         </div>
         <ChevronRight className={`relative h-5 w-5 shrink-0 group-hover:translate-x-1 group-focus-visible:translate-x-1 transition-transform duration-200 ${light ? 'text-foreground/60' : 'text-white/80'}`} />
       </div>
@@ -375,6 +376,8 @@ export function FunderCapitalOpportunities() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <OptionCard
                 icon={Handshake}
+                image={apartmentRentAmicoIllustration.url}
+                light
                 title="Support Tenants via Welile"
                 description="Sign a tenant-support contract with Welile. We manage the deployment and returns."
                 tooltip="A managed contract between you and Welile. We source verified tenants, deploy your capital, collect repayments, and send monthly returns to your wallet."
