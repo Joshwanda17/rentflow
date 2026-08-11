@@ -423,6 +423,11 @@ export default function HRRolesPanel() {
             <p className="text-xs text-muted-foreground">
               Deactivating a position does not remove any access binding on it, and does not move any payroll authority bound to it.
             </p>
+            {deactivateRole && (accessByPosition[deactivateRole.id] || []).length > 0 && (
+              <p className="text-xs text-destructive">
+                This position still grants the access listed above. Deactivating it does not remove that binding, and does not move any payroll authority bound to it.
+              </p>
+            )}
             <ReasonField value={statusReason} onChange={setStatusReason} />
           </div>
           <DialogFooter>
