@@ -17721,6 +17721,7 @@ export type Database = {
           rejected_by: string | null
           rejection_reason: string | null
           sale_date: string
+          selected_size: string | null
           total_revenue: number
           tracking_reference: string | null
           unit_cost: number
@@ -17746,6 +17747,7 @@ export type Database = {
           rejected_by?: string | null
           rejection_reason?: string | null
           sale_date?: string
+          selected_size?: string | null
           total_revenue: number
           tracking_reference?: string | null
           unit_cost?: number
@@ -17771,6 +17773,7 @@ export type Database = {
           rejected_by?: string | null
           rejection_reason?: string | null
           sale_date?: string
+          selected_size?: string | null
           total_revenue?: number
           tracking_reference?: string | null
           unit_cost?: number
@@ -32798,6 +32801,7 @@ export type Database = {
           p_catalog_id: string
           p_payment_mode?: string
           p_quantity: number
+          p_size?: string
         }
         Returns: Json
       }
