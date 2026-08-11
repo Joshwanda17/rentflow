@@ -1,3 +1,4 @@
+import calculatorIllustration from "@/assets/calculator-illustration.svg.asset.json";
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { AngelSharesTab } from '@/components/supporter/AngelSharesTab';
 import { useConfetti } from '@/components/Confetti';
