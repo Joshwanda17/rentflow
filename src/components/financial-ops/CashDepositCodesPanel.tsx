@@ -254,6 +254,12 @@ export function CashDepositCodesPanel() {
 
   const activeCount = activeRows.length;
 
+  const totalVerified = rows
+    .filter((r) => r.status === 'verified')
+    .reduce((sum, r) => sum + (r.amount ?? 0), 0);
+
+  const totalPending = activeRows.reduce((sum, r) => sum + (r.amount ?? 0), 0);
+
   const [open, setOpen] = useState(true);
   const [startOpen, setStartOpen] = useState(false);
 
@@ -311,6 +317,19 @@ export function CashDepositCodesPanel() {
               {' '}— last updated {new Date(lastRefreshedAt).toLocaleTimeString()}
             </span>
           </div>
+
+          {displayRows.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="rounded-lg border bg-card p-3">
+                <div className="text-xs text-muted-foreground">Total cash deposited</div>
+                <div className="text-lg font-semibold text-emerald-600">{fmtUgx(totalVerified)}</div>
+              </div>
+              <div className="rounded-lg border bg-card p-3">
+                <div className="text-xs text-muted-foreground">Awaiting verification</div>
+                <div className="text-lg font-semibold text-amber-600">{fmtUgx(totalPending)}</div>
+              </div>
+            </div>
+          )}
 
           {loading && displayRows.length === 0 ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground py-6 justify-center">
