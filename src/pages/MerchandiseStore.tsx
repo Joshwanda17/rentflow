@@ -374,7 +374,7 @@ export default function MerchandiseStore() {
           </Button>
           <div>
             <h1 className="text-base font-bold flex items-center gap-2">
-              <ShoppingBag className="h-4 w-4 text-primary" /> Merchandise Store
+              <ShoppingBag className="h-4 w-4 text-primary" /> What do you want to buy?
             </h1>
             <p className="text-[11px] text-muted-foreground">Buy branded gear — paid off from your wallet</p>
           </div>
