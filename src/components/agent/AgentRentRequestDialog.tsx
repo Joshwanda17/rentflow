@@ -2139,6 +2139,32 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     if (m.national_id) setTenantNationalId(cleanNationalIdInput(m.national_id));
     setIncomeType('outstanding');
     setStep('details');
+    // Renewal document custody: look up what the tenant already has on file so
+    // the agent is told plainly whether documents carry forward or must be
+    // uploaded fresh.
+    setRenewDocs(null);
+    setRenewDocsLoading(true);
+    try {
+      const { data: docs, error: docsErr } = await supabase.rpc('get_tenant_documents' as any, {
+        p_tenant_id: m.id,
+      });
+      if (docsErr) throw docsErr;
+      const rows: { doc_type?: string | null }[] = Array.isArray(docs) ? docs : [];
+      const summary = {
+        passport: rows.some((d) => d.doc_type === 'tenant_passport'),
+        lcLetter: rows.some((d) => d.doc_type === 'lc_letter'),
+        houseImages: rows.filter((d) => d.doc_type === 'house_image').length,
+      };
+      setRenewDocs(summary);
+      if (!summary.passport || summary.houseImages < 4) {
+        toast.warning('No documents on file for this tenant — capture the passport photo, house photos and LC letter again');
+      }
+    } catch {
+      // Unknown document state — treat as missing so the agent still uploads.
+      setRenewDocs({ passport: false, lcLetter: false, houseImages: 0 });
+    } finally {
+      setRenewDocsLoading(false);
+    }
     try {
       const { data, error } = await supabase.rpc('get_tenant_rent_summary' as any, {
         p_tenant_id: m.id,
