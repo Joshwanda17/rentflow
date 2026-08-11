@@ -2830,7 +2830,13 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
                     type="button"
                     onClick={() => send.mutate()}
                     disabled={!ready}
-                    className="w-full h-14 gap-2 text-base font-semibold"
+                    className={`w-full h-16 gap-2 text-base font-bold shadow-xl ${
+                      mode === 'credit' && ready
+                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/30 ring-2 ring-emerald-400/60 ring-offset-2 animate-pulse'
+                        : mode === 'debit'
+                          ? 'bg-destructive hover:bg-destructive/90'
+                          : ''
+                    }`}
                     variant={mode === 'debit' ? 'destructive' : 'default'}
                     aria-label={
                       ready
@@ -2838,10 +2844,10 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
                         : `Cannot confirm: ${missing.join(', ')}`
                     }
                   >
-                    {send.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowRight className="h-5 w-5" />}
+                    {send.isPending ? <Loader2 className="h-6 w-6 animate-spin" /> : <Wallet className="h-6 w-6" />}
                     {ready ? (
                       <span className="flex flex-col items-center leading-tight">
-                        <span>Confirm · {verb} {formatUGX(amtNum)}</span>
+                        <span>{verb} {formatUGX(amtNum)} to wallet</span>
                         <span className="text-[11px] font-medium opacity-90">
                           {mode === 'credit' ? '→ ' : '← '}{user?.full_name} · {walletLabel}
                         </span>
