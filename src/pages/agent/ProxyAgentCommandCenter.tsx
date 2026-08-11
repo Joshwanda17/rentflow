@@ -197,11 +197,11 @@ export default function ProxyAgentCommandCenter() {
   }, [tab, partnersQ.data, notesQ.data]);
 
   const quickActions = useMemo(() => ([
-    { key: 'note', label: 'New Promissory', icon: FileText, onClick: () => { hapticTap(); setNoteOpen(true); } },
-    { key: 'sub', label: 'Add Sub-proxy', icon: UserPlus, onClick: () => { hapticTap(); setSubProxyOpen(true); } },
-    { key: 'reports', label: 'View reports', icon: BarChart3, onClick: () => { hapticTap(); setReportsOpen(true); } },
-    { key: 'invite', label: 'Invite Partner', icon: Share2, onClick: handleInvitePartner },
-    { key: 'withdraw', label: 'Withdraw earnings', icon: Wallet, onClick: () => { hapticTap(); setWithdrawOpen(true); } },
+    { key: 'note', label: 'Promissory', icon: FileText, onClick: () => { hapticTap(); setNoteOpen(true); } },
+    { key: 'sub', label: 'Sub-proxy', icon: UserPlus, onClick: () => { hapticTap(); setSubProxyOpen(true); } },
+    { key: 'reports', label: 'Reports', icon: BarChart3, onClick: () => { hapticTap(); setReportsOpen(true); } },
+    { key: 'invite', label: 'Invite', icon: Share2, onClick: handleInvitePartner },
+    { key: 'withdraw', label: 'Withdraw', icon: Wallet, onClick: () => { hapticTap(); setWithdrawOpen(true); } },
     { key: 'team', label: 'Team', icon: Users, onClick: () => { hapticTap(); setTeamOpen(true); } },
   ]), [handleInvitePartner]);
 
@@ -219,30 +219,12 @@ export default function ProxyAgentCommandCenter() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="min-w-0 flex-1">
-            <h1 className="text-base font-black leading-tight truncate">Proxy Agent Command Center</h1>
-            <p className="text-[11px] text-muted-foreground truncate">
-              Partners, promissory notes, commissions and your sub-proxy network
-            </p>
+            <h1 className="text-base font-black leading-tight truncate">Proxy Command Center</h1>
+            <p className="text-[11px] text-muted-foreground truncate">Partners · notes · commissions</p>
           </div>
           <Button variant="ghost" size="icon" onClick={refreshAll} aria-label="Refresh">
             <RefreshCw className={cn('h-4 w-4', summaryQ.isFetching && 'animate-spin')} />
           </Button>
-        </div>
-
-        {/* Quick actions */}
-        <div className="flex gap-2 overflow-x-auto px-3 pb-3 no-scrollbar">
-          {quickActions.map((a) => (
-            <button
-              key={a.key}
-              onClick={a.onClick}
-              className="flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-card px-3 py-2 text-xs font-bold active:scale-95 transition"
-            >
-              {a.key === 'invite' && inviting
-                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                : <a.icon className="h-3.5 w-3.5 text-primary" />}
-              {a.label}
-            </button>
-          ))}
         </div>
       </header>
 
@@ -275,6 +257,22 @@ export default function ProxyAgentCommandCenter() {
                 hint="Earned commission" tone="success" />
               <StatTile icon={Users} label="Sub-proxy team" value={String(s.team_size)}
                 hint="Tap Team for details" />
+            </div>
+
+            {/* Quick actions */}
+            <div className="grid grid-cols-3 gap-2">
+              {quickActions.map((a) => (
+                <button
+                  key={a.key}
+                  onClick={a.onClick}
+                  className="flex flex-col items-center justify-center gap-1 rounded-2xl border border-primary/25 bg-primary/10 px-2 py-3 text-[11px] font-bold text-primary active:scale-95 transition"
+                >
+                  {a.key === 'invite' && inviting
+                    ? <Loader2 className="h-4 w-4 animate-spin" />
+                    : <a.icon className="h-4 w-4" />}
+                  {a.label}
+                </button>
+              ))}
             </div>
 
             {/* Commission breakdown */}
