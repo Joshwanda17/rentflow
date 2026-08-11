@@ -441,6 +441,7 @@ export function WithdrawalPayoutCard({
           uploaded = await uploadProofFile(proofFile);
           setProofUrl(uploaded.url);
           setProofPath(uploaded.path);
+          persistProof(uploaded.path, uploaded.url, proofFile.name);
         } finally {
           setProofUploading(false);
         }
