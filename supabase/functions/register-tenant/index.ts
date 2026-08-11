@@ -380,6 +380,23 @@ Deno.serve(async (req) => {
 
       // Rent request (the agent earns commission on every payment).
       const rr = rentRequestPayload && typeof rentRequestPayload === 'object' ? rentRequestPayload : {};
+      // GPS is mandatory on every rent request (DB trigger enforces it too).
+      const rrLat = Number(rr.request_latitude ?? landlordPayload.latitude ?? NaN);
+      const rrLng = Number(rr.request_longitude ?? landlordPayload.longitude ?? NaN);
+      if (!Number.isFinite(rrLat) || !Number.isFinite(rrLng)) {
+        await performRollback('rent_request insert: missing property GPS');
+        return new Response(
+          JSON.stringify({ error: 'Property GPS location is required to post a rent request' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+      if (rrLat < -1.6 || rrLat > 4.3 || rrLng < 29.4 || rrLng > 35.1) {
+        await performRollback('rent_request insert: GPS outside Uganda');
+        return new Response(
+          JSON.stringify({ error: 'Captured GPS location is not inside Uganda — recapture it at the property' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
       const { data: rentRow, error: rentErr } = await supabaseAdmin
         .from('rent_requests')
         .insert({
@@ -395,8 +412,8 @@ Deno.serve(async (req) => {
           daily_repayment: 0,
           status: 'pending',
           house_category: rr.house_category ?? 'single-room',
-          request_latitude: rr.request_latitude ?? landlordPayload.latitude ?? null,
-          request_longitude: rr.request_longitude ?? landlordPayload.longitude ?? null,
+          request_latitude: rrLat,
+          request_longitude: rrLng,
         } as any)
         .select('id')
         .single();
