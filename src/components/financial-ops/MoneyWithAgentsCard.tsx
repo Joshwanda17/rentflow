@@ -1,6 +1,8 @@
-import { Wallet, HandCoins, ArrowRightLeft, AlertTriangle } from 'lucide-react';
+import { useState } from 'react';
+import { Wallet, HandCoins, ArrowRightLeft, AlertTriangle, SlidersHorizontal } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
-import { useMerchantFloatPositions } from '@/hooks/useMerchantFloat';
+import { useMerchantFloatPositions, MerchantFloatPosition } from '@/hooks/useMerchantFloat';
+import { MerchantReconcileDialog } from './MerchantReconcileDialog';
 
 /**
  * Money With Agents — the truth board that sits directly below ACTUAL MONEY.
@@ -16,6 +18,7 @@ import { useMerchantFloatPositions } from '@/hooks/useMerchantFloat';
  */
 export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () => void }) {
   const { data, isLoading, error } = useMerchantFloatPositions();
+  const [reconciling, setReconciling] = useState<MerchantFloatPosition | null>(null);
 
   const rows = (data ?? []).filter((r) => r.paidOut > 0 || r.reimbursed > 0 || r.companyCashWithAgent > 0);
   const heldTotal = rows.reduce((s, r) => s + r.companyCashWithAgent, 0);
@@ -110,6 +113,13 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
                   <p className="text-[10px] text-muted-foreground">
                     {holding ? 'holding company cash' : 'we owe agent'}
                   </p>
+                  <button
+                    type="button"
+                    onClick={() => setReconciling(r)}
+                    className="mt-1 inline-flex items-center gap-1 text-[10px] font-medium text-primary hover:underline"
+                  >
+                    <SlidersHorizontal className="h-3 w-3" /> Correct
+                  </button>
                 </div>
               </div>
             );
@@ -120,10 +130,17 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
       <div className="mt-4 rounded-xl bg-primary/5 border border-primary/10 p-3 flex gap-2">
         <Wallet className="h-4 w-4 text-primary shrink-0 mt-0.5" />
         <p className="text-[11px] leading-relaxed text-muted-foreground">
-          A merchant may only demand money they have already claimed and paid out. Real money sent is
-          recognised from the extracted MTN/Airtel emails, so this board cannot be inflated by hand.
+          A merchant may only demand money they have already claimed and paid out. Reimbursement is
+          recognised from recorded float funding sent to their line, with matched MTN/Airtel emails as
+          supporting evidence. Anything else must be posted as a correction with a written reason.
         </p>
       </div>
+
+      <MerchantReconcileDialog
+        position={reconciling}
+        open={!!reconciling}
+        onOpenChange={(v) => !v && setReconciling(null)}
+      />
     </div>
   );
 }

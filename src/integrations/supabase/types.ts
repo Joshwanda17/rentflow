@@ -18070,6 +18070,53 @@ export type Database = {
         }
         Relationships: []
       }
+      merchant_float_reconciliations: {
+        Row: {
+          adjustment_type: string
+          agent_id: string | null
+          amount: number
+          created_at: string
+          created_by: string
+          desk_id: string
+          evidence_note: string | null
+          id: string
+          reason: string
+          updated_at: string
+        }
+        Insert: {
+          adjustment_type: string
+          agent_id?: string | null
+          amount: number
+          created_at?: string
+          created_by?: string
+          desk_id: string
+          evidence_note?: string | null
+          id?: string
+          reason: string
+          updated_at?: string
+        }
+        Update: {
+          adjustment_type?: string
+          agent_id?: string | null
+          amount?: number
+          created_at?: string
+          created_by?: string
+          desk_id?: string
+          evidence_note?: string | null
+          id?: string
+          reason?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "merchant_float_reconciliations_desk_id_fkey"
+            columns: ["desk_id"]
+            isOneToOne: false
+            referencedRelation: "cashout_agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       merchant_float_requisitions: {
         Row: {
           approver_name: string | null
@@ -35476,11 +35523,13 @@ export type Database = {
       get_merchant_float_positions: {
         Args: never
         Returns: {
+          adjustments_total: number
           agent_id: string
           agent_name: string
           agent_phone: string
           company_cash_with_agent: number
           desk_id: string
+          email_matched_total: number
           float_credits_recorded: number
           is_active: boolean
           label: string
