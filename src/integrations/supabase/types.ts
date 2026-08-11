@@ -15550,6 +15550,13 @@ export type Database = {
             foreignKeyName: "lc1_chairpersons_ug_village_id_fkey"
             columns: ["ug_village_id"]
             isOneToOne: false
+            referencedRelation: "mv_ug_village_geo"
+            referencedColumns: ["village_id"]
+          },
+          {
+            foreignKeyName: "lc1_chairpersons_ug_village_id_fkey"
+            columns: ["ug_village_id"]
+            isOneToOne: false
             referencedRelation: "ug_villages"
             referencedColumns: ["id"]
           },
@@ -17173,6 +17180,10 @@ export type Database = {
           name: string
           notes: string | null
           region: string | null
+          ug_district_id: number | null
+          ug_parish_id: number | null
+          ug_subcounty_id: number | null
+          ug_village_id: number | null
           updated_at: string
         }
         Insert: {
@@ -17187,6 +17198,10 @@ export type Database = {
           name: string
           notes?: string | null
           region?: string | null
+          ug_district_id?: number | null
+          ug_parish_id?: number | null
+          ug_subcounty_id?: number | null
+          ug_village_id?: number | null
           updated_at?: string
         }
         Update: {
@@ -17201,9 +17216,105 @@ export type Database = {
           name?: string
           notes?: string | null
           region?: string | null
+          ug_district_id?: number | null
+          ug_parish_id?: number | null
+          ug_subcounty_id?: number | null
+          ug_village_id?: number | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "managed_locations_ug_district_id_fkey"
+            columns: ["ug_district_id"]
+            isOneToOne: false
+            referencedRelation: "mv_ug_district_alias"
+            referencedColumns: ["district_id"]
+          },
+          {
+            foreignKeyName: "managed_locations_ug_district_id_fkey"
+            columns: ["ug_district_id"]
+            isOneToOne: false
+            referencedRelation: "mv_ug_subcounty_alias"
+            referencedColumns: ["district_id"]
+          },
+          {
+            foreignKeyName: "managed_locations_ug_district_id_fkey"
+            columns: ["ug_district_id"]
+            isOneToOne: false
+            referencedRelation: "mv_ug_village_geo"
+            referencedColumns: ["district_id"]
+          },
+          {
+            foreignKeyName: "managed_locations_ug_district_id_fkey"
+            columns: ["ug_district_id"]
+            isOneToOne: false
+            referencedRelation: "ug_districts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "managed_locations_ug_parish_id_fkey"
+            columns: ["ug_parish_id"]
+            isOneToOne: false
+            referencedRelation: "mv_ug_village_geo"
+            referencedColumns: ["parish_id"]
+          },
+          {
+            foreignKeyName: "managed_locations_ug_parish_id_fkey"
+            columns: ["ug_parish_id"]
+            isOneToOne: false
+            referencedRelation: "ug_parishes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "managed_locations_ug_subcounty_id_fkey"
+            columns: ["ug_subcounty_id"]
+            isOneToOne: false
+            referencedRelation: "mv_ug_subcounty_alias"
+            referencedColumns: ["subcounty_id"]
+          },
+          {
+            foreignKeyName: "managed_locations_ug_subcounty_id_fkey"
+            columns: ["ug_subcounty_id"]
+            isOneToOne: false
+            referencedRelation: "mv_ug_village_geo"
+            referencedColumns: ["subcounty_id"]
+          },
+          {
+            foreignKeyName: "managed_locations_ug_subcounty_id_fkey"
+            columns: ["ug_subcounty_id"]
+            isOneToOne: false
+            referencedRelation: "ug_subcounties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "managed_locations_ug_subcounty_id_fkey"
+            columns: ["ug_subcounty_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_ops_landlord_base"
+            referencedColumns: ["subcounty_id"]
+          },
+          {
+            foreignKeyName: "managed_locations_ug_subcounty_id_fkey"
+            columns: ["ug_subcounty_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["subcounty_id"]
+          },
+          {
+            foreignKeyName: "managed_locations_ug_village_id_fkey"
+            columns: ["ug_village_id"]
+            isOneToOne: false
+            referencedRelation: "mv_ug_village_geo"
+            referencedColumns: ["village_id"]
+          },
+          {
+            foreignKeyName: "managed_locations_ug_village_id_fkey"
+            columns: ["ug_village_id"]
+            isOneToOne: false
+            referencedRelation: "ug_villages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       managed_proxy_roi_routing_violations: {
         Row: {
@@ -20129,6 +20240,75 @@ export type Database = {
           },
         ]
       }
+      payout_delivery_disputes: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          amount: number
+          cashout_agent_id: string | null
+          created_at: string
+          id: string
+          merchant_user_id: string | null
+          message: string
+          reporter_id: string
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          updated_at: string
+          withdrawal_id: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          amount?: number
+          cashout_agent_id?: string | null
+          created_at?: string
+          id?: string
+          merchant_user_id?: string | null
+          message: string
+          reporter_id: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          updated_at?: string
+          withdrawal_id: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          amount?: number
+          cashout_agent_id?: string | null
+          created_at?: string
+          id?: string
+          merchant_user_id?: string | null
+          message?: string
+          reporter_id?: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          updated_at?: string
+          withdrawal_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payout_delivery_disputes_withdrawal_id_fkey"
+            columns: ["withdrawal_id"]
+            isOneToOne: false
+            referencedRelation: "v_withdrawal_holds_unbacked"
+            referencedColumns: ["withdrawal_id"]
+          },
+          {
+            foreignKeyName: "payout_delivery_disputes_withdrawal_id_fkey"
+            columns: ["withdrawal_id"]
+            isOneToOne: false
+            referencedRelation: "withdrawal_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payout_proof_integrity_alerts: {
         Row: {
           created_at: string
@@ -21500,6 +21680,7 @@ export type Database = {
           tenant_status: string
           territory: string | null
           town: string | null
+          ug_village_id: number | null
           updated_at: string
           verification_notify_email: boolean
           verification_notify_sms: boolean
@@ -21582,6 +21763,7 @@ export type Database = {
           tenant_status?: string
           territory?: string | null
           town?: string | null
+          ug_village_id?: number | null
           updated_at?: string
           verification_notify_email?: boolean
           verification_notify_sms?: boolean
@@ -21664,6 +21846,7 @@ export type Database = {
           tenant_status?: string
           territory?: string | null
           town?: string | null
+          ug_village_id?: number | null
           updated_at?: string
           verification_notify_email?: boolean
           verification_notify_sms?: boolean
@@ -22301,6 +22484,77 @@ export type Database = {
         }
         Relationships: []
       }
+      proxy_agent_targets: {
+        Row: {
+          agent_id: string
+          created_at: string
+          monthly_partner_target: number
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string
+          monthly_partner_target?: number
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string
+          monthly_partner_target?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proxy_agent_targets_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "proxy_agent_targets_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proxy_agent_targets_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "proxy_agent_targets_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "v_accounts_no_verified_phone"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proxy_agent_targets_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "proxy_agent_targets_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "v_tenant_ops_tenant_base"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "proxy_agent_targets_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+        ]
+      }
       proxy_agreement_consents: {
         Row: {
           accepted_at: string
@@ -22440,6 +22694,156 @@ export type Database = {
           transaction_references?: Json
         }
         Relationships: []
+      }
+      proxy_partner_invites: {
+        Row: {
+          channel: string
+          clicked_at: string | null
+          code: string
+          created_at: string
+          id: string
+          invitee_name: string | null
+          invitee_phone: string | null
+          last_shared_at: string
+          proxy_agent_id: string
+          share_count: number
+          signed_up_at: string | null
+          signed_up_user_id: string | null
+          target_path: string
+          updated_at: string
+        }
+        Insert: {
+          channel?: string
+          clicked_at?: string | null
+          code?: string
+          created_at?: string
+          id?: string
+          invitee_name?: string | null
+          invitee_phone?: string | null
+          last_shared_at?: string
+          proxy_agent_id: string
+          share_count?: number
+          signed_up_at?: string | null
+          signed_up_user_id?: string | null
+          target_path?: string
+          updated_at?: string
+        }
+        Update: {
+          channel?: string
+          clicked_at?: string | null
+          code?: string
+          created_at?: string
+          id?: string
+          invitee_name?: string | null
+          invitee_phone?: string | null
+          last_shared_at?: string
+          proxy_agent_id?: string
+          share_count?: number
+          signed_up_at?: string | null
+          signed_up_user_id?: string | null
+          target_path?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proxy_partner_invites_proxy_agent_id_fkey"
+            columns: ["proxy_agent_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "proxy_partner_invites_proxy_agent_id_fkey"
+            columns: ["proxy_agent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proxy_partner_invites_proxy_agent_id_fkey"
+            columns: ["proxy_agent_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "proxy_partner_invites_proxy_agent_id_fkey"
+            columns: ["proxy_agent_id"]
+            isOneToOne: false
+            referencedRelation: "v_accounts_no_verified_phone"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proxy_partner_invites_proxy_agent_id_fkey"
+            columns: ["proxy_agent_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "proxy_partner_invites_proxy_agent_id_fkey"
+            columns: ["proxy_agent_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_ops_tenant_base"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "proxy_partner_invites_proxy_agent_id_fkey"
+            columns: ["proxy_agent_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
+            foreignKeyName: "proxy_partner_invites_signed_up_user_id_fkey"
+            columns: ["signed_up_user_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "proxy_partner_invites_signed_up_user_id_fkey"
+            columns: ["signed_up_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proxy_partner_invites_signed_up_user_id_fkey"
+            columns: ["signed_up_user_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "proxy_partner_invites_signed_up_user_id_fkey"
+            columns: ["signed_up_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_accounts_no_verified_phone"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proxy_partner_invites_signed_up_user_id_fkey"
+            columns: ["signed_up_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "proxy_partner_invites_signed_up_user_id_fkey"
+            columns: ["signed_up_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_ops_tenant_base"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "proxy_partner_invites_signed_up_user_id_fkey"
+            columns: ["signed_up_user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+        ]
       }
       proxy_payout_settlements: {
         Row: {
@@ -23021,6 +23425,7 @@ export type Database = {
           is_active: boolean
           region: string | null
           slug: string
+          ug_district_id: number | null
         }
         Insert: {
           city?: string | null
@@ -23033,6 +23438,7 @@ export type Database = {
           is_active?: boolean
           region?: string | null
           slug: string
+          ug_district_id?: number | null
         }
         Update: {
           city?: string | null
@@ -23045,8 +23451,38 @@ export type Database = {
           is_active?: boolean
           region?: string | null
           slug?: string
+          ug_district_id?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "recruitment_locations_ug_district_id_fkey"
+            columns: ["ug_district_id"]
+            isOneToOne: false
+            referencedRelation: "mv_ug_district_alias"
+            referencedColumns: ["district_id"]
+          },
+          {
+            foreignKeyName: "recruitment_locations_ug_district_id_fkey"
+            columns: ["ug_district_id"]
+            isOneToOne: false
+            referencedRelation: "mv_ug_subcounty_alias"
+            referencedColumns: ["district_id"]
+          },
+          {
+            foreignKeyName: "recruitment_locations_ug_district_id_fkey"
+            columns: ["ug_district_id"]
+            isOneToOne: false
+            referencedRelation: "mv_ug_village_geo"
+            referencedColumns: ["district_id"]
+          },
+          {
+            foreignKeyName: "recruitment_locations_ug_district_id_fkey"
+            columns: ["ug_district_id"]
+            isOneToOne: false
+            referencedRelation: "ug_districts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       redirect_monitor: {
         Row: {
@@ -25322,6 +25758,7 @@ export type Database = {
           status: string
           submitted_at: string
           supporting_note: string | null
+          ug_district_id: number | null
           updated_at: string
         }
         Insert: {
@@ -25348,6 +25785,7 @@ export type Database = {
           status?: string
           submitted_at?: string
           supporting_note?: string | null
+          ug_district_id?: number | null
           updated_at?: string
         }
         Update: {
@@ -25374,9 +25812,39 @@ export type Database = {
           status?: string
           submitted_at?: string
           supporting_note?: string | null
+          ug_district_id?: number | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "service_center_requests_ug_district_id_fkey"
+            columns: ["ug_district_id"]
+            isOneToOne: false
+            referencedRelation: "mv_ug_district_alias"
+            referencedColumns: ["district_id"]
+          },
+          {
+            foreignKeyName: "service_center_requests_ug_district_id_fkey"
+            columns: ["ug_district_id"]
+            isOneToOne: false
+            referencedRelation: "mv_ug_subcounty_alias"
+            referencedColumns: ["district_id"]
+          },
+          {
+            foreignKeyName: "service_center_requests_ug_district_id_fkey"
+            columns: ["ug_district_id"]
+            isOneToOne: false
+            referencedRelation: "mv_ug_village_geo"
+            referencedColumns: ["district_id"]
+          },
+          {
+            foreignKeyName: "service_center_requests_ug_district_id_fkey"
+            columns: ["ug_district_id"]
+            isOneToOne: false
+            referencedRelation: "ug_districts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       service_centre_setups: {
         Row: {
@@ -28109,6 +28577,27 @@ export type Database = {
             foreignKeyName: "ug_counties_district_id_fkey"
             columns: ["district_id"]
             isOneToOne: false
+            referencedRelation: "mv_ug_district_alias"
+            referencedColumns: ["district_id"]
+          },
+          {
+            foreignKeyName: "ug_counties_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "mv_ug_subcounty_alias"
+            referencedColumns: ["district_id"]
+          },
+          {
+            foreignKeyName: "ug_counties_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "mv_ug_village_geo"
+            referencedColumns: ["district_id"]
+          },
+          {
+            foreignKeyName: "ug_counties_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
             referencedRelation: "ug_districts"
             referencedColumns: ["id"]
           },
@@ -28159,8 +28648,36 @@ export type Database = {
             foreignKeyName: "ug_parishes_subcounty_id_fkey"
             columns: ["subcounty_id"]
             isOneToOne: false
+            referencedRelation: "mv_ug_subcounty_alias"
+            referencedColumns: ["subcounty_id"]
+          },
+          {
+            foreignKeyName: "ug_parishes_subcounty_id_fkey"
+            columns: ["subcounty_id"]
+            isOneToOne: false
+            referencedRelation: "mv_ug_village_geo"
+            referencedColumns: ["subcounty_id"]
+          },
+          {
+            foreignKeyName: "ug_parishes_subcounty_id_fkey"
+            columns: ["subcounty_id"]
+            isOneToOne: false
             referencedRelation: "ug_subcounties"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ug_parishes_subcounty_id_fkey"
+            columns: ["subcounty_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_ops_landlord_base"
+            referencedColumns: ["subcounty_id"]
+          },
+          {
+            foreignKeyName: "ug_parishes_subcounty_id_fkey"
+            columns: ["subcounty_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["subcounty_id"]
           },
         ]
       }
@@ -28213,6 +28730,13 @@ export type Database = {
           parish_id?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "ug_villages_parish_id_fkey"
+            columns: ["parish_id"]
+            isOneToOne: false
+            referencedRelation: "mv_ug_village_geo"
+            referencedColumns: ["parish_id"]
+          },
           {
             foreignKeyName: "ug_villages_parish_id_fkey"
             columns: ["parish_id"]
@@ -31166,11 +31690,13 @@ export type Database = {
           agent_id: string | null
           country: string | null
           district: string | null
+          district_id: number | null
           hidden: number | null
           landlord_id: string | null
           occupied: number | null
           region: string | null
           revenue_ugx: number | null
+          subcounty_id: number | null
           total: number | null
           vacant: number | null
           ward: string | null
@@ -31220,6 +31746,40 @@ export type Database = {
           withdrawals_pending_ugx: number | null
           withdrawals_today_count: number | null
           withdrawals_today_ugx: number | null
+        }
+        Relationships: []
+      }
+      mv_ug_district_alias: {
+        Row: {
+          district_id: number | null
+          district_name: string | null
+          norm_key: string | null
+          region: string | null
+        }
+        Relationships: []
+      }
+      mv_ug_subcounty_alias: {
+        Row: {
+          district_id: number | null
+          district_name: string | null
+          norm_key: string | null
+          region: string | null
+          subcounty_id: number | null
+          subcounty_name: string | null
+        }
+        Relationships: []
+      }
+      mv_ug_village_geo: {
+        Row: {
+          district_id: number | null
+          district_name: string | null
+          parish_id: number | null
+          parish_name: string | null
+          region: string | null
+          subcounty_id: number | null
+          subcounty_name: string | null
+          village_id: number | null
+          village_name: string | null
         }
         Relationships: []
       }
@@ -31619,12 +32179,14 @@ export type Database = {
           agent_id: string | null
           country: string | null
           district: string | null
+          district_id: number | null
           house_category: string | null
           house_image_urls: string[] | null
           landlord_id: string | null
           region: string | null
           rent_amount: number | null
           rent_request_id: string | null
+          subcounty_id: number | null
           tenant_avatar_url: string | null
           tenant_created_at: string | null
           tenant_id: string | null
@@ -31671,38 +32233,14 @@ export type Database = {
           country: string | null
           created_at: string | null
           district: string | null
+          district_id: number | null
           landlord_id: string | null
           landlord_name: string | null
           monthly_rent: number | null
           phone: string | null
           region: string | null
+          subcounty_id: number | null
           verified: boolean | null
-        }
-        Insert: {
-          agent_id?: string | null
-          continent?: never
-          country?: never
-          created_at?: string | null
-          district?: never
-          landlord_id?: string | null
-          landlord_name?: string | null
-          monthly_rent?: never
-          phone?: string | null
-          region?: never
-          verified?: boolean | null
-        }
-        Update: {
-          agent_id?: string | null
-          continent?: never
-          country?: never
-          created_at?: string | null
-          district?: never
-          landlord_id?: string | null
-          landlord_name?: string | null
-          monthly_rent?: never
-          phone?: string | null
-          region?: never
-          verified?: boolean | null
         }
         Relationships: []
       }
@@ -31713,6 +32251,7 @@ export type Database = {
           country: string | null
           created_at: string | null
           district: string | null
+          district_id: number | null
           is_hidden: boolean | null
           is_occupied: boolean | null
           landlord_id: string | null
@@ -31720,8 +32259,10 @@ export type Database = {
           monthly_rent: number | null
           region: string | null
           status: string | null
+          subcounty_id: number | null
           tenant_id: string | null
           verified: boolean | null
+          ward: string | null
         }
         Relationships: [
           {
@@ -31766,6 +32307,7 @@ export type Database = {
           daily_repayment: number | null
           days_since_funded: number | null
           district: string | null
+          district_id: number | null
           duration_days: number | null
           expected_to_date: number | null
           funded_at: string | null
@@ -31789,6 +32331,7 @@ export type Database = {
           rent_request_id: string | null
           rr_status: string | null
           schedule_delta_days: number | null
+          subcounty_id: number | null
           tenancy_status: string | null
           tenant_avatar_url: string | null
           tenant_created_at: string | null
@@ -31866,6 +32409,7 @@ export type Database = {
           agent_id: string | null
           agent_tier: Database["public"]["Enums"]["agent_tier"] | null
           district: string | null
+          district_id: number | null
           email: string | null
           frozen_reason: string | null
           full_name: string | null
@@ -31873,6 +32417,7 @@ export type Database = {
           last_active_at: string | null
           phone: string | null
           region: string | null
+          subcounty_id: number | null
           territory: string | null
           total_capability_count: number | null
           verified: boolean | null
@@ -31911,6 +32456,17 @@ export type Database = {
       }
     }
     Functions: {
+      _cf_partner_ops_portfolios: {
+        Args: never
+        Returns: {
+          anchor_date: string
+          id: string
+          investment_amount: number
+          investor_id: string
+          maturity_date: string
+          roi_percentage: number
+        }[]
+      }
       _classify_daily_rating: {
         Args: { p_active_count: number; p_ratio: number }
         Returns: string
@@ -33358,6 +33914,7 @@ export type Database = {
         Returns: {
           amount: number
           attempts: number
+          cash_location: string
           code: string
           created_at: string
           deposit_purpose: string
@@ -34104,6 +34661,10 @@ export type Database = {
           tenant_ops_reviewed_at: string
         }[]
       }
+      get_cashflow_forecast_series: {
+        Args: { p_bucket?: string; p_end: string; p_start: string }
+        Returns: Json
+      }
       get_cashout_settlement_ledger_rows: {
         Args: { p_withdrawal_id: string }
         Returns: {
@@ -34607,13 +35168,16 @@ export type Database = {
           p_agent_id?: string
           p_country?: string
           p_district?: string
+          p_district_id?: number
           p_level: string
           p_region?: string
+          p_subcounty_id?: number
           p_ward?: string
         }
         Returns: {
           agent_id: string
           agent_name: string
+          district_id: number
           hidden: number
           key: string
           label: string
@@ -34621,8 +35185,23 @@ export type Database = {
           landlord_name: string
           occupied: number
           revenue_ugx: number
+          subcounty_id: number
           total: number
           vacant: number
+        }[]
+      }
+      get_location_reconciliation_report: {
+        Args: { p_rollout_from?: string }
+        Returns: {
+          new_resolved_rows: number
+          new_total_rows: number
+          resolved_pct: number
+          resolved_rows: number
+          scope_label: string
+          table_label: string
+          top_unmatched: Json
+          total_rows: number
+          unmatched_rows: number
         }[]
       }
       get_manager_daily_report: { Args: never; Returns: Json }
@@ -34923,6 +35502,11 @@ export type Database = {
           with_gps: number
         }[]
       }
+      get_proxy_agent_command_center: {
+        Args: { p_agent_id?: string }
+        Returns: Json
+      }
+      get_proxy_agent_team: { Args: { p_agent_id?: string }; Returns: Json }
       get_proxy_partner_balance: {
         Args: { p_agent_id: string; p_partner_id: string }
         Returns: number
@@ -34930,6 +35514,10 @@ export type Database = {
       get_public_trust_profile: { Args: { p_ai_id: string }; Returns: Json }
       get_referral_progress: { Args: { p_referred_id: string }; Returns: Json }
       get_rent_requests_summary: { Args: never; Returns: Json }
+      get_roi_disbursement_report: {
+        Args: { p_end: string; p_start: string }
+        Returns: Json
+      }
       get_service_center_listing_queue: {
         Args: { p_manager_id?: string }
         Returns: Json
@@ -35114,15 +35702,18 @@ export type Database = {
           p_agent_id?: string
           p_country?: string
           p_district?: string
+          p_district_id?: number
           p_funded_since?: string
           p_funded_until?: string
           p_level: string
           p_region?: string
+          p_subcounty_id?: number
           p_ward?: string
         }
         Returns: {
           agent_id: string
           agent_name: string
+          district_id: number
           hidden: number
           key: string
           label: string
@@ -35130,6 +35721,7 @@ export type Database = {
           landlord_name: string
           occupied: number
           revenue_ugx: number
+          subcounty_id: number
           total: number
           vacant: number
         }[]
@@ -35838,6 +36430,30 @@ export type Database = {
         }
         Returns: Json
       }
+      list_proxy_agent_partners: {
+        Args: {
+          p_agent_id?: string
+          p_dir?: string
+          p_filter?: string
+          p_limit?: number
+          p_offset?: number
+          p_search?: string
+          p_sort?: string
+        }
+        Returns: Json
+      }
+      list_proxy_agent_promissory_notes: {
+        Args: {
+          p_agent_id?: string
+          p_dir?: string
+          p_limit?: number
+          p_offset?: number
+          p_search?: string
+          p_sort?: string
+          p_status?: string
+        }
+        Returns: Json
+      }
       list_purgeable_rejected_listings: {
         Args: { p_days?: number; p_limit?: number }
         Returns: {
@@ -35867,6 +36483,14 @@ export type Database = {
           _selected_provider: string
         }
         Returns: string
+      }
+      log_proxy_partner_invite: {
+        Args: {
+          p_channel?: string
+          p_invitee_name?: string
+          p_invitee_phone?: string
+        }
+        Returns: Json
       }
       log_system_event:
         | {
@@ -35923,6 +36547,20 @@ export type Database = {
         Args: { p_error: string; p_event_id: string }
         Returns: undefined
       }
+      match_email_ledger_credits: {
+        Args: { p_refs: string[] }
+        Returns: {
+          amount: number
+          category: string
+          created_at: string
+          ledger_id: string
+          ledger_scope: string
+          ref: string
+          user_id: string
+          user_name: string
+          user_phone: string
+        }[]
+      }
       mature_bonus_by_subject: {
         Args: { p_condition: string; p_subject_id: string }
         Returns: number
@@ -35940,6 +36578,15 @@ export type Database = {
           p_reason: string
         }
         Returns: boolean
+      }
+      merchant_attach_payout_proof: {
+        Args: {
+          p_bucket?: string
+          p_path: string
+          p_type?: string
+          p_withdrawal_id: string
+        }
+        Returns: Json
       }
       merchant_config_allows_payout: {
         Args: {
@@ -36757,6 +37404,23 @@ export type Database = {
         }
         Returns: Json
       }
+      proxy_agent_partner_rows: {
+        Args: { p_agent_id: string }
+        Returns: {
+          came_in: boolean
+          is_returning: boolean
+          last_funded_at: string
+          linked_at: string
+          notes_count: number
+          partner_name: string
+          partner_phone: string
+          partner_user_id: string
+          portfolios: number
+          sources: string[]
+          total_funded: number
+        }[]
+      }
+      proxy_cc_resolve_agent: { Args: { p_agent_id: string }; Returns: string }
       psm_audit: {
         Args: {
           p_action: string
@@ -36990,6 +37654,7 @@ export type Database = {
       refresh_house_location_rollup: { Args: never; Returns: undefined }
       refresh_mv_ops_daily_summary: { Args: never; Returns: undefined }
       refresh_tenant_idle_states: { Args: never; Returns: number }
+      refresh_ug_geo_alias: { Args: never; Returns: undefined }
       refresh_wallet_projection_for: {
         Args: { p_user_id: string }
         Returns: undefined
@@ -37097,6 +37762,10 @@ export type Database = {
           wallet_bucket: string
         }[]
       }
+      report_payout_not_received: {
+        Args: { p_message: string; p_withdrawal_id: string }
+        Returns: string
+      }
       request_agent_unallocation: {
         Args: {
           p_agent_id: string
@@ -37165,6 +37834,10 @@ export type Database = {
         }[]
       }
       resolve_welile_ai_id: { Args: { ai_id: string }; Returns: string }
+      respond_payout_dispute: {
+        Args: { p_dispute_id: string; p_note?: string; p_status: string }
+        Returns: undefined
+      }
       restore_campaign_attribution: { Args: { p_token: string }; Returns: Json }
       resubmit_rejected_deposit: {
         Args: { p_id: string; p_payload: Json }
@@ -37271,10 +37944,12 @@ export type Database = {
           agent_id: string
           country: string
           district: string
+          district_id: number
           kind: string
           label: string
           landlord_id: string
           region: string
+          subcounty_id: number
           total: number
           ward: string
         }[]
@@ -37405,6 +38080,10 @@ export type Database = {
         Args: { p_lc1_id: string; p_reason: string; p_status: string }
         Returns: Json
       }
+      set_proxy_agent_target: {
+        Args: { p_agent_id?: string; p_target: number }
+        Returns: Json
+      }
       set_staff_access_password: {
         Args: { p_new_password: string; p_user_id: string }
         Returns: boolean
@@ -37448,6 +38127,7 @@ export type Database = {
           p_ready: boolean
           p_reason: string
           p_supporting_note?: string
+          p_ug_district_id?: number
         }
         Returns: Json
       }
@@ -37557,6 +38237,7 @@ export type Database = {
         Args: { p_deposit_id: string }
         Returns: Json
       }
+      ug_norm_name: { Args: { p: string }; Returns: string }
       ug_resolve_village: {
         Args: { p_village_id: number }
         Returns: {

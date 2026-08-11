@@ -24,6 +24,8 @@ import {
 } from '@/components/ui/select';
 import { useAuth } from '@/hooks/useAuth';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
+import UgLocationPicker from '@/components/location/UgLocationPicker';
+import { resolveUgVillage, resolveUgVillageByNames, type UgLocationSelection } from '@/hooks/useUgLocations';
 import { Switch } from '@/components/ui/switch';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format, parseISO, startOfDay, endOfDay, startOfMonth, endOfMonth } from 'date-fns';
@@ -210,7 +212,7 @@ function useProfile(id: string) {
       const { data, error } = await supabase
         .from('profiles')
         .select(
-          'id, full_name, phone, avatar_url, ops_note, continent, country, region, district, city, town, sub_county, parish, village, landmark, residence_lat, residence_lng, address_complete, has_smartphone',
+          'id, full_name, phone, avatar_url, ops_note, continent, country, region, district, city, town, sub_county, parish, village, landmark, residence_lat, residence_lng, address_complete, has_smartphone, ug_village_id',
         )
         .eq('id', id)
         .maybeSingle();
@@ -369,13 +371,33 @@ function LocationEditor({
   const qc = useQueryClient();
   const [form, setForm] = useState({
     country: profile?.country ?? 'Uganda',
-    region: profile?.region ?? '',
-    district: profile?.district ?? '',
-    sub_county: profile?.sub_county ?? '',
-    parish: profile?.parish ?? '',
-    village: profile?.village ?? '',
     landmark: profile?.landmark ?? '',
   });
+  // Official Uganda location comes from the shared picker only — the old
+  // free-text region/district/sub-county/parish/village inputs are gone.
+  const [selection, setSelection] = useState<UgLocationSelection | null>(null);
+  const [resolving, setResolving] = useState(true);
+  const savedLabel = [profile?.village, profile?.parish, profile?.sub_county, profile?.district, profile?.region]
+    .map((v: any) => (v || '').trim()).filter(Boolean).join(', ');
+
+  useEffect(() => {
+    let cancelled = false;
+    setResolving(true);
+    (async () => {
+      try {
+        const sel = profile?.ug_village_id
+          ? await resolveUgVillage(profile.ug_village_id)
+          : await resolveUgVillageByNames(profile?.village, profile?.district);
+        if (!cancelled && sel) setSelection(sel);
+      } catch {
+        /* keep the stored names as read-only context */
+      } finally {
+        if (!cancelled) setResolving(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [profile?.ug_village_id, profile?.village, profile?.district]);
+
   const [hasSmartphone, setHasSmartphone] = useState<boolean>(
     profile?.has_smartphone ?? true,
   );
@@ -405,9 +427,22 @@ function LocationEditor({
   const save = useMutation({
     mutationFn: async () => {
       if (reason.trim().length < 10) throw new Error('Reason must be ≥ 10 characters');
+      // Only send what actually changed. The RPC COALESCEs missing keys, so
+      // omitting the administrative chain leaves the stored values untouched.
+      const address: Record<string, any> = {};
+      if ((form.country ?? '') !== (profile?.country ?? '')) address.country = form.country;
+      if ((form.landmark ?? '') !== (profile?.landmark ?? '')) address.landmark = form.landmark;
+      if (selection && selection.villageId !== (profile?.ug_village_id ?? null)) {
+        address.region = selection.region ?? '';
+        address.district = selection.district;
+        address.sub_county = selection.subcounty;
+        address.parish = selection.parish;
+        address.village = selection.village;
+        address.ug_village_id = String(selection.villageId);
+      }
       const { data, error } = await supabase.rpc('ops_update_user_location', {
         p_user_id: userId,
-        p_address: form as any,
+        p_address: address as any,
         p_latitude: gps.lat,
         p_longitude: gps.lng,
         p_accuracy: gps.acc,
@@ -422,7 +457,7 @@ function LocationEditor({
       qc.invalidateQueries({ queryKey: ['drilldown-profile', userId] });
       setReason('');
     },
-    onError: (e: any) => toast.error(e.message ?? 'Failed to update profile'),
+    onError: (e: any) => toast.error(e?.message || String(e)),
   });
 
   return (
@@ -433,18 +468,38 @@ function LocationEditor({
           <Badge className="text-[10px] bg-amber-100 text-amber-700 border-amber-200">Incomplete</Badge>
         )}
       </div>
-      <div className="grid grid-cols-2 gap-2">
-        {(['country','region','district','sub_county','parish','village'] as const).map((k) => (
-          <div key={k}>
-            <Label className="text-[10px] uppercase text-muted-foreground">{k.replace('_',' ')}</Label>
-            <Input
-              value={(form as any)[k]}
-              onChange={(e) => setForm({ ...form, [k]: e.target.value })}
-              disabled={!canEdit}
-              className="h-8 text-sm"
-            />
-          </div>
-        ))}
+      {resolving ? (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Loader2 className="h-3 w-3 animate-spin" /> Loading saved location…
+        </div>
+      ) : canEdit ? (
+        <UgLocationPicker
+          label="Official location (village)"
+          value={selection}
+          onChange={(sel) => setSelection(sel)}
+        />
+      ) : (
+        <div>
+          <Label className="text-[10px] uppercase text-muted-foreground">Official location</Label>
+          <p className="text-sm">{selection ? selection.fullPath : savedLabel || '—'}</p>
+        </div>
+      )}
+
+      {!resolving && !selection && savedLabel && (
+        <p className="text-[11px] text-muted-foreground">
+          Saved (unmatched) address: <span className="font-medium text-foreground">{savedLabel}</span> — pick the
+          official village above to update it.
+        </p>
+      )}
+
+      <div>
+        <Label className="text-[10px] uppercase text-muted-foreground">Country</Label>
+        <Input
+          value={form.country}
+          onChange={(e) => setForm({ ...form, country: e.target.value })}
+          disabled={!canEdit}
+          className="h-8 text-sm"
+        />
       </div>
       <div>
         <Label className="text-[10px] uppercase text-muted-foreground">Landmark</Label>

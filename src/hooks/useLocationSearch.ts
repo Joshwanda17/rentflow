@@ -13,6 +13,8 @@ export interface LocationSearchHit {
   agent_id: string | null;
   landlord_id: string | null;
   total: number;
+  district_id?: number | null;
+  subcounty_id?: number | null;
 }
 
 export function hitToPath(hit: LocationSearchHit): BreadcrumbPath {
@@ -21,6 +23,8 @@ export function hitToPath(hit: LocationSearchHit): BreadcrumbPath {
   if (hit.region) path.region = hit.region;
   if (hit.district) path.district = hit.district;
   if (hit.ward) path.ward = hit.ward;
+  if (hit.district_id != null) path.districtId = hit.district_id;
+  if (hit.subcounty_id != null) path.subcountyId = hit.subcounty_id;
   if (hit.agent_id) { path.agentId = hit.agent_id; path.agentName = hit.label; }
   if (hit.landlord_id) { path.landlordId = hit.landlord_id; path.landlordName = hit.label; }
   return path;

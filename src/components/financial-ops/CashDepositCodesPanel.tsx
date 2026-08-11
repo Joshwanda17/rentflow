@@ -4,8 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
-import { KeyRound, RefreshCw, Loader2, Check, Clock, Radio, ChevronDown, Smartphone } from 'lucide-react';
+import { KeyRound, RefreshCw, Loader2, Check, Clock, Radio, Smartphone, Search, Inbox, X, ChevronDown, ArrowLeft, BarChart3, CheckCircle2, Menu, Building2, Banknote } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { StartCashDepositDialog } from './StartCashDepositDialog';
 
 interface CashCodeRow {
@@ -19,6 +19,7 @@ interface CashCodeRow {
   attempts: number | null;
   max_attempts: number | null;
   deposit_purpose: string | null;
+  cash_location: 'cash_at_hand' | 'bank' | string | null;
   expires_at: string | null;
   created_at: string;
 }
@@ -29,12 +30,68 @@ const fmtUgx = (n: number | null) =>
 const purposeLabel = (p: string | null) =>
   p === 'operational_float' ? 'Operational Float' : p === 'other' ? 'Other' : 'Personal Deposit';
 
+const cashLocationLabel = (loc: string | null) =>
+  loc === 'bank' ? 'Banked' : 'Cash at hand';
+
+const cashLocationIcon = (loc: string | null) =>
+  loc === 'bank' ? 'Building2' : 'Banknote';
+
+// Muted tonal avatars, same calm palette as the Gmail-style email inbox.
+const AVATAR_TONES = [
+  'bg-rose-500/12 text-rose-600', 'bg-amber-500/12 text-amber-600',
+  'bg-emerald-500/12 text-emerald-600', 'bg-sky-500/12 text-sky-600',
+  'bg-indigo-500/12 text-indigo-600', 'bg-violet-500/12 text-violet-600',
+  'bg-teal-500/12 text-teal-600', 'bg-orange-500/12 text-orange-600',
+];
+
+function toneFor(seed: string) {
+  let h = 0;
+  for (let i = 0; i < seed.length; i += 1) h = (h * 31 + seed.charCodeAt(i)) % 997;
+  return AVATAR_TONES[h % AVATAR_TONES.length];
+}
+
+/** Gmail-style date column: time for today, "MMM d" otherwise. */
+function gmailDate(iso?: string | null) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const sameDay = d.toDateString() === new Date().toDateString();
+  return sameDay
+    ? d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+    : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+/** Gmail groups its inbox under date rollups: Today, Yesterday, then dates. */
+function dateGroupLabel(iso?: string | null) {
+  if (!iso) return 'No date';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return 'No date';
+  const now = new Date();
+  const dayKey = (x: Date) => `${x.getFullYear()}-${x.getMonth()}-${x.getDate()}`;
+  if (dayKey(d) === dayKey(now)) return 'Today';
+  if (dayKey(d) === dayKey(new Date(now.getTime() - 86_400_000))) return 'Yesterday';
+  const sameYear = d.getFullYear() === now.getFullYear();
+  return d.toLocaleDateString(undefined, sameYear
+    ? { weekday: 'short', month: 'short', day: 'numeric' }
+    : { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
 function StatusBadge({ status }: { status: string }) {
   if (status === 'awaiting_code')
     return <Badge className="bg-amber-500/15 text-amber-600 border-amber-500/30">Awaiting code</Badge>;
   if (status === 'verified')
     return <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30">Verified</Badge>;
   return <Badge variant="outline" className="text-muted-foreground capitalize">{status.replace(/_/g, ' ')}</Badge>;
+}
+
+function CashLocationBadge({ location }: { location: string | null }) {
+  const isBank = location === 'bank';
+  return (
+    <Badge variant="outline" className={`text-[10px] gap-1 ${isBank ? 'border-sky-500/30 text-sky-600 bg-sky-500/10' : 'border-emerald-500/30 text-emerald-600 bg-emerald-500/10'}`}>
+      {isBank ? <Building2 className="h-3 w-3" /> : <Banknote className="h-3 w-3" />}
+      {cashLocationLabel(location)}
+    </Badge>
+  );
 }
 
 /** Live mm:ss countdown to expiry; color shifts from emerald → amber → rose as time runs low. */
@@ -73,7 +130,10 @@ function Countdown({ expiresAt, inline = false }: { expiresAt: string | null; in
  * code is only revealed while the deposit is still awaiting the code and not
  * expired — crediting still requires the depositor to enter it.
  */
-export function CashDepositCodesPanel() {
+export function CashDepositCodesPanel({
+  fullScreen = false,
+  onClose,
+}: { fullScreen?: boolean; onClose?: () => void } = {}) {
   const { toast } = useToast();
   const [rows, setRows] = useState<CashCodeRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -244,180 +304,499 @@ export function CashDepositCodesPanel() {
     load();
   };
 
-  const activeRows = rows.filter(
+  const [startOpen, setStartOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [tab, setTab] = useState<'all' | 'awaiting' | 'verified'>('all');
+  const [cashLocation, setCashLocation] = useState<'all' | 'cash_at_hand' | 'bank'>('all');
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [range, setRange] = useState<'today' | '7d' | '30d' | 'all'>('today');
+  const [view, setView] = useState<'inbox' | 'report'>('inbox');
+  const [navOpen, setNavOpen] = useState(false);
+
+  const rangeStart = (() => {
+    const now = new Date();
+    if (range === 'today') return new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    if (range === '7d') return now.getTime() - 7 * 86400000;
+    if (range === '30d') return now.getTime() - 30 * 86400000;
+    return 0;
+  })();
+
+  const rangeRows = rows.filter((r) => {
+    const inRange = !r.created_at ? range === 'all' : new Date(r.created_at).getTime() >= rangeStart;
+    const inLocation = cashLocation === 'all' || r.cash_location === cashLocation;
+    return inRange && inLocation;
+  });
+
+  const activeRows = rangeRows.filter(
     (r) => r.status === 'awaiting_code' && r.expires_at && new Date(r.expires_at).getTime() > Date.now(),
   );
 
-  // Show every recent code — including expired ones — so verifiers can still
-  // read a code back to a depositor after the active window has lapsed.
-  const displayRows = rows;
-
   const activeCount = activeRows.length;
 
-  const [open, setOpen] = useState(true);
-  const [startOpen, setStartOpen] = useState(false);
+  const totalVerified = rangeRows
+    .filter((r) => r.status === 'verified')
+    .reduce((sum, r) => sum + (r.amount ?? 0), 0);
+
+  const totalPending = activeRows.reduce((sum, r) => sum + (r.amount ?? 0), 0);
+
+  const isLive = (r: CashCodeRow) =>
+    r.status === 'awaiting_code' && !!r.expires_at && new Date(r.expires_at).getTime() > Date.now();
+
+  const q = query.trim().toLowerCase();
+  // Show every recent code — including expired ones — so verifiers can still
+  // read a code back to a depositor after the active window has lapsed.
+  const displayRows = rangeRows
+    .filter((r) => (tab === 'all' ? true : tab === 'awaiting' ? r.status === 'awaiting_code' : r.status === 'verified'))
+    .filter((r) =>
+      !q
+        ? true
+        : [r.depositor_name, r.depositor_phone, purposeLabel(r.deposit_purpose), cashLocationLabel(r.cash_location), String(r.amount ?? '')]
+            .join(' ')
+            .toLowerCase()
+            .includes(q),
+    );
+
+  const openRow = openId ? displayRows.find((r) => r.verification_id === openId) ?? null : null;
+
+  const tabs: { key: 'all' | 'awaiting' | 'verified'; label: string; count: number }[] = [
+    { key: 'all', label: 'All', count: rangeRows.length },
+    { key: 'awaiting', label: 'Awaiting', count: rangeRows.filter((r) => r.status === 'awaiting_code').length },
+    { key: 'verified', label: 'Verified', count: rangeRows.filter((r) => r.status === 'verified').length },
+  ];
+
+  // Per-day rollups: verified cash actually banked vs cash still awaiting a code.
+  const dayKeyOf = (iso?: string | null) => (iso ? new Date(iso).toDateString() : 'unknown');
+  const dayTotals = new Map<string, { verified: number; awaiting: number; count: number }>();
+  for (const r of rangeRows) {
+    const k = dayKeyOf(r.created_at);
+    const e = dayTotals.get(k) ?? { verified: 0, awaiting: 0, count: 0 };
+    if (r.status === 'verified') e.verified += r.amount ?? 0;
+    else if (r.status === 'awaiting_code') e.awaiting += r.amount ?? 0;
+    e.count += 1;
+    dayTotals.set(k, e);
+  }
+
+  const chartData = Array.from(dayTotals.entries())
+    .filter(([k]) => k !== 'unknown')
+    .sort((a, b) => new Date(a[0]).getTime() - new Date(b[0]).getTime())
+    .map(([k, v]) => ({
+      label: new Date(k).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+      verified: v.verified,
+      awaiting: v.awaiting,
+      count: v.count,
+    }));
+
+  const navItems: { key: 'all' | 'awaiting' | 'verified' | 'report'; label: string; icon: typeof Inbox; count?: number }[] = [
+    { key: 'all', label: 'All', icon: Inbox, count: rangeRows.length },
+    { key: 'awaiting', label: 'Awaiting', icon: Clock, count: rangeRows.filter((r) => r.status === 'awaiting_code').length },
+    { key: 'verified', label: 'Verified', icon: CheckCircle2, count: rangeRows.filter((r) => r.status === 'verified').length },
+    { key: 'report', label: 'Cashflow', icon: BarChart3 },
+  ];
+
+  const selectNav = (key: 'all' | 'awaiting' | 'verified' | 'report') => {
+    setOpenId(null);
+    setNavOpen(false);
+    if (key === 'report') { setView('report'); return; }
+    setView('inbox');
+    setTab(key);
+  };
+
+  const sideNav = (
+    <nav className="p-2 space-y-0.5">
+      {navItems.map((n) => {
+        const active = n.key === 'report' ? view === 'report' : view === 'inbox' && tab === n.key;
+        const Icon = n.icon;
+        return (
+          <button
+            key={n.key}
+            onClick={() => selectNav(n.key)}
+            className={`w-full flex items-center gap-3 rounded-full px-3 py-2 text-sm transition-colors ${
+              active ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground hover:bg-muted'
+            }`}
+          >
+            <Icon className="h-4 w-4 shrink-0" />
+            <span className="truncate">{n.label}</span>
+            {typeof n.count === 'number' && (
+              <span className="ml-auto text-xs tabular-nums opacity-70">{n.count}</span>
+            )}
+          </button>
+        );
+      })}
+    </nav>
+  );
+
+  const ranges: { key: 'today' | '7d' | '30d' | 'all'; label: string }[] = [
+    { key: 'today', label: 'Today' },
+    { key: '7d', label: '7 days' },
+    { key: '30d', label: '30 days' },
+    { key: 'all', label: 'All time' },
+  ];
+
+  const codeEntry = (r: CashCodeRow, size: 'row' | 'pane') => (
+    <div className="flex items-center gap-1.5">
+      <Input
+        inputMode="numeric"
+        maxLength={4}
+        placeholder="0000"
+        aria-label="Enter the 4-digit code"
+        className={`${size === 'pane' ? 'h-9 w-20' : 'h-8 w-16'} text-center font-mono tracking-widest`}
+        value={codeInputs[r.verification_id] ?? ''}
+        onClick={(e) => e.stopPropagation()}
+        onChange={(e) =>
+          setCodeInputs((prev) => ({
+            ...prev,
+            [r.verification_id]: e.target.value.replace(/\D/g, '').slice(0, 4),
+          }))
+        }
+        onKeyDown={(e) => {
+          e.stopPropagation();
+          if (e.key === 'Enter') void submitCode(r);
+        }}
+      />
+      <Button
+        size="sm"
+        className={`${size === 'pane' ? 'h-9' : 'h-8'} gap-1 rounded-full text-xs`}
+        disabled={verifying === r.verification_id || (codeInputs[r.verification_id] ?? '').length !== 4}
+        onClick={(e) => { e.stopPropagation(); void submitCode(r); }}
+      >
+        {verifying === r.verification_id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+        Credit
+      </Button>
+    </div>
+  );
+
+  const resendButton = (r: CashCodeRow) => (
+    <Button
+      variant="outline"
+      size="sm"
+      className="h-8 gap-1 rounded-full text-xs"
+      disabled={reissuing === r.verification_id}
+      onClick={(e) => { e.stopPropagation(); void reissue(r.verification_id); }}
+    >
+      {reissuing === r.verification_id ? <Loader2 className="h-3 w-3 animate-spin" /> : <KeyRound className="h-3 w-3" />}
+      Resend code
+    </Button>
+  );
 
   return (
     <>
-    <StartCashDepositDialog open={startOpen} onOpenChange={setStartOpen} onIssued={load} />
-    <Collapsible open={open} onOpenChange={setOpen} className="rounded-xl border bg-card">
-      <CollapsibleTrigger asChild>
-        <div className="flex items-center justify-between gap-3 cursor-pointer p-4 sm:p-5 hover:bg-muted/30 transition-colors rounded-t-xl">
-          <div className="min-w-0">
-            <h3 className="text-base sm:text-lg font-semibold flex items-center gap-2">
-              <KeyRound className="h-5 w-5 text-primary" /> Cash Deposit Codes
-              {activeCount > 0 && (
-                <Badge className="bg-amber-500 text-white hover:bg-amber-500">{activeCount} active</Badge>
-              )}
-            </h3>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Codes are never shown here — ask the depositor to read the code from their SMS, then enter it once you have received the matching cash. Codes expire in 10 minutes.
-            </p>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
+      <StartCashDepositDialog open={startOpen} onOpenChange={setStartOpen} onIssued={load} />
+
+      <div
+        className={
+          fullScreen
+            ? 'fixed inset-0 z-50 flex flex-col bg-background'
+            : 'rounded-xl border bg-card overflow-hidden'
+        }
+      >
+        {/* ── Gmail-style toolbar ─────────────────────────────────────────── */}
+        <div className={`flex flex-wrap items-center gap-2 px-3 py-2.5 border-b ${fullScreen ? 'shrink-0' : ''}`}>
+          <div className="flex items-center gap-2 min-w-0">
             <Button
-              size="sm"
-              onClick={(e) => { e.stopPropagation(); setStartOpen(true); }}
-              className="gap-1.5"
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 rounded-full md:hidden"
+              aria-label="Menu"
+              onClick={() => setNavOpen((v) => !v)}
             >
-              <Smartphone className="h-4 w-4" />
-              <span className="hidden sm:inline">Start deposit by SMS</span>
-              <span className="sm:hidden">SMS code</span>
+              <Menu className="h-5 w-5" />
             </Button>
-            <Badge
-              variant="outline"
-              className="hidden sm:inline-flex items-center gap-1 text-[10px] font-normal text-muted-foreground border-dashed"
+            {fullScreen && onClose ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 rounded-full -ml-1"
+                aria-label="Close"
+                onClick={onClose}
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+            ) : null}
+            <Inbox className="h-5 w-5 text-primary shrink-0" />
+            <span className="font-medium text-sm sm:text-base truncate">Cash deposit codes</span>
+            {activeCount > 0 && (
+              <span className="text-xs font-semibold text-primary">({activeCount})</span>
+            )}
+          </div>
+
+          <div className="order-3 w-full sm:order-none sm:w-auto sm:flex-1 sm:max-w-md">
+            <div className="flex items-center gap-2 rounded-full bg-muted px-3 h-9 focus-within:bg-background focus-within:ring-1 focus-within:ring-border">
+              <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search depositor, phone or amount"
+                className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+              />
+              {query && (
+                <button aria-label="Clear search" onClick={() => setQuery('')}>
+                  <X className="h-4 w-4 text-muted-foreground" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1 ml-auto">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 rounded-full"
+              aria-label="Refresh"
+              title="Refresh"
+              onClick={() => load()}
             >
-              <Radio className={`h-3 w-3 animate-pulse ${realtimeHealthy ? 'text-emerald-500' : 'text-amber-500'}`} />
-              {realtimeHealthy ? `Live · safety refresh ${secondsToRefresh}s` : `Fallback refresh ${secondsToRefresh}s`}
-            </Badge>
-            <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); load(); }} className="gap-1.5">
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-              Refresh
             </Button>
-            <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${open ? '' : '-rotate-90'}`} />
+            <Button size="sm" className="h-9 gap-1.5 rounded-full" onClick={() => setStartOpen(true)}>
+              <Smartphone className="h-4 w-4" />
+              <span className="hidden sm:inline">Start deposit</span>
+              <span className="sm:hidden">New</span>
+            </Button>
           </div>
         </div>
-      </CollapsibleTrigger>
 
-      <CollapsibleContent>
-        <div className="px-4 pb-4 sm:px-5 sm:pb-5 space-y-4">
-          <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-            <Radio className={`h-3 w-3 ${realtimeHealthy ? 'text-emerald-500' : 'text-amber-500'}`} />
-            <span>
-              {realtimeHealthy
-                ? 'Realtime connected'
-                : 'Realtime unavailable — polling fallback active'}
-              {' '}— last updated {new Date(lastRefreshedAt).toLocaleTimeString()}
-            </span>
-          </div>
-
-          {loading && displayRows.length === 0 ? (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground py-6 justify-center">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading codes…
-            </div>
-          ) : loadError ? (
-            <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
-              Could not load cash deposit codes: {loadError}
-            </div>
-          ) : displayRows.length === 0 ? (
-            <div className="text-sm text-muted-foreground py-6 text-center">No cash deposit codes yet.</div>
-          ) : (
-            <div className="overflow-x-auto -mx-1">
-              <table className="w-full text-sm border-collapse">
-                <thead>
-                  <tr className="text-left text-xs text-muted-foreground border-b">
-                    <th className="py-2 px-2 font-medium">Code</th>
-                    <th className="py-2 px-2 font-medium">Amount</th>
-                    <th className="py-2 px-2 font-medium">Depositor</th>
-                    <th className="py-2 px-2 font-medium">Purpose</th>
-                    <th className="py-2 px-2 font-medium">Status</th>
-                    <th className="py-2 px-2 font-medium">Enter code</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {displayRows.map((r) => (
-                    <tr key={r.verification_id} className="border-b last:border-0 hover:bg-muted/40">
-                      <td className="py-2 px-2 align-top">
-                        <div className="flex flex-col gap-1">
-                          <span className="inline-flex items-center gap-1.5 font-mono text-base font-bold tracking-widest text-muted-foreground rounded-md px-2 py-1 bg-muted w-fit">
-                            ••••
-                          </span>
-                          <span className="text-[10px] text-muted-foreground">
-                            {r.status === 'verified' ? 'Verified' : 'Sent to depositor by SMS'}
-                          </span>
-                          {r.status !== 'verified' && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-7 w-fit gap-1 text-xs"
-                                disabled={reissuing === r.verification_id}
-                                onClick={() => reissue(r.verification_id)}
-                              >
-                                {reissuing === r.verification_id ? (
-                                  <Loader2 className="h-3 w-3 animate-spin" />
-                                ) : (
-                                  <KeyRound className="h-3 w-3" />
-                                )}
-                                Resend code
-                              </Button>
-                          )}
-                          <Countdown expiresAt={r.expires_at} inline />
-                        </div>
-                      </td>
-                      <td className="py-2 px-2 font-medium whitespace-nowrap">{fmtUgx(r.amount)}</td>
-                      <td className="py-2 px-2">
-                        <div className="font-medium truncate max-w-[160px]">{r.depositor_name || '—'}</div>
-                        <div className="text-xs text-muted-foreground">{r.depositor_phone || ''}</div>
-                      </td>
-                      <td className="py-2 px-2 whitespace-nowrap text-xs">{purposeLabel(r.deposit_purpose)}</td>
-                      <td className="py-2 px-2"><StatusBadge status={r.status} /></td>
-                      <td className="py-2 px-2 align-top">
-                        {r.status === 'awaiting_code' &&
-                        r.expires_at &&
-                        new Date(r.expires_at).getTime() > Date.now() ? (
-                          <div className="flex items-center gap-1.5">
-                            <Input
-                              inputMode="numeric"
-                              maxLength={4}
-                              placeholder="0000"
-                              className="h-8 w-16 text-center font-mono tracking-widest"
-                              value={codeInputs[r.verification_id] ?? ''}
-                              onChange={(e) =>
-                                setCodeInputs((prev) => ({
-                                  ...prev,
-                                  [r.verification_id]: e.target.value.replace(/\D/g, '').slice(0, 4),
-                                }))
-                              }
-                              onKeyDown={(e) => { if (e.key === 'Enter') void submitCode(r); }}
-                            />
-                            <Button
-                              size="sm"
-                              className="h-8 gap-1 text-xs"
-                              disabled={verifying === r.verification_id || (codeInputs[r.verification_id] ?? '').length !== 4}
-                              onClick={() => void submitCode(r)}
-                            >
-                              {verifying === r.verification_id ? (
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                              ) : (
-                                <Check className="h-3 w-3" />
-                              )}
-                              Credit
-                            </Button>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+        {/* ── Gmail-style layout: side nav + content ──────────────────────── */}
+        <div className={`flex min-h-0 ${fullScreen ? 'flex-1' : ''}`}>
+          <aside className="hidden md:block w-44 shrink-0 border-r overflow-y-auto">{sideNav}</aside>
+          {navOpen && (
+            <aside className="md:hidden absolute z-20 mt-0 w-44 border-r bg-background shadow-lg">{sideNav}</aside>
           )}
+          <div className="flex-1 min-w-0 flex flex-col min-h-0">
+        {/* ── Gmail-style category tabs ───────────────────────────────────── */}
+        <div className={`flex items-center gap-1 px-2 border-b overflow-x-auto ${fullScreen ? 'shrink-0' : ''}`}>
+          {tabs.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => { setTab(t.key); setOpenId(null); }}
+              className={`shrink-0 px-3 py-2 text-sm border-b-2 -mb-px transition-colors ${
+                tab === t.key
+                  ? 'border-primary text-primary font-medium'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {t.label} <span className="text-xs opacity-70">{t.count}</span>
+            </button>
+          ))}
+          <div className="ml-auto hidden sm:flex items-center gap-1.5 pr-2 text-[11px] text-muted-foreground">
+            <Radio className={`h-3 w-3 animate-pulse ${realtimeHealthy ? 'text-emerald-500' : 'text-amber-500'}`} />
+            {realtimeHealthy ? `Live · ${secondsToRefresh}s` : `Fallback · ${secondsToRefresh}s`}
+          </div>
         </div>
-      </CollapsibleContent>
-    </Collapsible>
+
+        {/* ── Totals strip ────────────────────────────────────────────────── */}
+        <div className={`flex flex-wrap items-center gap-2 px-3 py-2 border-b bg-muted/30 text-xs ${fullScreen ? 'shrink-0' : ''}`}>
+          <div className="flex items-center gap-1 overflow-x-auto">
+            {ranges.map((rg) => (
+              <button
+                key={rg.key}
+                onClick={() => { setRange(rg.key); setOpenId(null); }}
+                className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] border transition-colors ${
+                  range === rg.key
+                    ? 'bg-primary/10 border-primary/30 text-primary font-medium'
+                    : 'bg-background border-border text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {rg.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-1 overflow-x-auto">
+            {[
+              { key: 'all' as const, label: 'All cash' },
+              { key: 'cash_at_hand' as const, label: 'Cash at hand' },
+              { key: 'bank' as const, label: 'Cash banked' },
+            ].map((loc) => (
+              <button
+                key={loc.key}
+                onClick={() => { setCashLocation(loc.key); setOpenId(null); }}
+                className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] border transition-colors ${
+                  cashLocation === loc.key
+                    ? 'bg-primary/10 border-primary/30 text-primary font-medium'
+                    : 'bg-background border-border text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {loc.label}
+              </button>
+            ))}
+          </div>
+          <span className="text-muted-foreground">
+            Verified cash <span className="font-semibold text-emerald-600">{fmtUgx(totalVerified)}</span>
+          </span>
+          <span className="text-muted-foreground">
+            Awaiting <span className="font-semibold text-amber-600">{fmtUgx(totalPending)}</span>
+          </span>
+          <span className="ml-auto text-muted-foreground hidden sm:inline">
+            Updated {new Date(lastRefreshedAt).toLocaleTimeString()}
+          </span>
+        </div>
+
+        {/* ── Reading pane or inbox list ──────────────────────────────────── */}
+        <div className={fullScreen ? 'flex-1 min-h-0 overflow-y-auto overscroll-contain' : ''}>
+        {view === 'report' ? (
+          <div className="p-3 sm:p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <BarChart3 className="h-4 w-4 text-primary" />
+              <h4 className="text-sm font-semibold">Cashflow over time</h4>
+              <span className="ml-auto text-xs text-muted-foreground">{ranges.find((x) => x.key === range)?.label}</span>
+            </div>
+            <div className="h-[240px] rounded-lg border bg-card p-2">
+              {chartData.length ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData} barGap={2}>
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
+                    <XAxis dataKey="label" tick={{ fontSize: 10 }} />
+                    <YAxis tick={{ fontSize: 10 }} width={44} tickFormatter={(v: number) => (v >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : `${Math.round(v / 1000)}k`)} />
+                    <Tooltip formatter={(v: number) => fmtUgx(v)} contentStyle={{ fontSize: 11 }} />
+                    <Bar dataKey="verified" name="Verified" fill="hsl(var(--chart-2))" radius={[3, 3, 0, 0]} />
+                    <Bar dataKey="awaiting" name="Awaiting" fill="hsl(var(--chart-4))" radius={[3, 3, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full grid place-items-center text-xs text-muted-foreground">No cash deposits in this range</div>
+              )}
+            </div>
+            <div className="rounded-lg border divide-y">
+              {chartData.length === 0 && <div className="p-3 text-xs text-muted-foreground">Nothing to show.</div>}
+              {[...chartData].reverse().map((d) => (
+                <div key={d.label} className="flex items-center gap-3 px-3 py-2 text-xs">
+                  <span className="w-20 font-medium">{d.label}</span>
+                  <span className="text-emerald-600 font-semibold tabular-nums">{fmtUgx(d.verified)}</span>
+                  <span className="text-amber-600 tabular-nums">{fmtUgx(d.awaiting)} awaiting</span>
+                  <span className="ml-auto text-muted-foreground">{d.count} codes</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : openRow ? (
+          <div className="p-4 space-y-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 gap-1 rounded-full -ml-2"
+              onClick={() => setOpenId(null)}
+            >
+              <ChevronDown className="h-4 w-4 rotate-90" /> Back to inbox
+            </Button>
+
+            <div>
+              <h4 className="text-base font-semibold">
+                Cash deposit · {fmtUgx(openRow.amount)}
+              </h4>
+              <div className="mt-2 flex items-start gap-3">
+                <div className={`h-10 w-10 rounded-full grid place-items-center text-sm font-semibold ${toneFor(openRow.depositor_name || openRow.verification_id)}`}>
+                  {(openRow.depositor_name || '?').charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium truncate">{openRow.depositor_name || 'Unknown depositor'}</div>
+                  <div className="text-xs text-muted-foreground">{openRow.depositor_phone || 'No phone on file'}</div>
+                </div>
+                <div className="text-xs text-muted-foreground whitespace-nowrap">{gmailDate(openRow.created_at)}</div>
+              </div>
+            </div>
+
+            <div className="rounded-lg border bg-muted/20 p-3 text-sm space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusBadge status={openRow.status} />
+                <Badge variant="outline" className="text-xs">{purposeLabel(openRow.deposit_purpose)}</Badge>
+                <CashLocationBadge location={openRow.cash_location} />
+                <Countdown expiresAt={openRow.expires_at} inline />
+              </div>
+              <p className="text-muted-foreground text-xs leading-relaxed">
+                The 4-digit code was sent to the depositor by SMS and is never shown here. Ask them to read it back
+                once you have received the matching cash, then enter it below. Codes expire in 10 minutes.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {isLive(openRow) && codeEntry(openRow, 'pane')}
+              {openRow.status !== 'verified' && resendButton(openRow)}
+            </div>
+          </div>
+        ) : loading && displayRows.length === 0 ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground py-10 justify-center">
+            <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+          </div>
+        ) : loadError ? (
+          <div className="m-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+            Could not load cash deposit codes: {loadError}
+          </div>
+        ) : displayRows.length === 0 ? (
+          <div className="py-12 text-center text-sm text-muted-foreground">
+            <Inbox className="h-8 w-8 mx-auto mb-2 opacity-40" />
+            {q ? 'No codes match your search.' : 'No cash deposit codes yet.'}
+          </div>
+        ) : (
+          <div className="divide-y">
+            {displayRows.map((r, i) => {
+              const group = dateGroupLabel(r.created_at);
+              const showGroup = i === 0 || dateGroupLabel(displayRows[i - 1].created_at) !== group;
+              const unread = r.status === 'awaiting_code';
+              return (
+                <div key={r.verification_id}>
+                  {showGroup && (
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/40 text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                      <span>{group}</span>
+                      <span className="ml-auto normal-case tracking-normal">
+                        <span className="text-emerald-600 font-semibold">{fmtUgx(dayTotals.get(dayKeyOf(r.created_at))?.verified ?? 0)}</span>
+                        {' verified · '}
+                        <span className="text-amber-600 font-semibold">{fmtUgx(dayTotals.get(dayKeyOf(r.created_at))?.awaiting ?? 0)}</span>
+                        {' awaiting'}
+                      </span>
+                    </div>
+                  )}
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setOpenId(r.verification_id)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') setOpenId(r.verification_id); }}
+                    className={`group flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors hover:bg-muted/50 ${
+                      unread ? 'bg-background' : 'bg-muted/10'
+                    }`}
+                  >
+                    <div className={`h-8 w-8 shrink-0 rounded-full grid place-items-center text-xs font-semibold ${toneFor(r.depositor_name || r.verification_id)}`}>
+                      {(r.depositor_name || '?').charAt(0).toUpperCase()}
+                    </div>
+
+                    <div className={`w-28 sm:w-40 shrink-0 truncate text-sm ${unread ? 'font-semibold' : 'text-muted-foreground'}`}>
+                      {r.depositor_name || 'Unknown'}
+                    </div>
+
+                    <div className="min-w-0 flex-1 flex items-baseline gap-1.5">
+                      <span className={`truncate text-sm ${unread ? 'font-semibold' : ''}`}>
+                        {fmtUgx(r.amount)}
+                      </span>
+                      <span className="hidden sm:inline text-xs text-muted-foreground truncate">
+                        — {purposeLabel(r.deposit_purpose)}
+                        {r.cash_location ? ` · ${cashLocationLabel(r.cash_location)}` : ''}
+                        {r.depositor_phone ? ` · ${r.depositor_phone}` : ''}
+                      </span>
+                    </div>
+
+                    <div className="hidden md:flex items-center gap-2 shrink-0">
+                      <CashLocationBadge location={r.cash_location} />
+                      <StatusBadge status={r.status} />
+                      <Countdown expiresAt={r.expires_at} inline />
+                    </div>
+
+                    {/* Gmail reveals row actions on hover; here they stay reachable on touch too. */}
+                    <div className="shrink-0 flex items-center gap-1.5">
+                      {isLive(r) ? (
+                        <div className="hidden lg:block">{codeEntry(r, 'row')}</div>
+                      ) : null}
+                      <span className="text-[11px] text-muted-foreground w-14 text-right group-hover:opacity-0 transition-opacity">
+                        {gmailDate(r.created_at)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        </div>
+          </div>
+        </div>
+      </div>
     </>
   );
 }

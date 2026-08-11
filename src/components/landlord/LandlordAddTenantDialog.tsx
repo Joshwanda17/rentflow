@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Lc1VillagePicker } from '@/components/location/Lc1VillagePicker';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -529,18 +530,11 @@ export default function LandlordAddTenantDialog({
                       />
                     </div>
                   </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="lt-lc1Village" className="text-xs">
-                      Village / Zone
-                    </Label>
-                    <Input
-                      id="lt-lc1Village"
-                      value={lc1Village}
-                      onChange={(e) => setLc1Village(e.target.value)}
-                      placeholder="e.g. Bukoto Zone A"
-                      className="h-9"
-                    />
-                  </div>
+                  <Lc1VillagePicker
+                    className="space-y-1"
+                    value={lc1Village}
+                    onChange={(name) => setLc1Village(name)}
+                  />
                 </div>
               </div>
 

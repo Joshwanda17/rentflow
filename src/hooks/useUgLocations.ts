@@ -65,6 +65,16 @@ async function fetchLevel(table: string, parentCol: string | null, parentId: num
 
 export interface UgDistrictOption extends UgOption { region: string | null }
 
+/** Case/space-insensitive match of legacy typed district text to an official row. */
+export function findUgDistrictByName(
+  list: UgDistrictOption[] | undefined,
+  name?: string | null,
+): UgDistrictOption | null {
+  const n = (name ?? '').trim().toLowerCase().replace(/\s+district$/, '');
+  if (!n) return null;
+  return (list ?? []).find((d) => d.name.trim().toLowerCase() === n) ?? null;
+}
+
 /** All districts, each carrying its region. Optionally filtered by region. */
 export function useUgDistricts(region?: string | null) {
   return useQuery({
@@ -94,6 +104,28 @@ export function useUgSubcounties(countyId: number | null) {
     queryKey: ['ug', 'subcounties', countyId],
     enabled: countyId != null,
     queryFn: () => fetchLevel('ug_subcounties', 'county_id', countyId),
+    ...STATIC,
+  });
+}
+
+/**
+ * Every sub-county in a district (across all its counties) in ONE round trip,
+ * using the existing county → district link. Used by area FILTERS, which skip
+ * the county level so tenants pick Region → District → Sub-county.
+ */
+export function useUgSubcountiesByDistrict(districtId: number | null) {
+  return useQuery({
+    queryKey: ['ug', 'subcounties-by-district', districtId],
+    enabled: districtId != null,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('ug_subcounties' as any)
+        .select('id, name, ug_counties!inner(district_id)')
+        .eq('ug_counties.district_id', districtId as number)
+        .order('name');
+      if (error) throw error;
+      return ((data ?? []) as any[]).map((r) => ({ id: r.id, name: r.name })) as UgOption[];
+    },
     ...STATIC,
   });
 }
@@ -170,6 +202,32 @@ export async function resolveUgVillage(villageId: number): Promise<UgLocationSel
   if (error) throw error;
   const row = (data as SearchRow[] | null)?.[0];
   return row ? rowToSelection(row) : null;
+}
+
+/**
+ * Best-effort upgrade of legacy typed names to an official village row.
+ * Used by surfaces that historically stored free text (agent tenant edit, ops
+ * drilldown) so a saved address can pre-fill the picker without a re-pick.
+ * Returns null when the name is ambiguous or unknown — callers then require a
+ * fresh selection.
+ */
+export async function resolveUgVillageByNames(
+  village?: string | null,
+  district?: string | null,
+): Promise<UgLocationSelection | null> {
+  const v = (village ?? '').trim();
+  if (v.length < 2) return null;
+  const d = (district ?? '').trim() || null;
+  const { data, error } = await supabase.rpc('ug_search_villages' as any, {
+    p_query: v,
+    p_limit: 20,
+    p_district_id: null,
+    p_district_name: d,
+  });
+  if (error) return null;
+  const rows = (data ?? []) as SearchRow[];
+  const exact = rows.filter((r) => r.village_name.trim().toLowerCase() === v.toLowerCase());
+  return exact.length === 1 ? rowToSelection(exact[0]) : null;
 }
 
 /** Human-readable label used consistently across every form. */

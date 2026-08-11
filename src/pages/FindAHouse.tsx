@@ -28,6 +28,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useMapLinkAnnouncer } from '@/hooks/useMapLinkAnnouncer';
 import { regionLabel } from '@/lib/ugandaDistricts';
+import { UG_REGIONS, useUgDistricts, useUgSubcountiesByDistrict } from '@/hooks/useUgLocations';
+import { normalizeAreaName, matchesArea } from '@/lib/listingAreaFilter';
 import { cn } from '@/lib/utils';
 import { resolveHouseCoords, buildDirectionsUrl, distanceToHouse, estimateRoute, TravelMode } from '@/lib/houseGeo';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
@@ -38,12 +40,23 @@ const HouseMapView = lazy(() =>
   import('@/components/tenant/HouseMapView').then((m) => ({ default: m.HouseMapView }))
 );
 
-const REGIONS = [
-  'All Regions', 'Central', 'Eastern', 'Northern', 'Western',
+// Region control is dataset-backed: Uganda's four official regions only.
+// District/sub-county come from the ug_* reference tables. Legacy region values
+// (SEO landing pages, older shared links) are still honoured as a search term
+// and rendered as the current option so those links keep working.
+const REGIONS = ['All Regions', ...UG_REGIONS];
+
+/**
+ * Popular city / district shortcuts kept for shared links, SEO landing pages and
+ * the GPS auto-default (reverse-geocoding returns a city, not a region). They are
+ * matched with the broad location OR filter, exactly as before.
+ */
+const POPULAR_AREAS = [
   'Kampala', 'Wakiso', 'Mukono', 'Jinja', 'Mbale',
   'Mbarara', 'Gulu', 'Lira', 'Fort Portal', 'Masaka',
   'Entebbe', 'Nansana', 'Kira', 'Bweyogerere',
 ];
+const REGION_OPTIONS = [...REGIONS, ...POPULAR_AREAS];
 
 const CATEGORIES = [
   { value: 'all', label: 'All Types' },
@@ -571,7 +584,9 @@ export default function FindAHouse() {
   const [selectedRegion, setSelectedRegion] = useState(() => {
     if (landingRegion) return landingRegion;
     const r = searchParams.get('region');
-    return r && REGIONS.includes(r) ? r : 'All Regions';
+    // Any stored region/area term is honoured (legacy links stored districts
+    // and cities here); it is matched with the broad location OR filter.
+    return r && r.trim() ? r : 'All Regions';
   });
   const [selectedCategory, setSelectedCategory] = useState(() => searchParams.get('category') || 'all');
   // Cascading location filters (region -> district -> sub-county/area -> village).
@@ -585,7 +600,7 @@ export default function FindAHouse() {
   const [geoDefaultApplied, setGeoDefaultApplied] = useState(() => {
     if (landingRegion) return true;
     const r = searchParams.get('region');
-    return !!(r && REGIONS.includes(r));
+    return !!(r && r.trim());
   });
   const [copied, setCopied] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>(() => (searchParams.get('sort') as SortKey) || 'newest');
@@ -700,13 +715,13 @@ export default function FindAHouse() {
   };
 
   useEffect(() => {
-    if (!geoDefaultApplied && sharedRegion && REGIONS.includes(sharedRegion)) {
+    if (!geoDefaultApplied && sharedRegion && REGION_OPTIONS.includes(sharedRegion)) {
       setSelectedRegion(sharedRegion);
       setGeoDefaultApplied(true);
       return;
     }
     if (!geoDefaultApplied && geo.city && !geo.loading) {
-      const matched = REGIONS.find(r => r.toLowerCase() === geo.city!.toLowerCase());
+      const matched = REGION_OPTIONS.find(r => r.toLowerCase() === geo.city!.toLowerCase());
       if (matched) setSelectedRegion(matched);
       setGeoDefaultApplied(true);
     }
@@ -780,15 +795,13 @@ export default function FindAHouse() {
 
   const filtered = useMemo(() => {
     let result = [...listings];
-    if (selectedDistrict !== 'all') {
-      result = result.filter(l => (l.district || '').trim() === selectedDistrict);
-    }
-    if (selectedSubCounty !== 'all') {
-      result = result.filter(l => (l.sub_county || '').trim() === selectedSubCounty);
-    }
-    if (selectedVillage !== 'all') {
-      result = result.filter(l => (l.village || '').trim() === selectedVillage);
-    }
+    // Same matching rules as the server query (ids where upgraded, normalised
+    // text otherwise) so the list, the map and the counters agree.
+    result = result.filter(l => matchesArea(l, {
+      district: selectedDistrict !== 'all' ? selectedDistrict : undefined,
+      subCounty: selectedSubCounty !== 'all' ? selectedSubCounty : undefined,
+      village: selectedVillage !== 'all' ? selectedVillage : undefined,
+    }));
     if (debouncedSearch.trim()) {
       const q = debouncedSearch.toLowerCase();
       result = result.filter(l =>
@@ -854,30 +867,31 @@ export default function FindAHouse() {
     document.getElementById('house-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [totalPages, hasMore, loadMore]);
 
-  // Distinct location options derived from the loaded listings, cascading from
-  // the current region/district/sub-county selection. Only areas that actually
-  // have houses are offered, so the dropdowns stay relevant for tenants & funders.
-  const districtOptions = useMemo(() => {
-    const set = new Set<string>();
-    listings.forEach(l => { const v = (l.district || '').trim(); if (v) set.add(v); });
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [listings]);
+  // District / sub-county options come from the official ug_* dataset (shared
+  // cached hooks — one request per level, cached for the session). Village stays
+  // derived from the loaded listings, compared case-insensitively so legacy rows
+  // are never dropped.
+  const isOfficialRegion = (UG_REGIONS as readonly string[]).includes(selectedRegion);
+  const { data: ugDistricts = [] } = useUgDistricts(isOfficialRegion ? selectedRegion : null);
+  const selectedDistrictId = useMemo(
+    () => ugDistricts.find(d => normalizeAreaName(d.name) === normalizeAreaName(selectedDistrict))?.id ?? null,
+    [ugDistricts, selectedDistrict],
+  );
+  const { data: ugSubcounties = [] } = useUgSubcountiesByDistrict(selectedDistrictId);
 
-  const subCountyOptions = useMemo(() => {
-    const set = new Set<string>();
-    listings.forEach(l => {
-      if (selectedDistrict !== 'all' && (l.district || '').trim() !== selectedDistrict) return;
-      const v = (l.sub_county || '').trim();
-      if (v) set.add(v);
-    });
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [listings, selectedDistrict]);
+  const districtOptions = useMemo(() => ugDistricts.map(d => d.name), [ugDistricts]);
+  const subCountyOptions = useMemo(
+    // Two counties in a district can carry the same sub-county name; dedupe by
+    // name since matching is name/id based, not county based.
+    () => Array.from(new Set(ugSubcounties.map(s => s.name))).sort((a, b) => a.localeCompare(b)),
+    [ugSubcounties],
+  );
 
   const villageOptions = useMemo(() => {
     const set = new Set<string>();
     listings.forEach(l => {
-      if (selectedDistrict !== 'all' && (l.district || '').trim() !== selectedDistrict) return;
-      if (selectedSubCounty !== 'all' && (l.sub_county || '').trim() !== selectedSubCounty) return;
+      if (selectedDistrict !== 'all' && normalizeAreaName(l.district) !== normalizeAreaName(selectedDistrict)) return;
+      if (selectedSubCounty !== 'all' && normalizeAreaName(l.sub_county) !== normalizeAreaName(selectedSubCounty)) return;
       const v = (l.village || '').trim();
       if (v) set.add(v);
     });
@@ -1104,7 +1118,8 @@ export default function FindAHouse() {
               <Select value={selectedRegion} onValueChange={handleRegionChange}>
                 <SelectTrigger className="flex-1 h-9 text-xs"><SelectValue placeholder="Region" /></SelectTrigger>
                 <SelectContent>
-                  {REGIONS.map(r => <SelectItem key={r} value={r}>{regionLabel(r)}</SelectItem>)}
+                  {(REGION_OPTIONS.includes(selectedRegion) ? REGION_OPTIONS : [...REGION_OPTIONS, selectedRegion])
+                    .map(r => <SelectItem key={r} value={r}>{regionLabel(r)}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Select value={selectedCategory} onValueChange={setSelectedCategory}>

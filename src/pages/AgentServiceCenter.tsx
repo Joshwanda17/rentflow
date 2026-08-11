@@ -1,11 +1,13 @@
 import { cn } from '@/lib/utils';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ClipboardCheck, Route, Search, ShoppingBag, Store, Users } from 'lucide-react';
+import { ArrowLeft, ClipboardCheck, Package, Route, Search, ShoppingBag, Store, UserPlus, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { StorageImage } from '@/components/ui/StorageImage';
+
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -30,6 +32,7 @@ import {
   UnlinkSubAgentDialog,
 } from '@/components/agent/service-center/SubAgentActionDialogs';
 import { useRestoreBodyPointerEvents } from '@/hooks/useRestoreBodyPointerEvents';
+import { SubAgentInviteLinkDialog } from '@/components/agent/SubAgentInviteLinkDialog';
 
 export default function AgentServiceCenter() {
   const navigate = useNavigate();
@@ -48,6 +51,7 @@ export default function AgentServiceCenter() {
   const [transferRentRequestId, setTransferRentRequestId] = useState<string | null>(null);
   const [unlinkTarget, setUnlinkTarget] = useState<ServiceCenterSubAgent | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [inviteOpen, setInviteOpen] = useState(false);
 
   const subAgents = data?.sub_agents ?? [];
   // Derived so the open sheet re-renders with fresh data after suspend/restore/transfer,
@@ -203,14 +207,22 @@ export default function AgentServiceCenter() {
           </TabsContent>
 
           <TabsContent value="team" className="mt-3 space-y-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search name, phone or email"
-                className="pl-9"
-              />
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={() => setInviteOpen(true)}
+                className="gap-2 shrink-0 bg-primary text-primary-foreground"
+              >
+                <UserPlus className="h-4 w-4" /> Invite Sub-Agent
+              </Button>
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search name, phone or email"
+                  className="pl-9"
+                />
+              </div>
             </div>
 
             {isLoading ? (
@@ -281,19 +293,32 @@ export default function AgentServiceCenter() {
                 No items are available right now.
               </CardContent></Card>
             ) : (
-              catalog.map((item) => (
-                <Card key={item.id}>
-                  <CardContent className="flex items-center gap-3 p-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-semibold text-foreground">{item.item_name}</div>
-                      <div className="text-xs text-muted-foreground">{formatUGX(item.unit_price)}</div>
-                    </div>
-                    <Button size="sm" onClick={() => navigate(`/merchandise?item=${item.id}`)}>
-                      Buy
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))
+              catalog.map((item) => {
+                const img = item.image_urls?.[0] || item.image_url;
+                return (
+                  <Card key={item.id} className="overflow-hidden">
+                    <CardContent className="flex items-center gap-3 p-3">
+                      <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-md bg-muted">
+                        {img ? (
+                          <StorageImage src={img} alt={item.item_name} className="h-full w-full object-cover" loading="lazy" />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center">
+                            <Package className="h-6 w-6 text-muted-foreground/40" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-semibold text-foreground">{item.item_name}</div>
+                        <div className="text-xs text-muted-foreground">{formatUGX(item.unit_price)}</div>
+                      </div>
+                      <Button size="sm" onClick={() => navigate(`/merchandise?item=${item.id}`)}>
+                        Buy
+                      </Button>
+                    </CardContent>
+                  </Card>
+                );
+              })
+
             )}
           </TabsContent>
         </Tabs>
@@ -330,6 +355,7 @@ export default function AgentServiceCenter() {
         open={!!unlinkTarget}
         onOpenChange={(v) => { if (!v) { setUnlinkTarget(null); } }}
       />
+      <SubAgentInviteLinkDialog open={inviteOpen} onOpenChange={setInviteOpen} />
     </div>
   );
 }

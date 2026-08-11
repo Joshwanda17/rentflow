@@ -148,6 +148,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
       items: [
         { label: 'Financial Reports', icon: BookOpen, id: 'statements' },
         { label: 'Revenue & Expenses', icon: TrendingUp, id: 'revenue-expenses' },
+        { label: 'Returns Disbursement Report', icon: FileText, id: 'roi-disbursement-report' },
         { label: 'Payout Reports', icon: Banknote, id: 'payout-reports' },
         { label: 'House Listing Commission', icon: Home, id: 'house-listing-commission' },
         { label: 'Safety Buffer', icon: Shield, id: 'solvency' },
@@ -159,6 +160,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'Allocation Traces', icon: ClipboardList, id: 'allocation-traces' },
         { label: 'System Health', icon: Activity, id: 'ledger-health' },
         { label: 'SMS Delivery Log', icon: MessageSquare, id: 'sms-log' },
+        { label: 'Graphic Cashflow Forecast', icon: BarChart3, id: 'cashflow-forecast' },
         { label: 'Capital Opportunities', icon: TrendingUp, id: 'capital-opportunities' },
         { label: 'Angel Pool', icon: Layers, id: 'angel-pool' },
       ],

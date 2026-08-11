@@ -482,6 +482,32 @@ Deno.serve(async (req) => {
       (body as any)?.actingAsMerchant === true;
     actingAsMerchant = isCashoutAgent && !isSystemCall && bodyActingFlag;
 
+    // ── PROOF-OF-PAYMENT GATE (merchant settlements) ────────────────────
+    // No proof image => no wallet debit. A merchant agent can only close a
+    // payout as paid when they lodge a proof (bank slip / cash receipt /
+    // MoMo confirmation screenshot). This runs BEFORE the claim flip and
+    // before any ledger write, so a proofless attempt leaves both the
+    // request and the customer's wallet untouched.
+    if (actingAsMerchant) {
+      const proofUrlIn = (body as any)?.payout_proof;
+      const proofPathIn = (body as any)?.payout_proof_path;
+      const hasProof =
+        (typeof proofUrlIn === "string" && proofUrlIn.trim().length > 0) ||
+        (typeof proofPathIn === "string" && proofPathIn.trim().length > 0);
+      if (!hasProof) {
+        console.warn("[approve-withdrawal] PROOF_REQUIRED", { withdrawal_id, user: user.id });
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error:
+              "Proof of payment is required. Upload a photo of the bank slip, cash receipt or MoMo confirmation — the customer's wallet is not debited until proof is attached.",
+            code: "PROOF_REQUIRED",
+          }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+    }
+
     // ── WPO pickup-code gate (cash payouts only) ────────────────────────
     // Validated BEFORE the atomic claim/processing flip so a wrong code
     // never locks the request into "processing". System auto-approvals

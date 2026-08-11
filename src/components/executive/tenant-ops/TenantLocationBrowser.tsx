@@ -217,8 +217,8 @@ export function TenantLocationBrowser() {
     switch (level) {
       case 'country':  p.country  = row.label; break;
       case 'region':   p.region   = row.label; break;
-      case 'district': p.district = row.label; break;
-      case 'ward':     p.ward     = row.label; break;
+      case 'district': p.district = row.label; p.districtId = row.district_id ?? null; break;
+      case 'ward':     p.ward     = row.label; p.subcountyId = row.subcounty_id ?? null; break;
       case 'agent':    p.agentId  = row.agent_id ?? null; p.agentName = row.label; break;
       case 'landlord': p.landlordId = row.landlord_id ?? null; p.landlordName = row.label; break;
     }

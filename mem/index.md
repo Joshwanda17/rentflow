@@ -34,6 +34,7 @@
 - [Agent verification-rejection penalty](mem://features/agent/verification-rejection-penalty) — UGX 2,000 wallet penalty + web push to registering agent on landlord / LC1 rejection (idempotent per record); house listing rejection stays at UGX 6,000
 - [Cash-Out Agent permission matrix](mem://features/cfo/cashout-agent-permission-matrix) — CFO Edit Cash-Out Agent modal is a full permission matrix (categories+approvals, float, limits, networks/banks, security, status) persisted to cashout_agents.config jsonb; legacy handles_* columns kept in sync; enforcement in payout fns still TODO
 
+- [ROI Disbursement Report](mem://features/cfo/roi-disbursement-report) — Read-only CFO Returns disbursement report (v9 template) with daily/weekly/monthly/yearly windows and ledger reconciliation
 - [Duplicate ROI Credit Monitor](mem://features/cfo/duplicate-roi-credit-monitor) — CFO report `get_duplicate_roi_credits` + proactive alert flagging investor ROI credited twice to same portfolio/cycle within seconds (double-submitted proxy payouts); roi_wallet_credit legs lack idempotency_key
 
 - [ROI Payout Cycle Idempotency](mem://business-model/roi-cycle-idempotency) — one ROI credit per portfolio per cycle; key `roi-cycle-<portfolio>-<next_roi_date>` enforced in approve-wallet-operation (pre-check + create_ledger_transaction idempotency_key + concurrent race guard) and client pre-flight in COOPartnersPage handlePay/handleSplitPayout
@@ -80,3 +81,4 @@
 - [Canonical domain is welileapp.com](mem://constraints/canonical-domain) — Single public origin `https://welileapp.com`; use `getPublicOrigin()`, never hardcode; welile.tech / welilereceipts.com are legacy and CI-guarded
 - [Absent vs zero API fields](mem://constraints/absent-vs-zero-api-fields) — Never `Number(x ?? 0)` on external API fields; nulls never alert (raise monitor-degraded instead); deprecated sitemap `contents[].indexed` banned as an indexing signal; per-run `data_quality` required
 - [Cash code resend must SMS](mem://constraints/cash-code-resend-must-sms) — Resend code goes through finops-cash-deposit-resend edge fn; the reissue RPC never delivers an SMS
+- [Proxy Agent Command Center](mem://features/agent/proxy-agent-command-center) — /agent/proxy-agents dashboard: partner attribution sources, note↔partner linkage, 2%/1%/note commission breakdown, sub-proxy team, invite logging

@@ -20,6 +20,8 @@ import { MoveInOfferBadge } from '@/components/house/MoveInOfferBadge';
 import { motion } from 'framer-motion';
 import { ImageLightbox } from '@/components/marketplace/ImageLightbox';
 import { regionLabel } from '@/lib/ugandaDistricts';
+import { UG_REGIONS, useUgDistricts, useUgSubcountiesByDistrict } from '@/hooks/useUgLocations';
+import { normalizeAreaName } from '@/lib/listingAreaFilter';
 import { HousesMapView } from '@/components/tenant/HousesMapView';
 import { LoadMoreProgress } from '@/components/tenant/LoadMoreProgress';
 import { useNavigate } from 'react-router-dom';
@@ -29,12 +31,18 @@ interface AvailableHousesSheetProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const REGIONS = [
-  'All Regions', 'Central', 'Eastern', 'Northern', 'Western',
+// Region control is dataset-backed: Uganda's four official regions only.
+// District and sub-county come from the ug_* reference tables (see below).
+const REGIONS = ['All Regions', ...UG_REGIONS];
+
+/** Popular city/district shortcuts (broad location OR filter), kept for parity
+ *  with the Find a House page and shared links. */
+const POPULAR_AREAS = [
   'Kampala', 'Wakiso', 'Mukono', 'Jinja', 'Mbale',
   'Mbarara', 'Gulu', 'Lira', 'Fort Portal', 'Masaka',
   'Entebbe', 'Nansana', 'Kira', 'Bweyogerere',
 ];
+const REGION_OPTIONS = [...REGIONS, ...POPULAR_AREAS];
 
 const CATEGORIES = [
   { value: 'all', label: 'All Types' },
@@ -301,6 +309,17 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
     enabled: open,
   });
 
+  // Dataset-backed area options (ug_districts → ug_subcounties). Cached
+  // forever by the shared hooks, so opening the sheet costs at most one
+  // request per level and never a per-row lookup.
+  const isOfficialRegion = (UG_REGIONS as readonly string[]).includes(selectedRegion);
+  const { data: ugDistricts = [] } = useUgDistricts(isOfficialRegion ? selectedRegion : null);
+  const selectedDistrictId = useMemo(
+    () => ugDistricts.find(d => normalizeAreaName(d.name) === normalizeAreaName(selectedDistrict))?.id ?? null,
+    [ugDistricts, selectedDistrict],
+  );
+  const { data: ugSubcounties = [] } = useUgSubcountiesByDistrict(selectedDistrictId);
+
   // Selecting a broader area resets the narrower ones so we never keep a stale
   // district/sub-county/village that no longer belongs to the new selection.
   const handleRegionChange = (value: string) => {
@@ -319,30 +338,22 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
     setSelectedVillage('all');
   };
 
-  // Distinct GPS-captured location options derived from the loaded listings,
-  // cascading from the current district/sub-county selection. Only areas that
-  // actually have houses are offered.
-  const districtOptions = useMemo(() => {
-    const set = new Set<string>();
-    listings.forEach(l => { const v = (l.district || '').trim(); if (v) set.add(v); });
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [listings]);
-
-  const subCountyOptions = useMemo(() => {
-    const set = new Set<string>();
-    listings.forEach(l => {
-      if (selectedDistrict !== 'all' && (l.district || '').trim() !== selectedDistrict) return;
-      const v = (l.sub_county || '').trim();
-      if (v) set.add(v);
-    });
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [listings, selectedDistrict]);
+  // District / sub-county options come from the official ug_* dataset (not from
+  // whatever text the loaded rows happen to carry). Village stays derived from
+  // the loaded listings, compared case-insensitively so legacy rows still match.
+  const districtOptions = useMemo(() => ugDistricts.map(d => d.name), [ugDistricts]);
+  const subCountyOptions = useMemo(
+    // Two counties in a district can carry the same sub-county name; dedupe by
+    // name since matching is name/id based, not county based.
+    () => Array.from(new Set(ugSubcounties.map(s => s.name))).sort((a, b) => a.localeCompare(b)),
+    [ugSubcounties],
+  );
 
   const villageOptions = useMemo(() => {
     const set = new Set<string>();
     listings.forEach(l => {
-      if (selectedDistrict !== 'all' && (l.district || '').trim() !== selectedDistrict) return;
-      if (selectedSubCounty !== 'all' && (l.sub_county || '').trim() !== selectedSubCounty) return;
+      if (selectedDistrict !== 'all' && normalizeAreaName(l.district) !== normalizeAreaName(selectedDistrict)) return;
+      if (selectedSubCounty !== 'all' && normalizeAreaName(l.sub_county) !== normalizeAreaName(selectedSubCounty)) return;
       const v = (l.village || '').trim();
       if (v) set.add(v);
     });
@@ -535,7 +546,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
                 <SelectValue placeholder="Region" />
               </SelectTrigger>
               <SelectContent>
-                {REGIONS.map(r => (
+                {REGION_OPTIONS.map(r => (
                   <SelectItem key={r} value={r}>{regionLabel(r)}</SelectItem>
                 ))}
               </SelectContent>
@@ -653,9 +664,9 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
             </div>
           </div>
 
-          {/* Exact GPS-captured location filters (from the agent's listing).
-              Only shown when houses expose these fields, cascading region →
-              district → sub-county → village so tenants can drill to a precise area. */}
+          {/* Dataset-backed area filters (ug_districts → ug_subcounties), plus
+              village from the listings themselves. Cascades Region → District →
+              Sub-county → Village so tenants drill to a precise area. */}
           {(districtOptions.length > 0 || subCountyOptions.length > 0 || villageOptions.length > 0) && (
             <div className="flex gap-2">
               <Select value={selectedDistrict} onValueChange={handleDistrictChange}>

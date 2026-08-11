@@ -26,6 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { Copy, Share2, QrCode, Download, Ban, Link as LinkIcon } from "lucide-react";
 import { format } from "date-fns";
 import { UserSearchPicker } from "@/components/cfo/UserSearchPicker";
+import { UgDistrictSelect, type UgDistrictValue } from "@/components/location/UgDistrictSelect";
 
 type Campaign = {
   id: string;
@@ -344,6 +345,8 @@ export function GenerateLinkDialog({
   const [open, setOpen] = useState(false);
   const [campaignId, setCampaignId] = useState("");
   const [districtName, setDistrictName] = useState("");
+  /** Official ug_districts unit behind districtName. */
+  const [districtUnit, setDistrictUnit] = useState<UgDistrictValue | null>(null);
   const [ownerAgent, setOwnerAgent] = useState<{ id: string; full_name: string; phone: string } | null>(null);
   const [source, setSource] = useState<(typeof SOURCES)[number]>("whatsapp");
   const [linkType, setLinkType] =
@@ -434,13 +437,14 @@ export function GenerateLinkDialog({
               </Select>
             </div>
             <div>
-              <Label htmlFor="district-input">District</Label>
-              <Input
-                id="district-input"
-                value={districtName}
-                onChange={(e) => setDistrictName(e.target.value.slice(0, 80))}
-                placeholder="Example: Mbale"
-                maxLength={80}
+              <UgDistrictSelect
+                label="District"
+                legacyText={districtName}
+                value={districtUnit}
+                onChange={(unit) => {
+                  setDistrictUnit(unit);
+                  setDistrictName(unit?.name ?? '');
+                }}
               />
               <p className="text-xs text-muted-foreground mt-1">
                 One link covers the entire district. The agent may use it anywhere

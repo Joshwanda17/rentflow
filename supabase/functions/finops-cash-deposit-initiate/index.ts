@@ -91,6 +91,8 @@ Deno.serve(async (req) => {
       ? String(body.deposit_purpose)
       : "personal_deposit";
     const reason = typeof body?.reason === "string" ? body.reason.trim().slice(0, 300) : "";
+    const cashLocation = String(body?.cash_location) === "bank" ? "bank" : "cash_at_hand";
+    const cashLocationLabel = cashLocation === "bank" ? "Deposited on bank" : "Cash at hand";
 
     // ── Resolve the depositor by phone ──
     const candidates = [phone9, `0${phone9}`, `256${phone9}`, `+256${phone9}`];
@@ -130,6 +132,7 @@ Deno.serve(async (req) => {
     const notes = [
       `Purpose: ${purposeLabel}`,
       "Channel: Cash (code verified)",
+      `Custody: ${cashLocationLabel}`,
       "Started by Financial Ops (SMS code)",
       reason,
     ].filter(Boolean).join(" | ");
@@ -151,6 +154,7 @@ Deno.serve(async (req) => {
           chosen_at: new Date().toISOString(),
           chosen_by: operator.id,
           entry_point: "finops_cash_code_sms",
+          cash_location: cashLocation,
           agent_personal_confirmed_at: new Date().toISOString(),
         },
       } as any)
@@ -219,6 +223,7 @@ Deno.serve(async (req) => {
           expires_at: (verRow as any)?.expires_at ?? null,
           max_attempts: (verRow as any)?.max_attempts ?? null,
           deposit_purpose: depositPurpose,
+          cash_location: cashLocation,
         },
       } as any);
     } catch (e) {

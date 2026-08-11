@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { Lc1VillagePicker } from '@/components/location/Lc1VillagePicker';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -849,7 +850,7 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
         <div className="space-y-3">
           <Input placeholder="LC1 name" value={lc1Name} onChange={(e) => setLc1Name(e.target.value)} autoFocus className="h-12" />
           <Input placeholder="LC1 phone" inputMode="tel" value={lc1Phone} onChange={(e) => setLc1Phone(e.target.value)} className="h-12" />
-          <Input placeholder="Village" value={lc1Village} onChange={(e) => setLc1Village(e.target.value)} className="h-12" />
+          <Lc1VillagePicker label="Village" value={lc1Village} onChange={(name) => setLc1Village(name)} />
         </div>
       ),
     },
