@@ -30,6 +30,12 @@ const fmtUgx = (n: number | null) =>
 const purposeLabel = (p: string | null) =>
   p === 'operational_float' ? 'Operational Float' : p === 'other' ? 'Other' : 'Personal Deposit';
 
+const cashLocationLabel = (loc: string | null) =>
+  loc === 'bank' ? 'Banked' : 'Cash at hand';
+
+const cashLocationIcon = (loc: string | null) =>
+  loc === 'bank' ? 'Building2' : 'Banknote';
+
 // Muted tonal avatars, same calm palette as the Gmail-style email inbox.
 const AVATAR_TONES = [
   'bg-rose-500/12 text-rose-600', 'bg-amber-500/12 text-amber-600',
