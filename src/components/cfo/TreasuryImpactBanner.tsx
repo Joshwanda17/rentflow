@@ -10,22 +10,14 @@ export function TreasuryImpactBanner({ payoutAmount }: TreasuryImpactBannerProps
   const { data, isLoading } = useQuery({
     queryKey: ['treasury-cash-snapshot'],
     queryFn: async () => {
-      const { data: ledger } = await supabase
-        .from('general_ledger')
-        .select('amount, direction')
-        .eq('ledger_scope', 'platform');
-
-      let totalCash = 0;
-      (ledger || []).forEach((e: any) => {
-        totalCash += e.direction === 'credit' ? e.amount : -e.amount;
-      });
-
-      const { data: wallets } = await supabase
-        .from('wallets')
-        .select('balance');
-      const walletTotal = (wallets || []).reduce((s: number, w: any) => s + (w.balance || 0), 0);
-
-      return { totalCash, walletTotal };
+      // Server-side aggregate: correct cash_in/cash_out semantics + no 1000-row cap
+      const { data: snap, error } = await supabase.rpc('get_treasury_snapshot');
+      if (error) throw error;
+      const s: any = snap || {};
+      return {
+        totalCash: Number(s.total_cash || 0),
+        walletTotal: Number(s.wallet_total || 0),
+      };
     },
     staleTime: 30_000,
   });
