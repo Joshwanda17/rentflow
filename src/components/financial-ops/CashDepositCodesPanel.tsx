@@ -283,22 +283,35 @@ export function CashDepositCodesPanel() {
     load();
   };
 
-  const activeRows = rows.filter(
+  const [startOpen, setStartOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [tab, setTab] = useState<'all' | 'awaiting' | 'verified'>('all');
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [range, setRange] = useState<'today' | '7d' | '30d' | 'all'>('today');
+
+  const rangeStart = (() => {
+    const now = new Date();
+    if (range === 'today') return new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    if (range === '7d') return now.getTime() - 7 * 86400000;
+    if (range === '30d') return now.getTime() - 30 * 86400000;
+    return 0;
+  })();
+
+  const rangeRows = rows.filter((r) =>
+    !r.created_at ? range === 'all' : new Date(r.created_at).getTime() >= rangeStart,
+  );
+
+  const activeRows = rangeRows.filter(
     (r) => r.status === 'awaiting_code' && r.expires_at && new Date(r.expires_at).getTime() > Date.now(),
   );
 
   const activeCount = activeRows.length;
 
-  const totalVerified = rows
+  const totalVerified = rangeRows
     .filter((r) => r.status === 'verified')
     .reduce((sum, r) => sum + (r.amount ?? 0), 0);
 
   const totalPending = activeRows.reduce((sum, r) => sum + (r.amount ?? 0), 0);
-
-  const [startOpen, setStartOpen] = useState(false);
-  const [query, setQuery] = useState('');
-  const [tab, setTab] = useState<'all' | 'awaiting' | 'verified'>('all');
-  const [openId, setOpenId] = useState<string | null>(null);
 
   const isLive = (r: CashCodeRow) =>
     r.status === 'awaiting_code' && !!r.expires_at && new Date(r.expires_at).getTime() > Date.now();
@@ -306,7 +319,7 @@ export function CashDepositCodesPanel() {
   const q = query.trim().toLowerCase();
   // Show every recent code — including expired ones — so verifiers can still
   // read a code back to a depositor after the active window has lapsed.
-  const displayRows = rows
+  const displayRows = rangeRows
     .filter((r) => (tab === 'all' ? true : tab === 'awaiting' ? r.status === 'awaiting_code' : r.status === 'verified'))
     .filter((r) =>
       !q
@@ -320,9 +333,16 @@ export function CashDepositCodesPanel() {
   const openRow = openId ? displayRows.find((r) => r.verification_id === openId) ?? null : null;
 
   const tabs: { key: 'all' | 'awaiting' | 'verified'; label: string; count: number }[] = [
-    { key: 'all', label: 'All', count: rows.length },
-    { key: 'awaiting', label: 'Awaiting', count: rows.filter((r) => r.status === 'awaiting_code').length },
-    { key: 'verified', label: 'Verified', count: rows.filter((r) => r.status === 'verified').length },
+    { key: 'all', label: 'All', count: rangeRows.length },
+    { key: 'awaiting', label: 'Awaiting', count: rangeRows.filter((r) => r.status === 'awaiting_code').length },
+    { key: 'verified', label: 'Verified', count: rangeRows.filter((r) => r.status === 'verified').length },
+  ];
+
+  const ranges: { key: 'today' | '7d' | '30d' | 'all'; label: string }[] = [
+    { key: 'today', label: 'Today' },
+    { key: '7d', label: '7 days' },
+    { key: '30d', label: '30 days' },
+    { key: 'all', label: 'All time' },
   ];
 
   const codeEntry = (r: CashCodeRow, size: 'row' | 'pane') => (
