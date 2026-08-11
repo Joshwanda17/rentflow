@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect, useRef, Fragment } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -724,58 +724,86 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                       </div>
                       <span className="text-xs font-bold text-orange-600 shrink-0">{fmt(groupTotal)}</span>
                     </div>
-                    <div className="divide-y divide-border/70">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm min-w-[52rem]">
+                        <thead>
+                          <tr className="border-b border-border/70 bg-muted/20 text-[10px] uppercase tracking-wider text-muted-foreground">
+                            <th className="w-9 px-2 py-2" aria-hidden />
+                            <th className="px-2 py-2 text-left font-semibold">Tenant</th>
+                            <th className="px-2 py-2 text-left font-semibold">Landlord</th>
+                            <th className="px-2 py-2 text-left font-semibold">Location</th>
+                            <th className="px-2 py-2 text-left font-semibold">Payout to</th>
+                            <th className="px-2 py-2 text-left font-semibold">Approved</th>
+                            <th className="px-2 py-2 text-right font-semibold">Rent out</th>
+                            <th className="px-2 py-2 text-right font-semibold">Fees</th>
+                            <th className="px-2 py-2 text-right font-semibold">Repayment</th>
+                            <th className="px-2 py-2 text-right font-semibold">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
                       {group.rows.map(item => {
                         const isSel = selected.has(item.id);
+                        const locationLabel = [item.request_city, item.request_country].filter(Boolean).join(', ');
                         return (
-                        <div key={item.id}>
-                        <div
+                        <Fragment key={item.id}>
+                        <tr
+                          onClick={() => toggle(item.id)}
                           className={cn(
-                            'relative flex items-start gap-3 p-3 text-sm transition-colors flex-wrap sm:flex-nowrap',
+                            'border-b border-border/70 last:border-0 cursor-pointer transition-colors',
                             isSel
                               ? 'bg-primary/[0.07] shadow-[inset_3px_0_0_0_hsl(var(--primary))]'
                               : 'hover:bg-muted/40'
                           )}
                         >
-                          <Checkbox
-                            checked={selected.has(item.id)}
-                            onCheckedChange={() => toggle(item.id)}
-                            className="mt-1"
-                          />
-                          <div className="flex-1 min-w-[12rem] space-y-1.5">
-                            <div className="flex items-center gap-2">
-                              <p className={cn('truncate', isSel ? 'font-bold' : 'font-semibold')}>{item.tenant_name}</p>
-                              <span className="text-[11px] text-muted-foreground">→</span>
-                              <p className="font-semibold truncate text-primary">{item.landlord_name}</p>
+                          <td className="px-2 py-2.5 align-middle" onClick={e => e.stopPropagation()}>
+                            <Checkbox
+                              checked={selected.has(item.id)}
+                              onCheckedChange={() => toggle(item.id)}
+                            />
+                          </td>
+                          <td className="px-2 py-2.5 align-middle">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span className={cn('truncate', isSel ? 'font-bold' : 'font-semibold')}>{item.tenant_name}</span>
                               {isSel && (
                                 <Badge className="text-[9px] px-1.5 py-0 shrink-0 bg-primary text-primary-foreground border-0">
                                   SELECTED
                                 </Badge>
                               )}
                             </div>
-                            <div className="flex items-center gap-2 flex-wrap">
-                              {item.payout_target === 'landlord_wallet' ? (
-                                <Badge className="text-[9px] px-2 py-0 rounded-full bg-emerald-100 text-emerald-700 border-emerald-200">
-                                  <Wallet className="h-2.5 w-2.5 mr-0.5" />
-                                  Landlord Wallet
-                                </Badge>
-                              ) : (
-                                <Badge className="text-[9px] px-2 py-0 rounded-full bg-amber-100 text-amber-700 border-amber-200">
-                                  <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />
-                                  Agent Float
-                                </Badge>
-                              )}
-                              <span className="text-[10px] text-muted-foreground">
-                                {format(new Date(item.created_at), 'dd MMM')}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-3 flex-wrap text-[11px] text-muted-foreground">
-                              <span>Rent: <b className="text-orange-600 text-xs">{fmt(item.rent_amount)}</b></span>
-                              <span>Fees: <b className="text-emerald-600 text-xs">{fmt(item.access_fee + item.request_fee)}</b></span>
-                              <span>Repay: <b className="text-foreground text-xs">{fmt(item.total_repayment)}</b></span>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-1 shrink-0 ml-auto sm:ml-0">
+                          </td>
+                          <td className="px-2 py-2.5 align-middle font-semibold text-primary truncate max-w-[10rem]">
+                            {item.landlord_name}
+                          </td>
+                          <td className="px-2 py-2.5 align-middle text-[11px] text-muted-foreground whitespace-nowrap">
+                            {locationLabel || '—'}
+                          </td>
+                          <td className="px-2 py-2.5 align-middle whitespace-nowrap">
+                            {item.payout_target === 'landlord_wallet' ? (
+                              <Badge className="text-[9px] px-2 py-0 rounded-full bg-emerald-100 text-emerald-700 border-emerald-200">
+                                <Wallet className="h-2.5 w-2.5 mr-0.5" />
+                                Landlord Wallet
+                              </Badge>
+                            ) : (
+                              <Badge className="text-[9px] px-2 py-0 rounded-full bg-amber-100 text-amber-700 border-amber-200">
+                                <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />
+                                Agent Float
+                              </Badge>
+                            )}
+                          </td>
+                          <td className="px-2 py-2.5 align-middle text-[11px] text-muted-foreground whitespace-nowrap">
+                            {format(new Date(item.created_at), 'dd MMM yyyy')}
+                          </td>
+                          <td className="px-2 py-2.5 align-middle text-right font-bold text-orange-600 whitespace-nowrap">
+                            {fmt(item.rent_amount)}
+                          </td>
+                          <td className="px-2 py-2.5 align-middle text-right font-semibold text-emerald-600 whitespace-nowrap">
+                            {fmt(item.access_fee + item.request_fee)}
+                          </td>
+                          <td className="px-2 py-2.5 align-middle text-right font-semibold whitespace-nowrap">
+                            {fmt(item.total_repayment)}
+                          </td>
+                          <td className="px-2 py-2.5 align-middle text-right whitespace-nowrap" onClick={e => e.stopPropagation()}>
+                            <div className="flex items-center justify-end gap-1">
                           <Button
                             size="sm"
                             variant="outline"
@@ -797,10 +825,13 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                             <XCircle className="h-3 w-3 mr-1" />
                             Reject
                           </Button>
-                          </div>
-                        </div>
+                            </div>
+                          </td>
+                        </tr>
                         {/* Step 2 renders inline, directly under the selected tenant */}
                         {item.id === firstSelectedId && (
+                          <tr key={`${item.id}-step2`}>
+                          <td colSpan={10} className="p-0">
                           <div
                             ref={step2Ref}
                             className="scroll-mt-4 border-t-2 border-primary/30 bg-primary/[0.05] px-3.5 py-3 space-y-2"
@@ -821,10 +852,14 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                               Fund Agent Landlord Payout Float process on every ticked tenant.
                             </p>
                           </div>
+                          </td>
+                          </tr>
                         )}
-                        </div>
+                        </Fragment>
                         );
                       })}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 );
