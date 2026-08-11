@@ -515,9 +515,10 @@ export function SubAgentStatusBoard() {
           <AlertDialogHeader>
             <AlertDialogTitle>Unlink {selected?.name}?</AlertDialogTitle>
             <AlertDialogDescription>
-              They will be released from your team and become an independent agent. Your recruiter override
-              earnings on their activity will stop immediately. They can be invited again later by you or
-              another agent. They will be notified of this change.
+              They will be released from your team and become an independent agent. Their tenants stay with
+              them — nothing is transferred — and they will earn their full commission from now on. Your
+              recruiter override earnings on their activity stop immediately. They can be invited again later
+              by you or another agent, and they will be notified of this change.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
