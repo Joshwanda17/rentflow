@@ -24,7 +24,6 @@ import { cn } from '@/lib/utils';
 import { TreasuryImpactBanner } from './TreasuryImpactBanner';
 import { useAuth } from '@/hooks/useAuth';
 import { UserDrilldownDrawer } from '@/components/ops/UserDrilldownDrawer';
-import { PayByLocationRecipientPicker } from './PayByLocationRecipientPicker';
 
 const fmt = (n: number) =>
   new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX', maximumFractionDigits: 0 }).format(n);
@@ -47,6 +46,7 @@ interface ApprovedRentItem {
   payout_target: 'landlord_wallet' | 'agent_float';
   request_country: string | null;
   request_city: string | null;
+  request_district: string | null;
 }
 
 interface RentDisbursementQueueProps {
@@ -65,20 +65,14 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [agentFilter, setAgentFilter] = useState<string>('all');
   const [countryFilter, setCountryFilter] = useState<string>('all');
+  const [districtFilter, setDistrictFilter] = useState<string>('all');
+  const [cityFilter, setCityFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<'all' | '7d' | '30d'>('all');
   const [search, setSearch] = useState('');
   const [batchRef, setBatchRef] = useState('');
   const [rejectTarget, setRejectTarget] = useState<ApprovedRentItem | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [drilldownAgentId, setDrilldownAgentId] = useState<string | null>(null);
-  /**
-   * Pay by Location/Category scope, selected *inside this section*. It holds
-   * rent_request ids only — a recipient filter. Every amount, validation,
-   * approval requirement, disbursement call, wallet and ledger effect below
-   * stays exactly the same as the normal queue.
-   */
-  const [locationScopeIds, setLocationScopeIds] = useState<string[] | null>(null);
-  const [locationScopeLabel, setLocationScopeLabel] = useState<string | null>(null);
   const step2Ref = useRef<HTMLDivElement | null>(null);
   const qc = useQueryClient();
   const { user } = useAuth();
@@ -89,7 +83,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
       // Get COO-approved rent requests
       const { data: requests, error } = await supabase
         .from('rent_requests')
-        .select('id, rent_amount, tenant_id, landlord_id, agent_id, assigned_agent_id, access_fee, request_fee, total_repayment, created_at, request_country, request_city')
+        .select('id, rent_amount, tenant_id, landlord_id, agent_id, assigned_agent_id, access_fee, request_fee, total_repayment, created_at, request_country, request_city, house_listing_id')
         .eq('status', 'coo_approved')
         .order('created_at', { ascending: true });
       if (error) throw error;
@@ -126,6 +120,17 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
         for (const w of wallets || []) walletSet.add(w.user_id);
       }
 
+      // Read-only enrichment so the existing table can be filtered by district.
+      const listingIds = [...new Set(requests.map(r => (r as any).house_listing_id).filter(Boolean) as string[])];
+      const districtMap = new Map<string, string>();
+      if (listingIds.length) {
+        const { data: listings } = await supabase
+          .from('house_listings')
+          .select('id, district')
+          .in('id', listingIds);
+        for (const l of listings || []) if (l.district) districtMap.set(l.id, l.district);
+      }
+
       return requests.map(r => {
         const agentId = r.assigned_agent_id || r.agent_id;
         const hasWallet = walletSet.has(r.landlord_id);
@@ -141,6 +146,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
           payout_target: hasWallet ? 'landlord_wallet' as const : 'agent_float' as const,
           request_country: (r as any).request_country ?? null,
           request_city: (r as any).request_city ?? null,
+          request_district: districtMap.get((r as any).house_listing_id) ?? null,
         };
       });
     },
@@ -155,11 +161,9 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
     setSelected(new Set(autoSelectIds));
   }, [autoSelectIds?.join(',')]);
 
-  // Caller-supplied restriction wins; otherwise the in-section
-  // Location/Category selection scopes the very same queue.
   const effectiveRestrictIds = useMemo(
-    () => (restrictToIds && restrictToIds.length ? restrictToIds : locationScopeIds),
-    [restrictToIds?.join(','), locationScopeIds?.join(',')],
+    () => (restrictToIds && restrictToIds.length ? restrictToIds : null),
+    [restrictToIds?.join(',')],
   );
   const restrictSet = useMemo(
     () => (effectiveRestrictIds && effectiveRestrictIds.length ? new Set(effectiveRestrictIds) : null),
@@ -185,13 +189,47 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
     return items.filter(it => {
       if (restrictSet && !restrictSet.has(it.id)) return false;
       if (cutoff !== null && new Date(it.created_at).getTime() < cutoff) return false;
+      if (districtFilter !== 'all' && ((it.request_district || '').trim() || 'Unknown') !== districtFilter) return false;
+      if (cityFilter !== 'all' && ((it.request_city || '').trim() || 'Unknown') !== cityFilter) return false;
       if (q) {
         const haystack = `${it.tenant_name} ${it.landlord_name} ${it.agent_name}`.toLowerCase();
         if (!haystack.includes(q)) return false;
       }
       return true;
     });
-  }, [items, dateFilter, search, restrictSet]);
+  }, [items, dateFilter, search, restrictSet, districtFilter, cityFilter]);
+
+  // Location option lists, derived from the same rows the table shows.
+  const districtOptions = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const it of items) {
+      const key = (it.request_district || '').trim() || 'Unknown';
+      map.set(key, (map.get(key) ?? 0) + 1);
+    }
+    return [...map.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [items]);
+
+  const cityOptions = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const it of items) {
+      if (districtFilter !== 'all' && ((it.request_district || '').trim() || 'Unknown') !== districtFilter) continue;
+      const key = (it.request_city || '').trim() || 'Unknown';
+      map.set(key, (map.get(key) ?? 0) + 1);
+    }
+    return [...map.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [items, districtFilter]);
+
+  const locationScoped = districtFilter !== 'all' || cityFilter !== 'all' || countryFilter !== 'all';
+  const locationScopeLabel = [
+    districtFilter !== 'all' ? districtFilter : null,
+    cityFilter !== 'all' ? cityFilter : null,
+    countryFilter !== 'all' ? countryFilter : null,
+  ].filter(Boolean).join(' · ');
+  const clearLocation = () => {
+    setDistrictFilter('all');
+    setCityFilter('all');
+    setCountryFilter('all');
+  };
 
   // Group rows by agent so CFO can pick one tenant, a few, or all of an
   // agent's tenants at a glance.
@@ -388,7 +426,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
 
         {/* Filter band */}
         <div className="border-y border-border/70 bg-muted/20 px-5 py-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,15rem)_minmax(0,11rem)] gap-3 items-center">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,11rem)_minmax(0,11rem)_minmax(0,13rem)_minmax(0,10rem)] gap-3 items-center">
             <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -398,6 +436,37 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                 className="h-11 rounded-xl text-sm pl-9 bg-background border-border/70"
               />
             </div>
+            <Select
+              value={districtFilter}
+              onValueChange={(v) => { setDistrictFilter(v); setCityFilter('all'); }}
+            >
+              <SelectTrigger className="h-11 rounded-xl text-sm w-full bg-background border-border/70">
+                <MapPin className="h-4 w-4 mr-2 text-muted-foreground" />
+                <SelectValue placeholder="District" />
+              </SelectTrigger>
+              <SelectContent className="max-h-[320px]">
+                <SelectItem value="all">All districts</SelectItem>
+                {districtOptions.map(d => (
+                  <SelectItem key={d.name} value={d.name}>
+                    <span className="truncate">{d.name} · {d.count}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={cityFilter} onValueChange={setCityFilter}>
+              <SelectTrigger className="h-11 rounded-xl text-sm w-full bg-background border-border/70">
+                <MapPin className="h-4 w-4 mr-2 text-muted-foreground" />
+                <SelectValue placeholder="Town / City" />
+              </SelectTrigger>
+              <SelectContent className="max-h-[320px]">
+                <SelectItem value="all">All towns / cities</SelectItem>
+                {cityOptions.map(c => (
+                  <SelectItem key={c.name} value={c.name}>
+                    <span className="truncate">{c.name} · {c.count}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Select value={agentFilter} onValueChange={setAgentFilter}>
               <SelectTrigger className="h-11 rounded-xl text-sm w-full bg-background border-border/70">
                 <Users className="h-4 w-4 mr-2 text-muted-foreground" />
@@ -428,13 +497,13 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                 <SelectItem value="30d">Last 30 days</SelectItem>
               </SelectContent>
             </Select>
-            {agentFilter !== 'all' && (
+            {(agentFilter !== 'all' || locationScoped) && (
               <button
                 type="button"
-                className="text-xs font-medium text-primary hover:underline justify-self-start sm:col-span-2 lg:col-span-3"
-                onClick={() => setAgentFilter('all')}
+                className="text-xs font-medium text-primary hover:underline justify-self-start sm:col-span-2 lg:col-span-5"
+                onClick={() => { setAgentFilter('all'); clearLocation(); }}
               >
-                Clear agent
+                Clear agent &amp; location
               </button>
             )}
           </div>
@@ -450,71 +519,22 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
             </p>
           </div>
         )}
-        {/*
-          Pay by Location/Category — part of Fund Agent Landlord Payout Float.
-          Recipient selection only: it ticks rows in the queue below, which then
-          runs the identical existing funding logic.
-        */}
-        <div className="rounded-2xl border border-border/70 bg-muted/20 p-4">
-          <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
-            <p className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-2">
-              <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/15">
-                <MapPin className="h-3.5 w-3.5" />
-              </span>
-              Step 1 (optional) · Choose recipients by location / category
-            </p>
-            {locationScopeIds?.length ? (
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="text-[11px] rounded-full px-2.5 py-0.5 bg-primary/10 text-primary border-primary/30">
-                  {locationScopeLabel ? `${locationScopeLabel} · ` : ''}{locationScopeIds.length} in scope
-                </Badge>
-                <button
-                  type="button"
-                  className="text-xs font-medium text-primary hover:underline"
-                  onClick={() => {
-                    setLocationScopeIds(null);
-                    setLocationScopeLabel(null);
-                    setSelected(new Set());
-                  }}
-                >
-                  Show whole queue
-                </button>
-              </div>
-            ) : null}
+        {/* Location scope chip — the same table below is simply filtered. */}
+        {locationScoped && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge variant="outline" className="text-[11px] rounded-full px-2.5 py-0.5 bg-primary/10 text-primary border-primary/30">
+              <MapPin className="h-3 w-3 mr-1" />
+              {locationScopeLabel}
+            </Badge>
+            <button
+              type="button"
+              className="text-xs font-medium text-primary hover:underline"
+              onClick={clearLocation}
+            >
+              Show whole queue
+            </button>
           </div>
-          <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
-            This only narrows <b>who</b> appears in the float funding list below. Amounts, fees,
-            validations, approvals, wallet and ledger records are unchanged — the same
-            Fund Agent Landlord Payout Float process runs on whoever you tick in Step 2.
-          </p>
-          <PayByLocationRecipientPicker
-            mode="rent_queue"
-            queuedCount={locationScopeIds?.length ?? 0}
-            onUseRecipients={(recipients) => {
-              const ids = recipients
-                .map(r => r.rent_request_id)
-                .filter((v): v is string => Boolean(v));
-              if (!ids.length) {
-                toast.error('No eligible approved rent requests in that selection.');
-                return;
-              }
-              // Reset the other filters so the scoped rows are all visible,
-              // then pre-tick them in the existing checkboxes.
-              setSearch('');
-              setAgentFilter('all');
-              setCountryFilter('all');
-              setDateFilter('all');
-              setLocationScopeIds(ids);
-              setLocationScopeLabel(`${recipients.length} recipient${recipients.length === 1 ? '' : 's'}`);
-              setSelected(new Set(ids));
-              // Bring Step 2 into view right away — purely a scroll/position aid.
-              requestAnimationFrame(() => {
-                step2Ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              });
-            }}
-          />
-        </div>
-
+        )}
         {isLoading ? (
           <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
         ) : filteredItems.length === 0 ? (
@@ -535,12 +555,12 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
         ) : (
           <div className="space-y-3">
             {/* Revenue summary for selection or location scope */}
-            {(selected.size > 0 || locationScopeIds?.length > 0) && (
+            {(selected.size > 0 || locationScoped) && (
               <div className="rounded-lg border-2 border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20 p-3 space-y-2">
                 <p className="text-xs font-bold flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
                   <TrendingUp className="h-3.5 w-3.5" />
                   Revenue from this disbursement
-                  {locationScopeIds?.length > 0 && (
+                  {locationScoped && (
                     <span className="ml-2 text-[10px] font-normal text-emerald-600/80">
                       · Scoped by location
                     </span>
@@ -549,18 +569,18 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-center">
                   <div className="rounded-md bg-background/60 py-2">
                     <p className="text-[10px] text-muted-foreground">Rent Out</p>
-                    <p className="font-bold text-sm text-orange-600">{fmt(locationScopeIds?.length ? queueTotalRent : totalRent)}</p>
+                    <p className="font-bold text-sm text-orange-600">{fmt(selected.size > 0 ? totalRent : queueTotalRent)}</p>
                   </div>
                   <div className="rounded-md bg-background/60 py-2">
                     <p className="text-[10px] text-muted-foreground">We Earn (Fees)</p>
-                    <p className="font-bold text-sm text-emerald-600">{fmt(locationScopeIds?.length ? queueTotalRevenue : totalRevenue)}</p>
+                    <p className="font-bold text-sm text-emerald-600">{fmt(selected.size > 0 ? totalRevenue : queueTotalRevenue)}</p>
                   </div>
                   <div className="rounded-md bg-background/60 py-2">
                     <p className="text-[10px] text-muted-foreground">Total Repayment</p>
-                    <p className="font-bold text-sm text-primary">{fmt(locationScopeIds?.length ? queueTotalRepaymentExpected : totalRepaymentExpected)}</p>
+                    <p className="font-bold text-sm text-primary">{fmt(selected.size > 0 ? totalRepaymentExpected : queueTotalRepaymentExpected)}</p>
                   </div>
                 </div>
-                <TreasuryImpactBanner payoutAmount={locationScopeIds?.length ? queueTotalRent : totalRent} />
+                <TreasuryImpactBanner payoutAmount={selected.size > 0 ? totalRent : queueTotalRent} />
               </div>
 
             )}
@@ -649,14 +669,46 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                   <Button variant="outline" size="sm" className="h-9 rounded-xl gap-2">
                     <Filter className="h-4 w-4" />
                     Filter
-                    {(agentFilter !== 'all' || countryFilter !== 'all' || dateFilter !== 'all') && (
+                    {(agentFilter !== 'all' || countryFilter !== 'all' || dateFilter !== 'all' || districtFilter !== 'all' || cityFilter !== 'all') && (
                       <Badge className="h-5 min-w-5 px-1.5 text-[10px] bg-primary text-primary-foreground border-0">
-                        {[agentFilter !== 'all', countryFilter !== 'all', dateFilter !== 'all'].filter(Boolean).length}
+                        {[agentFilter !== 'all', countryFilter !== 'all', dateFilter !== 'all', districtFilter !== 'all', cityFilter !== 'all'].filter(Boolean).length}
                       </Badge>
                     )}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent align="end" className="w-72 space-y-3 p-3">
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-semibold text-muted-foreground">District</p>
+                    <Select value={districtFilter} onValueChange={(v) => { setDistrictFilter(v); setCityFilter('all'); }}>
+                      <SelectTrigger className="h-9 rounded-lg text-sm">
+                        <SelectValue placeholder="All districts" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[280px]">
+                        <SelectItem value="all">All districts</SelectItem>
+                        {districtOptions.map(d => (
+                          <SelectItem key={d.name} value={d.name}>
+                            <span className="truncate">{d.name} · {d.count}</span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-semibold text-muted-foreground">Town / City</p>
+                    <Select value={cityFilter} onValueChange={setCityFilter}>
+                      <SelectTrigger className="h-9 rounded-lg text-sm">
+                        <SelectValue placeholder="All towns / cities" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[280px]">
+                        <SelectItem value="all">All towns / cities</SelectItem>
+                        {cityOptions.map(c => (
+                          <SelectItem key={c.name} value={c.name}>
+                            <span className="truncate">{c.name} · {c.count}</span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div className="space-y-1.5">
                     <p className="text-xs font-semibold text-muted-foreground">Agent</p>
                     <Select value={agentFilter} onValueChange={setAgentFilter}>
@@ -705,7 +757,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                   <button
                     type="button"
                     className="text-xs font-medium text-primary hover:underline"
-                    onClick={() => { setAgentFilter('all'); setCountryFilter('all'); setDateFilter('all'); }}
+                    onClick={() => { setAgentFilter('all'); setDateFilter('all'); clearLocation(); }}
                   >
                     Clear all filters
                   </button>
@@ -719,7 +771,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                   <button
                     type="button"
                     className="text-primary hover:underline"
-                    onClick={() => { setAgentFilter('all'); setCountryFilter('all'); setDateFilter('all'); }}
+                    onClick={() => { setAgentFilter('all'); setDateFilter('all'); clearLocation(); }}
                   >
                     Clear all filters
                   </button>
