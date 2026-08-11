@@ -968,13 +968,11 @@ function EditCatalogItemButton({ item, userId, onSaved }: { item: any; userId?: 
             </div>
           </div>
           <div className="space-y-1">
-            <Label>Images (max 2)</Label>
-          </div>
-          <div className="space-y-1">
             <Label>Available sizes</Label>
             <SizeEditor sizes={sizes} onChange={setSizes} input={sizeInput} onInputChange={setSizeInput} />
           </div>
           <div className="space-y-1">
+            <Label>Images (max 2)</Label>
             <div className="flex flex-wrap gap-2">
               {existingUrls.map((url, idx) => (
                 <div key={`ex-${idx}`} className="relative">
