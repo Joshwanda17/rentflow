@@ -12,6 +12,8 @@ interface CashCodeRow {
   verification_id: string;
   deposit_request_id: string;
   depositor_name: string | null;
+  wallet_holder_name?: string | null;
+  cash_owner_name?: string | null;
   depositor_phone: string | null;
   amount: number | null;
   code: string | null; // only present while awaiting & not expired
@@ -747,6 +749,11 @@ export function CashDepositCodesPanel({
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-medium truncate">{openRow.depositor_name || 'Unknown depositor'}</div>
+                  {openRow.wallet_holder_name && openRow.wallet_holder_name !== openRow.depositor_name && (
+                    <div className="text-xs text-muted-foreground truncate">
+                      Credited to wallet of {openRow.wallet_holder_name}
+                    </div>
+                  )}
                   <div className="text-xs text-muted-foreground">{openRow.depositor_phone || 'No phone on file'}</div>
                 </div>
                 <div className="text-xs text-muted-foreground whitespace-nowrap">{gmailDate(openRow.created_at)}</div>
@@ -829,6 +836,9 @@ export function CashDepositCodesPanel({
                         — {purposeLabel(r.deposit_purpose)}
                         {r.cash_location ? ` · ${cashLocationLabel(r.cash_location)}` : ''}
                         {r.depositor_phone ? ` · ${r.depositor_phone}` : ''}
+                        {r.wallet_holder_name && r.wallet_holder_name !== r.depositor_name
+                          ? ` · wallet: ${r.wallet_holder_name}`
+                          : ''}
                       </span>
                     </div>
 
