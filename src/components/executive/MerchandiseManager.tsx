@@ -834,6 +834,55 @@ function RecoveryBadge({ status }: { status: 'active' | 'completed' | 'cancelled
 // ---------------------------------------------------------------------------
 // Edit storefront catalog item
 // ---------------------------------------------------------------------------
+const SIZE_PRESETS = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL'];
+
+function SizeEditor({ sizes, onChange, input, onInputChange }: {
+  sizes: string[]; onChange: (v: string[]) => void; input: string; onInputChange: (v: string) => void;
+}) {
+  const add = (raw: string) => {
+    const parts = raw.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+    if (parts.length === 0) return;
+    const next = [...sizes];
+    for (const p of parts) if (!next.includes(p)) next.push(p);
+    onChange(next.slice(0, 20));
+    onInputChange('');
+  };
+  const toggle = (s: string) => sizes.includes(s) ? onChange(sizes.filter(x => x !== s)) : add(s);
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-1.5">
+        {SIZE_PRESETS.map(s => (
+          <button key={s} type="button" onClick={() => toggle(s)}
+            className={`h-8 min-w-9 rounded-md border px-2 text-xs font-medium transition-colors ${
+              sizes.includes(s)
+                ? 'bg-primary text-primary-foreground border-primary'
+                : 'bg-background text-muted-foreground border-border hover:bg-muted'
+            }`}>{s}</button>
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <Input value={input} onChange={(e) => onInputChange(e.target.value)} placeholder="Custom size e.g. 42, Free size"
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(input); } }} maxLength={40} />
+        <Button type="button" variant="outline" onClick={() => add(input)} disabled={!input.trim()}>Add</Button>
+      </div>
+      {sizes.length > 0 ? (
+        <div className="flex flex-wrap gap-1.5">
+          {sizes.map(s => (
+            <span key={s} className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs">
+              {s}
+              <button type="button" onClick={() => onChange(sizes.filter(x => x !== s))} className="text-muted-foreground hover:text-destructive">
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+      ) : (
+        <p className="text-[11px] text-muted-foreground">No sizes set — item will show as one-size.</p>
+      )}
+    </div>
+  );
+}
+
 function EditCatalogItemButton({ item, userId, onSaved }: { item: any; userId?: string; onSaved: () => void }) {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
