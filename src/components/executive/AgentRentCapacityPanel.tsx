@@ -116,8 +116,7 @@ export function AgentRentCapacityPanel({
     staleTime: 15_000,
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
-    refetchInterval: autoRefreshMs || false,
-    refetchIntervalInBackground: false,
+    refetchInterval: false,
     queryFn: async (): Promise<AgentRow[]> => {
       // 1) Pull all active rent requests (drives exposure + expected daily collections)
       const { data: active } = await supabase
@@ -338,15 +337,22 @@ export function AgentRentCapacityPanel({
     );
   }, [rows, search]);
 
-  const visible = showAll ? filtered : filtered.slice(0, defaultLimit);
+  const visible = filtered.slice(0, visibleCount);
+  const hasMore = filtered.length > visible.length;
+
+  // Reset the paging window whenever the search term changes.
+  useEffect(() => { setVisibleCount(defaultLimit); }, [search, defaultLimit]);
 
   // Aggregate KPIs
   const totalUsed = rows.reduce((s, r) => s + r.used, 0);
   const totalCap = rows.length * AGENT_RENT_CAP_UGX;
   const totalHeadroom = Math.max(totalCap - totalUsed, 0);
-  const atRisk = rows.filter(
-    (r) => r.used / AGENT_RENT_CAP_UGX >= 0.85,
-  ).length;
+  // "Active" = agents who actually collected money today (agent_collections-backed).
+  const activeToday = rows.filter((r) => r.paid_today > 0).length;
+  // Posting eligibility mirrors CapacityRow / AgentRentRequestDialog exactly:
+  // blocked === daily_status 'blocked'; starters and 'good' may post.
+  const canPostCount = rows.filter((r) => r.daily_status !== 'blocked').length;
+  const blockedCount = rows.filter((r) => r.daily_status === 'blocked').length;
 
   const expandAll = () => {
     const next: Record<string, boolean> = {};
@@ -380,14 +386,13 @@ export function AgentRentCapacityPanel({
                 isFetching={isFetching}
                 onRefresh={() => refetch()}
               />
-              <AutoRefreshControl value={autoRefreshMs} onChange={setAutoRefreshMs} />
             </div>
           </div>
           <DailyRatingThresholdPopover />
         </div>
 
         {!compact && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 mt-3">
             <Kpi
               icon={<TrendingUp className="h-3.5 w-3.5" />}
               label="Fleet Exposure"
@@ -402,25 +407,26 @@ export function AgentRentCapacityPanel({
             />
             <Kpi
               icon={<Gauge className="h-3.5 w-3.5" />}
-              label="Active Agents"
-              value={rows.length.toLocaleString()}
+              label="Active Agents (collected today)"
+              value={activeToday.toLocaleString()}
               tone="text-violet-600"
             />
             <Kpi
-              icon={<AlertTriangle className="h-3.5 w-3.5" />}
-              label="At ≥85% cap"
-              value={atRisk.toLocaleString()}
-              tone={atRisk > 0 ? 'text-destructive' : 'text-muted-foreground'}
+              icon={<CheckCircle2 className="h-3.5 w-3.5" />}
+              label="Can post today"
+              value={canPostCount.toLocaleString()}
+              tone="text-emerald-600"
+            />
+            <Kpi
+              icon={<XCircle className="h-3.5 w-3.5" />}
+              label="Blocked today"
+              value={blockedCount.toLocaleString()}
+              tone={blockedCount > 0 ? 'text-destructive' : 'text-muted-foreground'}
             />
           </div>
         )}
 
-        {!compact && <FleetPerformanceStats detailed={showList} autoRefreshMs={autoRefreshMs} />}
-        {!compact && showList && (
-          <div className="mt-4">
-            <CollectedReconciliationPanel />
-          </div>
-        )}
+        {!compact && <FleetPerformanceStats detailed={showList} />}
       </div>
 
       {showList && (
@@ -480,15 +486,13 @@ export function AgentRentCapacityPanel({
           </ul>
         )}
 
-        {filtered.length > defaultLimit && (
+        {hasMore && (
           <button
             type="button"
-            onClick={() => setShowAll((v) => !v)}
+            onClick={() => setVisibleCount((n) => n + LOAD_STEP)}
             className="w-full text-xs font-semibold text-primary py-2 hover:underline"
           >
-            {showAll
-              ? 'Show fewer'
-              : `Show all ${filtered.length.toLocaleString()} agents`}
+            {`Load more · showing ${visible.length.toLocaleString()} of ${filtered.length.toLocaleString()} agents`}
           </button>
         )}
       </div>
