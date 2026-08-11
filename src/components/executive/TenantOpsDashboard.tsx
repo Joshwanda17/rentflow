@@ -1354,6 +1354,23 @@ export function TenantOpsDashboard() {
         return <DailyCollectionMonitoringDashboard mode="editable" title="Daily Collection Monitoring" />;
       case 'daily-repayments-report':
         return <DailyRentReport mode="tenant" />;
+      case 'agent-capacity-hub':
+        return <AgentRentCapacityPanel />;
+      case 'all-tenants-hub':
+        return (
+          <TenantOverviewList
+            data={rows}
+            loading={isLoading}
+            initialCategory={overviewFilter}
+            onSelectTenant={(id, name) => {
+              setSelectedTenant({ id, name });
+              setActiveView('tenant-detail');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+          />
+        );
+      case 'reports-hub':
+        return <div className="space-y-3">{reportsToolbar}</div>;
       default:
         return null;
     }
