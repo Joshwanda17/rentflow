@@ -1,3 +1,4 @@
+import calculatorIllustration from "@/assets/calculator-illustration.svg.asset.json";
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { AngelSharesTab } from '@/components/supporter/AngelSharesTab';
 import { useConfetti } from '@/components/Confetti';
@@ -670,7 +671,15 @@ export default function SupporterDashboard({
       />
       
       <Dialog open={showCalculator} onOpenChange={setShowCalculator}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0 [&>button]:fixed [&>button]:right-4 [&>button]:top-4 [&>button]:z-[200] [&>button]:bg-background/90 [&>button]:shadow-md">
+          <div className="flex items-center justify-center bg-muted/40 px-4 pt-6 pb-2">
+            <img
+              src={calculatorIllustration.url}
+              alt="Earnings calculator illustration"
+              loading="lazy"
+              className="h-32 w-auto sm:h-40"
+            />
+          </div>
           <DialogHeader className="p-4 pb-0">
             <DialogTitle className="flex items-center gap-2">
               <Calculator className="h-5 w-5 text-primary" />
