@@ -758,17 +758,6 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [tenantPhoto, setTenantPhoto] = useState<{ file: File; preview: string } | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLabel, setPreviewLabel] = useState<string>('');
-  /**
-   * Documents the tenant already owns (tenant-scoped custody in
-   * `tenant_documents`). On renewal these are carried onto the new rent request
-   * automatically by the database, so the agent doesn't re-upload them and the
-   * files never get orphaned on the old request.
-   */
-  const [carriedDocs, setCarriedDocs] = useState<{
-    passportUrl: string | null;
-    hasLcLetter: boolean;
-    houseImages: number;
-  } | null>(null);
 
   // ===== House-search-first (standard flow) =====
   // The agent first searches for an available empty house (by landlord name,
@@ -1777,7 +1766,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       if (!propertyAddress.trim()) errors.push('Type the property address');
       const missingHousePhotos = HOUSE_PHOTO_SLOTS.some((_, i) => !housePhotos[i]);
       if (missingHousePhotos) errors.push('Take all 4 house photos (front, back, left and right)');
-      if (!tenantPhoto && !carriedDocs?.passportUrl) errors.push("Take the tenant's passport photo");
+      if (!tenantPhoto) errors.push("Take the tenant's passport photo");
       if (!gpsLocation) errors.push('Capture the property GPS at the house');
     } else if (idx === 3) {
       if (!lc1Name.trim()) errors.push("Type the LC1 chairperson's name");
@@ -1839,7 +1828,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       if (!propertyAddress.trim()) map['propertyAddress'] = 'Type the property address';
       const missingHousePhotos = HOUSE_PHOTO_SLOTS.some((_, i) => !housePhotos[i]);
       if (missingHousePhotos) map['housePhotos'] = 'Take all 4 house photos (front, back, left and right)';
-      if (!tenantPhoto && !carriedDocs?.passportUrl) map['tenantPhoto'] = "Take the tenant's passport photo";
+      if (!tenantPhoto) map['tenantPhoto'] = "Take the tenant's passport photo";
       if (!gpsLocation) map['gpsLocation'] = 'Capture the property GPS at the house';
     } else if (idx === 3) {
       if (!lc1Name.trim()) map['lc1Name'] = "Type the LC1 chairperson's name";
@@ -1925,7 +1914,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       if (!propertyAddress.trim()) map['propertyAddress'] = 'Type the property address';
       const missingHousePhotos = HOUSE_PHOTO_SLOTS.some((_, i) => !housePhotos[i]);
       if (missingHousePhotos) map['housePhotos'] = 'Take all 4 house photos (front, back, left and right)';
-      if (!tenantPhoto && !carriedDocs?.passportUrl) map['tenantPhoto'] = "Take the tenant's passport photo";
+      if (!tenantPhoto) map['tenantPhoto'] = "Take the tenant's passport photo";
       if (!gpsLocation) map['gpsLocation'] = 'Capture the property GPS at the house';
       if (!lc1Name.trim()) map['lc1Name'] = "Type the LC1 chairperson's name";
       if (!lc1Phone.trim()) map['lc1Phone'] = 'Type the LC1 phone number';
@@ -1950,7 +1939,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
     const missingHousePhotos = HOUSE_PHOTO_SLOTS.some((_, i) => !housePhotos[i]);
     if (missingHousePhotos) map['housePhotos'] = 'Take all 4 house photos (front, back, left and right)';
-    if (!tenantPhoto && !carriedDocs?.passportUrl) map['tenantPhoto'] = "Take the tenant's passport photo";
+    if (!tenantPhoto) map['tenantPhoto'] = "Take the tenant's passport photo";
 
     return map;
   };
@@ -2150,24 +2139,6 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     if (m.national_id) setTenantNationalId(cleanNationalIdInput(m.national_id));
     setIncomeType('outstanding');
     setStep('details');
-    // Pull the tenant's own documents so the agent sees what is carried over.
-    setCarriedDocs(null);
-    try {
-      const { data: docs } = await supabase.rpc('get_tenant_documents' as any, {
-        p_tenant_id: m.id,
-      });
-      const list: any[] = Array.isArray(docs) ? docs : [];
-      if (list.length > 0) {
-        const passport = list.find((d) => d.doc_type === 'tenant_passport');
-        setCarriedDocs({
-          passportUrl: passport?.public_url ?? null,
-          hasLcLetter: list.some((d) => d.doc_type === 'lc_letter'),
-          houseImages: list.filter((d) => d.doc_type === 'house_image').length,
-        });
-      }
-    } catch {
-      // Non-fatal — the database still carries the documents forward on insert.
-    }
     try {
       const { data, error } = await supabase.rpc('get_tenant_rent_summary' as any, {
         p_tenant_id: m.id,
@@ -2270,7 +2241,6 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setIncomeType(null);
     setTenantName('');
     setLcLetter(null);
-    setCarriedDocs(null);
     setTenantPhone('');
     setTenantNationalId('');
     setRentAmount('');
@@ -2533,7 +2503,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     // House photos and tenant passport photo are mandatory.
     const missingHousePhotos = HOUSE_PHOTO_SLOTS.some((_, i) => !housePhotos[i]);
     if (missingHousePhotos) errors.push('Take all 4 house photos (front, back, left and right)');
-    if (!tenantPhoto && !carriedDocs?.passportUrl) errors.push("Take the tenant's passport photo");
+    if (!tenantPhoto) errors.push("Take the tenant's passport photo");
 
     return errors;
   };
@@ -4948,19 +4918,6 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   <Label className="flex items-center gap-1">
                     🪪 Tenant Passport Photo *
                   </Label>
-                  {carriedDocs?.passportUrl && !tenantPhoto && (
-                    <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 p-2">
-                      <img
-                        src={carriedDocs.passportUrl}
-                        alt="Carried tenant passport photo"
-                        className="h-12 w-10 rounded object-cover cursor-pointer"
-                        onClick={() => { setPreviewUrl(carriedDocs.passportUrl!); setPreviewLabel('Tenant Passport Photo (carried)'); }}
-                      />
-                      <p className="text-[11px] leading-snug text-muted-foreground">
-                        Carried from previous plan — no need to re-take it. Capture a new one only to replace it.
-                      </p>
-                    </div>
-                  )}
                   <div className="flex items-start gap-3">
                     {tenantPhoto ? (
                       <div className="relative h-24 w-20 rounded-lg overflow-hidden border border-border shrink-0 group">
@@ -5018,11 +4975,6 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   <ShieldCheck className="h-4 w-4" />
                   LC Letter
                 </h4>
-                {carriedDocs?.hasLcLetter && !lcLetter && (
-                  <div className="rounded-lg border border-primary/30 bg-primary/5 p-2 text-[11px] leading-snug text-muted-foreground">
-                    LC letter carried from this tenant's previous plan. Upload a new one only to replace it.
-                  </div>
-                )}
                 {lcLetter ? (
                   <div className="flex items-center gap-3 rounded-xl border border-border p-2.5">
                     <img src={lcLetter.preview} alt="LC letter" className="h-16 w-16 rounded-lg object-cover" />

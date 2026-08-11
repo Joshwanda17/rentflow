@@ -32,7 +32,7 @@ export function PhonePlatformReconciliationCard({ compact = false }: PhonePlatfo
   const { data, isLoading } = useQuery({
     queryKey: ['finops-phone-platform-reconciliation'],
     queryFn: async (): Promise<ReconciliationData> => {
-      const { data, error } = await supabase.rpc('get_phone_platform_reconciliation');
+      const { data, error } = await supabase.rpc('get_phone_platform_reconciliation' as any);
       if (error) throw error;
       const d = data as any;
       return {

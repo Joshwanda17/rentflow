@@ -21662,6 +21662,7 @@ export type Database = {
           phone: string | null
           phone_verified: boolean
           phone_verified_at: string | null
+          preferred_language: string | null
           prefers_easy_read: boolean
           previous_full_name: string | null
           primary_persona: string | null
@@ -21677,7 +21678,12 @@ export type Database = {
           seller_application_status: string | null
           signup_source: string | null
           sub_county: string | null
+          tenant_details_updated_at: string | null
+          tenant_electricity_meter: string | null
+          tenant_house_category: string | null
+          tenant_house_listing_id: string | null
           tenant_status: string
+          tenant_water_meter: string | null
           territory: string | null
           town: string | null
           ug_village_id: number | null
@@ -21745,6 +21751,7 @@ export type Database = {
           phone?: string | null
           phone_verified?: boolean
           phone_verified_at?: string | null
+          preferred_language?: string | null
           prefers_easy_read?: boolean
           previous_full_name?: string | null
           primary_persona?: string | null
@@ -21760,7 +21767,12 @@ export type Database = {
           seller_application_status?: string | null
           signup_source?: string | null
           sub_county?: string | null
+          tenant_details_updated_at?: string | null
+          tenant_electricity_meter?: string | null
+          tenant_house_category?: string | null
+          tenant_house_listing_id?: string | null
           tenant_status?: string
+          tenant_water_meter?: string | null
           territory?: string | null
           town?: string | null
           ug_village_id?: number | null
@@ -21828,6 +21840,7 @@ export type Database = {
           phone?: string | null
           phone_verified?: boolean
           phone_verified_at?: string | null
+          preferred_language?: string | null
           prefers_easy_read?: boolean
           previous_full_name?: string | null
           primary_persona?: string | null
@@ -21843,7 +21856,12 @@ export type Database = {
           seller_application_status?: string | null
           signup_source?: string | null
           sub_county?: string | null
+          tenant_details_updated_at?: string | null
+          tenant_electricity_meter?: string | null
+          tenant_house_category?: string | null
+          tenant_house_listing_id?: string | null
           tenant_status?: string
+          tenant_water_meter?: string | null
           territory?: string | null
           town?: string | null
           ug_village_id?: number | null
@@ -35763,6 +35781,7 @@ export type Database = {
           warning_count: number
         }[]
       }
+      get_tenant_details: { Args: { p_tenant_id: string }; Returns: Json }
       get_tenant_documents: {
         Args: { p_tenant_id: string }
         Returns: {
@@ -36056,11 +36075,6 @@ export type Database = {
           wallet_balance: number
         }[]
       }
-      get_deposit_autocredit_success_rate: {
-        Args: { p_window_hours?: number }
-        Returns: Json
-      }
-      get_phone_platform_reconciliation: { Args: never; Returns: Json }
       get_wallet_totals: { Args: never; Returns: Json }
       get_wallet_totals_strict: { Args: never; Returns: Json }
       get_wallets_batch: {
