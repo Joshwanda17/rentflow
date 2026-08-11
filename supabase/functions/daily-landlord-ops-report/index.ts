@@ -17,7 +17,7 @@ const corsHeaders = {
 
 const FROM_DOMAIN = 'welile.com';
 const DEFAULT_FROM = `Welile Reports <reports@${FROM_DOMAIN}>`;
-const DEFAULT_RECIPIENTS = ['benjaminmuhanguzi29@gmail.com', 'joshwanda17@gmail.com'];
+const DEFAULT_RECIPIENTS = ['benjaminmuhanguzi29@gmail.com', 'joshwanda17@gmail.com', 'jlukodda@gmail.com'];
 
 function fmtUgx(n: number | null | undefined) {
   const v = Math.round(Number(n) || 0);
