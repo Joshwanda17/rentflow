@@ -815,11 +815,14 @@ export function EmailTransactionsPanel() {
   //   credited     → incoming money already credited or routed to a wallet
   //   needs_routing→ incoming money not yet credited / routed (triage)
   //   unparsed     → rows the parser could not read (no amount / not parsed)
-  type StatusFilter = 'all' | 'credited' | 'needs_routing' | 'unparsed';
+  // 'needs_routing'     → Needs routing 1: money IN that was not auto-credited
+  // 'needs_routing_out' → Needs routing 2: money OUT that was not auto-deducted
+  //                        from the wallet of the number that was paid out
+  type StatusFilter = 'all' | 'credited' | 'needs_routing' | 'needs_routing_out' | 'unparsed';
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(() => {
     if (typeof window === 'undefined') return 'all';
     const v = localStorage.getItem('gmail_filter_status') as StatusFilter | null;
-    return v && ['all', 'credited', 'needs_routing', 'unparsed'].includes(v) ? v : 'all';
+    return v && ['all', 'credited', 'needs_routing', 'needs_routing_out', 'unparsed'].includes(v) ? v : 'all';
   });
   useEffect(() => { try { localStorage.setItem('gmail_filter_status', statusFilter); } catch {} }, [statusFilter]);
 
@@ -3051,6 +3054,19 @@ export function EmailTransactionsPanel() {
     };
   }, [routingHistory, autoDebitResults]);
 
+  /**
+   * Needs routing 2: an outgoing payout email whose money was never taken off
+   * the wallet of the number that was paid out — no auto-debit recorded and no
+   * manual routing entry either. Defined after getDebitMeta so it can reuse it.
+   */
+  const isNeedsDebitRouting = useCallback((r: GmailTx) => {
+    if (r.direction !== 'out' && r.direction !== 'charge') return false;
+    if (isUnparsedRow(r)) return false;
+    if (justRoutedIds.has(r.id)) return false;
+    if ((routingHistory[r.id] ?? []).length > 0) return false;
+    return !getDebitMeta(r).isAutoDebited;
+  }, [routingHistory, justRoutedIds, getDebitMeta]);
+
   // Navigable rows: the same list the operator sees on the Recent emails page.
   // This drives the Prev / Next button bar inside the Route dialog so Financial
   // Ops can walk through emails in order without closing the dialog each time.
@@ -3059,7 +3075,11 @@ export function EmailTransactionsPanel() {
       if (directionFilter === 'in' && r.direction !== 'in') return false;
       if (directionFilter === 'out' && r.direction !== 'out' && r.direction !== 'charge') return false;
       if (needsRoutingOnly && !isNeedsRouting(r)) return false;
-      if (statusFilter !== 'all' && getRowStatus(r) !== statusFilter) return false;
+      if (statusFilter === 'needs_routing_out') {
+        if (!isNeedsDebitRouting(r)) return false;
+      } else if (statusFilter !== 'all' && getRowStatus(r) !== statusFilter) {
+        return false;
+      }
       if (matchFilter === 'all') return true;
       const matches = userMatches[r.id] ?? [];
       if (matchFilter === 'reference') return matches.some((u) => u.matched_on.startsWith('reference '));
@@ -3120,7 +3140,7 @@ export function EmailTransactionsPanel() {
       });
     }
     return list;
-  }, [filteredRows, directionFilter, matchFilter, userMatches, needsRoutingOnly, isNeedsRouting, statusFilter, getRowStatus, debitFilter, debitSort, sortMode, getDebitMeta]);
+  }, [filteredRows, directionFilter, matchFilter, userMatches, needsRoutingOnly, isNeedsRouting, isNeedsDebitRouting, statusFilter, getRowStatus, debitFilter, debitSort, sortMode, getDebitMeta]);
 
   const navIndex = routingRow ? visibleRows.findIndex((r) => r.id === routingRow.id) : -1;
   const canPrevNav = navIndex > 0;
@@ -3295,17 +3315,18 @@ export function EmailTransactionsPanel() {
 
   // Gmail-style label counts, computed off the same rows the list renders from.
   const gmailLabelCounts = useMemo(() => {
-    let inCount = 0, outCount = 0, routing = 0, unparsed = 0, credited = 0;
+    let inCount = 0, outCount = 0, routing = 0, routingOut = 0, unparsed = 0, credited = 0;
     for (const r of filteredRows) {
       if (r.direction === 'in') inCount += 1;
       else if (r.direction === 'out' || r.direction === 'charge') outCount += 1;
+      if (isNeedsDebitRouting(r)) routingOut += 1;
       const s = getRowStatus(r);
       if (s === 'needs_routing') routing += 1;
       else if (s === 'unparsed') unparsed += 1;
       else if (s === 'credited') credited += 1;
     }
-    return { all: filteredRows.length, in: inCount, out: outCount, routing, unparsed, credited };
-  }, [filteredRows, getRowStatus]);
+    return { all: filteredRows.length, in: inCount, out: outCount, routing, routingOut, unparsed, credited };
+  }, [filteredRows, getRowStatus, isNeedsDebitRouting]);
 
   // Gmail label definitions — each one maps onto the existing filter state so
   // no filtering logic changes, only the arrangement.
@@ -3333,12 +3354,17 @@ export function EmailTransactionsPanel() {
       apply: () => { setDirectionFilter('out'); setFocusDirection(focusView === 'ops' ? 'out' : null); setStatusFilter('all'); setNeedsRoutingOnly(false); },
     },
     {
-      key: 'needs_routing', label: 'Needs routing', Icon: Send, count: gmailLabelCounts.routing,
+      key: 'needs_routing', label: 'Needs routing 1 · money in', Icon: Send, count: gmailLabelCounts.routing,
       active: statusFilter === 'needs_routing',
       // Settlement labels are direction-blind: a status only exists on incoming
       // mail, so leaving a "Money out" direction filter active would render an
       // empty view even though the counter shows matches. Always reset it.
       apply: () => { setStatusFilter('needs_routing'); setNeedsRoutingOnly(false); setFocusDirection(null); setDirectionFilter('all'); },
+    },
+    {
+      key: 'needs_routing_out', label: 'Needs routing 2 · money out', Icon: ArrowUpRight, count: gmailLabelCounts.routingOut,
+      active: statusFilter === 'needs_routing_out',
+      apply: () => { setStatusFilter('needs_routing_out'); setNeedsRoutingOnly(false); setFocusDirection(null); setDirectionFilter('all'); },
     },
     {
       key: 'unparsed', label: 'Unparsed', Icon: AlertOctagon, count: gmailLabelCounts.unparsed,
