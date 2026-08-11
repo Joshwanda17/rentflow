@@ -62,10 +62,14 @@ Deno.serve(async (req) => {
     }
     if (!isOps) return json({ error: "You do not have permission to resend portfolio invites." }, 403);
 
-    let body: { portfolio_id?: string };
+    let body: { portfolio_id?: string; copy_to?: string };
     try { body = await req.json(); } catch { return json({ error: "Invalid request." }, 400); }
     const portfolioId = String(body.portfolio_id || "");
     if (!UUID.test(portfolioId)) return json({ error: "A valid portfolio is required." }, 400);
+    const copyTo = String(body.copy_to || "").trim().toLowerCase();
+    if (copyTo && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(copyTo)) {
+      return json({ error: "The copy recipient email is invalid." }, 400);
+    }
 
     const { data: portfolio, error: pErr } = await admin
       .from("investor_portfolios")
@@ -93,38 +97,41 @@ Deno.serve(async (req) => {
 
     const origin = req.headers.get("origin") || "https://welileapp.com";
 
-    if (portfolio.status === "awaiting_partner_details") {
-      // Mint a fresh token and reset the 7-day window so the new link works even
-      // when the original one already expired.
-      const rawToken = generateToken();
-      const tokenHash = await sha256Hex(rawToken);
-      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    // Both pipeline statuses use the completion invite. A pending Ops row can
+    // originate from an older flow that never created a token, so UPSERT rather
+    // than UPDATE: this guarantees a real, fresh 7-day link in every resend.
+    const rawToken = generateToken();
+    const tokenHash = await sha256Hex(rawToken);
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
-      const { error: tokErr } = await admin
-        .from("portfolio_completion_tokens")
-        .update({
-          token_hash: tokenHash,
-          expires_at: expiresAt,
-          consumed_at: null,
-          email_snapshot: partner.email,
-          phone_snapshot: partner.phone,
-          created_by: caller.id,
-        })
-        .eq("portfolio_id", portfolioId);
-      if (tokErr) {
-        console.error("[resend-portfolio-invite] token rotation failed:", tokErr);
-        return json({ error: `Could not refresh the invite link: ${tokErr.message}` }, 500);
-      }
+    const { error: tokErr } = await admin
+      .from("portfolio_completion_tokens")
+      .upsert({
+        portfolio_id: portfolioId,
+        partner_id: portfolio.investor_id,
+        token_hash: tokenHash,
+        expires_at: expiresAt,
+        consumed_at: null,
+        email_snapshot: partner.email,
+        phone_snapshot: partner.phone,
+        created_by: caller.id,
+      }, { onConflict: "portfolio_id" });
+    if (tokErr) {
+      console.error("[resend-portfolio-invite] token rotation failed:", tokErr);
+      return json({ error: `Could not refresh the invite link: ${tokErr.message}` }, 500);
+    }
 
-      const completionUrl =
-        `${origin}/partners/${portfolio.investor_id}/portfolios/${portfolioId}/complete?token=${encodeURIComponent(rawToken)}`;
+    const completionUrl =
+      `${origin}/partners/${portfolio.investor_id}/portfolios/${portfolioId}/complete?token=${encodeURIComponent(rawToken)}`;
+    const recipients = [partner.email, ...(copyTo && copyTo !== partner.email.toLowerCase() ? [copyTo] : [])];
 
+    for (const recipientEmail of recipients) {
       const { error: emailErr } = await admin.functions.invoke("send-transactional-email", {
         body: {
           templateName: "partner-portfolio-invite",
-          recipientEmail: partner.email,
+          recipientEmail,
           // Unique per resend so the pipeline never treats it as a duplicate.
-          idempotencyKey: `portfolio-invite-${portfolioId}-${Date.now()}`,
+          idempotencyKey: `portfolio-invite-${portfolioId}-${recipientEmail}-${Date.now()}`,
           templateData: {
             partner_name: partner.full_name || "Partner",
             portfolio_code: portfolio.portfolio_code,
@@ -144,80 +151,20 @@ Deno.serve(async (req) => {
           error: "The invite link was refreshed, but the email could not be sent. Please retry.",
         }, 502);
       }
-
-      await admin.from("audit_logs").insert({
-        user_id: caller.id,
-        action_type: "resend_portfolio_invite",
-        table_name: "investor_portfolios",
-        record_id: portfolioId,
-        metadata: {
-          partner_id: portfolio.investor_id,
-          portfolio_code: portfolio.portfolio_code,
-          recipient_email: partner.email,
-          expires_at: expiresAt,
-          reason: "partner_never_completed_original_invite_link",
-        },
-      });
-
-      return json({
-        success: true,
-        portfolio_id: portfolioId,
-        portfolio_code: portfolio.portfolio_code,
-        partner_email: partner.email,
-        expires_at: expiresAt,
-      }, 200);
-    }
-
-    // pending_ops_approval: partner already submitted details. Resend the
-    // request-received confirmation so they have a fresh copy of the terms.
-    const createdAt = portfolio.created_at ? new Date(portfolio.created_at) : new Date();
-    const maturityDate = new Date(createdAt);
-    if (portfolio.duration_months && portfolio.duration_months > 0) {
-      maturityDate.setMonth(maturityDate.getMonth() + portfolio.duration_months);
-    }
-    const maturityDateStr = Number.isNaN(maturityDate.getTime())
-      ? ""
-      : maturityDate.toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" });
-    const submittedAtStr = Number.isNaN(createdAt.getTime())
-      ? ""
-      : createdAt.toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" });
-
-    const { error: emailErr } = await admin.functions.invoke("send-transactional-email", {
-      body: {
-        templateName: "portfolio-request-confirmation",
-        recipientEmail: partner.email,
-        idempotencyKey: `portfolio-request-confirmation-${portfolioId}-${Date.now()}`,
-        templateData: {
-          partner_name: partner.full_name || "Partner",
-          portfolio_name: "Rent Pool Partnership Portfolio",
-          portfolio_id: portfolio.portfolio_code,
-          portfolio_value: Number(portfolio.investment_amount || 0),
-          maturity_date: maturityDateStr,
-          request_type: "NEW_PORTFOLIO_REQUEST",
-          request_reference: portfolio.portfolio_code,
-          submitted_at: submittedAtStr,
-          currency: "UGX",
-          company_name: "Welile",
-        },
-      },
-    });
-    if (emailErr) {
-      console.error("[resend-portfolio-invite] confirmation dispatch failed:", emailErr);
-      return json({
-        error: "The confirmation email could not be sent. Please retry.",
-      }, 502);
     }
 
     await admin.from("audit_logs").insert({
       user_id: caller.id,
-      action_type: "resend_portfolio_confirmation",
+      action_type: "resend_portfolio_invite",
       table_name: "investor_portfolios",
       record_id: portfolioId,
       metadata: {
         partner_id: portfolio.investor_id,
         portfolio_code: portfolio.portfolio_code,
         recipient_email: partner.email,
-        reason: "partner_requested_confirmation_resend",
+        copy_to: copyTo || null,
+        expires_at: expiresAt,
+        reason: "partner_requested_fresh_completion_invite",
       },
     });
 
@@ -226,6 +173,8 @@ Deno.serve(async (req) => {
       portfolio_id: portfolioId,
       portfolio_code: portfolio.portfolio_code,
       partner_email: partner.email,
+      copied_to: copyTo || null,
+      expires_at: expiresAt,
     }, 200);
   } catch (e) {
     console.error("[resend-portfolio-invite] unexpected error:", e);
