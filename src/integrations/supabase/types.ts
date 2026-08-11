@@ -17506,6 +17506,7 @@ export type Database = {
           image_urls: string[]
           is_active: boolean
           item_name: string
+          sizes: string[]
           unit_cost: number
           unit_price: number
           updated_at: string
@@ -17519,6 +17520,7 @@ export type Database = {
           image_urls?: string[]
           is_active?: boolean
           item_name: string
+          sizes?: string[]
           unit_cost?: number
           unit_price?: number
           updated_at?: string
@@ -17532,6 +17534,7 @@ export type Database = {
           image_urls?: string[]
           is_active?: boolean
           item_name?: string
+          sizes?: string[]
           unit_cost?: number
           unit_price?: number
           updated_at?: string
