@@ -12,6 +12,8 @@ export interface AgreementFillData {
   partnerPhone?: string;
   partnerEmail?: string;
   partnershipAmount: number;
+  /** Monthly return percentage printed in the returns clause (default 15). */
+  returnPercentage?: number;
   payoutMode?: 'bank' | 'momo';
   bankName?: string;
   bankAccountName?: string;
@@ -110,6 +112,11 @@ export function buildAgreementHtml(data: AgreementFillData): string {
     PartnerEmail: esc(data.partnerEmail?.trim() || ''),
     PartnershipAmount: esc(amountStr),
     PartnershipAmountWords: esc(amountWords),
+    ReturnPercentage: esc(
+      Number.isFinite(Number(data.returnPercentage)) && Number(data.returnPercentage) > 0
+        ? String(Number(Number(data.returnPercentage).toFixed(2)))
+        : '15',
+    ),
     AgreementDay: esc(ordinal(day)),
     AgreementMonth: esc(month),
     WelileRepName: esc(data.welileRepName?.trim() || ''),
