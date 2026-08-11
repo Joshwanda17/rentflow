@@ -426,7 +426,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
 
         {/* Filter band */}
         <div className="border-y border-border/70 bg-muted/20 px-5 py-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,15rem)_minmax(0,11rem)] gap-3 items-center">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,11rem)_minmax(0,11rem)_minmax(0,13rem)_minmax(0,10rem)] gap-3 items-center">
             <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -436,6 +436,37 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                 className="h-11 rounded-xl text-sm pl-9 bg-background border-border/70"
               />
             </div>
+            <Select
+              value={districtFilter}
+              onValueChange={(v) => { setDistrictFilter(v); setCityFilter('all'); }}
+            >
+              <SelectTrigger className="h-11 rounded-xl text-sm w-full bg-background border-border/70">
+                <MapPin className="h-4 w-4 mr-2 text-muted-foreground" />
+                <SelectValue placeholder="District" />
+              </SelectTrigger>
+              <SelectContent className="max-h-[320px]">
+                <SelectItem value="all">All districts</SelectItem>
+                {districtOptions.map(d => (
+                  <SelectItem key={d.name} value={d.name}>
+                    <span className="truncate">{d.name} · {d.count}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={cityFilter} onValueChange={setCityFilter}>
+              <SelectTrigger className="h-11 rounded-xl text-sm w-full bg-background border-border/70">
+                <MapPin className="h-4 w-4 mr-2 text-muted-foreground" />
+                <SelectValue placeholder="Town / City" />
+              </SelectTrigger>
+              <SelectContent className="max-h-[320px]">
+                <SelectItem value="all">All towns / cities</SelectItem>
+                {cityOptions.map(c => (
+                  <SelectItem key={c.name} value={c.name}>
+                    <span className="truncate">{c.name} · {c.count}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Select value={agentFilter} onValueChange={setAgentFilter}>
               <SelectTrigger className="h-11 rounded-xl text-sm w-full bg-background border-border/70">
                 <Users className="h-4 w-4 mr-2 text-muted-foreground" />
@@ -466,13 +497,13 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                 <SelectItem value="30d">Last 30 days</SelectItem>
               </SelectContent>
             </Select>
-            {agentFilter !== 'all' && (
+            {(agentFilter !== 'all' || locationScoped) && (
               <button
                 type="button"
-                className="text-xs font-medium text-primary hover:underline justify-self-start sm:col-span-2 lg:col-span-3"
-                onClick={() => setAgentFilter('all')}
+                className="text-xs font-medium text-primary hover:underline justify-self-start sm:col-span-2 lg:col-span-5"
+                onClick={() => { setAgentFilter('all'); clearLocation(); }}
               >
-                Clear agent
+                Clear agent &amp; location
               </button>
             )}
           </div>
