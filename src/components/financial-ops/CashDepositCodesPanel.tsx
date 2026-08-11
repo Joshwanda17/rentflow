@@ -291,6 +291,7 @@ export function CashDepositCodesPanel({
   const [startOpen, setStartOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [tab, setTab] = useState<'all' | 'awaiting' | 'verified'>('all');
+  const [cashLocation, setCashLocation] = useState<'all' | 'cash_at_hand' | 'bank'>('all');
   const [openId, setOpenId] = useState<string | null>(null);
   const [range, setRange] = useState<'today' | '7d' | '30d' | 'all'>('today');
   const [view, setView] = useState<'inbox' | 'report'>('inbox');
