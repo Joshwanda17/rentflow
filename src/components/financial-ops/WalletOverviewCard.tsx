@@ -140,7 +140,7 @@ export function WalletOverviewCard({ onOpenDeductions, onViewActiveWallets, onOp
         interactive
           ? 'cursor-pointer transition-all hover:border-primary/60 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background'
           : ''
-      } overflow-hidden`}
+      } overflow-hidden h-full flex flex-col`}
     >
       <div className="flex items-start justify-between gap-2 mb-3 min-w-0">
         <div className="flex items-center gap-3 min-w-0">
