@@ -64,7 +64,7 @@ export function PhoneMoneyCard() {
           <Smartphone className="h-5 w-5 text-primary" />
         </div>
         <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-          Phone Money
+          ACTUAL MONEY
         </p>
       </div>
 
