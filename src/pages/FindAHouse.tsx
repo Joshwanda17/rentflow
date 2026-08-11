@@ -46,6 +46,18 @@ const HouseMapView = lazy(() =>
 // and rendered as the current option so those links keep working.
 const REGIONS = ['All Regions', ...UG_REGIONS];
 
+/**
+ * Popular city / district shortcuts kept for shared links, SEO landing pages and
+ * the GPS auto-default (reverse-geocoding returns a city, not a region). They are
+ * matched with the broad location OR filter, exactly as before.
+ */
+const POPULAR_AREAS = [
+  'Kampala', 'Wakiso', 'Mukono', 'Jinja', 'Mbale',
+  'Mbarara', 'Gulu', 'Lira', 'Fort Portal', 'Masaka',
+  'Entebbe', 'Nansana', 'Kira', 'Bweyogerere',
+];
+const REGION_OPTIONS = [...REGIONS, ...POPULAR_AREAS];
+
 const CATEGORIES = [
   { value: 'all', label: 'All Types' },
   { value: 'single_room', label: 'Single Room' },
