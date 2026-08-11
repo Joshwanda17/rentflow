@@ -329,30 +329,17 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
     setSelectedVillage('all');
   };
 
-  // Distinct GPS-captured location options derived from the loaded listings,
-  // cascading from the current district/sub-county selection. Only areas that
-  // actually have houses are offered.
-  const districtOptions = useMemo(() => {
-    const set = new Set<string>();
-    listings.forEach(l => { const v = (l.district || '').trim(); if (v) set.add(v); });
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [listings]);
-
-  const subCountyOptions = useMemo(() => {
-    const set = new Set<string>();
-    listings.forEach(l => {
-      if (selectedDistrict !== 'all' && (l.district || '').trim() !== selectedDistrict) return;
-      const v = (l.sub_county || '').trim();
-      if (v) set.add(v);
-    });
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [listings, selectedDistrict]);
+  // District / sub-county options come from the official ug_* dataset (not from
+  // whatever text the loaded rows happen to carry). Village stays derived from
+  // the loaded listings, compared case-insensitively so legacy rows still match.
+  const districtOptions = useMemo(() => ugDistricts.map(d => d.name), [ugDistricts]);
+  const subCountyOptions = useMemo(() => ugSubcounties.map(s => s.name), [ugSubcounties]);
 
   const villageOptions = useMemo(() => {
     const set = new Set<string>();
     listings.forEach(l => {
-      if (selectedDistrict !== 'all' && (l.district || '').trim() !== selectedDistrict) return;
-      if (selectedSubCounty !== 'all' && (l.sub_county || '').trim() !== selectedSubCounty) return;
+      if (selectedDistrict !== 'all' && normalizeAreaName(l.district) !== normalizeAreaName(selectedDistrict)) return;
+      if (selectedSubCounty !== 'all' && normalizeAreaName(l.sub_county) !== normalizeAreaName(selectedSubCounty)) return;
       const v = (l.village || '').trim();
       if (v) set.add(v);
     });
