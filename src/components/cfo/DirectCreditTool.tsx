@@ -503,6 +503,9 @@ export function DirectCreditTool() {
       if (!amt || amt <= 0) throw new Error('Invalid amount');
       if (!reason || reason.length < 10) throw new Error('Reason must be at least 10 characters');
       if (!selectedUser) throw new Error('Select a user');
+      // Recipients: either the single user picked as before, or the people
+      // selected via Pay by Location/Category. Everything below is identical.
+      const targets: any[] = locationRecipients.length > 0 ? locationRecipients : [selectedUser];
       if (!selectedCategory) throw new Error('Select a payout category');
       if (hasSubCategories && !selectedSubCategoryId) throw new Error('Select a subcategory');
 
@@ -560,9 +563,10 @@ export function DirectCreditTool() {
         ? `${payoutTag} ${reason}`.trim()
         : reason;
 
+      const postOne = async (target: any) => {
       const { data, error } = await supabase.functions.invoke('cfo-direct-credit', {
         body: {
-          target_user_id: selectedUser.id,
+          target_user_id: target.id,
           amount: amt,
           reason: submitReason,
           operation: submitOperation,
@@ -636,8 +640,33 @@ export function DirectCreditTool() {
         throw new Error(msg);
       }
       if (data?.error) throw new Error(data.error);
+      return data;
+      };
 
-      if (automateEnabled && selectedUser) {
+      let resultData: any = null;
+      if (targets.length <= 1) {
+        resultData = await postOne(targets[0]);
+      } else {
+        const failures: string[] = [];
+        let ok = 0;
+        for (const t of targets) {
+          try {
+            resultData = await postOne(t);
+            ok++;
+          } catch (e: any) {
+            failures.push(`${t.full_name ?? t.id}: ${e?.__silent ? 'insufficient balance' : e.message}`);
+          }
+        }
+        setOverdrawInfo(null);
+        setOverdrawApproved(false);
+        if (ok === 0) throw new Error(failures[0] ?? 'Payout failed');
+        resultData = {
+          message: `${ok}/${targets.length} recipients paid UGX ${amt.toLocaleString()} each` +
+            (failures.length ? ` · failed: ${failures.slice(0, 3).join(' • ')}` : ''),
+        };
+      }
+
+      if (automateEnabled && selectedUser && targets.length <= 1) {
         const { data: schedRow, error: schedErr } = await supabase.from('scheduled_payouts').insert({
           created_by: (await supabase.auth.getUser()).data.user?.id,
           target_user_id: selectedUser.id,
@@ -685,7 +714,7 @@ export function DirectCreditTool() {
         }
       }
 
-      return data;
+      return resultData;
     },
     onSuccess: (data) => {
       toast({
@@ -702,6 +731,7 @@ export function DirectCreditTool() {
       qc.invalidateQueries({ queryKey: ['treasury-cash-snapshot'] });
       qc.invalidateQueries({ queryKey: ['cfo-overview'] });
       setSelectedUser(null);
+      setLocationRecipients([]);
       setAmount('');
       setReason('');
       setSelectedCategoryId('');
