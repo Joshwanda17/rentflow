@@ -109,7 +109,6 @@ export function TenantOpsHub() {
           className="gap-1.5"
         >
           <BarChart3 className="h-3.5 w-3.5" /> Operations Intelligence
-          <span className="sr-only">view</span>
         </Button>
         <Button
           variant={mode === 'classic' ? 'default' : 'outline'}
