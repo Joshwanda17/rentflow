@@ -24,6 +24,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { UGANDA_DISTRICTS } from "@/lib/ugandaDistricts";
 import { CountryCombobox } from "@/components/ui/country-combobox";
 import { CityCombobox } from "@/components/ui/city-combobox";
+import UgLocationPicker from "@/components/location/UgLocationPicker";
+import { resolveUgVillage, type UgLocationSelection } from "@/hooks/useUgLocations";
 import {
   continentForCountry,
   isoForCountry,
@@ -81,6 +83,7 @@ type ProfileRow = {
   primary_persona: string | null;
   occupation: string | null;
   referrer_id: string | null;
+  ug_village_id: number | null;
 };
 
 type AgentRow = {
@@ -110,7 +113,7 @@ export default function ProfileCompletionGate() {
       const { data, error } = await supabase
         .from("profiles")
         .select(
-          "id, address_complete, continent, country, region, district, city, town, sub_county, parish, village, primary_persona, occupation, referrer_id",
+          "id, address_complete, continent, country, region, district, city, town, sub_county, parish, village, primary_persona, occupation, referrer_id, ug_village_id",
         )
         .eq("id", user.id)
         .maybeSingle();
@@ -160,16 +163,22 @@ export default function ProfileCompletionGate() {
   const [residenceLat, setResidenceLat] = useState<number | null>(null);
   const [residenceLng, setResidenceLng] = useState<number | null>(null);
 
-  // Address state — defaults to Africa, Uganda, Kampala for the majority user base
+  // Address state — country defaults to Uganda, but NOTHING below country is
+  // pre-filled: the user must pick their official village themselves.
   const [continent, setContinent] = useState("Africa");
   const [country, setCountry] = useState("Uganda");
-  const [region, setRegion] = useState("Central");
-  const [district, setDistrict] = useState("Kampala");
-  const [city, setCity] = useState("Kampala");
+  const [region, setRegion] = useState("");
+  const [district, setDistrict] = useState("");
+  const [city, setCity] = useState("");
   const [town, setTown] = useState("");
   const [subCounty, setSubCounty] = useState("");
   const [parish, setParish] = useState("");
   const [village, setVillage] = useState("");
+  // Official Uganda administrative selection (ug_* dataset). Single source of
+  // truth for region/district/sub-county/parish/village when in Uganda.
+  const [ugSelection, setUgSelection] = useState<UgLocationSelection | null>(null);
+  const [ugError, setUgError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Persona state
   const [persona, setPersona] = useState("");
@@ -212,6 +221,9 @@ export default function ProfileCompletionGate() {
     if (typeof d.subCounty === "string") setSubCounty(d.subCounty);
     if (typeof d.parish === "string") setParish(d.parish);
     if (typeof d.village === "string") setVillage(d.village);
+    if (d.ugSelection && typeof d.ugSelection === "object") {
+      setUgSelection(d.ugSelection as UgLocationSelection);
+    }
     if (typeof d.persona === "string") setPersona(d.persona);
     if (typeof d.occupation === "string") setOccupation(d.occupation);
     if (typeof d.residenceLat === "number") setResidenceLat(d.residenceLat);
@@ -242,6 +254,18 @@ export default function ProfileCompletionGate() {
       seeding.current = false;
     }, 0);
   }, []);
+
+  // Rebuild the official selection from a saved village id so an existing
+  // address shows as a confirmed pick instead of an empty picker.
+  useEffect(() => {
+    const id = profile?.ug_village_id;
+    if (!id || ugSelection) return;
+    let cancelled = false;
+    resolveUgVillage(id)
+      .then((sel) => { if (!cancelled && sel) setUgSelection(sel); })
+      .catch(() => { /* stored names remain the fallback */ });
+    return () => { cancelled = true; };
+  }, [profile?.ug_village_id, ugSelection]);
 
   // Seed the form from whatever the profile already has, so users only
   // fill the blanks.
@@ -314,6 +338,7 @@ export default function ProfileCompletionGate() {
         subCounty,
         parish,
         village,
+        ugSelection,
         persona,
         occupation,
         residenceLat,
@@ -350,6 +375,7 @@ export default function ProfileCompletionGate() {
     subCounty,
     parish,
     village,
+    ugSelection,
     persona,
     occupation,
     residenceLat,
@@ -381,14 +407,11 @@ export default function ProfileCompletionGate() {
     if (cont) setContinent(cont);
 
     if (country === "Uganda") {
-      setRegion("Central");
-      setDistrict("Kampala");
-      setCity("Kampala");
-    } else {
-      setRegion("");
-      setDistrict("");
-      setCity("");
+      setUgSelection(null);
     }
+    setRegion("");
+    setDistrict("");
+    setCity("");
     setTown("");
     setSubCounty("");
     setParish("");
@@ -407,6 +430,7 @@ export default function ProfileCompletionGate() {
     setSubCounty("");
     setParish("");
     setVillage("");
+    setUgSelection(null);
   }, [continent]);
 
   const isUganda = country === "Uganda";
@@ -455,9 +479,9 @@ export default function ProfileCompletionGate() {
 
   const step1Valid = useMemo(() => {
     if (!resolvedCountry) return false;
-    if (isUganda && !district) return false;
+    if (isUganda && !ugSelection && !district) return false;
     return true;
-  }, [resolvedCountry, isUganda, district]);
+  }, [resolvedCountry, isUganda, ugSelection, district]);
 
   const step2Valid = !!persona;
 
@@ -469,13 +493,14 @@ export default function ProfileCompletionGate() {
   const handleResetLocation = () => {
     setContinent("Africa");
     setCountry("Uganda");
-    setRegion("Central");
-    setDistrict("Kampala");
-    setCity("Kampala");
+    setRegion("");
+    setDistrict("");
+    setCity("");
     setTown("");
     setSubCounty("");
     setParish("");
     setVillage("");
+    setUgSelection(null);
     // Return to the simple, one-field flow and forget any stale saved
     // draft (e.g. an old "France/Paris" selection) so it can't be
     // restored again on the next visit.
@@ -493,7 +518,7 @@ export default function ProfileCompletionGate() {
       void supabase.from("profile_drafts").delete().eq("user_id", user.id);
     }
     toast.success("Reset to Uganda", {
-      description: "Just type your area or village below.",
+      description: "Pick your official village below.",
     });
   };
 
@@ -566,26 +591,35 @@ export default function ProfileCompletionGate() {
 
   const handleSubmit = async () => {
     if (!user || !profile) return;
+    setSaveError(null);
+    if (isUganda && !ugSelection && !profile.ug_village_id) {
+      setUgError("Select your official village to continue.");
+      if (!quickMode || editMode) setStep(1);
+      return;
+    }
+    setUgError(null);
     if (!step1Valid || !step2Valid || !step3Valid) return;
 
     setSubmitting(true);
     try {
       const newReferrerId = referrerOverride ?? profile.referrer_id;
 
+      const sel = ugSelection;
       const update: Record<string, unknown> = {
         address_complete: true,
         continent: continent || null,
         country: resolvedCountry,
-        region: region.trim() || null,
-        district: isUganda ? district : district.trim() || null,
+        region: sel ? sel.region : region.trim() || null,
+        district: sel ? sel.district : district.trim() || null,
         city: city.trim() || null,
         town: town.trim() || null,
-        sub_county: subCounty.trim() || null,
-        parish: parish.trim() || null,
-        village: village.trim() || null,
+        sub_county: sel ? sel.subcounty : subCounty.trim() || null,
+        parish: sel ? sel.parish : parish.trim() || null,
+        village: sel ? sel.village : village.trim() || null,
         primary_persona: persona,
         occupation: occupation.trim() || null,
       };
+      if (sel) update.ug_village_id = sel.villageId;
       if (residenceLat != null && residenceLng != null) {
         update.residence_lat = residenceLat;
         update.residence_lng = residenceLng;
@@ -609,13 +643,14 @@ export default function ProfileCompletionGate() {
           new_value: {
             continent,
             country: resolvedCountry,
-            region,
-            district,
+            region: sel ? sel.region : region,
+            district: sel ? sel.district : district,
             city,
             town,
-            sub_county: subCounty,
-            parish,
-            village,
+            sub_county: sel ? sel.subcounty : subCounty,
+            parish: sel ? sel.parish : parish,
+            village: sel ? sel.village : village,
+            ug_village_id: sel ? sel.villageId : null,
           },
         },
         {
@@ -656,6 +691,7 @@ export default function ProfileCompletionGate() {
       if (editMode) setEditMode(false);
     } catch (e: any) {
       console.error("[ProfileCompletionGate] save failed", e);
+      setSaveError(e?.message || "Check your connection and try again.");
       toast.error("Couldn't save your profile", {
         description: e?.message || "Check your connection and try again.",
       });
@@ -738,22 +774,28 @@ export default function ProfileCompletionGate() {
 
         {quickMode && !editMode && (
           <div className="space-y-5 xs:space-y-6 sm:space-y-7 pt-1">
-            {/* 1) Location — one tap, sensible Kampala default */}
+            {/* 1) Location — official village pick, nothing pre-filled */}
             <div className="space-y-3">
               <p className="text-[11px] xs:text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Where you live
               </p>
               <div className="rounded-2xl border bg-card p-3 xs:p-3.5 sm:p-4 space-y-3">
-                {/* Manual entry — type your area / neighbourhood */}
+                <UgLocationPicker
+                  label="Your official village"
+                  required
+                  value={ugSelection}
+                  error={ugError}
+                  onChange={(sel) => { setUgSelection(sel); setUgError(null); }}
+                />
                 <div className="space-y-1.5">
-                  <Label htmlFor="quick-location" className="text-[12px] xs:text-[13px] font-medium">
-                    Your area, village or neighbourhood
+                  <Label htmlFor="quick-landmark" className="text-[12px] xs:text-[13px] font-medium">
+                    Nearest landmark (optional)
                   </Label>
                   <Input
-                    id="quick-location"
+                    id="quick-landmark"
                     value={town}
                     onChange={(e) => setTown(e.target.value)}
-                    placeholder="e.g. Najjera, Wakiso"
+                    placeholder="e.g. near SDA Church"
                     autoComplete="off"
                     className="h-12 xs:h-14 rounded-xl text-[15px] xs:text-base"
                   />
@@ -832,11 +874,14 @@ export default function ProfileCompletionGate() {
                 size="lg"
                 className="w-full min-h-[48px] xs:min-h-[52px] rounded-xl text-[15px] xs:text-base font-semibold"
                 onClick={handleSubmit}
-                disabled={submitting || !persona}
+                disabled={submitting || !persona || (isUganda && !ugSelection && !profile?.ug_village_id)}
               >
                 {submitting && <Loader2 className="h-5 w-5 animate-spin mr-2" />}
                 Finish
               </Button>
+              {saveError && (
+                <p className="text-[11px] text-destructive text-center">Could not save: {saveError}</p>
+              )}
               <button
                 type="button"
                 onClick={() => setQuickMode(false)}
@@ -881,23 +926,13 @@ export default function ProfileCompletionGate() {
 
             {isUganda ? (
               <>
-                <div className="grid grid-cols-1 xs:grid-cols-2 gap-4 xs:gap-3">
-                  <div className="space-y-1.5">
-                    <Label>Region</Label>
-                    <Input value={region} onChange={(e) => setRegion(e.target.value)} placeholder="e.g. Central" maxLength={60} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>District <span className="text-destructive">*</span></Label>
-                    <Select value={district} onValueChange={setDistrict}>
-                      <SelectTrigger><SelectValue placeholder="Select district" /></SelectTrigger>
-                      <SelectContent>
-                        {UGANDA_DISTRICTS.map((d) => (
-                          <SelectItem key={d} value={d}>{d}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
+                <UgLocationPicker
+                  label="Official location (village)"
+                  required
+                  value={ugSelection}
+                  error={ugError}
+                  onChange={(sel) => { setUgSelection(sel); setUgError(null); }}
+                />
                 <div className="grid grid-cols-1 xs:grid-cols-2 gap-4 xs:gap-3">
                   <div className="space-y-1.5">
                     <Label>City</Label>
@@ -906,20 +941,6 @@ export default function ProfileCompletionGate() {
                   <div className="space-y-1.5">
                     <Label>Town</Label>
                     <Input value={town} onChange={(e) => setTown(e.target.value)} placeholder="e.g. Ntinda" maxLength={60} />
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-4 xs:gap-3">
-                  <div className="space-y-1.5">
-                    <Label>Ward (Sub-county)</Label>
-                    <Input value={subCounty} onChange={(e) => setSubCounty(e.target.value)} maxLength={60} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Cell (Parish)</Label>
-                    <Input value={parish} onChange={(e) => setParish(e.target.value)} maxLength={60} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Village</Label>
-                    <Input value={village} onChange={(e) => setVillage(e.target.value)} maxLength={60} />
                   </div>
                 </div>
               </>
@@ -973,7 +994,7 @@ export default function ProfileCompletionGate() {
                 className="gap-1.5 text-muted-foreground hover:text-foreground"
               >
                 <RotateCcw className="h-3.5 w-3.5" />
-                Reset to Kampala
+                Reset location
               </Button>
               <Button onClick={() => setStep(2)} disabled={!step1Valid}>
                 Continue
