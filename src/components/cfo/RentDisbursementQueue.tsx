@@ -658,7 +658,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                         <div
                           key={item.id}
                           className={cn(
-                            'flex items-start gap-3 p-2.5 text-sm transition-colors',
+                            'flex items-start gap-3 p-2.5 text-sm transition-colors flex-wrap sm:flex-nowrap',
                             selected.has(item.id) && 'bg-primary/5'
                           )}
                         >
@@ -667,7 +667,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                             onCheckedChange={() => toggle(item.id)}
                             className="mt-0.5"
                           />
-                          <div className="flex-1 min-w-0 space-y-1">
+                          <div className="flex-1 min-w-[12rem] space-y-1">
                             <div className="flex items-center gap-2">
                               <p className="font-medium truncate">{item.tenant_name}</p>
                               <span className="text-[10px] text-muted-foreground">→</span>
@@ -695,6 +695,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                               <span>Repay: <b>{fmt(item.total_repayment)}</b></span>
                             </div>
                           </div>
+                          <div className="flex items-center gap-1 shrink-0 ml-auto sm:ml-0">
                           <Button
                             size="sm"
                             variant="outline"
@@ -716,6 +717,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                             <XCircle className="h-3 w-3 mr-1" />
                             Reject
                           </Button>
+                          </div>
                         </div>
                       ))}
                     </div>
