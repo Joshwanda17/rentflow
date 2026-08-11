@@ -24,6 +24,8 @@ import {
 } from '@/components/ui/select';
 import { useAuth } from '@/hooks/useAuth';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
+import UgLocationPicker from '@/components/location/UgLocationPicker';
+import { resolveUgVillage, resolveUgVillageByNames, type UgLocationSelection } from '@/hooks/useUgLocations';
 import { Switch } from '@/components/ui/switch';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format, parseISO, startOfDay, endOfDay, startOfMonth, endOfMonth } from 'date-fns';

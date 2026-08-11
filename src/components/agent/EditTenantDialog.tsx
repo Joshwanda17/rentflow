@@ -104,6 +104,12 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
   const [ugVillageId, setUgVillageId] = useState<number | null>(null);
   const [ugSelection, setUgSelection] = useState<UgLocationSelection | null>(null);
   const [ugResolving, setUgResolving] = useState(false);
+  // Legacy free-text address kept as read-only context when it can't be
+  // matched to an official village.
+  const legacyLocationLabel = [village, parish, subCounty, district, region]
+    .map((v) => (v || '').trim())
+    .filter(Boolean)
+    .join(', ');
   const [pinningGps, setPinningGps] = useState(false);
   const [extendedLoading, setExtendedLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
