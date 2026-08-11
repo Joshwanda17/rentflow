@@ -1613,38 +1613,41 @@ export function TenantOpsDashboard() {
               </div>
             </div>
 
-            {/* Agent Rent-Request Capacity (fleet-wide) — collapsible */}
-            <Collapsible open={openCapacity || !isMobile} onOpenChange={setOpenCapacity}>
-              {renderSectionBar('Agent Rent Capacity', 'agent-capacity-hub', openCapacity)}
-              <CollapsibleContent className="pt-2 sm:pt-0">
-                <AgentRentCapacityPanel />
-              </CollapsibleContent>
-            </Collapsible>
-
-            {/* Tenant List — collapsible on mobile */}
-            <Collapsible open={openTenants || !isMobile} onOpenChange={setOpenTenants}>
-              {renderSectionBar(`All Tenants (${rows.length})`, 'all-tenants-hub', openTenants)}
-              <CollapsibleContent className="pt-2 sm:pt-0">
-                <TenantOverviewList
-                  data={rows}
-                  loading={isLoading}
-                  initialCategory={overviewFilter}
-                  onSelectTenant={(id, name) => {
-                    setSelectedTenant({ id, name });
-                    setActiveView('tenant-detail');
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }}
-                />
-              </CollapsibleContent>
-            </Collapsible>
-
-            {/* Daily Collection Monitoring — collapsible on mobile */}
-            <Collapsible open={openDaily || !isMobile} onOpenChange={setOpenDaily}>
-              {renderSectionBar('Daily Collection Monitoring', 'daily-collections', openDaily)}
-              <CollapsibleContent className="pt-2 sm:pt-0">
-                <DailyCollectionMonitoringDashboard mode="editable" title="Daily Collection Monitoring" />
-              </CollapsibleContent>
-            </Collapsible>
+            {/* Classic workspaces — each opens its own hub view */}
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Workspaces</p>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
+                {renderHubEntry({
+                  title: 'Agent Rent Capacity',
+                  view: 'agent-capacity-hub',
+                  icon: Gauge,
+                  description: 'Fleet-wide rent-request capacity, eligibility and daily ratings per agent',
+                })}
+                {renderHubEntry({
+                  title: 'All Tenants',
+                  view: 'all-tenants-hub',
+                  icon: Users,
+                  description: 'Full tenant register with search, filters, profiles and bulk actions',
+                  stats: [
+                    { label: 'tenants', value: rows.length },
+                    { label: 'pending', value: pending },
+                    { label: 'repaying', value: repaying },
+                  ],
+                })}
+                {renderHubEntry({
+                  title: 'Daily Collection Monitoring',
+                  view: 'daily-collections',
+                  icon: CalendarCheck,
+                  description: 'Track and edit today’s expected vs collected rent across the fleet',
+                })}
+                {renderHubEntry({
+                  title: 'Reports & Exports',
+                  view: 'reports-hub',
+                  icon: Download,
+                  description: 'Date-ranged extracts (applied, approved, funded, collected) and printed reports',
+                })}
+              </div>
+            </div>
 
             {/* Pipeline status strip */}
             <div className="pt-2">
@@ -1677,13 +1680,6 @@ export function TenantOpsDashboard() {
             </div>
             </div>
 
-            {/* Reports & Exports */}
-            <Collapsible open={openReports || !isMobile} onOpenChange={setOpenReports} className="pt-2">
-              {renderSectionBar('Reports & Exports', 'reports-hub', openReports)}
-              <CollapsibleContent className="pt-2 sm:pt-0">
-              {reportsToolbar}
-              </CollapsibleContent>
-            </Collapsible>
           </motion.div>
         ) : (
           <motion.div
