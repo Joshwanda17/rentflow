@@ -342,7 +342,12 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
   // whatever text the loaded rows happen to carry). Village stays derived from
   // the loaded listings, compared case-insensitively so legacy rows still match.
   const districtOptions = useMemo(() => ugDistricts.map(d => d.name), [ugDistricts]);
-  const subCountyOptions = useMemo(() => ugSubcounties.map(s => s.name), [ugSubcounties]);
+  const subCountyOptions = useMemo(
+    // Two counties in a district can carry the same sub-county name; dedupe by
+    // name since matching is name/id based, not county based.
+    () => Array.from(new Set(ugSubcounties.map(s => s.name))).sort((a, b) => a.localeCompare(b)),
+    [ugSubcounties],
+  );
 
   const villageOptions = useMemo(() => {
     const set = new Set<string>();
