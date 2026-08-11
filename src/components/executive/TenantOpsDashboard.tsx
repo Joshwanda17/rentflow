@@ -60,9 +60,7 @@ import ResidenceAddressForm from '@/components/profile/ResidenceAddressForm';
 import { generateTenantOpsReportPdf } from '@/lib/generateTenantOpsReportPdf';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown } from 'lucide-react';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { Gauge } from 'lucide-react';
 
 type ActiveView = 'overview' | 'pipeline' | 'daily' | 'missed' | 'behavior' | 'history' | 'all-requests' | 'link-agent' | 'transfer-audit' | 'collect-rent' | 'agent-tenants' | 'tenant-detail' | 'registration-review' | 'advance-requests' | 'agent-allocations' | 'daily-collections' | 'landlord-float' | 'landlord-float-timeline' | 'location-browser' | 'tenant-location-browser' | 'global-verification' | 'welile-operations' | 'daily-repayments-report' | 'agent-capacity-hub' | 'all-tenants-hub' | 'reports-hub';
 
@@ -79,14 +77,6 @@ interface NavCard {
 export function TenantOpsDashboard() {
   const [activeView, setActiveView] = useState<ActiveView>('overview');
   const queryClient = useQueryClient();
-  const isMobile = useIsMobile();
-  // Collapsible panel state — collapsed by default on phones so the
-  // action grid + tenant list are reachable without scrolling past
-  // heavy dashboards.
-  const [openCapacity, setOpenCapacity] = useState(false);
-  const [openTenants, setOpenTenants] = useState(false);
-  const [openDaily, setOpenDaily] = useState(false);
-  const [openReports, setOpenReports] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; tenantId: string; tenantName: string }>({ open: false, tenantId: '', tenantName: '' });
   const [locationDialog, setLocationDialog] = useState<{ open: boolean; tenantId: string; tenantName: string }>({ open: false, tenantId: '', tenantName: '' });
   const [selectedTenantIds, setSelectedTenantIds] = useState<string[]>([]);
@@ -1118,30 +1108,53 @@ export function TenantOpsDashboard() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Shared section header for the collapsible Classic sections.
-  // Mirrors the Global Verification / Welile Operations pattern: the section
-  // stays collapsible inline, and an "Open hub" pill promotes it to a
-  // dedicated full-width working view.
-  const renderSectionBar = (title: string, view: ActiveView, open: boolean) => (
-    <div className="flex items-center gap-2">
-      <CollapsibleTrigger className="flex flex-1 min-w-0 items-center justify-between rounded-lg border bg-muted/30 px-3 py-2 sm:hidden">
-        <span className="text-xs font-bold uppercase tracking-wider truncate">{title}</span>
-        <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
-      </CollapsibleTrigger>
-      <p className="hidden sm:block flex-1 min-w-0 text-[11px] font-bold uppercase tracking-wider text-muted-foreground truncate">
-        {title}
-      </p>
+  // Hub entry card for the Classic sections — same interaction model as the
+  // Global Verification Center / Welile Operations hero cards: icon, section
+  // name, a minimal summary, and an "Open hub" pill that promotes the section
+  // to its dedicated full-width working view (with "Back to Overview").
+  const renderHubEntry = (opts: {
+    title: string;
+    view: ActiveView;
+    icon: React.ElementType;
+    description: string;
+    stats?: { label: string; value: string | number }[];
+  }) => {
+    const Icon = opts.icon;
+    return (
       <button
         type="button"
-        onClick={() => openHub(view)}
-        aria-label={`Open ${title} hub`}
-        className="shrink-0 inline-flex items-center gap-1 rounded-full bg-primary px-3 py-1.5 text-[11px] font-bold text-primary-foreground shadow-sm hover:bg-primary/90 active:scale-[0.97] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+        onClick={() => openHub(opts.view)}
+        aria-label={`Open ${opts.title} hub`}
+        className="group w-full cursor-pointer rounded-xl border bg-card p-3 sm:p-3.5 flex items-start gap-3 text-left min-h-[64px] touch-manipulation hover:border-primary/60 hover:shadow-md active:scale-[0.99] transition-all shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
       >
-        Open hub
-        <ArrowRight className="h-3.5 w-3.5" />
+        <div className="p-2 rounded-lg bg-primary/10 shrink-0">
+          <Icon className="h-5 w-5 text-primary" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-bold text-sm text-foreground leading-tight break-words">{opts.title}</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{opts.description}</p>
+          {opts.stats && opts.stats.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {opts.stats.map((s) => (
+                <span
+                  key={s.label}
+                  className="inline-flex items-baseline gap-1 rounded-full border bg-muted/40 px-2 py-0.5 text-[10px] text-muted-foreground"
+                >
+                  <span className="font-bold text-foreground">{s.value}</span>
+                  {s.label}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+        <span className="shrink-0 hidden sm:inline-flex items-center gap-1 rounded-full bg-primary px-3 py-1.5 text-[11px] font-bold text-primary-foreground shadow-sm group-hover:bg-primary/90 transition-colors">
+          Open hub
+          <ArrowRight className="h-3.5 w-3.5" />
+        </span>
+        <ArrowRight className="h-5 w-5 text-primary shrink-0 sm:hidden mt-1" />
       </button>
-    </div>
-  );
+    );
+  };
 
   const columns: Column<any>[] = [
     { key: 'created_at', label: 'Date', render: (v) => v ? format(new Date(v as string), 'dd MMM yy') : '—' },
@@ -1600,62 +1613,65 @@ export function TenantOpsDashboard() {
               </div>
             </div>
 
-            {/* Agent Rent-Request Capacity (fleet-wide) — collapsible */}
-            <Collapsible open={openCapacity || !isMobile} onOpenChange={setOpenCapacity}>
-              {renderSectionBar('Agent Rent Capacity', 'agent-capacity-hub', openCapacity)}
-              <CollapsibleContent className="pt-2 sm:pt-0">
-                <AgentRentCapacityPanel />
-              </CollapsibleContent>
-            </Collapsible>
-
-            {/* Tenant List — collapsible on mobile */}
-            <Collapsible open={openTenants || !isMobile} onOpenChange={setOpenTenants}>
-              {renderSectionBar(`All Tenants (${rows.length})`, 'all-tenants-hub', openTenants)}
-              <CollapsibleContent className="pt-2 sm:pt-0">
-                <TenantOverviewList
-                  data={rows}
-                  loading={isLoading}
-                  initialCategory={overviewFilter}
-                  onSelectTenant={(id, name) => {
-                    setSelectedTenant({ id, name });
-                    setActiveView('tenant-detail');
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }}
-                />
-              </CollapsibleContent>
-            </Collapsible>
-
-            {/* Daily Collection Monitoring — collapsible on mobile */}
-            <Collapsible open={openDaily || !isMobile} onOpenChange={setOpenDaily}>
-              {renderSectionBar('Daily Collection Monitoring', 'daily-collections', openDaily)}
-              <CollapsibleContent className="pt-2 sm:pt-0">
-                <DailyCollectionMonitoringDashboard mode="editable" title="Daily Collection Monitoring" />
-              </CollapsibleContent>
-            </Collapsible>
+            {/* Classic workspaces — each opens its own hub view */}
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Workspaces</p>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
+                {renderHubEntry({
+                  title: 'Agent Rent Capacity',
+                  view: 'agent-capacity-hub',
+                  icon: Gauge,
+                  description: 'Fleet-wide rent-request capacity, eligibility and daily ratings per agent',
+                })}
+                {renderHubEntry({
+                  title: 'All Tenants',
+                  view: 'all-tenants-hub',
+                  icon: Users,
+                  description: 'Full tenant register with search, filters, profiles and bulk actions',
+                  stats: [
+                    { label: 'tenants', value: rows.length },
+                    { label: 'pending', value: pending },
+                    { label: 'repaying', value: repaying },
+                  ],
+                })}
+                {renderHubEntry({
+                  title: 'Daily Collection Monitoring',
+                  view: 'daily-collections',
+                  icon: CalendarCheck,
+                  description: 'Track and edit today’s expected vs collected rent across the fleet',
+                })}
+                {renderHubEntry({
+                  title: 'Reports & Exports',
+                  view: 'reports-hub',
+                  icon: Download,
+                  description: 'Date-ranged extracts (applied, approved, funded, collected) and printed reports',
+                })}
+              </div>
+            </div>
 
             {/* Pipeline status strip */}
             <div className="pt-2">
               <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Pipeline status</p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <Card className="border bg-amber-500/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setOverviewFilter('pending')}>
+              <Card className="border bg-amber-500/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setOverviewFilter('pending'); openHub('all-tenants-hub'); }}>
                 <CardContent className="p-2.5 text-center">
                   <p className="text-2xl font-extrabold text-amber-600">{pending}</p>
                   <p className="text-[10px] text-muted-foreground font-medium">Pending</p>
                 </CardContent>
               </Card>
-              <Card className="border bg-green-500/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setOverviewFilter('active')}>
+              <Card className="border bg-green-500/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setOverviewFilter('active'); openHub('all-tenants-hub'); }}>
                 <CardContent className="p-2.5 text-center">
                   <p className="text-2xl font-extrabold text-green-600">{funded}</p>
                   <p className="text-[10px] text-muted-foreground font-medium">Funded</p>
                 </CardContent>
               </Card>
-              <Card className="border bg-purple-500/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setOverviewFilter('repaying')}>
+              <Card className="border bg-purple-500/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setOverviewFilter('repaying'); openHub('all-tenants-hub'); }}>
                 <CardContent className="p-2.5 text-center">
                   <p className="text-2xl font-extrabold text-purple-600">{repaying}</p>
                   <p className="text-[10px] text-muted-foreground font-medium">Repaying</p>
                 </CardContent>
               </Card>
-              <Card className="border bg-destructive/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setOverviewFilter('defaulted')}>
+              <Card className="border bg-destructive/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setOverviewFilter('defaulted'); openHub('all-tenants-hub'); }}>
                 <CardContent className="p-2.5 text-center">
                   <p className="text-2xl font-extrabold text-destructive">{defaulted}</p>
                   <p className="text-[10px] text-muted-foreground font-medium">Defaulted</p>
@@ -1664,13 +1680,6 @@ export function TenantOpsDashboard() {
             </div>
             </div>
 
-            {/* Reports & Exports */}
-            <Collapsible open={openReports || !isMobile} onOpenChange={setOpenReports} className="pt-2">
-              {renderSectionBar('Reports & Exports', 'reports-hub', openReports)}
-              <CollapsibleContent className="pt-2 sm:pt-0">
-              {reportsToolbar}
-              </CollapsibleContent>
-            </Collapsible>
           </motion.div>
         ) : (
           <motion.div
