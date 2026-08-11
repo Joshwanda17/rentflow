@@ -591,26 +591,35 @@ export default function ProfileCompletionGate() {
 
   const handleSubmit = async () => {
     if (!user || !profile) return;
+    setSaveError(null);
+    if (isUganda && !ugSelection && !profile.ug_village_id) {
+      setUgError("Select your official village to continue.");
+      if (!quickMode || editMode) setStep(1);
+      return;
+    }
+    setUgError(null);
     if (!step1Valid || !step2Valid || !step3Valid) return;
 
     setSubmitting(true);
     try {
       const newReferrerId = referrerOverride ?? profile.referrer_id;
 
+      const sel = ugSelection;
       const update: Record<string, unknown> = {
         address_complete: true,
         continent: continent || null,
         country: resolvedCountry,
-        region: region.trim() || null,
-        district: isUganda ? district : district.trim() || null,
+        region: sel ? sel.region : region.trim() || null,
+        district: sel ? sel.district : district.trim() || null,
         city: city.trim() || null,
         town: town.trim() || null,
-        sub_county: subCounty.trim() || null,
-        parish: parish.trim() || null,
-        village: village.trim() || null,
+        sub_county: sel ? sel.subcounty : subCounty.trim() || null,
+        parish: sel ? sel.parish : parish.trim() || null,
+        village: sel ? sel.village : village.trim() || null,
         primary_persona: persona,
         occupation: occupation.trim() || null,
       };
+      if (sel) update.ug_village_id = sel.villageId;
       if (residenceLat != null && residenceLng != null) {
         update.residence_lat = residenceLat;
         update.residence_lng = residenceLng;
@@ -634,13 +643,14 @@ export default function ProfileCompletionGate() {
           new_value: {
             continent,
             country: resolvedCountry,
-            region,
-            district,
+            region: sel ? sel.region : region,
+            district: sel ? sel.district : district,
             city,
             town,
-            sub_county: subCounty,
-            parish,
-            village,
+            sub_county: sel ? sel.subcounty : subCounty,
+            parish: sel ? sel.parish : parish,
+            village: sel ? sel.village : village,
+            ug_village_id: sel ? sel.villageId : null,
           },
         },
         {
@@ -681,6 +691,7 @@ export default function ProfileCompletionGate() {
       if (editMode) setEditMode(false);
     } catch (e: any) {
       console.error("[ProfileCompletionGate] save failed", e);
+      setSaveError(e?.message || "Check your connection and try again.");
       toast.error("Couldn't save your profile", {
         description: e?.message || "Check your connection and try again.",
       });
