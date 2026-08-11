@@ -1501,10 +1501,7 @@ export function TenantOpsDashboard() {
 
             {/* Agent Rent-Request Capacity (fleet-wide) — collapsible */}
             <Collapsible open={openCapacity || !isMobile} onOpenChange={setOpenCapacity}>
-              <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg border bg-muted/30 px-3 py-2 sm:hidden">
-                <span className="text-xs font-bold uppercase tracking-wider">Agent Rent Capacity</span>
-                <ChevronDown className={`h-4 w-4 transition-transform ${openCapacity ? 'rotate-180' : ''}`} />
-              </CollapsibleTrigger>
+              {renderSectionBar('Agent Rent Capacity', 'agent-capacity-hub', openCapacity)}
               <CollapsibleContent className="pt-2 sm:pt-0">
                 <AgentRentCapacityPanel />
               </CollapsibleContent>
@@ -1512,10 +1509,7 @@ export function TenantOpsDashboard() {
 
             {/* Tenant List — collapsible on mobile */}
             <Collapsible open={openTenants || !isMobile} onOpenChange={setOpenTenants}>
-              <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg border bg-muted/30 px-3 py-2 sm:hidden">
-                <span className="text-xs font-bold uppercase tracking-wider">All Tenants ({rows.length})</span>
-                <ChevronDown className={`h-4 w-4 transition-transform ${openTenants ? 'rotate-180' : ''}`} />
-              </CollapsibleTrigger>
+              {renderSectionBar(`All Tenants (${rows.length})`, 'all-tenants-hub', openTenants)}
               <CollapsibleContent className="pt-2 sm:pt-0">
                 <TenantOverviewList
                   data={rows}
@@ -1532,10 +1526,7 @@ export function TenantOpsDashboard() {
 
             {/* Daily Collection Monitoring — collapsible on mobile */}
             <Collapsible open={openDaily || !isMobile} onOpenChange={setOpenDaily}>
-              <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg border bg-muted/30 px-3 py-2 sm:hidden">
-                <span className="text-xs font-bold uppercase tracking-wider">Daily Collection Monitoring</span>
-                <ChevronDown className={`h-4 w-4 transition-transform ${openDaily ? 'rotate-180' : ''}`} />
-              </CollapsibleTrigger>
+              {renderSectionBar('Daily Collection Monitoring', 'daily-collections', openDaily)}
               <CollapsibleContent className="pt-2 sm:pt-0">
                 <DailyCollectionMonitoringDashboard mode="editable" title="Daily Collection Monitoring" />
               </CollapsibleContent>
