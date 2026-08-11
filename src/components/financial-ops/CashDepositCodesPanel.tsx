@@ -463,7 +463,7 @@ export function CashDepositCodesPanel({
         </div>
 
         {/* ── Gmail-style category tabs ───────────────────────────────────── */}
-        <div className="flex items-center gap-1 px-2 border-b overflow-x-auto">
+        <div className={`flex items-center gap-1 px-2 border-b overflow-x-auto ${fullScreen ? 'shrink-0' : ''}`}>
           {tabs.map((t) => (
             <button
               key={t.key}
@@ -484,7 +484,7 @@ export function CashDepositCodesPanel({
         </div>
 
         {/* ── Totals strip ────────────────────────────────────────────────── */}
-        <div className="flex flex-wrap items-center gap-2 px-3 py-2 border-b bg-muted/30 text-xs">
+        <div className={`flex flex-wrap items-center gap-2 px-3 py-2 border-b bg-muted/30 text-xs ${fullScreen ? 'shrink-0' : ''}`}>
           <div className="flex items-center gap-1 overflow-x-auto">
             {ranges.map((rg) => (
               <button
@@ -512,6 +512,7 @@ export function CashDepositCodesPanel({
         </div>
 
         {/* ── Reading pane or inbox list ──────────────────────────────────── */}
+        <div className={fullScreen ? 'flex-1 min-h-0 overflow-y-auto overscroll-contain' : ''}>
         {openRow ? (
           <div className="p-4 space-y-4">
             <Button
@@ -629,6 +630,7 @@ export function CashDepositCodesPanel({
             })}
           </div>
         )}
+        </div>
       </div>
     </>
   );
