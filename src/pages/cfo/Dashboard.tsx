@@ -17,6 +17,7 @@ import { MerchantFloatRequisitionPanel } from '@/components/financial-ops/Mercha
 import { CFOPayoutsShareButton } from '@/components/cfo/CFOPayoutsShareButton';
 import { RevenueExpenseDashboard } from '@/components/cfo/RevenueExpenseDashboard';
 import RoiDisbursementReportPanel from '@/components/cfo/RoiDisbursementReportPanel';
+import RentDisbursementReportPanel from '@/components/cfo/RentDisbursementReportPanel';
 import { CashflowForecastGraphs } from '@/components/cfo/CashflowForecastGraphs';
 import { DirectorRequisitionsPanel } from '@/components/requisitions/DirectorRequisitionsPanel';
 
@@ -431,6 +432,8 @@ export default function CFODashboardPage() {
         return <RevenueExpenseDashboard />;
       case 'roi-disbursement-report':
         return <RoiDisbursementReportPanel />;
+      case 'rent-disbursement-report':
+        return <RentDisbursementReportPanel />;
       case 'payout-reports':
         return (
           <div className="space-y-6">
