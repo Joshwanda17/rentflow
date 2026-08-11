@@ -1377,6 +1377,90 @@ export function TenantOpsDashboard() {
     { id: 'missed', label: 'Missed', icon: CalendarX2, tone: 'bg-destructive/10 text-destructive border-destructive/20' },
   ];
 
+  // Reports & Exports toolbar — shared by the inline Classic section and
+  // its dedicated "Open hub" full view.
+  const reportsToolbar = (
+                <div className="flex flex-wrap sm:justify-end items-center gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className={cn("gap-1.5 font-normal", !reportFrom && "text-muted-foreground")}>
+                      <CalendarIcon className="h-3.5 w-3.5" />
+                      {reportFrom ? format(reportFrom, 'dd MMM yyyy') : 'From'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={reportFrom}
+                      onSelect={setReportFrom}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className={cn("gap-1.5 font-normal", !reportTo && "text-muted-foreground")}>
+                      <CalendarIcon className="h-3.5 w-3.5" />
+                      {reportTo ? format(reportTo, 'dd MMM yyyy') : 'To'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={reportTo}
+                      onSelect={setReportTo}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
+                {(reportFrom || reportTo) && (
+                  <Button variant="ghost" size="sm" onClick={() => { setReportFrom(undefined); setReportTo(undefined); }}>
+                    Clear
+                  </Button>
+                )}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-1.5" disabled={!!extracting}>
+                      {extracting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                      Extract
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-64 bg-popover">
+                    <DropdownMenuLabel className="text-xs">Tenants</DropdownMenuLabel>
+                    <DropdownMenuItem disabled={!!extracting} onClick={handleExtractApplied}>
+                      <ClipboardList className="h-4 w-4 mr-2" /> How many applied (CSV)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem disabled={!!extracting} onClick={handleExtractApproved}>
+                      <CheckCircle2 className="h-4 w-4 mr-2" /> How many approved (CSV)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem disabled={!!extracting} onClick={handleExtractFunded}>
+                      <Wallet className="h-4 w-4 mr-2" /> How many funded (PDF)
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel className="text-xs">Repayments</DropdownMenuLabel>
+                    <DropdownMenuItem disabled={!!extracting} onClick={handleExtractCollected}>
+                      <Banknote className="h-4 w-4 mr-2" /> How much collected (CSV)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem disabled={!!extracting} onClick={handleExtractExpected}>
+                      <CalendarCheck className="h-4 w-4 mr-2" /> How much expected (CSV)
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={handlePrintReport}
+                  disabled={printingPdf}
+                >
+                  {printingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
+                  Print Report
+                </Button>
+              </div>
+  );
+
   return (
     <div className="space-y-3">
       <AnimatePresence mode="wait">
@@ -1571,85 +1655,7 @@ export function TenantOpsDashboard() {
               </CollapsibleTrigger>
               <p className="hidden sm:block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Reports &amp; Exports</p>
               <CollapsibleContent className="pt-2 sm:pt-0">
-              <div className="flex flex-wrap sm:justify-end items-center gap-2">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className={cn("gap-1.5 font-normal", !reportFrom && "text-muted-foreground")}>
-                    <CalendarIcon className="h-3.5 w-3.5" />
-                    {reportFrom ? format(reportFrom, 'dd MMM yyyy') : 'From'}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={reportFrom}
-                    onSelect={setReportFrom}
-                    initialFocus
-                    className={cn("p-3 pointer-events-auto")}
-                  />
-                </PopoverContent>
-              </Popover>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className={cn("gap-1.5 font-normal", !reportTo && "text-muted-foreground")}>
-                    <CalendarIcon className="h-3.5 w-3.5" />
-                    {reportTo ? format(reportTo, 'dd MMM yyyy') : 'To'}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={reportTo}
-                    onSelect={setReportTo}
-                    initialFocus
-                    className={cn("p-3 pointer-events-auto")}
-                  />
-                </PopoverContent>
-              </Popover>
-              {(reportFrom || reportTo) && (
-                <Button variant="ghost" size="sm" onClick={() => { setReportFrom(undefined); setReportTo(undefined); }}>
-                  Clear
-                </Button>
-              )}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-1.5" disabled={!!extracting}>
-                    {extracting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                    Extract
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-64 bg-popover">
-                  <DropdownMenuLabel className="text-xs">Tenants</DropdownMenuLabel>
-                  <DropdownMenuItem disabled={!!extracting} onClick={handleExtractApplied}>
-                    <ClipboardList className="h-4 w-4 mr-2" /> How many applied (CSV)
-                  </DropdownMenuItem>
-                  <DropdownMenuItem disabled={!!extracting} onClick={handleExtractApproved}>
-                    <CheckCircle2 className="h-4 w-4 mr-2" /> How many approved (CSV)
-                  </DropdownMenuItem>
-                  <DropdownMenuItem disabled={!!extracting} onClick={handleExtractFunded}>
-                    <Wallet className="h-4 w-4 mr-2" /> How many funded (PDF)
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuLabel className="text-xs">Repayments</DropdownMenuLabel>
-                  <DropdownMenuItem disabled={!!extracting} onClick={handleExtractCollected}>
-                    <Banknote className="h-4 w-4 mr-2" /> How much collected (CSV)
-                  </DropdownMenuItem>
-                  <DropdownMenuItem disabled={!!extracting} onClick={handleExtractExpected}>
-                    <CalendarCheck className="h-4 w-4 mr-2" /> How much expected (CSV)
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5"
-                onClick={handlePrintReport}
-                disabled={printingPdf}
-              >
-                {printingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
-                Print Report
-              </Button>
-            </div>
+              {reportsToolbar}
               </CollapsibleContent>
             </Collapsible>
           </motion.div>
