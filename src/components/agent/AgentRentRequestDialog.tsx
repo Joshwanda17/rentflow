@@ -4948,6 +4948,19 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   <Label className="flex items-center gap-1">
                     🪪 Tenant Passport Photo *
                   </Label>
+                  {carriedDocs?.passportUrl && !tenantPhoto && (
+                    <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 p-2">
+                      <img
+                        src={carriedDocs.passportUrl}
+                        alt="Carried tenant passport photo"
+                        className="h-12 w-10 rounded object-cover cursor-pointer"
+                        onClick={() => { setPreviewUrl(carriedDocs.passportUrl!); setPreviewLabel('Tenant Passport Photo (carried)'); }}
+                      />
+                      <p className="text-[11px] leading-snug text-muted-foreground">
+                        Carried from previous plan — no need to re-take it. Capture a new one only to replace it.
+                      </p>
+                    </div>
+                  )}
                   <div className="flex items-start gap-3">
                     {tenantPhoto ? (
                       <div className="relative h-24 w-20 rounded-lg overflow-hidden border border-border shrink-0 group">
