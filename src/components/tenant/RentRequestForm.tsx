@@ -408,6 +408,14 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
       requestCountry = 'Uganda';
     }
 
+    // GPS is mandatory on every rent request (enforced in the database too).
+    if (
+      requestLat == null || requestLon == null ||
+      requestLat < -1.6 || requestLat > 4.3 || requestLon < 29.4 || requestLon > 35.1
+    ) {
+      throw new Error('Property GPS is required. Allow location access and capture the property location at the house before submitting.');
+    }
+
     // Create rent request with number_of_payments and tenant meters
     const { data: rentRequest, error: requestError } = await supabase
       .from('rent_requests')
