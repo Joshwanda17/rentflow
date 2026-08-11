@@ -80,13 +80,18 @@ export function TenantOpsDashboard() {
   const [activeView, setActiveView] = useState<ActiveView>('overview');
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
-  // Collapsible panel state — collapsed by default on phones so the
-  // action grid + tenant list are reachable without scrolling past
-  // heavy dashboards.
-  const [openCapacity, setOpenCapacity] = useState(false);
-  const [openTenants, setOpenTenants] = useState(false);
-  const [openDaily, setOpenDaily] = useState(false);
-  const [openReports, setOpenReports] = useState(false);
+  // Scaffolded overview: one section open at a time (accordion) so the page
+  // stays short and scannable on every width. Remembered per operator.
+  const [openSection, setOpenSection] = useState<string | null>('tools');
+  useEffect(() => {
+    const saved = localStorage.getItem('tenant-ops-classic-section');
+    if (saved !== null) setOpenSection(saved === '' ? null : saved);
+  }, []);
+  const toggleSection = (id: string) => (next: boolean) => {
+    const value = next ? id : null;
+    setOpenSection(value);
+    localStorage.setItem('tenant-ops-classic-section', value ?? '');
+  };
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; tenantId: string; tenantName: string }>({ open: false, tenantId: '', tenantName: '' });
   const [locationDialog, setLocationDialog] = useState<{ open: boolean; tenantId: string; tenantName: string }>({ open: false, tenantId: '', tenantName: '' });
   const [selectedTenantIds, setSelectedTenantIds] = useState<string[]>([]);
