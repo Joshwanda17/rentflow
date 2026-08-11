@@ -564,28 +564,33 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
               </div>
             </div>
 
-            {/* Revenue summary for selection */}
-            {selected.size > 0 && (
+            {/* Revenue summary for selection or location scope */}
+            {(selected.size > 0 || locationScopeIds?.length > 0) && (
               <div className="rounded-lg border-2 border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20 p-3 space-y-2">
                 <p className="text-xs font-bold flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
                   <TrendingUp className="h-3.5 w-3.5" />
                   Revenue from this disbursement
+                  {locationScopeIds?.length > 0 && (
+                    <span className="ml-2 text-[10px] font-normal text-emerald-600/80">
+                      · Scoped by location
+                    </span>
+                  )}
                 </p>
                 <div className="grid grid-cols-3 gap-2 text-center">
                   <div>
                     <p className="text-[10px] text-muted-foreground">Rent Out</p>
-                    <p className="font-bold text-sm text-orange-600">{fmt(totalRent)}</p>
+                    <p className="font-bold text-sm text-orange-600">{fmt(locationScopeIds?.length ? queueTotalRent : totalRent)}</p>
                   </div>
                   <div>
                     <p className="text-[10px] text-muted-foreground">We Earn (Fees)</p>
-                    <p className="font-bold text-sm text-emerald-600">{fmt(totalRevenue)}</p>
+                    <p className="font-bold text-sm text-emerald-600">{fmt(locationScopeIds?.length ? queueTotalRevenue : totalRevenue)}</p>
                   </div>
                   <div>
                     <p className="text-[10px] text-muted-foreground">Total Repayment</p>
-                    <p className="font-bold text-sm text-primary">{fmt(totalRepaymentExpected)}</p>
+                    <p className="font-bold text-sm text-primary">{fmt(locationScopeIds?.length ? queueTotalRepaymentExpected : totalRepaymentExpected)}</p>
                   </div>
                 </div>
-                <TreasuryImpactBanner payoutAmount={totalRent} />
+                <TreasuryImpactBanner payoutAmount={locationScopeIds?.length ? queueTotalRent : totalRent} />
               </div>
             )}
 
