@@ -124,6 +124,7 @@ export default function SupporterDashboard({
   const [showWallet, setShowWallet] = useState(false);
   const [showInvestments, setShowInvestments] = useState(false);
   const [investmentsTab, setInvestmentsTab] = useState<'accounts' | 'angel'>('accounts');
+  const [focusPortfolioId, setFocusPortfolioId] = useState<string | null>(null);
   const { toast } = useToast();
   const { wallet, refreshWallet } = useWallet();
   const { fireSuccess, fireFirstFunding } = useConfetti();
@@ -562,8 +563,9 @@ export default function SupporterDashboard({
           {/* ═══ SECTION: YOUR PORTFOLIO ═══ */}
           <WidgetErrorBoundary label="Your portfolio">
             <PartnerPortfolioSection
-              onViewPortfolios={() => {
+              onViewPortfolios={(portfolioId) => {
                 setInvestmentsTab('accounts');
+                setFocusPortfolioId(portfolioId ?? null);
                 setShowInvestments(true);
               }}
               onExploreOpportunities={() => {
@@ -722,7 +724,12 @@ export default function SupporterDashboard({
       />
 
       <FullScreenWalletSheet open={showWallet} onOpenChange={setShowWallet} />
-      <InvestmentAccountsDrawer open={showInvestments} onOpenChange={setShowInvestments} defaultTab={investmentsTab} />
+      <InvestmentAccountsDrawer
+        open={showInvestments}
+        onOpenChange={(o) => { setShowInvestments(o); if (!o) setFocusPortfolioId(null); }}
+        defaultTab={investmentsTab}
+        initialPortfolioId={focusPortfolioId}
+      />
 
       <FunderActivationModal
         open={showActivationModal}
