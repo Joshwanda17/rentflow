@@ -287,10 +287,6 @@ export function CashDepositCodesPanel() {
     (r) => r.status === 'awaiting_code' && r.expires_at && new Date(r.expires_at).getTime() > Date.now(),
   );
 
-  // Show every recent code — including expired ones — so verifiers can still
-  // read a code back to a depositor after the active window has lapsed.
-  const displayRows = rows;
-
   const activeCount = activeRows.length;
 
   const totalVerified = rows
@@ -299,183 +295,286 @@ export function CashDepositCodesPanel() {
 
   const totalPending = activeRows.reduce((sum, r) => sum + (r.amount ?? 0), 0);
 
-  const [open, setOpen] = useState(true);
   const [startOpen, setStartOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [tab, setTab] = useState<'all' | 'awaiting' | 'verified'>('all');
+  const [openId, setOpenId] = useState<string | null>(null);
+
+  const isLive = (r: CashCodeRow) =>
+    r.status === 'awaiting_code' && !!r.expires_at && new Date(r.expires_at).getTime() > Date.now();
+
+  const q = query.trim().toLowerCase();
+  // Show every recent code — including expired ones — so verifiers can still
+  // read a code back to a depositor after the active window has lapsed.
+  const displayRows = rows
+    .filter((r) => (tab === 'all' ? true : tab === 'awaiting' ? r.status === 'awaiting_code' : r.status === 'verified'))
+    .filter((r) =>
+      !q
+        ? true
+        : [r.depositor_name, r.depositor_phone, purposeLabel(r.deposit_purpose), String(r.amount ?? '')]
+            .join(' ')
+            .toLowerCase()
+            .includes(q),
+    );
+
+  const openRow = openId ? displayRows.find((r) => r.verification_id === openId) ?? null : null;
+
+  const tabs: { key: 'all' | 'awaiting' | 'verified'; label: string; count: number }[] = [
+    { key: 'all', label: 'All', count: rows.length },
+    { key: 'awaiting', label: 'Awaiting', count: rows.filter((r) => r.status === 'awaiting_code').length },
+    { key: 'verified', label: 'Verified', count: rows.filter((r) => r.status === 'verified').length },
+  ];
+
+  const codeEntry = (r: CashCodeRow, size: 'row' | 'pane') => (
+    <div className="flex items-center gap-1.5">
+      <Input
+        inputMode="numeric"
+        maxLength={4}
+        placeholder="0000"
+        aria-label="Enter the 4-digit code"
+        className={`${size === 'pane' ? 'h-9 w-20' : 'h-8 w-16'} text-center font-mono tracking-widest`}
+        value={codeInputs[r.verification_id] ?? ''}
+        onClick={(e) => e.stopPropagation()}
+        onChange={(e) =>
+          setCodeInputs((prev) => ({
+            ...prev,
+            [r.verification_id]: e.target.value.replace(/\D/g, '').slice(0, 4),
+          }))
+        }
+        onKeyDown={(e) => {
+          e.stopPropagation();
+          if (e.key === 'Enter') void submitCode(r);
+        }}
+      />
+      <Button
+        size="sm"
+        className={`${size === 'pane' ? 'h-9' : 'h-8'} gap-1 rounded-full text-xs`}
+        disabled={verifying === r.verification_id || (codeInputs[r.verification_id] ?? '').length !== 4}
+        onClick={(e) => { e.stopPropagation(); void submitCode(r); }}
+      >
+        {verifying === r.verification_id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+        Credit
+      </Button>
+    </div>
+  );
+
+  const resendButton = (r: CashCodeRow) => (
+    <Button
+      variant="outline"
+      size="sm"
+      className="h-8 gap-1 rounded-full text-xs"
+      disabled={reissuing === r.verification_id}
+      onClick={(e) => { e.stopPropagation(); void reissue(r.verification_id); }}
+    >
+      {reissuing === r.verification_id ? <Loader2 className="h-3 w-3 animate-spin" /> : <KeyRound className="h-3 w-3" />}
+      Resend code
+    </Button>
+  );
 
   return (
     <>
-    <StartCashDepositDialog open={startOpen} onOpenChange={setStartOpen} onIssued={load} />
-    <Collapsible open={open} onOpenChange={setOpen} className="rounded-xl border bg-card">
-      <CollapsibleTrigger asChild>
-        <div className="flex flex-wrap items-center justify-between gap-3 cursor-pointer p-4 sm:p-5 hover:bg-muted/30 transition-colors rounded-t-xl">
-          <div className="min-w-0 flex-1 basis-[240px]">
-            <h3 className="text-base sm:text-lg font-semibold flex items-center gap-2">
-              <KeyRound className="h-5 w-5 text-primary" /> Cash Deposit Codes
-              {activeCount > 0 && (
-                <Badge className="bg-amber-500 text-white hover:bg-amber-500">{activeCount} active</Badge>
+      <StartCashDepositDialog open={startOpen} onOpenChange={setStartOpen} onIssued={load} />
+
+      <div className="rounded-xl border bg-card overflow-hidden">
+        {/* ── Gmail-style toolbar ─────────────────────────────────────────── */}
+        <div className="flex flex-wrap items-center gap-2 px-3 py-2.5 border-b">
+          <div className="flex items-center gap-2 min-w-0">
+            <Inbox className="h-5 w-5 text-primary shrink-0" />
+            <span className="font-medium text-sm sm:text-base truncate">Cash deposit codes</span>
+            {activeCount > 0 && (
+              <span className="text-xs font-semibold text-primary">({activeCount})</span>
+            )}
+          </div>
+
+          <div className="order-3 w-full sm:order-none sm:w-auto sm:flex-1 sm:max-w-md">
+            <div className="flex items-center gap-2 rounded-full bg-muted px-3 h-9 focus-within:bg-background focus-within:ring-1 focus-within:ring-border">
+              <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search depositor, phone or amount"
+                className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+              />
+              {query && (
+                <button aria-label="Clear search" onClick={() => setQuery('')}>
+                  <X className="h-4 w-4 text-muted-foreground" />
+                </button>
               )}
-            </h3>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Codes are never shown here — ask the depositor to read the code from their SMS, then enter it once you have received the matching cash. Codes expire in 10 minutes.
-            </p>
+            </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+
+          <div className="flex items-center gap-1 ml-auto">
             <Button
-              size="sm"
-              onClick={(e) => { e.stopPropagation(); setStartOpen(true); }}
-              className="gap-1.5"
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 rounded-full"
+              aria-label="Refresh"
+              title="Refresh"
+              onClick={() => load()}
             >
-              <Smartphone className="h-4 w-4" />
-              <span className="hidden sm:inline">Start deposit by SMS</span>
-              <span className="sm:hidden">SMS code</span>
-            </Button>
-            <Badge
-              variant="outline"
-              className="hidden sm:inline-flex items-center gap-1 text-[10px] font-normal text-muted-foreground border-dashed"
-            >
-              <Radio className={`h-3 w-3 animate-pulse ${realtimeHealthy ? 'text-emerald-500' : 'text-amber-500'}`} />
-              {realtimeHealthy ? `Live · safety refresh ${secondsToRefresh}s` : `Fallback refresh ${secondsToRefresh}s`}
-            </Badge>
-            <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); load(); }} className="gap-1.5">
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-              Refresh
             </Button>
-            <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${open ? '' : '-rotate-90'}`} />
+            <Button size="sm" className="h-9 gap-1.5 rounded-full" onClick={() => setStartOpen(true)}>
+              <Smartphone className="h-4 w-4" />
+              <span className="hidden sm:inline">Start deposit</span>
+              <span className="sm:hidden">New</span>
+            </Button>
           </div>
         </div>
-      </CollapsibleTrigger>
 
-      <CollapsibleContent>
-        <div className="px-4 pb-4 sm:px-5 sm:pb-5 space-y-4">
-          <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-            <Radio className={`h-3 w-3 ${realtimeHealthy ? 'text-emerald-500' : 'text-amber-500'}`} />
-            <span>
-              {realtimeHealthy
-                ? 'Realtime connected'
-                : 'Realtime unavailable — polling fallback active'}
-              {' '}— last updated {new Date(lastRefreshedAt).toLocaleTimeString()}
-            </span>
+        {/* ── Gmail-style category tabs ───────────────────────────────────── */}
+        <div className="flex items-center gap-1 px-2 border-b overflow-x-auto">
+          {tabs.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => { setTab(t.key); setOpenId(null); }}
+              className={`shrink-0 px-3 py-2 text-sm border-b-2 -mb-px transition-colors ${
+                tab === t.key
+                  ? 'border-primary text-primary font-medium'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {t.label} <span className="text-xs opacity-70">{t.count}</span>
+            </button>
+          ))}
+          <div className="ml-auto hidden sm:flex items-center gap-1.5 pr-2 text-[11px] text-muted-foreground">
+            <Radio className={`h-3 w-3 animate-pulse ${realtimeHealthy ? 'text-emerald-500' : 'text-amber-500'}`} />
+            {realtimeHealthy ? `Live · ${secondsToRefresh}s` : `Fallback · ${secondsToRefresh}s`}
           </div>
-
-          {displayRows.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="rounded-lg border bg-card p-3">
-                <div className="text-xs text-muted-foreground">Total cash deposited</div>
-                <div className="text-lg font-semibold text-emerald-600">{fmtUgx(totalVerified)}</div>
-              </div>
-              <div className="rounded-lg border bg-card p-3">
-                <div className="text-xs text-muted-foreground">Awaiting verification</div>
-                <div className="text-lg font-semibold text-amber-600">{fmtUgx(totalPending)}</div>
-              </div>
-            </div>
-          )}
-
-          {loading && displayRows.length === 0 ? (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground py-6 justify-center">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading codes…
-            </div>
-          ) : loadError ? (
-            <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
-              Could not load cash deposit codes: {loadError}
-            </div>
-          ) : displayRows.length === 0 ? (
-            <div className="text-sm text-muted-foreground py-6 text-center">No cash deposit codes yet.</div>
-          ) : (
-            <div className="overflow-x-auto -mx-1">
-              <table className="w-full text-sm border-collapse">
-                <thead>
-                  <tr className="text-left text-xs text-muted-foreground border-b">
-                    <th className="py-2 px-2 font-medium">Code</th>
-                    <th className="py-2 px-2 font-medium">Amount</th>
-                    <th className="py-2 px-2 font-medium">Depositor</th>
-                    <th className="py-2 px-2 font-medium">Purpose</th>
-                    <th className="py-2 px-2 font-medium">Status</th>
-                    <th className="py-2 px-2 font-medium">Enter code</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {displayRows.map((r) => (
-                    <tr key={r.verification_id} className="border-b last:border-0 hover:bg-muted/40">
-                      <td className="py-2 px-2 align-top">
-                        <div className="flex flex-col gap-1">
-                          <span className="inline-flex items-center gap-1.5 font-mono text-base font-bold tracking-widest text-muted-foreground rounded-md px-2 py-1 bg-muted w-fit">
-                            ••••
-                          </span>
-                          <span className="text-[10px] text-muted-foreground">
-                            {r.status === 'verified' ? 'Verified' : 'Sent to depositor by SMS'}
-                          </span>
-                          {r.status !== 'verified' && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-7 w-fit gap-1 text-xs"
-                                disabled={reissuing === r.verification_id}
-                                onClick={() => reissue(r.verification_id)}
-                              >
-                                {reissuing === r.verification_id ? (
-                                  <Loader2 className="h-3 w-3 animate-spin" />
-                                ) : (
-                                  <KeyRound className="h-3 w-3" />
-                                )}
-                                Resend code
-                              </Button>
-                          )}
-                          <Countdown expiresAt={r.expires_at} inline />
-                        </div>
-                      </td>
-                      <td className="py-2 px-2 font-medium whitespace-nowrap">{fmtUgx(r.amount)}</td>
-                      <td className="py-2 px-2">
-                        <div className="font-medium truncate max-w-[160px]">{r.depositor_name || '—'}</div>
-                        <div className="text-xs text-muted-foreground">{r.depositor_phone || ''}</div>
-                      </td>
-                      <td className="py-2 px-2 whitespace-nowrap text-xs">{purposeLabel(r.deposit_purpose)}</td>
-                      <td className="py-2 px-2"><StatusBadge status={r.status} /></td>
-                      <td className="py-2 px-2 align-top">
-                        {r.status === 'awaiting_code' &&
-                        r.expires_at &&
-                        new Date(r.expires_at).getTime() > Date.now() ? (
-                          <div className="flex items-center gap-1.5">
-                            <Input
-                              inputMode="numeric"
-                              maxLength={4}
-                              placeholder="0000"
-                              className="h-8 w-16 text-center font-mono tracking-widest"
-                              value={codeInputs[r.verification_id] ?? ''}
-                              onChange={(e) =>
-                                setCodeInputs((prev) => ({
-                                  ...prev,
-                                  [r.verification_id]: e.target.value.replace(/\D/g, '').slice(0, 4),
-                                }))
-                              }
-                              onKeyDown={(e) => { if (e.key === 'Enter') void submitCode(r); }}
-                            />
-                            <Button
-                              size="sm"
-                              className="h-8 gap-1 text-xs"
-                              disabled={verifying === r.verification_id || (codeInputs[r.verification_id] ?? '').length !== 4}
-                              onClick={() => void submitCode(r)}
-                            >
-                              {verifying === r.verification_id ? (
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                              ) : (
-                                <Check className="h-3 w-3" />
-                              )}
-                              Credit
-                            </Button>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
         </div>
-      </CollapsibleContent>
-    </Collapsible>
+
+        {/* ── Totals strip ────────────────────────────────────────────────── */}
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-1 px-3 py-2 border-b bg-muted/30 text-xs">
+          <span className="text-muted-foreground">
+            Total cash deposited <span className="font-semibold text-emerald-600">{fmtUgx(totalVerified)}</span>
+          </span>
+          <span className="text-muted-foreground">
+            Awaiting verification <span className="font-semibold text-amber-600">{fmtUgx(totalPending)}</span>
+          </span>
+          <span className="ml-auto text-muted-foreground hidden sm:inline">
+            Updated {new Date(lastRefreshedAt).toLocaleTimeString()}
+          </span>
+        </div>
+
+        {/* ── Reading pane or inbox list ──────────────────────────────────── */}
+        {openRow ? (
+          <div className="p-4 space-y-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 gap-1 rounded-full -ml-2"
+              onClick={() => setOpenId(null)}
+            >
+              <ChevronDown className="h-4 w-4 rotate-90" /> Back to inbox
+            </Button>
+
+            <div>
+              <h4 className="text-base font-semibold">
+                Cash deposit · {fmtUgx(openRow.amount)}
+              </h4>
+              <div className="mt-2 flex items-start gap-3">
+                <div className={`h-10 w-10 rounded-full grid place-items-center text-sm font-semibold ${toneFor(openRow.depositor_name || openRow.verification_id)}`}>
+                  {(openRow.depositor_name || '?').charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium truncate">{openRow.depositor_name || 'Unknown depositor'}</div>
+                  <div className="text-xs text-muted-foreground">{openRow.depositor_phone || 'No phone on file'}</div>
+                </div>
+                <div className="text-xs text-muted-foreground whitespace-nowrap">{gmailDate(openRow.created_at)}</div>
+              </div>
+            </div>
+
+            <div className="rounded-lg border bg-muted/20 p-3 text-sm space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusBadge status={openRow.status} />
+                <Badge variant="outline" className="text-xs">{purposeLabel(openRow.deposit_purpose)}</Badge>
+                <Countdown expiresAt={openRow.expires_at} inline />
+              </div>
+              <p className="text-muted-foreground text-xs leading-relaxed">
+                The 4-digit code was sent to the depositor by SMS and is never shown here. Ask them to read it back
+                once you have received the matching cash, then enter it below. Codes expire in 10 minutes.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {isLive(openRow) && codeEntry(openRow, 'pane')}
+              {openRow.status !== 'verified' && resendButton(openRow)}
+            </div>
+          </div>
+        ) : loading && displayRows.length === 0 ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground py-10 justify-center">
+            <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+          </div>
+        ) : loadError ? (
+          <div className="m-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+            Could not load cash deposit codes: {loadError}
+          </div>
+        ) : displayRows.length === 0 ? (
+          <div className="py-12 text-center text-sm text-muted-foreground">
+            <Inbox className="h-8 w-8 mx-auto mb-2 opacity-40" />
+            {q ? 'No codes match your search.' : 'No cash deposit codes yet.'}
+          </div>
+        ) : (
+          <div className="divide-y">
+            {displayRows.map((r, i) => {
+              const group = dateGroupLabel(r.created_at);
+              const showGroup = i === 0 || dateGroupLabel(displayRows[i - 1].created_at) !== group;
+              const unread = r.status === 'awaiting_code';
+              return (
+                <div key={r.verification_id}>
+                  {showGroup && (
+                    <div className="px-3 py-1.5 bg-muted/40 text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                      {group}
+                    </div>
+                  )}
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setOpenId(r.verification_id)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') setOpenId(r.verification_id); }}
+                    className={`group flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors hover:bg-muted/50 ${
+                      unread ? 'bg-background' : 'bg-muted/10'
+                    }`}
+                  >
+                    <div className={`h-8 w-8 shrink-0 rounded-full grid place-items-center text-xs font-semibold ${toneFor(r.depositor_name || r.verification_id)}`}>
+                      {(r.depositor_name || '?').charAt(0).toUpperCase()}
+                    </div>
+
+                    <div className={`w-28 sm:w-40 shrink-0 truncate text-sm ${unread ? 'font-semibold' : 'text-muted-foreground'}`}>
+                      {r.depositor_name || 'Unknown'}
+                    </div>
+
+                    <div className="min-w-0 flex-1 flex items-baseline gap-1.5">
+                      <span className={`truncate text-sm ${unread ? 'font-semibold' : ''}`}>
+                        {fmtUgx(r.amount)}
+                      </span>
+                      <span className="hidden sm:inline text-xs text-muted-foreground truncate">
+                        — {purposeLabel(r.deposit_purpose)}
+                        {r.depositor_phone ? ` · ${r.depositor_phone}` : ''}
+                      </span>
+                    </div>
+
+                    <div className="hidden md:flex items-center gap-2 shrink-0">
+                      <StatusBadge status={r.status} />
+                      <Countdown expiresAt={r.expires_at} inline />
+                    </div>
+
+                    {/* Gmail reveals row actions on hover; here they stay reachable on touch too. */}
+                    <div className="shrink-0 flex items-center gap-1.5">
+                      {isLive(r) ? (
+                        <div className="hidden lg:block">{codeEntry(r, 'row')}</div>
+                      ) : null}
+                      <span className="text-[11px] text-muted-foreground w-14 text-right group-hover:opacity-0 transition-opacity">
+                        {gmailDate(r.created_at)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </>
   );
 }
