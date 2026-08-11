@@ -25,7 +25,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { TreasuryImpactBanner } from './TreasuryImpactBanner';
 import { RecipientRoutingWarningBanner } from './RecipientRoutingWarningBanner';
 import { RentDisbursementQueue } from './RentDisbursementQueue';
-import { RentCategoryBulkPayout } from './RentCategoryBulkPayout';
+import { PayByLocationRecipientPicker, type LocationRecipient } from './PayByLocationRecipientPicker';
 import { BusinessAdvanceDisbursementQueue } from './BusinessAdvanceDisbursementQueue';
 import { CreditDrawApprovalQueue } from './CreditDrawApprovalQueue';
 import { ROIPayoutQueue } from './ROIPayoutQueue';
@@ -336,6 +336,9 @@ export function DirectCreditTool() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [selectedUser, setSelectedUser] = useState<any>(null);
+  // Pay by Location/Category — extra recipients selected by location/category.
+  // They are paid through the *existing* payout flow below, unchanged.
+  const [locationRecipients, setLocationRecipients] = useState<LocationRecipient[]>([]);
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
   const [operation, setOperation] = useState<Operation>('credit');
@@ -993,7 +996,6 @@ export function DirectCreditTool() {
         {/* ── RENT DISBURSEMENT QUEUE ── */}
         {isRentDisbursement && (
           <>
-            <RentCategoryBulkPayout />
             <RentDisbursementQueue />
           </>
         )}
@@ -1014,11 +1016,40 @@ export function DirectCreditTool() {
         {/* ── MANUAL PAYOUT FORM (non-queue categories) ── */}
         {!isQueueCategory && selectedCategoryId && !needsSubCategory && (
           <>
+            <PayByLocationRecipientPicker
+              queuedCount={locationRecipients.length}
+              disabled={mutation.isPending}
+              onUseRecipients={(recips) => {
+                setLocationRecipients(recips);
+                // Show the first pick in the existing single-recipient picker so
+                // every existing field, check and summary behaves exactly as before.
+                setSelectedUser({ id: recips[0].id, full_name: recips[0].full_name, phone: recips[0].phone });
+              }}
+            />
+
+            {locationRecipients.length > 1 && (
+              <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs space-y-1">
+                <p className="font-semibold">
+                  {locationRecipients.length} recipients selected by location/category
+                </p>
+                <p className="text-muted-foreground">
+                  The payout below runs once per recipient using the same amount, checks and records.
+                </p>
+                <button
+                  type="button"
+                  className="text-primary hover:underline"
+                  onClick={() => setLocationRecipients([])}
+                >
+                  Clear list and pay a single user
+                </button>
+              </div>
+            )}
+
             <UserSearchPicker
               label="Search User"
               placeholder="Name or phone..."
               selectedUser={selectedUser}
-              onSelect={setSelectedUser}
+              onSelect={(u: any) => { setLocationRecipients([]); setSelectedUser(u); }}
             />
 
             {/* ── Wallet Routing v2: Recipient Type (REQUIRED) ── */}
