@@ -2270,6 +2270,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setIncomeType(null);
     setTenantName('');
     setLcLetter(null);
+    setCarriedDocs(null);
     setTenantPhone('');
     setTenantNationalId('');
     setRentAmount('');
