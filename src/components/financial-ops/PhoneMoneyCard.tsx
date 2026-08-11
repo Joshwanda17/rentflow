@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Smartphone, Info } from 'lucide-react';
+import { Smartphone, Info, Banknote } from 'lucide-react';
+import mtnLogoAsset from '@/assets/mtn-logo.png.asset.json';
+import airtelLogoAsset from '@/assets/airtel-logo.png.asset.json';
 import { formatUGX } from '@/lib/rentCalculations';
 import { useFinOpsAutoRefresh } from '@/hooks/useFinOpsAutoRefresh';
 
@@ -52,9 +54,9 @@ export function PhoneMoneyCard() {
   const total = (phone?.totalFloat ?? 0) + cashAtHand;
 
   const rows = [
-    { label: 'MTN Money', amount: mtn, dot: 'bg-yellow-400' },
-    { label: 'Airtel Money', amount: airtel, dot: 'bg-red-500' },
-    { label: 'Cash at Hand', amount: cashAtHand, dot: 'bg-emerald-500' },
+    { label: 'MTN Money', amount: mtn, logo: mtnLogoAsset.url },
+    { label: 'Airtel Money', amount: airtel, logo: airtelLogoAsset.url },
+    { label: 'Cash at Hand', amount: cashAtHand, logo: null as string | null },
   ];
 
   return (
@@ -76,7 +78,15 @@ export function PhoneMoneyCard() {
         {rows.map((r) => (
           <div key={r.label} className="flex items-center justify-between gap-3 min-w-0">
             <div className="flex items-center gap-2.5 min-w-0">
-              <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${r.dot}`} />
+              {r.logo ? (
+                <span className="h-6 w-6 rounded-md overflow-hidden shrink-0 border border-border bg-background">
+                  <img src={r.logo} alt={r.label} className="w-full h-full object-cover" loading="lazy" />
+                </span>
+              ) : (
+                <span className="h-6 w-6 rounded-md shrink-0 border border-border bg-success/10 flex items-center justify-center">
+                  <Banknote className="h-3.5 w-3.5 text-success" />
+                </span>
+              )}
               <span className="text-sm text-foreground truncate">{r.label}</span>
             </div>
             <span className="font-mono text-sm font-semibold tabular-nums text-foreground shrink-0">
