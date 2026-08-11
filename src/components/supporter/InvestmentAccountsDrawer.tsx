@@ -542,9 +542,11 @@ interface InvestmentAccountsDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   defaultTab?: 'accounts' | 'angel';
+  /** When provided, the matching portfolio's detail dialog opens automatically. */
+  initialPortfolioId?: string | null;
 }
 
-export function InvestmentAccountsDrawer({ open, onOpenChange, defaultTab = 'accounts' }: InvestmentAccountsDrawerProps) {
+export function InvestmentAccountsDrawer({ open, onOpenChange, defaultTab = 'accounts', initialPortfolioId = null }: InvestmentAccountsDrawerProps) {
   const { portfolios, totalInvested, loading, refetch } = useCapitalOpportunities();
   const { hasShares, totalShares, companyOwnershipPct, totalInvested: angelInvested, poolOwnershipPct, records, valuations } = useMyAngelShares();
   const { formatAmount } = useCurrency();
@@ -552,6 +554,16 @@ export function InvestmentAccountsDrawer({ open, onOpenChange, defaultTab = 'acc
   const [selectedPortfolio, setSelectedPortfolio] = useState<PortfolioRecord | null>(null);
   const [showDetail, setShowDetail] = useState(false);
   const [topUpTarget, setTopUpTarget] = useState<PortfolioRecord | null>(null);
+
+  /** Deep-link: auto-open the detail dialog for a specific portfolio (dashboard card tap). */
+  useEffect(() => {
+    if (!open || !initialPortfolioId) return;
+    const match = portfolios.find(p => p.id === initialPortfolioId);
+    if (match) {
+      setSelectedPortfolio(match);
+      setShowDetail(true);
+    }
+  }, [open, initialPortfolioId, portfolios]);
 
   return (
     <>

@@ -7,7 +7,7 @@ import { PortfolioSkeleton, PortfolioEmptyState, PortfolioErrorState } from './P
 
 interface Props {
   /** Opens the existing portfolio/deployed-capital drawer */
-  onViewPortfolios: () => void;
+  onViewPortfolios: (portfolioId?: string) => void;
   /** Scrolls to the existing Capital Opportunities section */
   onExploreOpportunities: () => void;
 }
@@ -47,7 +47,7 @@ export function PartnerPortfolioSection({ onViewPortfolios, onExploreOpportuniti
           <h2 className="text-sm font-black text-foreground tracking-tight">Your Portfolio</h2>
         </div>
         {showViewAll && !loading && !error && (
-          <button onClick={onViewPortfolios} className="text-[11px] font-semibold text-primary touch-manipulation">
+          <button onClick={() => onViewPortfolios()} className="text-[11px] font-semibold text-primary touch-manipulation">
             View all
           </button>
         )}
@@ -77,13 +77,13 @@ export function PartnerPortfolioSection({ onViewPortfolios, onExploreOpportuniti
 
           <div className="space-y-3">
             {shown.map(p => (
-              <ActivePortfolioCard key={p.id} portfolio={p} onView={onViewPortfolios} />
+              <ActivePortfolioCard key={p.id} portfolio={p} onView={() => onViewPortfolios(p.id)} />
             ))}
           </div>
 
           {hasMore && (
             <button
-              onClick={onViewPortfolios}
+              onClick={() => onViewPortfolios()}
               className="w-full py-2.5 rounded-xl border border-border/60 text-xs font-bold text-foreground active:scale-[0.98] transition-transform touch-manipulation min-h-[44px]"
             >
               View all {list.length} portfolios →
