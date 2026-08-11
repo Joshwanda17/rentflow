@@ -715,13 +715,13 @@ export default function FindAHouse() {
   };
 
   useEffect(() => {
-    if (!geoDefaultApplied && sharedRegion && REGIONS.includes(sharedRegion)) {
+    if (!geoDefaultApplied && sharedRegion && REGION_OPTIONS.includes(sharedRegion)) {
       setSelectedRegion(sharedRegion);
       setGeoDefaultApplied(true);
       return;
     }
     if (!geoDefaultApplied && geo.city && !geo.loading) {
-      const matched = REGIONS.find(r => r.toLowerCase() === geo.city!.toLowerCase());
+      const matched = REGION_OPTIONS.find(r => r.toLowerCase() === geo.city!.toLowerCase());
       if (matched) setSelectedRegion(matched);
       setGeoDefaultApplied(true);
     }
@@ -1113,7 +1113,7 @@ export default function FindAHouse() {
               <Select value={selectedRegion} onValueChange={handleRegionChange}>
                 <SelectTrigger className="flex-1 h-9 text-xs"><SelectValue placeholder="Region" /></SelectTrigger>
                 <SelectContent>
-                  {(REGIONS.includes(selectedRegion) ? REGIONS : [...REGIONS, selectedRegion])
+                  {(REGION_OPTIONS.includes(selectedRegion) ? REGION_OPTIONS : [...REGION_OPTIONS, selectedRegion])
                     .map(r => <SelectItem key={r} value={r}>{regionLabel(r)}</SelectItem>)}
                 </SelectContent>
               </Select>
