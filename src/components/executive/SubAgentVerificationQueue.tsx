@@ -355,7 +355,7 @@ export function SubAgentVerificationQueue() {
         )}
       </div>
 
-      <div onClick={e => e.stopPropagation()}>
+      <div onClick={e => e.stopPropagation()} className="grid grid-cols-2 gap-2">
         <Button
           size="sm"
           variant="outline"
@@ -363,7 +363,16 @@ export function SubAgentVerificationQueue() {
           className="w-full gap-1 h-7 text-xs"
         >
           <ArrowLeftRight className="h-3 w-3" />
-          Transfer to another agent
+          Transfer
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => openUnlink(r)}
+          className="w-full gap-1 h-7 text-xs text-destructive border-destructive/30 hover:bg-destructive/10"
+        >
+          <Unlink className="h-3 w-3" />
+          Unlink
         </Button>
       </div>
 
@@ -548,6 +557,15 @@ export function SubAgentVerificationQueue() {
                   >
                     <ArrowLeftRight className="h-3.5 w-3.5" />
                     Transfer to another agent
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => openUnlink(selectedRecord)}
+                    className="w-full gap-1 text-destructive border-destructive/30 hover:bg-destructive/10"
+                  >
+                    <Unlink className="h-3.5 w-3.5" />
+                    Unlink — make independent agent
                   </Button>
                 </CardContent>
               </Card>
