@@ -82,12 +82,6 @@ Deno.serve(async (req) => {
     if (!property_address) return err("Property address is required");
     if (!lc1_name || !lc1_phone || !lc1_village) return err("LC1 Chairperson details are required");
 
-    // Property/tenant GPS is mandatory on every rent request (also enforced by the DB trigger).
-    if (gps_lat === null || gps_lng === null) return err("Property GPS location is required");
-    if (gps_lat < -1.6 || gps_lat > 4.3 || gps_lng < 29.4 || gps_lng > 35.1) {
-      return err("Captured GPS location is not inside Uganda — recapture it at the property");
-    }
-
     // --- Create or find tenant ---
     const cleanPhone = phone.trim();
     const digits = cleanPhone.replace(/[^0-9]/g, '');

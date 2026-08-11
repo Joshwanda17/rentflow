@@ -297,7 +297,7 @@ export function RentRequestButton({ userId, onSuccess }: RentRequestButtonProps)
       // Get referral agent ID from localStorage
       const agentId = localStorage.getItem('referral_agent_id');
 
-      // Capture GPS location — MANDATORY (the database rejects GPS-less requests)
+      // Capture GPS location (non-blocking — don't let this fail the submission)
       let requestLat: number | null = null;
       let requestLon: number | null = null;
       let requestCity: string | null = null;
@@ -307,12 +307,12 @@ export function RentRequestButton({ userId, onSuccess }: RentRequestButtonProps)
         const position = await Promise.race([
           new Promise<GeolocationPosition>((resolve, reject) => {
             navigator.geolocation.getCurrentPosition(resolve, reject, {
-              enableHighAccuracy: true,
-              timeout: 15000,
+              enableHighAccuracy: false,
+              timeout: 3000,
               maximumAge: 300000,
             });
           }),
-          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('GPS timeout')), 15000))
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('GPS timeout')), 3000))
         ]);
         requestLat = position.coords.latitude;
         requestLon = position.coords.longitude;
@@ -320,14 +320,7 @@ export function RentRequestButton({ userId, onSuccess }: RentRequestButtonProps)
           requestCountry = 'Uganda';
         }
       } catch {
-        // handled below — GPS is required
-      }
-
-      if (
-        requestLat == null || requestLon == null ||
-        requestLat < -1.6 || requestLat > 4.3 || requestLon < 29.4 || requestLon > 35.1
-      ) {
-        throw new Error('Location required: allow location access while at the property, then submit again.');
+        // GPS failed — proceed without location
       }
 
       // Build rent request payload with validated types
