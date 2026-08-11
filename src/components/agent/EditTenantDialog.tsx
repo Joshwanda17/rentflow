@@ -912,16 +912,26 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <Label className="text-xs">District</Label>
-                    <Input value={district} onChange={(e) => setDistrict(e.target.value)} placeholder="e.g. Kampala" maxLength={80} />
+                {ugResolving ? (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Loader2 className="h-3 w-3 animate-spin" /> Loading saved location…
                   </div>
-                  <div>
-                    <Label className="text-xs">Village / LC1</Label>
-                    <Input value={village} onChange={(e) => setVillage(e.target.value)} placeholder="e.g. Kamwokya" maxLength={80} />
-                  </div>
-                </div>
+                ) : (
+                  <>
+                    <UgLocationPicker
+                      label="Official location (village / LC1)"
+                      value={ugSelection}
+                      onChange={(sel) => setUgSelection(sel)}
+                    />
+                    {!ugSelection && legacyLocationLabel && (
+                      <p className="text-[11px] text-muted-foreground">
+                        Saved (unmatched) address:{' '}
+                        <span className="font-medium text-foreground">{legacyLocationLabel}</span> — pick the official
+                        village above to update it.
+                      </p>
+                    )}
+                  </>
+                )}
 
                 <div>
                   <Label className="text-xs flex items-center gap-1.5">
@@ -942,26 +952,9 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <Label className="text-xs">Region</Label>
-                    <Input value={region} onChange={(e) => setRegion(e.target.value)} placeholder="e.g. Central" maxLength={80} />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Sub-county</Label>
-                    <Input value={subCounty} onChange={(e) => setSubCounty(e.target.value)} placeholder="e.g. Kira" maxLength={80} />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <Label className="text-xs">Parish</Label>
-                    <Input value={parish} onChange={(e) => setParish(e.target.value)} placeholder="e.g. Kireka" maxLength={80} />
-                  </div>
-                  <div>
-                    <Label className="text-xs flex items-center gap-1.5"><Globe className="h-3 w-3" /> Country</Label>
-                    <Input value={country} onChange={(e) => setCountry(e.target.value)} placeholder="e.g. Uganda" maxLength={80} />
-                  </div>
+                <div>
+                  <Label className="text-xs flex items-center gap-1.5"><Globe className="h-3 w-3" /> Country</Label>
+                  <Input value={country} onChange={(e) => setCountry(e.target.value)} placeholder="e.g. Uganda" maxLength={80} />
                 </div>
 
                 <div>
