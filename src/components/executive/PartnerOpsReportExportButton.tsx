@@ -5,14 +5,20 @@ import { FileDown, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
-type Period = 'daily' | 'weekly' | 'monthly' | 'weekend';
+type Period = 'daily' | 'yesterday' | 'weekly' | 'monthly' | 'weekend';
 
 const OPTIONS: { key: Period; label: string; hint: string }[] = [
   { key: 'daily', label: 'Daily report', hint: 'Today only (EAT)' },
+  { key: 'yesterday', label: "Yesterday's report", hint: 'Previous day only (EAT)' },
   { key: 'weekly', label: 'Weekly report', hint: 'Last 7 days' },
   { key: 'monthly', label: 'Monthly report', hint: 'Month to date' },
   { key: 'weekend', label: 'Weekend report', hint: 'Latest Sat - Sun' },
 ];
+
+/** EAT (UTC+3) calendar day, offset by `days`. */
+function eatDay(offset = 0): string {
+  return new Date(Date.now() + 3 * 60 * 60 * 1000 + offset * 86_400_000).toISOString().slice(0, 10);
+}
 
 /** Exports the metrics-only Partner Ops PDF for a chosen reporting window. */
 export function PartnerOpsReportExportButton() {
@@ -22,15 +28,16 @@ export function PartnerOpsReportExportButton() {
   const download = async (period: Period) => {
     setBusy(period);
     try {
+      const day = period === 'yesterday' ? eatDay(-1) : eatDay(0);
       const { data, error } = await supabase.functions.invoke('partner-ops-daily-report', {
-        body: { period, pdf: true },
+        body: { period: period === 'yesterday' ? 'daily' : period, date: day, pdf: true },
       });
       if (error) throw error;
       const blob = data instanceof Blob ? data : new Blob([data as any], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `Welile_Partner_Ops_${period}_${new Date().toISOString().slice(0, 10)}.pdf`;
+      a.download = `Welile_Partner_Ops_${period}_${day}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
