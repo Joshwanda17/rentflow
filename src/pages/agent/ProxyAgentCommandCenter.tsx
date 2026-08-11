@@ -241,19 +241,19 @@ export default function ProxyAgentCommandCenter() {
         ) : s ? (
           <>
             <div className="grid grid-cols-2 gap-2">
-              <StatTile icon={Users} label="Onboarded partners" value={String(s.partners.onboarded)}
+              <StatTile icon={Users} label="Partners" value={String(s.partners.onboarded)}
                 hint={`${s.invites.shared} invites shared`} tone="primary" />
-              <StatTile icon={UserCheck} label="Partners who came in" value={String(s.partners.came_in)}
+              <StatTile icon={UserCheck} label="Came in" value={String(s.partners.came_in)}
                 hint={money(s.partners.total_funded)} tone="success" />
-              <StatTile icon={Repeat} label="Returning partners" value={String(s.partners.returning)}
+              <StatTile icon={Repeat} label="Returning" value={String(s.partners.returning)}
                 hint="2+ portfolios" />
-              <StatTile icon={FileText} label="Promissory notes" value={String(s.notes.total)}
+              <StatTile icon={FileText} label="Promissory" value={String(s.notes.total)}
                 hint={`${s.notes.pending} pending · ${money(s.notes.total_amount)}`} />
-              <StatTile icon={HandCoins} label="Pending commission" value={money(s.pending_commission.amount)}
+              <StatTile icon={HandCoins} label="Pending" value={money(s.pending_commission.amount)}
                 hint={`${s.pending_commission.pending_notes} notes × ${money(s.pending_commission.rate_per_note)}`} tone="warning" />
-              <StatTile icon={BarChart3} label="Total earnings" value={money(s.earnings.total)}
+              <StatTile icon={BarChart3} label="Earnings" value={money(s.earnings.total)}
                 hint={`${money(s.commission.this_month)} this month`} />
-              <StatTile icon={Wallet} label="Withdrawable balance" value={money(s.earnings.withdrawable)}
+              <StatTile icon={Wallet} label="Withdrawable" value={money(s.earnings.withdrawable)}
                 hint="Earned commission" tone="success" />
               <StatTile icon={Users} label="Sub-proxy team" value={String(s.team_size)}
                 hint="Tap Team for details" />
