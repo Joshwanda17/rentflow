@@ -3930,7 +3930,18 @@ export function EmailTransactionsPanel() {
               // Every label (Inbox / Money in / Money out / Needs routing /
               // Unparsed / Credited) renders as a Gmail inbox that endlessly
               // scrolls through ALL rows behind that label's count.
-              <GmailStyleEmailList rows={visibleRows} />
+              <GmailStyleEmailList
+                rows={visibleRows}
+                onCreditUser={(row, user) => {
+                  const transaction = visibleRows.find((candidate) => candidate.id === row.id);
+                  if (!transaction) return;
+                  navigateToRow(transaction, 'credit', {
+                    id: user.id,
+                    full_name: user.full_name,
+                    phone: user.phone,
+                  });
+                }}
+              />
             ) : (() => {
               const totalPages = Math.max(1, Math.ceil(visibleRows.length / pageSize));
               const safePage = Math.min(currentPage, totalPages);
