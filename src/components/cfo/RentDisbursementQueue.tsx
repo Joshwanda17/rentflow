@@ -336,6 +336,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
   // Summary totals for the currently filtered queue.
   const queueTotalRent = useMemo(() => filteredItems.reduce((s, i) => s + i.rent_amount, 0), [filteredItems]);
   const queueTotalRevenue = useMemo(() => filteredItems.reduce((s, i) => s + i.access_fee + i.request_fee, 0), [filteredItems]);
+  const queueTotalRepaymentExpected = useMemo(() => filteredItems.reduce((s, i) => s + i.total_repayment, 0), [filteredItems]);
 
   const dateFilterLabel: Record<string, string> = { all: 'All time', '7d': 'Last 7 days', '30d': 'Last 30 days' };
 
