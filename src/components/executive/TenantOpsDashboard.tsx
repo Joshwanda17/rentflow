@@ -1359,7 +1359,14 @@ export function TenantOpsDashboard() {
     }
   };
 
-  const activeLabel = navCards.find(n => n.id === activeView)?.label || '';
+  const sectionHubLabels: Partial<Record<ActiveView, string>> = {
+    'agent-capacity-hub': 'Agent Rent Capacity',
+    'all-tenants-hub': 'All Tenants',
+    'daily-collections': 'Daily Collection Monitoring',
+    'reports-hub': 'Reports & Exports',
+  };
+
+  const activeLabel = navCards.find(n => n.id === activeView)?.label || sectionHubLabels[activeView] || '';
 
   // Primary mobile quick-actions — surfaced in a sticky pill bar at the
   // very top so the most-used flows are one tap away on a phone.
