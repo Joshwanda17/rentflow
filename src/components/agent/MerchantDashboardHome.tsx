@@ -126,7 +126,6 @@ export function MerchantDashboardHome({
         />
       </section>
 
-      {/* Merchant Payouts CTA */}
       {/* Shared payout float + this merchant's settlement position */}
       <MerchantFloatAvailableCard />
 
