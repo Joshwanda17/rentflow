@@ -34080,6 +34080,7 @@ export type Database = {
           amount: number
           attempts: number
           cash_location: string
+          cash_owner_name: string
           code: string
           created_at: string
           deposit_purpose: string
@@ -34090,6 +34091,7 @@ export type Database = {
           max_attempts: number
           status: string
           verification_id: string
+          wallet_holder_name: string
         }[]
       }
       fin_ops_reissue_cash_code: {
