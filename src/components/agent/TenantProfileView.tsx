@@ -2380,6 +2380,18 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
         onSuccess={loadFullProfile}
       />
 
+      {profile && lastCompletedRequest && renewDocsGate && (
+        <RenewDocumentsDialog
+          open={!!renewDocsGate}
+          onOpenChange={(v) => { if (!v) setRenewDocsGate(null); }}
+          tenantId={profile.id}
+          tenantName={profile.full_name}
+          prevRequestId={lastCompletedRequest.id}
+          docs={renewDocsGate}
+          onRenewed={() => { setRenewDocsGate(null); loadFullProfile(); }}
+        />
+      )}
+
       <TenantFieldCollectDialog
         open={fieldCollectOpen}
         onOpenChange={setFieldCollectOpen}
