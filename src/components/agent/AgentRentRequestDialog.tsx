@@ -1789,6 +1789,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       }
       if (!lc1Village.trim()) map['lc1Village'] = 'Type the LC1 village';
       if (!propertyCity.trim()) map['propertyCity'] = 'Type the town / city';
+      if (!gpsLocation) map['gpsLocation'] = 'Capture the property GPS at the house';
     } else {
       if (!amount) map['rentAmount'] = 'Type the rent amount';
       else if (amount < 50000) map['rentAmount'] = 'Rent amount must be at least UGX 50,000';
