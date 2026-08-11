@@ -4665,15 +4665,16 @@ export function EmailTransactionsPanel() {
                           Needs Routing badge so ops can jump straight into the
                           routing dialog without scanning across the row to the
                           amount-side CTA. Shown for any uncredited, unrouted
-                          incoming deposit (parsed or not). */}
+                          incoming deposit (parsed or not). Made very visible
+                          with a large, pulsing emerald button. */}
                       {r.direction === 'in' && !isCredited && !isRouted && (
                         <Button
                           size="sm"
-                          className="h-6 px-2 text-[10px] gap-1 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+                          className="h-8 px-3 text-[11px] gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/30 ring-2 ring-emerald-400/60 ring-offset-1 animate-pulse"
                           title="Route this deposit now — search any user by name or number and credit it to their wallet."
                           onClick={() => navigateToRow(r, 'credit')}
                         >
-                          <Zap className="h-3 w-3" /> Send to wallet
+                          <Wallet className="h-3.5 w-3.5" /> Credit to wallet
                         </Button>
                       )}
                       {/* Click-to-expand drilldown toggle. Opens a panel with the
