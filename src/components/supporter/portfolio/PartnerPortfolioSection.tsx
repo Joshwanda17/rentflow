@@ -15,16 +15,29 @@ interface Props {
 export function PartnerPortfolioSection({ onViewPortfolios, onExploreOpportunities }: Props) {
   const { portfolios, loading, error, refetch } = usePartnerPortfolios();
 
-  const visible = useMemo(() => {
-    const order = { active: 0, pending: 1, paused: 2, matured: 3, withdrawn: 4 } as const;
+  /**
+   * Dashboard list = ACTIVE portfolios only (matured / withdrawn / paused live in
+   * the full portfolio drawer). Newest first. Pending ones are only used as a
+   * fallback list so a partner awaiting activation still sees their capital.
+   */
+  const active = useMemo(() => {
     return portfolios
-      .filter(p => normalizePortfolioState(p.status) !== 'withdrawn')
-      .sort((a, b) => order[normalizePortfolioState(a.status)] - order[normalizePortfolioState(b.status)]);
+      .filter(p => normalizePortfolioState(p.status) === 'active')
+      .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
   }, [portfolios]);
 
-  const summary = useMemo(() => summarizeAccruals(visible.map(computeAccrual)), [visible]);
+  const pending = useMemo(() => {
+    return portfolios
+      .filter(p => normalizePortfolioState(p.status) === 'pending')
+      .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+  }, [portfolios]);
 
-  const showViewAll = visible.length > 1;
+  const summary = useMemo(() => summarizeAccruals(active.map(computeAccrual)), [active]);
+
+  const list = active.length > 0 ? active : pending;
+  const shown = list.slice(0, 3);
+  const hasMore = list.length > 3;
+  const showViewAll = list.length > 0;
 
   return (
     <div id="your-portfolio" className="space-y-3 scroll-mt-4">
@@ -44,7 +57,7 @@ export function PartnerPortfolioSection({ onViewPortfolios, onExploreOpportuniti
         <PortfolioSkeleton />
       ) : error ? (
         <PortfolioErrorState onRetry={refetch} />
-      ) : visible.length === 0 ? (
+      ) : list.length === 0 ? (
         <PortfolioEmptyState onExplore={onExploreOpportunities} />
       ) : (
         <>
@@ -52,31 +65,28 @@ export function PartnerPortfolioSection({ onViewPortfolios, onExploreOpportuniti
             <PortfolioSummary
               totalDeployed={summary.totalDeployed}
               activeCount={summary.activeCount}
-              accruedToday={summary.accruedToday}
-              cycleAccrued={summary.cycleAccrued}
-              expectedMonthlyReturn={summary.expectedMonthlyReturn}
-              monthlyWording={summary.allMonthly}
             />
           )}
 
-          {visible.length === 1 ? (
-            <ActivePortfolioCard portfolio={visible[0]} onView={onViewPortfolios} />
-          ) : (
-            <div className="-mx-3 xs:-mx-4 px-3 xs:px-4 flex gap-3 overflow-x-auto snap-x snap-mandatory pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {visible.map(p => (
-                <div key={p.id} className="snap-start shrink-0 w-[86%]">
-                  <ActivePortfolioCard portfolio={p} onView={onViewPortfolios} />
-                </div>
-              ))}
-            </div>
-          )}
+          <div className="flex items-center justify-between gap-2 px-1 pt-1">
+            <h3 className="text-[10px] font-bold tracking-wide text-muted-foreground">
+              {active.length > 0 ? 'ACTIVE PORTFOLIOS' : 'PENDING PORTFOLIOS'}
+            </h3>
+            <span className="text-[10px] font-bold text-muted-foreground">{list.length}</span>
+          </div>
 
-          {showViewAll && (
+          <div className="space-y-3">
+            {shown.map(p => (
+              <ActivePortfolioCard key={p.id} portfolio={p} onView={onViewPortfolios} />
+            ))}
+          </div>
+
+          {hasMore && (
             <button
               onClick={onViewPortfolios}
-              className="w-full py-2.5 rounded-xl border border-border/60 text-xs font-bold text-foreground active:scale-[0.98] transition-transform touch-manipulation min-h-[40px]"
+              className="w-full py-2.5 rounded-xl border border-border/60 text-xs font-bold text-foreground active:scale-[0.98] transition-transform touch-manipulation min-h-[44px]"
             >
-              View all portfolios ({visible.length})
+              View all {list.length} portfolios →
             </button>
           )}
         </>
