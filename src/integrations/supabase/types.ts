@@ -35189,6 +35189,20 @@ export type Database = {
           vacant: number
         }[]
       }
+      get_location_reconciliation_report: {
+        Args: { p_rollout_from?: string }
+        Returns: {
+          new_resolved_rows: number
+          new_total_rows: number
+          resolved_pct: number
+          resolved_rows: number
+          scope_label: string
+          table_label: string
+          top_unmatched: Json
+          total_rows: number
+          unmatched_rows: number
+        }[]
+      }
       get_manager_daily_report: { Args: never; Returns: Json }
       get_manager_dashboard_stats: { Args: never; Returns: Json }
       get_manager_productivity:

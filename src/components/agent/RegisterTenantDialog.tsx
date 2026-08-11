@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Lc1VillagePicker } from '@/components/location/Lc1VillagePicker';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GuarantorConsentCheckbox } from '@/components/agent/GuarantorConsentCheckbox';
 import { supabase } from '@/integrations/supabase/client';
@@ -912,17 +913,11 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                       />
                     </div>
                   </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="lc1Village" className="text-xs">Village / Zone</Label>
-                    <Input
-                      id="lc1Village"
-                      value={lc1Village}
-                      onChange={(e) => setLc1Village(e.target.value)}
-                      placeholder="e.g. Bukoto Zone A"
-                      className="h-11 text-base"
-                      autoCapitalize="words"
-                    />
-                  </div>
+                  <Lc1VillagePicker
+                    className="space-y-1"
+                    value={lc1Village}
+                    onChange={(name) => setLc1Village(name)}
+                  />
                 </div>
               </div>
 

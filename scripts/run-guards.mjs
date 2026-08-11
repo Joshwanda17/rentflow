@@ -22,6 +22,7 @@ const GUARDS = [
   ['guard-frontend-ledger-writes.mjs', 'frontend ledger writes'],
   ['guard-deposit-purpose.mjs', 'deposit purpose'],
   ['guard-legacy-domain.mjs', 'legacy domain references'],
+  ['guard-location-freetext.mjs', 'free-text admin location capture'],
   ['guard-canonical-tags.mjs', 'canonical tags'],
   ['guard-mcp-deploy.mjs', 'generated MCP deploy imports'],
 ];

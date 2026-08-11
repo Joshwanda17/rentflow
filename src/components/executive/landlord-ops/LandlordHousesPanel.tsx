@@ -19,6 +19,7 @@ import { useFilterKeyboardShortcuts } from '@/hooks/useFilterKeyboardShortcuts';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
 import { LocationBrowser } from './LocationBrowser';
+import { LocationReconciliationCard } from './LocationReconciliationCard';
 import { HouseDetailsDialog } from './HouseDetailsDialog';
 
 interface HouseRow {
@@ -315,7 +316,12 @@ export function LandlordHousesPanel() {
         </button>
       </div>
 
-      {viewMode === 'location' && <LocationBrowser />}
+      {viewMode === 'location' && (
+        <div className="space-y-3">
+          <LocationReconciliationCard />
+          <LocationBrowser />
+        </div>
+      )}
 
       {viewMode === 'landlord' && (
       <>
