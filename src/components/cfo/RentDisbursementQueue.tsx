@@ -342,29 +342,29 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
 
   return (
     <Card>
-      <CardHeader className="pb-2">
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <CardTitle className="text-base flex items-center gap-2">
+      <CardHeader className="pb-3 space-y-3">
+        <div className="flex flex-col gap-3">
+          <CardTitle className="text-base flex items-center gap-2 flex-wrap">
             <Home className="h-4 w-4 text-primary" />
             Fund Agent Landlord Payout Float
             {filteredItems.length > 0 && (
-              <Badge variant="outline" className="text-[10px] ml-1 bg-primary/10 text-primary border-primary/30">
+              <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/30">
                 {filteredItems.length} approved{dateFilter !== 'all' ? ` · ${dateFilterLabel[dateFilter]}` : ''} · {fmt(queueTotalRent)}
               </Badge>
             )}
           </CardTitle>
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="relative w-[230px]">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,14rem)_minmax(0,10rem)] gap-2 items-center rounded-lg border border-border/60 bg-muted/30 p-2">
+            <div className="relative w-full">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setSelected(new Set()); }}
                 placeholder="Search tenant, landlord, agent…"
-                className="h-7 text-xs pl-8"
+                className="h-8 text-xs pl-8 bg-background"
               />
             </div>
             <Select value={agentFilter} onValueChange={setAgentFilter}>
-              <SelectTrigger className="h-7 text-xs w-[220px]">
+              <SelectTrigger className="h-8 text-xs w-full bg-background">
                 <Users className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
                 <SelectValue placeholder="Filter by agent" />
               </SelectTrigger>
@@ -383,7 +383,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
               </SelectContent>
             </Select>
             <Select value={dateFilter} onValueChange={(v) => { setDateFilter(v as any); setSelected(new Set()); }}>
-              <SelectTrigger className="h-7 text-xs w-[150px]">
+              <SelectTrigger className="h-8 text-xs w-full bg-background">
                 <CalendarDays className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
                 <SelectValue placeholder="Date range" />
               </SelectTrigger>
@@ -396,7 +396,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
             {agentFilter !== 'all' && (
               <button
                 type="button"
-                className="text-[11px] text-primary hover:underline"
+                className="text-[11px] text-primary hover:underline justify-self-start sm:col-span-2 lg:col-span-3"
                 onClick={() => setAgentFilter('all')}
               >
                 Clear agent
@@ -405,12 +405,12 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
           </div>
         </div>
         {filteredItems.length > 0 && (
-          <p className="text-xs text-muted-foreground mt-1">
+          <p className="text-xs text-muted-foreground">
             COO-approved rent. Funding lands in the assigned agent's <b>Landlord Payout Float</b> — the agent then pays the landlord via MoMo + OTP. Revenue earned: <span className="font-bold text-emerald-600">{fmt(queueTotalRevenue)}</span>
           </p>
         )}
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
         {/*
           Pay by Location/Category — part of Fund Agent Landlord Payout Float.
           Recipient selection only: it ticks rows in the queue below, which then
