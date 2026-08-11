@@ -233,7 +233,15 @@ function buildPdf(r: Report, win: { title: string; pretty: string }, logo: Uint8
     { label: "Returns paid (period)", value: compactUGX(k.paid_out_amount), sub: `${num(k.paid_out_count)} payouts`, accent: ROSE },
     { label: "Compounded (period)", value: compactUGX(k.compounded_amount), sub: `${num(k.compounded_count)} portfolios`, accent: TEAL },
     { label: "Top-ups applied", value: compactUGX(t.applied_amount), sub: `${num(t.applied_count)} in period`, accent: AMBER },
-    { label: "Withdrawn (period)", value: compactUGX(k.withdrawals_completed_amount), sub: `${num(k.withdrawals_completed_count)} completed`, accent: SLATE },
+    {
+      label: "Net capital movement",
+      value: compactUGX(
+        (Number(k.new_capital) || 0) + (Number(t.applied_amount) || 0) + (Number(k.compounded_amount) || 0) -
+          (Number(k.paid_out_amount) || 0),
+      ),
+      sub: "capital in minus returns paid",
+      accent: SLATE,
+    },
   ];
   const cols = 4;
   const cardW = (pageWidth - margin * 2 - gap * (cols - 1)) / cols;
@@ -313,7 +321,7 @@ function buildPdf(r: Report, win: { title: string; pretty: string }, logo: Uint8
       doc.setTextColor(...INK);
       doc.text(ascii(bar.label), margin, y + 3.6);
       const trackX = margin + 34;
-      const trackW = pageWidth - margin - 50 - trackX;
+      const trackW = pageWidth - margin - 62 - trackX;
       doc.setFillColor(...tint(bar.color, 0.9));
       doc.roundedRect(trackX, y, trackW, 5, 1, 1, "F");
       const w = ((Number(bar.value) || 0) / max) * trackW;
@@ -383,6 +391,71 @@ function buildPdf(r: Report, win: { title: string; pretty: string }, logo: Uint8
     y += 8;
   };
 
+  /** Two-series line chart for a daily trend. */
+  const lineChart = (
+    points: { label: string; a: number; b: number; weekend?: boolean }[],
+    legend: { a: string; b: string },
+    colorA: RGB,
+    colorB: RGB,
+  ) => {
+    if (!points.length) return;
+    const chartH = 38;
+    if (y > pageHeight - (chartH + 24)) { doc.addPage(); y = 18; }
+    const plotX = margin + 2;
+    const plotW = pageWidth - margin * 2 - 4;
+    const baseY = y + chartH;
+    const max = Math.max(1, ...points.map((p) => Math.max(Number(p.a) || 0, Number(p.b) || 0)));
+    // weekend shading + gridlines
+    const slot = plotW / Math.max(1, points.length);
+    points.forEach((p, i) => {
+      if (p.weekend) {
+        doc.setFillColor(...tint(AMBER, 0.95));
+        doc.rect(plotX + i * slot, y, slot, chartH, "F");
+      }
+    });
+    doc.setDrawColor(...BORDER);
+    doc.setLineWidth(0.15);
+    [0.25, 0.5, 0.75].forEach((f) => doc.line(plotX, baseY - chartH * f, plotX + plotW, baseY - chartH * f));
+    doc.setLineWidth(0.2);
+    doc.line(plotX, baseY, plotX + plotW, baseY);
+    const xAt = (i: number) => (points.length === 1 ? plotX + plotW / 2 : plotX + (i * plotW) / (points.length - 1));
+    const yAt = (v: number) => baseY - ((Number(v) || 0) / max) * (chartH - 3);
+    const drawSeries = (key: "a" | "b", color: RGB) => {
+      doc.setDrawColor(...color);
+      doc.setLineWidth(0.7);
+      points.forEach((p, i) => {
+        if (i === 0) return;
+        doc.line(xAt(i - 1), yAt(points[i - 1][key]), xAt(i), yAt(p[key]));
+      });
+      doc.setFillColor(...color);
+      points.forEach((p, i) => doc.circle(xAt(i), yAt(p[key]), points.length > 20 ? 0.5 : 0.9, "F"));
+    };
+    drawSeries("a", colorA);
+    drawSeries("b", colorB);
+    // x labels
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(points.length > 16 ? 4.4 : 5.4);
+    doc.setTextColor(...MUTED);
+    const every = points.length > 20 ? Math.ceil(points.length / 12) : 1;
+    points.forEach((p, i) => {
+      if (i % every !== 0 && i !== points.length - 1) return;
+      const lbl = points.length > 16 ? ascii(p.label).slice(4, 6) : ascii(p.label).slice(0, 6);
+      doc.text(lbl, xAt(i), baseY + 3.4, { align: "center" });
+    });
+    y = baseY + 6;
+    doc.setFontSize(6.2);
+    doc.setFillColor(...colorA);
+    doc.rect(margin, y - 2, 3, 3, "F");
+    doc.setTextColor(...MUTED);
+    doc.text(legend.a, margin + 4.5, y + 0.6);
+    const off = margin + 4.5 + doc.getTextWidth(legend.a) + 6;
+    doc.setFillColor(...colorB);
+    doc.rect(off, y - 2, 3, 3, "F");
+    doc.text(legend.b, off + 4.5, y + 0.6);
+    doc.text(`Peak ${compactUGX(max)} - shaded bands are weekend days`, pageWidth - margin, y + 0.6, { align: "right" });
+    y += 8;
+  };
+
   const tableTheme = {
     theme: "grid" as const,
     styles: { fontSize: 7.4, cellPadding: 1.7, textColor: INK, lineColor: BORDER, lineWidth: 0.1 },
@@ -409,19 +482,27 @@ function buildPdf(r: Report, win: { title: string; pretty: string }, logo: Uint8
     { label: "Top-ups applied", value: compactUGX(t.applied_amount), accent: AMBER },
     { label: "Compounded in", value: compactUGX(k.compounded_amount), accent: TEAL },
     { label: "Returns paid out", value: compactUGX(k.paid_out_amount), accent: ROSE },
-    { label: "Withdrawn out", value: compactUGX(k.withdrawals_completed_amount), accent: SLATE },
+    { label: "Partner cash-out", value: compactUGX(k.withdrawals_completed_amount), accent: SLATE },
   ]);
   const inflow = (Number(k.new_capital) || 0) + (Number(t.applied_amount) || 0) + (Number(k.compounded_amount) || 0);
-  const outflow = (Number(k.paid_out_amount) || 0) + (Number(k.withdrawals_completed_amount) || 0);
+  const outflow = Number(k.paid_out_amount) || 0;
   barChart([
     { label: "Capital in", value: inflow, note: "new + top-ups + compounded", color: EMERALD },
-    { label: "Capital out", value: outflow, note: "returns paid + withdrawals", color: ROSE },
+    { label: "Capital out", value: outflow, note: "returns paid to partner wallets", color: ROSE },
     { label: "Net movement", value: Math.abs(inflow - outflow), note: inflow - outflow >= 0 ? "net inflow" : "net outflow", color: inflow - outflow >= 0 ? BLUE : AMBER },
   ]);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(6.8);
+  doc.setTextColor(...MUTED);
+  doc.text(
+    `Partner cash-out in the window: ${compactUGX(k.withdrawals_completed_amount)} (${num(k.withdrawals_completed_count)} withdrawals). This is returns already counted above being moved out of the wallet - it is not a second reduction of capital, so it is excluded from Capital out.`,
+    margin, y, { maxWidth: pageWidth - margin * 2 },
+  );
+  y += 8;
 
   // ── Daily trend ──
-  heading("Daily trend", "Per-day capital in versus returns settled - each column is one calendar day in the window.");
-  columnChart(
+  heading("Daily trend", "Per-day capital in versus returns settled - each point is one calendar day in the window.");
+  lineChart(
     r.series.map((s: any) => ({
       label: ascii(s.label),
       a: (Number(s.new_capital) || 0) + (Number(s.topups_applied) || 0),
@@ -443,20 +524,17 @@ function buildPdf(r: Report, win: { title: string; pretty: string }, logo: Uint8
   ]);
 
   // ── Top-ups (period accurate) ──
-  heading("Top-ups", `Requested and applied inside the window; the backlog line is the standing queue as at now.`);
+  heading(
+    "Top-ups",
+    "Top-ups only (portfolio creations are excluded). Requested = submitted inside the window; applied = merged into capital inside the window.",
+  );
   miniKpis([
     { label: "Requested in period", value: `${num(t.requested_count)} - ${compactUGX(t.requested_amount)}`, accent: BLUE },
     { label: "Applied in period", value: `${num(t.applied_count)} - ${compactUGX(t.applied_amount)}`, accent: EMERALD },
-    { label: "Rejected in period", value: `${num(t.rejected_count)} - ${compactUGX(t.rejected_amount)}`, accent: ROSE },
+    { label: "Rejected / cancelled", value: `${num((Number(t.rejected_count) || 0) + (Number(t.cancelled_count) || 0))} - ${compactUGX((Number(t.rejected_amount) || 0) + (Number(t.cancelled_amount) || 0))}`, accent: ROSE },
     { label: "At renewal", value: `${num(t.renewal_topup_count)} - ${compactUGX(t.renewal_topup_amount)}`, accent: TEAL },
   ]);
-  barChart([
-    { label: "Requested", value: Number(t.requested_amount) || 0, note: `${num(t.requested_count)} requests`, color: BLUE },
-    { label: "Applied", value: Number(t.applied_amount) || 0, note: `${num(t.applied_count)} merged into capital`, color: EMERALD },
-    { label: "Rejected", value: Number(t.rejected_amount) || 0, note: `${num(t.rejected_count)} rejected`, color: ROSE },
-    { label: "Backlog (now)", value: Number(t.backlog_amount) || 0, note: `${num(t.backlog_count)} waiting - oldest ${num(t.backlog_oldest_days)}d`, color: AMBER },
-  ]);
-  columnChart(
+  lineChart(
     r.series.map((s: any) => ({
       label: ascii(s.label),
       a: Number(s.topups_requested) || 0,
@@ -467,6 +545,14 @@ function buildPdf(r: Report, win: { title: string; pretty: string }, logo: Uint8
     BLUE,
     EMERALD,
   );
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(6.8);
+  doc.setTextColor(...MUTED);
+  doc.text(
+    `Still waiting to be applied as at generation time: ${num(t.backlog_count)} top-ups worth ${compactUGX(t.backlog_amount)}, oldest ${num(t.backlog_oldest_days)} day(s). Detailed in the open-queues table below.`,
+    margin, y, { maxWidth: pageWidth - margin * 2 },
+  );
+  y += 8;
 
   // ── Portfolio mix ──
   heading("Portfolio mix", "How live capital is distributed across return modes and ticket sizes.");
@@ -502,9 +588,12 @@ function buildPdf(r: Report, win: { title: string; pretty: string }, logo: Uint8
   );
 
   // ── Backlog scoreboard ──
-  heading("Operational backlog (as at now)", "Queues that partner operations must clear - counts and value, no names.");
+  heading(
+    "Open queues - snapshot at generation time",
+    "Work still sitting unfinished right now, regardless of when it arrived. Unlike every figure above, this is not limited to the reporting window.",
+  );
   table(
-    ["Queue", "Count", "Value"],
+    ["Queue - waiting for action", "Count", "Value"],
     [
       ["Portfolios awaiting ops approval", num(b.pending_portfolios_count), fmtUGX(b.pending_portfolios_amount)],
       ["Funder deployment queue", num(b.funder_queue_count), fmtUGX(b.funder_queue_amount)],
@@ -557,7 +646,7 @@ function buildHtml(r: Report, win: { title: string; pretty: string }): string {
   const f = r.forecast;
   const days = Math.max(1, Number(r.days) || 1);
   const inflow = (Number(k.new_capital) || 0) + (Number(t.applied_amount) || 0) + (Number(k.compounded_amount) || 0);
-  const outflow = (Number(k.paid_out_amount) || 0) + (Number(k.withdrawals_completed_amount) || 0);
+  const outflow = Number(k.paid_out_amount) || 0;
   const tile = (label: string, value: string, sub: string, color: string) =>
     `<table class="tile" role="presentation" cellpadding="0" cellspacing="0" border="0" width="25%" align="left" style="width:25%;max-width:25%;border-collapse:collapse;">
        <tr><td style="padding:0 4px 8px 4px;vertical-align:top">
@@ -631,14 +720,14 @@ function buildHtml(r: Report, win: { title: string; pretty: string }): string {
         </tr></thead>
         <tbody>
           ${row("Capital in (new + top-ups + compounded)", "-", fmtUGX(inflow))}
-          ${row("Capital out (returns + withdrawals)", "-", fmtUGX(outflow))}
+          ${row("Capital out (returns paid to wallets)", "-", fmtUGX(outflow))}
           ${row("Net capital movement", "-", fmtUGX(inflow - outflow))}
           ${row("Returns compounded", num(k.compounded_count), fmtUGX(k.compounded_amount))}
           ${row("Top-ups requested", num(t.requested_count), fmtUGX(t.requested_amount))}
           ${row("Top-ups applied", num(t.applied_count), fmtUGX(t.applied_amount))}
-          ${row("Top-up backlog (as at now)", num(t.backlog_count), fmtUGX(t.backlog_amount))}
+          ${row("Top-ups still waiting to be applied (now)", num(t.backlog_count), fmtUGX(t.backlog_amount))}
           ${row("Renewals", num(k.renewals_count), fmtUGX(k.renewals_topup_amount))}
-          ${row("Partner withdrawals completed", num(k.withdrawals_completed_count), fmtUGX(k.withdrawals_completed_amount))}
+          ${row("Partner cash-out of paid returns", num(k.withdrawals_completed_count), fmtUGX(k.withdrawals_completed_amount))}
           ${row("Forecast - working days (Mon-Fri)", num(f.weekdays_count), fmtUGX(f.weekdays_total))}
           ${row("Forecast - weekend (Sat-Sun)", num(f.weekend_count), fmtUGX(f.weekend_total))}
           ${row("Portfolios awaiting ops approval", num(b.pending_portfolios_count), fmtUGX(b.pending_portfolios_amount))}
