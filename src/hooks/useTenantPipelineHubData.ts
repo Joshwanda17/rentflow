@@ -119,7 +119,7 @@ export function useTenantPipelineHubData(historyDays = 400) {
       since.setDate(since.getDate() - historyDays);
       const sinceIso = since.toISOString();
 
-      const [rawRequests, rawCollections, rawPayouts] = await Promise.all([
+      const [rawRequests, rawCollections, rawPayouts, rawLedgerPayouts] = await Promise.all([
         pageAll<any>((from, to) =>
           supabase
             .from('rent_requests')
@@ -141,6 +141,21 @@ export function useTenantPipelineHubData(historyDays = 400) {
           supabase
             .from('agent_landlord_payouts')
             .select('id, amount, created_at, status, landlord_id, landlord_name, tenant_id, rent_request_id, mobile_money_provider')
+            .gte('created_at', sinceIso)
+            .order('created_at', { ascending: false })
+            .range(from, to),
+        ),
+        // Landlord money actually released through the ledger. agent_landlord_payouts
+        // only holds agent-executed payouts; the CFO/float disbursement path posts
+        // `rent_disbursement` platform legs instead, so both must be counted.
+        pageAll<any>((from, to) =>
+          supabase
+            .from('general_ledger')
+            .select('id, amount, created_at, description, linked_party, source_id, source_table')
+            .eq('category', 'rent_disbursement')
+            .eq('ledger_scope', 'platform')
+            .eq('direction', 'cash_out')
+            .neq('classification', 'admin_correction')
             .gte('created_at', sinceIso)
             .order('created_at', { ascending: false })
             .range(from, to),
@@ -265,6 +280,23 @@ export function useTenantPipelineHubData(historyDays = 400) {
         rent_request_id: p.rent_request_id ?? null,
         mobile_money_provider: p.mobile_money_provider ?? null,
       }));
+
+      // Ledger-recorded landlord disbursements, mapped onto the same shape.
+      const requestById = new Map(requests.map((r) => [r.id, r]));
+      rawLedgerPayouts.forEach((g: any) => {
+        const req = g.source_table === 'rent_requests' && g.source_id ? requestById.get(g.source_id) : undefined;
+        payouts.push({
+          id: `gl-${g.id}`,
+          amount: num(g.amount),
+          created_at: g.created_at,
+          status: 'ledger_posted',
+          landlord_id: req?.landlord_id ?? null,
+          landlord_name: req?.landlord_name || (typeof g.description === 'string' ? (g.description.match(/landlord ([^.]+)\./i)?.[1] ?? null) : null),
+          tenant_id: req?.tenant_id ?? null,
+          rent_request_id: req?.id ?? (g.source_table === 'rent_requests' ? g.source_id : null),
+          mobile_money_provider: null,
+        });
+      });
 
       return { requests, collections, payouts };
     },

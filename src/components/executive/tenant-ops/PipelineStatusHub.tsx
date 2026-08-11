@@ -7,7 +7,7 @@ import {
 import {
   Users, UserPlus, Clock, CheckCircle2, XCircle, Banknote, FileCheck, AlertTriangle,
   TrendingUp, TrendingDown, Wallet, Landmark, Search, X, CalendarIcon, Download, FileText,
-  ArrowUpDown, ChevronLeft, ChevronRight, MapPin, RefreshCw,
+  ArrowUpDown, ChevronLeft, ChevronRight, MapPin, RefreshCw, Printer, History, Loader2,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,7 +23,11 @@ import { toast } from 'sonner';
 import { KPICard } from '../KPICard';
 import { downloadCsv } from '@/lib/csvExport';
 import { downloadXlsx } from '@/lib/xlsxExport';
-import { generatePipelineHubReportPdf, downloadPipelineReportBlob, PipelineReportSection } from '@/lib/pipelineHubReportPdf';
+import {
+  generatePipelineHubReportPdf, downloadPipelineReportBlob, printPipelineReportBlob, PipelineReportSection,
+} from '@/lib/pipelineHubReportPdf';
+import { useAuth } from '@/hooks/useAuth';
+import { useRentRequestLifecycle } from '@/hooks/useRentRequestLifecycle';
 import {
   useTenantPipelineHubData, PIPELINE_STATUS_GROUPS, STATUS_LABELS, PipelineRequestRow,
 } from '@/hooks/useTenantPipelineHubData';
@@ -45,13 +49,22 @@ const shortUgx = (n: number) => {
   return String(v);
 };
 
-type DateBasis = 'created_at' | 'approved_at' | 'funded_at' | 'rejected_at';
+type DateBasis = 'created_at' | 'approved_at' | 'funded_at' | 'disbursed_at' | 'rejected_at';
 
 const DATE_BASIS_LABEL: Record<DateBasis, string> = {
   created_at: 'Date applied',
   approved_at: 'Date approved',
   funded_at: 'Date funded',
+  disbursed_at: 'Date disbursed',
   rejected_at: 'Date rejected',
+};
+
+/** Lifecycle flags that exist as timestamps rather than statuses. */
+type LifecycleFlag = 'all' | 'returned' | 'resubmitted';
+const FLAG_LABEL: Record<LifecycleFlag, string> = {
+  all: 'Any history',
+  returned: 'Returned for correction',
+  resubmitted: 'Resubmitted by agent',
 };
 
 const PRESETS: { key: string; label: string; make: () => { from: Date; to: Date } }[] = [
@@ -81,6 +94,7 @@ interface Props {
 
 export function PipelineStatusHub({ onOpenTenant }: Props) {
   const { data, isLoading, isFetching, refetch, error } = useTenantPipelineHubData();
+  const { user, role } = useAuth();
 
   const [presetKey, setPresetKey] = useState('30d');
   const [range, setRange] = useState<{ from: Date; to: Date }>(() => PRESETS[2].make());
@@ -90,6 +104,7 @@ export function PipelineStatusHub({ onOpenTenant }: Props) {
   const [district, setDistrict] = useState('all');
   const [agent, setAgent] = useState('all');
   const [amountBand, setAmountBand] = useState('all');
+  const [flag, setFlag] = useState<LifecycleFlag>('all');
   const [sortKey, setSortKey] = useState<'date' | 'tenant' | 'amount' | 'outstanding' | 'status'>('date');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [page, setPage] = useState(0);
@@ -138,6 +153,8 @@ export function PipelineStatusHub({ onOpenTenant }: Props) {
     if (statusGroup.statuses.length) rows = rows.filter((r) => statusGroup.statuses.includes(r.status));
     if (district !== 'all') rows = rows.filter((r) => r.district === district);
     if (agent !== 'all') rows = rows.filter((r) => r.agent_id === agent);
+    if (flag === 'returned') rows = rows.filter((r) => !!r.returned_at);
+    if (flag === 'resubmitted') rows = rows.filter((r) => !!r.resubmitted_at);
     if (amountBand !== 'all') {
       rows = rows.filter((r) => {
         if (amountBand === 'lt300') return r.rent_amount < 300_000;
@@ -163,7 +180,31 @@ export function PipelineStatusHub({ onOpenTenant }: Props) {
         }
       }
     });
-  }, [requests, dateBasis, range, statusGroup, district, agent, amountBand, search, sortKey, sortDir]);
+  }, [requests, dateBasis, range, statusGroup, district, agent, flag, amountBand, search, sortKey, sortDir]);
+
+  /**
+   * Chip counts must obey the SAME date range and non-status filters as the
+   * table, otherwise a chip can advertise a number the table never shows.
+   */
+  const chipBase = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    let rows = requests.filter((r) => inRange(r[dateBasis], range.from, range.to));
+    if (district !== 'all') rows = rows.filter((r) => r.district === district);
+    if (agent !== 'all') rows = rows.filter((r) => r.agent_id === agent);
+    if (flag === 'returned') rows = rows.filter((r) => !!r.returned_at);
+    if (flag === 'resubmitted') rows = rows.filter((r) => !!r.resubmitted_at);
+    if (amountBand !== 'all') {
+      rows = rows.filter((r) => {
+        if (amountBand === 'lt300') return r.rent_amount < 300_000;
+        if (amountBand === '300to1m') return r.rent_amount >= 300_000 && r.rent_amount < 1_000_000;
+        if (amountBand === 'gte1m') return r.rent_amount >= 1_000_000;
+        if (amountBand === 'outstanding') return r.outstanding > 0;
+        return true;
+      });
+    }
+    if (q) rows = rows.filter((r) => r.search_text.includes(q));
+    return rows;
+  }, [requests, dateBasis, range, district, agent, flag, amountBand, search]);
 
   const pageRows = filtered.slice(page * PER_PAGE, page * PER_PAGE + PER_PAGE);
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
@@ -376,10 +417,10 @@ export function PipelineStatusHub({ onOpenTenant }: Props) {
   }, [filtered]);
 
   const resetFilters = () => {
-    setSearch(''); setDistrict('all'); setAgent('all'); setAmountBand('all'); setStatusKey('all'); setPage(0);
+    setSearch(''); setDistrict('all'); setAgent('all'); setAmountBand('all'); setStatusKey('all'); setFlag('all'); setPage(0);
   };
 
-  const activeFilterCount = [search.trim() ? 1 : 0, district !== 'all' ? 1 : 0, agent !== 'all' ? 1 : 0, amountBand !== 'all' ? 1 : 0, statusKey !== 'all' ? 1 : 0]
+  const activeFilterCount = [search.trim() ? 1 : 0, district !== 'all' ? 1 : 0, agent !== 'all' ? 1 : 0, amountBand !== 'all' ? 1 : 0, statusKey !== 'all' ? 1 : 0, flag !== 'all' ? 1 : 0]
     .reduce((a, b) => a + b, 0);
 
   // ---------------------------------------------------------------- exports
@@ -389,7 +430,27 @@ export function PipelineStatusHub({ onOpenTenant }: Props) {
     { label: 'District', value: district === 'all' ? 'All districts' : district },
     { label: 'Agent', value: agent === 'all' ? 'All agents' : (agents.find(([id]) => id === agent)?.[1] ?? agent) },
     { label: 'Amount', value: amountBand === 'all' ? 'Any' : amountBand === 'outstanding' ? 'With outstanding' : amountBand },
+    { label: 'History', value: FLAG_LABEL[flag] },
     { label: 'Search', value: search.trim() || '—' },
+  ];
+
+  const actorLabel = user?.email || 'Signed-in operator';
+  const reportAudit = (exportFormat: string) => ({
+    generatedBy: actorLabel,
+    role: role || null,
+    exportFormat,
+    records: filtered.length,
+    dateBasis: DATE_BASIS_LABEL[dateBasis],
+    sources: 'rent_requests (lifecycle + status), agent_collections (tenant receipts), agent_landlord_payouts + general_ledger rent_disbursement legs (landlord payments), audit_logs (lifecycle history)',
+  });
+
+  /** Audit header rows prepended to CSV / Excel so every file self-identifies. */
+  const auditPreamble = (exportFormat: string): (string | number)[][] => [
+    ['Report', 'Tenant Pipeline Report', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+    ['Generated by', actorLabel, 'Role', role || '—', 'Generated at', format(new Date(), 'dd MMM yyyy HH:mm:ss'), 'Format', exportFormat, '', '', '', '', '', '', ''],
+    ['Period', `${format(range.from, 'dd MMM yyyy')} – ${format(range.to, 'dd MMM yyyy')}`, 'Measured on', DATE_BASIS_LABEL[dateBasis], 'Records', filtered.length, '', '', '', '', '', '', '', '', ''],
+    ['Filters', filterSummary.map((f) => `${f.label}: ${f.value}`).join(' | '), '', '', '', '', '', '', '', '', '', '', '', '', ''],
+    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
   ];
 
   const tableHeaders = [
@@ -493,14 +554,13 @@ export function PipelineStatusHub({ onOpenTenant }: Props) {
     return sections;
   };
 
-  const handlePdf = () => {
-    setExporting(true);
-    try {
-      const blob = generatePipelineHubReportPdf({
+  const buildPdf = (exportFormat: string) =>
+    generatePipelineHubReportPdf({
         title: 'Tenant Pipeline Report',
         subtitle: 'Operational and financial view of the rent-request pipeline. Figures reflect the filters and date range applied on screen.',
         range,
         filters: filterSummary,
+        audit: reportAudit(exportFormat),
         kpis: [
           { label: 'Applications received', value: String(cur.applied), hint: `Prev ${prev.applied}` },
           { label: 'New tenants added', value: String(cur.newTenants), hint: 'Approved in period' },
@@ -514,7 +574,12 @@ export function PipelineStatusHub({ onOpenTenant }: Props) {
           { label: 'Records in view', value: String(filtered.length), hint: statusGroup.label },
         ],
         sections: reportSections(),
-      });
+    });
+
+  const handlePdf = () => {
+    setExporting(true);
+    try {
+      const blob = buildPdf('PDF');
       downloadPipelineReportBlob(blob, `tenant-pipeline-${reportType}-${format(range.from, 'yyyyMMdd')}-${format(range.to, 'yyyyMMdd')}.pdf`);
       toast.success('Report generated');
     } catch (e: any) {
@@ -524,14 +589,36 @@ export function PipelineStatusHub({ onOpenTenant }: Props) {
     }
   };
 
+  const handlePrint = () => {
+    setExporting(true);
+    try {
+      const opened = printPipelineReportBlob(buildPdf('Print'));
+      if (opened) toast.success('Report opened — use your browser print dialog');
+      else toast.error('Your browser blocked the print window. Allow pop-ups and try again.');
+    } catch (e: any) {
+      toast.error(e?.message || 'Could not prepare the printable report');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const handleCsv = () => {
-    downloadCsv(`tenant-pipeline-${format(range.from, 'yyyyMMdd')}-${format(range.to, 'yyyyMMdd')}.csv`, tableHeaders, tableRows());
+    downloadCsv(
+      `tenant-pipeline-${format(range.from, 'yyyyMMdd')}-${format(range.to, 'yyyyMMdd')}.csv`,
+      tableHeaders,
+      [...auditPreamble('CSV'), ...tableRows()],
+    );
     toast.success('CSV exported');
   };
   const handleXlsx = async () => {
     setExporting(true);
     try {
-      await downloadXlsx(`tenant-pipeline-${format(range.from, 'yyyyMMdd')}-${format(range.to, 'yyyyMMdd')}.xlsx`, tableHeaders, tableRows(), 'Pipeline');
+      await downloadXlsx(
+        `tenant-pipeline-${format(range.from, 'yyyyMMdd')}-${format(range.to, 'yyyyMMdd')}.xlsx`,
+        tableHeaders,
+        [...auditPreamble('Excel'), ...tableRows()],
+        'Pipeline',
+      );
       toast.success('Excel exported');
     } catch (e: any) {
       toast.error(e?.message || 'Excel export failed');
@@ -646,8 +733,8 @@ export function PipelineStatusHub({ onOpenTenant }: Props) {
             <div className="flex items-center gap-1.5 px-1 min-w-max">
               {PIPELINE_STATUS_GROUPS.map((g) => {
                 const count = g.statuses.length
-                  ? requests.filter((r) => g.statuses.includes(r.status)).length
-                  : requests.length;
+                  ? chipBase.filter((r) => g.statuses.includes(r.status)).length
+                  : chipBase.length;
                 return (
                   <button
                     key={g.key}
@@ -665,6 +752,9 @@ export function PipelineStatusHub({ onOpenTenant }: Props) {
               })}
             </div>
           </div>
+          <p className="text-[10px] text-muted-foreground">
+            Chip counts follow the selected period and filters, so they always match the table and every export.
+          </p>
         </CardContent>
       </Card>
 
@@ -732,6 +822,14 @@ export function PipelineStatusHub({ onOpenTenant }: Props) {
                   <SelectItem value="300to1m" className="text-xs">Rent 300K – 1M</SelectItem>
                   <SelectItem value="gte1m" className="text-xs">Rent 1M+</SelectItem>
                   <SelectItem value="outstanding" className="text-xs">Has outstanding</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={flag} onValueChange={(v) => { setFlag(v as LifecycleFlag); setPage(0); }}>
+                <SelectTrigger className="h-9 sm:w-[170px] text-xs"><SelectValue placeholder="History" /></SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(FLAG_LABEL) as LifecycleFlag[]).map((k) => (
+                    <SelectItem key={k} value={k} className="text-xs">{FLAG_LABEL[k]}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               {activeFilterCount > 0 && (
@@ -1116,7 +1214,18 @@ export function PipelineStatusHub({ onOpenTenant }: Props) {
                     <Button size="sm" variant="outline" className="h-9 gap-1.5 text-xs" onClick={handleXlsx} disabled={exporting}>
                       <Download className="h-3.5 w-3.5" /> Excel
                     </Button>
+                    <Button size="sm" variant="outline" className="h-9 gap-1.5 text-xs" onClick={handlePrint} disabled={exporting}>
+                      <Printer className="h-3.5 w-3.5" /> Print
+                    </Button>
                   </div>
+                </div>
+                <div className="rounded-lg border border-border bg-card p-3 text-[11px] space-y-0.5">
+                  <p className="font-semibold text-foreground">Audit trail stamped on every output</p>
+                  <p className="text-muted-foreground">
+                    Generated by {actorLabel}{role ? ` (${role})` : ''} · {format(new Date(), 'dd MMM yyyy, HH:mm')} ·
+                    {' '}period {format(range.from, 'dd MMM yyyy')} – {format(range.to, 'dd MMM yyyy')} measured on {DATE_BASIS_LABEL[dateBasis].toLowerCase()} ·
+                    {' '}{filtered.length.toLocaleString()} records · filters listed in full on the report header.
+                  </p>
                 </div>
                 <div className="rounded-lg border border-border bg-muted/30 p-3 text-[11px] text-muted-foreground space-y-1">
                   <p><strong className="text-foreground">In this report:</strong> {statusGroup.label} · {filtered.length.toLocaleString()} requests · {DATE_BASIS_LABEL[dateBasis].toLowerCase()} between {format(range.from, 'dd MMM yyyy')} and {format(range.to, 'dd MMM yyyy')}.</p>
@@ -1184,6 +1293,7 @@ export function PipelineStatusHub({ onOpenTenant }: Props) {
                   {detail.rejected_at_stage && <p className="text-[10px] text-muted-foreground mt-1">Stage: {detail.rejected_at_stage}</p>}
                 </div>
               )}
+              <LifecycleTimeline request={detail} />
               {onOpenTenant && detail.tenant_id && (
                 <Button
                   size="sm"
@@ -1202,3 +1312,55 @@ export function PipelineStatusHub({ onOpenTenant }: Props) {
 }
 
 export default PipelineStatusHub;
+
+/**
+ * Read-only lifecycle timeline for one rent request: the request's own stage
+ * timestamps merged with the existing audit log and service-centre events.
+ */
+function LifecycleTimeline({ request }: { request: PipelineRequestRow }) {
+  const { data: events, isLoading } = useRentRequestLifecycle(request.id);
+
+  const stamps: { at: string; label: string }[] = [
+    ['Created / applied', request.created_at],
+    ['Returned for correction', request.returned_at],
+    ['Resubmitted by agent', request.resubmitted_at],
+    ['Approved', request.approved_at],
+    ['Funded', request.funded_at],
+    ['Disbursed', request.disbursed_at],
+    ['Rejected', request.rejected_at],
+  ]
+    .filter(([, at]) => !!at)
+    .map(([label, at]) => ({ label: label as string, at: at as string }));
+
+  const merged = [
+    ...stamps.map((s) => ({ id: `stamp-${s.label}`, at: s.at, label: s.label, actor: 'Record timestamp', detail: null as string | null })),
+    ...(events ?? []).map((e) => ({ id: e.id, at: e.at, label: e.label, actor: e.actor, detail: e.detail ?? null })),
+  ].sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+
+  return (
+    <div className="rounded-lg border border-border p-3">
+      <p className="text-[11px] font-semibold flex items-center gap-1.5">
+        <History className="h-3.5 w-3.5 text-muted-foreground" />
+        Lifecycle history
+        {isLoading && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+      </p>
+      <div className="mt-2 space-y-2">
+        {merged.map((e) => (
+          <div key={e.id} className="flex gap-2">
+            <div className="mt-1 h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
+            <div className="min-w-0">
+              <p className="text-[11px] font-medium break-words">{e.label}</p>
+              <p className="text-[10px] text-muted-foreground">
+                {format(new Date(e.at), 'dd MMM yyyy, HH:mm')} · {e.actor}
+              </p>
+              {e.detail && <p className="text-[10px] text-muted-foreground break-words mt-0.5">“{e.detail}”</p>}
+            </div>
+          </div>
+        ))}
+        {!merged.length && !isLoading && (
+          <p className="text-[11px] text-muted-foreground">No recorded history for this request yet.</p>
+        )}
+      </div>
+    </div>
+  );
+}
