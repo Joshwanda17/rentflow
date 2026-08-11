@@ -214,7 +214,7 @@ export default function HRRolesPanel() {
                 variant="ghost"
                 size="sm"
                 className="h-7 gap-1 px-2 text-[11px] text-destructive"
-                onClick={() => setDeactivateRole(role)}
+                onClick={() => { setStatusReason(''); setDeactivateRole(role); }}
               >
                 <Ban className="h-3 w-3" /> Deactivate
               </Button>
@@ -223,15 +223,7 @@ export default function HRRolesPanel() {
                 variant="ghost"
                 size="sm"
                 className="h-7 gap-1 px-2 text-[11px] text-success"
-                onClick={() =>
-                  setPositionActive.mutate(
-                    { id: role.id, active: true },
-                    {
-                      onSuccess: () => toast.success('Role reactivated'),
-                      onError: (err: any) => toast.error(err.message),
-                    },
-                  )
-                }
+                onClick={() => { setStatusReason(''); setReactivateRole(role); }}
               >
                 <RotateCcw className="h-3 w-3" /> Reactivate
               </Button>
