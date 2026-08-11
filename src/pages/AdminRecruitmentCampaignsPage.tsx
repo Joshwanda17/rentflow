@@ -420,6 +420,10 @@ export default function AdminRecruitmentCampaignsPage() {
 }
 
 function Tile({ label, value }: { label: string; value?: number }) {
+  return TileBody({ label, value });
+}
+
+function TileBody({ label, value }: { label: string; value?: number }) {
   return (
     <div className="rounded-lg border bg-card p-3">
       <div className="text-xs text-muted-foreground">{label}</div>
