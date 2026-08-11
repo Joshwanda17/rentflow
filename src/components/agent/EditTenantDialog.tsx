@@ -10,6 +10,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useIdempotentSubmit } from '@/hooks/useIdempotentSubmit';
+import UgLocationPicker from '@/components/location/UgLocationPicker';
+import { resolveUgVillage, resolveUgVillageByNames, type UgLocationSelection } from '@/hooks/useUgLocations';
 
 interface EditTenantDialogProps {
   open: boolean;
@@ -97,6 +99,11 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
   const [avatarUrl, setAvatarUrl] = useState('');
   const [residenceLat, setResidenceLat] = useState<number | null>(null);
   const [residenceLng, setResidenceLng] = useState<number | null>(null);
+  // Official Uganda village pick (shared picker). Replaces the old free-text
+  // region / district / sub-county / parish / village inputs.
+  const [ugVillageId, setUgVillageId] = useState<number | null>(null);
+  const [ugSelection, setUgSelection] = useState<UgLocationSelection | null>(null);
+  const [ugResolving, setUgResolving] = useState(false);
   const [pinningGps, setPinningGps] = useState(false);
   const [extendedLoading, setExtendedLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -137,7 +144,7 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
         try {
           const res = await supabase
             .from('profiles')
-            .select('city, district, village, town, occupation, monthly_rent, region, sub_county, parish, landmark, country, mobile_money_number, mobile_money_provider, has_smartphone, ops_note, avatar_url, residence_lat, residence_lng')
+            .select('city, district, village, town, occupation, monthly_rent, region, sub_county, parish, landmark, country, mobile_money_number, mobile_money_provider, has_smartphone, ops_note, avatar_url, residence_lat, residence_lng, ug_village_id')
             .eq('id', tenant.id)
             .maybeSingle();
           data = res.data ?? null;
@@ -169,6 +176,25 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
         setAvatarUrl(data?.avatar_url || '');
         setResidenceLat(data?.residence_lat ?? null);
         setResidenceLng(data?.residence_lng ?? null);
+        const savedVillageId = (data as any)?.ug_village_id ?? null;
+        setUgVillageId(savedVillageId);
+        setUgSelection(null);
+        // Pre-fill the picker: stored village id first, then a best-effort
+        // upgrade of the legacy typed names. If neither resolves we keep the
+        // old text as read-only context and require a fresh pick.
+        setUgResolving(true);
+        (async () => {
+          try {
+            const sel = savedVillageId
+              ? await resolveUgVillage(savedVillageId)
+              : await resolveUgVillageByNames(data?.village, data?.district);
+            if (sel) setUgSelection(sel);
+          } catch {
+            /* keep the stored names as read-only context */
+          } finally {
+            setUgResolving(false);
+          }
+        })();
         setOriginal({
           full_name: tenant.full_name,
           phone: tenant.phone,
@@ -192,6 +218,7 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
           avatar_url: data?.avatar_url || '',
           residence_lat: data?.residence_lat ?? null,
           residence_lng: data?.residence_lng ?? null,
+          ug_village_id: savedVillageId,
         });
         setExtendedLoading(false);
       })().catch(() => setExtendedLoading(false));
