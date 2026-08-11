@@ -412,14 +412,18 @@ function buildPdf(r: Report, prettyDate: string, logo: Uint8Array | null): Uint8
 
   // ── Section 7: withdrawals ──
   const wd = r.withdrawals || {};
-  heading("Completed withdrawals", "Partner cash-outs settled on the report day.");
+  heading("Partner & proxy partner withdrawals", "All approved and completed withdrawals linked to partners.");
   miniKpis([
-    { label: "Completed", value: num(wd.completed_today_count), accent: VIOLET },
-    { label: "Value", value: compactUGX(wd.completed_today_amount), accent: VIOLET },
+    { label: "Completed today", value: num(wd.completed_today_count), accent: VIOLET },
+    { label: "Value today", value: compactUGX(wd.completed_today_amount), accent: VIOLET },
+    { label: "Partner-linked", value: num(wd.partner_linked_count), accent: BLUE },
+    { label: "Partner-linked value", value: compactUGX(wd.partner_linked_amount), accent: BLUE },
   ]);
   table(
-    ["Partner", "Method", "Amount"],
-    (wd.rows || []).slice(0, 40).map((x: any) => [ascii(x.name), ascii(x.method), fmtUGX(x.amount)]),
+    ["Partner", "Agent", "Method", "Amount", "Status"],
+    (wd.rows || []).slice(0, 60).map((x: any) => [
+      ascii(x.name), ascii(x.agent_name), ascii(x.method), fmtUGX(x.amount), ascii(String(x.status || "").replace(/_/g, " ")),
+    ]),
   );
 
   // Footers
