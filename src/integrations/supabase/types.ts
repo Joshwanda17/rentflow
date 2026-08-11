@@ -33914,6 +33914,7 @@ export type Database = {
         Returns: {
           amount: number
           attempts: number
+          cash_location: string
           code: string
           created_at: string
           deposit_purpose: string

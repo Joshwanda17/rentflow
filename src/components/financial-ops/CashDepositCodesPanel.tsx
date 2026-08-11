@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { KeyRound, RefreshCw, Loader2, Check, Clock, Radio, Smartphone, Search, Inbox, X, ChevronDown, ArrowLeft, BarChart3, CheckCircle2, Menu } from 'lucide-react';
+import { KeyRound, RefreshCw, Loader2, Check, Clock, Radio, Smartphone, Search, Inbox, X, ChevronDown, ArrowLeft, BarChart3, CheckCircle2, Menu, Building2, Banknote } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { StartCashDepositDialog } from './StartCashDepositDialog';
 
@@ -19,6 +19,7 @@ interface CashCodeRow {
   attempts: number | null;
   max_attempts: number | null;
   deposit_purpose: string | null;
+  cash_location: 'cash_at_hand' | 'bank' | string | null;
   expires_at: string | null;
   created_at: string;
 }
@@ -28,6 +29,12 @@ const fmtUgx = (n: number | null) =>
 
 const purposeLabel = (p: string | null) =>
   p === 'operational_float' ? 'Operational Float' : p === 'other' ? 'Other' : 'Personal Deposit';
+
+const cashLocationLabel = (loc: string | null) =>
+  loc === 'bank' ? 'Banked' : 'Cash at hand';
+
+const cashLocationIcon = (loc: string | null) =>
+  loc === 'bank' ? 'Building2' : 'Banknote';
 
 // Muted tonal avatars, same calm palette as the Gmail-style email inbox.
 const AVATAR_TONES = [
@@ -75,6 +82,16 @@ function StatusBadge({ status }: { status: string }) {
   if (status === 'verified')
     return <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30">Verified</Badge>;
   return <Badge variant="outline" className="text-muted-foreground capitalize">{status.replace(/_/g, ' ')}</Badge>;
+}
+
+function CashLocationBadge({ location }: { location: string | null }) {
+  const isBank = location === 'bank';
+  return (
+    <Badge variant="outline" className={`text-[10px] gap-1 ${isBank ? 'border-sky-500/30 text-sky-600 bg-sky-500/10' : 'border-emerald-500/30 text-emerald-600 bg-emerald-500/10'}`}>
+      {isBank ? <Building2 className="h-3 w-3" /> : <Banknote className="h-3 w-3" />}
+      {cashLocationLabel(location)}
+    </Badge>
+  );
 }
 
 /** Live mm:ss countdown to expiry; color shifts from emerald → amber → rose as time runs low. */
@@ -290,6 +307,7 @@ export function CashDepositCodesPanel({
   const [startOpen, setStartOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [tab, setTab] = useState<'all' | 'awaiting' | 'verified'>('all');
+  const [cashLocation, setCashLocation] = useState<'all' | 'cash_at_hand' | 'bank'>('all');
   const [openId, setOpenId] = useState<string | null>(null);
   const [range, setRange] = useState<'today' | '7d' | '30d' | 'all'>('today');
   const [view, setView] = useState<'inbox' | 'report'>('inbox');
@@ -303,9 +321,11 @@ export function CashDepositCodesPanel({
     return 0;
   })();
 
-  const rangeRows = rows.filter((r) =>
-    !r.created_at ? range === 'all' : new Date(r.created_at).getTime() >= rangeStart,
-  );
+  const rangeRows = rows.filter((r) => {
+    const inRange = !r.created_at ? range === 'all' : new Date(r.created_at).getTime() >= rangeStart;
+    const inLocation = cashLocation === 'all' || r.cash_location === cashLocation;
+    return inRange && inLocation;
+  });
 
   const activeRows = rangeRows.filter(
     (r) => r.status === 'awaiting_code' && r.expires_at && new Date(r.expires_at).getTime() > Date.now(),
@@ -330,7 +350,7 @@ export function CashDepositCodesPanel({
     .filter((r) =>
       !q
         ? true
-        : [r.depositor_name, r.depositor_phone, purposeLabel(r.deposit_purpose), String(r.amount ?? '')]
+        : [r.depositor_name, r.depositor_phone, purposeLabel(r.deposit_purpose), cashLocationLabel(r.cash_location), String(r.amount ?? '')]
             .join(' ')
             .toLowerCase()
             .includes(q),
@@ -580,6 +600,25 @@ export function CashDepositCodesPanel({
               </button>
             ))}
           </div>
+          <div className="flex items-center gap-1 overflow-x-auto">
+            {[
+              { key: 'all' as const, label: 'All cash' },
+              { key: 'cash_at_hand' as const, label: 'Cash at hand' },
+              { key: 'bank' as const, label: 'Cash banked' },
+            ].map((loc) => (
+              <button
+                key={loc.key}
+                onClick={() => { setCashLocation(loc.key); setOpenId(null); }}
+                className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] border transition-colors ${
+                  cashLocation === loc.key
+                    ? 'bg-primary/10 border-primary/30 text-primary font-medium'
+                    : 'bg-background border-border text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {loc.label}
+              </button>
+            ))}
+          </div>
           <span className="text-muted-foreground">
             Verified cash <span className="font-semibold text-emerald-600">{fmtUgx(totalVerified)}</span>
           </span>
@@ -659,6 +698,7 @@ export function CashDepositCodesPanel({
               <div className="flex flex-wrap items-center gap-2">
                 <StatusBadge status={openRow.status} />
                 <Badge variant="outline" className="text-xs">{purposeLabel(openRow.deposit_purpose)}</Badge>
+                <CashLocationBadge location={openRow.cash_location} />
                 <Countdown expiresAt={openRow.expires_at} inline />
               </div>
               <p className="text-muted-foreground text-xs leading-relaxed">
@@ -727,11 +767,13 @@ export function CashDepositCodesPanel({
                       </span>
                       <span className="hidden sm:inline text-xs text-muted-foreground truncate">
                         — {purposeLabel(r.deposit_purpose)}
+                        {r.cash_location ? ` · ${cashLocationLabel(r.cash_location)}` : ''}
                         {r.depositor_phone ? ` · ${r.depositor_phone}` : ''}
                       </span>
                     </div>
 
                     <div className="hidden md:flex items-center gap-2 shrink-0">
+                      <CashLocationBadge location={r.cash_location} />
                       <StatusBadge status={r.status} />
                       <Countdown expiresAt={r.expires_at} inline />
                     </div>
