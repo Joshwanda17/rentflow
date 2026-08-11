@@ -522,6 +522,8 @@ function ReviewSubmissionDialog({
   const [sigDataUrl, setSigDataUrl] = useState<string | undefined>();
   // Stamp / execution date shown on the Welile stamp and DATE field.
   const [stampDate, setStampDate] = useState('');
+  // Monthly return percentage printed in the contract returns clause.
+  const [returnPct, setReturnPct] = useState('');
 
   const { data: submission, isLoading } = useQuery({
     queryKey: ['invited-portfolio-submission', row?.id, row?.investor_id],
@@ -575,6 +577,14 @@ function ReviewSubmissionDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [row?.id, defaults?.rep_name, defaults?.rep_position, defaults?.rep_contact]);
 
+  // Seed the contract return percentage from the portfolio terms.
+  useEffect(() => {
+    if (!row) return;
+    const pct = Number(row.roi_percentage);
+    setReturnPct(pct > 0 ? String(pct) : '15');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [row?.id, row?.roi_percentage]);
+
   // Seed the stamp date from the stored agreement date, else today.
   useEffect(() => {
     if (!row) return;
@@ -614,6 +624,7 @@ function ReviewSubmissionDialog({
     // Portfolio amount is authoritative so the preview/PDF always matches the
     // "Portfolio terms → Amount" shown in the details section.
     partnershipAmount: Number(row.investment_amount) || Number(agreement.partnership_amount) || 0,
+    returnPercentage: Number(returnPct) > 0 ? Number(returnPct) : 15,
     payoutMode: agreement.payout_mode === 'momo' ? 'momo' : 'bank',
     bankName: agreement.bank_name || '',
     bankAccountName: agreement.bank_account_name || '',
@@ -672,6 +683,7 @@ function ReviewSubmissionDialog({
     ...(!repPosition.trim() ? ['Missing Welile representative position.'] : []),
     ...(!repContact.trim() ? ['Missing Welile representative contact.'] : []),
     ...(!stampDate ? ['Missing stamp date.'] : []),
+    ...(!(Number(returnPct) > 0) ? ['Enter a valid monthly return percentage for the contract.'] : []),
     ...(!(sigDataUrl || defaultSigUrl) ? ['Missing Welile representative signature.'] : []),
   ];
   const approvalBlocked = approvalBlockers.length > 0;
