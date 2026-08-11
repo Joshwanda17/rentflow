@@ -21569,6 +21569,7 @@ export type Database = {
           tenant_status: string
           territory: string | null
           town: string | null
+          ug_village_id: number | null
           updated_at: string
           verification_notify_email: boolean
           verification_notify_sms: boolean
@@ -21651,6 +21652,7 @@ export type Database = {
           tenant_status?: string
           territory?: string | null
           town?: string | null
+          ug_village_id?: number | null
           updated_at?: string
           verification_notify_email?: boolean
           verification_notify_sms?: boolean
@@ -21733,6 +21735,7 @@ export type Database = {
           tenant_status?: string
           territory?: string | null
           town?: string | null
+          ug_village_id?: number | null
           updated_at?: string
           verification_notify_email?: boolean
           verification_notify_sms?: boolean
