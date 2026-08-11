@@ -576,8 +576,8 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
             )}
 
             {/* Select all + agent filter */}
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <div className="flex items-center justify-between gap-2 flex-wrap rounded-lg border border-border/60 bg-muted/30 px-3 py-2">
+              <label className="flex items-center gap-2 text-sm cursor-pointer font-medium">
                 <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
                 Select all ({visibleItems.length}
                 {agentFilter !== 'all' && items.length !== visibleItems.length
@@ -593,36 +593,6 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                 )}
               </div>
             </div>
-
-            {/* Revenue summary for selection or location scope */}
-            {(selected.size > 0 || locationScopeIds?.length > 0) && (
-              <div className="rounded-lg border-2 border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20 p-3 space-y-2">
-                <p className="text-xs font-bold flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
-                  <TrendingUp className="h-3.5 w-3.5" />
-                  Revenue from this disbursement
-                  {locationScopeIds?.length > 0 && (
-                    <span className="ml-2 text-[10px] font-normal text-emerald-600/80">
-                      · Scoped by location
-                    </span>
-                  )}
-                </p>
-                <div className="grid grid-cols-3 gap-2 text-center">
-                  <div>
-                    <p className="text-[10px] text-muted-foreground">Rent Out</p>
-                    <p className="font-bold text-sm text-orange-600">{fmt(locationScopeIds?.length ? queueTotalRent : totalRent)}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-muted-foreground">We Earn (Fees)</p>
-                    <p className="font-bold text-sm text-emerald-600">{fmt(locationScopeIds?.length ? queueTotalRevenue : totalRevenue)}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-muted-foreground">Total Repayment</p>
-                    <p className="font-bold text-sm text-primary">{fmt(locationScopeIds?.length ? queueTotalRepaymentExpected : totalRepaymentExpected)}</p>
-                  </div>
-                </div>
-                <TreasuryImpactBanner payoutAmount={locationScopeIds?.length ? queueTotalRent : totalRent} />
-              </div>
-            )}
 
             {/* Helper hint */}
             <p className="text-[11px] text-muted-foreground">
@@ -756,15 +726,16 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
 
             {/* Batch actions */}
             {selected.size > 0 && (
-              <div className="flex items-center gap-2 pt-2 border-t">
+              <div className="sticky bottom-0 z-10 flex flex-col sm:flex-row sm:items-center gap-2 pt-3 mt-1 border-t bg-card">
                 <Input
                   placeholder="Batch ref (e.g. MoMo-2024-01)"
                   value={batchRef}
                   onChange={e => setBatchRef(e.target.value)}
-                  className="h-8 text-sm flex-1"
+                  className="h-9 text-sm flex-1"
                 />
                 <Button
                   size="sm"
+                  className="h-9 w-full sm:w-auto"
                   onClick={() => batchDisburse.mutate()}
                   disabled={batchDisburse.isPending || !batchRef.trim()}
                 >
