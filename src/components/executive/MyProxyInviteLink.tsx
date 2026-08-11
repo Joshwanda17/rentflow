@@ -140,7 +140,15 @@ export default function MyProxyInviteLink() {
     );
   }
 
-  if (loading || !invite) return null;
+  if (loading) return null;
+
+  if (!invite) {
+    return (
+      <div className="rounded-md border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
+        No invite link yet. Refresh, or ask ops to enable proxy invites for your account.
+      </div>
+    );
+  }
 
   const link = `${window.location.origin}/pa/${invite.code}`;
 
