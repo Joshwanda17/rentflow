@@ -340,6 +340,7 @@ export default function AgentServiceCenter() {
         open={!!unlinkTarget}
         onOpenChange={(v) => { if (!v) { setUnlinkTarget(null); } }}
       />
+      <SubAgentInviteLinkDialog open={inviteOpen} onOpenChange={setInviteOpen} />
     </div>
   );
 }
