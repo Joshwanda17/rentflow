@@ -69,14 +69,14 @@ Deno.serve(async (req) => {
 
     const { data: portfolio, error: pErr } = await admin
       .from("investor_portfolios")
-      .select("id, investor_id, portfolio_code, investment_amount, roi_percentage, roi_mode, duration_months, status")
+      .select("id, investor_id, portfolio_code, investment_amount, roi_percentage, roi_mode, duration_months, status, created_at")
       .eq("id", portfolioId)
       .maybeSingle();
     if (pErr) return json({ error: `Portfolio lookup failed: ${pErr.message}` }, 500);
     if (!portfolio) return json({ error: "Portfolio not found." }, 404);
-    if (portfolio.status !== "awaiting_partner_details") {
+    if (portfolio.status !== "awaiting_partner_details" && portfolio.status !== "pending_ops_approval") {
       return json({
-        error: `This portfolio is at "${portfolio.status}" — invites can only be resent while it is awaiting partner details.`,
+        error: `This portfolio is at "${portfolio.status}" — it can only be resent while awaiting partner details or pending Ops approval.`,
       }, 400);
     }
 
