@@ -535,6 +535,13 @@ export function CashDepositCodesPanel({
           </div>
         </div>
 
+        {/* ── Gmail-style layout: side nav + content ──────────────────────── */}
+        <div className={`flex min-h-0 ${fullScreen ? 'flex-1' : ''}`}>
+          <aside className="hidden md:block w-44 shrink-0 border-r overflow-y-auto">{sideNav}</aside>
+          {navOpen && (
+            <aside className="md:hidden absolute z-20 mt-0 w-44 border-r bg-background shadow-lg">{sideNav}</aside>
+          )}
+          <div className="flex-1 min-w-0 flex flex-col min-h-0">
         {/* ── Gmail-style category tabs ───────────────────────────────────── */}
         <div className={`flex items-center gap-1 px-2 border-b overflow-x-auto ${fullScreen ? 'shrink-0' : ''}`}>
           {tabs.map((t) => (
@@ -586,7 +593,42 @@ export function CashDepositCodesPanel({
 
         {/* ── Reading pane or inbox list ──────────────────────────────────── */}
         <div className={fullScreen ? 'flex-1 min-h-0 overflow-y-auto overscroll-contain' : ''}>
-        {openRow ? (
+        {view === 'report' ? (
+          <div className="p-3 sm:p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <BarChart3 className="h-4 w-4 text-primary" />
+              <h4 className="text-sm font-semibold">Cashflow over time</h4>
+              <span className="ml-auto text-xs text-muted-foreground">{ranges.find((x) => x.key === range)?.label}</span>
+            </div>
+            <div className="h-[240px] rounded-lg border bg-card p-2">
+              {chartData.length ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData} barGap={2}>
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
+                    <XAxis dataKey="label" tick={{ fontSize: 10 }} />
+                    <YAxis tick={{ fontSize: 10 }} width={44} tickFormatter={(v: number) => (v >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : `${Math.round(v / 1000)}k`)} />
+                    <Tooltip formatter={(v: number) => fmtUgx(v)} contentStyle={{ fontSize: 11 }} />
+                    <Bar dataKey="verified" name="Verified" fill="hsl(var(--chart-2))" radius={[3, 3, 0, 0]} />
+                    <Bar dataKey="awaiting" name="Awaiting" fill="hsl(var(--chart-4))" radius={[3, 3, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full grid place-items-center text-xs text-muted-foreground">No cash deposits in this range</div>
+              )}
+            </div>
+            <div className="rounded-lg border divide-y">
+              {chartData.length === 0 && <div className="p-3 text-xs text-muted-foreground">Nothing to show.</div>}
+              {[...chartData].reverse().map((d) => (
+                <div key={d.label} className="flex items-center gap-3 px-3 py-2 text-xs">
+                  <span className="w-20 font-medium">{d.label}</span>
+                  <span className="text-emerald-600 font-semibold tabular-nums">{fmtUgx(d.verified)}</span>
+                  <span className="text-amber-600 tabular-nums">{fmtUgx(d.awaiting)} awaiting</span>
+                  <span className="ml-auto text-muted-foreground">{d.count} codes</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : openRow ? (
           <div className="p-4 space-y-4">
             <Button
               variant="ghost"
@@ -652,8 +694,14 @@ export function CashDepositCodesPanel({
               return (
                 <div key={r.verification_id}>
                   {showGroup && (
-                    <div className="px-3 py-1.5 bg-muted/40 text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
-                      {group}
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/40 text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                      <span>{group}</span>
+                      <span className="ml-auto normal-case tracking-normal">
+                        <span className="text-emerald-600 font-semibold">{fmtUgx(dayTotals.get(dayKeyOf(r.created_at))?.verified ?? 0)}</span>
+                        {' verified · '}
+                        <span className="text-amber-600 font-semibold">{fmtUgx(dayTotals.get(dayKeyOf(r.created_at))?.awaiting ?? 0)}</span>
+                        {' awaiting'}
+                      </span>
                     </div>
                   )}
                   <div
@@ -703,6 +751,8 @@ export function CashDepositCodesPanel({
             })}
           </div>
         )}
+        </div>
+          </div>
         </div>
       </div>
     </>
