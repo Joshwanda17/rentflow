@@ -118,7 +118,8 @@ export async function downloadRoiDisbursementPdf({ filename, periodLabel, report
   y += bandH + 26;
 
   const heading = (text: string) => {
-    ensure(46);
+    // keep the heading with at least the first rows of its table
+    ensure(130);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(12.5);
     doc.setTextColor(...PURPLE);
@@ -127,10 +128,10 @@ export async function downloadRoiDisbursementPdf({ filename, periodLabel, report
   };
 
   const paragraph = (text: string) => {
-    const lines = doc.splitTextToSize(text, usable) as string[];
-    ensure(lines.length * 12 + 8);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
+    const lines = doc.splitTextToSize(text, usable) as string[];
+    ensure(lines.length * 12 + 8);
     doc.setTextColor(...MUTED);
     doc.text(lines, M, y + 4);
     y += lines.length * 12 + 10;
@@ -178,7 +179,7 @@ export async function downloadRoiDisbursementPdf({ filename, periodLabel, report
     cash.map((r) => [r.n, r.portfolio_phone, r.partner, r.paid_to, ugx(r.principal), ugx(r.returns_paid), r.time_eat]),
     {
       align: { 0: 'left', 4: 'right', 5: 'right', 6: 'right' },
-      widths: { 0: 22, 1: 82, 3: 78, 4: 82, 5: 82, 6: 48 },
+      widths: { 0: 22, 1: 80, 3: 76, 4: 80, 5: 80, 6: 52 },
       foot: [[{ content: 'Total cash disbursed', colSpan: 5, styles: { halign: 'left' } } as any, { content: ugx(s.cash_total), styles: { halign: 'right' } } as any, '']],
     },
   );
