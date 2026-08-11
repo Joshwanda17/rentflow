@@ -4877,6 +4877,50 @@ export function EmailTransactionsPanel() {
                         transaction reference tied to the row. */}
                     {expandedRows.has(r.id) && (
                       <div className="mt-2 rounded-lg border border-border bg-muted/30 p-3 space-y-3 text-[11px]">
+                        {/* 0a) NEEDS ROUTING — the single loudest action in the
+                            opened email. When incoming money has not reached any
+                            wallet, Financial Ops gets a full-width CTA right at
+                            the top that opens the routing dialog where they can
+                            search ANY user by phone number and credit them. */}
+                        {r.direction === 'in' && Number(r.amount ?? 0) > 0 && !isCredited && !isRouted && (
+                          <div className="rounded-lg border-2 border-emerald-500/50 bg-emerald-500/10 p-3 space-y-2">
+                            <p className="text-[10px] uppercase tracking-wider font-bold text-emerald-800 dark:text-emerald-300 inline-flex items-center gap-1">
+                              <AlertCircle className="h-3.5 w-3.5" /> Needs routing
+                            </p>
+                            <p className="text-[11px] text-emerald-900/80 dark:text-emerald-100/80 leading-snug">
+                              <strong className="font-semibold">{fmtUgx(r.amount)}</strong> has not reached any wallet yet.
+                              Pick any user — search by phone number — and put the money in their wallet.
+                            </p>
+                            <Button
+                              size="sm"
+                              className="w-full h-11 text-[13px] font-semibold gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+                              onClick={() => {
+                                const top = matches
+                                  .map((u) => ({
+                                    u,
+                                    s: u.matched_on.startsWith('reference ') ? 100
+                                      : u.matched_on.startsWith('from ') ? 90
+                                      : u.matched_on.startsWith('to ') ? 90
+                                      : u.matched_on.startsWith('name-') ? 75
+                                      : 60,
+                                  }))
+                                  .sort((a, b) => b.s - a.s)[0]?.u;
+                                const matchedPhone = top && /^(from|to|phone)\s+/.test(top.matched_on)
+                                  ? top.matched_on.replace(/^(from|to|phone)\s+/, '')
+                                  : null;
+                                setRoutingSuggestedUser(top ? { id: top.id, full_name: top.full_name, phone: top.phone ?? '', matched_phone: matchedPhone } : null);
+                                setRoutingMode('credit');
+                                setRoutingRow(r);
+                              }}
+                            >
+                              <Wallet className="h-4 w-4" />
+                              Put money in a user's wallet
+                            </Button>
+                            <p className="text-[10px] text-emerald-900/60 dark:text-emerald-100/60">
+                              Search by phone number or name in the next screen. Nothing moves until you confirm.
+                            </p>
+                          </div>
+                        )}
                         {/* 0) Full receipt — the complete parsed email so a phone
                             user never has to squint at truncated text. Every
                             field is stacked one-per-line on small screens. */}
