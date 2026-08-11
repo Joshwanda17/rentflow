@@ -47,7 +47,52 @@ interface ApprovedRentItem {
   request_country: string | null;
   request_city: string | null;
   request_district: string | null;
+  /** Read-only tenant location / category attributes (for filtering only). */
+  loc_town: string | null;
+  loc_city: string | null;
+  loc_sub_county: string | null;
+  loc_parish: string | null;
+  loc_village: string | null;
+  loc_region: string | null;
+  loc_house_category: string | null;
 }
+
+/** Same category set the previous "Pay by Location / Category" picker offered. */
+type CatFieldKey =
+  | 'district'
+  | 'town'
+  | 'city'
+  | 'sub_county'
+  | 'parish'
+  | 'village'
+  | 'region'
+  | 'house_category';
+
+const CAT_FIELD_LABELS: Record<CatFieldKey, string> = {
+  district: 'District',
+  town: 'Town Council',
+  city: 'City / Municipality',
+  sub_county: 'Sub-county',
+  parish: 'Parish',
+  village: 'Village',
+  region: 'Region',
+  house_category: 'House category',
+};
+
+const CAT_FIELD_KEYS = Object.keys(CAT_FIELD_LABELS) as CatFieldKey[];
+
+const catValueOf = (it: ApprovedRentItem, field: CatFieldKey): string => {
+  const raw =
+    field === 'district' ? it.request_district
+    : field === 'town' ? it.loc_town
+    : field === 'city' ? (it.loc_city ?? it.request_city)
+    : field === 'sub_county' ? it.loc_sub_county
+    : field === 'parish' ? it.loc_parish
+    : field === 'village' ? it.loc_village
+    : field === 'region' ? it.loc_region
+    : it.loc_house_category;
+  return (raw || '').toString().trim();
+};
 
 interface RentDisbursementQueueProps {
   /**
@@ -67,6 +112,8 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
   const [countryFilter, setCountryFilter] = useState<string>('all');
   const [districtFilter, setDistrictFilter] = useState<string>('all');
   const [cityFilter, setCityFilter] = useState<string>('all');
+  const [catField, setCatField] = useState<CatFieldKey>('district');
+  const [catValue, setCatValue] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<'all' | '7d' | '30d'>('all');
   const [search, setSearch] = useState('');
   const [batchRef, setBatchRef] = useState('');
@@ -97,9 +144,16 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
       // Fetch profiles for tenants and agents
       const allUserIds = [...new Set([...tenantIds, ...agentIds])];
       const profileMap = new Map<string, string>();
+      const tenantLocMap = new Map<string, any>();
       if (allUserIds.length) {
-        const { data: profiles } = await supabase.from('profiles').select('id, full_name').in('id', allUserIds);
-        for (const p of profiles || []) profileMap.set(p.id, p.full_name || 'Unknown');
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name, town, city, sub_county, parish, village, region, tenant_house_category')
+          .in('id', allUserIds);
+        for (const p of profiles || []) {
+          profileMap.set(p.id, (p as any).full_name || 'Unknown');
+          tenantLocMap.set(p.id, p);
+        }
       }
 
       // Fetch landlord names
@@ -134,6 +188,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
       return requests.map(r => {
         const agentId = r.assigned_agent_id || r.agent_id;
         const hasWallet = walletSet.has(r.landlord_id);
+        const loc: any = tenantLocMap.get(r.tenant_id) || {};
         return {
           ...r,
           access_fee: r.access_fee ?? 0,
@@ -147,6 +202,13 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
           request_country: (r as any).request_country ?? null,
           request_city: (r as any).request_city ?? null,
           request_district: districtMap.get((r as any).house_listing_id) ?? null,
+          loc_town: loc.town ?? null,
+          loc_city: loc.city ?? null,
+          loc_sub_county: loc.sub_county ?? null,
+          loc_parish: loc.parish ?? null,
+          loc_village: loc.village ?? null,
+          loc_region: loc.region ?? null,
+          loc_house_category: loc.tenant_house_category ?? null,
         };
       });
     },
@@ -191,13 +253,24 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
       if (cutoff !== null && new Date(it.created_at).getTime() < cutoff) return false;
       if (districtFilter !== 'all' && ((it.request_district || '').trim() || 'Unknown') !== districtFilter) return false;
       if (cityFilter !== 'all' && ((it.request_city || '').trim() || 'Unknown') !== cityFilter) return false;
+      if (catValue !== 'all' && (catValueOf(it, catField) || 'Unknown') !== catValue) return false;
       if (q) {
         const haystack = `${it.tenant_name} ${it.landlord_name} ${it.agent_name}`.toLowerCase();
         if (!haystack.includes(q)) return false;
       }
       return true;
     });
-  }, [items, dateFilter, search, restrictSet, districtFilter, cityFilter]);
+  }, [items, dateFilter, search, restrictSet, districtFilter, cityFilter, catField, catValue]);
+
+  // Category option list for the currently chosen category type.
+  const catOptions = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const it of items) {
+      const key = catValueOf(it, catField) || 'Unknown';
+      map.set(key, (map.get(key) ?? 0) + 1);
+    }
+    return [...map.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [items, catField]);
 
   // Location option lists, derived from the same rows the table shows.
   const districtOptions = useMemo(() => {
@@ -229,6 +302,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
     setDistrictFilter('all');
     setCityFilter('all');
     setCountryFilter('all');
+    setCatValue('all');
   };
 
   // Group rows by agent so CFO can pick one tenant, a few, or all of an
@@ -497,6 +571,30 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                 <SelectItem value="30d">Last 30 days</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={catField} onValueChange={(v) => { setCatField(v as CatFieldKey); setCatValue('all'); setSelected(new Set()); }}>
+              <SelectTrigger className="h-11 rounded-xl text-sm w-full bg-background border-border/70">
+                <MapPin className="h-4 w-4 mr-2 text-muted-foreground" />
+                <SelectValue placeholder="Category type" />
+              </SelectTrigger>
+              <SelectContent className="max-h-[320px]">
+                {CAT_FIELD_KEYS.map(k => (
+                  <SelectItem key={k} value={k}>{CAT_FIELD_LABELS[k]}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={catValue} onValueChange={(v) => { setCatValue(v); setSelected(new Set()); }}>
+              <SelectTrigger className="h-11 rounded-xl text-sm w-full bg-background border-border/70">
+                <SelectValue placeholder={CAT_FIELD_LABELS[catField]} />
+              </SelectTrigger>
+              <SelectContent className="max-h-[320px]">
+                <SelectItem value="all">All {CAT_FIELD_LABELS[catField].toLowerCase()}</SelectItem>
+                {catOptions.map(o => (
+                  <SelectItem key={o.name} value={o.name}>
+                    <span className="truncate">{o.name} · {o.count}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {(agentFilter !== 'all' || locationScoped) && (
               <button
                 type="button"
@@ -669,14 +767,43 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                   <Button variant="outline" size="sm" className="h-9 rounded-xl gap-2">
                     <Filter className="h-4 w-4" />
                     Filter
-                    {(agentFilter !== 'all' || countryFilter !== 'all' || dateFilter !== 'all' || districtFilter !== 'all' || cityFilter !== 'all') && (
+                    {(agentFilter !== 'all' || countryFilter !== 'all' || dateFilter !== 'all' || districtFilter !== 'all' || cityFilter !== 'all' || catValue !== 'all') && (
                       <Badge className="h-5 min-w-5 px-1.5 text-[10px] bg-primary text-primary-foreground border-0">
-                        {[agentFilter !== 'all', countryFilter !== 'all', dateFilter !== 'all', districtFilter !== 'all', cityFilter !== 'all'].filter(Boolean).length}
+                        {[agentFilter !== 'all', countryFilter !== 'all', dateFilter !== 'all', districtFilter !== 'all', cityFilter !== 'all', catValue !== 'all'].filter(Boolean).length}
                       </Badge>
                     )}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent align="end" className="w-72 space-y-3 p-3">
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-semibold text-muted-foreground">Category type</p>
+                    <Select value={catField} onValueChange={(v) => { setCatField(v as CatFieldKey); setCatValue('all'); setSelected(new Set()); }}>
+                      <SelectTrigger className="h-9 rounded-lg text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[280px]">
+                        {CAT_FIELD_KEYS.map(k => (
+                          <SelectItem key={k} value={k}>{CAT_FIELD_LABELS[k]}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-semibold text-muted-foreground">{CAT_FIELD_LABELS[catField]}</p>
+                    <Select value={catValue} onValueChange={(v) => { setCatValue(v); setSelected(new Set()); }}>
+                      <SelectTrigger className="h-9 rounded-lg text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[280px]">
+                        <SelectItem value="all">All {CAT_FIELD_LABELS[catField].toLowerCase()}</SelectItem>
+                        {catOptions.map(o => (
+                          <SelectItem key={o.name} value={o.name}>
+                            <span className="truncate">{o.name} · {o.count}</span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div className="space-y-1.5">
                     <p className="text-xs font-semibold text-muted-foreground">District</p>
                     <Select value={districtFilter} onValueChange={(v) => { setDistrictFilter(v); setCityFilter('all'); }}>
