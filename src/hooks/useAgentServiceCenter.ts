@@ -116,7 +116,9 @@ export interface CatalogItem {
   description: string | null;
   unit_price: number;
   image_url: string | null;
+  image_urls: string[] | null;
 }
+
 
 /** One round trip for the whole roster (profiles, earnings, tenants, wallets, blocks). */
 export function useServiceCenterOverview() {
@@ -195,8 +197,9 @@ export function useServiceCenterCatalog() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('merchandise_catalog')
-        .select('id, item_name, description, unit_price, image_url')
+        .select('id, item_name, description, unit_price, image_url, image_urls')
         .eq('is_active', true)
+
         .order('item_name');
       if (error) throw error;
       return (data as CatalogItem[]) ?? [];
