@@ -1,11 +1,13 @@
 import { cn } from '@/lib/utils';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ClipboardCheck, Route, Search, ShoppingBag, Store, UserPlus, Users } from 'lucide-react';
+import { ArrowLeft, ClipboardCheck, Package, Route, Search, ShoppingBag, Store, UserPlus, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { StorageImage } from '@/components/ui/StorageImage';
+
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -291,19 +293,32 @@ export default function AgentServiceCenter() {
                 No items are available right now.
               </CardContent></Card>
             ) : (
-              catalog.map((item) => (
-                <Card key={item.id}>
-                  <CardContent className="flex items-center gap-3 p-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-semibold text-foreground">{item.item_name}</div>
-                      <div className="text-xs text-muted-foreground">{formatUGX(item.unit_price)}</div>
-                    </div>
-                    <Button size="sm" onClick={() => navigate(`/merchandise?item=${item.id}`)}>
-                      Buy
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))
+              catalog.map((item) => {
+                const img = item.image_urls?.[0] || item.image_url;
+                return (
+                  <Card key={item.id} className="overflow-hidden">
+                    <CardContent className="flex items-center gap-3 p-3">
+                      <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-md bg-muted">
+                        {img ? (
+                          <StorageImage src={img} alt={item.item_name} className="h-full w-full object-cover" loading="lazy" />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center">
+                            <Package className="h-6 w-6 text-muted-foreground/40" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-semibold text-foreground">{item.item_name}</div>
+                        <div className="text-xs text-muted-foreground">{formatUGX(item.unit_price)}</div>
+                      </div>
+                      <Button size="sm" onClick={() => navigate(`/merchandise?item=${item.id}`)}>
+                        Buy
+                      </Button>
+                    </CardContent>
+                  </Card>
+                );
+              })
+
             )}
           </TabsContent>
         </Tabs>
