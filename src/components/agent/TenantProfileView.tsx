@@ -38,6 +38,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Sparkles, ChevronRight } from 'lucide-react';
 import AgentContactLocationGate from './AgentContactLocationGate';
 import { useRequireContactLocation } from '@/hooks/useRequireContactLocation';
+import { RenewDocumentsDialog, type RenewDocsState } from './RenewDocumentsDialog';
 
 interface TenantProfileViewProps {
   tenantId: string;
@@ -221,6 +222,9 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
   const [reverseDialogOpen, setReverseDialogOpen] = useState(false);
   const [rentLimitOpen, setRentLimitOpen] = useState(false);
   const [renewing, setRenewing] = useState(false);
+  // Renewal document custody gate — a renewal only posts when the tenant has a
+  // passport photo, 4 house photos and an LC letter on file.
+  const [renewDocsGate, setRenewDocsGate] = useState<RenewDocsState | null>(null);
   const [historyRange, setHistoryRange] = useState<'all' | '7d' | '30d' | 'month' | 'custom'>('all');
   const [historyFrom, setHistoryFrom] = useState<string>('');
   const [historyTo, setHistoryTo] = useState<string>('');
@@ -638,6 +642,30 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
       const { data: sessionData } = await supabase.auth.getSession();
       if (!sessionData?.session) {
         throw new Error('Your session expired. Please sign in again and retry.');
+      }
+      // Document custody check FIRST — the tenant must have a passport photo,
+      // 4 house photos and an LC letter on file. Anything missing is captured
+      // by the renewal document dialog before the renewal is posted.
+      let docsState: { passport: boolean; lcLetter: boolean; houseImages: number };
+      try {
+        const { data: docs, error: docsErr } = await supabase.rpc('get_tenant_documents' as any, {
+          p_tenant_id: profile.id,
+        });
+        if (docsErr) throw docsErr;
+        const rows: { doc_type?: string | null }[] = Array.isArray(docs) ? docs : [];
+        docsState = {
+          passport: rows.some((d) => d.doc_type === 'tenant_passport'),
+          lcLetter: rows.some((d) => d.doc_type === 'lc_letter'),
+          houseImages: rows.filter((d) => d.doc_type === 'house_image').length,
+        };
+      } catch {
+        // Unknown document state — treat everything as missing so the agent uploads.
+        docsState = { passport: false, lcLetter: false, houseImages: 0 };
+      }
+      if (!docsState.passport || !docsState.lcLetter || docsState.houseImages < 4) {
+        setRenewDocsGate(docsState);
+        sonnerToast.warning('Documents missing — upload the passport photo, house photos and LC letter to renew');
+        return;
       }
       // One atomic call. The RPC re-posts the prior plan server-side, bypasses
       // the daily-eligibility gate (renewals of fully-repaid tenants are exempt)
@@ -2351,6 +2379,18 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
         onOpenChange={setSubAgentDialogOpen}
         onSuccess={loadFullProfile}
       />
+
+      {profile && lastCompletedRequest && renewDocsGate && (
+        <RenewDocumentsDialog
+          open={!!renewDocsGate}
+          onOpenChange={(v) => { if (!v) setRenewDocsGate(null); }}
+          tenantId={profile.id}
+          tenantName={profile.full_name}
+          prevRequestId={lastCompletedRequest.id}
+          docs={renewDocsGate}
+          onRenewed={() => { setRenewDocsGate(null); loadFullProfile(); }}
+        />
+      )}
 
       <TenantFieldCollectDialog
         open={fieldCollectOpen}
