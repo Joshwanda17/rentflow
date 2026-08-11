@@ -2352,6 +2352,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       if (outstandingBalance === '' || isNaN(parseInt(outstandingBalance.replace(/,/g, '')))) {
         errors.push('Type the outstanding balance');
       }
+      // Tenant/property GPS is mandatory on EVERY rent request, including the
+      // outstanding-balance flow — the backend rejects GPS-less requests.
+      if (!gpsLocation) errors.push('Capture the property GPS at the house');
     } else {
       // A registered landlord is mandatory before a rent request can be posted.
       const landlordRegistered = !!selectedLandlord || !!selectedHouse?.landlord_id;
