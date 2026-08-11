@@ -833,16 +833,16 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
 
             {/* Batch actions */}
             {selected.size > 0 && (
-              <div className="sticky bottom-0 z-10 flex flex-col sm:flex-row sm:items-center gap-2 pt-3 mt-1 border-t bg-card">
+              <div className="sticky bottom-0 z-10 flex flex-col sm:flex-row sm:items-center gap-2 p-3 mt-1 rounded-xl border border-primary/25 bg-primary/[0.04] backdrop-blur">
                 <Input
                   placeholder="Batch ref (e.g. MoMo-2024-01)"
                   value={batchRef}
                   onChange={e => setBatchRef(e.target.value)}
-                  className="h-9 text-sm flex-1"
+                  className="h-11 rounded-xl text-sm flex-1 bg-background border-border/70"
                 />
                 <Button
                   size="sm"
-                  className="h-9 w-full sm:w-auto"
+                  className="h-11 rounded-xl px-5 font-semibold w-full sm:w-auto"
                   onClick={() => batchDisburse.mutate()}
                   disabled={batchDisburse.isPending || !batchRef.trim()}
                 >
