@@ -34011,19 +34011,14 @@ export type Database = {
         Args: { p_verification_id: string }
         Returns: string
       }
-      fin_ops_set_cash_location:
-        | {
-            Args: { p_deposit_request_id: string; p_location: string }
-            Returns: string
-          }
-        | {
-            Args: {
-              p_deposit_request_id: string
-              p_location: string
-              p_note?: string
-            }
-            Returns: string
-          }
+      fin_ops_set_cash_location: {
+        Args: {
+          p_deposit_request_id: string
+          p_location: string
+          p_note?: string
+        }
+        Returns: string
+      }
       finance_alert_rank_severity: { Args: { p_rank: number }; Returns: string }
       finance_alert_severity_rank: {
         Args: { p_severity: string }

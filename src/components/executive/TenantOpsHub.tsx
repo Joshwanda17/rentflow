@@ -67,12 +67,12 @@ export function TenantOpsHub() {
 
       <TenantPhoneDuplicatePanel />
 
-      <div className="flex flex-wrap items-center justify-start sm:justify-end gap-2">
+      <div className="flex items-center justify-end gap-2">
         <Button
           variant="outline"
           size="sm"
           onClick={() => navigate('/executive-hub?tab=locations')}
-          className="gap-1.5 sm:mr-auto"
+          className="gap-1.5 mr-auto"
         >
           <MapPin className="h-3.5 w-3.5" /> Manage Locations
         </Button>

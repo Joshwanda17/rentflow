@@ -86,6 +86,46 @@ export function parseContributionDate(raw: any): string | null {
 }
 
 /**
+ * When a portfolio's `payout_day` is edited, its already-scheduled
+ * `next_roi_date` must move too — otherwise the two fields drift. The ROI
+ * payout engine (see supabase/functions/process-supporter-roi/roiDateGate.ts)
+ * treats `next_roi_date` as authoritative whenever it's set and ignores
+ * `payout_day` entirely in that case, so a payout-day-only edit silently has
+ * no effect on when the partner actually gets paid.
+ *
+ * Keeps the same scheduled cycle/month (derived from the existing
+ * next_roi_date, or created_at + 1 month if none is set yet) and just moves
+ * it to the new day-of-month. Rolls forward to the next month if that would
+ * land in the past relative to `now`.
+ */
+export function recomputeNextRoiDateForPayoutDay(
+  currentNextRoiDate: string | null | undefined,
+  createdAt: string | null | undefined,
+  newPayoutDay: number,
+  now: Date = new Date(),
+): string {
+  const day = Math.min(Math.max(Math.round(newPayoutDay) || 1, 1), 28);
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  const currentDateOnly = extractDateOnly(currentNextRoiDate);
+  let base: Date;
+  if (currentDateOnly) {
+    const d = dateOnlyToLocalDate(currentDateOnly);
+    base = new Date(d.getFullYear(), d.getMonth(), 1);
+  } else {
+    const createdDateOnly = extractDateOnly(createdAt);
+    const created = createdDateOnly ? dateOnlyToLocalDate(createdDateOnly) : new Date(createdAt || now);
+    base = new Date(created.getFullYear(), created.getMonth() + 1, 1);
+  }
+
+  let next = new Date(base.getFullYear(), base.getMonth(), day);
+  while (next.getTime() < today.getTime()) {
+    next = new Date(next.getFullYear(), next.getMonth() + 1, day);
+  }
+  return formatLocalDateOnly(next);
+}
+
+/**
  * Build the forward-projection compound history rows for the
  * partner-portfolio-compounded email. The current month (the cycle that
  * was just compounded) is intentionally excluded — its result is the

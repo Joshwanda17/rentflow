@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { BusinessAdvanceQueue } from '@/components/ops/BusinessAdvanceQueue';
 import { RentHistoryVerificationQueue } from '@/components/ops/RentHistoryVerificationQueue';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -60,8 +60,9 @@ import ResidenceAddressForm from '@/components/profile/ResidenceAddressForm';
 import { generateTenantOpsReportPdf } from '@/lib/generateTenantOpsReportPdf';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
-import { OpsScaffoldSection } from './OpsScaffoldSection';
-import { LayoutGrid, Gauge, Users2 } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ChevronDown } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 type ActiveView = 'overview' | 'pipeline' | 'daily' | 'missed' | 'behavior' | 'history' | 'all-requests' | 'link-agent' | 'transfer-audit' | 'collect-rent' | 'agent-tenants' | 'tenant-detail' | 'registration-review' | 'advance-requests' | 'agent-allocations' | 'daily-collections' | 'landlord-float' | 'landlord-float-timeline' | 'location-browser' | 'tenant-location-browser' | 'global-verification' | 'welile-operations' | 'daily-repayments-report';
 
@@ -78,18 +79,14 @@ interface NavCard {
 export function TenantOpsDashboard() {
   const [activeView, setActiveView] = useState<ActiveView>('overview');
   const queryClient = useQueryClient();
-  // Scaffolded overview: one section open at a time (accordion) so the page
-  // stays short and scannable on every width. Remembered per operator.
-  const [openSection, setOpenSection] = useState<string | null>('tools');
-  useEffect(() => {
-    const saved = localStorage.getItem('tenant-ops-classic-section');
-    if (saved !== null) setOpenSection(saved === '' ? null : saved);
-  }, []);
-  const toggleSection = (id: string) => (next: boolean) => {
-    const value = next ? id : null;
-    setOpenSection(value);
-    localStorage.setItem('tenant-ops-classic-section', value ?? '');
-  };
+  const isMobile = useIsMobile();
+  // Collapsible panel state — collapsed by default on phones so the
+  // action grid + tenant list are reachable without scrolling past
+  // heavy dashboards.
+  const [openCapacity, setOpenCapacity] = useState(false);
+  const [openTenants, setOpenTenants] = useState(false);
+  const [openDaily, setOpenDaily] = useState(false);
+  const [openReports, setOpenReports] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; tenantId: string; tenantName: string }>({ open: false, tenantId: '', tenantName: '' });
   const [locationDialog, setLocationDialog] = useState<{ open: boolean; tenantId: string; tenantName: string }>({ open: false, tenantId: '', tenantName: '' });
   const [selectedTenantIds, setSelectedTenantIds] = useState<string[]>([]);
@@ -1425,18 +1422,10 @@ export function TenantOpsDashboard() {
               </div>
             </div>
 
-            {/* Scaffolded overview sections — one open at a time so the page
-                stays short and every section is scannable from its header. */}
-            <div className="space-y-2">
-            <OpsScaffoldSection
-              title="Tenant Ops Tools"
-              summary="Reviews, daily payments, collections, allocations & audits"
-              icon={LayoutGrid}
-              badge={`${navCards.length} tools`}
-              open={openSection === 'tools'}
-              onOpenChange={toggleSection('tools')}
-            >
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+            {/* Tenant Ops Tools — surfaced first on mobile for fast nav */}
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Tenant Ops Tools</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-2.5">
                 {navCards.map((card) => {
                   const Icon = card.icon;
                   return (
@@ -1471,68 +1460,26 @@ export function TenantOpsDashboard() {
                   );
                 })}
               </div>
-            </OpsScaffoldSection>
+            </div>
 
-            {/* Pipeline status — counts double as the collapsed summary */}
-            <OpsScaffoldSection
-              title="Pipeline status"
-              summary={`${pending} pending · ${funded} funded · ${repaying} repaying · ${defaulted} defaulted`}
-              icon={ClipboardList}
-              badge={pending > 0 ? `${pending} pending` : 'All reviewed'}
-              alert={pending > 0}
-              open={openSection === 'pipeline-status'}
-              onOpenChange={toggleSection('pipeline-status')}
-            >
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                <Card className="border bg-amber-500/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setOverviewFilter('pending')}>
-                  <CardContent className="p-2.5 text-center">
-                    <p className="text-2xl font-extrabold text-amber-600">{pending}</p>
-                    <p className="text-[10px] text-muted-foreground font-medium">Pending</p>
-                  </CardContent>
-                </Card>
-                <Card className="border bg-green-500/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setOverviewFilter('active')}>
-                  <CardContent className="p-2.5 text-center">
-                    <p className="text-2xl font-extrabold text-green-600">{funded}</p>
-                    <p className="text-[10px] text-muted-foreground font-medium">Funded</p>
-                  </CardContent>
-                </Card>
-                <Card className="border bg-purple-500/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setOverviewFilter('repaying')}>
-                  <CardContent className="p-2.5 text-center">
-                    <p className="text-2xl font-extrabold text-purple-600">{repaying}</p>
-                    <p className="text-[10px] text-muted-foreground font-medium">Repaying</p>
-                  </CardContent>
-                </Card>
-                <Card className="border bg-destructive/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setOverviewFilter('defaulted')}>
-                  <CardContent className="p-2.5 text-center">
-                    <p className="text-2xl font-extrabold text-destructive">{defaulted}</p>
-                    <p className="text-[10px] text-muted-foreground font-medium">Defaulted</p>
-                  </CardContent>
-                </Card>
-              </div>
-            </OpsScaffoldSection>
+            {/* Agent Rent-Request Capacity (fleet-wide) — collapsible */}
+            <Collapsible open={openCapacity || !isMobile} onOpenChange={setOpenCapacity}>
+              <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg border bg-muted/30 px-3 py-2 sm:hidden">
+                <span className="text-xs font-bold uppercase tracking-wider">Agent Rent Capacity</span>
+                <ChevronDown className={`h-4 w-4 transition-transform ${openCapacity ? 'rotate-180' : ''}`} />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-2 sm:pt-0">
+                <AgentRentCapacityPanel />
+              </CollapsibleContent>
+            </Collapsible>
 
-            {/* Agent Rent-Request Capacity (fleet-wide) */}
-            <OpsScaffoldSection
-              title="Agent Rent Capacity"
-              summary="Fleet-wide rent-request capacity per agent"
-              icon={Gauge}
-              open={openSection === 'capacity'}
-              onOpenChange={toggleSection('capacity')}
-              scrollBody
-            >
-              <AgentRentCapacityPanel />
-            </OpsScaffoldSection>
-
-            {/* Tenant List */}
-            <OpsScaffoldSection
-              title="All Tenants"
-              summary={isLoading ? 'Loading tenants…' : `${rows.length} tenant${rows.length === 1 ? '' : 's'} · tap to open a profile`}
-              icon={Users2}
-              badge={isLoading ? '…' : String(rows.length)}
-              open={openSection === 'tenants'}
-              onOpenChange={toggleSection('tenants')}
-              scrollBody
-            >
+            {/* Tenant List — collapsible on mobile */}
+            <Collapsible open={openTenants || !isMobile} onOpenChange={setOpenTenants}>
+              <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg border bg-muted/30 px-3 py-2 sm:hidden">
+                <span className="text-xs font-bold uppercase tracking-wider">All Tenants ({rows.length})</span>
+                <ChevronDown className={`h-4 w-4 transition-transform ${openTenants ? 'rotate-180' : ''}`} />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-2 sm:pt-0">
                 <TenantOverviewList
                   data={rows}
                   loading={isLoading}
@@ -1543,31 +1490,60 @@ export function TenantOpsDashboard() {
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
                 />
-            </OpsScaffoldSection>
+              </CollapsibleContent>
+            </Collapsible>
 
-            {/* Daily Collection Monitoring */}
-            <OpsScaffoldSection
-              title="Daily Collection Monitoring"
-              summary="Today's collections, per-agent, editable"
-              icon={CalendarCheck}
-              open={openSection === 'daily-monitoring'}
-              onOpenChange={toggleSection('daily-monitoring')}
-              scrollBody
-            >
-              <DailyCollectionMonitoringDashboard mode="editable" title="Daily Collection Monitoring" />
-            </OpsScaffoldSection>
+            {/* Daily Collection Monitoring — collapsible on mobile */}
+            <Collapsible open={openDaily || !isMobile} onOpenChange={setOpenDaily}>
+              <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg border bg-muted/30 px-3 py-2 sm:hidden">
+                <span className="text-xs font-bold uppercase tracking-wider">Daily Collection Monitoring</span>
+                <ChevronDown className={`h-4 w-4 transition-transform ${openDaily ? 'rotate-180' : ''}`} />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-2 sm:pt-0">
+                <DailyCollectionMonitoringDashboard mode="editable" title="Daily Collection Monitoring" />
+              </CollapsibleContent>
+            </Collapsible>
+
+            {/* Pipeline status strip */}
+            <div className="pt-2">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Pipeline status</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <Card className="border bg-amber-500/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setOverviewFilter('pending')}>
+                <CardContent className="p-2.5 text-center">
+                  <p className="text-2xl font-extrabold text-amber-600">{pending}</p>
+                  <p className="text-[10px] text-muted-foreground font-medium">Pending</p>
+                </CardContent>
+              </Card>
+              <Card className="border bg-green-500/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setOverviewFilter('active')}>
+                <CardContent className="p-2.5 text-center">
+                  <p className="text-2xl font-extrabold text-green-600">{funded}</p>
+                  <p className="text-[10px] text-muted-foreground font-medium">Funded</p>
+                </CardContent>
+              </Card>
+              <Card className="border bg-purple-500/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setOverviewFilter('repaying')}>
+                <CardContent className="p-2.5 text-center">
+                  <p className="text-2xl font-extrabold text-purple-600">{repaying}</p>
+                  <p className="text-[10px] text-muted-foreground font-medium">Repaying</p>
+                </CardContent>
+              </Card>
+              <Card className="border bg-destructive/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setOverviewFilter('defaulted')}>
+                <CardContent className="p-2.5 text-center">
+                  <p className="text-2xl font-extrabold text-destructive">{defaulted}</p>
+                  <p className="text-[10px] text-muted-foreground font-medium">Defaulted</p>
+                </CardContent>
+              </Card>
+            </div>
+            </div>
 
             {/* Reports & Exports */}
-            <OpsScaffoldSection
-              title="Reports & Exports"
-              summary={reportFrom || reportTo
-                ? `Range: ${reportFrom ? format(reportFrom, 'dd MMM yyyy') : 'start'} → ${reportTo ? format(reportTo, 'dd MMM yyyy') : 'today'}`
-                : 'CSV extracts & printable PDF report'}
-              icon={Download}
-              open={openSection === 'reports'}
-              onOpenChange={toggleSection('reports')}
-            >
-              <div className="flex flex-wrap items-center gap-2">
+            <Collapsible open={openReports || !isMobile} onOpenChange={setOpenReports} className="pt-2">
+              <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg border bg-muted/30 px-3 py-2 sm:hidden">
+                <span className="text-xs font-bold uppercase tracking-wider">Reports & Exports</span>
+                <ChevronDown className={`h-4 w-4 transition-transform ${openReports ? 'rotate-180' : ''}`} />
+              </CollapsibleTrigger>
+              <p className="hidden sm:block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Reports &amp; Exports</p>
+              <CollapsibleContent className="pt-2 sm:pt-0">
+              <div className="flex flex-wrap sm:justify-end items-center gap-2">
               <Popover>
                 <PopoverTrigger asChild>
                   <Button variant="outline" size="sm" className={cn("gap-1.5 font-normal", !reportFrom && "text-muted-foreground")}>
@@ -1646,8 +1622,8 @@ export function TenantOpsDashboard() {
                 Print Report
               </Button>
             </div>
-            </OpsScaffoldSection>
-            </div>
+              </CollapsibleContent>
+            </Collapsible>
           </motion.div>
         ) : (
           <motion.div
