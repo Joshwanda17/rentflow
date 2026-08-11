@@ -669,14 +669,46 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                   <Button variant="outline" size="sm" className="h-9 rounded-xl gap-2">
                     <Filter className="h-4 w-4" />
                     Filter
-                    {(agentFilter !== 'all' || countryFilter !== 'all' || dateFilter !== 'all') && (
+                    {(agentFilter !== 'all' || countryFilter !== 'all' || dateFilter !== 'all' || districtFilter !== 'all' || cityFilter !== 'all') && (
                       <Badge className="h-5 min-w-5 px-1.5 text-[10px] bg-primary text-primary-foreground border-0">
-                        {[agentFilter !== 'all', countryFilter !== 'all', dateFilter !== 'all'].filter(Boolean).length}
+                        {[agentFilter !== 'all', countryFilter !== 'all', dateFilter !== 'all', districtFilter !== 'all', cityFilter !== 'all'].filter(Boolean).length}
                       </Badge>
                     )}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent align="end" className="w-72 space-y-3 p-3">
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-semibold text-muted-foreground">District</p>
+                    <Select value={districtFilter} onValueChange={(v) => { setDistrictFilter(v); setCityFilter('all'); }}>
+                      <SelectTrigger className="h-9 rounded-lg text-sm">
+                        <SelectValue placeholder="All districts" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[280px]">
+                        <SelectItem value="all">All districts</SelectItem>
+                        {districtOptions.map(d => (
+                          <SelectItem key={d.name} value={d.name}>
+                            <span className="truncate">{d.name} · {d.count}</span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-semibold text-muted-foreground">Town / City</p>
+                    <Select value={cityFilter} onValueChange={setCityFilter}>
+                      <SelectTrigger className="h-9 rounded-lg text-sm">
+                        <SelectValue placeholder="All towns / cities" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[280px]">
+                        <SelectItem value="all">All towns / cities</SelectItem>
+                        {cityOptions.map(c => (
+                          <SelectItem key={c.name} value={c.name}>
+                            <span className="truncate">{c.name} · {c.count}</span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div className="space-y-1.5">
                     <p className="text-xs font-semibold text-muted-foreground">Agent</p>
                     <Select value={agentFilter} onValueChange={setAgentFilter}>
@@ -725,7 +757,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                   <button
                     type="button"
                     className="text-xs font-medium text-primary hover:underline"
-                    onClick={() => { setAgentFilter('all'); setCountryFilter('all'); setDateFilter('all'); }}
+                    onClick={() => { setAgentFilter('all'); setDateFilter('all'); clearLocation(); }}
                   >
                     Clear all filters
                   </button>
