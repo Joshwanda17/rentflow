@@ -128,6 +128,9 @@ export function MerchantDashboardHome({
 
       {/* Merchant Payouts CTA */}
       {/* Shared payout float + this merchant's settlement position */}
+      <MerchantFloatAvailableCard />
+
+      {/* Merchant Payouts CTA */}
       <motion.button
         onClick={() => {
           hapticTap();
