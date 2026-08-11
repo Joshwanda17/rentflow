@@ -38,7 +38,7 @@ export function PipelineAgentTransferDialog({
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const { data: results, isFetching } = useQuery({
+  const { data: results, isFetching, error: searchError } = useQuery({
     queryKey: ['pipeline-transfer-agent-search', search],
     queryFn: async () => {
       if (search.trim().length < 3) return [];
