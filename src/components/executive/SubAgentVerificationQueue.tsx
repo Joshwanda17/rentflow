@@ -804,6 +804,50 @@ export function SubAgentVerificationQueue() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Unlink → independent agent */}
+      <Dialog open={!!unlinkRecord} onOpenChange={(open) => { if (!open && !unlinking) setUnlinkRecord(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Unlink className="h-4 w-4 text-destructive" />
+              Make independent agent
+            </DialogTitle>
+          </DialogHeader>
+          {unlinkRecord && (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                <span className="font-medium text-foreground">{unlinkRecord.sub_name}</span> will be detached from{' '}
+                <span className="font-medium text-foreground">{unlinkRecord.parent_name}</span> and will operate as a fully
+                independent agent. Pending tenant transfers between them are cancelled and any suspension placed by the
+                parent is lifted. Blocked if the agent still has funded or repaying tenants — transfer those first.
+              </p>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground uppercase">Reason (for audit log)</label>
+                <Textarea
+                  placeholder="Why is this agent being made independent? (min 10 characters)"
+                  value={unlinkReason}
+                  onChange={(e) => setUnlinkReason(e.target.value)}
+                  maxLength={500}
+                  rows={3}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setUnlinkRecord(null)} disabled={unlinking}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={handleUnlink}
+              disabled={unlinking || unlinkReason.trim().length < 10}
+              className="gap-1"
+            >
+              {unlinking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Unlink className="h-4 w-4" />}
+              Unlink agent
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
