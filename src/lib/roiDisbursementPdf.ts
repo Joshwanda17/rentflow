@@ -155,6 +155,7 @@ export async function downloadRoiDisbursementPdf({ filename, periodLabel, report
       body: body.length ? body : [[{ content: 'No records in this window', colSpan: head.length, styles: { textColor: MUTED, halign: 'left' } }]],
       foot: opts?.foot,
       showHead: 'everyPage',
+      showFoot: 'lastPage',
       rowPageBreak: 'avoid',
       styles: {
         font: 'helvetica', fontSize: 8, cellPadding: 4.5, overflow: 'linebreak',
@@ -177,7 +178,7 @@ export async function downloadRoiDisbursementPdf({ filename, periodLabel, report
     cash.map((r) => [r.n, r.portfolio_phone, r.partner, r.paid_to, ugx(r.principal), ugx(r.returns_paid), r.time_eat]),
     {
       align: { 0: 'left', 4: 'right', 5: 'right', 6: 'right' },
-      widths: { 0: 24, 1: 84, 4: 84, 5: 84, 6: 52 },
+      widths: { 0: 22, 1: 82, 3: 78, 4: 82, 5: 82, 6: 48 },
       foot: [[{ content: 'Total cash disbursed', colSpan: 5, styles: { halign: 'left' } } as any, { content: ugx(s.cash_total), styles: { halign: 'right' } } as any, '']],
     },
   );
