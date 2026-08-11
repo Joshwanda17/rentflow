@@ -57,6 +57,7 @@ import { InvestmentPackageSheet } from '@/components/supporter/InvestmentPackage
 // FundingPoolCard removed from direct import
 import { FunderCapitalOpportunities } from '@/components/supporter/FunderCapitalOpportunities';
 import { SupportedTenantsSection } from '@/components/supporter/SupportedTenantsSection';
+import { PartnerPortfolioSection } from '@/components/supporter/portfolio/PartnerPortfolioSection';
 import { useSupportedTenants } from '@/hooks/useSupportedTenants';
 
 import { InvestmentAccountsDrawer } from '@/components/supporter/InvestmentAccountsDrawer';
@@ -557,6 +558,20 @@ export default function SupporterDashboard({
             </button>
 
           </div>
+
+          {/* ═══ SECTION: YOUR PORTFOLIO ═══ */}
+          <WidgetErrorBoundary label="Your portfolio">
+            <PartnerPortfolioSection
+              onViewPortfolios={() => {
+                setInvestmentsTab('accounts');
+                setShowInvestments(true);
+              }}
+              onExploreOpportunities={() => {
+                const el = document.getElementById('opportunities');
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+            />
+          </WidgetErrorBoundary>
 
           {/* ═══ SECTION: OPPORTUNITIES ═══ */}
           <div id="opportunities" className="relative scroll-mt-4 space-y-4">
