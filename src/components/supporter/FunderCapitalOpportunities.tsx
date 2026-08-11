@@ -240,16 +240,16 @@ function OptionCard({
             alt=""
             aria-hidden="true"
             loading="lazy"
-            className={`relative w-full object-contain shrink-0 group-hover:scale-105 group-focus-visible:scale-105 transition-transform duration-200 ${featured ? 'max-w-[88%] flex-[0.95] mt-1 mb-2' : 'max-w-[92%] flex-1 min-h-0'}`}
+            className={`relative w-full object-contain shrink-0 group-hover:scale-105 group-focus-visible:scale-105 transition-transform duration-200 ${featured ? 'max-w-[78%] flex-[0.78] mt-1 mb-1' : 'max-w-[92%] flex-1 min-h-0'}`}
           />
         ) : (
           <div className={`relative p-5 rounded-2xl shrink-0 backdrop-blur-sm ring-1 shadow-inner group-hover:scale-110 group-focus-visible:scale-110 transition-all duration-200 ${light ? 'bg-white/60 text-primary ring-foreground/10' : 'bg-white/25 text-white ring-white/30 shadow-white/10 group-hover:bg-white/35 group-focus-visible:bg-white/35'}`}>
             <Icon className="h-9 w-9" strokeWidth={2.5} />
           </div>
         )}
-        <div className={`relative flex flex-col items-center gap-1 ${image ? 'mt-auto' : ''} ${featured ? 'pb-1' : ''}`}>
-          <p className={`font-bold leading-tight ${featured ? 'text-xl' : 'text-lg'} ${light ? 'text-foreground' : 'text-white'}`}>{title}</p>
-          <p className={`font-medium leading-snug line-clamp-3 ${featured ? 'text-sm' : 'text-[13px]'} ${light ? 'text-foreground/70' : 'text-white/80'}`}>{description}</p>
+        <div className={`relative flex flex-col items-center justify-end gap-1 min-h-0 ${image ? 'mt-auto' : ''} ${featured ? 'pb-1 flex-[0.22]' : ''}`}>
+          <p className={`font-bold leading-tight ${featured ? 'text-lg sm:text-xl' : 'text-lg'} ${light ? 'text-foreground' : 'text-white'}`}>{title}</p>
+          <p className={`font-medium leading-snug ${featured ? 'line-clamp-2 text-[13px] sm:text-sm' : 'line-clamp-3 text-[13px]'} ${light ? 'text-foreground/70' : 'text-white/80'}`}>{description}</p>
         </div>
         <ChevronRight className={`relative h-5 w-5 shrink-0 group-hover:translate-x-1 group-focus-visible:translate-x-1 transition-transform duration-200 ${light ? 'text-foreground/60' : 'text-white/80'}`} />
       </div>
