@@ -26,6 +26,7 @@ import { UGANDA_BANKS } from '@/lib/ugandaBanks';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
 import { useSearchParams } from 'react-router-dom';
 import { clientLog } from '@/lib/clientLogger';
+import { recomputeNextRoiDateForPayoutDay } from '@/lib/portfolioDates';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 // ════════════════════════════════════════════════════════════════
@@ -878,7 +879,7 @@ export function NewPartnersPanel() {
     const [{ data: roleRow }, { data: ports }] = await Promise.all([
       supabase.from('user_roles').select('id').eq('user_id', u.id).eq('role', 'supporter').eq('enabled', true).maybeSingle(),
       supabase.from('investor_portfolios')
-        .select('id, portfolio_code, account_name, investment_amount, roi_percentage, status, investor_id, agent_id, display_currency, payment_method, mobile_money_number, mobile_network, bank_name, bank_account_name, account_number, payout_day')
+        .select('id, portfolio_code, account_name, investment_amount, roi_percentage, status, investor_id, agent_id, display_currency, payment_method, mobile_money_number, mobile_network, bank_name, bank_account_name, account_number, payout_day, next_roi_date, created_at')
         .eq('investor_id', u.id)
         .order('created_at', { ascending: false }),
     ]);
@@ -2602,6 +2603,14 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, onDirty
         bank_account_name: validated.bank_account_name,
         account_number: validated.account_number,
       };
+
+      // Editing payout_day must also move next_roi_date, or the ROI payout
+      // engine (which treats next_roi_date as authoritative once set)
+      // silently keeps paying out on the old date.
+      if (validated.payout_day !== null && Number(validated.payout_day) !== Number(p.payout_day ?? 0)) {
+        patch.next_roi_date = recomputeNextRoiDateForPayoutDay(p.next_roi_date ?? null, p.created_at ?? null, validated.payout_day);
+      }
+
       const { error } = await supabase.from('investor_portfolios').update(patch).eq('id', p.id);
       if (error) throw error;
 

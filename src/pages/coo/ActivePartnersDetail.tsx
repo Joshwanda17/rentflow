@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { roleToSlug } from '@/lib/roleRoutes';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchAllUserIdsByRole, batchedQuery } from '@/lib/supabaseBatchUtils';
+import { recomputeNextRoiDateForPayoutDay } from '@/lib/portfolioDates';
 import { Loader2, MoreHorizontal, TrendingUp, Trash2, Wallet, Pencil, ShieldOff, UserX } from 'lucide-react';
 import COODetailLayout, { KPICard, SectionTitle } from '@/components/coo/COODetailLayout';
 import COODataTable, { COOColumn } from '@/components/coo/COODataTable';
@@ -293,22 +294,63 @@ export default function ActivePartnersDetail() {
 
       if (Object.keys(updateFields).length > 0) {
         // Update ALL active portfolios for this partner (by investor_id or agent_id)
-        const { data: updated1, error: err1 } = await supabase
-          .from('investor_portfolios')
-          .update(updateFields)
-          .eq('investor_id', editPartner.id)
-          .in('status', ['active', 'pending'])
-          .select('id');
-        if (err1) throw err1;
+        let updated1: { id: string }[] | null = null;
+        let updated2: { id: string }[] | null = null;
 
-        const { data: updated2, error: err2 } = await supabase
-          .from('investor_portfolios')
-          .update(updateFields)
-          .eq('agent_id', editPartner.id)
-          .is('investor_id', null)
-          .in('status', ['active', 'pending'])
-          .select('id');
-        if (err2) throw err2;
+        if (updateFields.payout_day) {
+          // Editing payout_day must also move next_roi_date, or the ROI
+          // payout engine (which treats next_roi_date as authoritative once
+          // set) silently keeps paying out on the old date. Each portfolio
+          // can have a different current next_roi_date/created_at, so this
+          // has to be computed and written per-row rather than in one bulk
+          // update.
+          const { data: rows1, error: rowsErr1 } = await supabase
+            .from('investor_portfolios')
+            .select('id, next_roi_date, created_at')
+            .eq('investor_id', editPartner.id)
+            .in('status', ['active', 'pending']);
+          if (rowsErr1) throw rowsErr1;
+
+          const { data: rows2, error: rowsErr2 } = await supabase
+            .from('investor_portfolios')
+            .select('id, next_roi_date, created_at')
+            .eq('agent_id', editPartner.id)
+            .is('investor_id', null)
+            .in('status', ['active', 'pending']);
+          if (rowsErr2) throw rowsErr2;
+
+          const updateRow = async (row: { id: string; next_roi_date: string | null; created_at: string }) => {
+            const nextRoiDate = recomputeNextRoiDateForPayoutDay(row.next_roi_date, row.created_at, updateFields.payout_day);
+            const { error } = await supabase
+              .from('investor_portfolios')
+              .update({ ...updateFields, next_roi_date: nextRoiDate })
+              .eq('id', row.id);
+            if (error) throw error;
+          };
+
+          await Promise.all([...(rows1 || []), ...(rows2 || [])].map(updateRow));
+          updated1 = rows1;
+          updated2 = rows2;
+        } else {
+          const { data, error: err1 } = await supabase
+            .from('investor_portfolios')
+            .update(updateFields)
+            .eq('investor_id', editPartner.id)
+            .in('status', ['active', 'pending'])
+            .select('id');
+          if (err1) throw err1;
+          updated1 = data;
+
+          const { data: data2, error: err2 } = await supabase
+            .from('investor_portfolios')
+            .update(updateFields)
+            .eq('agent_id', editPartner.id)
+            .is('investor_id', null)
+            .in('status', ['active', 'pending'])
+            .select('id');
+          if (err2) throw err2;
+          updated2 = data2;
+        }
 
         const totalUpdated = (updated1?.length || 0) + (updated2?.length || 0);
 

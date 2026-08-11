@@ -13,6 +13,7 @@ import {
   formatDateOnlyForDisplay,
   formatLocalDateOnly,
   buildCompoundProjection,
+  recomputeNextRoiDateForPayoutDay,
 } from '@/lib/portfolioDates';
 import {
   Loader2, Search, X, Download, ChevronLeft, ChevronRight, ChevronUp, ChevronDown,
@@ -1517,17 +1518,28 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     if (isNaN(day) || day < 1 || day > 28) { toast.error('Day must be 1-28'); return; }
     setSavingPortfolio(true);
     try {
+      // Keep next_roi_date in sync with the new payout_day — the ROI payout
+      // engine treats next_roi_date as authoritative once it's set, so a
+      // payout_day-only update would silently leave the actual payout date
+      // unchanged.
+      const current = detailPartner?.portfolios.find(p => p.id === portfolioId);
+      const newNextRoiDate = recomputeNextRoiDateForPayoutDay(
+        current?.next_roi_date ?? null,
+        current?.created_at ?? null,
+        day,
+      );
+
       const { error } = await supabase
         .from('investor_portfolios')
-        .update({ payout_day: day })
+        .update({ payout_day: day, next_roi_date: newNextRoiDate })
         .eq('id', portfolioId);
       if (error) throw error;
-      toast.success(`Payout day updated to ${day}${getOrdinalSuffix(day)}`);
+      toast.success(`Payout day updated to ${day}${getOrdinalSuffix(day)} — next payout now ${newNextRoiDate}`);
       setEditingPortfolioId(null);
       // Refresh detail
       if (detailPartner) {
         const updated = detailPartner.portfolios.map(p =>
-          p.id === portfolioId ? { ...p, payout_day: day } : p
+          p.id === portfolioId ? { ...p, payout_day: day, next_roi_date: newNextRoiDate } : p
         );
         setDetailPartner({ ...detailPartner, portfolios: updated });
       }
