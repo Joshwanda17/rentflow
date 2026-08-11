@@ -49,6 +49,14 @@ import { AlertTriangle } from 'lucide-react';
 const CASHOUT_QUEUE_STATUSES = ['pending', 'requested', 'manager_approved', 'cfo_approved', 'fin_ops_approved'];
 const CLAIM_WINDOW_MINUTES = 15;
 const CLAIM_WINDOW_MS = CLAIM_WINDOW_MINUTES * 60 * 1000;
+// A merchant's own claim is NEVER force-released by the browser: they may already
+// have sent the money outside the system and must always be able to confirm with
+// proof. The 15-minute figure is only a soft "please finish" prompt. Returning a
+// row to the pool is the sole responsibility of the server cron
+// (`release_stale_cashout_claims`, 45 minutes, zero settlement progress), so the
+// queue must use the SAME window when deciding what is available to others —
+// otherwise a still-paying merchant's request is offered to a second merchant.
+const QUEUE_RECLAIM_WINDOW_MS = 45 * 60 * 1000;
 
 type PayoutChannel = 'momo' | 'cash' | 'bank';
 
@@ -145,7 +153,8 @@ interface QueueFilterOpts {
  */
 function applyQueueFilters(q: any, o: QueueFilterOpts) {
   q = q.in('status', CASHOUT_QUEUE_STATUSES);
-  // Available = unclaimed OR a claim that has expired (>15 min). Excludes rows
+  // Available = unclaimed OR a claim the server cron would already have released
+  // (>45 min, no settlement progress). Excludes rows
   // currently claimed by anyone (including me — those live in "Claimed by you").
   q = q.or(`assigned_cashout_agent_id.is.null,dispatched_at.lt.${o.cutoffIso}`);
 
@@ -324,7 +333,6 @@ export function AgentCashPayoutsTab() {
   const claimLockRef = useRef<Set<string>>(new Set());
   // Tracks withdrawal ids we've already sent a timeout-release SMS for, so the
   // per-second ticker doesn't fire duplicate notifications before the refetch.
-  const releaseNotifiedRef = useRef<Set<string>>(new Set());
   const completeLockRef = useRef<Set<string>>(new Set());
   const [claimingIds, setClaimingIds] = useState<Set<string>>(new Set());
   const [completingIds, setCompletingIds] = useState<Set<string>>(new Set());
@@ -504,25 +512,6 @@ export function AgentCashPayoutsTab() {
   // `release_stale_cashout_claims()` cron is the sole authority for releasing
   // OTHER merchants' stale claims, and it now refuses to release rows that have
   // any settlement progress (proof / code / transaction id / processing marker).
-  const releaseExpiredClaims = async () => {
-    if (!isCashoutAgent?.id) return;
-    const cutoff = new Date(Date.now() - CLAIM_WINDOW_MS).toISOString();
-    const { error } = await supabase
-      .from('withdrawal_requests')
-      .update({ assigned_cashout_agent_id: null, dispatched_at: null } as any)
-      .eq('assigned_cashout_agent_id', isCashoutAgent.id)
-      .lt('dispatched_at', cutoff)
-      .is('payout_proof', null)
-      .is('payout_code', null)
-      .is('transaction_id', null)
-      .is('processing_started_at', null)
-      .in('status', CASHOUT_QUEUE_STATUSES);
-
-    if (error) {
-      console.warn('Failed to release expired merchant payout claims', error);
-    }
-  };
-
   // Frozen accounts must never appear in the payout queue. Fetched once and
   // reused by the counts, page, and available-total queries so a freeze makes
   // the withdrawal disappear everywhere at once.
@@ -558,7 +547,7 @@ export function AgentCashPayoutsTab() {
   const { data: availableTotal = 0 } = useQuery({
     queryKey: ['cashout-queue-available-total', isCashoutAgent?.id, categoryOrClause, channelProviderOrClause, frozenUserIds],
     queryFn: async () => {
-      const cutoffIso = new Date(Date.now() - CLAIM_WINDOW_MS).toISOString();
+      const cutoffIso = new Date(Date.now() - QUEUE_RECLAIM_WINDOW_MS).toISOString();
       let q = supabase
         .from('withdrawal_requests')
         .select('id', { count: 'exact', head: true })
@@ -583,7 +572,7 @@ export function AgentCashPayoutsTab() {
   const { data: queueCounts } = useQuery({
     queryKey: ['cashout-queue-counts', isCashoutAgent?.id, queueStatus, queueMerchant, minAmount, maxAmount, fromIso, toIso, debouncedSearch, categoryOrClause, channelProviderOrClause, frozenUserIds],
     queryFn: async () => {
-      const cutoffIso = new Date(Date.now() - CLAIM_WINDOW_MS).toISOString();
+      const cutoffIso = new Date(Date.now() - QUEUE_RECLAIM_WINDOW_MS).toISOString();
       const searchUserIds = debouncedSearch.trim() ? await resolveSearchUserIds(debouncedSearch) : null;
       const base = {
         cutoffIso, status: queueStatus, merchant: queueMerchant,
@@ -610,7 +599,7 @@ export function AgentCashPayoutsTab() {
       // Cross-agent releases from the browser caused paid-out withdrawals to
       // reappear in the queue. The server cron (`release_stale_cashout_claims`)
       // handles pool-wide releases safely with progress guards.
-      const cutoffIso = new Date(Date.now() - CLAIM_WINDOW_MS).toISOString();
+      const cutoffIso = new Date(Date.now() - QUEUE_RECLAIM_WINDOW_MS).toISOString();
       const searchUserIds = debouncedSearch.trim() ? await resolveSearchUserIds(debouncedSearch) : null;
       const opts: QueueFilterOpts = {
         cutoffIso, status: queueStatus, merchant: queueMerchant,
@@ -933,40 +922,6 @@ export function AgentCashPayoutsTab() {
     return () => clearInterval(tick);
   }, [myActiveClaims.length]);
 
-  useEffect(() => {
-    if (myActiveClaims.length === 0) return;
-    const earliestDispatch = myActiveClaims.reduce((min: number, w: any) => {
-      const t = w.dispatched_at ? new Date(w.dispatched_at).getTime() : 0;
-      return t && t < min ? t : min;
-    }, Infinity);
-    if (!Number.isFinite(earliestDispatch)) return;
-    if (nowTs - earliestDispatch >= CLAIM_WINDOW_MS) {
-      // Time's up — figure out exactly which of MY claims have expired so we can
-      // notify each affected recipient (on the MoMo number they wanted to be
-      // paid on, falling back to their profile phone). De-dupe via a ref so the
-      // per-second ticker doesn't fire the SMS repeatedly before the refetch.
-      const expiredIds: string[] = myActiveClaims
-        .filter((w: any) => {
-          const t = w.dispatched_at ? new Date(w.dispatched_at).getTime() : 0;
-          return t && nowTs - t >= CLAIM_WINDOW_MS && !releaseNotifiedRef.current.has(w.id);
-        })
-        .map((w: any) => w.id);
-      if (expiredIds.length > 0) {
-        expiredIds.forEach((id) => releaseNotifiedRef.current.add(id));
-        supabase.functions
-          .invoke('notify-withdrawal-released', {
-            body: { withdrawal_ids: expiredIds, reason: 'timeout' },
-          })
-          .catch((e) => console.warn('[cashout] timeout release notify failed', e));
-      }
-      // Hand the unfinished claim(s) back to the queue.
-      releaseExpiredClaims().finally(() => {
-        toast.info('Claim time elapsed — the request was returned to the queue.');
-        invalidateQueue();
-      });
-    }
-  }, [nowTs, myActiveClaims]);
-
   // Claim a withdrawal request — ATOMIC: only succeeds if no one else has claimed it.
   // The `.is('assigned_cashout_agent_id', null)` guard makes the UPDATE a single-row
   // race-safe operation. If two agents click "Claim" at the same instant, only the
@@ -1235,14 +1190,17 @@ export function AgentCashPayoutsTab() {
               <Badge className={cn(
                 'ml-auto h-5 px-2 gap-1 text-[11px] text-white normal-case tracking-normal whitespace-nowrap shrink-0',
                 activeClaimRemainingMs <= 60_000
-                  ? 'bg-red-600 hover:bg-red-600 animate-pulse'
+                  ? 'bg-red-600 hover:bg-red-600'
                   : 'bg-amber-500 hover:bg-amber-500',
               )}>
-                <Clock className="h-3 w-3 shrink-0" /> {activeClaimCountdown} left to confirm
+                <Clock className="h-3 w-3 shrink-0" />{' '}
+                {activeClaimRemainingMs > 0 ? `${activeClaimCountdown} left to confirm` : 'Confirm now — no time limit'}
               </Badge>
             </CardTitle>
             <p className="text-xs text-amber-700/80 dark:text-amber-400/80 mt-1">
-              Finish this first — the queue is locked until you confirm or the timer runs out. Pay the recipient, then enter the proof to confirm.
+              Finish this first — the queue stays locked until you confirm. If you have already sent the
+              money, you can still confirm with proof even after the timer reaches zero; this claim is
+              never taken from you automatically.
             </p>
           </CardHeader>
           <CardContent className="space-y-2.5">
