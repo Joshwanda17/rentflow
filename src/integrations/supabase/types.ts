@@ -32628,6 +32628,10 @@ export type Database = {
         Args: { p_reason: string; p_user_id: string }
         Returns: undefined
       }
+      admin_unlink_subagent: {
+        Args: { _reason: string; _record_id: string }
+        Returns: Json
+      }
       advance_campaign_house_progress: {
         Args: { p_sub_agent_id: string }
         Returns: undefined
@@ -36016,6 +36020,7 @@ export type Database = {
               ward: string
             }[]
           }
+      get_treasury_snapshot: { Args: never; Returns: Json }
       get_trust_coverage_stats: { Args: never; Returns: Json }
       get_user_available_balance: {
         Args: { p_user_id: string }
@@ -37242,6 +37247,10 @@ export type Database = {
           trust_score: number
           trust_tier: string
         }[]
+      }
+      ops_transfer_pipeline_request_agent: {
+        Args: { p_reason: string; p_request_id: string; p_to_agent_id: string }
+        Returns: Json
       }
       ops_undo_agent_capability_job: {
         Args: { _job_id: string; _reason: string }

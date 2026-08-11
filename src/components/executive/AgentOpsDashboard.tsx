@@ -102,7 +102,7 @@ const NAV_ITEMS: { key: ActiveView; icon: any; label: string; color: string; pri
   { key: 'rent-capacity', icon: Gauge, label: 'Rent Capacity', color: 'bg-cyan-500', priority: true },
   { key: 'tasks', icon: ClipboardList, label: 'Tasks', color: 'bg-emerald-500', priority: true },
   { key: 'escalations', icon: AlertTriangle, label: 'Escalations', color: 'bg-red-500' },
-  { key: 'connector', icon: UserPlus, label: 'Connect', color: 'bg-violet-500' },
+  { key: 'connector', icon: UserPlus, label: 'Tenant Transfer', color: 'bg-violet-500' },
   { key: 'float-payouts', icon: Wallet, label: 'Landlord Float Payouts', color: 'bg-pink-500' },
   { key: 'performance', icon: TrendingUp, label: 'Performance', color: 'bg-teal-500' },
   { key: 'lifecycle', icon: BarChart3, label: 'Lifecycle', color: 'bg-indigo-500' },

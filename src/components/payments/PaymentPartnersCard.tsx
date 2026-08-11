@@ -7,6 +7,9 @@ import { CreditCard, Phone, Copy, CheckCircle2, Banknote, Building2, ChevronRigh
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import PaymentConfirmationForm from './PaymentConfirmationForm';
+import mtnLogoAsset from '@/assets/mtn-logo.png.asset.json';
+import airtelLogoAsset from '@/assets/airtel-logo.png.asset.json';
+import equityLogoAsset from '@/assets/equity-logo.png.asset.json';
 
 interface PaymentPartnersCardProps {
   dashboardType: 'tenant' | 'supporter';
@@ -109,13 +112,21 @@ export default function PaymentPartnersCard({ dashboardType, onPaymentSubmitted 
               )}
             >
               <div className={cn(
-                'w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-sm',
+                'w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-sm overflow-hidden',
                 ch.id === 'agent_cash' && 'bg-emerald-500',
                 ch.id === 'momo_mtn' && 'bg-[hsl(var(--warning))]',
                 ch.id === 'momo_airtel' && 'bg-destructive',
                 ch.id === 'bank' && 'bg-blue-500',
               )}>
-                <ch.icon className="h-5 w-5 text-white" />
+                {ch.id === 'momo_mtn' ? (
+                  <img src={mtnLogoAsset.url} alt="MTN MoMo" className="w-full h-full object-cover" />
+                ) : ch.id === 'momo_airtel' ? (
+                  <img src={airtelLogoAsset.url} alt="Airtel Money" className="w-full h-full object-cover" />
+                ) : ch.id === 'bank' ? (
+                  <img src={equityLogoAsset.url} alt="Equity Bank" className="w-full h-full object-cover" />
+                ) : (
+                  <ch.icon className="h-5 w-5 text-white" />
+                )}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-bold text-sm">{ch.label}</p>

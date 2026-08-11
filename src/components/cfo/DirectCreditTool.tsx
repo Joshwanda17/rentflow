@@ -25,6 +25,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { TreasuryImpactBanner } from './TreasuryImpactBanner';
 import { RecipientRoutingWarningBanner } from './RecipientRoutingWarningBanner';
 import { RentDisbursementQueue } from './RentDisbursementQueue';
+import { PayByLocationRecipientPicker, type LocationRecipient } from './PayByLocationRecipientPicker';
 import { BusinessAdvanceDisbursementQueue } from './BusinessAdvanceDisbursementQueue';
 import { CreditDrawApprovalQueue } from './CreditDrawApprovalQueue';
 import { ROIPayoutQueue } from './ROIPayoutQueue';
@@ -335,6 +336,9 @@ export function DirectCreditTool() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [selectedUser, setSelectedUser] = useState<any>(null);
+  // Pay by Location/Category — extra recipients selected by location/category.
+  // They are paid through the *existing* payout flow below, unchanged.
+  const [locationRecipients, setLocationRecipients] = useState<LocationRecipient[]>([]);
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
   const [operation, setOperation] = useState<Operation>('credit');
@@ -499,6 +503,9 @@ export function DirectCreditTool() {
       if (!amt || amt <= 0) throw new Error('Invalid amount');
       if (!reason || reason.length < 10) throw new Error('Reason must be at least 10 characters');
       if (!selectedUser) throw new Error('Select a user');
+      // Recipients: either the single user picked as before, or the people
+      // selected via Pay by Location/Category. Everything below is identical.
+      const targets: any[] = locationRecipients.length > 0 ? locationRecipients : [selectedUser];
       if (!selectedCategory) throw new Error('Select a payout category');
       if (hasSubCategories && !selectedSubCategoryId) throw new Error('Select a subcategory');
 
@@ -556,9 +563,10 @@ export function DirectCreditTool() {
         ? `${payoutTag} ${reason}`.trim()
         : reason;
 
+      const postOne = async (target: any) => {
       const { data, error } = await supabase.functions.invoke('cfo-direct-credit', {
         body: {
-          target_user_id: selectedUser.id,
+          target_user_id: target.id,
           amount: amt,
           reason: submitReason,
           operation: submitOperation,
@@ -632,8 +640,33 @@ export function DirectCreditTool() {
         throw new Error(msg);
       }
       if (data?.error) throw new Error(data.error);
+      return data;
+      };
 
-      if (automateEnabled && selectedUser) {
+      let resultData: any = null;
+      if (targets.length <= 1) {
+        resultData = await postOne(targets[0]);
+      } else {
+        const failures: string[] = [];
+        let ok = 0;
+        for (const t of targets) {
+          try {
+            resultData = await postOne(t);
+            ok++;
+          } catch (e: any) {
+            failures.push(`${t.full_name ?? t.id}: ${e?.__silent ? 'insufficient balance' : e.message}`);
+          }
+        }
+        setOverdrawInfo(null);
+        setOverdrawApproved(false);
+        if (ok === 0) throw new Error(failures[0] ?? 'Payout failed');
+        resultData = {
+          message: `${ok}/${targets.length} recipients paid UGX ${amt.toLocaleString()} each` +
+            (failures.length ? ` · failed: ${failures.slice(0, 3).join(' • ')}` : ''),
+        };
+      }
+
+      if (automateEnabled && selectedUser && targets.length <= 1) {
         const { data: schedRow, error: schedErr } = await supabase.from('scheduled_payouts').insert({
           created_by: (await supabase.auth.getUser()).data.user?.id,
           target_user_id: selectedUser.id,
@@ -681,7 +714,7 @@ export function DirectCreditTool() {
         }
       }
 
-      return data;
+      return resultData;
     },
     onSuccess: (data) => {
       toast({
@@ -698,6 +731,7 @@ export function DirectCreditTool() {
       qc.invalidateQueries({ queryKey: ['treasury-cash-snapshot'] });
       qc.invalidateQueries({ queryKey: ['cfo-overview'] });
       setSelectedUser(null);
+      setLocationRecipients([]);
       setAmount('');
       setReason('');
       setSelectedCategoryId('');
@@ -991,7 +1025,9 @@ export function DirectCreditTool() {
 
         {/* ── RENT DISBURSEMENT QUEUE ── */}
         {isRentDisbursement && (
-          <RentDisbursementQueue />
+          <>
+            <RentDisbursementQueue />
+          </>
         )}
 
         {/* ── BUSINESS ADVANCE DISBURSEMENT QUEUE ── */}
@@ -1010,11 +1046,40 @@ export function DirectCreditTool() {
         {/* ── MANUAL PAYOUT FORM (non-queue categories) ── */}
         {!isQueueCategory && selectedCategoryId && !needsSubCategory && (
           <>
+            <PayByLocationRecipientPicker
+              queuedCount={locationRecipients.length}
+              disabled={mutation.isPending}
+              onUseRecipients={(recips) => {
+                setLocationRecipients(recips);
+                // Show the first pick in the existing single-recipient picker so
+                // every existing field, check and summary behaves exactly as before.
+                setSelectedUser({ id: recips[0].id, full_name: recips[0].full_name, phone: recips[0].phone });
+              }}
+            />
+
+            {locationRecipients.length > 1 && (
+              <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs space-y-1">
+                <p className="font-semibold">
+                  {locationRecipients.length} recipients selected by location/category
+                </p>
+                <p className="text-muted-foreground">
+                  The payout below runs once per recipient using the same amount, checks and records.
+                </p>
+                <button
+                  type="button"
+                  className="text-primary hover:underline"
+                  onClick={() => setLocationRecipients([])}
+                >
+                  Clear list and pay a single user
+                </button>
+              </div>
+            )}
+
             <UserSearchPicker
               label="Search User"
               placeholder="Name or phone..."
               selectedUser={selectedUser}
-              onSelect={setSelectedUser}
+              onSelect={(u: any) => { setLocationRecipients([]); setSelectedUser(u); }}
             />
 
             {/* ── Wallet Routing v2: Recipient Type (REQUIRED) ── */}
@@ -1338,7 +1403,9 @@ export function DirectCreditTool() {
               {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
               {operation === 'withdraw'
                 ? `Withdraw UGX ${amt.toLocaleString()} → ${selectedUser?.full_name || '...'}`
-                : `${isCredit ? CFO_PAYOUT_VERB.credit : CFO_PAYOUT_VERB.debit} ${selectedUser?.full_name || '...'}'s wallet · UGX ${amt.toLocaleString()}`}
+                : locationRecipients.length > 1
+                  ? `${isCredit ? CFO_PAYOUT_VERB.credit : CFO_PAYOUT_VERB.debit} ${locationRecipients.length} recipients' wallets · UGX ${amt.toLocaleString()} each`
+                  : `${isCredit ? CFO_PAYOUT_VERB.credit : CFO_PAYOUT_VERB.debit} ${selectedUser?.full_name || '...'}'s wallet · UGX ${amt.toLocaleString()}`}
             </Button>
 
             <AlertDialog open={floatConfirmOpen} onOpenChange={setFloatConfirmOpen}>
@@ -1349,7 +1416,12 @@ export function DirectCreditTool() {
                     <div className="space-y-2 text-sm">
                       <p>
                         You're sending <strong>UGX {amt.toLocaleString()}</strong> to{' '}
-                        <strong>{selectedUser?.full_name || '...'}</strong>'s Float (Operational Wallet)
+                        <strong>
+                          {locationRecipients.length > 1
+                            ? `${locationRecipients.length} recipients`
+                            : selectedUser?.full_name || '...'}
+                        </strong>
+                        {locationRecipients.length > 1 ? "' Float (Operational Wallet) each" : "'s Float (Operational Wallet)"}
                         {selectedCategory ? <> via <strong>{selectedCategory.label}</strong></> : null}.
                       </p>
                       <p className="text-muted-foreground">

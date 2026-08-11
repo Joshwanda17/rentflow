@@ -2,6 +2,9 @@ import { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
+import apartmentRentIllustration from '@/assets/apartment-rent-rafiki.svg.asset.json';
+import apartmentRentAmicoIllustration from '@/assets/apartment-rent-amico.svg.asset.json';
+import investingBroIllustration from '@/assets/investing-bro.svg.asset.json';
 import {
   TrendingUp, Shield, Rocket, Home, Wallet, ChevronLeft, ChevronRight,
   Coins, Lock, Clock, HandCoins, Handshake,
@@ -207,6 +210,64 @@ function OptionRow({
   );
 }
 
+// ─── Option card (square grid card) ───
+function OptionCard({
+  icon: Icon, title, description, tooltip, onClick, image, light, featured,
+}: {
+  icon: typeof Home; title: string; description: string; tooltip?: string; onClick: () => void;
+  image?: string; light?: boolean; featured?: boolean;
+}) {
+  const button = (
+    <motion.button
+      type="button"
+      onClick={() => { hapticTap(); onClick(); }}
+      whileHover={{ y: -4, scale: 1.02 }}
+      whileTap={{ scale: 0.97 }}
+      whileFocus={{ y: -2, scale: 1.01 }}
+      transition={{ type: 'spring', stiffness: 420, damping: 24 }}
+      style={light ? { backgroundColor: '#d1eaed' } : undefined}
+      className={
+        light
+          ? "group relative w-full aspect-square rounded-2xl text-foreground shadow-lg shadow-foreground/10 hover:shadow-xl p-4 text-center ring-1 ring-foreground/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background overflow-hidden"
+          : "group relative w-full aspect-square rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 p-4 text-center ring-1 ring-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background overflow-hidden"
+      }
+    >
+      <span className={`pointer-events-none absolute inset-0 group-hover:animate-[shimmer_1.2s_ease-in-out_infinite] bg-gradient-to-r from-transparent ${light ? 'via-white/50' : 'via-white/15'} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300`} aria-hidden="true" />
+      <div className="relative flex flex-col items-center justify-between h-full gap-1 pt-1 pb-0.5">
+        {image ? (
+          <img
+            src={image}
+            alt=""
+            aria-hidden="true"
+            loading="lazy"
+            className={`relative w-full object-contain shrink-0 group-hover:scale-105 group-focus-visible:scale-105 transition-transform duration-200 ${featured ? 'max-w-[78%] flex-[0.78] mt-1 mb-1' : 'max-w-[92%] flex-1 min-h-0'}`}
+          />
+        ) : (
+          <div className={`relative p-5 rounded-2xl shrink-0 backdrop-blur-sm ring-1 shadow-inner group-hover:scale-110 group-focus-visible:scale-110 transition-all duration-200 ${light ? 'bg-white/60 text-primary ring-foreground/10' : 'bg-white/25 text-white ring-white/30 shadow-white/10 group-hover:bg-white/35 group-focus-visible:bg-white/35'}`}>
+            <Icon className="h-9 w-9" strokeWidth={2.5} />
+          </div>
+        )}
+        <div className={`relative flex flex-col items-center justify-end gap-1 min-h-0 ${image ? 'mt-auto' : ''} ${featured ? 'pb-1 flex-[0.22]' : ''}`}>
+          <p className={`font-bold leading-tight ${featured ? 'text-lg sm:text-xl' : 'text-lg'} ${light ? 'text-foreground' : 'text-white'}`}>{title}</p>
+          <p className={`font-medium leading-snug ${featured ? 'line-clamp-2 text-[13px] sm:text-sm' : 'line-clamp-3 text-[13px]'} ${light ? 'text-foreground/70' : 'text-white/80'}`}>{description}</p>
+        </div>
+        <ChevronRight className={`relative h-5 w-5 shrink-0 group-hover:translate-x-1 group-focus-visible:translate-x-1 transition-transform duration-200 ${light ? 'text-foreground/60' : 'text-white/80'}`} />
+      </div>
+    </motion.button>
+  );
+
+  if (!tooltip) return button;
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{button}</TooltipTrigger>
+      <TooltipContent side="top" sideOffset={8} className="max-w-[16rem] text-xs leading-relaxed">
+        {tooltip}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
 
 function DetailShell({ title, subtitle, onBack, children }: {
   title: string; subtitle: string; onBack: () => void; children: React.ReactNode;
@@ -313,23 +374,30 @@ export function FunderCapitalOpportunities() {
           </div>
 
           <TooltipProvider delayDuration={150}>
-            <div className="space-y-2">
-              <OptionRow
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <OptionCard
                 icon={Handshake}
+                image={apartmentRentAmicoIllustration.url}
+                light
                 title="Support Tenants via Welile"
                 description="Sign a tenant-support contract with Welile. We manage the deployment and returns."
                 tooltip="A managed contract between you and Welile. We source verified tenants, deploy your capital, collect repayments, and send monthly returns to your wallet."
                 onClick={() => setView('managed')}
               />
-              <OptionRow
+              <OptionCard
                 icon={HandCoins}
+                image={apartmentRentIllustration.url}
+                light
                 title="Support Tenants Directly"
                 description="Pay landlords directly. Welile facilitates the introduction and documentation."
                 tooltip="You pay the landlord directly for a verified tenant. Welile handles introductions, documentation, and repayment tracking on your behalf."
                 onClick={() => setView('direct')}
               />
-              <OptionRow
+              <OptionCard
                 icon={Rocket}
+                image={investingBroIllustration.url}
+                light
+                featured
                 title="Angel Pool"
                 description="Buy a Welile share. Invest in the long-term Welile vision."
                 tooltip="Buy equity shares in Welile. Your capital supports platform growth and long-term value creation, with ownership reflected in your shareholder account."

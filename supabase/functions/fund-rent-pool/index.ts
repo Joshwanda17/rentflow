@@ -146,6 +146,43 @@ Deno.serve(async (req) => {
       metadata: { amount, reference_id: referenceId, status: "pending_ops_approval", pending: pending },
     });
 
+    // Email the partner a submission confirmation. Previously this path sent no
+    // email at all, so partners saw "Pending Ops approval" with no notice.
+    try {
+      const { data: partnerProfile } = await adminClient
+        .from("profiles")
+        .select("full_name, email")
+        .eq("id", user.id)
+        .maybeSingle();
+      const partnerEmail = partnerProfile?.email || user.email;
+      if (partnerEmail) {
+        await fetch(`${supabaseUrl}/functions/v1/send-transactional-email`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${supabaseServiceKey}`,
+          },
+          body: JSON.stringify({
+            recipientEmail: partnerEmail,
+            templateName: "portfolio-request-confirmation",
+            userId: user.id,
+            data: {
+              partner_name: partnerProfile?.full_name || "Partner",
+              portfolio_name: "Rent Pool Partnership Portfolio",
+              portfolio_id: (pending as { portfolio_code?: string } | null)?.portfolio_code ?? "",
+              portfolio_value: amount,
+              request_type: "NEW_PORTFOLIO_REQUEST",
+              request_reference: referenceId,
+              submitted_at: new Date().toISOString().slice(0, 10),
+              currency: "UGX",
+            },
+          }),
+        });
+      }
+    } catch (mailErr) {
+      console.error("[fund-rent-pool] confirmation email failed:", mailErr);
+    }
+
     fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },

@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, Paperclip, Star, Inbox, Clock, Archive, Trash2, MailOpen, Loader2 } from 'lucide-react';
+import { ChevronLeft, Paperclip, Star, Inbox, Clock, Archive, Trash2, MailOpen, Loader2, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { UserSearchPicker, type UserResult } from '@/components/cfo/UserSearchPicker';
 
 /**
  * Minimal shape needed to render an extracted transaction email in a
@@ -86,8 +87,14 @@ const BATCH = 40;
  * Purely presentational — routing/charging actions stay in the detailed ops
  * view, reachable via the "Ops view" switch in the parent header.
  */
-export function GmailStyleEmailList({ rows }: { rows: GmailStyleRow[] }) {
+interface GmailStyleEmailListProps {
+  rows: GmailStyleRow[];
+  onCreditUser?: (row: GmailStyleRow, user: UserResult) => void;
+}
+
+export function GmailStyleEmailList({ rows, onCreditUser }: GmailStyleEmailListProps) {
   const [openId, setOpenId] = useState<string | null>(null);
+  const [selectedUsers, setSelectedUsers] = useState<Record<string, UserResult>>({});
   // Always present the newest email first, even if the parent list order drifts
   // (e.g. realtime inserts, focus-direction resets, or cached presets).
   const sortedRows = useMemo(
@@ -186,6 +193,38 @@ export function GmailStyleEmailList({ rows }: { rows: GmailStyleRow[] }) {
           <div className="mt-4 text-sm leading-relaxed whitespace-pre-wrap break-words">
             {open.snippet || 'No message body was captured for this email.'}
           </div>
+          {open.direction === 'in' && onCreditUser && (
+            <div className="mt-5 border-y bg-muted/20 py-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                <div className="min-w-0 flex-1">
+                  <UserSearchPicker
+                    label="Search user by phone number or name"
+                    placeholder="Enter phone number or user name…"
+                    selectedUser={selectedUsers[open.id] ?? null}
+                    onSelect={(user) => {
+                      setSelectedUsers((current) => {
+                        const next = { ...current };
+                        if (user) next[open.id] = user;
+                        else delete next[open.id];
+                        return next;
+                      });
+                    }}
+                  />
+                </div>
+                <Button
+                  className="h-10 shrink-0 gap-2 sm:min-w-40"
+                  disabled={!selectedUsers[open.id]}
+                  onClick={() => {
+                    const user = selectedUsers[open.id];
+                    if (user) onCreditUser(open, user);
+                  }}
+                >
+                  <Wallet className="h-4 w-4" />
+                  Route to wallet
+                </Button>
+              </div>
+            </div>
+          )}
           <div className="mt-5 flex flex-wrap gap-1.5 text-[11px] text-muted-foreground">
             {amount && (
               <span className="rounded-full border bg-muted/40 px-2.5 py-1 font-mono tabular-nums text-foreground">

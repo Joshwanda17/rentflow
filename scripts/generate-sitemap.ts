@@ -23,6 +23,10 @@ interface SitemapEntry {
 }
 
 // Static, indexable marketing/public routes.
+// Deliberately excluded (and Disallowed in public/robots.txt): signed-in
+// dashboards (/dashboard, /dashboard/tenant), referral redirect links
+// (/r/:code) and personal Welile AI ID profiles (/profile/:aiId, /id/:aiId).
+// These are per-user, auth-gated or redirect-only with no indexable content.
 const staticEntries: SitemapEntry[] = [
   { path: '/', changefreq: 'weekly', priority: '1.0' },
   { path: '/welcome', changefreq: 'weekly', priority: '0.95' },

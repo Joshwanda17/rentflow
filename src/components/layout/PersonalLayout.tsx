@@ -1,8 +1,9 @@
 import { ReactNode, useEffect, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import { X } from 'lucide-react';
 
 interface PersonalLayoutProps {
   children: ReactNode;
@@ -20,6 +21,7 @@ const LINKS = [
 const PersonalLayout = ({ children, title }: PersonalLayoutProps) => {
   const { user } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [displayName, setDisplayName] = useState('');
 
   useEffect(() => {
@@ -40,8 +42,16 @@ const PersonalLayout = ({ children, title }: PersonalLayoutProps) => {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card/60 backdrop-blur sticky top-0 z-30">
-        <div className="max-w-3xl mx-auto px-4 py-3">
-          <div className="flex items-center gap-2 min-w-0">
+        <div className="max-w-3xl mx-auto px-4 py-3 relative">
+          <button
+            type="button"
+            onClick={() => navigate('/dashboard')}
+            className="absolute -top-2 right-2 p-2 rounded-full bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Close"
+          >
+            <X className="h-4 w-4" />
+          </button>
+          <div className="flex items-center gap-2 min-w-0 pt-4">
             <p className="font-bold truncate">{displayName || 'Your Name'}</p>
             <span className="text-xs text-muted-foreground flex-none">My space</span>
           </div>
