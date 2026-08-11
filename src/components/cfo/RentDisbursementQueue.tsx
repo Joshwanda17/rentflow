@@ -24,7 +24,6 @@ import { cn } from '@/lib/utils';
 import { TreasuryImpactBanner } from './TreasuryImpactBanner';
 import { useAuth } from '@/hooks/useAuth';
 import { UserDrilldownDrawer } from '@/components/ops/UserDrilldownDrawer';
-import { PayByLocationRecipientPicker } from './PayByLocationRecipientPicker';
 
 const fmt = (n: number) =>
   new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX', maximumFractionDigits: 0 }).format(n);
@@ -47,6 +46,7 @@ interface ApprovedRentItem {
   payout_target: 'landlord_wallet' | 'agent_float';
   request_country: string | null;
   request_city: string | null;
+  request_district: string | null;
 }
 
 interface RentDisbursementQueueProps {
@@ -65,20 +65,14 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [agentFilter, setAgentFilter] = useState<string>('all');
   const [countryFilter, setCountryFilter] = useState<string>('all');
+  const [districtFilter, setDistrictFilter] = useState<string>('all');
+  const [cityFilter, setCityFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<'all' | '7d' | '30d'>('all');
   const [search, setSearch] = useState('');
   const [batchRef, setBatchRef] = useState('');
   const [rejectTarget, setRejectTarget] = useState<ApprovedRentItem | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [drilldownAgentId, setDrilldownAgentId] = useState<string | null>(null);
-  /**
-   * Pay by Location/Category scope, selected *inside this section*. It holds
-   * rent_request ids only — a recipient filter. Every amount, validation,
-   * approval requirement, disbursement call, wallet and ledger effect below
-   * stays exactly the same as the normal queue.
-   */
-  const [locationScopeIds, setLocationScopeIds] = useState<string[] | null>(null);
-  const [locationScopeLabel, setLocationScopeLabel] = useState<string | null>(null);
   const step2Ref = useRef<HTMLDivElement | null>(null);
   const qc = useQueryClient();
   const { user } = useAuth();
@@ -89,7 +83,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
       // Get COO-approved rent requests
       const { data: requests, error } = await supabase
         .from('rent_requests')
-        .select('id, rent_amount, tenant_id, landlord_id, agent_id, assigned_agent_id, access_fee, request_fee, total_repayment, created_at, request_country, request_city')
+        .select('id, rent_amount, tenant_id, landlord_id, agent_id, assigned_agent_id, access_fee, request_fee, total_repayment, created_at, request_country, request_city, house_listing_id')
         .eq('status', 'coo_approved')
         .order('created_at', { ascending: true });
       if (error) throw error;
@@ -126,6 +120,17 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
         for (const w of wallets || []) walletSet.add(w.user_id);
       }
 
+      // Read-only enrichment so the existing table can be filtered by district.
+      const listingIds = [...new Set(requests.map(r => (r as any).house_listing_id).filter(Boolean) as string[])];
+      const districtMap = new Map<string, string>();
+      if (listingIds.length) {
+        const { data: listings } = await supabase
+          .from('house_listings')
+          .select('id, district')
+          .in('id', listingIds);
+        for (const l of listings || []) if (l.district) districtMap.set(l.id, l.district);
+      }
+
       return requests.map(r => {
         const agentId = r.assigned_agent_id || r.agent_id;
         const hasWallet = walletSet.has(r.landlord_id);
@@ -141,6 +146,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
           payout_target: hasWallet ? 'landlord_wallet' as const : 'agent_float' as const,
           request_country: (r as any).request_country ?? null,
           request_city: (r as any).request_city ?? null,
+          request_district: districtMap.get((r as any).house_listing_id) ?? null,
         };
       });
     },
@@ -155,11 +161,9 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
     setSelected(new Set(autoSelectIds));
   }, [autoSelectIds?.join(',')]);
 
-  // Caller-supplied restriction wins; otherwise the in-section
-  // Location/Category selection scopes the very same queue.
   const effectiveRestrictIds = useMemo(
-    () => (restrictToIds && restrictToIds.length ? restrictToIds : locationScopeIds),
-    [restrictToIds?.join(','), locationScopeIds?.join(',')],
+    () => (restrictToIds && restrictToIds.length ? restrictToIds : null),
+    [restrictToIds?.join(',')],
   );
   const restrictSet = useMemo(
     () => (effectiveRestrictIds && effectiveRestrictIds.length ? new Set(effectiveRestrictIds) : null),
