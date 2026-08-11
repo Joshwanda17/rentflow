@@ -90,7 +90,7 @@ export default function HRDepartments() {
     ]);
   };
 
-  const logAudit = async (payload: Record<string, any>) => {
+  const logAudit = async (payload: any) => {
     // Audit logging must never block or undo the write it describes.
     try {
       await supabase.from('audit_logs').insert(payload);
