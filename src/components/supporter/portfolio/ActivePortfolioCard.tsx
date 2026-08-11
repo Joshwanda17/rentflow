@@ -1,6 +1,8 @@
-import { ChevronRight, TrendingUp, Building2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { ChevronRight, TrendingUp, Building2, Clock, RefreshCw } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { hapticTap } from '@/lib/haptics';
+import { supabase } from '@/integrations/supabase/client';
 import type { PortfolioRecord } from '@/hooks/useCapitalOpportunities';
 import { computeAccrual, type PortfolioState } from '@/lib/portfolioAccrual';
 
@@ -12,6 +14,28 @@ const stateStyles: Record<PortfolioState, { label: string; text: string; dot: st
   withdrawn: { label: 'WITHDRAWN', text: 'text-muted-foreground', dot: 'bg-muted-foreground/40' },
 };
 
+function usePendingTopup(portfolioId: string | undefined) {
+  const [amount, setAmount] = useState(0);
+  useEffect(() => {
+    if (!portfolioId) { setAmount(0); return; }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('pending_wallet_operations')
+        .select('amount')
+        .eq('source_table', 'investor_portfolios')
+        .eq('operation_type', 'portfolio_topup')
+        .eq('source_id', portfolioId)
+        .in('status', ['approved', 'awaiting_verification']);
+      if (cancelled) return;
+      const total = (data || []).reduce((s: number, op: any) => s + Number(op.amount || 0), 0);
+      setAmount(total);
+    })();
+    return () => { cancelled = true; };
+  }, [portfolioId]);
+  return amount;
+}
+
 export function ActivePortfolioCard({ portfolio, onView }: { portfolio: PortfolioRecord; onView: () => void }) {
   const a = computeAccrual(portfolio);
   const s = stateStyles[a.state];
@@ -21,6 +45,11 @@ export function ActivePortfolioCard({ portfolio, onView }: { portfolio: Portfoli
   const isNearComplete = progressPct >= 95;
   const progressBarColor = isNearComplete ? 'bg-success' : 'bg-primary';
   const roiPeriodLabel = a.isMonthlyCycle ? 'Monthly ROI' : `${a.cycleDays}-day ROI`;
+
+  const pendingTopup = usePendingTopup(portfolio.id);
+  const isCompounding =
+    portfolio.roi_mode === 'monthly_compounding' ||
+    portfolio.auto_reinvest === true;
 
   const remainingLabel = (() => {
     if (a.daysToPayout === null) return null;
@@ -47,12 +76,24 @@ export function ActivePortfolioCard({ portfolio, onView }: { portfolio: Portfoli
           <h3 className="font-bold text-foreground text-base truncate group-hover:text-primary transition-colors">
             {reference}
           </h3>
-          <div className="flex items-center gap-2 mt-1">
+          <div className="flex items-center gap-2 mt-1 flex-wrap">
             <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} aria-hidden="true" />
             <span className={`text-[10px] font-bold uppercase ${s.text}`}>{s.label}</span>
             <span className="text-[10px] font-semibold text-muted-foreground">
               {a.monthlyRoiPct}% · {roiPeriodLabel}
             </span>
+            {isCompounding && (
+              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-primary/10 text-primary">
+                <RefreshCw className="w-2.5 h-2.5" />
+                Compounding
+              </span>
+            )}
+            {pendingTopup > 0 && (
+              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-warning/15 text-warning">
+                <Clock className="w-2.5 h-2.5" />
+                +{formatUGX(pendingTopup)}
+              </span>
+            )}
           </div>
 
           {isActive && (
