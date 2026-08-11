@@ -60,9 +60,6 @@ import ResidenceAddressForm from '@/components/profile/ResidenceAddressForm';
 import { generateTenantOpsReportPdf } from '@/lib/generateTenantOpsReportPdf';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown } from 'lucide-react';
-import { useIsMobile } from '@/hooks/use-mobile';
 import { OpsScaffoldSection } from './OpsScaffoldSection';
 import { LayoutGrid, Gauge, Users2 } from 'lucide-react';
 
@@ -81,7 +78,6 @@ interface NavCard {
 export function TenantOpsDashboard() {
   const [activeView, setActiveView] = useState<ActiveView>('overview');
   const queryClient = useQueryClient();
-  const isMobile = useIsMobile();
   // Scaffolded overview: one section open at a time (accordion) so the page
   // stays short and scannable on every width. Remembered per operator.
   const [openSection, setOpenSection] = useState<string | null>('tools');
