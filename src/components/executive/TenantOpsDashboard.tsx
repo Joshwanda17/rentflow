@@ -1650,8 +1650,8 @@ export function TenantOpsDashboard() {
                 Print Report
               </Button>
             </div>
-              </CollapsibleContent>
-            </Collapsible>
+            </OpsScaffoldSection>
+            </div>
           </motion.div>
         ) : (
           <motion.div
