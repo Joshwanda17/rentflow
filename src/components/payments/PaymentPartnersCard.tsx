@@ -7,6 +7,7 @@ import { CreditCard, Phone, Copy, CheckCircle2, Banknote, Building2, ChevronRigh
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import PaymentConfirmationForm from './PaymentConfirmationForm';
+import mtnLogoAsset from '@/assets/mtn-logo.png.asset.json';
 
 interface PaymentPartnersCardProps {
   dashboardType: 'tenant' | 'supporter';
