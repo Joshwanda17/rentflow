@@ -2150,6 +2150,24 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     if (m.national_id) setTenantNationalId(cleanNationalIdInput(m.national_id));
     setIncomeType('outstanding');
     setStep('details');
+    // Pull the tenant's own documents so the agent sees what is carried over.
+    setCarriedDocs(null);
+    try {
+      const { data: docs } = await supabase.rpc('get_tenant_documents' as any, {
+        p_tenant_id: m.id,
+      });
+      const list: any[] = Array.isArray(docs) ? docs : [];
+      if (list.length > 0) {
+        const passport = list.find((d) => d.doc_type === 'tenant_passport');
+        setCarriedDocs({
+          passportUrl: passport?.public_url ?? null,
+          hasLcLetter: list.some((d) => d.doc_type === 'lc_letter'),
+          houseImages: list.filter((d) => d.doc_type === 'house_image').length,
+        });
+      }
+    } catch {
+      // Non-fatal — the database still carries the documents forward on insert.
+    }
     try {
       const { data, error } = await supabase.rpc('get_tenant_rent_summary' as any, {
         p_tenant_id: m.id,
