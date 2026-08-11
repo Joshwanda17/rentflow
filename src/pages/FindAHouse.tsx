@@ -28,6 +28,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useMapLinkAnnouncer } from '@/hooks/useMapLinkAnnouncer';
 import { regionLabel } from '@/lib/ugandaDistricts';
+import { UG_REGIONS, useUgDistricts, useUgSubcountiesByDistrict } from '@/hooks/useUgLocations';
+import { normalizeAreaName, matchesArea } from '@/lib/listingAreaFilter';
 import { cn } from '@/lib/utils';
 import { resolveHouseCoords, buildDirectionsUrl, distanceToHouse, estimateRoute, TravelMode } from '@/lib/houseGeo';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
@@ -38,12 +40,11 @@ const HouseMapView = lazy(() =>
   import('@/components/tenant/HouseMapView').then((m) => ({ default: m.HouseMapView }))
 );
 
-const REGIONS = [
-  'All Regions', 'Central', 'Eastern', 'Northern', 'Western',
-  'Kampala', 'Wakiso', 'Mukono', 'Jinja', 'Mbale',
-  'Mbarara', 'Gulu', 'Lira', 'Fort Portal', 'Masaka',
-  'Entebbe', 'Nansana', 'Kira', 'Bweyogerere',
-];
+// Region control is dataset-backed: Uganda's four official regions only.
+// District/sub-county come from the ug_* reference tables. Legacy region values
+// (SEO landing pages, older shared links) are still honoured as a search term
+// and rendered as the current option so those links keep working.
+const REGIONS = ['All Regions', ...UG_REGIONS];
 
 const CATEGORIES = [
   { value: 'all', label: 'All Types' },
