@@ -27,6 +27,7 @@ interface StartCashDepositDialogProps {
 export function StartCashDepositDialog({ open, onOpenChange, onIssued }: StartCashDepositDialogProps) {
   const { toast } = useToast();
   const [phone, setPhone] = useState('');
+  const [ownerName, setOwnerName] = useState('');
   const [amount, setAmount] = useState('');
   const [purpose, setPurpose] = useState('personal_deposit');
   const [cashLocation, setCashLocation] = useState<'bank' | 'cash_at_hand'>('cash_at_hand');
@@ -36,10 +37,17 @@ export function StartCashDepositDialog({ open, onOpenChange, onIssued }: StartCa
 
   const digits = phone.replace(/\D/g, '');
   const amountNum = Number(amount.replace(/[^0-9]/g, ''));
-  const canSubmit = digits.length >= 9 && Number.isFinite(amountNum) && amountNum >= 500 && !submitting;
+  const ownerNameClean = ownerName.trim().replace(/\s+/g, ' ');
+  const canSubmit =
+    digits.length >= 9 &&
+    ownerNameClean.length >= 3 &&
+    Number.isFinite(amountNum) &&
+    amountNum >= 500 &&
+    !submitting;
 
   const reset = () => {
     setPhone('');
+    setOwnerName('');
     setAmount('');
     setPurpose('personal_deposit');
     setCashLocation('cash_at_hand');
@@ -53,6 +61,7 @@ export function StartCashDepositDialog({ open, onOpenChange, onIssued }: StartCa
     const { data, error: fnErr } = await supabase.functions.invoke('finops-cash-deposit-initiate', {
       body: {
         phone: digits,
+        cash_owner_name: ownerNameClean,
         amount: amountNum,
         deposit_purpose: purpose,
         cash_location: cashLocation,
@@ -104,6 +113,22 @@ export function StartCashDepositDialog({ open, onOpenChange, onIssued }: StartCa
 
         <div className="space-y-4">
           <div className="space-y-1.5">
+            <Label htmlFor="fin-cash-owner">
+              Depositor's full name <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="fin-cash-owner"
+              placeholder="e.g. Nankambo Sharimah"
+              value={ownerName}
+              onChange={(e) => setOwnerName(e.target.value)}
+            />
+            <p className="text-[11px] text-muted-foreground">
+              The person whose cash this actually is — even when the money lands in the operator's
+              wallet for later transfer. This is the name that appears in the cash deposits list.
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
             <Label htmlFor="fin-cash-phone">Depositor phone number</Label>
             <Input
               id="fin-cash-phone"
@@ -113,7 +138,8 @@ export function StartCashDepositDialog({ open, onOpenChange, onIssued }: StartCa
               onChange={(e) => setPhone(e.target.value)}
             />
             <p className="text-[11px] text-muted-foreground">
-              Must match the phone number on their Welile account.
+              The phone of the Welile account whose wallet will be credited (the operator's own
+              number is fine when they will transfer the money on).
             </p>
           </div>
 
