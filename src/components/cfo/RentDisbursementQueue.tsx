@@ -671,7 +671,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
             </p>
 
             {/* Grouped list (by agent) */}
-            <div className="space-y-3 max-h-[420px] overflow-y-auto">
+            <div className="space-y-3 max-h-[560px] overflow-y-auto pr-0.5">
               {visibleGroups.length === 0 && (
                 <div className="text-center py-6 text-xs text-muted-foreground">
                   No tenants match the current filters.{' '}
@@ -693,8 +693,8 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                 const isNew = Date.now() - group.latest < 24 * 60 * 60 * 1000;
                 const isRealAgent = group.agent_id && group.agent_id !== 'unassigned';
                 return (
-                  <div key={group.agent_id} className="rounded-lg border">
-                    <div className="flex items-center justify-between gap-2 px-3 py-2 bg-muted/40 rounded-t-lg">
+                  <div key={group.agent_id} className="rounded-xl border border-border/70 overflow-hidden bg-card">
+                    <div className="flex items-center justify-between gap-2 px-3.5 py-2.5 bg-muted/40 border-b border-border/70">
                       <div className="flex items-center gap-2 text-sm min-w-0 flex-1">
                         <Checkbox
                           checked={allGroupOn ? true : someGroupOn ? 'indeterminate' : false}
@@ -724,34 +724,43 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                       </div>
                       <span className="text-xs font-bold text-orange-600 shrink-0">{fmt(groupTotal)}</span>
                     </div>
-                    <div className="divide-y">
-                      {group.rows.map(item => (
+                    <div className="divide-y divide-border/70">
+                      {group.rows.map(item => {
+                        const isSel = selected.has(item.id);
+                        return (
+                        <div key={item.id}>
                         <div
-                          key={item.id}
                           className={cn(
-                            'flex items-start gap-3 p-2.5 text-sm transition-colors flex-wrap sm:flex-nowrap',
-                            selected.has(item.id) && 'bg-primary/5'
+                            'relative flex items-start gap-3 p-3 text-sm transition-colors flex-wrap sm:flex-nowrap',
+                            isSel
+                              ? 'bg-primary/[0.07] shadow-[inset_3px_0_0_0_hsl(var(--primary))]'
+                              : 'hover:bg-muted/40'
                           )}
                         >
                           <Checkbox
                             checked={selected.has(item.id)}
                             onCheckedChange={() => toggle(item.id)}
-                            className="mt-0.5"
+                            className="mt-1"
                           />
-                          <div className="flex-1 min-w-[12rem] space-y-1">
+                          <div className="flex-1 min-w-[12rem] space-y-1.5">
                             <div className="flex items-center gap-2">
-                              <p className="font-medium truncate">{item.tenant_name}</p>
-                              <span className="text-[10px] text-muted-foreground">→</span>
-                              <p className="font-medium truncate text-primary">{item.landlord_name}</p>
+                              <p className={cn('truncate', isSel ? 'font-bold' : 'font-semibold')}>{item.tenant_name}</p>
+                              <span className="text-[11px] text-muted-foreground">→</span>
+                              <p className="font-semibold truncate text-primary">{item.landlord_name}</p>
+                              {isSel && (
+                                <Badge className="text-[9px] px-1.5 py-0 shrink-0 bg-primary text-primary-foreground border-0">
+                                  SELECTED
+                                </Badge>
+                              )}
                             </div>
                             <div className="flex items-center gap-2 flex-wrap">
                               {item.payout_target === 'landlord_wallet' ? (
-                                <Badge className="text-[9px] px-1.5 py-0 bg-emerald-100 text-emerald-700 border-emerald-200">
+                                <Badge className="text-[9px] px-2 py-0 rounded-full bg-emerald-100 text-emerald-700 border-emerald-200">
                                   <Wallet className="h-2.5 w-2.5 mr-0.5" />
                                   Landlord Wallet
                                 </Badge>
                               ) : (
-                                <Badge className="text-[9px] px-1.5 py-0 bg-amber-100 text-amber-700 border-amber-200">
+                                <Badge className="text-[9px] px-2 py-0 rounded-full bg-amber-100 text-amber-700 border-amber-200">
                                   <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />
                                   Agent Float
                                 </Badge>
@@ -760,17 +769,17 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                                 {format(new Date(item.created_at), 'dd MMM')}
                               </span>
                             </div>
-                            <div className="flex items-center gap-3 text-[10px]">
-                              <span>Rent: <b className="text-orange-600">{fmt(item.rent_amount)}</b></span>
-                              <span>Fees: <b className="text-emerald-600">{fmt(item.access_fee + item.request_fee)}</b></span>
-                              <span>Repay: <b>{fmt(item.total_repayment)}</b></span>
+                            <div className="flex items-center gap-3 flex-wrap text-[11px] text-muted-foreground">
+                              <span>Rent: <b className="text-orange-600 text-xs">{fmt(item.rent_amount)}</b></span>
+                              <span>Fees: <b className="text-emerald-600 text-xs">{fmt(item.access_fee + item.request_fee)}</b></span>
+                              <span>Repay: <b className="text-foreground text-xs">{fmt(item.total_repayment)}</b></span>
                             </div>
                           </div>
                           <div className="flex items-center gap-1 shrink-0 ml-auto sm:ml-0">
                           <Button
                             size="sm"
                             variant="outline"
-                            className="shrink-0 text-xs h-7"
+                            className="shrink-0 text-xs h-8 rounded-lg"
                             onClick={() => singleDisburse.mutate(item.id)}
                             disabled={singleDisburse.isPending}
                             title={`Fund only this tenant on ${item.agent_name}'s float`}
@@ -781,7 +790,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                           <Button
                             size="sm"
                             variant="ghost"
-                            className="shrink-0 text-xs h-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            className="shrink-0 text-xs h-8 rounded-lg text-destructive hover:text-destructive hover:bg-destructive/10"
                             onClick={() => { setRejectTarget(item); setRejectReason(''); }}
                             title="Reject and return to agent with a comment"
                           >
@@ -790,7 +799,32 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                           </Button>
                           </div>
                         </div>
-                      ))}
+                        {/* Step 2 renders inline, directly under the selected tenant */}
+                        {item.id === firstSelectedId && (
+                          <div
+                            ref={step2Ref}
+                            className="scroll-mt-4 border-t-2 border-primary/30 bg-primary/[0.05] px-3.5 py-3 space-y-2"
+                          >
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                              <p className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-2">
+                                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/15">
+                                  <Banknote className="h-3.5 w-3.5" />
+                                </span>
+                                Step 2 · Fund the selected float payouts
+                              </p>
+                              <Badge variant="outline" className="text-[11px] rounded-full px-2.5 bg-primary/10 text-primary border-primary/30">
+                                {selected.size} ticked · {fmt(totalRent)}
+                              </Badge>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground leading-relaxed">
+                              Enter a batch reference below and use the funding button to run the unchanged
+                              Fund Agent Landlord Payout Float process on every ticked tenant.
+                            </p>
+                          </div>
+                        )}
+                        </div>
+                        );
+                      })}
                     </div>
                   </div>
                 );
