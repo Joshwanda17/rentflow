@@ -27,6 +27,20 @@ import {
 
 const UNASSIGNED = '__unassigned__';
 
+const ReasonField = ({ value, onChange }: { value: string; onChange: (v: string) => void }) => (
+  <div>
+    <Label>Reason (min {MIN_REASON_LENGTH} characters)</Label>
+    <Textarea
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      placeholder="Why is this change being made?"
+      className="min-h-[60px]"
+    />
+    <p className="text-[10px] text-muted-foreground mt-1">{value.trim().length}/{MIN_REASON_LENGTH}</p>
+  </div>
+);
+
+
 export default function HRRolesPanel() {
   const {
     positions,
@@ -55,19 +69,6 @@ export default function HRRolesPanel() {
   const [statusReason, setStatusReason] = useState('');
 
   const reasonOk = (value: string) => value.trim().length >= MIN_REASON_LENGTH;
-
-  const ReasonField = ({ value, onChange }: { value: string; onChange: (v: string) => void }) => (
-    <div>
-      <Label>Reason (min {MIN_REASON_LENGTH} characters)</Label>
-      <Textarea
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        placeholder="Why is this change being made?"
-        className="min-h-[60px]"
-      />
-      <p className="text-[10px] text-muted-foreground mt-1">{value.trim().length}/{MIN_REASON_LENGTH}</p>
-    </div>
-  );
 
   const editProtected = !!editRole && (editRole.key === PROTECTED_TITLE_KEY || isProtectedTitle(editRole.title));
   const editTargetProtected = isProtectedTitle(editTitle);
