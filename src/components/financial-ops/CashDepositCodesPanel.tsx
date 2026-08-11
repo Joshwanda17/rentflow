@@ -398,10 +398,27 @@ export function CashDepositCodesPanel({
     <>
       <StartCashDepositDialog open={startOpen} onOpenChange={setStartOpen} onIssued={load} />
 
-      <div className="rounded-xl border bg-card overflow-hidden">
+      <div
+        className={
+          fullScreen
+            ? 'fixed inset-0 z-50 flex flex-col bg-background'
+            : 'rounded-xl border bg-card overflow-hidden'
+        }
+      >
         {/* ── Gmail-style toolbar ─────────────────────────────────────────── */}
-        <div className="flex flex-wrap items-center gap-2 px-3 py-2.5 border-b">
+        <div className={`flex flex-wrap items-center gap-2 px-3 py-2.5 border-b ${fullScreen ? 'shrink-0' : ''}`}>
           <div className="flex items-center gap-2 min-w-0">
+            {fullScreen && onClose ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 rounded-full -ml-1"
+                aria-label="Close"
+                onClick={onClose}
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+            ) : null}
             <Inbox className="h-5 w-5 text-primary shrink-0" />
             <span className="font-medium text-sm sm:text-base truncate">Cash deposit codes</span>
             {activeCount > 0 && (
