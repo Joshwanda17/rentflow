@@ -571,6 +571,30 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                 <SelectItem value="30d">Last 30 days</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={catField} onValueChange={(v) => { setCatField(v as CatFieldKey); setCatValue('all'); setSelected(new Set()); }}>
+              <SelectTrigger className="h-11 rounded-xl text-sm w-full bg-background border-border/70">
+                <MapPin className="h-4 w-4 mr-2 text-muted-foreground" />
+                <SelectValue placeholder="Category type" />
+              </SelectTrigger>
+              <SelectContent className="max-h-[320px]">
+                {CAT_FIELD_KEYS.map(k => (
+                  <SelectItem key={k} value={k}>{CAT_FIELD_LABELS[k]}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={catValue} onValueChange={(v) => { setCatValue(v); setSelected(new Set()); }}>
+              <SelectTrigger className="h-11 rounded-xl text-sm w-full bg-background border-border/70">
+                <SelectValue placeholder={CAT_FIELD_LABELS[catField]} />
+              </SelectTrigger>
+              <SelectContent className="max-h-[320px]">
+                <SelectItem value="all">All {CAT_FIELD_LABELS[catField].toLowerCase()}</SelectItem>
+                {catOptions.map(o => (
+                  <SelectItem key={o.name} value={o.name}>
+                    <span className="truncate">{o.name} · {o.count}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {(agentFilter !== 'all' || locationScoped) && (
               <button
                 type="button"
