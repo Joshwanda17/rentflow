@@ -228,8 +228,8 @@ function OptionCard({
       style={light ? { backgroundColor: '#d1eaed' } : undefined}
       className={
         light
-          ? "group relative w-full aspect-square rounded-2xl text-foreground shadow-lg shadow-foreground/10 hover:shadow-xl p-4 text-center ring-1 ring-foreground/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background overflow-hidden"
-          : "group relative w-full aspect-square rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 p-4 text-center ring-1 ring-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background overflow-hidden"
+          ? "group relative w-full aspect-square sm:aspect-auto sm:h-full sm:min-h-[15rem] rounded-2xl text-foreground shadow-lg shadow-foreground/10 hover:shadow-xl p-4 text-center ring-1 ring-foreground/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background overflow-hidden"
+          : "group relative w-full aspect-square sm:aspect-auto sm:h-full sm:min-h-[15rem] rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 p-4 text-center ring-1 ring-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background overflow-hidden"
       }
     >
       <span className={`pointer-events-none absolute inset-0 group-hover:animate-[shimmer_1.2s_ease-in-out_infinite] bg-gradient-to-r from-transparent ${light ? 'via-white/50' : 'via-white/15'} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300`} aria-hidden="true" />
@@ -240,18 +240,18 @@ function OptionCard({
             alt=""
             aria-hidden="true"
             loading="lazy"
-            className={`relative w-full object-contain shrink-0 group-hover:scale-105 group-focus-visible:scale-105 transition-transform duration-200 ${featured ? 'max-w-[58%] flex-[0.58] mt-1 mb-1' : 'max-w-[92%] flex-1 min-h-0'}`}
+            className={`relative w-full object-contain shrink-0 group-hover:scale-105 group-focus-visible:scale-105 transition-transform duration-200 sm:flex-none sm:h-24 sm:max-h-24 md:h-28 md:max-h-28 ${featured ? 'max-w-[58%] flex-[0.58] mt-1 mb-1 sm:max-w-[70%]' : 'max-w-[92%] flex-1 min-h-0 sm:max-w-[80%]'}`}
           />
         ) : (
           <div className={`relative p-5 rounded-2xl shrink-0 backdrop-blur-sm ring-1 shadow-inner group-hover:scale-110 group-focus-visible:scale-110 transition-all duration-200 ${light ? 'bg-white/60 text-primary ring-foreground/10' : 'bg-white/25 text-white ring-white/30 shadow-white/10 group-hover:bg-white/35 group-focus-visible:bg-white/35'}`}>
             <Icon className="h-9 w-9" strokeWidth={2.5} />
           </div>
         )}
-        <div className={`relative flex flex-col items-center justify-end gap-1 min-h-0 ${image ? 'mt-auto' : ''} ${featured ? 'pb-1 flex-[0.42]' : ''}`}>
+        <div className={`relative flex flex-col items-center justify-end gap-1 min-h-0 sm:flex-none sm:justify-start sm:mt-2 ${image ? 'mt-auto sm:mt-2' : ''} ${featured ? 'pb-1 flex-[0.42] sm:flex-none' : ''}`}>
           <p className={`font-bold leading-tight ${featured ? 'text-base sm:text-lg' : 'text-lg'} ${light ? 'text-foreground' : 'text-white'}`}>{title}</p>
-          <p className={`font-medium leading-snug ${featured ? 'line-clamp-3 text-xs sm:text-[13px]' : 'line-clamp-3 text-[13px]'} ${light ? 'text-foreground/70' : 'text-white/80'}`}>{description}</p>
+          <p className={`font-medium leading-snug sm:line-clamp-none ${featured ? 'line-clamp-3 text-xs sm:text-[13px]' : 'line-clamp-3 text-[13px]'} ${light ? 'text-foreground/70' : 'text-white/80'}`}>{description}</p>
         </div>
-        <ChevronRight className={`relative h-5 w-5 shrink-0 group-hover:translate-x-1 group-focus-visible:translate-x-1 transition-transform duration-200 ${light ? 'text-foreground/60' : 'text-white/80'}`} />
+        <ChevronRight className={`relative h-5 w-5 shrink-0 sm:mt-3 group-hover:translate-x-1 group-focus-visible:translate-x-1 transition-transform duration-200 ${light ? 'text-foreground/60' : 'text-white/80'}`} />
       </div>
     </motion.button>
   );
