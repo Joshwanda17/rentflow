@@ -233,7 +233,15 @@ function buildPdf(r: Report, win: { title: string; pretty: string }, logo: Uint8
     { label: "Returns paid (period)", value: compactUGX(k.paid_out_amount), sub: `${num(k.paid_out_count)} payouts`, accent: ROSE },
     { label: "Compounded (period)", value: compactUGX(k.compounded_amount), sub: `${num(k.compounded_count)} portfolios`, accent: TEAL },
     { label: "Top-ups applied", value: compactUGX(t.applied_amount), sub: `${num(t.applied_count)} in period`, accent: AMBER },
-    { label: "Withdrawn (period)", value: compactUGX(k.withdrawals_completed_amount), sub: `${num(k.withdrawals_completed_count)} completed`, accent: SLATE },
+    {
+      label: "Net capital movement",
+      value: compactUGX(
+        (Number(k.new_capital) || 0) + (Number(t.applied_amount) || 0) + (Number(k.compounded_amount) || 0) -
+          (Number(k.paid_out_amount) || 0),
+      ),
+      sub: "capital in minus returns paid",
+      accent: SLATE,
+    },
   ];
   const cols = 4;
   const cardW = (pageWidth - margin * 2 - gap * (cols - 1)) / cols;
