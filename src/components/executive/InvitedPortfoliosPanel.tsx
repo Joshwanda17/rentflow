@@ -435,7 +435,7 @@ export function InvitedPortfoliosPanel() {
                   )}
 
                   <div className="flex justify-end pt-1 border-t">
-                    {row.status === 'awaiting_partner_details' && (
+                    {(row.status === 'awaiting_partner_details' || row.status === 'pending_ops_approval') && (
                       <Button
                         size="sm"
                         variant={expired ? 'default' : 'ghost'}
@@ -446,7 +446,11 @@ export function InvitedPortfoliosPanel() {
                         {resendingId === row.id
                           ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
                           : <Send className="h-3.5 w-3.5" />}
-                        {expired ? 'Resend — new 7-day link' : 'Resend invite (new 7-day link)'}
+                        {row.status === 'pending_ops_approval'
+                          ? 'Resend confirmation'
+                          : expired
+                            ? 'Resend — new 7-day link'
+                            : 'Resend invite (new 7-day link)'}
                       </Button>
                     )}
                     <Button
