@@ -342,31 +342,59 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
   const dateFilterLabel: Record<string, string> = { all: 'All time', '7d': 'Last 7 days', '30d': 'Last 30 days' };
 
   return (
-    <Card>
-      <CardHeader className="pb-3 space-y-3">
-        <div className="flex flex-col gap-3">
-          <CardTitle className="text-base flex items-center gap-2 flex-wrap">
-            <Home className="h-4 w-4 text-primary" />
-            Fund Agent Landlord Payout Float
-            {filteredItems.length > 0 && (
-              <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/30">
-                {filteredItems.length} approved{dateFilter !== 'all' ? ` · ${dateFilterLabel[dateFilter]}` : ''} · {fmt(queueTotalRent)}
-              </Badge>
-            )}
-          </CardTitle>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,14rem)_minmax(0,10rem)] gap-2 items-center rounded-lg border border-border/60 bg-muted/30 p-2">
+    <Card className="overflow-hidden rounded-2xl border-border/70 shadow-sm">
+      <CardHeader className="pb-0 space-y-0 p-0">
+        {/* Title band */}
+        <div className="flex items-start justify-between gap-4 flex-wrap px-5 pt-5 pb-4">
+          <div className="flex items-start gap-3.5 min-w-0">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/25">
+              <Home className="h-6 w-6" />
+            </span>
+            <div className="min-w-0 space-y-1">
+              <CardTitle className="text-xl sm:text-2xl font-extrabold tracking-tight">
+                Fund Agent Landlord Payout Float
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                COO-approved rent, funded to the assigned agent's Landlord Payout Float.
+              </p>
+              <div className="flex items-center gap-4 flex-wrap pt-1 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <CalendarDays className="h-3.5 w-3.5" />
+                  {dateFilterLabel[dateFilter]}
+                </span>
+                <span className="opacity-50">•</span>
+                <span className="flex items-center gap-1.5">
+                  <Users className="h-3.5 w-3.5" />
+                  {grouped.length} agent{grouped.length === 1 ? '' : 's'} in queue
+                </span>
+              </div>
+            </div>
+          </div>
+          {filteredItems.length > 0 && (
+            <div className="flex items-center gap-3">
+              <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-sm font-semibold text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-400">
+                <CheckCircle2 className="h-4 w-4" />
+                {filteredItems.length} approved · {fmt(queueTotalRent)}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Filter band */}
+        <div className="border-y border-border/70 bg-muted/20 px-5 py-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,15rem)_minmax(0,11rem)] gap-3 items-center">
             <div className="relative w-full">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setSelected(new Set()); }}
                 placeholder="Search tenant, landlord, agent…"
-                className="h-8 text-xs pl-8 bg-background"
+                className="h-11 rounded-xl text-sm pl-9 bg-background border-border/70"
               />
             </div>
             <Select value={agentFilter} onValueChange={setAgentFilter}>
-              <SelectTrigger className="h-8 text-xs w-full bg-background">
-                <Users className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
+              <SelectTrigger className="h-11 rounded-xl text-sm w-full bg-background border-border/70">
+                <Users className="h-4 w-4 mr-2 text-muted-foreground" />
                 <SelectValue placeholder="Filter by agent" />
               </SelectTrigger>
               <SelectContent className="max-h-[320px]">
