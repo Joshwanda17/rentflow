@@ -7,7 +7,7 @@ import { PortfolioSkeleton, PortfolioEmptyState, PortfolioErrorState } from './P
 
 interface Props {
   /** Opens the existing portfolio/deployed-capital drawer */
-  onViewPortfolios: () => void;
+  onViewPortfolios: (portfolioId?: string) => void;
   /** Scrolls to the existing Capital Opportunities section */
   onExploreOpportunities: () => void;
 }
@@ -77,7 +77,7 @@ export function PartnerPortfolioSection({ onViewPortfolios, onExploreOpportuniti
 
           <div className="space-y-3">
             {shown.map(p => (
-              <ActivePortfolioCard key={p.id} portfolio={p} onView={onViewPortfolios} />
+              <ActivePortfolioCard key={p.id} portfolio={p} onView={() => onViewPortfolios(p.id)} />
             ))}
           </div>
 
