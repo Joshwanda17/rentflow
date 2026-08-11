@@ -647,8 +647,8 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
             )}
 
             {/* Select all + agent filter */}
-            <div className="flex items-center justify-between gap-2 flex-wrap rounded-lg border border-border/60 bg-muted/30 px-3 py-2">
-              <label className="flex items-center gap-2 text-sm cursor-pointer font-medium">
+            <div className="flex items-center justify-between gap-2 flex-wrap rounded-xl border border-border/70 bg-muted/20 px-4 py-3">
+              <label className="flex items-center gap-2.5 text-sm cursor-pointer font-semibold">
                 <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
                 Select all ({visibleItems.length}
                 {agentFilter !== 'all' && items.length !== visibleItems.length
@@ -658,7 +658,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
               </label>
               <div className="flex items-center gap-2">
                 {selected.size > 0 && (
-                  <Badge className="bg-primary/10 text-primary border-primary/30">
+                  <Badge className="rounded-full px-3 py-1 bg-primary/10 text-primary border-primary/30">
                     {selected.size} selected · {fmt(totalRent)}
                   </Badge>
                 )}
@@ -666,7 +666,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
             </div>
 
             {/* Helper hint */}
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-[11px] text-muted-foreground px-1">
               Tip: tick one tenant, a few, or use an agent's group toggle to fund a subset. The batch button funds only what's ticked.
             </p>
 
