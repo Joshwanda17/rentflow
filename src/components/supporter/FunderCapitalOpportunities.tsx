@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
+import apartmentRentIllustration from '@/assets/apartment-rent-rafiki.svg.asset.json';
 import {
   TrendingUp, Shield, Rocket, Home, Wallet, ChevronLeft, ChevronRight,
   Coins, Lock, Clock, HandCoins, Handshake,
@@ -209,9 +210,10 @@ function OptionRow({
 
 // ─── Option card (square grid card) ───
 function OptionCard({
-  icon: Icon, title, description, tooltip, onClick,
+  icon: Icon, title, description, tooltip, onClick, image, light,
 }: {
   icon: typeof Home; title: string; description: string; tooltip?: string; onClick: () => void;
+  image?: string; light?: boolean;
 }) {
   const button = (
     <motion.button
@@ -221,18 +223,33 @@ function OptionCard({
       whileTap={{ scale: 0.97 }}
       whileFocus={{ y: -2, scale: 1.01 }}
       transition={{ type: 'spring', stiffness: 420, damping: 24 }}
-      className="group relative w-full aspect-square rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 p-4 text-center ring-1 ring-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background overflow-hidden"
+      style={light ? { backgroundColor: '#d1eaed' } : undefined}
+      className={
+        light
+          ? "group relative w-full aspect-square rounded-2xl text-foreground shadow-lg shadow-foreground/10 hover:shadow-xl p-4 text-center ring-1 ring-foreground/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background overflow-hidden"
+          : "group relative w-full aspect-square rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 p-4 text-center ring-1 ring-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background overflow-hidden"
+      }
     >
-      <span className="pointer-events-none absolute inset-0 group-hover:animate-[shimmer_1.2s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-white/15 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" aria-hidden="true" />
+      <span className={`pointer-events-none absolute inset-0 group-hover:animate-[shimmer_1.2s_ease-in-out_infinite] bg-gradient-to-r from-transparent ${light ? 'via-white/50' : 'via-white/15'} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300`} aria-hidden="true" />
       <div className="relative flex flex-col items-center justify-center h-full gap-3">
-        <div className="relative p-4 rounded-2xl bg-white/25 text-white shrink-0 backdrop-blur-sm ring-1 ring-white/30 shadow-inner shadow-white/10 group-hover:bg-white/35 group-focus-visible:bg-white/35 group-hover:scale-110 group-focus-visible:scale-110 transition-all duration-200">
-          <Icon className="h-7 w-7" strokeWidth={2.5} />
-        </div>
+        {image ? (
+          <img
+            src={image}
+            alt=""
+            aria-hidden="true"
+            loading="lazy"
+            className="relative h-20 w-20 object-contain shrink-0 group-hover:scale-110 group-focus-visible:scale-110 transition-transform duration-200"
+          />
+        ) : (
+          <div className={`relative p-4 rounded-2xl shrink-0 backdrop-blur-sm ring-1 shadow-inner group-hover:scale-110 group-focus-visible:scale-110 transition-all duration-200 ${light ? 'bg-white/60 text-primary ring-foreground/10' : 'bg-white/25 text-white ring-white/30 shadow-white/10 group-hover:bg-white/35 group-focus-visible:bg-white/35'}`}>
+            <Icon className="h-7 w-7" strokeWidth={2.5} />
+          </div>
+        )}
         <div className="relative flex flex-col items-center gap-1.5">
-          <p className="text-sm font-bold text-white leading-tight">{title}</p>
-          <p className="text-[11px] text-white/80 font-medium leading-snug line-clamp-3">{description}</p>
+          <p className={`text-sm font-bold leading-tight ${light ? 'text-foreground' : 'text-white'}`}>{title}</p>
+          <p className={`text-[11px] font-medium leading-snug line-clamp-3 ${light ? 'text-foreground/70' : 'text-white/80'}`}>{description}</p>
         </div>
-        <ChevronRight className="relative h-5 w-5 text-white/80 shrink-0 group-hover:translate-x-1 group-focus-visible:translate-x-1 transition-transform duration-200 mt-1" />
+        <ChevronRight className={`relative h-5 w-5 shrink-0 group-hover:translate-x-1 group-focus-visible:translate-x-1 transition-transform duration-200 mt-1 ${light ? 'text-foreground/60' : 'text-white/80'}`} />
       </div>
     </motion.button>
   );
@@ -365,6 +382,8 @@ export function FunderCapitalOpportunities() {
               />
               <OptionCard
                 icon={HandCoins}
+                image={apartmentRentIllustration.url}
+                light
                 title="Support Tenants Directly"
                 description="Pay landlords directly. Welile facilitates the introduction and documentation."
                 tooltip="You pay the landlord directly for a verified tenant. Welile handles introductions, documentation, and repayment tracking on your behalf."
