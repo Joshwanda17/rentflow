@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Plus, Edit2, Building2, Users, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import HRRolesPanel from '@/components/hr/HRRolesPanel';
 
 interface Department {
   id: string;
@@ -234,6 +235,9 @@ export default function HRDepartments() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Roles (job titles) */}
+      <HRRolesPanel />
     </div>
   );
 }
