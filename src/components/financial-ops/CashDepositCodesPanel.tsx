@@ -112,7 +112,10 @@ function Countdown({ expiresAt, inline = false }: { expiresAt: string | null; in
  * code is only revealed while the deposit is still awaiting the code and not
  * expired — crediting still requires the depositor to enter it.
  */
-export function CashDepositCodesPanel() {
+export function CashDepositCodesPanel({
+  fullScreen = false,
+  onClose,
+}: { fullScreen?: boolean; onClose?: () => void } = {}) {
   const { toast } = useToast();
   const [rows, setRows] = useState<CashCodeRow[]>([]);
   const [loading, setLoading] = useState(true);
