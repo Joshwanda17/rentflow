@@ -462,12 +462,13 @@ export default function MerchandiseStore() {
                   className="overflow-hidden cursor-pointer transition hover:shadow-md hover:border-primary/40 focus-within:ring-2 focus-within:ring-primary/40"
                   role="button"
                   tabIndex={0}
-                  onClick={() => { setSelected(item); setQuantity('1'); }}
+                  onClick={() => { setSelected(item); setQuantity('1'); setSelectedSize(null); }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
                       setSelected(item);
                       setQuantity('1');
+                      setSelectedSize(null);
                     }
                   }}
                   aria-label={`Buy ${item.item_name}`}
@@ -485,11 +486,16 @@ export default function MerchandiseStore() {
                       <p className="text-[11px] text-muted-foreground line-clamp-2">{item.description}</p>
                     )}
                     <p className="text-sm font-bold text-primary">{formatUGX(Number(item.unit_price))}</p>
+                    {Array.isArray(item.sizes) && item.sizes.length > 0 && (
+                      <p className="text-[10px] text-muted-foreground">
+                        Sizes in stock: {item.sizes.join(', ')}
+                      </p>
+                    )}
                     <div className="flex gap-1.5">
                       <Button
                         size="sm"
                         className="flex-1 h-8 text-xs gap-1"
-                        onClick={(e) => { e.stopPropagation(); setSelected(item); setQuantity('1'); }}
+                        onClick={(e) => { e.stopPropagation(); setSelected(item); setQuantity('1'); setSelectedSize(null); }}
                       >
                         <ShoppingBag className="h-3.5 w-3.5" /> Buy
                       </Button>
