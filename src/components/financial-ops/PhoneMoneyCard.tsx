@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Smartphone, Info, Banknote } from 'lucide-react';
 import mtnLogoAsset from '@/assets/mtn-logo.png.asset.json';
@@ -15,6 +16,30 @@ import { useFinOpsAutoRefresh } from '@/hooks/useFinOpsAutoRefresh';
  */
 export function PhoneMoneyCard() {
   const autoRefresh = useFinOpsAutoRefresh();
+  const queryClient = useQueryClient();
+
+  // Live: a new provider SMS (money in / out on the MTN or Airtel line) or a
+  // cash-deposit verification instantly refreshes the figures instead of the
+  // operator waiting for the next poll.
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const invalidate = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['finops-phone-money-lines'] });
+        queryClient.invalidateQueries({ queryKey: ['finops-cash-at-hand-total'] });
+      }, 250);
+    };
+    const channel = supabase
+      .channel('finops-phone-money-rt')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'gmail_transactions' }, invalidate)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'cash_deposit_verifications' }, invalidate)
+      .subscribe();
+    return () => {
+      if (timer) clearTimeout(timer);
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   const { data: phone, isLoading: phoneLoading } = useQuery({
     queryKey: ['finops-phone-money-lines'],
@@ -28,8 +53,8 @@ export function PhoneMoneyCard() {
         totalFloat: Number(d.total_float ?? 0),
       };
     },
-    staleTime: 60_000,
-    refetchInterval: autoRefresh ? 60_000 : false,
+    staleTime: 15_000,
+    refetchInterval: autoRefresh ? 20_000 : false,
   });
 
   // Cash at hand is role-gated inside the RPC; a denied call simply renders 0
@@ -43,8 +68,8 @@ export function PhoneMoneyCard() {
       return { total: Number(d.cash_at_hand_total ?? 0), count: Number(d.verified_count ?? 0) };
     },
     retry: false,
-    staleTime: 60_000,
-    refetchInterval: autoRefresh ? 60_000 : false,
+    staleTime: 15_000,
+    refetchInterval: autoRefresh ? 20_000 : false,
   });
 
   const loading = phoneLoading || cashLoading;
