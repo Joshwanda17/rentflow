@@ -89,6 +89,7 @@ import { SwipeOnboardingHint } from '@/components/cfo/SwipeOnboardingHint';
 import { useSwipeSensitivity } from '@/hooks/useSwipeSensitivity';
 import { usePersistedActiveTab } from '@/hooks/usePersistedActiveTab';
 import { useCfoAdvanceDisbursementCount } from '@/hooks/useCfoAdvanceDisbursementCount';
+import { CFOApprovalNotificationsBell } from '@/components/cfo/CFOApprovalNotificationsBell';
 
 // Ordered, swipeable tab ids derived from the CFO sidebar (route items excluded).
 const CFO_TAB_SEQUENCE = (executiveSidebarConfig.cfo ?? [])
@@ -486,6 +487,7 @@ export default function CFODashboardPage() {
       activeTab={activeTab}
       onTabChange={setActiveTab}
       badges={{ advances: advanceDisbursementCount }}
+      headerActions={<CFOApprovalNotificationsBell onJump={setActiveTab} />}
     >
       <CFOBreadcrumbHeader
         activeTab={activeTab}
