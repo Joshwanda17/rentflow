@@ -28,6 +28,26 @@ export const slugifyPositionKey = (title: string) =>
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '');
 
+// A database function grants a capability by matching lower(title) on this exact
+// string, so the title is protected from both directions: no new/renamed title may
+// become it, and the row that already carries it may not be renamed.
+export const PROTECTED_TITLE = 'lead partner growth';
+export const PROTECTED_TITLE_KEY = 'lead_partner_growth';
+export const PROTECTED_TITLE_MESSAGE =
+  'This title is matched by name in a database function. Changing it here would change who has access.';
+
+export const isProtectedTitle = (title: string) => title.trim().toLowerCase() === PROTECTED_TITLE;
+
+export const MIN_REASON_LENGTH = 10;
+
+const requireReason = (reason: string) => {
+  const clean = (reason || '').trim();
+  if (clean.length < MIN_REASON_LENGTH) {
+    throw new Error(`A reason of at least ${MIN_REASON_LENGTH} characters is required`);
+  }
+  return clean;
+};
+
 const POSITIONS_KEY = ['hr-roles', 'positions'];
 const DEPARTMENTS_KEY = ['hr-roles', 'hr-departments'];
 const HELD_BY_KEY = ['hr-roles', 'held-by'];
@@ -122,14 +142,22 @@ export function useHRPositions() {
   };
 
   const addPosition = useMutation({
-    mutationFn: async ({ title, departmentId }: { title: string; departmentId: string | null }) => {
+    mutationFn: async ({
+      title,
+      departmentId,
+      reason,
+    }: { title: string; departmentId: string | null; reason: string }) => {
+      const cleanReason = requireReason(reason);
       const cleanTitle = title.trim();
       if (!cleanTitle) throw new Error('Title is required');
+      if (isProtectedTitle(cleanTitle)) throw new Error(PROTECTED_TITLE_MESSAGE);
       const key = slugifyPositionKey(cleanTitle);
       if (!key) throw new Error('Title must contain letters or numbers');
-      const { error } = await supabase
+      const { data: inserted, error } = await supabase
         .from('hr_positions')
-        .insert({ title: cleanTitle, key, department_id: departmentId });
+        .insert({ title: cleanTitle, key, department_id: departmentId })
+        .select('id')
+        .maybeSingle();
       if (error) {
         if (describeError(error) === null) {
           throw new Error(`a role with this key already exists: ${key}`);
@@ -137,29 +165,46 @@ export function useHRPositions() {
         throw error;
       }
       await logAudit({
-        user_id: user?.id ?? null, action_type: 'hr_position_created', table_name: 'hr_positions', record_id: key,
-        metadata: { title: cleanTitle, key, department_id: departmentId, reason: 'HR role creation' },
+        user_id: user?.id ?? null, action_type: 'hr_position_created', table_name: 'hr_positions',
+        record_id: inserted?.id ?? key,
+        metadata: { title: cleanTitle, key, department_id: departmentId, reason: cleanReason },
       });
     },
     onSuccess: refetchAll,
   });
 
   const renamePosition = useMutation({
-    mutationFn: async ({ id, title }: { id: string; title: string }) => {
+    mutationFn: async ({
+      id,
+      title,
+      currentKey,
+      currentTitle,
+      reason,
+    }: { id: string; title: string; currentKey: string; currentTitle: string; reason: string }) => {
+      const cleanReason = requireReason(reason);
       const cleanTitle = title.trim();
       if (!cleanTitle) throw new Error('Title is required');
+      // Protected in both directions: the row that carries it, and any title becoming it.
+      if (currentKey === PROTECTED_TITLE_KEY || isProtectedTitle(currentTitle) || isProtectedTitle(cleanTitle)) {
+        throw new Error(PROTECTED_TITLE_MESSAGE);
+      }
       const { error } = await supabase.from('hr_positions').update({ title: cleanTitle }).eq('id', id);
       if (error) throw error;
       await logAudit({
         user_id: user?.id ?? null, action_type: 'hr_position_updated', table_name: 'hr_positions', record_id: id,
-        metadata: { title: cleanTitle, reason: 'HR role title update' },
+        metadata: { title: cleanTitle, previous_title: currentTitle, reason: cleanReason },
       });
     },
     onSuccess: refetchAll,
   });
 
   const movePosition = useMutation({
-    mutationFn: async ({ id, departmentId }: { id: string; departmentId: string | null }) => {
+    mutationFn: async ({
+      id,
+      departmentId,
+      reason,
+    }: { id: string; departmentId: string | null; reason: string }) => {
+      const cleanReason = requireReason(reason);
       const { error } = await supabase
         .from('hr_positions')
         .update({ department_id: departmentId })
@@ -167,21 +212,32 @@ export function useHRPositions() {
       if (error) throw error;
       await logAudit({
         user_id: user?.id ?? null, action_type: 'hr_position_moved', table_name: 'hr_positions', record_id: id,
-        metadata: { department_id: departmentId, reason: 'HR role moved to another department' },
+        metadata: { department_id: departmentId, reason: cleanReason },
       });
     },
     onSuccess: refetchAll,
   });
 
   const setPositionActive = useMutation({
-    mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
+    mutationFn: async ({
+      id,
+      active,
+      heldBy: heldByCount,
+      reason,
+    }: { id: string; active: boolean; heldBy: number; reason: string }) => {
+      const cleanReason = requireReason(reason);
+      if (!active && heldByCount > 0) {
+        throw new Error(
+          `Cannot deactivate: this position is held by ${heldByCount} ${heldByCount === 1 ? 'person' : 'people'}. The position must be vacated first.`,
+        );
+      }
       const { error } = await supabase.from('hr_positions').update({ active }).eq('id', id);
       if (error) throw error;
       await logAudit({
         user_id: user?.id ?? null,
         action_type: active ? 'hr_position_activated' : 'hr_position_deactivated',
         table_name: 'hr_positions', record_id: id,
-        metadata: { reason: `Role ${active ? 'activated' : 'deactivated'} by HR` },
+        metadata: { active, reason: cleanReason },
       });
     },
     onSuccess: refetchAll,
