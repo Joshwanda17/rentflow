@@ -28,8 +28,9 @@ export interface ListingAreaSelection {
   villageId?: number | null;
 }
 
-/** Strip characters that would break a PostgREST `or=(...)` list. */
-const safe = (s: string) => s.replace(/[,()*]/g, ' ').replace(/\s+/g, ' ').trim();
+/** Strip characters that would break a PostgREST `or=(...)` list. Values are
+ *  double-quoted in the clause, so spaces are safe once commas/quotes are gone. */
+const safe = (s: string) => s.replace(/[,()*"']/g, ' ').replace(/\s+/g, ' ').trim();
 
 /** Normalise an area name for text comparison (case, spacing, level suffix). */
 export function normalizeAreaName(value?: string | null): string {
@@ -52,17 +53,17 @@ export function buildAreaOrClauses(sel: ListingAreaSelection): string[] {
 
   if (isSet(sel.district)) {
     const n = safe(sel.district!);
-    clauses.push([`district.ilike.${n}`, `district.ilike.${n} District`].join(','));
+    clauses.push([`district.ilike."${n}"`, `district.ilike."${n} District"`].join(','));
   }
 
   if (isSet(sel.subCounty)) {
     const n = safe(sel.subCounty!);
     clauses.push(
       [
-        `sub_county.ilike.${n}`,
-        `sub_county.ilike.${n} Sub County`,
-        `sub_county.ilike.${n} Subcounty`,
-        `sub_county.ilike.${n} Division`,
+        `sub_county.ilike."${n}"`,
+        `sub_county.ilike."${n} Sub County"`,
+        `sub_county.ilike."${n} Subcounty"`,
+        `sub_county.ilike."${n} Division"`,
       ].join(','),
     );
   }
@@ -72,7 +73,7 @@ export function buildAreaOrClauses(sel: ListingAreaSelection): string[] {
     // Upgraded listings: match the stored official village id directly.
     if (sel.villageId != null) parts.push(`ug_village_id.eq.${sel.villageId}`);
     // Legacy listings: fall back to case-insensitive name matching.
-    if (isSet(sel.village)) parts.push(`village.ilike.${safe(sel.village!)}`);
+    if (isSet(sel.village)) parts.push(`village.ilike."${safe(sel.village!)}"`);
     if (parts.length) clauses.push(parts.join(','));
   }
 
