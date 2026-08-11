@@ -609,7 +609,9 @@ function ReviewSubmissionDialog({
     partnerAddress: agreement.address || '',
     partnerPhone: agreement.phone || profile.phone || row.partner_phone || '',
     partnerEmail: agreement.email || profile.email || row.partner_email || '',
-    partnershipAmount: Number(agreement.partnership_amount) || Number(row.investment_amount) || 0,
+    // Portfolio amount is authoritative so the preview/PDF always matches the
+    // "Portfolio terms → Amount" shown in the details section.
+    partnershipAmount: Number(row.investment_amount) || Number(agreement.partnership_amount) || 0,
     payoutMode: agreement.payout_mode === 'momo' ? 'momo' : 'bank',
     bankName: agreement.bank_name || '',
     bankAccountName: agreement.bank_account_name || '',
