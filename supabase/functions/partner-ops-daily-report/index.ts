@@ -482,19 +482,27 @@ function buildPdf(r: Report, win: { title: string; pretty: string }, logo: Uint8
     { label: "Top-ups applied", value: compactUGX(t.applied_amount), accent: AMBER },
     { label: "Compounded in", value: compactUGX(k.compounded_amount), accent: TEAL },
     { label: "Returns paid out", value: compactUGX(k.paid_out_amount), accent: ROSE },
-    { label: "Withdrawn out", value: compactUGX(k.withdrawals_completed_amount), accent: SLATE },
+    { label: "Cash-out of paid returns", value: compactUGX(k.withdrawals_completed_amount), accent: SLATE },
   ]);
   const inflow = (Number(k.new_capital) || 0) + (Number(t.applied_amount) || 0) + (Number(k.compounded_amount) || 0);
-  const outflow = (Number(k.paid_out_amount) || 0) + (Number(k.withdrawals_completed_amount) || 0);
+  const outflow = Number(k.paid_out_amount) || 0;
   barChart([
     { label: "Capital in", value: inflow, note: "new + top-ups + compounded", color: EMERALD },
-    { label: "Capital out", value: outflow, note: "returns paid + withdrawals", color: ROSE },
+    { label: "Capital out", value: outflow, note: "returns paid to partner wallets", color: ROSE },
     { label: "Net movement", value: Math.abs(inflow - outflow), note: inflow - outflow >= 0 ? "net inflow" : "net outflow", color: inflow - outflow >= 0 ? BLUE : AMBER },
   ]);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(6.8);
+  doc.setTextColor(...MUTED);
+  doc.text(
+    `Partner cash-out in the window: ${compactUGX(k.withdrawals_completed_amount)} (${num(k.withdrawals_completed_count)} withdrawals). This is returns already counted above being moved out of the wallet - it is not a second reduction of capital, so it is excluded from Capital out.`,
+    margin, y, { maxWidth: pageWidth - margin * 2 },
+  );
+  y += 8;
 
   // ── Daily trend ──
-  heading("Daily trend", "Per-day capital in versus returns settled - each column is one calendar day in the window.");
-  columnChart(
+  heading("Daily trend", "Per-day capital in versus returns settled - each point is one calendar day in the window.");
+  lineChart(
     r.series.map((s: any) => ({
       label: ascii(s.label),
       a: (Number(s.new_capital) || 0) + (Number(s.topups_applied) || 0),
