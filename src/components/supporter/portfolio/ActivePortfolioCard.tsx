@@ -69,7 +69,7 @@ export function ActivePortfolioCard({ portfolio, onView }: { portfolio: Portfoli
                 aria-valuenow={progressPct}
                 aria-label="Payout cycle progress"
               >
-                <div className="h-full bg-primary rounded-full transition-all duration-1000" style={{ width: `${progressPct}%` }} />
+                <div className={`h-full ${progressBarColor} rounded-full transition-all duration-1000`} style={{ width: `${progressPct}%` }} />
               </div>
             </div>
           )}
