@@ -387,9 +387,14 @@ function LatestRentRequests({ onViewAll }: { onViewAll: () => void }) {
       : ['repaying', 'funded', 'disbursed', 'approved'].includes(s) ? 'default'
       : 'outline';
 
+  const formatStatus = (s: string) =>
+    s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+
+  const formatFullUGX = (n: number) => `UGX ${Math.round(n || 0).toLocaleString('en-UG')}`;
+
   return (
     <Card className="rounded-2xl border-border/50 p-3 sm:p-4 w-full">
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-3">
         <div>
           <h3 className="text-sm font-semibold">Latest Rent Requests</h3>
           <p className="text-[11px] text-muted-foreground">The five most recent submissions</p>
@@ -407,11 +412,11 @@ function LatestRentRequests({ onViewAll }: { onViewAll: () => void }) {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Tenant</TableHead>
-                <TableHead className="hidden sm:table-cell">Agent</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Rent</TableHead>
+                <TableHead className="text-[11px]">Date</TableHead>
+                <TableHead className="text-[11px]">Tenant</TableHead>
+                <TableHead className="hidden sm:table-cell text-[11px]">Agent</TableHead>
+                <TableHead className="text-[11px]">Status</TableHead>
+                <TableHead className="text-right text-[11px]">Rent</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -421,12 +426,14 @@ function LatestRentRequests({ onViewAll }: { onViewAll: () => void }) {
                     {format(new Date(r.created_at), 'd MMM HH:mm')}
                   </TableCell>
                   <TableCell className="font-medium max-w-[140px] truncate">{r.tenant_name}</TableCell>
-                  <TableCell className="hidden sm:table-cell max-w-[140px] truncate">{r.agent_name}</TableCell>
+                  <TableCell className="hidden sm:table-cell max-w-[140px] truncate text-muted-foreground">{r.agent_name}</TableCell>
                   <TableCell>
-                    <Badge variant={statusTone(r.status) as any} className="text-[10px]">{r.status}</Badge>
+                    <Badge variant={statusTone(r.status) as any} className="text-[10px] whitespace-nowrap capitalize">
+                      {formatStatus(r.status)}
+                    </Badge>
                   </TableCell>
-                  <TableCell className="text-right font-semibold tabular-nums text-xs">
-                    {fmtMoney(Number(r.rent_amount || 0))}
+                  <TableCell className="text-right font-bold tabular-nums text-sm text-emerald-600">
+                    {formatFullUGX(Number(r.rent_amount || 0))}
                   </TableCell>
                 </TableRow>
               ))}
