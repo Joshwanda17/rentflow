@@ -3315,17 +3315,18 @@ export function EmailTransactionsPanel() {
 
   // Gmail-style label counts, computed off the same rows the list renders from.
   const gmailLabelCounts = useMemo(() => {
-    let inCount = 0, outCount = 0, routing = 0, unparsed = 0, credited = 0;
+    let inCount = 0, outCount = 0, routing = 0, routingOut = 0, unparsed = 0, credited = 0;
     for (const r of filteredRows) {
       if (r.direction === 'in') inCount += 1;
       else if (r.direction === 'out' || r.direction === 'charge') outCount += 1;
+      if (isNeedsDebitRouting(r)) routingOut += 1;
       const s = getRowStatus(r);
       if (s === 'needs_routing') routing += 1;
       else if (s === 'unparsed') unparsed += 1;
       else if (s === 'credited') credited += 1;
     }
-    return { all: filteredRows.length, in: inCount, out: outCount, routing, unparsed, credited };
-  }, [filteredRows, getRowStatus]);
+    return { all: filteredRows.length, in: inCount, out: outCount, routing, routingOut, unparsed, credited };
+  }, [filteredRows, getRowStatus, isNeedsDebitRouting]);
 
   // Gmail label definitions — each one maps onto the existing filter state so
   // no filtering logic changes, only the arrangement.
@@ -3353,12 +3354,17 @@ export function EmailTransactionsPanel() {
       apply: () => { setDirectionFilter('out'); setFocusDirection(focusView === 'ops' ? 'out' : null); setStatusFilter('all'); setNeedsRoutingOnly(false); },
     },
     {
-      key: 'needs_routing', label: 'Needs routing', Icon: Send, count: gmailLabelCounts.routing,
+      key: 'needs_routing', label: 'Needs routing 1 · money in', Icon: Send, count: gmailLabelCounts.routing,
       active: statusFilter === 'needs_routing',
       // Settlement labels are direction-blind: a status only exists on incoming
       // mail, so leaving a "Money out" direction filter active would render an
       // empty view even though the counter shows matches. Always reset it.
       apply: () => { setStatusFilter('needs_routing'); setNeedsRoutingOnly(false); setFocusDirection(null); setDirectionFilter('all'); },
+    },
+    {
+      key: 'needs_routing_out', label: 'Needs routing 2 · money out', Icon: ArrowUpRight, count: gmailLabelCounts.routingOut,
+      active: statusFilter === 'needs_routing_out',
+      apply: () => { setStatusFilter('needs_routing_out'); setNeedsRoutingOnly(false); setFocusDirection(null); setDirectionFilter('all'); },
     },
     {
       key: 'unparsed', label: 'Unparsed', Icon: AlertOctagon, count: gmailLabelCounts.unparsed,
