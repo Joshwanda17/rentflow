@@ -38,24 +38,21 @@ export function PipelineAgentTransferDialog({
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const { data: results, isFetching } = useQuery({
+  const { data: results, isFetching, error: searchError } = useQuery({
     queryKey: ['pipeline-transfer-agent-search', search],
     queryFn: async () => {
       if (search.trim().length < 3) return [];
       const term = search.trim();
-      const { data } = await supabase
-        .from('profiles')
-        .select('id, full_name, phone')
-        .or(`full_name.ilike.%${term}%,phone.ilike.%${term}%`)
-        .limit(15);
-      if (!data || data.length === 0) return [];
-      const { data: roles } = await supabase
-        .from('user_roles')
-        .select('user_id')
-        .in('user_id', data.map(d => d.id))
-        .in('role', ['agent', 'senior_agent', 'sub_agent']);
-      const agentIds = new Set((roles || []).map(r => r.user_id));
-      return data.filter(d => agentIds.has(d.id) && d.id !== currentAgentId) as any[];
+      // Ops staff cannot read other people's profiles directly (RLS), which
+      // made every search return "No matching agents". This security-definer
+      // RPC does the name/phone lookup and the agent-role filter server-side.
+      const { data, error } = await supabase.rpc('ops_search_transfer_agents' as any, {
+        p_term: term,
+        p_exclude_agent_id: currentAgentId ?? null,
+        p_limit: 15,
+      });
+      if (error) throw error;
+      return (data || []) as any[];
     },
     enabled: open && search.trim().length >= 3,
     staleTime: 30000,
@@ -120,7 +117,12 @@ export function PipelineAgentTransferDialog({
                     <Loader2 className="h-3 w-3 animate-spin" /> Searching…
                   </p>
                 )}
-                {!isFetching && (results || []).length === 0 && (
+                {!isFetching && searchError && (
+                  <p className="p-2 text-xs text-destructive">
+                    {(searchError as any)?.message || 'Search failed'}
+                  </p>
+                )}
+                {!isFetching && !searchError && (results || []).length === 0 && (
                   <p className="p-2 text-xs text-muted-foreground">No matching agents</p>
                 )}
                 {(results || []).map((a: any) => (
@@ -131,7 +133,9 @@ export function PipelineAgentTransferDialog({
                     className={`w-full text-left p-2 text-sm hover:bg-muted/60 transition-colors ${target?.id === a.id ? 'bg-primary/10' : ''}`}
                   >
                     <span className="font-medium">{a.full_name || 'Unnamed'}</span>
-                    <span className="block text-xs text-muted-foreground">{a.phone}</span>
+                    <span className="block text-xs text-muted-foreground">
+                      {a.phone || 'No phone'}{a.role ? ` • ${String(a.role).replace(/_/g, ' ')}` : ''}
+                    </span>
                   </button>
                 ))}
               </div>
