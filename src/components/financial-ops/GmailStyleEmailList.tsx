@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, Paperclip, Star, Inbox, Clock, Archive, Trash2, MailOpen, Loader2, Wallet } from 'lucide-react';
+import { ChevronLeft, Paperclip, Star, Inbox, Clock, Archive, Trash2, MailOpen, Loader2, Wallet, History } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
 import { UserSearchPicker, type UserResult } from '@/components/cfo/UserSearchPicker';
 
 /**
@@ -41,6 +42,36 @@ function toneFor(seed: string) {
 
 function senderName(r: GmailStyleRow) {
   return (r.from_name || r.from_email || 'Unknown sender').trim();
+}
+
+/**
+ * The person the money actually came from — NOT the mail gateway. SMS-relayed
+ * MoMo alerts always arrive from the same forwarder ("Android SMS via IFTTT"),
+ * so the counterparty (or the "from NAME at" fragment in the body) is what
+ * identifies the payer across emails.
+ */
+function payerName(r: GmailStyleRow): string | null {
+  const cp = (r.counterparty || '').trim();
+  if (cp) return cp;
+  const body = `${r.snippet || ''} ${r.subject || ''}`;
+  const m = body.match(/from\s+([A-Za-z][A-Za-z .'-]{2,60}?)\s+(?:at|on|\d)/i);
+  return m ? m[1].trim() : null;
+}
+
+/** Stable, case-insensitive memory key for a payer name. */
+function senderKeyFor(r: GmailStyleRow): string | null {
+  const name = payerName(r);
+  if (!name) return null;
+  const key = name.replace(/\s+/g, ' ').trim().toUpperCase();
+  return key.length >= 3 ? key : null;
+}
+
+interface SenderBinding {
+  user_id: string;
+  user_name: string | null;
+  user_phone: string | null;
+  times_used: number;
+  last_routed_at: string | null;
 }
 
 /** Gmail-style date column: time for today, "MMM d" otherwise. */
