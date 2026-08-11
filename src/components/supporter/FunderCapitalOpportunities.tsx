@@ -207,6 +207,48 @@ function OptionRow({
   );
 }
 
+// ─── Option card (square grid card) ───
+function OptionCard({
+  icon: Icon, title, description, tooltip, onClick,
+}: {
+  icon: typeof Home; title: string; description: string; tooltip?: string; onClick: () => void;
+}) {
+  const button = (
+    <motion.button
+      type="button"
+      onClick={() => { hapticTap(); onClick(); }}
+      whileHover={{ y: -4, scale: 1.02 }}
+      whileTap={{ scale: 0.97 }}
+      whileFocus={{ y: -2, scale: 1.01 }}
+      transition={{ type: 'spring', stiffness: 420, damping: 24 }}
+      className="group relative w-full aspect-square rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 p-4 text-center ring-1 ring-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background overflow-hidden"
+    >
+      <span className="pointer-events-none absolute inset-0 group-hover:animate-[shimmer_1.2s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-white/15 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" aria-hidden="true" />
+      <div className="relative flex flex-col items-center justify-center h-full gap-3">
+        <div className="relative p-4 rounded-2xl bg-white/25 text-white shrink-0 backdrop-blur-sm ring-1 ring-white/30 shadow-inner shadow-white/10 group-hover:bg-white/35 group-focus-visible:bg-white/35 group-hover:scale-110 group-focus-visible:scale-110 transition-all duration-200">
+          <Icon className="h-7 w-7" strokeWidth={2.5} />
+        </div>
+        <div className="relative flex flex-col items-center gap-1.5">
+          <p className="text-sm font-bold text-white leading-tight">{title}</p>
+          <p className="text-[11px] text-white/80 font-medium leading-snug line-clamp-3">{description}</p>
+        </div>
+        <ChevronRight className="relative h-5 w-5 text-white/80 shrink-0 group-hover:translate-x-1 group-focus-visible:translate-x-1 transition-transform duration-200 mt-1" />
+      </div>
+    </motion.button>
+  );
+
+  if (!tooltip) return button;
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{button}</TooltipTrigger>
+      <TooltipContent side="top" sideOffset={8} className="max-w-[16rem] text-xs leading-relaxed">
+        {tooltip}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
 
 function DetailShell({ title, subtitle, onBack, children }: {
   title: string; subtitle: string; onBack: () => void; children: React.ReactNode;
