@@ -464,12 +464,27 @@ export function CashDepositCodesPanel() {
         </div>
 
         {/* ── Totals strip ────────────────────────────────────────────────── */}
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-1 px-3 py-2 border-b bg-muted/30 text-xs">
+        <div className="flex flex-wrap items-center gap-2 px-3 py-2 border-b bg-muted/30 text-xs">
+          <div className="flex items-center gap-1 overflow-x-auto">
+            {ranges.map((rg) => (
+              <button
+                key={rg.key}
+                onClick={() => { setRange(rg.key); setOpenId(null); }}
+                className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] border transition-colors ${
+                  range === rg.key
+                    ? 'bg-primary/10 border-primary/30 text-primary font-medium'
+                    : 'bg-background border-border text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {rg.label}
+              </button>
+            ))}
+          </div>
           <span className="text-muted-foreground">
-            Total cash deposited <span className="font-semibold text-emerald-600">{fmtUgx(totalVerified)}</span>
+            Verified cash <span className="font-semibold text-emerald-600">{fmtUgx(totalVerified)}</span>
           </span>
           <span className="text-muted-foreground">
-            Awaiting verification <span className="font-semibold text-amber-600">{fmtUgx(totalPending)}</span>
+            Awaiting <span className="font-semibold text-amber-600">{fmtUgx(totalPending)}</span>
           </span>
           <span className="ml-auto text-muted-foreground hidden sm:inline">
             Updated {new Date(lastRefreshedAt).toLocaleTimeString()}
