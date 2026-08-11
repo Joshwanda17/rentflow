@@ -10,6 +10,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useIdempotentSubmit } from '@/hooks/useIdempotentSubmit';
+import UgLocationPicker from '@/components/location/UgLocationPicker';
+import { resolveUgVillage, resolveUgVillageByNames, type UgLocationSelection } from '@/hooks/useUgLocations';
 
 interface EditTenantDialogProps {
   open: boolean;
@@ -97,6 +99,17 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
   const [avatarUrl, setAvatarUrl] = useState('');
   const [residenceLat, setResidenceLat] = useState<number | null>(null);
   const [residenceLng, setResidenceLng] = useState<number | null>(null);
+  // Official Uganda village pick (shared picker). Replaces the old free-text
+  // region / district / sub-county / parish / village inputs.
+  const [ugVillageId, setUgVillageId] = useState<number | null>(null);
+  const [ugSelection, setUgSelection] = useState<UgLocationSelection | null>(null);
+  const [ugResolving, setUgResolving] = useState(false);
+  // Legacy free-text address kept as read-only context when it can't be
+  // matched to an official village.
+  const legacyLocationLabel = [village, parish, subCounty, district, region]
+    .map((v) => (v || '').trim())
+    .filter(Boolean)
+    .join(', ');
   const [pinningGps, setPinningGps] = useState(false);
   const [extendedLoading, setExtendedLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -137,7 +150,7 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
         try {
           const res = await supabase
             .from('profiles')
-            .select('city, district, village, town, occupation, monthly_rent, region, sub_county, parish, landmark, country, mobile_money_number, mobile_money_provider, has_smartphone, ops_note, avatar_url, residence_lat, residence_lng')
+            .select('city, district, village, town, occupation, monthly_rent, region, sub_county, parish, landmark, country, mobile_money_number, mobile_money_provider, has_smartphone, ops_note, avatar_url, residence_lat, residence_lng, ug_village_id')
             .eq('id', tenant.id)
             .maybeSingle();
           data = res.data ?? null;
@@ -169,6 +182,25 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
         setAvatarUrl(data?.avatar_url || '');
         setResidenceLat(data?.residence_lat ?? null);
         setResidenceLng(data?.residence_lng ?? null);
+        const savedVillageId = (data as any)?.ug_village_id ?? null;
+        setUgVillageId(savedVillageId);
+        setUgSelection(null);
+        // Pre-fill the picker: stored village id first, then a best-effort
+        // upgrade of the legacy typed names. If neither resolves we keep the
+        // old text as read-only context and require a fresh pick.
+        setUgResolving(true);
+        (async () => {
+          try {
+            const sel = savedVillageId
+              ? await resolveUgVillage(savedVillageId)
+              : await resolveUgVillageByNames(data?.village, data?.district);
+            if (sel) setUgSelection(sel);
+          } catch {
+            /* keep the stored names as read-only context */
+          } finally {
+            setUgResolving(false);
+          }
+        })();
         setOriginal({
           full_name: tenant.full_name,
           phone: tenant.phone,
@@ -192,6 +224,7 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
           avatar_url: data?.avatar_url || '',
           residence_lat: data?.residence_lat ?? null,
           residence_lng: data?.residence_lng ?? null,
+          ug_village_id: savedVillageId,
         });
         setExtendedLoading(false);
       })().catch(() => setExtendedLoading(false));
@@ -319,14 +352,15 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
         email: parsed.data.email || null,
         national_id: parsed.data.national_id || null,
         city: city.trim() || null,
-        district: district.trim() || null,
-        village: village.trim() || null,
+        district: ugSelection ? ugSelection.district : district.trim() || null,
+        village: ugSelection ? ugSelection.village : village.trim() || null,
         town: town.trim() || null,
         occupation: occupation.trim() || null,
         monthly_rent: cleanRent ? Number(cleanRent) : null,
-        region: region.trim() || null,
-        sub_county: subCounty.trim() || null,
-        parish: parish.trim() || null,
+        region: ugSelection ? ugSelection.region : region.trim() || null,
+        sub_county: ugSelection ? ugSelection.subcounty : subCounty.trim() || null,
+        parish: ugSelection ? ugSelection.parish : parish.trim() || null,
+        ug_village_id: ugSelection ? ugSelection.villageId : ugVillageId,
         landmark: landmark.trim() || null,
         country: country.trim() || null,
         mobile_money_number: mmNumber.trim() || null,
@@ -365,6 +399,7 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
         avatar_url: (original.avatar_url || '').trim() || null,
         residence_lat: original.residence_lat ?? null,
         residence_lng: original.residence_lng ?? null,
+        ug_village_id: original.ug_village_id ?? null,
       };
 
       const payload: Record<string, any> = {};
@@ -883,16 +918,26 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <Label className="text-xs">District</Label>
-                    <Input value={district} onChange={(e) => setDistrict(e.target.value)} placeholder="e.g. Kampala" maxLength={80} />
+                {ugResolving ? (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Loader2 className="h-3 w-3 animate-spin" /> Loading saved location…
                   </div>
-                  <div>
-                    <Label className="text-xs">Village / LC1</Label>
-                    <Input value={village} onChange={(e) => setVillage(e.target.value)} placeholder="e.g. Kamwokya" maxLength={80} />
-                  </div>
-                </div>
+                ) : (
+                  <>
+                    <UgLocationPicker
+                      label="Official location (village / LC1)"
+                      value={ugSelection}
+                      onChange={(sel) => setUgSelection(sel)}
+                    />
+                    {!ugSelection && legacyLocationLabel && (
+                      <p className="text-[11px] text-muted-foreground">
+                        Saved (unmatched) address:{' '}
+                        <span className="font-medium text-foreground">{legacyLocationLabel}</span> — pick the official
+                        village above to update it.
+                      </p>
+                    )}
+                  </>
+                )}
 
                 <div>
                   <Label className="text-xs flex items-center gap-1.5">
@@ -913,26 +958,9 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <Label className="text-xs">Region</Label>
-                    <Input value={region} onChange={(e) => setRegion(e.target.value)} placeholder="e.g. Central" maxLength={80} />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Sub-county</Label>
-                    <Input value={subCounty} onChange={(e) => setSubCounty(e.target.value)} placeholder="e.g. Kira" maxLength={80} />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <Label className="text-xs">Parish</Label>
-                    <Input value={parish} onChange={(e) => setParish(e.target.value)} placeholder="e.g. Kireka" maxLength={80} />
-                  </div>
-                  <div>
-                    <Label className="text-xs flex items-center gap-1.5"><Globe className="h-3 w-3" /> Country</Label>
-                    <Input value={country} onChange={(e) => setCountry(e.target.value)} placeholder="e.g. Uganda" maxLength={80} />
-                  </div>
+                <div>
+                  <Label className="text-xs flex items-center gap-1.5"><Globe className="h-3 w-3" /> Country</Label>
+                  <Input value={country} onChange={(e) => setCountry(e.target.value)} placeholder="e.g. Uganda" maxLength={80} />
                 </div>
 
                 <div>
