@@ -85,6 +85,66 @@ export function WithdrawalPayoutCard({
   const [rejecting, setRejecting] = useState(false);
   const qc = useQueryClient();
 
+  // ── Reload-proof proof state ───────────────────────────────────────────────
+  // On mobile, opening the camera/gallery frequently makes the browser discard
+  // and re-create the page. When that happens this component remounts with
+  // empty state, so an already-uploaded proof looks "missing" and the agent
+  // cannot confirm. We therefore persist the uploaded storage path locally and
+  // also recover it from Cloud storage on mount.
+  const proofStorageKey = `welile:payout-proof:${withdrawal.id}`;
+
+  function persistProof(path: string | null, url: string | null, name?: string) {
+    try {
+      if (!path) localStorage.removeItem(proofStorageKey);
+      else localStorage.setItem(proofStorageKey, JSON.stringify({ path, url, name, at: Date.now() }));
+    } catch { /* private mode / quota — non-fatal */ }
+  }
+  const [recoveredProofName, setRecoveredProofName] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (proofPath || proofUrl) return;
+      // 1) Local breadcrumb written the moment the upload succeeded.
+      let path: string | null = null;
+      let name: string | undefined;
+      try {
+        const raw = localStorage.getItem(proofStorageKey);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed?.path) { path = parsed.path; name = parsed.name; }
+        }
+      } catch { /* ignore */ }
+
+      // 2) Fallback: ask storage directly — covers a reload that happened
+      //    after the upload but before the breadcrumb could be written.
+      if (!path) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user?.id) return;
+        const { data: files } = await supabase.storage
+          .from('payment-proofs')
+          .list(`${user.id}/payout-proofs`, { limit: 100, sortBy: { column: 'created_at', order: 'desc' } });
+        const match = (files ?? []).find(f => f.name.startsWith(`${withdrawal.id}-`));
+        if (match) {
+          path = `${user.id}/payout-proofs/${match.name}`;
+          name = match.name;
+        }
+      }
+      if (!path || cancelled) return;
+
+      const { data: signed } = await supabase.storage
+        .from('payment-proofs')
+        .createSignedUrl(path, 60 * 60 * 24 * 365);
+      if (cancelled || !signed?.signedUrl) return;
+      setProofPath(path);
+      setProofUrl(signed.signedUrl);
+      setRecoveredProofName(name ?? path.split('/').pop() ?? 'proof');
+      persistProof(path, signed.signedUrl, name);
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [withdrawal.id]);
+
   const REJECT_REASONS = [
     'Customer no-show',
     'Wrong amount',
@@ -318,6 +378,8 @@ export function WithdrawalPayoutCard({
     setProofFile(null);
     setProofUrl(null);
     setProofPath(null);
+    setRecoveredProofName(null);
+    persistProof(null, null);
   }
 
   // Upload the proof to Cloud storage under the agent's own folder (RLS gate).
@@ -379,6 +441,7 @@ export function WithdrawalPayoutCard({
           uploaded = await uploadProofFile(proofFile);
           setProofUrl(uploaded.url);
           setProofPath(uploaded.path);
+          persistProof(uploaded.path, uploaded.url, proofFile.name);
         } finally {
           setProofUploading(false);
         }
@@ -878,7 +941,7 @@ export function WithdrawalPayoutCard({
                       <Upload className="h-3.5 w-3.5 text-primary" />
                       Proof of payment <span className="text-destructive">*</span>
                     </label>
-                    {proofFile && (
+                    {(proofFile || proofUrl) && (
                       <button
                         type="button"
                         onClick={clearProof}
@@ -888,22 +951,32 @@ export function WithdrawalPayoutCard({
                       </button>
                     )}
                   </div>
-                  {proofFile ? (
+                  {proofFile || proofUrl ? (
                     <div className="flex items-center gap-3">
-                      {proofFile.type.startsWith('image/') ? (
+                      {proofFile ? (
+                        proofFile.type.startsWith('image/') ? (
                         <img
                           src={URL.createObjectURL(proofFile)}
                           alt="Payment proof preview"
                           className="h-20 w-20 object-cover rounded-lg border"
                         />
+                        ) : (
+                          <div className="h-20 w-20 flex items-center justify-center rounded-lg border bg-background">
+                            <FileText className="h-8 w-8 text-muted-foreground" />
+                          </div>
+                        )
                       ) : (
-                        <div className="h-20 w-20 flex items-center justify-center rounded-lg border bg-background">
-                          <FileText className="h-8 w-8 text-muted-foreground" />
-                        </div>
+                        <img
+                          src={proofUrl!}
+                          alt="Payment proof"
+                          className="h-20 w-20 object-cover rounded-lg border bg-background"
+                        />
                       )}
                       <div className="min-w-0 text-xs">
-                        <p className="font-semibold truncate">{proofFile.name}</p>
-                        <p className="text-muted-foreground">{(proofFile.size / 1024).toFixed(0)} KB</p>
+                        <p className="font-semibold truncate">{proofFile?.name || recoveredProofName || 'Payment proof'}</p>
+                        {proofFile
+                          ? <p className="text-muted-foreground">{(proofFile.size / 1024).toFixed(0)} KB</p>
+                          : <p className="text-muted-foreground">Recovered from your earlier upload</p>}
                         {proofUploading
                           ? <p className="text-muted-foreground font-medium mt-0.5">Uploading…</p>
                           : proofUrl
@@ -950,10 +1023,12 @@ export function WithdrawalPayoutCard({
                           const uploaded = await uploadProofFile(f);
                           setProofUrl(uploaded.url);
                           setProofPath(uploaded.path);
+                          persistProof(uploaded.path, uploaded.url, f.name);
                           toast.success('Proof uploaded');
                         } catch (err: any) {
                           setProofUrl(null);
                           setProofPath(null);
+                          persistProof(null, null);
                           setCompleteError(err?.message || 'Failed to upload proof. Try again.');
                           toast.error(err?.message || 'Failed to upload proof');
                         } finally {
