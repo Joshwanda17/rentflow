@@ -454,71 +454,22 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
             </p>
           </div>
         )}
-        {/*
-          Pay by Location/Category — part of Fund Agent Landlord Payout Float.
-          Recipient selection only: it ticks rows in the queue below, which then
-          runs the identical existing funding logic.
-        */}
-        <div className="rounded-2xl border border-border/70 bg-muted/20 p-4">
-          <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
-            <p className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-2">
-              <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/15">
-                <MapPin className="h-3.5 w-3.5" />
-              </span>
-              Step 1 (optional) · Choose recipients by location / category
-            </p>
-            {locationScopeIds?.length ? (
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="text-[11px] rounded-full px-2.5 py-0.5 bg-primary/10 text-primary border-primary/30">
-                  {locationScopeLabel ? `${locationScopeLabel} · ` : ''}{locationScopeIds.length} in scope
-                </Badge>
-                <button
-                  type="button"
-                  className="text-xs font-medium text-primary hover:underline"
-                  onClick={() => {
-                    setLocationScopeIds(null);
-                    setLocationScopeLabel(null);
-                    setSelected(new Set());
-                  }}
-                >
-                  Show whole queue
-                </button>
-              </div>
-            ) : null}
+        {/* Location scope chip — the same table below is simply filtered. */}
+        {locationScoped && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge variant="outline" className="text-[11px] rounded-full px-2.5 py-0.5 bg-primary/10 text-primary border-primary/30">
+              <MapPin className="h-3 w-3 mr-1" />
+              {locationScopeLabel}
+            </Badge>
+            <button
+              type="button"
+              className="text-xs font-medium text-primary hover:underline"
+              onClick={clearLocation}
+            >
+              Show whole queue
+            </button>
           </div>
-          <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
-            This only narrows <b>who</b> appears in the float funding list below. Amounts, fees,
-            validations, approvals, wallet and ledger records are unchanged — the same
-            Fund Agent Landlord Payout Float process runs on whoever you tick in Step 2.
-          </p>
-          <PayByLocationRecipientPicker
-            mode="rent_queue"
-            queuedCount={locationScopeIds?.length ?? 0}
-            onUseRecipients={(recipients) => {
-              const ids = recipients
-                .map(r => r.rent_request_id)
-                .filter((v): v is string => Boolean(v));
-              if (!ids.length) {
-                toast.error('No eligible approved rent requests in that selection.');
-                return;
-              }
-              // Reset the other filters so the scoped rows are all visible,
-              // then pre-tick them in the existing checkboxes.
-              setSearch('');
-              setAgentFilter('all');
-              setCountryFilter('all');
-              setDateFilter('all');
-              setLocationScopeIds(ids);
-              setLocationScopeLabel(`${recipients.length} recipient${recipients.length === 1 ? '' : 's'}`);
-              setSelected(new Set(ids));
-              // Bring Step 2 into view right away — purely a scroll/position aid.
-              requestAnimationFrame(() => {
-                step2Ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              });
-            }}
-          />
-        </div>
-
+        )}
         {isLoading ? (
           <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
         ) : filteredItems.length === 0 ? (
@@ -539,12 +490,12 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
         ) : (
           <div className="space-y-3">
             {/* Revenue summary for selection or location scope */}
-            {(selected.size > 0 || locationScopeIds?.length > 0) && (
+            {(selected.size > 0 || locationScoped) && (
               <div className="rounded-lg border-2 border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20 p-3 space-y-2">
                 <p className="text-xs font-bold flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
                   <TrendingUp className="h-3.5 w-3.5" />
                   Revenue from this disbursement
-                  {locationScopeIds?.length > 0 && (
+                  {locationScoped && (
                     <span className="ml-2 text-[10px] font-normal text-emerald-600/80">
                       · Scoped by location
                     </span>
@@ -553,18 +504,18 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-center">
                   <div className="rounded-md bg-background/60 py-2">
                     <p className="text-[10px] text-muted-foreground">Rent Out</p>
-                    <p className="font-bold text-sm text-orange-600">{fmt(locationScopeIds?.length ? queueTotalRent : totalRent)}</p>
+                    <p className="font-bold text-sm text-orange-600">{fmt(selected.size > 0 ? totalRent : queueTotalRent)}</p>
                   </div>
                   <div className="rounded-md bg-background/60 py-2">
                     <p className="text-[10px] text-muted-foreground">We Earn (Fees)</p>
-                    <p className="font-bold text-sm text-emerald-600">{fmt(locationScopeIds?.length ? queueTotalRevenue : totalRevenue)}</p>
+                    <p className="font-bold text-sm text-emerald-600">{fmt(selected.size > 0 ? totalRevenue : queueTotalRevenue)}</p>
                   </div>
                   <div className="rounded-md bg-background/60 py-2">
                     <p className="text-[10px] text-muted-foreground">Total Repayment</p>
-                    <p className="font-bold text-sm text-primary">{fmt(locationScopeIds?.length ? queueTotalRepaymentExpected : totalRepaymentExpected)}</p>
+                    <p className="font-bold text-sm text-primary">{fmt(selected.size > 0 ? totalRepaymentExpected : queueTotalRepaymentExpected)}</p>
                   </div>
                 </div>
-                <TreasuryImpactBanner payoutAmount={locationScopeIds?.length ? queueTotalRent : totalRent} />
+                <TreasuryImpactBanner payoutAmount={selected.size > 0 ? totalRent : queueTotalRent} />
               </div>
 
             )}
