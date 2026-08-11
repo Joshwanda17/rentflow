@@ -39,6 +39,7 @@ import { Sparkles, ChevronRight } from 'lucide-react';
 import AgentContactLocationGate from './AgentContactLocationGate';
 import { useRequireContactLocation } from '@/hooks/useRequireContactLocation';
 import { RenewDocumentsDialog, type RenewDocsState } from './RenewDocumentsDialog';
+import { TenantDocumentsSection } from './TenantDocumentsSection';
 
 interface TenantProfileViewProps {
   tenantId: string;
