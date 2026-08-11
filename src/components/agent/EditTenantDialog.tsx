@@ -346,14 +346,15 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
         email: parsed.data.email || null,
         national_id: parsed.data.national_id || null,
         city: city.trim() || null,
-        district: district.trim() || null,
-        village: village.trim() || null,
+        district: ugSelection ? ugSelection.district : district.trim() || null,
+        village: ugSelection ? ugSelection.village : village.trim() || null,
         town: town.trim() || null,
         occupation: occupation.trim() || null,
         monthly_rent: cleanRent ? Number(cleanRent) : null,
-        region: region.trim() || null,
-        sub_county: subCounty.trim() || null,
-        parish: parish.trim() || null,
+        region: ugSelection ? ugSelection.region : region.trim() || null,
+        sub_county: ugSelection ? ugSelection.subcounty : subCounty.trim() || null,
+        parish: ugSelection ? ugSelection.parish : parish.trim() || null,
+        ug_village_id: ugSelection ? ugSelection.villageId : ugVillageId,
         landmark: landmark.trim() || null,
         country: country.trim() || null,
         mobile_money_number: mmNumber.trim() || null,
@@ -392,6 +393,7 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
         avatar_url: (original.avatar_url || '').trim() || null,
         residence_lat: original.residence_lat ?? null,
         residence_lng: original.residence_lng ?? null,
+        ug_village_id: original.ug_village_id ?? null,
       };
 
       const payload: Record<string, any> = {};

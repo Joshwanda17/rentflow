@@ -211,6 +211,7 @@ function useProfile(id: string) {
         .from('profiles')
         .select(
           'id, full_name, phone, avatar_url, ops_note, continent, country, region, district, city, town, sub_county, parish, village, landmark, residence_lat, residence_lng, address_complete, has_smartphone',
+          + ', ug_village_id',
         )
         .eq('id', id)
         .maybeSingle();
