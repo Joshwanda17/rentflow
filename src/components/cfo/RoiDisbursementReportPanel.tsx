@@ -124,28 +124,12 @@ export default function RoiDisbursementReportPanel() {
   const exportPdf = async () => {
     if (!data) return;
     try {
-      const { downloadAuditPdf } = await import('@/lib/pdfAuditReport');
-      await downloadAuditPdf(
-        `${fileStem}.pdf`,
-        ['#', 'Portfolio phone', 'Partner', 'Paid to (wallet)', 'Principal', 'Returns paid', 'Time (EAT)'],
-        data.cash.map((r) => [r.n, r.portfolio_phone, r.partner, r.paid_to, fmtUGX(r.principal), fmtUGX(r.returns_paid), r.time_eat]),
-        {
-          title: `${periodTitle} — Cash Returns disbursed to wallets`,
-          subtitle: `Welile Returns disbursement · ${data.period.start_eat} to ${data.period.end_eat} (EAT)`,
-          filters: [
-            `Period: ${PERIOD_LABEL[period]}`,
-            `Partners affected: ${data.summary.partners_affected}`,
-            `Compounded portfolios: ${data.summary.compounded_portfolios}`,
-          ],
-          footerLabel: 'Welile Returns Disbursement Report',
-          kpis: [
-            { label: 'Total Returns approved', value: fmtUGX(data.summary.total_approved) },
-            { label: 'Cash disbursed to wallets', value: fmtUGX(data.summary.cash_total) },
-            { label: 'Compounded to principal', value: fmtUGX(data.summary.compounded_total) },
-            { label: 'Partners affected', value: String(data.summary.partners_affected) },
-          ],
-        },
-      );
+      const { downloadRoiDisbursementPdf } = await import('@/lib/roiDisbursementPdf');
+      await downloadRoiDisbursementPdf({
+        filename: `${fileStem}.pdf`,
+        periodLabel: PERIOD_LABEL[period],
+        report: data,
+      });
     } catch (e: any) {
       toast.error(e?.message ?? 'Could not build the PDF');
     }
