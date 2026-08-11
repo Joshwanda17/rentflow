@@ -8,6 +8,10 @@ export interface BreadcrumbPath {
   region?: string;
   district?: string;
   ward?: string;
+  /** Official ug_districts id — drives drilldown when the row resolved to the dataset */
+  districtId?: number | null;
+  /** Official ug_subcounties id */
+  subcountyId?: number | null;
   agentId?: string;
   agentName?: string;
   landlordId?: string;
@@ -26,6 +30,8 @@ export interface BreakdownRow {
   vacant: number;
   hidden: number;
   revenue_ugx: number;
+  district_id?: number | null;
+  subcounty_id?: number | null;
 }
 
 export function nextLevel(path: BreadcrumbPath): LocationLevel | 'properties' {
@@ -42,7 +48,7 @@ export function useLocationBreakdown(path: BreadcrumbPath) {
   const level = nextLevel(path);
   return useQuery({
     enabled: level !== 'properties',
-    queryKey: ['location-breakdown', level, path.country, path.region, path.district, path.ward, path.agentId],
+    queryKey: ['location-breakdown', level, path.country, path.region, path.district, path.ward, path.districtId, path.subcountyId, path.agentId],
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_location_breakdown' as any, {
@@ -52,6 +58,8 @@ export function useLocationBreakdown(path: BreadcrumbPath) {
         p_district: path.district ?? null,
         p_ward: path.ward ?? null,
         p_agent_id: path.agentId ?? null,
+        p_district_id: path.districtId ?? null,
+        p_subcounty_id: path.subcountyId ?? null,
       });
       if (error) throw error;
       return (data ?? []) as BreakdownRow[];
@@ -75,7 +83,7 @@ export function usePropertiesAtLeaf(path: BreadcrumbPath) {
   const enabled = nextLevel(path) === 'properties';
   return useQuery({
     enabled,
-    queryKey: ['location-properties', path.country, path.region, path.district, path.ward, path.agentId, path.landlordId],
+    queryKey: ['location-properties', path.country, path.region, path.district, path.ward, path.districtId, path.subcountyId, path.agentId, path.landlordId],
     staleTime: 60 * 1000,
     queryFn: async () => {
       let q = supabase
@@ -83,9 +91,10 @@ export function usePropertiesAtLeaf(path: BreadcrumbPath) {
         .select('id,title,address,monthly_rent,daily_rate,status,tenant_id,is_hidden,created_at')
         .order('created_at', { ascending: false })
         .limit(200);
-      if (path.region && !path.region.startsWith('—')) q = q.eq('region', path.region);
-      if (path.district && !path.district.startsWith('—')) q = q.eq('district', path.district);
-      if (path.ward && !path.ward.startsWith('—')) q = q.eq('sub_county', path.ward);
+      const isBucket = (v?: string) => !v || v.startsWith('—') || v === 'Unmapped';
+      if (!isBucket(path.region)) q = q.eq('region', path.region!);
+      if (!isBucket(path.district)) q = q.eq('district', path.district!);
+      if (!isBucket(path.ward)) q = q.eq('sub_county', path.ward!);
       if (path.agentId) q = q.eq('agent_id', path.agentId);
       if (path.landlordId) q = q.eq('landlord_id', path.landlordId);
       const { data, error } = await q;

@@ -23,8 +23,8 @@ export function LocationBrowser() {
     switch (level) {
       case 'country':  p.country  = row.label; break;
       case 'region':   p.region   = row.label; break;
-      case 'district': p.district = row.label; break;
-      case 'ward':     p.ward     = row.label; break;
+      case 'district': p.district = row.label; p.districtId = row.district_id ?? null; break;
+      case 'ward':     p.ward     = row.label; p.subcountyId = row.subcounty_id ?? null; break;
       case 'agent':    p.agentId  = row.agent_id ?? undefined; p.agentName = row.label; break;
       case 'landlord': p.landlordId = row.landlord_id ?? undefined; p.landlordName = row.label; break;
     }

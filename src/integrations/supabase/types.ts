@@ -15550,6 +15550,13 @@ export type Database = {
             foreignKeyName: "lc1_chairpersons_ug_village_id_fkey"
             columns: ["ug_village_id"]
             isOneToOne: false
+            referencedRelation: "mv_ug_village_geo"
+            referencedColumns: ["village_id"]
+          },
+          {
+            foreignKeyName: "lc1_chairpersons_ug_village_id_fkey"
+            columns: ["ug_village_id"]
+            isOneToOne: false
             referencedRelation: "ug_villages"
             referencedColumns: ["id"]
           },
@@ -17220,8 +17227,36 @@ export type Database = {
             foreignKeyName: "managed_locations_ug_district_id_fkey"
             columns: ["ug_district_id"]
             isOneToOne: false
+            referencedRelation: "mv_ug_district_alias"
+            referencedColumns: ["district_id"]
+          },
+          {
+            foreignKeyName: "managed_locations_ug_district_id_fkey"
+            columns: ["ug_district_id"]
+            isOneToOne: false
+            referencedRelation: "mv_ug_subcounty_alias"
+            referencedColumns: ["district_id"]
+          },
+          {
+            foreignKeyName: "managed_locations_ug_district_id_fkey"
+            columns: ["ug_district_id"]
+            isOneToOne: false
+            referencedRelation: "mv_ug_village_geo"
+            referencedColumns: ["district_id"]
+          },
+          {
+            foreignKeyName: "managed_locations_ug_district_id_fkey"
+            columns: ["ug_district_id"]
+            isOneToOne: false
             referencedRelation: "ug_districts"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "managed_locations_ug_parish_id_fkey"
+            columns: ["ug_parish_id"]
+            isOneToOne: false
+            referencedRelation: "mv_ug_village_geo"
+            referencedColumns: ["parish_id"]
           },
           {
             foreignKeyName: "managed_locations_ug_parish_id_fkey"
@@ -17234,8 +17269,43 @@ export type Database = {
             foreignKeyName: "managed_locations_ug_subcounty_id_fkey"
             columns: ["ug_subcounty_id"]
             isOneToOne: false
+            referencedRelation: "mv_ug_subcounty_alias"
+            referencedColumns: ["subcounty_id"]
+          },
+          {
+            foreignKeyName: "managed_locations_ug_subcounty_id_fkey"
+            columns: ["ug_subcounty_id"]
+            isOneToOne: false
+            referencedRelation: "mv_ug_village_geo"
+            referencedColumns: ["subcounty_id"]
+          },
+          {
+            foreignKeyName: "managed_locations_ug_subcounty_id_fkey"
+            columns: ["ug_subcounty_id"]
+            isOneToOne: false
             referencedRelation: "ug_subcounties"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "managed_locations_ug_subcounty_id_fkey"
+            columns: ["ug_subcounty_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_ops_landlord_base"
+            referencedColumns: ["subcounty_id"]
+          },
+          {
+            foreignKeyName: "managed_locations_ug_subcounty_id_fkey"
+            columns: ["ug_subcounty_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["subcounty_id"]
+          },
+          {
+            foreignKeyName: "managed_locations_ug_village_id_fkey"
+            columns: ["ug_village_id"]
+            isOneToOne: false
+            referencedRelation: "mv_ug_village_geo"
+            referencedColumns: ["village_id"]
           },
           {
             foreignKeyName: "managed_locations_ug_village_id_fkey"
@@ -23388,6 +23458,27 @@ export type Database = {
             foreignKeyName: "recruitment_locations_ug_district_id_fkey"
             columns: ["ug_district_id"]
             isOneToOne: false
+            referencedRelation: "mv_ug_district_alias"
+            referencedColumns: ["district_id"]
+          },
+          {
+            foreignKeyName: "recruitment_locations_ug_district_id_fkey"
+            columns: ["ug_district_id"]
+            isOneToOne: false
+            referencedRelation: "mv_ug_subcounty_alias"
+            referencedColumns: ["district_id"]
+          },
+          {
+            foreignKeyName: "recruitment_locations_ug_district_id_fkey"
+            columns: ["ug_district_id"]
+            isOneToOne: false
+            referencedRelation: "mv_ug_village_geo"
+            referencedColumns: ["district_id"]
+          },
+          {
+            foreignKeyName: "recruitment_locations_ug_district_id_fkey"
+            columns: ["ug_district_id"]
+            isOneToOne: false
             referencedRelation: "ug_districts"
             referencedColumns: ["id"]
           },
@@ -25725,6 +25816,27 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "service_center_requests_ug_district_id_fkey"
+            columns: ["ug_district_id"]
+            isOneToOne: false
+            referencedRelation: "mv_ug_district_alias"
+            referencedColumns: ["district_id"]
+          },
+          {
+            foreignKeyName: "service_center_requests_ug_district_id_fkey"
+            columns: ["ug_district_id"]
+            isOneToOne: false
+            referencedRelation: "mv_ug_subcounty_alias"
+            referencedColumns: ["district_id"]
+          },
+          {
+            foreignKeyName: "service_center_requests_ug_district_id_fkey"
+            columns: ["ug_district_id"]
+            isOneToOne: false
+            referencedRelation: "mv_ug_village_geo"
+            referencedColumns: ["district_id"]
+          },
           {
             foreignKeyName: "service_center_requests_ug_district_id_fkey"
             columns: ["ug_district_id"]
@@ -28465,6 +28577,27 @@ export type Database = {
             foreignKeyName: "ug_counties_district_id_fkey"
             columns: ["district_id"]
             isOneToOne: false
+            referencedRelation: "mv_ug_district_alias"
+            referencedColumns: ["district_id"]
+          },
+          {
+            foreignKeyName: "ug_counties_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "mv_ug_subcounty_alias"
+            referencedColumns: ["district_id"]
+          },
+          {
+            foreignKeyName: "ug_counties_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "mv_ug_village_geo"
+            referencedColumns: ["district_id"]
+          },
+          {
+            foreignKeyName: "ug_counties_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
             referencedRelation: "ug_districts"
             referencedColumns: ["id"]
           },
@@ -28515,8 +28648,36 @@ export type Database = {
             foreignKeyName: "ug_parishes_subcounty_id_fkey"
             columns: ["subcounty_id"]
             isOneToOne: false
+            referencedRelation: "mv_ug_subcounty_alias"
+            referencedColumns: ["subcounty_id"]
+          },
+          {
+            foreignKeyName: "ug_parishes_subcounty_id_fkey"
+            columns: ["subcounty_id"]
+            isOneToOne: false
+            referencedRelation: "mv_ug_village_geo"
+            referencedColumns: ["subcounty_id"]
+          },
+          {
+            foreignKeyName: "ug_parishes_subcounty_id_fkey"
+            columns: ["subcounty_id"]
+            isOneToOne: false
             referencedRelation: "ug_subcounties"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ug_parishes_subcounty_id_fkey"
+            columns: ["subcounty_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_ops_landlord_base"
+            referencedColumns: ["subcounty_id"]
+          },
+          {
+            foreignKeyName: "ug_parishes_subcounty_id_fkey"
+            columns: ["subcounty_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["subcounty_id"]
           },
         ]
       }
@@ -28569,6 +28730,13 @@ export type Database = {
           parish_id?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "ug_villages_parish_id_fkey"
+            columns: ["parish_id"]
+            isOneToOne: false
+            referencedRelation: "mv_ug_village_geo"
+            referencedColumns: ["parish_id"]
+          },
           {
             foreignKeyName: "ug_villages_parish_id_fkey"
             columns: ["parish_id"]
@@ -31522,11 +31690,13 @@ export type Database = {
           agent_id: string | null
           country: string | null
           district: string | null
+          district_id: number | null
           hidden: number | null
           landlord_id: string | null
           occupied: number | null
           region: string | null
           revenue_ugx: number | null
+          subcounty_id: number | null
           total: number | null
           vacant: number | null
           ward: string | null
@@ -31576,6 +31746,40 @@ export type Database = {
           withdrawals_pending_ugx: number | null
           withdrawals_today_count: number | null
           withdrawals_today_ugx: number | null
+        }
+        Relationships: []
+      }
+      mv_ug_district_alias: {
+        Row: {
+          district_id: number | null
+          district_name: string | null
+          norm_key: string | null
+          region: string | null
+        }
+        Relationships: []
+      }
+      mv_ug_subcounty_alias: {
+        Row: {
+          district_id: number | null
+          district_name: string | null
+          norm_key: string | null
+          region: string | null
+          subcounty_id: number | null
+          subcounty_name: string | null
+        }
+        Relationships: []
+      }
+      mv_ug_village_geo: {
+        Row: {
+          district_id: number | null
+          district_name: string | null
+          parish_id: number | null
+          parish_name: string | null
+          region: string | null
+          subcounty_id: number | null
+          subcounty_name: string | null
+          village_id: number | null
+          village_name: string | null
         }
         Relationships: []
       }
@@ -31975,12 +32179,14 @@ export type Database = {
           agent_id: string | null
           country: string | null
           district: string | null
+          district_id: number | null
           house_category: string | null
           house_image_urls: string[] | null
           landlord_id: string | null
           region: string | null
           rent_amount: number | null
           rent_request_id: string | null
+          subcounty_id: number | null
           tenant_avatar_url: string | null
           tenant_created_at: string | null
           tenant_id: string | null
@@ -32027,38 +32233,14 @@ export type Database = {
           country: string | null
           created_at: string | null
           district: string | null
+          district_id: number | null
           landlord_id: string | null
           landlord_name: string | null
           monthly_rent: number | null
           phone: string | null
           region: string | null
+          subcounty_id: number | null
           verified: boolean | null
-        }
-        Insert: {
-          agent_id?: string | null
-          continent?: never
-          country?: never
-          created_at?: string | null
-          district?: never
-          landlord_id?: string | null
-          landlord_name?: string | null
-          monthly_rent?: never
-          phone?: string | null
-          region?: never
-          verified?: boolean | null
-        }
-        Update: {
-          agent_id?: string | null
-          continent?: never
-          country?: never
-          created_at?: string | null
-          district?: never
-          landlord_id?: string | null
-          landlord_name?: string | null
-          monthly_rent?: never
-          phone?: string | null
-          region?: never
-          verified?: boolean | null
         }
         Relationships: []
       }
@@ -32069,6 +32251,7 @@ export type Database = {
           country: string | null
           created_at: string | null
           district: string | null
+          district_id: number | null
           is_hidden: boolean | null
           is_occupied: boolean | null
           landlord_id: string | null
@@ -32076,8 +32259,10 @@ export type Database = {
           monthly_rent: number | null
           region: string | null
           status: string | null
+          subcounty_id: number | null
           tenant_id: string | null
           verified: boolean | null
+          ward: string | null
         }
         Relationships: [
           {
@@ -32122,6 +32307,7 @@ export type Database = {
           daily_repayment: number | null
           days_since_funded: number | null
           district: string | null
+          district_id: number | null
           duration_days: number | null
           expected_to_date: number | null
           funded_at: string | null
@@ -32145,6 +32331,7 @@ export type Database = {
           rent_request_id: string | null
           rr_status: string | null
           schedule_delta_days: number | null
+          subcounty_id: number | null
           tenancy_status: string | null
           tenant_avatar_url: string | null
           tenant_created_at: string | null
@@ -32222,6 +32409,7 @@ export type Database = {
           agent_id: string | null
           agent_tier: Database["public"]["Enums"]["agent_tier"] | null
           district: string | null
+          district_id: number | null
           email: string | null
           frozen_reason: string | null
           full_name: string | null
@@ -32229,6 +32417,7 @@ export type Database = {
           last_active_at: string | null
           phone: string | null
           region: string | null
+          subcounty_id: number | null
           territory: string | null
           total_capability_count: number | null
           verified: boolean | null
@@ -34978,13 +35167,16 @@ export type Database = {
           p_agent_id?: string
           p_country?: string
           p_district?: string
+          p_district_id?: number
           p_level: string
           p_region?: string
+          p_subcounty_id?: number
           p_ward?: string
         }
         Returns: {
           agent_id: string
           agent_name: string
+          district_id: number
           hidden: number
           key: string
           label: string
@@ -34992,6 +35184,7 @@ export type Database = {
           landlord_name: string
           occupied: number
           revenue_ugx: number
+          subcounty_id: number
           total: number
           vacant: number
         }[]
@@ -35494,15 +35687,18 @@ export type Database = {
           p_agent_id?: string
           p_country?: string
           p_district?: string
+          p_district_id?: number
           p_funded_since?: string
           p_funded_until?: string
           p_level: string
           p_region?: string
+          p_subcounty_id?: number
           p_ward?: string
         }
         Returns: {
           agent_id: string
           agent_name: string
+          district_id: number
           hidden: number
           key: string
           label: string
@@ -35510,6 +35706,7 @@ export type Database = {
           landlord_name: string
           occupied: number
           revenue_ugx: number
+          subcounty_id: number
           total: number
           vacant: number
         }[]
@@ -37442,6 +37639,7 @@ export type Database = {
       refresh_house_location_rollup: { Args: never; Returns: undefined }
       refresh_mv_ops_daily_summary: { Args: never; Returns: undefined }
       refresh_tenant_idle_states: { Args: never; Returns: number }
+      refresh_ug_geo_alias: { Args: never; Returns: undefined }
       refresh_wallet_projection_for: {
         Args: { p_user_id: string }
         Returns: undefined
@@ -37731,10 +37929,12 @@ export type Database = {
           agent_id: string
           country: string
           district: string
+          district_id: number
           kind: string
           label: string
           landlord_id: string
           region: string
+          subcounty_id: number
           total: number
           ward: string
         }[]
@@ -38022,6 +38222,7 @@ export type Database = {
         Args: { p_deposit_id: string }
         Returns: Json
       }
+      ug_norm_name: { Args: { p: string }; Returns: string }
       ug_resolve_village: {
         Args: { p_village_id: number }
         Returns: {
