@@ -1023,15 +1023,27 @@ export function DirectCreditTool() {
           </div>
         )}
 
+        {/* ── PAY BY LOCATION / CATEGORY RECIPIENT PICKER (all categories) ── */}
+        {selectedCategoryId && !needsSubCategory && (
+          <PayByLocationRecipientPicker
+            queuedCount={locationRecipients.length}
+            disabled={mutation.isPending}
+            onUseRecipients={(recips) => {
+              setLocationRecipients(recips);
+              setSelectedUser({ id: recips[0].id, full_name: recips[0].full_name, phone: recips[0].phone });
+            }}
+          />
+        )}
+
         {/* ── RENT DISBURSEMENT QUEUE ── */}
-        {isRentDisbursement && (
+        {isRentDisbursement && locationRecipients.length === 0 && (
           <>
             <RentDisbursementQueue />
           </>
         )}
 
         {/* ── BUSINESS ADVANCE DISBURSEMENT QUEUE ── */}
-        {isBusinessAdvance && (
+        {isBusinessAdvance && locationRecipients.length === 0 && (
           <div className="space-y-4">
             <CreditDrawApprovalQueue />
             <BusinessAdvanceDisbursementQueue />
@@ -1039,25 +1051,14 @@ export function DirectCreditTool() {
         )}
 
         {/* ── ROI PAYOUT QUEUE ── */}
-        {isROIPayout && (
+        {isROIPayout && locationRecipients.length === 0 && (
           <ROIPayoutQueue />
         )}
 
         {/* ── MANUAL PAYOUT FORM (non-queue categories) ── */}
-        {!isQueueCategory && selectedCategoryId && !needsSubCategory && (
+        {(!isQueueCategory || locationRecipients.length > 0) && selectedCategoryId && !needsSubCategory && (
           <>
-            <PayByLocationRecipientPicker
-              queuedCount={locationRecipients.length}
-              disabled={mutation.isPending}
-              onUseRecipients={(recips) => {
-                setLocationRecipients(recips);
-                // Show the first pick in the existing single-recipient picker so
-                // every existing field, check and summary behaves exactly as before.
-                setSelectedUser({ id: recips[0].id, full_name: recips[0].full_name, phone: recips[0].phone });
-              }}
-            />
-
-            {locationRecipients.length > 1 && (
+            {locationRecipients.length > 0 && (
               <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs space-y-1">
                 <p className="font-semibold">
                   {locationRecipients.length} recipients selected by location/category
