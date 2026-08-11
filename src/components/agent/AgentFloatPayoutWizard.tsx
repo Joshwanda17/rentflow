@@ -23,6 +23,7 @@ import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LandlordPayoutProgress } from './LandlordPayoutProgress';
 import { setCriticalFlowActive } from '@/lib/criticalFlowGuard';
+import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import type { LandlordFloatAllocation } from '@/hooks/useLandlordFloatAllocations';
 import { useAgentLandlordFloat } from '@/hooks/useAgentLandlordFloat';
 
