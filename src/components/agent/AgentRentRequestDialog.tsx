@@ -2303,6 +2303,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setGpsLoading(false);
     housePhotos.forEach(p => URL.revokeObjectURL(p.preview));
     setHousePhotos([]);
+    setRenewDocs(null);
+    setRenewDocsLoading(false);
     if (tenantPhoto) URL.revokeObjectURL(tenantPhoto.preview);
     setTenantPhoto(null);
     setGuarantorConsent(false);
