@@ -57,6 +57,26 @@ class ToolErrorBoundary extends Component<
     return { message: err?.message || 'Unknown error' };
   }
 
+  componentDidCatch(err: Error) {
+    // A user running an outdated cached bundle sees failures like
+    // `can't access property "XPanel" of undefined` (old loader) or chunk
+    // import errors. Recover automatically once per session, then stop so we
+    // never loop.
+    const msg = err?.message || '';
+    const stale =
+      /of undefined|chunk|dynamically imported module|Importing a module script failed|failed to load/i.test(
+        msg,
+      );
+    if (!stale) return;
+    try {
+      if (sessionStorage.getItem('finops-panel-recovered') === '1') return;
+      sessionStorage.setItem('finops-panel-recovered', '1');
+    } catch {
+      return;
+    }
+    window.location.reload();
+  }
+
   componentDidUpdate(prev: { toolKey: string }) {
     if (prev.toolKey !== this.props.toolKey && this.state.message) {
       this.setState({ message: null });
