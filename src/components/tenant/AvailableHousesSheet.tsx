@@ -300,6 +300,17 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
     enabled: open,
   });
 
+  // Dataset-backed area options (ug_districts → ug_subcounties). Cached
+  // forever by the shared hooks, so opening the sheet costs at most one
+  // request per level and never a per-row lookup.
+  const isOfficialRegion = (UG_REGIONS as readonly string[]).includes(selectedRegion);
+  const { data: ugDistricts = [] } = useUgDistricts(isOfficialRegion ? selectedRegion : null);
+  const selectedDistrictId = useMemo(
+    () => ugDistricts.find(d => normalizeAreaName(d.name) === normalizeAreaName(selectedDistrict))?.id ?? null,
+    [ugDistricts, selectedDistrict],
+  );
+  const { data: ugSubcounties = [] } = useUgSubcountiesByDistrict(selectedDistrictId);
+
   // Selecting a broader area resets the narrower ones so we never keep a stale
   // district/sub-county/village that no longer belongs to the new selection.
   const handleRegionChange = (value: string) => {
