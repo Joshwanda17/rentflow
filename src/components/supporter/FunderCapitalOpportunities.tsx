@@ -240,7 +240,7 @@ function OptionCard({
             alt=""
             aria-hidden="true"
             loading="lazy"
-            className={`relative w-full object-contain shrink-0 group-hover:scale-105 group-focus-visible:scale-105 transition-transform duration-200 ${featured ? 'max-w-[115%] flex-[1.35] -mt-2' : 'max-w-[92%] flex-1 min-h-0'}`}
+            className={`relative w-full object-contain shrink-0 group-hover:scale-105 group-focus-visible:scale-105 transition-transform duration-200 ${featured ? 'max-w-[88%] flex-[0.95] mt-1 mb-2' : 'max-w-[92%] flex-1 min-h-0'}`}
           />
         ) : (
           <div className={`relative p-5 rounded-2xl shrink-0 backdrop-blur-sm ring-1 shadow-inner group-hover:scale-110 group-focus-visible:scale-110 transition-all duration-200 ${light ? 'bg-white/60 text-primary ring-foreground/10' : 'bg-white/25 text-white ring-white/30 shadow-white/10 group-hover:bg-white/35 group-focus-visible:bg-white/35'}`}>
