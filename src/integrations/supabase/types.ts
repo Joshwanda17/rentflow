@@ -35229,54 +35229,105 @@ export type Database = {
           max_single_transfer_ugx: number
         }[]
       }
-      get_landlord_ops_rows: {
-        Args: {
-          _category?: string
-          _limit?: number
-          _offset?: number
-          _pending_filter?: string
-          _search?: string
-          _sort?: string
-        }
-        Returns: {
-          account_number: string
-          agent_name: string
-          agent_phone: string
-          bank_name: string
-          caretaker_name: string
-          caretaker_phone: string
-          created_at: string
-          district: string
-          electricity_meter_number: string
-          has_smartphone: boolean
-          house_category: string
-          id: string
-          managed_by_agent_id: string
-          mobile_money_name: string
-          mobile_money_number: string
-          monthly_rent: number
-          name: string
-          number_of_houses: number
-          number_of_rooms: number
-          phone: string
-          primary_tenant_name: string
-          primary_tenant_phone: string
-          property_address: string
-          region: string
-          registered_by: string
-          tenant_count: number
-          tenant_id: string
-          tin: string
-          total_matched: number
-          verification_reason: string
-          verification_source: string
-          verification_status: string
-          verification_updated_at: string
-          verified: boolean
-          village: string
-          water_meter_number: string
-        }[]
-      }
+      get_landlord_ops_rows:
+        | {
+            Args: {
+              _category?: string
+              _limit?: number
+              _offset?: number
+              _pending_filter?: string
+              _search?: string
+              _sort?: string
+            }
+            Returns: {
+              account_number: string
+              agent_name: string
+              agent_phone: string
+              bank_name: string
+              caretaker_name: string
+              caretaker_phone: string
+              created_at: string
+              district: string
+              electricity_meter_number: string
+              has_smartphone: boolean
+              house_category: string
+              id: string
+              managed_by_agent_id: string
+              mobile_money_name: string
+              mobile_money_number: string
+              monthly_rent: number
+              name: string
+              number_of_houses: number
+              number_of_rooms: number
+              phone: string
+              primary_tenant_name: string
+              primary_tenant_phone: string
+              property_address: string
+              region: string
+              registered_by: string
+              tenant_count: number
+              tenant_id: string
+              tin: string
+              total_matched: number
+              verification_reason: string
+              verification_source: string
+              verification_status: string
+              verification_updated_at: string
+              verified: boolean
+              village: string
+              water_meter_number: string
+            }[]
+          }
+        | {
+            Args: {
+              _category?: string
+              _date_from?: string
+              _date_to?: string
+              _limit?: number
+              _offset?: number
+              _pending_filter?: string
+              _search?: string
+              _sort?: string
+            }
+            Returns: {
+              account_number: string
+              agent_name: string
+              agent_phone: string
+              bank_name: string
+              caretaker_name: string
+              caretaker_phone: string
+              created_at: string
+              district: string
+              electricity_meter_number: string
+              has_smartphone: boolean
+              house_category: string
+              id: string
+              managed_by_agent_id: string
+              mobile_money_name: string
+              mobile_money_number: string
+              monthly_rent: number
+              name: string
+              number_of_houses: number
+              number_of_rooms: number
+              phone: string
+              primary_tenant_name: string
+              primary_tenant_phone: string
+              property_address: string
+              region: string
+              registered_by: string
+              tenant_count: number
+              tenant_id: string
+              tin: string
+              total_matched: number
+              verification_reason: string
+              verification_source: string
+              verification_status: string
+              verification_updated_at: string
+              verified: boolean
+              village: string
+              water_meter_number: string
+            }[]
+          }
       get_landlord_ops_totals: {
         Args: never
         Returns: {
@@ -37030,6 +37081,37 @@ export type Database = {
           hidden_scope: number
           no_landlord: number
           visible_scope: number
+        }[]
+      }
+      ops_landlord_report: {
+        Args: {
+          p_date_from?: string
+          p_date_to?: string
+          p_limit?: number
+          p_quick?: string
+          p_search?: string
+          p_status?: string
+        }
+        Returns: {
+          row_data: Json
+          total_count: number
+        }[]
+      }
+      ops_landlord_status_counts: {
+        Args: { p_date_from?: string; p_date_to?: string; p_search?: string }
+        Returns: {
+          all_landlords: number
+          empty_monthly_revenue: number
+          has_tenants: number
+          no_tenants: number
+          occupied_monthly_revenue: number
+          pending: number
+          rejected: number
+          resubmitted: number
+          smartphone: number
+          verified: number
+          verified_auto: number
+          verified_human: number
         }[]
       }
       ops_lc1_verification_report: {
