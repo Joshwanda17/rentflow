@@ -37240,6 +37240,15 @@ export type Database = {
           total_repayment: number
         }[]
       }
+      ops_search_transfer_agents: {
+        Args: { p_exclude_agent_id?: string; p_limit?: number; p_term: string }
+        Returns: {
+          full_name: string
+          id: string
+          phone: string
+          role: string
+        }[]
+      }
       ops_set_agent_capability: {
         Args: {
           _action: string
