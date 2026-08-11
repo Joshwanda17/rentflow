@@ -29,7 +29,7 @@ export const slugifyPositionKey = (title: string) =>
     .replace(/^_+|_+$/g, '');
 
 const POSITIONS_KEY = ['hr-roles', 'positions'];
-const DEPARTMENTS_KEY = ['hr-roles', 'departments'];
+const DEPARTMENTS_KEY = ['hr-roles', 'hr-departments'];
 const HELD_BY_KEY = ['hr-roles', 'held-by'];
 const ACCESS_KEY = ['hr-roles', 'access'];
 
