@@ -20,7 +20,7 @@ export function AutoCreditSuccessRateTile({ onClick }: AutoCreditSuccessRateTile
   const { data, isLoading } = useQuery({
     queryKey: ['finops-autocredit-success-rate', 24],
     queryFn: async (): Promise<SuccessRateData> => {
-      const { data, error } = await supabase.rpc('get_deposit_autocredit_success_rate', { p_window_hours: 24 });
+      const { data, error } = await supabase.rpc('get_deposit_autocredit_success_rate' as any, { p_window_hours: 24 });
       if (error) throw error;
       const d = data as any;
       return {
