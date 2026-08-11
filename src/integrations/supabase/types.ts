@@ -17506,6 +17506,7 @@ export type Database = {
           image_urls: string[]
           is_active: boolean
           item_name: string
+          sizes: string[]
           unit_cost: number
           unit_price: number
           updated_at: string
@@ -17519,6 +17520,7 @@ export type Database = {
           image_urls?: string[]
           is_active?: boolean
           item_name: string
+          sizes?: string[]
           unit_cost?: number
           unit_price?: number
           updated_at?: string
@@ -17532,6 +17534,7 @@ export type Database = {
           image_urls?: string[]
           is_active?: boolean
           item_name?: string
+          sizes?: string[]
           unit_cost?: number
           unit_price?: number
           updated_at?: string
@@ -35645,6 +35648,10 @@ export type Database = {
       }
       get_public_trust_profile: { Args: { p_ai_id: string }; Returns: Json }
       get_referral_progress: { Args: { p_referred_id: string }; Returns: Json }
+      get_rent_disbursement_report: {
+        Args: { p_end: string; p_start: string }
+        Returns: Json
+      }
       get_rent_requests_summary: { Args: never; Returns: Json }
       get_roi_disbursement_report: {
         Args: { p_end: string; p_start: string }
@@ -38240,6 +38247,10 @@ export type Database = {
           p_record_id: string
         }
         Returns: Json
+      }
+      service_mark_landlord_verified: {
+        Args: { p_landlord_id: string; p_manager_id: string; p_source?: string }
+        Returns: boolean
       }
       set_landlord_verification: {
         Args: {

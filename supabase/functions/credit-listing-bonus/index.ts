@@ -28,10 +28,12 @@ async function ensureVerified(
     .update({ verified: true, verified_at: now, verified_by: managerId })
     .eq("id", listing.id);
   if (listing.landlord_id) {
-    await adminClient
-      .from("landlords")
-      .update({ verified: true, verified_at: now, verified_by: managerId })
-      .eq("id", listing.landlord_id);
+    const { error: llErr } = await adminClient.rpc("service_mark_landlord_verified", {
+      p_landlord_id: listing.landlord_id,
+      p_manager_id: managerId,
+      p_source: "house_verification",
+    });
+    if (llErr) console.error("[credit-listing-bonus] landlord verify failed:", llErr.message);
   }
   return true;
 }
@@ -458,10 +460,12 @@ Deno.serve(async (req) => {
       .eq("id", listing_id);
 
     if (listing.landlord_id) {
-      await adminClient
-        .from("landlords")
-        .update({ verified: true, verified_at: now, verified_by: managerId })
-        .eq("id", listing.landlord_id);
+      const { error: llErr2 } = await adminClient.rpc("service_mark_landlord_verified", {
+        p_landlord_id: listing.landlord_id,
+        p_manager_id: managerId,
+        p_source: "house_verification",
+      });
+      if (llErr2) console.error("[credit-listing-bonus] landlord verify failed:", llErr2.message);
     }
 
     // Step 4: Mark listing as bonus paid

@@ -149,6 +149,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'Financial Reports', icon: BookOpen, id: 'statements' },
         { label: 'Revenue & Expenses', icon: TrendingUp, id: 'revenue-expenses' },
         { label: 'Returns Disbursement Report', icon: FileText, id: 'roi-disbursement-report' },
+        { label: 'Rent Disbursement Report', icon: FileText, id: 'rent-disbursement-report' },
         { label: 'Payout Reports', icon: Banknote, id: 'payout-reports' },
         { label: 'House Listing Commission', icon: Home, id: 'house-listing-commission' },
         { label: 'Safety Buffer', icon: Shield, id: 'solvency' },
