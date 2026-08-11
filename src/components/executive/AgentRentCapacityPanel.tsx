@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Search, Gauge, TrendingUp, AlertTriangle, ShieldCheck, Printer, Loader2, ChevronDown, ChevronUp, Minus, Plus, CheckCircle2, XCircle, Sparkles } from 'lucide-react';
+import { Search, Gauge, TrendingUp, ShieldCheck, Printer, Loader2, ChevronDown, ChevronUp, Minus, Plus, CheckCircle2, XCircle, Sparkles } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import {
   ACTIVE_RENT_STATUSES,
@@ -21,10 +21,11 @@ import {
 import { DailyRatingThresholdPopover } from '@/components/shared/DailyRatingThresholdPopover';
 import { AgentEligibilityHistoryStrip } from './AgentEligibilityHistoryStrip';
 import { FleetPerformanceStats } from './FleetPerformanceStats';
-import { CollectedReconciliationPanel } from './CollectedReconciliationPanel';
 import { useQualifyingAgentIds } from '@/hooks/useQualifyingAgentIds';
 import { LastUpdatedChip } from './LastUpdatedChip';
-import { AutoRefreshControl, useAutoRefreshInterval } from './AutoRefreshControl';
+
+/** How many agent cards are added per "Load more" click. */
+const LOAD_STEP = 15;
 
 type AgentRow = {
   agent_id: string;
@@ -49,7 +50,7 @@ type AgentRow = {
 };
 
 export function AgentRentCapacityPanel({
-  defaultLimit = 25,
+  defaultLimit = LOAD_STEP,
   compact = false,
   mode = 'full',
 }: {
@@ -62,7 +63,7 @@ export function AgentRentCapacityPanel({
   mode?: 'full' | 'summary';
 }) {
   const [search, setSearch] = useState('');
-  const [showAll, setShowAll] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(defaultLimit);
   const showList = mode !== 'summary';
   const { agentIds: qualifyingIds, isReady: qualifyingReady } = useQualifyingAgentIds();
   // On phones, default every row to collapsed so the agent sees a clean
@@ -71,7 +72,6 @@ export function AgentRentCapacityPanel({
   const [rowCollapsed, setRowCollapsed] = useState<Record<string, boolean>>({});
   const [defaultCollapsed] = useState<boolean>(isPhone);
   const queryClient = useQueryClient();
-  const [autoRefreshMs, setAutoRefreshMs] = useAutoRefreshInterval(30_000);
 
   // Force a fresh fetch every time the panel mounts (e.g. user switches to
   // the Agent Rent Capacity tab). Without this, a cached fleet snapshot
