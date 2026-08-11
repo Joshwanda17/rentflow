@@ -9,7 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, MapPin, Users, ChevronDown, ChevronUp } from 'lucide-react';
+import { Loader2, MapPin, Users, ChevronDown, ChevronUp, TrendingUp } from 'lucide-react';
+import { TreasuryImpactBanner } from './TreasuryImpactBanner';
 
 type FieldKey = 'district' | 'city' | 'sub_county' | 'region' | 'tenant_house_category';
 
@@ -34,6 +35,12 @@ interface TenantRow {
 
 const fmt = (n: number) => `UGX ${Math.round(n).toLocaleString()}`;
 
+interface TenantRentInfo {
+  rent_amount: number;
+  revenue: number;
+  total_repayment: number;
+}
+
 export function RentCategoryBulkPayout() {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
@@ -47,6 +54,7 @@ export function RentCategoryBulkPayout() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [sending, setSending] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const [rentMap, setRentMap] = useState<Map<string, TenantRentInfo>>(new Map());
 
   const loadTenants = async () => {
     setLoading(true);
@@ -61,12 +69,37 @@ export function RentCategoryBulkPayout() {
         .limit(2000);
       if (error) throw error;
       setTenants((data ?? []) as TenantRow[]);
+      await loadRentAmounts((data ?? []).map((d: any) => d.id));
     } catch (e: any) {
       toast({ title: 'Could not load tenants', description: e.message, variant: 'destructive' });
       setTenants([]);
     } finally {
       setLoading(false);
     }
+  };
+
+  // Pending (COO-approved) rent amounts per tenant, so the CFO sees the money
+  // figures exactly like the Rent Disbursement queue does.
+  const loadRentAmounts = async (tenantIds: string[]) => {
+    if (!tenantIds.length) { setRentMap(new Map()); return; }
+    const map = new Map<string, TenantRentInfo>();
+    for (let i = 0; i < tenantIds.length; i += 500) {
+      const chunk = tenantIds.slice(i, i + 500);
+      const { data } = await supabase
+        .from('rent_requests')
+        .select('tenant_id, rent_amount, access_fee, request_fee, total_repayment')
+        .eq('status', 'coo_approved')
+        .in('tenant_id', chunk);
+      for (const r of data ?? []) {
+        const prev = map.get(r.tenant_id) ?? { rent_amount: 0, revenue: 0, total_repayment: 0 };
+        map.set(r.tenant_id, {
+          rent_amount: prev.rent_amount + (r.rent_amount ?? 0),
+          revenue: prev.revenue + (r.access_fee ?? 0) + (r.request_fee ?? 0),
+          total_repayment: prev.total_repayment + (r.total_repayment ?? 0),
+        });
+      }
+    }
+    setRentMap(map);
   };
 
   const values = useMemo(() => {
@@ -94,6 +127,24 @@ export function RentCategoryBulkPayout() {
   const amt = Number(amount.replace(/[^0-9.]/g, '')) || 0;
   const total = amt * selected.size;
   const canSend = amt > 0 && selected.size > 0 && reason.trim().length >= 10 && !sending;
+
+  // Money summary for the current selection, from each tenant's pending rent.
+  const selectionRent = useMemo(() => {
+    let rent = 0, revenue = 0, repayment = 0;
+    selected.forEach(id => {
+      const info = rentMap.get(id);
+      if (!info) return;
+      rent += info.rent_amount;
+      revenue += info.revenue;
+      repayment += info.total_repayment;
+    });
+    return { rent, revenue, repayment };
+  }, [selected, rentMap]);
+
+  const groupRentTotal = useMemo(
+    () => filtered.reduce((s, t) => s + (rentMap.get(t.id)?.rent_amount ?? 0), 0),
+    [filtered, rentMap],
+  );
 
   const toggle = (id: string) => {
     setSelected(prev => {
@@ -233,7 +284,34 @@ export function RentCategoryBulkPayout() {
                 <Badge variant="secondary" className="gap-1">
                   <Users className="h-3 w-3" /> {selected.size} selected
                 </Badge>
+                <Badge className="border-primary/30 bg-primary/10 text-primary">
+                  {FIELD_LABELS[field]} total · {fmt(groupRentTotal)}
+                </Badge>
               </div>
+
+              {selected.size > 0 && (
+                <div className="space-y-2 rounded-lg border-2 border-emerald-200 bg-emerald-50 p-3 dark:bg-emerald-950/20">
+                  <p className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                    <TrendingUp className="h-3.5 w-3.5" />
+                    Revenue from this disbursement
+                  </p>
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div>
+                      <p className="text-[10px] text-muted-foreground">Rent Out</p>
+                      <p className="text-sm font-bold text-orange-600">{fmt(selectionRent.rent)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-muted-foreground">We Earn (Fees)</p>
+                      <p className="text-sm font-bold text-emerald-600">{fmt(selectionRent.revenue)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-muted-foreground">Total Repayment</p>
+                      <p className="text-sm font-bold text-primary">{fmt(selectionRent.repayment)}</p>
+                    </div>
+                  </div>
+                  <TreasuryImpactBanner payoutAmount={selectionRent.rent || total} />
+                </div>
+              )}
 
               <div className="max-h-72 divide-y overflow-y-auto rounded-md border">
                 {filtered.length === 0 && (
@@ -245,6 +323,12 @@ export function RentCategoryBulkPayout() {
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-medium">{t.full_name ?? 'Unnamed'}</span>
                       <span className="block truncate text-xs text-muted-foreground">{t.phone ?? '—'}</span>
+                    </span>
+                    <span className="shrink-0 text-right">
+                      <span className="block text-sm font-bold text-orange-600">
+                        {fmt(rentMap.get(t.id)?.rent_amount ?? 0)}
+                      </span>
+                      <span className="block text-[10px] text-muted-foreground">pending rent</span>
                     </span>
                   </label>
                 ))}
