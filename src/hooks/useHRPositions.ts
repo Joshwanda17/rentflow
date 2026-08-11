@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 export interface HRPositionRow {
   id: string;
@@ -28,20 +29,30 @@ export const slugifyPositionKey = (title: string) =>
     .replace(/^_+|_+$/g, '');
 
 const POSITIONS_KEY = ['hr-roles', 'positions'];
-const DEPARTMENTS_KEY = ['hr-roles', 'departments'];
+const DEPARTMENTS_KEY = ['hr-roles', 'hr-departments'];
 const HELD_BY_KEY = ['hr-roles', 'held-by'];
 const ACCESS_KEY = ['hr-roles', 'access'];
 
 export function useHRPositions() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const refetchAll = async () => {
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: POSITIONS_KEY }),
-      queryClient.invalidateQueries({ queryKey: DEPARTMENTS_KEY }),
-      queryClient.invalidateQueries({ queryKey: HELD_BY_KEY }),
-      queryClient.invalidateQueries({ queryKey: ACCESS_KEY }),
+      queryClient.refetchQueries({ queryKey: POSITIONS_KEY }),
+      queryClient.refetchQueries({ queryKey: DEPARTMENTS_KEY }),
+      queryClient.refetchQueries({ queryKey: HELD_BY_KEY }),
+      queryClient.refetchQueries({ queryKey: ACCESS_KEY }),
     ]);
+  };
+
+  // Audit logging must never block or undo the change it describes.
+  const logAudit = async (payload: any) => {
+    try {
+      await supabase.from('audit_logs').insert(payload);
+    } catch (auditError) {
+      console.error('[useHRPositions] audit log insert failed', auditError);
+    }
   };
 
   const positionsQuery = useQuery({
@@ -125,6 +136,10 @@ export function useHRPositions() {
         }
         throw error;
       }
+      await logAudit({
+        user_id: user?.id ?? null, action_type: 'hr_position_created', table_name: 'hr_positions', record_id: key,
+        metadata: { title: cleanTitle, key, department_id: departmentId, reason: 'HR role creation' },
+      });
     },
     onSuccess: refetchAll,
   });
@@ -135,6 +150,10 @@ export function useHRPositions() {
       if (!cleanTitle) throw new Error('Title is required');
       const { error } = await supabase.from('hr_positions').update({ title: cleanTitle }).eq('id', id);
       if (error) throw error;
+      await logAudit({
+        user_id: user?.id ?? null, action_type: 'hr_position_updated', table_name: 'hr_positions', record_id: id,
+        metadata: { title: cleanTitle, reason: 'HR role title update' },
+      });
     },
     onSuccess: refetchAll,
   });
@@ -146,6 +165,10 @@ export function useHRPositions() {
         .update({ department_id: departmentId })
         .eq('id', id);
       if (error) throw error;
+      await logAudit({
+        user_id: user?.id ?? null, action_type: 'hr_position_moved', table_name: 'hr_positions', record_id: id,
+        metadata: { department_id: departmentId, reason: 'HR role moved to another department' },
+      });
     },
     onSuccess: refetchAll,
   });
@@ -154,6 +177,12 @@ export function useHRPositions() {
     mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
       const { error } = await supabase.from('hr_positions').update({ active }).eq('id', id);
       if (error) throw error;
+      await logAudit({
+        user_id: user?.id ?? null,
+        action_type: active ? 'hr_position_activated' : 'hr_position_deactivated',
+        table_name: 'hr_positions', record_id: id,
+        metadata: { reason: `Role ${active ? 'activated' : 'deactivated'} by HR` },
+      });
     },
     onSuccess: refetchAll,
   });
