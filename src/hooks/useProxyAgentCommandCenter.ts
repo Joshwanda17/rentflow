@@ -46,7 +46,6 @@ export interface ProxyCommandCenterSummary {
     note_reward: number;
   };
   targets: { monthly_partner_target: number; month_progress_pct: number };
-  team_size: number;
   invites: { shared: number; clicked: number; converted: number };
 }
 
@@ -81,21 +80,6 @@ export interface ProxyNoteRow {
   approval_bonus_paid: boolean;
   approved_at: string | null;
   created_at: string;
-}
-
-export interface ProxyTeamMember {
-  agent_id: string;
-  full_name: string;
-  phone: string;
-  attached_at: string;
-  reason: string;
-  notes_total: number;
-  notes_pending: number;
-  notes_activated: number;
-  notes_amount: number;
-  partners_funded: number;
-  funded_amount: number;
-  earnings: number;
 }
 
 interface Paged<T> {
@@ -180,22 +164,6 @@ export function useProxyNoteList(args: NoteListArgs) {
       });
       if (error) throw new Error(error.message);
       return data as unknown as Paged<ProxyNoteRow>;
-    },
-  });
-}
-
-export function useProxyTeam(agentId?: string | null, enabled = true) {
-  return useQuery({
-    queryKey: ['proxy-cc-team', agentId ?? 'self'],
-    enabled: !!agentId && enabled,
-    staleTime: 60_000,
-    queryFn: async (): Promise<ProxyTeamMember[]> => {
-      const { data, error } = await supabase.rpc('get_proxy_agent_team', {
-        p_agent_id: agentId ?? null,
-      });
-      if (error) throw new Error(error.message);
-      const payload = data as unknown as { members?: ProxyTeamMember[] } | null;
-      return payload?.members ?? [];
     },
   });
 }

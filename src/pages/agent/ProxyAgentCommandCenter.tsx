@@ -5,7 +5,7 @@ import { format } from 'date-fns';
 import {
   ArrowLeft, Users, UserCheck, FileText, HandCoins, Wallet, Share2, Loader2,
   RefreshCw, Search, ArrowUpDown, ChevronLeft, ChevronRight, Target, Repeat,
-  BarChart3, UserPlus, Download, Copy,
+  BarChart3, Download, Copy,
 } from 'lucide-react';
 
 import { supabase } from '@/integrations/supabase/client';
@@ -25,12 +25,10 @@ import { getPublicOrigin } from '@/lib/getPublicOrigin';
 
 import { PromissoryNoteDialog } from '@/components/agent/PromissoryNoteDialog';
 import { WithdrawRequestDialog } from '@/components/wallet/WithdrawRequestDialog';
-import MyProxyInviteLink from '@/components/executive/MyProxyInviteLink';
 import {
   useProxyCommandCenterSummary,
   useProxyPartnerList,
   useProxyNoteList,
-  useProxyTeam,
   type ProxyPartnerRow,
   type ProxyNoteRow,
 } from '@/hooks/useProxyAgentCommandCenter';
@@ -102,8 +100,6 @@ export default function ProxyAgentCommandCenter() {
   // Dialog / sheet state
   const [noteOpen, setNoteOpen] = useState(false);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
-  const [teamOpen, setTeamOpen] = useState(false);
-  const [subProxyOpen, setSubProxyOpen] = useState(false);
   const [reportsOpen, setReportsOpen] = useState(false);
   const [inviting, setInviting] = useState(false);
 
@@ -114,7 +110,6 @@ export default function ProxyAgentCommandCenter() {
   const notesQ = useProxyNoteList({
     agentId, search: nSearch, status: nStatus, sort: nSort, dir: nDir, page: nPage, pageSize: PAGE_SIZE,
   });
-  const teamQ = useProxyTeam(agentId, teamOpen || reportsOpen);
 
   const s = summaryQ.data;
 
@@ -198,11 +193,9 @@ export default function ProxyAgentCommandCenter() {
 
   const quickActions = useMemo(() => ([
     { key: 'note', label: 'Promissory', icon: FileText, onClick: () => { hapticTap(); setNoteOpen(true); } },
-    { key: 'sub', label: 'Sub-proxy', icon: UserPlus, onClick: () => { hapticTap(); setSubProxyOpen(true); } },
     { key: 'reports', label: 'Reports', icon: BarChart3, onClick: () => { hapticTap(); setReportsOpen(true); } },
     { key: 'invite', label: 'Invite', icon: Share2, onClick: handleInvitePartner },
     { key: 'withdraw', label: 'Withdraw', icon: Wallet, onClick: () => { hapticTap(); setWithdrawOpen(true); } },
-    { key: 'team', label: 'Team', icon: Users, onClick: () => { hapticTap(); setTeamOpen(true); } },
   ]), [handleInvitePartner]);
 
   const partnerTotal = partnersQ.data?.total ?? 0;
@@ -255,8 +248,6 @@ export default function ProxyAgentCommandCenter() {
                 hint={`${money(s.commission.this_month)} this month`} />
               <StatTile icon={Wallet} label="Withdrawable" value={money(s.earnings.withdrawable)}
                 hint="Earned commission" tone="success" />
-              <StatTile icon={Users} label="Sub-proxy team" value={String(s.team_size)}
-                hint="Tap Team for details" />
             </div>
 
             {/* Quick actions */}
@@ -541,80 +532,6 @@ export default function ProxyAgentCommandCenter() {
         onSuccess={refreshAll}
       />
 
-      {/* Sub-proxy invite */}
-      <Sheet open={subProxyOpen} onOpenChange={setSubProxyOpen}>
-        <SheetContent side="bottom" className="max-h-[92vh] overflow-y-auto">
-          <SheetHeader className="text-left">
-            <SheetTitle>Add a sub-proxy</SheetTitle>
-            <SheetDescription>
-              Anyone who joins through this link is permanently attached to your network.
-            </SheetDescription>
-          </SheetHeader>
-          <div className="pt-3">
-            <MyProxyInviteLink />
-          </div>
-        </SheetContent>
-      </Sheet>
-
-      {/* Team */}
-      <Sheet open={teamOpen} onOpenChange={setTeamOpen}>
-        <SheetContent side="bottom" className="max-h-[92vh] overflow-y-auto">
-          <SheetHeader className="text-left">
-            <SheetTitle>My sub-proxy team</SheetTitle>
-            <SheetDescription>
-              {teamQ.data?.length ?? 0} sub-proxies attached to you
-            </SheetDescription>
-          </SheetHeader>
-          <div className="space-y-2 pt-3">
-            {teamQ.isLoading ? (
-              Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)
-            ) : (teamQ.data?.length ?? 0) === 0 ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">
-                No sub-proxies yet. Use “Add Sub-proxy” to invite one.
-              </p>
-            ) : (
-              teamQ.data!.map((m) => (
-                <Card key={m.agent_id}>
-                  <CardContent className="p-3 space-y-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="text-sm font-black truncate">{m.full_name}</p>
-                        <p className="text-[11px] text-muted-foreground">{m.phone}</p>
-                      </div>
-                      <span className="text-[10px] text-muted-foreground shrink-0">
-                        Joined {format(new Date(m.attached_at), 'dd MMM yyyy')}
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-[11px]">
-                      <div className="rounded-lg bg-muted/40 px-2 py-1.5">
-                        <div className="text-muted-foreground">Notes (pending)</div>
-                        <div className="font-black">{m.notes_total} ({m.notes_pending})</div>
-                      </div>
-                      <div className="rounded-lg bg-muted/40 px-2 py-1.5">
-                        <div className="text-muted-foreground">Notes value</div>
-                        <div className="font-black break-words">{money(m.notes_amount)}</div>
-                      </div>
-                      <div className="rounded-lg bg-muted/40 px-2 py-1.5">
-                        <div className="text-muted-foreground">Partners funded</div>
-                        <div className="font-black">{m.partners_funded}</div>
-                      </div>
-                      <div className="rounded-lg bg-muted/40 px-2 py-1.5">
-                        <div className="text-muted-foreground">Capital raised</div>
-                        <div className="font-black break-words">{money(m.funded_amount)}</div>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between rounded-lg bg-primary/5 px-2 py-1.5">
-                      <span className="text-[11px] text-muted-foreground">Commission earned</span>
-                      <span className="text-xs font-black text-primary">{money(m.earnings)}</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </div>
-        </SheetContent>
-      </Sheet>
-
       {/* Reports */}
       <Sheet open={reportsOpen} onOpenChange={setReportsOpen}>
         <SheetContent side="bottom" className="max-h-[92vh] overflow-y-auto">
@@ -639,7 +556,6 @@ export default function ProxyAgentCommandCenter() {
                   ['Total earnings', money(s.commission.total)],
                   ['Withdrawable balance', money(s.earnings.withdrawable)],
                   ['Invites shared / converted', `${s.invites.shared} / ${s.invites.converted}`],
-                  ['Sub-proxies', String(s.team_size)],
                 ].map(([k, v]) => (
                   <div key={k} className="flex items-start justify-between gap-3 border-b border-border/50 pb-1.5 last:border-0">
                     <span className="text-[11px] text-muted-foreground">{k}</span>

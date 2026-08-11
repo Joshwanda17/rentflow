@@ -1497,19 +1497,6 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                 </p>
               )}
             </div>
-            {/* Always-available close — users can bail out from any step
-                without hunting for the system back gesture. */}
-            {step !== 'submitting' && (
-              <button
-                type="button"
-                onClick={requestClose}
-                aria-label="Close deposit dialog"
-                aria-keyshortcuts="Escape"
-                className="-mr-1 h-11 w-11 rounded-full flex items-center justify-center hover:bg-muted active:bg-muted active:scale-90 transition-transform duration-75 touch-manipulation shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-              >
-                <X className="h-5 w-5" aria-hidden="true" />
-              </button>
-            )}
           </div>
         </DialogHeader>
         {/* Scrollable body */}

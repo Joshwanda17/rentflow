@@ -455,6 +455,12 @@ export function DirectCreditTool() {
   );
 
   const isRentDisbursement = selectedCategoryId === 'rent_disbursement';
+  // Rent requests behind the tenants picked via Pay by Location/Category.
+  // Used only to narrow the existing rent disbursement queue.
+  const rentRequestIdsFromLocation = useMemo(
+    () => locationRecipients.map(r => r.rent_request_id).filter(Boolean) as string[],
+    [locationRecipients],
+  );
   const isBusinessAdvance = selectedCategoryId === 'business_advance';
   const isROIPayout = selectedCategoryId === 'roi_payout';
   const isQueueCategory = isRentDisbursement || isBusinessAdvance || isROIPayout;
@@ -1026,19 +1032,47 @@ export function DirectCreditTool() {
         {/* ── PAY BY LOCATION / CATEGORY RECIPIENT PICKER (all categories) ── */}
         {selectedCategoryId && !needsSubCategory && (
           <PayByLocationRecipientPicker
+            mode={isRentDisbursement ? 'rent_queue' : 'profiles'}
             queuedCount={locationRecipients.length}
             disabled={mutation.isPending}
             onUseRecipients={(recips) => {
               setLocationRecipients(recips);
+              if (isRentDisbursement) {
+                // Rent payouts keep using the existing queue below — it owns the
+                // amount calculation, validation and disbursement. We only
+                // narrow it to the tenants picked here.
+                setSelectedUser(null);
+                return;
+              }
               setSelectedUser({ id: recips[0].id, full_name: recips[0].full_name, phone: recips[0].phone });
             }}
           />
         )}
 
         {/* ── RENT DISBURSEMENT QUEUE ── */}
-        {isRentDisbursement && locationRecipients.length === 0 && (
+        {isRentDisbursement && (
           <>
-            <RentDisbursementQueue />
+            {locationRecipients.length > 0 && (
+              <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs space-y-1">
+                <p className="font-semibold">
+                  Showing {locationRecipients.length} tenant{locationRecipients.length === 1 ? '' : 's'} selected by location/category
+                </p>
+                <p className="text-muted-foreground">
+                  Amounts, checks, approval and records below are the normal rent payout — unchanged.
+                </p>
+                <button
+                  type="button"
+                  className="text-primary hover:underline"
+                  onClick={() => setLocationRecipients([])}
+                >
+                  Show the full queue again
+                </button>
+              </div>
+            )}
+            <RentDisbursementQueue
+              restrictToIds={rentRequestIdsFromLocation}
+              autoSelectIds={rentRequestIdsFromLocation}
+            />
           </>
         )}
 
@@ -1056,7 +1090,7 @@ export function DirectCreditTool() {
         )}
 
         {/* ── MANUAL PAYOUT FORM (non-queue categories) ── */}
-        {(!isQueueCategory || locationRecipients.length > 0) && selectedCategoryId && !needsSubCategory && (
+        {(!isQueueCategory || (locationRecipients.length > 0 && !isRentDisbursement)) && selectedCategoryId && !needsSubCategory && (
           <>
             {locationRecipients.length > 0 && (
               <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs space-y-1">

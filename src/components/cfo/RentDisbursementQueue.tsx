@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -47,7 +47,19 @@ interface ApprovedRentItem {
   request_city: string | null;
 }
 
-export function RentDisbursementQueue() {
+interface RentDisbursementQueueProps {
+  /**
+   * Optional: restrict the queue to these rent_request ids. Used by
+   * "Pay by Location/Category", which only *selects* recipients — every
+   * amount, validation, disbursement call and audit trail below stays
+   * exactly the same as the normal General Payout queue.
+   */
+  restrictToIds?: string[];
+  /** Optional: tick these rows on mount (same checkboxes as usual). */
+  autoSelectIds?: string[];
+}
+
+export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisbursementQueueProps = {}) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [agentFilter, setAgentFilter] = useState<string>('all');
   const [countryFilter, setCountryFilter] = useState<string>('all');
@@ -125,6 +137,17 @@ export function RentDisbursementQueue() {
   });
 
   const selectedItems = useMemo(() => items.filter(i => selected.has(i.id)), [items, selected]);
+
+  // Pre-tick rows handed over by the location/category recipient picker.
+  useEffect(() => {
+    if (!autoSelectIds?.length) return;
+    setSelected(new Set(autoSelectIds));
+  }, [autoSelectIds?.join(',')]);
+
+  const restrictSet = useMemo(
+    () => (restrictToIds && restrictToIds.length ? new Set(restrictToIds) : null),
+    [restrictToIds?.join(',')],
+  );
   const totalRent = useMemo(() => selectedItems.reduce((s, i) => s + i.rent_amount, 0), [selectedItems]);
   const totalRevenue = useMemo(() => selectedItems.reduce((s, i) => s + i.access_fee + i.request_fee, 0), [selectedItems]);
   const totalRepaymentExpected = useMemo(() => selectedItems.reduce((s, i) => s + i.total_repayment, 0), [selectedItems]);
@@ -143,6 +166,7 @@ export function RentDisbursementQueue() {
       : Date.now() - (dateFilter === '7d' ? 7 : 30) * 24 * 60 * 60 * 1000;
     const q = search.trim().toLowerCase();
     return items.filter(it => {
+      if (restrictSet && !restrictSet.has(it.id)) return false;
       if (cutoff !== null && new Date(it.created_at).getTime() < cutoff) return false;
       if (q) {
         const haystack = `${it.tenant_name} ${it.landlord_name} ${it.agent_name}`.toLowerCase();
@@ -150,7 +174,7 @@ export function RentDisbursementQueue() {
       }
       return true;
     });
-  }, [items, dateFilter, search]);
+  }, [items, dateFilter, search, restrictSet]);
 
   // Group rows by agent so CFO can pick one tenant, a few, or all of an
   // agent's tenants at a glance.

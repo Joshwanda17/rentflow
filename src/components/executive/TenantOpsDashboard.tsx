@@ -60,11 +60,9 @@ import ResidenceAddressForm from '@/components/profile/ResidenceAddressForm';
 import { generateTenantOpsReportPdf } from '@/lib/generateTenantOpsReportPdf';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown } from 'lucide-react';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { Gauge } from 'lucide-react';
 
-type ActiveView = 'overview' | 'pipeline' | 'daily' | 'missed' | 'behavior' | 'history' | 'all-requests' | 'link-agent' | 'transfer-audit' | 'collect-rent' | 'agent-tenants' | 'tenant-detail' | 'registration-review' | 'advance-requests' | 'agent-allocations' | 'daily-collections' | 'landlord-float' | 'landlord-float-timeline' | 'location-browser' | 'tenant-location-browser' | 'global-verification' | 'welile-operations' | 'daily-repayments-report';
+type ActiveView = 'overview' | 'pipeline' | 'daily' | 'missed' | 'behavior' | 'history' | 'all-requests' | 'link-agent' | 'transfer-audit' | 'collect-rent' | 'agent-tenants' | 'tenant-detail' | 'registration-review' | 'advance-requests' | 'agent-allocations' | 'daily-collections' | 'landlord-float' | 'landlord-float-timeline' | 'location-browser' | 'tenant-location-browser' | 'global-verification' | 'welile-operations' | 'daily-repayments-report' | 'agent-capacity-hub' | 'all-tenants-hub' | 'reports-hub';
 
 interface NavCard {
   id: ActiveView;
@@ -79,14 +77,6 @@ interface NavCard {
 export function TenantOpsDashboard() {
   const [activeView, setActiveView] = useState<ActiveView>('overview');
   const queryClient = useQueryClient();
-  const isMobile = useIsMobile();
-  // Collapsible panel state — collapsed by default on phones so the
-  // action grid + tenant list are reachable without scrolling past
-  // heavy dashboards.
-  const [openCapacity, setOpenCapacity] = useState(false);
-  const [openTenants, setOpenTenants] = useState(false);
-  const [openDaily, setOpenDaily] = useState(false);
-  const [openReports, setOpenReports] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; tenantId: string; tenantName: string }>({ open: false, tenantId: '', tenantName: '' });
   const [locationDialog, setLocationDialog] = useState<{ open: boolean; tenantId: string; tenantName: string }>({ open: false, tenantId: '', tenantName: '' });
   const [selectedTenantIds, setSelectedTenantIds] = useState<string[]>([]);
@@ -1113,6 +1103,59 @@ export function TenantOpsDashboard() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const openHub = (view: ActiveView) => {
+    setActiveView(view);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Hub entry card for the Classic sections — same interaction model as the
+  // Global Verification Center / Welile Operations hero cards: icon, section
+  // name, a minimal summary, and an "Open hub" pill that promotes the section
+  // to its dedicated full-width working view (with "Back to Overview").
+  const renderHubEntry = (opts: {
+    title: string;
+    view: ActiveView;
+    icon: React.ElementType;
+    description: string;
+    stats?: { label: string; value: string | number }[];
+  }) => {
+    const Icon = opts.icon;
+    return (
+      <button
+        type="button"
+        onClick={() => openHub(opts.view)}
+        aria-label={`Open ${opts.title} hub`}
+        className="group w-full cursor-pointer rounded-xl border bg-card p-3 sm:p-3.5 flex items-start gap-3 text-left min-h-[64px] touch-manipulation hover:border-primary/60 hover:shadow-md active:scale-[0.99] transition-all shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+      >
+        <div className="p-2 rounded-lg bg-primary/10 shrink-0">
+          <Icon className="h-5 w-5 text-primary" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-bold text-sm text-foreground leading-tight break-words">{opts.title}</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{opts.description}</p>
+          {opts.stats && opts.stats.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {opts.stats.map((s) => (
+                <span
+                  key={s.label}
+                  className="inline-flex items-baseline gap-1 rounded-full border bg-muted/40 px-2 py-0.5 text-[10px] text-muted-foreground"
+                >
+                  <span className="font-bold text-foreground">{s.value}</span>
+                  {s.label}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+        <span className="shrink-0 hidden sm:inline-flex items-center gap-1 rounded-full bg-primary px-3 py-1.5 text-[11px] font-bold text-primary-foreground shadow-sm group-hover:bg-primary/90 transition-colors">
+          Open hub
+          <ArrowRight className="h-3.5 w-3.5" />
+        </span>
+        <ArrowRight className="h-5 w-5 text-primary shrink-0 sm:hidden mt-1" />
+      </button>
+    );
+  };
+
   const columns: Column<any>[] = [
     { key: 'created_at', label: 'Date', render: (v) => v ? format(new Date(v as string), 'dd MMM yy') : '—' },
     { key: 'tenant_name', label: 'Tenant', render: (v, row: any) => (
@@ -1324,12 +1367,36 @@ export function TenantOpsDashboard() {
         return <DailyCollectionMonitoringDashboard mode="editable" title="Daily Collection Monitoring" />;
       case 'daily-repayments-report':
         return <DailyRentReport mode="tenant" />;
+      case 'agent-capacity-hub':
+        return <AgentRentCapacityPanel />;
+      case 'all-tenants-hub':
+        return (
+          <TenantOverviewList
+            data={rows}
+            loading={isLoading}
+            initialCategory={overviewFilter}
+            onSelectTenant={(id, name) => {
+              setSelectedTenant({ id, name });
+              setActiveView('tenant-detail');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+          />
+        );
+      case 'reports-hub':
+        return <div className="space-y-3">{reportsToolbar}</div>;
       default:
         return null;
     }
   };
 
-  const activeLabel = navCards.find(n => n.id === activeView)?.label || '';
+  const sectionHubLabels: Partial<Record<ActiveView, string>> = {
+    'agent-capacity-hub': 'Agent Rent Capacity',
+    'all-tenants-hub': 'All Tenants',
+    'daily-collections': 'Daily Collection Monitoring',
+    'reports-hub': 'Reports & Exports',
+  };
+
+  const activeLabel = navCards.find(n => n.id === activeView)?.label || sectionHubLabels[activeView] || '';
 
   // Primary mobile quick-actions — surfaced in a sticky pill bar at the
   // very top so the most-used flows are one tap away on a phone.
@@ -1339,6 +1406,90 @@ export function TenantOpsDashboard() {
     { id: 'daily', label: 'Today', icon: CalendarCheck, tone: 'bg-emerald-500/10 text-emerald-700 border-emerald-200' },
     { id: 'missed', label: 'Missed', icon: CalendarX2, tone: 'bg-destructive/10 text-destructive border-destructive/20' },
   ];
+
+  // Reports & Exports toolbar — shared by the inline Classic section and
+  // its dedicated "Open hub" full view.
+  const reportsToolbar = (
+                <div className="flex flex-wrap sm:justify-end items-center gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className={cn("gap-1.5 font-normal", !reportFrom && "text-muted-foreground")}>
+                      <CalendarIcon className="h-3.5 w-3.5" />
+                      {reportFrom ? format(reportFrom, 'dd MMM yyyy') : 'From'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={reportFrom}
+                      onSelect={setReportFrom}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className={cn("gap-1.5 font-normal", !reportTo && "text-muted-foreground")}>
+                      <CalendarIcon className="h-3.5 w-3.5" />
+                      {reportTo ? format(reportTo, 'dd MMM yyyy') : 'To'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={reportTo}
+                      onSelect={setReportTo}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
+                {(reportFrom || reportTo) && (
+                  <Button variant="ghost" size="sm" onClick={() => { setReportFrom(undefined); setReportTo(undefined); }}>
+                    Clear
+                  </Button>
+                )}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-1.5" disabled={!!extracting}>
+                      {extracting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                      Extract
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-64 bg-popover">
+                    <DropdownMenuLabel className="text-xs">Tenants</DropdownMenuLabel>
+                    <DropdownMenuItem disabled={!!extracting} onClick={handleExtractApplied}>
+                      <ClipboardList className="h-4 w-4 mr-2" /> How many applied (CSV)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem disabled={!!extracting} onClick={handleExtractApproved}>
+                      <CheckCircle2 className="h-4 w-4 mr-2" /> How many approved (CSV)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem disabled={!!extracting} onClick={handleExtractFunded}>
+                      <Wallet className="h-4 w-4 mr-2" /> How many funded (PDF)
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel className="text-xs">Repayments</DropdownMenuLabel>
+                    <DropdownMenuItem disabled={!!extracting} onClick={handleExtractCollected}>
+                      <Banknote className="h-4 w-4 mr-2" /> How much collected (CSV)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem disabled={!!extracting} onClick={handleExtractExpected}>
+                      <CalendarCheck className="h-4 w-4 mr-2" /> How much expected (CSV)
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={handlePrintReport}
+                  disabled={printingPdf}
+                >
+                  {printingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
+                  Print Report
+                </Button>
+              </div>
+  );
 
   return (
     <div className="space-y-3">
@@ -1462,71 +1613,65 @@ export function TenantOpsDashboard() {
               </div>
             </div>
 
-            {/* Agent Rent-Request Capacity (fleet-wide) — collapsible */}
-            <Collapsible open={openCapacity || !isMobile} onOpenChange={setOpenCapacity}>
-              <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg border bg-muted/30 px-3 py-2 sm:hidden">
-                <span className="text-xs font-bold uppercase tracking-wider">Agent Rent Capacity</span>
-                <ChevronDown className={`h-4 w-4 transition-transform ${openCapacity ? 'rotate-180' : ''}`} />
-              </CollapsibleTrigger>
-              <CollapsibleContent className="pt-2 sm:pt-0">
-                <AgentRentCapacityPanel />
-              </CollapsibleContent>
-            </Collapsible>
-
-            {/* Tenant List — collapsible on mobile */}
-            <Collapsible open={openTenants || !isMobile} onOpenChange={setOpenTenants}>
-              <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg border bg-muted/30 px-3 py-2 sm:hidden">
-                <span className="text-xs font-bold uppercase tracking-wider">All Tenants ({rows.length})</span>
-                <ChevronDown className={`h-4 w-4 transition-transform ${openTenants ? 'rotate-180' : ''}`} />
-              </CollapsibleTrigger>
-              <CollapsibleContent className="pt-2 sm:pt-0">
-                <TenantOverviewList
-                  data={rows}
-                  loading={isLoading}
-                  initialCategory={overviewFilter}
-                  onSelectTenant={(id, name) => {
-                    setSelectedTenant({ id, name });
-                    setActiveView('tenant-detail');
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }}
-                />
-              </CollapsibleContent>
-            </Collapsible>
-
-            {/* Daily Collection Monitoring — collapsible on mobile */}
-            <Collapsible open={openDaily || !isMobile} onOpenChange={setOpenDaily}>
-              <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg border bg-muted/30 px-3 py-2 sm:hidden">
-                <span className="text-xs font-bold uppercase tracking-wider">Daily Collection Monitoring</span>
-                <ChevronDown className={`h-4 w-4 transition-transform ${openDaily ? 'rotate-180' : ''}`} />
-              </CollapsibleTrigger>
-              <CollapsibleContent className="pt-2 sm:pt-0">
-                <DailyCollectionMonitoringDashboard mode="editable" title="Daily Collection Monitoring" />
-              </CollapsibleContent>
-            </Collapsible>
+            {/* Classic workspaces — each opens its own hub view */}
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Workspaces</p>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
+                {renderHubEntry({
+                  title: 'Agent Rent Capacity',
+                  view: 'agent-capacity-hub',
+                  icon: Gauge,
+                  description: 'Fleet-wide rent-request capacity, eligibility and daily ratings per agent',
+                })}
+                {renderHubEntry({
+                  title: 'All Tenants',
+                  view: 'all-tenants-hub',
+                  icon: Users,
+                  description: 'Full tenant register with search, filters, profiles and bulk actions',
+                  stats: [
+                    { label: 'tenants', value: rows.length },
+                    { label: 'pending', value: pending },
+                    { label: 'repaying', value: repaying },
+                  ],
+                })}
+                {renderHubEntry({
+                  title: 'Daily Collection Monitoring',
+                  view: 'daily-collections',
+                  icon: CalendarCheck,
+                  description: 'Track and edit today’s expected vs collected rent across the fleet',
+                })}
+                {renderHubEntry({
+                  title: 'Reports & Exports',
+                  view: 'reports-hub',
+                  icon: Download,
+                  description: 'Date-ranged extracts (applied, approved, funded, collected) and printed reports',
+                })}
+              </div>
+            </div>
 
             {/* Pipeline status strip */}
             <div className="pt-2">
               <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Pipeline status</p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <Card className="border bg-amber-500/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setOverviewFilter('pending')}>
+              <Card className="border bg-amber-500/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setOverviewFilter('pending'); openHub('all-tenants-hub'); }}>
                 <CardContent className="p-2.5 text-center">
                   <p className="text-2xl font-extrabold text-amber-600">{pending}</p>
                   <p className="text-[10px] text-muted-foreground font-medium">Pending</p>
                 </CardContent>
               </Card>
-              <Card className="border bg-green-500/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setOverviewFilter('active')}>
+              <Card className="border bg-green-500/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setOverviewFilter('active'); openHub('all-tenants-hub'); }}>
                 <CardContent className="p-2.5 text-center">
                   <p className="text-2xl font-extrabold text-green-600">{funded}</p>
                   <p className="text-[10px] text-muted-foreground font-medium">Funded</p>
                 </CardContent>
               </Card>
-              <Card className="border bg-purple-500/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setOverviewFilter('repaying')}>
+              <Card className="border bg-purple-500/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setOverviewFilter('repaying'); openHub('all-tenants-hub'); }}>
                 <CardContent className="p-2.5 text-center">
                   <p className="text-2xl font-extrabold text-purple-600">{repaying}</p>
                   <p className="text-[10px] text-muted-foreground font-medium">Repaying</p>
                 </CardContent>
               </Card>
-              <Card className="border bg-destructive/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setOverviewFilter('defaulted')}>
+              <Card className="border bg-destructive/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setOverviewFilter('defaulted'); openHub('all-tenants-hub'); }}>
                 <CardContent className="p-2.5 text-center">
                   <p className="text-2xl font-extrabold text-destructive">{defaulted}</p>
                   <p className="text-[10px] text-muted-foreground font-medium">Defaulted</p>
@@ -1535,95 +1680,6 @@ export function TenantOpsDashboard() {
             </div>
             </div>
 
-            {/* Reports & Exports */}
-            <Collapsible open={openReports || !isMobile} onOpenChange={setOpenReports} className="pt-2">
-              <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg border bg-muted/30 px-3 py-2 sm:hidden">
-                <span className="text-xs font-bold uppercase tracking-wider">Reports & Exports</span>
-                <ChevronDown className={`h-4 w-4 transition-transform ${openReports ? 'rotate-180' : ''}`} />
-              </CollapsibleTrigger>
-              <p className="hidden sm:block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Reports &amp; Exports</p>
-              <CollapsibleContent className="pt-2 sm:pt-0">
-              <div className="flex flex-wrap sm:justify-end items-center gap-2">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className={cn("gap-1.5 font-normal", !reportFrom && "text-muted-foreground")}>
-                    <CalendarIcon className="h-3.5 w-3.5" />
-                    {reportFrom ? format(reportFrom, 'dd MMM yyyy') : 'From'}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={reportFrom}
-                    onSelect={setReportFrom}
-                    initialFocus
-                    className={cn("p-3 pointer-events-auto")}
-                  />
-                </PopoverContent>
-              </Popover>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className={cn("gap-1.5 font-normal", !reportTo && "text-muted-foreground")}>
-                    <CalendarIcon className="h-3.5 w-3.5" />
-                    {reportTo ? format(reportTo, 'dd MMM yyyy') : 'To'}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={reportTo}
-                    onSelect={setReportTo}
-                    initialFocus
-                    className={cn("p-3 pointer-events-auto")}
-                  />
-                </PopoverContent>
-              </Popover>
-              {(reportFrom || reportTo) && (
-                <Button variant="ghost" size="sm" onClick={() => { setReportFrom(undefined); setReportTo(undefined); }}>
-                  Clear
-                </Button>
-              )}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-1.5" disabled={!!extracting}>
-                    {extracting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                    Extract
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-64 bg-popover">
-                  <DropdownMenuLabel className="text-xs">Tenants</DropdownMenuLabel>
-                  <DropdownMenuItem disabled={!!extracting} onClick={handleExtractApplied}>
-                    <ClipboardList className="h-4 w-4 mr-2" /> How many applied (CSV)
-                  </DropdownMenuItem>
-                  <DropdownMenuItem disabled={!!extracting} onClick={handleExtractApproved}>
-                    <CheckCircle2 className="h-4 w-4 mr-2" /> How many approved (CSV)
-                  </DropdownMenuItem>
-                  <DropdownMenuItem disabled={!!extracting} onClick={handleExtractFunded}>
-                    <Wallet className="h-4 w-4 mr-2" /> How many funded (PDF)
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuLabel className="text-xs">Repayments</DropdownMenuLabel>
-                  <DropdownMenuItem disabled={!!extracting} onClick={handleExtractCollected}>
-                    <Banknote className="h-4 w-4 mr-2" /> How much collected (CSV)
-                  </DropdownMenuItem>
-                  <DropdownMenuItem disabled={!!extracting} onClick={handleExtractExpected}>
-                    <CalendarCheck className="h-4 w-4 mr-2" /> How much expected (CSV)
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5"
-                onClick={handlePrintReport}
-                disabled={printingPdf}
-              >
-                {printingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
-                Print Report
-              </Button>
-            </div>
-              </CollapsibleContent>
-            </Collapsible>
           </motion.div>
         ) : (
           <motion.div
