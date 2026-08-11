@@ -18,6 +18,8 @@ export function ActivePortfolioCard({ portfolio, onView }: { portfolio: Portfoli
   const reference = portfolio.portfolio_code || portfolio.account_name || 'Portfolio';
   const isActive = a.state === 'active';
   const progressPct = Math.round(a.cycleProgress * 100);
+  const isNearComplete = progressPct >= 95;
+  const progressBarColor = isNearComplete ? 'bg-success' : 'bg-primary';
   const roiPeriodLabel = a.isMonthlyCycle ? 'Monthly ROI' : `${a.cycleDays}-day ROI`;
 
   const remainingLabel = (() => {
@@ -67,7 +69,7 @@ export function ActivePortfolioCard({ portfolio, onView }: { portfolio: Portfoli
                 aria-valuenow={progressPct}
                 aria-label="Payout cycle progress"
               >
-                <div className="h-full bg-primary rounded-full transition-all duration-1000" style={{ width: `${progressPct}%` }} />
+                <div className={`h-full ${progressBarColor} rounded-full transition-all duration-1000`} style={{ width: `${progressPct}%` }} />
               </div>
             </div>
           )}
