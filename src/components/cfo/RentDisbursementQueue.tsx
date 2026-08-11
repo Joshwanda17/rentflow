@@ -78,6 +78,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
    */
   const [locationScopeIds, setLocationScopeIds] = useState<string[] | null>(null);
   const [locationScopeLabel, setLocationScopeLabel] = useState<string | null>(null);
+  const step2Ref = useRef<HTMLDivElement | null>(null);
   const qc = useQueryClient();
   const { user } = useAuth();
 
