@@ -31,7 +31,7 @@ export default function HRRolesPanel() {
     setPositionActive,
   } = useHRPositions();
 
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({ [UNASSIGNED]: true });
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [addFor, setAddFor] = useState<string | null>(null);
   const [addTitle, setAddTitle] = useState('');
   const [editRole, setEditRole] = useState<HRPositionRow | null>(null);
@@ -205,7 +205,7 @@ export default function HRRolesPanel() {
   };
 
   const renderGroup = (groupKey: string, label: string, roles: HRPositionRow[]) => {
-    const isOpen = !!expanded[groupKey];
+    const isOpen = expanded[groupKey] ?? true;
     return (
       <div key={groupKey} className="rounded-lg border border-border overflow-hidden">
         <div className="flex items-center justify-between gap-2 bg-muted/30 px-3 py-2">
