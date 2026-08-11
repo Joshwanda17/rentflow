@@ -2,15 +2,13 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Users, ChevronRight } from 'lucide-react';
-import { useUserSnapshot } from '@/hooks/useUserSnapshot';
 import { useAuth } from '@/hooks/useAuth';
+import { useReferralCount } from '@/hooks/wallet/useReferrals';
 
 export function MyReferralsCount() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { snapshot, loading } = useUserSnapshot(user?.id);
-
-  const count = snapshot.referralCount || 0;
+  const { count, isLoading: loading } = useReferralCount(user?.id);
 
   return (
     <Button

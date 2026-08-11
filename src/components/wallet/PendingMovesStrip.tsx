@@ -1,9 +1,14 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2, ArrowDownToLine, Plus, ChevronRight, Users } from 'lucide-react';
 import { decodeAllocationsFromNote, type TenantAllocation } from '@/components/payments/OperationalFloatTenantAllocator';
+import {
+  useDepositRequests,
+  useWithdrawalRequestsList,
+  type DepositRequestRow,
+  type WithdrawalRequestRow,
+} from '@/hooks/wallet/useWalletRequests';
 
 /**
  * One row in the pending strip. We normalise deposits and withdrawals
@@ -47,106 +52,57 @@ function stageLabel(kind: 'deposit' | 'withdrawal', status: string): string {
  * Hidden when there is nothing pending — keeps the wallet clean for the
  * 95% case where users have no in-flight money movements.
  */
+// Statuses we still consider "in-flight" — anything else (success,
+// disbursed, fully_paid, cancelled) drops off the strip automatically.
+const OPEN_STATUSES = ['pending', 'reviewed', 'under_review', 'approved', 'processing'];
+
+function toPendingMove(row: DepositRequestRow | WithdrawalRequestRow, kind: 'deposit' | 'withdrawal'): PendingMove {
+  if (kind === 'deposit') {
+    const d = row as DepositRequestRow;
+    const isOpFloat = d.deposit_purpose === 'operational_float';
+    const decoded = isOpFloat ? decodeAllocationsFromNote(d.notes) : null;
+    return {
+      id: `d-${d.id}`,
+      kind: 'deposit',
+      amount: Number(d.amount ?? 0),
+      status: d.status,
+      stage: stageLabel('deposit', d.status),
+      created_at: d.created_at,
+      allocations: decoded?.allocations ?? null,
+      transaction_id: d.transaction_id ?? null,
+    };
+  }
+  const w = row as WithdrawalRequestRow;
+  return {
+    id: `w-${w.id}`,
+    kind: 'withdrawal',
+    amount: Number(w.amount ?? 0),
+    status: w.status,
+    stage: stageLabel('withdrawal', w.status),
+    created_at: w.created_at,
+  };
+}
+
 export function PendingMovesStrip() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [moves, setMoves] = useState<PendingMove[]>([]);
-  const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
 
-  // Statuses we still consider "in-flight" — anything else (success,
-  // disbursed, fully_paid, cancelled) drops off the strip automatically.
-  const OPEN_STATUSES = useMemo(
-    () => ['pending', 'reviewed', 'under_review', 'approved', 'processing'],
-    [],
-  );
+  // Shared, cached, realtime-backed — same source UserDepositRequests /
+  // UserWithdrawalRequests read, so this no longer runs its own fetch or
+  // keeps its own realtime channel. Narrows to the "in-flight" subset
+  // client-side instead of re-querying with a status filter.
+  const { requests: depositRequests, isLoading: depositsLoading } = useDepositRequests(user?.id);
+  const { requests: withdrawalRequests, isLoading: withdrawalsLoading } = useWithdrawalRequestsList(user?.id);
+  const loading = depositsLoading || withdrawalsLoading;
 
-  useEffect(() => {
-    if (!user) return;
-    let cancelled = false;
-
-    const load = async () => {
-      const [depRes, wdRes] = await Promise.all([
-        supabase
-          .from('deposit_requests')
-          .select('id, amount, status, created_at, deposit_purpose, notes, transaction_id')
-          .eq('user_id', user.id)
-          .in('status', OPEN_STATUSES)
-          .order('created_at', { ascending: false })
-          .limit(10),
-        supabase
-          .from('withdrawal_requests')
-          .select('id, amount, status, created_at')
-          .eq('user_id', user.id)
-          .in('status', OPEN_STATUSES)
-          .order('created_at', { ascending: false })
-          .limit(10),
-      ]);
-      if (cancelled) return;
-      const merged: PendingMove[] = [
-        ...(depRes.data ?? []).map((d: any) => {
-          const isOpFloat = d.deposit_purpose === 'operational_float';
-          const decoded = isOpFloat ? decodeAllocationsFromNote(d.notes) : null;
-          return {
-            id: `d-${d.id}`,
-            kind: 'deposit' as const,
-            amount: Number(d.amount ?? 0),
-            status: d.status,
-            stage: stageLabel('deposit', d.status),
-            created_at: d.created_at,
-            allocations: decoded?.allocations ?? null,
-            transaction_id: d.transaction_id ?? null,
-          };
-        }),
-        ...(wdRes.data ?? []).map((w: any) => ({
-          id: `w-${w.id}`,
-          kind: 'withdrawal' as const,
-          amount: Number(w.amount ?? 0),
-          status: w.status,
-          stage: stageLabel('withdrawal', w.status),
-          created_at: w.created_at,
-        })),
-      ].sort(
-        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-      );
-      setMoves(merged);
-      setLoading(false);
-    };
-
-    load();
-
-    // Realtime: any insert/update/delete on either pending table for this
-    // user triggers a fresh load. Cheaper to refetch the small window than
-    // to merge payloads in-place and risk drift.
-    const channel = supabase
-      .channel(`wallet-pending-${user.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'deposit_requests',
-          filter: `user_id=eq.${user.id}`,
-        },
-        () => load(),
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'withdrawal_requests',
-          filter: `user_id=eq.${user.id}`,
-        },
-        () => load(),
-      )
-      .subscribe();
-
-    return () => {
-      cancelled = true;
-      supabase.removeChannel(channel);
-    };
-  }, [user, OPEN_STATUSES]);
+  const moves = useMemo(() => {
+    const merged: PendingMove[] = [
+      ...depositRequests.filter((d) => OPEN_STATUSES.includes(d.status)).map((d) => toPendingMove(d, 'deposit')),
+      ...withdrawalRequests.filter((w) => OPEN_STATUSES.includes(w.status)).map((w) => toPendingMove(w, 'withdrawal')),
+    ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    return merged;
+  }, [depositRequests, withdrawalRequests]);
 
   if (loading || moves.length === 0) return null;
 

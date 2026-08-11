@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -19,6 +19,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { format, formatDistanceToNow, parseISO, isToday, isYesterday } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { ReportPayoutNotReceivedDialog } from '@/components/payouts/ReportPayoutNotReceivedDialog';
+import { useWithdrawalRequestsList } from '@/hooks/wallet/useWalletRequests';
 
 interface WithdrawalRequest {
   id: string;
@@ -46,13 +47,14 @@ function dayLabel(iso: string): string {
 
 export function UserWithdrawalRequests() {
   const { user } = useAuth();
-  const [requests, setRequests] = useState<WithdrawalRequest[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { requests: rawRequests, isLoading, refetch } = useWithdrawalRequestsList(user?.id);
+  const requests = rawRequests as unknown as WithdrawalRequest[];
   const [expanded, setExpanded] = useState(false);
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
   // Withdrawal ids the user already reported as "not received" -> status.
   const [disputes, setDisputes] = useState<Record<string, string>>({});
   const [reportTarget, setReportTarget] = useState<WithdrawalRequest | null>(null);
+  const loading = isLoading;
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('en-UG', {
@@ -61,39 +63,28 @@ export function UserWithdrawalRequests() {
       minimumFractionDigits: 0,
     }).format(value);
 
-  const fetchRequests = useCallback(async () => {
-    if (!user) return;
-    try {
-      const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
-      const { data, error } = await supabase
-        .from('withdrawal_requests')
-        .select('*, manager_approved_at, cfo_approved_at, coo_approved_at')
-        .eq('user_id', user.id)
-        .or(`status.neq.pending,created_at.gte.${twelveHoursAgo}`)
-        .order('created_at', { ascending: false })
-        .limit(10);
-      if (error) throw error;
-      setRequests((data as any[]) || []);
-      const ids = ((data as any[]) || []).map((r) => r.id);
-      if (ids.length > 0) {
-        const { data: dRows } = await (supabase as any)
-          .from('payout_delivery_disputes')
-          .select('withdrawal_id, status')
-          .in('withdrawal_id', ids);
-        const map: Record<string, string> = {};
-        for (const row of (dRows as any[]) || []) map[row.withdrawal_id] = row.status;
-        setDisputes(map);
-      }
-    } catch (error) {
-      console.error('Error fetching withdrawal requests:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [user]);
-
+  // Disputes are keyed off this component's own withdrawal ids, so this
+  // stays a dependent fetch off the shared, cached base rows above rather
+  // than something the shared hook itself needs to know about.
   useEffect(() => {
-    fetchRequests();
-  }, [user, fetchRequests]);
+    let cancelled = false;
+    const ids = requests.map((r) => r.id);
+    if (ids.length === 0) {
+      setDisputes({});
+      return;
+    }
+    (async () => {
+      const { data: dRows } = await (supabase as any)
+        .from('payout_delivery_disputes')
+        .select('withdrawal_id, status')
+        .in('withdrawal_id', ids);
+      if (cancelled) return;
+      const map: Record<string, string> = {};
+      for (const row of (dRows as any[]) || []) map[row.withdrawal_id] = row.status;
+      setDisputes(map);
+    })();
+    return () => { cancelled = true; };
+  }, [requests]);
 
   const visualFor = (status: string) => {
     switch (status) {
@@ -182,7 +173,7 @@ export function UserWithdrawalRequests() {
               </Badge>
             )}
           </CardTitle>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={fetchRequests}>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => void refetch()}>
             <RefreshCw className="h-4 w-4" />
           </Button>
         </div>
@@ -393,7 +384,7 @@ export function UserWithdrawalRequests() {
           onOpenChange={(v) => !v && setReportTarget(null)}
           withdrawalId={reportTarget.id}
           amount={reportTarget.amount}
-          onReported={fetchRequests}
+          onReported={() => void refetch()}
         />
       )}
     </Card>

@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
-import { useUserSnapshot } from '@/hooks/useUserSnapshot';
-import { 
+import { useReferralsList } from '@/hooks/wallet/useReferrals';
+import { useAgentEarnings, useAgentCommissionPayouts } from '@/hooks/wallet/useWalletBreakdownData';
+import {
   Sheet, 
   SheetContent, 
   SheetHeader, 
@@ -26,160 +26,40 @@ import {
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 
-interface EarningItem {
-  id: string;
-  amount: number;
-  earning_type: string;
-  description: string | null;
-  source_user_id: string | null;
-  created_at: string;
-  source_user_name?: string;
-}
-
-interface ReferralItem {
-  id: string;
-  referrer_id: string;
-  referred_id: string;
-  bonus_amount: number | null;
-  created_at: string;
-  credited: boolean;
-  referred_name?: string;
-}
-
-interface WithdrawalItem {
-  id: string;
-  amount: number;
-  status: string;
-  created_at: string;
-  processed_at: string | null;
-}
-
-interface BreakdownSummary {
-  referralBonuses: number;
-  approvalBonuses: number;
-  commissions: number;
-  welcomeBonus: number;
-  withdrawals: number;
-  total: number;
-}
-
 export function WalletBreakdown() {
   const { user } = useAuth();
-  const { snapshot } = useUserSnapshot(user?.id);
   const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [earnings, setEarnings] = useState<EarningItem[]>([]);
-  const [withdrawals, setWithdrawals] = useState<WithdrawalItem[]>([]);
 
-  // Get referrals from snapshot (cached, no direct DB call)
-  const referrals: ReferralItem[] = (snapshot.referrals || []).map((r: any) => ({
-    id: r.id,
-    referrer_id: user?.id || '',
-    referred_id: r.referred_id,
-    bonus_amount: r.bonus_amount,
-    created_at: r.created_at,
-    credited: r.credited,
-  }));
-  const [summary, setSummary] = useState<BreakdownSummary>({
-    referralBonuses: 0,
-    approvalBonuses: 0,
-    commissions: 0,
-    welcomeBonus: 0,
-    withdrawals: 0,
-    total: 0,
-  });
+  // All three fire only while the sheet is open (matches the original
+  // fetch-on-open behavior) and are independent of each other, so React
+  // Query runs them concurrently — no explicit Promise.all needed at this
+  // call site. Cached for 30s per hook, so reopening within that window
+  // is an instant hit instead of a fresh fetch every time.
+  const { referrals, isLoading: referralsLoading } = useReferralsList(open ? user?.id : undefined);
+  const { earnings, isLoading: earningsLoading } = useAgentEarnings(user?.id, open);
+  const { payouts: withdrawals, isLoading: withdrawalsLoading } = useAgentCommissionPayouts(user?.id, open);
+  const loading = referralsLoading || earningsLoading || withdrawalsLoading;
 
-  useEffect(() => {
-    if (open && user) {
-      fetchBreakdown();
-    }
-  }, [open, user]);
-
-  const fetchBreakdown = async () => {
-    if (!user) return;
-    setLoading(true);
-
-    try {
-      // Fetch agent earnings with source user names
-      const { data: earningsData } = await supabase
-        .from('agent_earnings')
-        .select('*')
-        .eq('agent_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      // Get unique source user IDs
-      const sourceUserIds = [...new Set(
-        (earningsData || [])
-          .filter(e => e.source_user_id)
-          .map(e => e.source_user_id)
-      )];
-
-      // Fetch source user names
-      let userNamesMap: Record<string, string> = {};
-      if (sourceUserIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, full_name')
-          .in('id', sourceUserIds);
-        
-        userNamesMap = (profiles || []).reduce((acc, p) => {
-          acc[p.id] = p.full_name || 'Unknown User';
-          return acc;
-        }, {} as Record<string, string>);
-      }
-
-      // Map earnings with user names
-      const earningsWithNames = (earningsData || []).map(e => ({
-        ...e,
-        source_user_name: e.source_user_id ? userNamesMap[e.source_user_id] : null,
-      }));
-
-      // Referrals from snapshot - calculate total
-      const { data: withdrawalsData } = await supabase
-        .from('agent_commission_payouts')
-        .select('*')
-        .eq('agent_id', user.id)
-        .eq('status', 'approved')
-        .order('created_at', { ascending: false })
-        .limit(20);
-
-      // Calculate summary
-      const referralTotal = referrals.reduce((sum, r) => sum + Number(r.bonus_amount || 0), 0);
-      
-      const approvalTotal = earningsWithNames
-        .filter(e => e.earning_type === 'approval_bonus')
-        .reduce((sum, e) => sum + e.amount, 0);
-      
-      const commissionTotal = earningsWithNames
-        .filter(e => e.earning_type === 'commission' || e.earning_type === 'subagent_commission')
-        .reduce((sum, e) => sum + e.amount, 0);
-
-      const welcomeBonus = 0; // Stubbed
-
-      const withdrawalTotal = (withdrawalsData || []).reduce(
-        (sum, w) => sum + w.amount, 0
-      );
-
-      const total = referralTotal + approvalTotal + commissionTotal + welcomeBonus - withdrawalTotal;
-
-      setSummary({
-        referralBonuses: referralTotal,
-        approvalBonuses: approvalTotal,
-        commissions: commissionTotal,
-        welcomeBonus,
-        withdrawals: withdrawalTotal,
-        total,
-      });
-
-      setEarnings(earningsWithNames);
-      setWithdrawals(withdrawalsData || []);
-    } catch (error) {
-      console.error('[WalletBreakdown] Error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const summary = useMemo(() => {
+    const referralTotal = referrals.reduce((sum, r) => sum + Number(r.bonus_amount || 0), 0);
+    const approvalTotal = earnings
+      .filter((e) => e.earning_type === 'approval_bonus')
+      .reduce((sum, e) => sum + e.amount, 0);
+    const commissionTotal = earnings
+      .filter((e) => e.earning_type === 'commission' || e.earning_type === 'subagent_commission')
+      .reduce((sum, e) => sum + e.amount, 0);
+    const welcomeBonus = 0; // Stubbed
+    const withdrawalTotal = withdrawals.reduce((sum, w) => sum + w.amount, 0);
+    const total = referralTotal + approvalTotal + commissionTotal + welcomeBonus - withdrawalTotal;
+    return {
+      referralBonuses: referralTotal,
+      approvalBonuses: approvalTotal,
+      commissions: commissionTotal,
+      welcomeBonus,
+      withdrawals: withdrawalTotal,
+      total,
+    };
+  }, [referrals, earnings, withdrawals]);
 
   const getEarningTypeLabel = (type: string) => {
     switch (type) {

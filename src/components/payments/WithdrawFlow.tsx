@@ -953,6 +953,18 @@ export default function WithdrawFlow({
           return false;
         }
       }
+
+      // Force a fresh read of the platform-wide gate (paused/frozen/daily-
+      // count) right before submitting — useWithdrawContext's cache can
+      // now live up to 5 minutes, so don't trust whatever was true when
+      // this flow opened. The balance figure itself is unaffected — that's
+      // refetchLedger()/isStale above, a separate mechanism.
+      const freshCtx = await withdrawCtx.refetch();
+      if (freshCtx.data && !freshCtx.data.gates.canSubmit) {
+        toast.error(freshCtx.data.gates.blockReason ?? 'Withdrawals are currently blocked', { duration: 8000 });
+        return false;
+      }
+
       // Event-driven completion: enter the Processing screen and submit to
       // the server NOW. We DO NOT rely on ProcessingScreen's animation
       // timer — the screen is just a "working…" indicator. As soon as the

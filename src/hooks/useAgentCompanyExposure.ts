@@ -1,8 +1,15 @@
+import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useAgentBalances } from '@/hooks/useAgentBalances';
 import { useWalletRealtime } from '@/hooks/useWalletRealtime';
+
+// Realtime can miss events across a dropped/backgrounded socket. This
+// gates the visibility-change catch-up refetch below (not a poll — only
+// fires on an actual visibility/focus transition, and only if the data
+// is actually old enough that a missed event is plausible).
+const STALE_AFTER_MS = 30_000;
 
 /**
  * "What I owe Welile" — total company exposure on an agent's book.
@@ -29,7 +36,12 @@ export interface AgentCompanyExposure {
 export function useAgentCompanyExposure() {
   const { user } = useAuth();
   const { advanceBalance } = useAgentBalances();
-  useWalletRealtime(user?.id);
+  // NOTE: this previously passed no extraQueryKeys, so the realtime
+  // subscription below never actually invalidated this query — the
+  // refetchInterval/refetchOnWindowFocus poll was the only thing keeping
+  // it fresh. Wiring the real query key here is what makes it safe to
+  // drop that poll below.
+  useWalletRealtime(user?.id, user?.id ? [['agent-company-exposure', user.id]] : []);
 
   const query = useQuery({
     queryKey: ['agent-company-exposure', user?.id],
@@ -101,9 +113,25 @@ export function useAgentCompanyExposure() {
     },
     enabled: !!user?.id,
     staleTime: 15_000,
-    refetchInterval: 30_000,
-    refetchOnWindowFocus: true,
   });
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const onFocus = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (!query.dataUpdatedAt) return;
+      if (Date.now() - query.dataUpdatedAt > STALE_AFTER_MS) {
+        void query.refetch();
+      }
+    };
+    document.addEventListener('visibilitychange', onFocus);
+    window.addEventListener('focus', onFocus);
+    return () => {
+      document.removeEventListener('visibilitychange', onFocus);
+      window.removeEventListener('focus', onFocus);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, query.dataUpdatedAt]);
 
   const data = query.data;
   const totalOwed =

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { applyCustomerWalletLedgerFilters } from '@/lib/customerWalletHistory';
 
@@ -9,9 +9,17 @@ import { applyCustomerWalletLedgerFilters } from '@/lib/customerWalletHistory';
  */
 const storageKey = (userId: string) => `welile-wallet-statement-last-seen:${userId}`;
 
+// Realtime can miss events across a dropped/backgrounded socket (mobile
+// tab sleep). A time-based poll defended against that but ran constantly
+// even while the socket was healthy. This mirrors useUserSnapshot's
+// pattern instead: only catch up when the tab becomes visible again AND
+// enough time has passed that a missed event is plausible.
+const STALE_AFTER_MS = 30_000;
+
 export function useWalletActivityBadge(userId: string | undefined) {
   const [count, setCount] = useState(0);
   const [latestAt, setLatestAt] = useState<string | null>(null);
+  const lastFetchedRef = useRef<number | null>(null);
 
   const getLastSeen = useCallback(() => {
     if (!userId) return null;
@@ -46,6 +54,7 @@ export function useWalletActivityBadge(userId: string | undefined) {
     }
 
     const [latestRes, countRes] = await Promise.all([query, countQuery]);
+    lastFetchedRef.current = Date.now();
     const latest = latestRes.data?.[0]?.transaction_date ?? null;
     setLatestAt(latest);
     if (!lastSeen) {
@@ -70,7 +79,6 @@ export function useWalletActivityBadge(userId: string | undefined) {
   useEffect(() => {
     if (!userId) return;
     void refresh();
-    const interval = setInterval(() => { void refresh(); }, 30000);
 
     const channel = supabase
       .channel(`wallet-activity-badge-${userId}`)
@@ -82,8 +90,27 @@ export function useWalletActivityBadge(userId: string | undefined) {
       .subscribe();
 
     return () => {
-      clearInterval(interval);
       supabase.removeChannel(channel);
+    };
+  }, [userId, refresh]);
+
+  // Catch up if the tab was backgrounded long enough that a realtime event
+  // could plausibly have been missed (socket drop/reconnect). Not a poll —
+  // only fires on an actual visibility/focus transition.
+  useEffect(() => {
+    if (!userId) return;
+    const onFocus = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (!lastFetchedRef.current) return;
+      if (Date.now() - lastFetchedRef.current > STALE_AFTER_MS) {
+        void refresh();
+      }
+    };
+    document.addEventListener('visibilitychange', onFocus);
+    window.addEventListener('focus', onFocus);
+    return () => {
+      document.removeEventListener('visibilitychange', onFocus);
+      window.removeEventListener('focus', onFocus);
     };
   }, [userId, refresh]);
 

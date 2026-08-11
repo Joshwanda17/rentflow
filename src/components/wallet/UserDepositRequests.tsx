@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useDepositRequests } from '@/hooks/wallet/useWalletRequests';
 import {
   Clock,
   CheckCircle2,
@@ -81,11 +82,13 @@ function dayLabel(iso: string): string {
 
 export function UserDepositRequests() {
   const { user } = useAuth();
+  const { requests: rawRequests, isLoading, refetch } = useDepositRequests(user?.id);
   const [requests, setRequests] = useState<DepositRequest[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [enriching, setEnriching] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [verifications, setVerifications] = useState<Record<string, CashVerification>>({});
+  const loading = isLoading || enriching;
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('en-UG', {
@@ -94,68 +97,58 @@ export function UserDepositRequests() {
       minimumFractionDigits: 0,
     }).format(value);
 
-  const fetchRequests = async () => {
-    if (!user) return;
-    try {
-      const { data, error } = await supabase
-        .from('deposit_requests')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(10);
-      if (error) throw error;
-
-      if (data && data.length > 0) {
-        const agentIds = [...new Set(data.map((d) => d.agent_id))];
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, full_name')
-          .in('id', agentIds);
-        const profileMap = new Map(profiles?.map((p) => [p.id, p.full_name]) || []);
-
-        const enrichedRequests = data.map((d: any) => ({
-          ...d,
-          agent_name: profileMap.get(d.agent_id) || 'Agent',
-        })) as DepositRequest[];
-
-        setRequests(enrichedRequests);
-
-        const cashIds = enrichedRequests
-          .filter((r) => r.provider === 'cash_deposit')
-          .map((r) => r.id);
-        if (cashIds.length > 0) {
-          const { data: vers } = await supabase
-            .from('cash_deposit_verifications')
-            .select('deposit_request_id, status, verified_at')
-            .in('deposit_request_id', cashIds);
-          const map: Record<string, CashVerification> = {};
-          (vers ?? []).forEach((v: any) => {
-            map[v.deposit_request_id] = { status: v.status, verified_at: v.verified_at };
-          });
-          setVerifications(map);
-        } else {
-          setVerifications({});
-        }
-      } else {
-        setRequests([]);
-        setVerifications({});
-      }
-    } catch (error) {
-      console.error('Error fetching deposit requests:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Enrichment (agent names + cash-verification status) runs off the
+  // shared, cached deposit_requests read above — this component no longer
+  // fetches the base rows itself. The two lookups below are independent of
+  // each other (profiles by agent_id, verifications by deposit id), so
+  // they run in parallel instead of sequentially.
   useEffect(() => {
-    fetchRequests();
-     
-  }, [user]);
+    let cancelled = false;
+    (async () => {
+      if (rawRequests.length === 0) {
+        if (!cancelled) {
+          setRequests([]);
+          setVerifications({});
+          setEnriching(false);
+        }
+        return;
+      }
+      setEnriching(true);
+      const agentIds = [...new Set(rawRequests.map((d) => d.agent_id))];
+      const cashIds = rawRequests.filter((r) => r.provider === 'cash_deposit').map((r) => r.id);
+
+      const [profilesRes, versRes] = await Promise.all([
+        supabase.from('profiles').select('id, full_name').in('id', agentIds),
+        cashIds.length > 0
+          ? supabase
+              .from('cash_deposit_verifications')
+              .select('deposit_request_id, status, verified_at')
+              .in('deposit_request_id', cashIds)
+          : Promise.resolve({ data: [] as any[] }),
+      ]);
+      if (cancelled) return;
+
+      const profileMap = new Map(profilesRes.data?.map((p) => [p.id, p.full_name]) || []);
+      const enrichedRequests = rawRequests.map((d: any) => ({
+        ...d,
+        agent_name: profileMap.get(d.agent_id) || 'Agent',
+      })) as DepositRequest[];
+      setRequests(enrichedRequests);
+
+      const map: Record<string, CashVerification> = {};
+      (versRes.data ?? []).forEach((v: any) => {
+        map[v.deposit_request_id] = { status: v.status, verified_at: v.verified_at };
+      });
+      setVerifications(map);
+      setEnriching(false);
+    })();
+    return () => { cancelled = true; };
+  }, [rawRequests]);
 
   const handleEditClose = (open: boolean) => {
     if (!open) {
       setEditingId(null);
-      fetchRequests();
+      void refetch();
     }
   };
 

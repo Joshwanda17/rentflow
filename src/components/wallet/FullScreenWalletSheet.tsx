@@ -58,7 +58,7 @@ interface FullScreenWalletSheetProps {
 
 export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: FullScreenWalletSheetProps) {
   const navigate = useNavigate();
-  const { wallet, transactions, loading, refreshWallet, refreshTransactions } = useWallet();
+  const { wallet, transactions, loading, refreshTransactions } = useWallet();
   const { user, role } = useAuth();
   const { profile } = useProfile();
   const isAgent = role === 'agent';
@@ -114,11 +114,18 @@ export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: Full
   }, [open, user?.id]);
 
   useEffect(() => {
+    // refreshWallet() was removed here — useWallet's `wallet` figure comes
+    // from useWalletBalance, which is already realtime-backed (ref-counted
+    // channel), so re-fetching it on every sheet open was redundant.
+    // refreshTransactions() stays: wallet_transactions has no realtime
+    // subscription anywhere in the codebase, so this is its only refresh
+    // trigger (confirmed by reading useWallet.ts — not a bug to leave, but
+    // genuinely not something Phase 2 backs with realtime either, since
+    // that phase covers deposit_requests/withdrawal_requests, not this).
     if (open) {
-      refreshWallet();
       refreshTransactions();
     }
-  }, [open, refreshWallet, refreshTransactions]);
+  }, [open, refreshTransactions]);
 
 
   const { formatAmount: formatCurrency } = useCurrency();

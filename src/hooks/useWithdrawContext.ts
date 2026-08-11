@@ -138,6 +138,16 @@ async function fetchWithdrawContext(userId: string): Promise<WithdrawContext> {
   };
 }
 
+// Matches useWalletBalance's convention. gcTime was previously 0 (cache
+// dropped the instant the last subscriber unmounted) + refetchOnMount:
+// 'always' — meaning every dialog open was a guaranteed cold RPC round
+// trip plus a channel teardown/resubscribe, even for a re-open seconds
+// later. That's the felt "lag when opening Withdraw". Correctness is
+// preserved by the forced refetch()+recheck immediately before submit
+// (see WithdrawRequestDialog.tsx) — the longer-lived cache only affects
+// what's shown while the dialog is open, never what's trusted at submit.
+const WITHDRAW_CONTEXT_GC_MS = 5 * 60_000;
+
 // Ref-counted realtime channel — one per user, shared across subscribers.
 type ChannelEntry = { channel: ReturnType<typeof supabase.channel>; refCount: number };
 const activeChannels = new Map<string, ChannelEntry>();
@@ -189,8 +199,7 @@ export function useWithdrawContext(userIdOverride?: string) {
     enabled: !!userId,
     queryFn: () => fetchWithdrawContext(userId as string),
     staleTime: 15_000,
-    gcTime: 0,
-    refetchOnMount: 'always',
+    gcTime: WITHDRAW_CONTEXT_GC_MS,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   });

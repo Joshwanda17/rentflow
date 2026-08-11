@@ -454,6 +454,19 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
     // Re-entrant guard: prevent double-tap / rapid double submission
     if (isSubmittingRef.current) return;
     isSubmittingRef.current = true;
+
+    // Force a fresh read of the platform-wide gate (paused/frozen) right
+    // before submitting — this dialog's cached copy can now live up to 5
+    // minutes (see useWithdrawContext), so don't trust whatever was true
+    // when the dialog opened. The actual balance check below already uses
+    // the caller-supplied walletBalance prop, not this cache.
+    const freshGates = await withdrawCtx.refetch();
+    if (freshGates.data?.gates.withdrawalsPaused) {
+      toast.error(freshGates.data.gates.blockReason ?? 'Withdrawals are currently paused');
+      isSubmittingRef.current = false;
+      return;
+    }
+
     const currentStatus = checkWorkingHours();
     if (!currentStatus.isOpen) { toast.error(currentStatus.message); setWorkingHoursStatus(currentStatus); isSubmittingRef.current = false; return; }
     if (availableBalance < 500) { toast.error('Available balance must be at least UGX 500'); isSubmittingRef.current = false; return; }
