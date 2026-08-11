@@ -681,7 +681,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                       </SelectTrigger>
                       <SelectContent className="max-h-[280px]">
                         <SelectItem value="all">All countries</SelectItem>
-                        {countryBreakdown.map(c => (
+                        {countryStats.map(c => (
                           <SelectItem key={c.country} value={c.country}>
                             <span className="truncate">{c.country} · {c.count}</span>
                           </SelectItem>
