@@ -3126,6 +3126,9 @@ export function EmailTransactionsPanel() {
   }, [filteredRows, directionFilter, matchFilter, userMatches, needsRoutingOnly, isNeedsRouting, statusFilter, getRowStatus, debitFilter, debitSort, sortMode, getDebitMeta]);
 
   const navIndex = routingRow ? visibleRows.findIndex((r) => r.id === routingRow.id) : -1;
+  // Needs routing 2: an outgoing payout email whose money was never taken off
+  // the wallet of the number that was paid out — no auto-debit recorded and no
+  // manual routing entry either. Defined after getDebitMeta so it can reuse it.
   const canPrevNav = navIndex > 0;
   const canNextNav = navIndex >= 0 && navIndex < visibleRows.length - 1;
 
