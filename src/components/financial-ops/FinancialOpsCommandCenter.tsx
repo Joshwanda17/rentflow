@@ -428,7 +428,9 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
         {activeTool === 'float_to_withdrawable' && <FloatToWithdrawablePanel />}
         {activeTool === 'topup_audit' && <PartnershipTopupAuditLog />}
         {activeTool === 'momo_sms_template' && <MomoSignupSmsTemplatePanel />}
-        {activeTool === 'cash_codes' && <CashDepositCodesPanel />}
+        {activeTool === 'cash_codes' && (
+          <CashDepositCodesPanel fullScreen onClose={() => setActiveTool(null)} />
+        )}
         {activeTool === 'manual_float_credit' && <ManualFloatCreditPanel />}
         {activeTool === 'user_statements' && <UserWalletStatementsPanel />}
         {activeTool === 'earnings_explainer' && <EarningsExplainer role="finops" />}
