@@ -8,6 +8,10 @@ export interface TenantBreadcrumbPath {
   region?: string;
   district?: string;
   ward?: string;
+  /** Official ug_districts id when the row resolved to the dataset */
+  districtId?: number | null;
+  /** Official ug_subcounties id */
+  subcountyId?: number | null;
   agentId?: string | null;
   agentName?: string;
   landlordId?: string | null;
@@ -26,6 +30,8 @@ export interface TenantBreakdownRow {
   vacant: number;
   hidden: number;
   revenue_ugx: number;
+  district_id?: number | null;
+  subcounty_id?: number | null;
 }
 
 export function tenantNextLevel(p: TenantBreadcrumbPath): TenantLocationLevel | 'tenants' {
@@ -52,7 +58,8 @@ export function useTenantLocationBreakdown(
     enabled: level !== 'tenants',
     queryKey: [
       'tenant-location-breakdown', level,
-      path.country, path.region, path.district, path.ward, path.agentId,
+      path.country, path.region, path.district, path.ward,
+      path.districtId, path.subcountyId, path.agentId,
       window.fundedSince ?? null, window.fundedUntil ?? null,
     ],
     staleTime: 5 * 60 * 1000,
@@ -66,6 +73,8 @@ export function useTenantLocationBreakdown(
         p_agent_id: path.agentId ?? null,
         p_funded_since: window.fundedSince ?? null,
         p_funded_until: window.fundedUntil ?? null,
+        p_district_id: path.districtId ?? null,
+        p_subcounty_id: path.subcountyId ?? null,
       });
       if (error) throw error;
       return (data ?? []) as TenantBreakdownRow[];
