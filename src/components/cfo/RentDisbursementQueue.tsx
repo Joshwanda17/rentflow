@@ -530,29 +530,62 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
           <div className="space-y-3">
             {/* Revenue summary for selection or location scope */}
             {(selected.size > 0 || locationScopeIds?.length > 0) && (
-              <div className="rounded-lg border-2 border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20 p-3 space-y-2">
-                <p className="text-xs font-bold flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
-                  <TrendingUp className="h-3.5 w-3.5" />
+              <div className="rounded-2xl border border-border/70 bg-muted/20 p-4 space-y-3">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                  <TrendingUp className="h-3.5 w-3.5 text-emerald-600" />
                   Revenue from this disbursement
                   {locationScopeIds?.length > 0 && (
-                    <span className="ml-2 text-[10px] font-normal text-emerald-600/80">
-                      · Scoped by location
-                    </span>
+                    <span className="text-[10px] font-medium normal-case text-primary">· Scoped by location</span>
                   )}
                 </p>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-center">
-                  <div className="rounded-md bg-background/60 py-2">
-                    <p className="text-[10px] text-muted-foreground">Rent Out</p>
-                    <p className="font-bold text-sm text-orange-600">{fmt(locationScopeIds?.length ? queueTotalRent : totalRent)}</p>
-                  </div>
-                  <div className="rounded-md bg-background/60 py-2">
-                    <p className="text-[10px] text-muted-foreground">We Earn (Fees)</p>
-                    <p className="font-bold text-sm text-emerald-600">{fmt(locationScopeIds?.length ? queueTotalRevenue : totalRevenue)}</p>
-                  </div>
-                  <div className="rounded-md bg-background/60 py-2">
-                    <p className="text-[10px] text-muted-foreground">Total Repayment</p>
-                    <p className="font-bold text-sm text-primary">{fmt(locationScopeIds?.length ? queueTotalRepaymentExpected : totalRepaymentExpected)}</p>
-                  </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border/70 rounded-xl bg-background border border-border/70 overflow-hidden">
+                  {[
+                    {
+                      label: 'RENT OUT',
+                      value: fmt(locationScopeIds?.length ? queueTotalRent : totalRent),
+                      sub: `${locationScopeIds?.length ? filteredItems.length : selected.size} payout${(locationScopeIds?.length ? filteredItems.length : selected.size) === 1 ? '' : 's'}`,
+                      icon: <Banknote className="h-5 w-5" />,
+                      iconCls: 'bg-orange-100 text-orange-600 dark:bg-orange-950/40',
+                      valueCls: 'text-orange-600',
+                    },
+                    {
+                      label: 'WE EARN (FEES)',
+                      value: fmt(locationScopeIds?.length ? queueTotalRevenue : totalRevenue),
+                      sub: 'platform revenue',
+                      icon: <TrendingUp className="h-5 w-5" />,
+                      iconCls: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-950/40',
+                      valueCls: 'text-emerald-600',
+                    },
+                    {
+                      label: 'TOTAL REPAYMENT',
+                      value: fmt(locationScopeIds?.length ? queueTotalRepaymentExpected : totalRepaymentExpected),
+                      sub: 'expected back',
+                      icon: <Wallet className="h-5 w-5" />,
+                      iconCls: 'bg-primary/10 text-primary',
+                      valueCls: 'text-primary',
+                    },
+                    {
+                      label: 'TENANTS SELECTED',
+                      value: String(selected.size),
+                      sub: `${filteredItems.length} in queue`,
+                      icon: <Users className="h-5 w-5" />,
+                      iconCls: 'bg-amber-100 text-amber-600 dark:bg-amber-950/40',
+                      valueCls: 'text-amber-600',
+                    },
+                  ].map(k => (
+                    <div key={k.label} className="p-4 space-y-3">
+                      <div className="flex items-center gap-2.5">
+                        <span className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-full', k.iconCls)}>
+                          {k.icon}
+                        </span>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground leading-tight">
+                          {k.label}
+                        </p>
+                      </div>
+                      <p className={cn('text-lg font-extrabold tracking-tight break-words', k.valueCls)}>{k.value}</p>
+                      <p className="text-[11px] text-muted-foreground border-t border-border/70 pt-2">{k.sub}</p>
+                    </div>
+                  ))}
                 </div>
                 <TreasuryImpactBanner payoutAmount={locationScopeIds?.length ? queueTotalRent : totalRent} />
               </div>
