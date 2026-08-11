@@ -35,6 +35,15 @@ interface AvailableHousesSheetProps {
 // District and sub-county come from the ug_* reference tables (see below).
 const REGIONS = ['All Regions', ...UG_REGIONS];
 
+/** Popular city/district shortcuts (broad location OR filter), kept for parity
+ *  with the Find a House page and shared links. */
+const POPULAR_AREAS = [
+  'Kampala', 'Wakiso', 'Mukono', 'Jinja', 'Mbale',
+  'Mbarara', 'Gulu', 'Lira', 'Fort Portal', 'Masaka',
+  'Entebbe', 'Nansana', 'Kira', 'Bweyogerere',
+];
+const REGION_OPTIONS = [...REGIONS, ...POPULAR_AREAS];
+
 const CATEGORIES = [
   { value: 'all', label: 'All Types' },
   { value: 'single_room', label: 'Single Room' },
