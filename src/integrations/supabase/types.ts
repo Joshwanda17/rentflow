@@ -38244,6 +38244,10 @@ export type Database = {
         }
         Returns: Json
       }
+      service_mark_landlord_verified: {
+        Args: { p_landlord_id: string; p_manager_id: string; p_source?: string }
+        Returns: boolean
+      }
       set_landlord_verification: {
         Args: {
           p_landlord_id: string
