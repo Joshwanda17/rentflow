@@ -25,6 +25,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { TreasuryImpactBanner } from './TreasuryImpactBanner';
 import { RecipientRoutingWarningBanner } from './RecipientRoutingWarningBanner';
 import { RentDisbursementQueue } from './RentDisbursementQueue';
+import { RentCategoryBulkPayout } from './RentCategoryBulkPayout';
 import { BusinessAdvanceDisbursementQueue } from './BusinessAdvanceDisbursementQueue';
 import { CreditDrawApprovalQueue } from './CreditDrawApprovalQueue';
 import { ROIPayoutQueue } from './ROIPayoutQueue';
@@ -991,7 +992,10 @@ export function DirectCreditTool() {
 
         {/* ── RENT DISBURSEMENT QUEUE ── */}
         {isRentDisbursement && (
-          <RentDisbursementQueue />
+          <>
+            <RentCategoryBulkPayout />
+            <RentDisbursementQueue />
+          </>
         )}
 
         {/* ── BUSINESS ADVANCE DISBURSEMENT QUEUE ── */}
