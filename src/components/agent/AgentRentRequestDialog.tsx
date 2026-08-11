@@ -756,6 +756,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [gpsLoading, setGpsLoading] = useState(false);
   const [housePhotos, setHousePhotos] = useState<{ file: File; preview: string }[]>([]);
   const [tenantPhoto, setTenantPhoto] = useState<{ file: File; preview: string } | null>(null);
+  // Renewal document custody: what the tenant already has on file (null until
+  // a renewal is started or the lookup finishes).
+  const [renewDocs, setRenewDocs] = useState<{ passport: boolean; lcLetter: boolean; houseImages: number } | null>(null);
+  const [renewDocsLoading, setRenewDocsLoading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLabel, setPreviewLabel] = useState<string>('');
 
