@@ -37244,6 +37244,10 @@ export type Database = {
           trust_tier: string
         }[]
       }
+      ops_transfer_pipeline_request_agent: {
+        Args: { p_reason: string; p_request_id: string; p_to_agent_id: string }
+        Returns: Json
+      }
       ops_undo_agent_capability_job: {
         Args: { _job_id: string; _reason: string }
         Returns: Json
