@@ -1517,17 +1517,46 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     if (isNaN(day) || day < 1 || day > 28) { toast.error('Day must be 1-28'); return; }
     setSavingPortfolio(true);
     try {
+      // Keep next_roi_date in sync: payout_day alone never moves an already-set
+      // next_roi_date, and both the partner UI and the ROI cron prefer
+      // next_roi_date whenever it is populated. Realign the stored date (same
+      // month/year) to the new day-of-month, but only if that cycle is still
+      // in the future — past/overdue cycles stay visible untouched.
+      const { data: current } = await supabase
+        .from('investor_portfolios')
+        .select('next_roi_date')
+        .eq('id', portfolioId)
+        .maybeSingle();
+
+      const patch: { payout_day: number; next_roi_date?: string } = { payout_day: day };
+      const existingNext = current?.next_roi_date as string | null | undefined;
+      if (existingNext) {
+        const existing = dateOnlyToLocalDate(existingNext);
+        const realigned = new Date(existing.getFullYear(), existing.getMonth(), day);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (realigned.getTime() >= today.getTime()) {
+          patch.next_roi_date = formatLocalDateOnly(realigned);
+        }
+      }
+
       const { error } = await supabase
         .from('investor_portfolios')
-        .update({ payout_day: day })
+        .update(patch)
         .eq('id', portfolioId);
       if (error) throw error;
-      toast.success(`Payout day updated to ${day}${getOrdinalSuffix(day)}`);
+      toast.success(
+        patch.next_roi_date
+          ? `Payout day updated to ${day}${getOrdinalSuffix(day)} — next payout moved to ${patch.next_roi_date}`
+          : `Payout day updated to ${day}${getOrdinalSuffix(day)}`
+      );
       setEditingPortfolioId(null);
       // Refresh detail
       if (detailPartner) {
         const updated = detailPartner.portfolios.map(p =>
-          p.id === portfolioId ? { ...p, payout_day: day } : p
+          p.id === portfolioId
+            ? { ...p, payout_day: day, next_roi_date: patch.next_roi_date ?? p.next_roi_date }
+            : p
         );
         setDetailPartner({ ...detailPartner, portfolios: updated });
       }
