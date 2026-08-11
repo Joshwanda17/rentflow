@@ -163,6 +163,57 @@ export function GmailStyleEmailList({ rows, onCreditUser }: GmailStyleEmailListP
     return () => io.disconnect();
   }, [open, hasMore, sortedRows.length]);
 
+  // When an inbound email is opened, look up whether this payer name was
+  // routed to a wallet before so the operator is prompted with the same
+  // recipient instead of searching for them again.
+  const openKey = open ? senderKeyFor(open) : null;
+  useEffect(() => {
+    setShowManual(false);
+    if (!openKey || openKey in bindings) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('email_sender_wallet_bindings')
+        .select('user_id, user_name, user_phone, times_used, last_routed_at')
+        .eq('sender_key', openKey)
+        .maybeSingle();
+      if (!cancelled) {
+        setBindings((c) => ({ ...c, [openKey]: (data as SenderBinding | null) ?? null }));
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openKey]);
+
+  /** Route + remember, so the next email from this payer prompts the same wallet. */
+  const routeToWallet = async (row: GmailStyleRow, user: UserResult) => {
+    const key = senderKeyFor(row);
+    if (key) {
+      setBindings((c) => ({
+        ...c,
+        [key]: {
+          user_id: user.id,
+          user_name: user.full_name,
+          user_phone: user.phone,
+          times_used: (c[key]?.user_id === user.id ? (c[key]?.times_used ?? 0) : 0) + 1,
+          last_routed_at: new Date().toISOString(),
+        },
+      }));
+      try {
+        await supabase.rpc('remember_email_sender_wallet', {
+          p_sender_key: key,
+          p_sender_label: payerName(row),
+          p_user_id: user.id,
+          p_user_name: user.full_name,
+          p_user_phone: user.phone,
+        });
+      } catch {
+        // Memory is a convenience — never block the actual routing action.
+      }
+    }
+    onCreditUser?.(row, user);
+  };
+
   if (open) {
     const name = senderName(open);
     const amount = fmtUgx(open.amount);
