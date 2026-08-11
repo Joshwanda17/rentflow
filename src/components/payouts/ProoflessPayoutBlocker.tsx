@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -32,9 +32,26 @@ interface ProoflessRow {
 export function ProoflessPayoutBlocker() {
   const { user } = useAuth();
   const qc = useQueryClient();
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  const [targetId, setTargetId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  // Mobile browsers (especially iOS Safari) frequently discard the page while
+  // the camera/file picker is open. Any React state captured before the picker
+  // opened is gone when the app comes back, which is why the upload silently
+  // did nothing. We therefore (a) use one native <label>+<input> per row so the
+  // file arrives with its own row id — no state hand-off at all — and (b) leave
+  // a sessionStorage breadcrumb so that if the page really was reloaded we tell
+  // the merchant to pick the file again instead of failing silently.
+  const PENDING_KEY = 'welile.proofUploadPending';
+  const uploadingRef = useRef(false);
+
+  useEffect(() => {
+    const pending = sessionStorage.getItem(PENDING_KEY);
+    if (pending) {
+      sessionStorage.removeItem(PENDING_KEY);
+      toast.warning('Upload interrupted', {
+        description: 'Your phone reloaded the app while picking the file. Please attach the proof again.',
+      });
+    }
+  }, []);
 
   const { data: rows = [] } = useQuery({
     queryKey: ['merchant-proofless-payouts', user?.id],
@@ -69,16 +86,16 @@ export function ProoflessPayoutBlocker() {
     },
   });
 
-  async function handleFile(file: File) {
-    const id = targetId;
-    if (!id) return;
+  async function handleFile(id: string, file: File) {
+    if (!id || uploadingRef.current) return;
+    uploadingRef.current = true;
     setBusyId(id);
     try {
       const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
       const path = `${user!.id}/payout-proofs/${id}-${Date.now()}.${ext}`;
       const { error: upErr } = await supabase.storage
         .from('payment-proofs')
-        .upload(path, file, { upsert: false, contentType: file.type || undefined });
+        .upload(path, file, { upsert: true, contentType: file.type || undefined });
       if (upErr) throw new Error(upErr.message || 'Failed to upload proof.');
       const { error } = await (supabase as any).rpc('merchant_attach_payout_proof', {
         p_withdrawal_id: id,
@@ -87,14 +104,14 @@ export function ProoflessPayoutBlocker() {
         p_type: file.type || `image/${ext}`,
       });
       if (error) throw error;
+      sessionStorage.removeItem(PENDING_KEY);
       toast.success('Proof attached — thank you.');
       qc.invalidateQueries({ queryKey: ['merchant-proofless-payouts'] });
     } catch (e: any) {
       toast.error(e?.message || 'Could not attach the proof');
     } finally {
+      uploadingRef.current = false;
       setBusyId(null);
-      setTargetId(null);
-      if (inputRef.current) inputRef.current.value = '';
     }
   }
 
@@ -104,16 +121,6 @@ export function ProoflessPayoutBlocker() {
 
   return (
     <div className="fixed inset-0 z-[80] bg-background/95 backdrop-blur-sm overflow-y-auto">
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*,application/pdf"
-        className="hidden"
-        onChange={(e) => {
-          const f = e.target.files?.[0];
-          if (f) void handleFile(f);
-        }}
-      />
       <div className="mx-auto w-full max-w-2xl p-4 sm:p-6 space-y-4">
         <div className="rounded-2xl border-2 border-destructive bg-destructive/10 p-4 flex items-start gap-3">
           <AlertOctagon className="h-7 w-7 text-destructive shrink-0 mt-0.5 animate-pulse" />
@@ -146,19 +153,30 @@ export function ProoflessPayoutBlocker() {
                   {format(new Date(r.processed_at || r.created_at), 'MMM d • h:mm a')}
                 </span>
               </div>
-              <Button
-                size="sm"
-                variant="destructive"
-                className="w-full gap-2"
-                disabled={busyId === r.id}
-                onClick={() => {
-                  setTargetId(r.id);
-                  inputRef.current?.click();
-                }}
+              <label
+                htmlFor={`proof-input-${r.id}`}
+                aria-disabled={busyId === r.id}
+                className={`flex w-full items-center justify-center gap-2 rounded-md bg-destructive px-3 py-2 text-sm font-medium text-destructive-foreground ${
+                  busyId === r.id ? 'pointer-events-none opacity-70' : 'cursor-pointer hover:bg-destructive/90'
+                }`}
               >
                 {busyId === r.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                Attach proof of payment
-              </Button>
+                {busyId === r.id ? 'Uploading proof…' : 'Attach proof of payment'}
+              </label>
+              <input
+                id={`proof-input-${r.id}`}
+                type="file"
+                accept="image/*,application/pdf"
+                className="sr-only"
+                disabled={busyId === r.id}
+                onClick={() => sessionStorage.setItem(PENDING_KEY, r.id)}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  e.target.value = '';
+                  if (f) void handleFile(r.id, f);
+                  else sessionStorage.removeItem(PENDING_KEY);
+                }}
+              />
             </li>
           ))}
         </ul>

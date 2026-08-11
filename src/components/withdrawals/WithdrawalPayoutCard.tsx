@@ -331,7 +331,7 @@ export function WithdrawalPayoutCard({
     const path = `${user.id}/payout-proofs/${withdrawal.id}-${Date.now()}.${ext}`;
     const { error: upErr } = await supabase.storage
       .from('payment-proofs')
-      .upload(path, file, { upsert: false, contentType: file.type || undefined });
+      .upload(path, file, { upsert: true, contentType: file.type || undefined });
     if (upErr) throw new Error(upErr.message || 'Failed to upload proof.');
     // `payment-proofs` is a PRIVATE bucket — public URLs return object-not-found
     // when auditors/CFOs later try to open the proof. We persist the storage
@@ -904,7 +904,17 @@ export function WithdrawalPayoutCard({
                       <div className="min-w-0 text-xs">
                         <p className="font-semibold truncate">{proofFile.name}</p>
                         <p className="text-muted-foreground">{(proofFile.size / 1024).toFixed(0)} KB</p>
-                        {proofUrl && <p className="text-emerald-600 font-medium mt-0.5">Uploaded</p>}
+                        {proofUploading
+                          ? <p className="text-muted-foreground font-medium mt-0.5">Uploading…</p>
+                          : proofUrl
+                            ? <p className="text-emerald-600 font-medium mt-0.5">Uploaded</p>
+                            : <p className="text-destructive font-medium mt-0.5">Not uploaded — tap below to retry</p>}
+                        <label
+                          htmlFor={`proof-upload-${withdrawal.id}`}
+                          className="mt-1 inline-block text-primary underline cursor-pointer"
+                        >
+                          Change photo
+                        </label>
                       </div>
                     </div>
                   ) : (
@@ -920,10 +930,10 @@ export function WithdrawalPayoutCard({
                     id={`proof-upload-${withdrawal.id}`}
                     type="file"
                     accept="image/*,application/pdf"
-                    capture="environment"
                     className="hidden"
-                    onChange={(e) => {
+                    onChange={async (e) => {
                       const f = e.target.files?.[0] || null;
+                      e.target.value = '';
                       if (f && f.size > 8 * 1024 * 1024) {
                         toast.error('File must be under 8 MB');
                         return;
@@ -931,6 +941,25 @@ export function WithdrawalPayoutCard({
                       setProofFile(f);
                       setProofUrl(null);
                       setCompleteError(null);
+                      // Upload IMMEDIATELY. On mobile the browser often discards
+                      // the page while the camera/gallery is open, so a file kept
+                      // only in memory until "Confirm paid" is silently lost.
+                      if (f) {
+                        setProofUploading(true);
+                        try {
+                          const uploaded = await uploadProofFile(f);
+                          setProofUrl(uploaded.url);
+                          setProofPath(uploaded.path);
+                          toast.success('Proof uploaded');
+                        } catch (err: any) {
+                          setProofUrl(null);
+                          setProofPath(null);
+                          setCompleteError(err?.message || 'Failed to upload proof. Try again.');
+                          toast.error(err?.message || 'Failed to upload proof');
+                        } finally {
+                          setProofUploading(false);
+                        }
+                      }
                     }}
                   />
                   <p className="text-[10px] text-muted-foreground leading-snug">
