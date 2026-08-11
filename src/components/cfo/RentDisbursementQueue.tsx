@@ -767,14 +767,43 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                   <Button variant="outline" size="sm" className="h-9 rounded-xl gap-2">
                     <Filter className="h-4 w-4" />
                     Filter
-                    {(agentFilter !== 'all' || countryFilter !== 'all' || dateFilter !== 'all' || districtFilter !== 'all' || cityFilter !== 'all') && (
+                    {(agentFilter !== 'all' || countryFilter !== 'all' || dateFilter !== 'all' || districtFilter !== 'all' || cityFilter !== 'all' || catValue !== 'all') && (
                       <Badge className="h-5 min-w-5 px-1.5 text-[10px] bg-primary text-primary-foreground border-0">
-                        {[agentFilter !== 'all', countryFilter !== 'all', dateFilter !== 'all', districtFilter !== 'all', cityFilter !== 'all'].filter(Boolean).length}
+                        {[agentFilter !== 'all', countryFilter !== 'all', dateFilter !== 'all', districtFilter !== 'all', cityFilter !== 'all', catValue !== 'all'].filter(Boolean).length}
                       </Badge>
                     )}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent align="end" className="w-72 space-y-3 p-3">
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-semibold text-muted-foreground">Category type</p>
+                    <Select value={catField} onValueChange={(v) => { setCatField(v as CatFieldKey); setCatValue('all'); setSelected(new Set()); }}>
+                      <SelectTrigger className="h-9 rounded-lg text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[280px]">
+                        {CAT_FIELD_KEYS.map(k => (
+                          <SelectItem key={k} value={k}>{CAT_FIELD_LABELS[k]}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-semibold text-muted-foreground">{CAT_FIELD_LABELS[catField]}</p>
+                    <Select value={catValue} onValueChange={(v) => { setCatValue(v); setSelected(new Set()); }}>
+                      <SelectTrigger className="h-9 rounded-lg text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[280px]">
+                        <SelectItem value="all">All {CAT_FIELD_LABELS[catField].toLowerCase()}</SelectItem>
+                        {catOptions.map(o => (
+                          <SelectItem key={o.name} value={o.name}>
+                            <span className="truncate">{o.name} · {o.count}</span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div className="space-y-1.5">
                     <p className="text-xs font-semibold text-muted-foreground">District</p>
                     <Select value={districtFilter} onValueChange={(v) => { setDistrictFilter(v); setCityFilter('all'); }}>
