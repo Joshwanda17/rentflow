@@ -449,20 +449,22 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
           Recipient selection only: it ticks rows in the queue below, which then
           runs the identical existing funding logic.
         */}
-        <div className="rounded-lg border border-primary/25 bg-primary/[0.04] p-3">
-          <div className="flex items-center justify-between gap-2 flex-wrap mb-1.5 px-1">
-            <p className="text-[11px] font-semibold text-primary uppercase tracking-wide flex items-center gap-1.5">
-              <MapPin className="h-3.5 w-3.5" />
+        <div className="rounded-2xl border border-border/70 bg-muted/20 p-4">
+          <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
+            <p className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-2">
+              <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/15">
+                <MapPin className="h-3.5 w-3.5" />
+              </span>
               Step 1 (optional) · Choose recipients by location / category
             </p>
             {locationScopeIds?.length ? (
               <div className="flex items-center gap-2">
-                <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/30">
+                <Badge variant="outline" className="text-[11px] rounded-full px-2.5 py-0.5 bg-primary/10 text-primary border-primary/30">
                   {locationScopeLabel ? `${locationScopeLabel} · ` : ''}{locationScopeIds.length} in scope
                 </Badge>
                 <button
                   type="button"
-                  className="text-[11px] text-primary hover:underline"
+                  className="text-xs font-medium text-primary hover:underline"
                   onClick={() => {
                     setLocationScopeIds(null);
                     setLocationScopeLabel(null);
@@ -474,7 +476,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
               </div>
             ) : null}
           </div>
-          <p className="text-[11px] text-muted-foreground px-1 mb-2">
+          <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
             This only narrows <b>who</b> appears in the float funding list below. Amounts, fees,
             validations, approvals, wallet and ledger records are unchanged — the same
             Fund Agent Landlord Payout Float process runs on whoever you tick in Step 2.
@@ -506,21 +508,6 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
             }}
           />
         </div>
-
-        {locationScopeIds?.length ? (
-          <div
-            ref={step2Ref}
-            className="scroll-mt-4 rounded-lg border-2 border-primary/40 bg-primary/[0.06] px-3 py-2 flex items-center justify-between gap-2 flex-wrap"
-          >
-            <p className="text-[11px] font-semibold text-primary uppercase tracking-wide flex items-center gap-1.5">
-              <Banknote className="h-3.5 w-3.5" />
-              Step 2 · Fund the selected float payouts (unchanged process)
-            </p>
-            <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/30">
-              {selected.size} ticked · {locationScopeIds.length} in scope
-            </Badge>
-          </div>
-        ) : null}
 
         {isLoading ? (
           <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
