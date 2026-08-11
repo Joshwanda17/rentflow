@@ -280,6 +280,45 @@ export function GmailStyleEmailList({ rows, onCreditUser }: GmailStyleEmailListP
           </div>
           {open.direction === 'in' && onCreditUser && (
             <div className="mt-5 border-y bg-muted/20 py-4">
+              {openKey && bindings[openKey] && !showManual ? (
+                <div className="space-y-3">
+                  <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-primary flex items-center gap-1.5">
+                      <History className="h-3.5 w-3.5" /> Previously routed payer
+                    </p>
+                    <p className="mt-1.5 text-sm">
+                      Payments from <span className="font-semibold">{payerName(open)}</span> were routed to{' '}
+                      <span className="font-semibold">{bindings[openKey]!.user_name || 'this wallet'}</span>
+                      {bindings[openKey]!.user_phone ? ` (${bindings[openKey]!.user_phone})` : ''}.
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      Used {bindings[openKey]!.times_used}×
+                      {bindings[openKey]!.last_routed_at
+                        ? ` · last on ${new Date(bindings[openKey]!.last_routed_at as string).toLocaleDateString()}`
+                        : ''}
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Button
+                      className="h-10 gap-2 sm:min-w-56"
+                      onClick={() => {
+                        const b = bindings[openKey]!;
+                        routeToWallet(open, {
+                          id: b.user_id,
+                          full_name: b.user_name || 'Saved recipient',
+                          phone: b.user_phone || '',
+                        });
+                      }}
+                    >
+                      <Wallet className="h-4 w-4" />
+                      Route to {bindings[openKey]!.user_name || 'saved wallet'}
+                    </Button>
+                    <Button variant="outline" className="h-10" onClick={() => setShowManual(true)}>
+                      Route to a different user
+                    </Button>
+                  </div>
+                </div>
+              ) : (
               <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
                 <div className="min-w-0 flex-1">
                   <UserSearchPicker
@@ -301,13 +340,14 @@ export function GmailStyleEmailList({ rows, onCreditUser }: GmailStyleEmailListP
                   disabled={!selectedUsers[open.id]}
                   onClick={() => {
                     const user = selectedUsers[open.id];
-                    if (user) onCreditUser(open, user);
+                    if (user) routeToWallet(open, user);
                   }}
                 >
                   <Wallet className="h-4 w-4" />
                   Route to wallet
                 </Button>
               </div>
+              )}
             </div>
           )}
           <div className="mt-5 flex flex-wrap gap-1.5 text-[11px] text-muted-foreground">
