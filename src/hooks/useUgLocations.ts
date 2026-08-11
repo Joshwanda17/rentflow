@@ -172,6 +172,32 @@ export async function resolveUgVillage(villageId: number): Promise<UgLocationSel
   return row ? rowToSelection(row) : null;
 }
 
+/**
+ * Best-effort upgrade of legacy typed names to an official village row.
+ * Used by surfaces that historically stored free text (agent tenant edit, ops
+ * drilldown) so a saved address can pre-fill the picker without a re-pick.
+ * Returns null when the name is ambiguous or unknown — callers then require a
+ * fresh selection.
+ */
+export async function resolveUgVillageByNames(
+  village?: string | null,
+  district?: string | null,
+): Promise<UgLocationSelection | null> {
+  const v = (village ?? '').trim();
+  if (v.length < 2) return null;
+  const d = (district ?? '').trim() || null;
+  const { data, error } = await supabase.rpc('ug_search_villages' as any, {
+    p_query: v,
+    p_limit: 20,
+    p_district_id: null,
+    p_district_name: d,
+  });
+  if (error) return null;
+  const rows = (data ?? []) as SearchRow[];
+  const exact = rows.filter((r) => r.village_name.trim().toLowerCase() === v.toLowerCase());
+  return exact.length === 1 ? rowToSelection(exact[0]) : null;
+}
+
 /** Human-readable label used consistently across every form. */
 export function ugLocationLabel(sel: UgLocationSelection) {
   return sel.fullPath || [sel.village, sel.parish, sel.subcounty, sel.county, sel.district].filter(Boolean).join(', ');
