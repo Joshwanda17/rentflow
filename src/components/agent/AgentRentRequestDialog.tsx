@@ -5018,6 +5018,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   <ShieldCheck className="h-4 w-4" />
                   LC Letter
                 </h4>
+                {carriedDocs?.hasLcLetter && !lcLetter && (
+                  <div className="rounded-lg border border-primary/30 bg-primary/5 p-2 text-[11px] leading-snug text-muted-foreground">
+                    LC letter carried from this tenant's previous plan. Upload a new one only to replace it.
+                  </div>
+                )}
                 {lcLetter ? (
                   <div className="flex items-center gap-3 rounded-xl border border-border p-2.5">
                     <img src={lcLetter.preview} alt="LC letter" className="h-16 w-16 rounded-lg object-cover" />
