@@ -22,6 +22,7 @@ import { hapticTap } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 import { MerchantReconcilePaymentCard } from '@/components/agent/MerchantReconcilePaymentCard';
+import { MerchantFloatAvailableCard } from '@/components/agent/MerchantFloatAvailableCard';
 
 interface Props {
   agentId: string;
@@ -126,6 +127,7 @@ export function MerchantDashboardHome({
       </section>
 
       {/* Merchant Payouts CTA */}
+      {/* Shared payout float + this merchant's settlement position */}
       <motion.button
         onClick={() => {
           hapticTap();
