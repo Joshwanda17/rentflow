@@ -112,6 +112,8 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
   const [countryFilter, setCountryFilter] = useState<string>('all');
   const [districtFilter, setDistrictFilter] = useState<string>('all');
   const [cityFilter, setCityFilter] = useState<string>('all');
+  const [catField, setCatField] = useState<CatFieldKey>('district');
+  const [catValue, setCatValue] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<'all' | '7d' | '30d'>('all');
   const [search, setSearch] = useState('');
   const [batchRef, setBatchRef] = useState('');
@@ -251,13 +253,24 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
       if (cutoff !== null && new Date(it.created_at).getTime() < cutoff) return false;
       if (districtFilter !== 'all' && ((it.request_district || '').trim() || 'Unknown') !== districtFilter) return false;
       if (cityFilter !== 'all' && ((it.request_city || '').trim() || 'Unknown') !== cityFilter) return false;
+      if (catValue !== 'all' && (catValueOf(it, catField) || 'Unknown') !== catValue) return false;
       if (q) {
         const haystack = `${it.tenant_name} ${it.landlord_name} ${it.agent_name}`.toLowerCase();
         if (!haystack.includes(q)) return false;
       }
       return true;
     });
-  }, [items, dateFilter, search, restrictSet, districtFilter, cityFilter]);
+  }, [items, dateFilter, search, restrictSet, districtFilter, cityFilter, catField, catValue]);
+
+  // Category option list for the currently chosen category type.
+  const catOptions = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const it of items) {
+      const key = catValueOf(it, catField) || 'Unknown';
+      map.set(key, (map.get(key) ?? 0) + 1);
+    }
+    return [...map.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [items, catField]);
 
   // Location option lists, derived from the same rows the table shows.
   const districtOptions = useMemo(() => {
@@ -289,6 +302,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
     setDistrictFilter('all');
     setCityFilter('all');
     setCountryFilter('all');
+    setCatValue('all');
   };
 
   // Group rows by agent so CFO can pick one tenant, a few, or all of an
