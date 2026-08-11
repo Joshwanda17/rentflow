@@ -1,4 +1,4 @@
-import { Wallet, AlertTriangle } from 'lucide-react';
+import { Wallet, AlertTriangle, Hand, Smartphone, BadgeCheck } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { useMerchantPayoutFloat, useMerchantFloatPositions } from '@/hooks/useMerchantFloat';
 
@@ -59,6 +59,26 @@ export function MerchantFloatAvailableCard() {
           </p>
         </div>
       )}
+
+      <div className="mt-4 rounded-2xl border border-primary/20 bg-primary/5 p-3">
+        <p className="text-[10px] font-bold uppercase tracking-wider text-primary">
+          How you operate now
+        </p>
+        <ol className="mt-2 space-y-2">
+          <li className="flex items-start gap-2 text-[11px] leading-relaxed text-foreground">
+            <Hand className="h-3.5 w-3.5 shrink-0 text-primary mt-0.5" />
+            <span><span className="font-semibold">Claim</span> a withdrawal request from the queue below — no float request, no waiting for the CFO.</span>
+          </li>
+          <li className="flex items-start gap-2 text-[11px] leading-relaxed text-foreground">
+            <Smartphone className="h-3.5 w-3.5 shrink-0 text-primary mt-0.5" />
+            <span><span className="font-semibold">Pay it out</span> from your own MTN or Airtel line and upload the proof.</span>
+          </li>
+          <li className="flex items-start gap-2 text-[11px] leading-relaxed text-foreground">
+            <BadgeCheck className="h-3.5 w-3.5 shrink-0 text-primary mt-0.5" />
+            <span><span className="font-semibold">Get reimbursed</span> — Finance sends real money to your line and the provider message clears what you are owed.</span>
+          </li>
+        </ol>
+      </div>
 
       <p className="mt-3 text-[10px] leading-relaxed text-muted-foreground">
         You may only demand money you have already claimed and paid out. Real money sent to your MTN or
