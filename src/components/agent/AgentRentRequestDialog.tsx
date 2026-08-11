@@ -4885,6 +4885,35 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
                 {/* House Photos — 4 outside views */}
                 <div className="space-y-2">
+                  {/* Renewal document prompt — states plainly whether this
+                      tenant already has documents on file, or whether the agent
+                      must capture them fresh for this renewal. */}
+                  {renewDocsLoading && (
+                    <div className="rounded-lg border border-border bg-muted/40 p-2.5 text-[11px] text-muted-foreground inline-flex items-center gap-2">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" /> Checking this tenant's documents on file…
+                    </div>
+                  )}
+                  {!renewDocsLoading && renewDocs && (
+                    renewDocs.passport && renewDocs.houseImages >= 4 ? (
+                      <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-2.5 text-[11px]">
+                        <p className="font-semibold text-emerald-800 dark:text-emerald-300">Documents already on file</p>
+                        <p className="text-muted-foreground mt-0.5">
+                          Passport photo, {renewDocs.houseImages} house photos{renewDocs.lcLetter ? ' and the LC letter' : ''} carry forward to this renewal. Re-capture only if they have changed.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="rounded-lg border-2 border-amber-500/60 bg-amber-500/10 p-2.5 text-[11px]">
+                        <p className="font-semibold text-amber-800 dark:text-amber-300 inline-flex items-center gap-1">
+                          <AlertTriangle className="h-3.5 w-3.5" /> No documents on file — upload them now
+                        </p>
+                        <ul className="mt-1 space-y-0.5 text-muted-foreground list-disc pl-4">
+                          {!renewDocs.passport && <li>Tenant passport photo</li>}
+                          {renewDocs.houseImages < 4 && <li>All 4 house photos ({renewDocs.houseImages} of 4 on file)</li>}
+                          {!renewDocs.lcLetter && <li>LC letter</li>}
+                        </ul>
+                      </div>
+                    )
+                  )}
                   <Label className="flex items-center gap-1">
                     📸 House Photos * — capture all 4 outside views
                   </Label>
