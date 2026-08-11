@@ -40,6 +40,7 @@ import AgentContactLocationGate from './AgentContactLocationGate';
 import { useRequireContactLocation } from '@/hooks/useRequireContactLocation';
 import { RenewDocumentsDialog, type RenewDocsState } from './RenewDocumentsDialog';
 import { TenantDocumentsSection } from './TenantDocumentsSection';
+import { TenantPropertyCard } from './TenantPropertyCard';
 
 interface TenantProfileViewProps {
   tenantId: string;
@@ -80,7 +81,16 @@ interface RentRequestRow {
   tenant_no_smartphone?: boolean | null;
   request_latitude?: number | null;
   request_longitude?: number | null;
-  landlord?: { name: string; property_address: string; house_category?: string; phone?: string | null } | null;
+  landlord?: {
+    name: string;
+    property_address: string;
+    house_category?: string;
+    phone?: string | null;
+    village?: string | null;
+    sub_county?: string | null;
+    district?: string | null;
+  } | null;
+  lc1?: { name?: string | null; phone?: string | null; village?: string | null; verified?: boolean | null } | null;
 }
 
 interface RepaymentRow {
@@ -268,7 +278,7 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
         supabase.rpc('get_agent_tenant_profile', { p_tenant_id: tenantId }),
         supabase
           .from('rent_requests')
-          .select('id, rent_amount, total_repayment, amount_repaid, status, created_at, disbursed_at, duration_days, daily_repayment, registration_type, initial_outstanding_balance, outstanding_grace_days, landlord_id, lc1_id, house_category, tenant_no_smartphone, request_latitude, request_longitude, landlord:landlords(name, property_address, house_category, phone)')
+          .select('id, rent_amount, total_repayment, amount_repaid, status, created_at, disbursed_at, duration_days, daily_repayment, registration_type, initial_outstanding_balance, outstanding_grace_days, landlord_id, lc1_id, house_category, tenant_no_smartphone, request_latitude, request_longitude, landlord:landlords(name, property_address, house_category, phone, village, sub_county, district), lc1:lc1_chairpersons(name, phone, village, verified)')
           .eq('tenant_id', tenantId)
           .order('created_at', { ascending: false }),
         supabase
@@ -432,6 +442,9 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
       latestLandlordPhone: latest?.landlord?.phone || null,
       latestAddress: latest?.landlord?.property_address || null,
       latestHouseType: latest?.landlord?.house_category || null,
+      latestRequestId: latest?.id || null,
+      latestLandlordRow: latest?.landlord || null,
+      latestLc1: latest?.lc1 || null,
       latestStatus: latest?.status || null,
     };
   }, [requests, repayments]);
