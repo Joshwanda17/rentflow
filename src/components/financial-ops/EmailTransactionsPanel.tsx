@@ -3054,6 +3054,19 @@ export function EmailTransactionsPanel() {
     };
   }, [routingHistory, autoDebitResults]);
 
+  /**
+   * Needs routing 2: an outgoing payout email whose money was never taken off
+   * the wallet of the number that was paid out — no auto-debit recorded and no
+   * manual routing entry either. Defined after getDebitMeta so it can reuse it.
+   */
+  const isNeedsDebitRouting = useCallback((r: GmailTx) => {
+    if (r.direction !== 'out' && r.direction !== 'charge') return false;
+    if (isUnparsedRow(r)) return false;
+    if (justRoutedIds.has(r.id)) return false;
+    if ((routingHistory[r.id] ?? []).length > 0) return false;
+    return !getDebitMeta(r).isAutoDebited;
+  }, [routingHistory, justRoutedIds, getDebitMeta]);
+
   // Navigable rows: the same list the operator sees on the Recent emails page.
   // This drives the Prev / Next button bar inside the Route dialog so Financial
   // Ops can walk through emails in order without closing the dialog each time.
@@ -3062,7 +3075,11 @@ export function EmailTransactionsPanel() {
       if (directionFilter === 'in' && r.direction !== 'in') return false;
       if (directionFilter === 'out' && r.direction !== 'out' && r.direction !== 'charge') return false;
       if (needsRoutingOnly && !isNeedsRouting(r)) return false;
-      if (statusFilter !== 'all' && getRowStatus(r) !== statusFilter) return false;
+      if (statusFilter === 'needs_routing_out') {
+        if (!isNeedsDebitRouting(r)) return false;
+      } else if (statusFilter !== 'all' && getRowStatus(r) !== statusFilter) {
+        return false;
+      }
       if (matchFilter === 'all') return true;
       const matches = userMatches[r.id] ?? [];
       if (matchFilter === 'reference') return matches.some((u) => u.matched_on.startsWith('reference '));
@@ -3123,12 +3140,9 @@ export function EmailTransactionsPanel() {
       });
     }
     return list;
-  }, [filteredRows, directionFilter, matchFilter, userMatches, needsRoutingOnly, isNeedsRouting, statusFilter, getRowStatus, debitFilter, debitSort, sortMode, getDebitMeta]);
+  }, [filteredRows, directionFilter, matchFilter, userMatches, needsRoutingOnly, isNeedsRouting, isNeedsDebitRouting, statusFilter, getRowStatus, debitFilter, debitSort, sortMode, getDebitMeta]);
 
   const navIndex = routingRow ? visibleRows.findIndex((r) => r.id === routingRow.id) : -1;
-  // Needs routing 2: an outgoing payout email whose money was never taken off
-  // the wallet of the number that was paid out — no auto-debit recorded and no
-  // manual routing entry either. Defined after getDebitMeta so it can reuse it.
   const canPrevNav = navIndex > 0;
   const canNextNav = navIndex >= 0 && navIndex < visibleRows.length - 1;
 
