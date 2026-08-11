@@ -904,7 +904,17 @@ export function WithdrawalPayoutCard({
                       <div className="min-w-0 text-xs">
                         <p className="font-semibold truncate">{proofFile.name}</p>
                         <p className="text-muted-foreground">{(proofFile.size / 1024).toFixed(0)} KB</p>
-                        {proofUrl && <p className="text-emerald-600 font-medium mt-0.5">Uploaded</p>}
+                        {proofUploading
+                          ? <p className="text-muted-foreground font-medium mt-0.5">Uploading…</p>
+                          : proofUrl
+                            ? <p className="text-emerald-600 font-medium mt-0.5">Uploaded</p>
+                            : <p className="text-destructive font-medium mt-0.5">Not uploaded — tap below to retry</p>}
+                        <label
+                          htmlFor={`proof-upload-${withdrawal.id}`}
+                          className="mt-1 inline-block text-primary underline cursor-pointer"
+                        >
+                          Change photo
+                        </label>
                       </div>
                     </div>
                   ) : (
