@@ -35473,6 +35473,25 @@ export type Database = {
         Returns: string
       }
       get_merchant_float_network_status: { Args: never; Returns: Json }
+      get_merchant_float_positions: {
+        Args: never
+        Returns: {
+          agent_id: string
+          agent_name: string
+          agent_phone: string
+          company_cash_with_agent: number
+          desk_id: string
+          float_credits_recorded: number
+          is_active: boolean
+          label: string
+          last_payout_at: string
+          last_reimbursed_at: string
+          owed_to_agent: number
+          paid_out_total: number
+          reimbursed_total: number
+        }[]
+      }
+      get_merchant_payout_float: { Args: never; Returns: Json }
       get_mission_leaderboard: { Args: { p_limit?: number }; Returns: Json }
       get_my_ai_id_summary: { Args: never; Returns: Json }
       get_my_listing_block: { Args: never; Returns: Json }

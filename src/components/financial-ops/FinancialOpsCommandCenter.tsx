@@ -5,6 +5,7 @@ import { MomoFeedSilenceAlert } from './MomoFeedSilenceAlert';
 import { IftttDiagnosticsPanel } from './IftttDiagnosticsPanel';
 import { MerchantPhoneChecklist } from './MerchantPhoneChecklist';
 import { PhoneMoneyCard } from './PhoneMoneyCard';
+import { MoneyWithAgentsCard } from './MoneyWithAgentsCard';
 import { PhonePlatformReconciliationCard } from './PhonePlatformReconciliationCard';
 import { AutoCreditSuccessRateTile } from './AutoCreditSuccessRateTile';
 
@@ -884,6 +885,9 @@ function FinOpsHome({
           <PhoneMoneyCard />
         </div>
       </div>
+
+      {/* Company money sitting with merchant agents — directly below ACTUAL MONEY */}
+      <MoneyWithAgentsCard onOpenTimeline={() => onOpenTool('cashout_settlement')} />
 
       <AutoCreditSuccessRateTile onClick={() => onOpenTool('auto_credit_review')} />
 
