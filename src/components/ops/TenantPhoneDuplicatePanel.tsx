@@ -118,14 +118,14 @@ export function TenantPhoneDuplicatePanel() {
   return (
     <Card className="border-amber-500/30">
       <CardHeader>
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-start justify-between gap-3">
           <button
             type="button"
             onClick={() => setPanelOpen((v) => !v)}
             aria-expanded={panelOpen}
             className="min-w-0 flex-1 text-left rounded-md -m-1 p-1 hover:bg-muted/40 transition-colors"
           >
-            <CardTitle className="flex items-center gap-2 text-base">
+            <CardTitle className="flex flex-wrap items-center gap-2 text-sm sm:text-base">
               <ShieldAlert className="h-4 w-4 text-amber-600" />
               Tenant Phone Duplicate Monitor
               {openCount > 0 && (
@@ -144,7 +144,7 @@ export function TenantPhoneDuplicatePanel() {
               existing record (same last 8 digits) — likely typos or duplicate sign-ups.
             </p>
           </button>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
             <Button
               variant="ghost"
               size="sm"
