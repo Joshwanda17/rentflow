@@ -259,6 +259,22 @@ export default function ProxyAgentCommandCenter() {
                 hint="Tap Team for details" />
             </div>
 
+            {/* Quick actions */}
+            <div className="grid grid-cols-3 gap-2">
+              {quickActions.map((a) => (
+                <button
+                  key={a.key}
+                  onClick={a.onClick}
+                  className="flex flex-col items-center justify-center gap-1 rounded-2xl border border-primary/25 bg-primary/10 px-2 py-3 text-[11px] font-bold text-primary active:scale-95 transition"
+                >
+                  {a.key === 'invite' && inviting
+                    ? <Loader2 className="h-4 w-4 animate-spin" />
+                    : <a.icon className="h-4 w-4" />}
+                  {a.label}
+                </button>
+              ))}
+            </div>
+
             {/* Commission breakdown */}
             <Card>
               <CardContent className="p-3 space-y-2">
