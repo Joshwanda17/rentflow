@@ -6,6 +6,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { format, subDays } from 'date-fns';
 import { Scale, TrendingUp, TrendingDown, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { PhonePlatformReconciliationCard } from './PhonePlatformReconciliationCard';
 
 export function ReconciliationDashboard() {
   const { data, isLoading } = useQuery({
@@ -78,6 +79,9 @@ export function ReconciliationDashboard() {
 
   return (
     <div className="space-y-3 sm:space-y-4">
+      {/* Phone Money vs Platform Money — full per-channel breakdown */}
+      <PhonePlatformReconciliationCard />
+
       {/* Summary Cards */}
       <div className="grid grid-cols-3 gap-1 sm:gap-2">
         <Card className="border-emerald-500/20">

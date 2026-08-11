@@ -4,6 +4,8 @@ import { WalletOverviewCard } from './WalletOverviewCard';
 import { MomoFeedSilenceAlert } from './MomoFeedSilenceAlert';
 import { IftttDiagnosticsPanel } from './IftttDiagnosticsPanel';
 import { MerchantPhoneChecklist } from './MerchantPhoneChecklist';
+import { PhonePlatformReconciliationCard } from './PhonePlatformReconciliationCard';
+import { AutoCreditSuccessRateTile } from './AutoCreditSuccessRateTile';
 
 // Everything below is code-split — a panel's JS is only fetched when its
 // tool/view is opened. Keeps /admin/financial-ops first paint fast.
@@ -855,7 +857,7 @@ function FinOpsHome({
                 : 'bg-primary/10 text-primary'
             }`}>
               {driftMaterial ? <AlertTriangle className="h-3 w-3" /> : <CheckCircle2 className="h-3 w-3" />}
-              {driftMaterial ? 'Drift' : 'Reconciled'}
+              {driftMaterial ? 'Needs Review' : 'Reconciled'}
             </span>
           </div>
           <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
@@ -870,11 +872,19 @@ function FinOpsHome({
             </p>
             {driftMaterial && (
               <p className="mt-1 text-[11px] text-amber-600 dark:text-amber-400 font-medium">
-                {strict?.driftedWallets ?? 0} wallet(s) drifted · {formatUGX(strict?.totalDrift ?? 0)}
+                {strict?.driftedWallets ?? 0} wallet(s) need review · {formatUGX(strict?.totalDrift ?? 0)}
               </p>
             )}
           </div>
         </button>
+      </div>
+
+      {/* Phone Money vs Platform Money + Auto-Credit Success Rate */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 min-w-0">
+          <PhonePlatformReconciliationCard compact />
+        </div>
+        <AutoCreditSuccessRateTile onClick={() => onOpenTool('auto_credit_review')} />
       </div>
 
       {/* Flagship action tiles */}

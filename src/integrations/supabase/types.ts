@@ -35976,6 +35976,11 @@ export type Database = {
           wallet_balance: number
         }[]
       }
+      get_deposit_autocredit_success_rate: {
+        Args: { p_window_hours?: number }
+        Returns: Json
+      }
+      get_phone_platform_reconciliation: { Args: never; Returns: Json }
       get_wallet_totals: { Args: never; Returns: Json }
       get_wallet_totals_strict: { Args: never; Returns: Json }
       get_wallets_batch: {
