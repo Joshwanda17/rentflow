@@ -7,6 +7,7 @@ import { format, addMonths } from 'date-fns';
 import { ROIPaymentHistory } from './ROIPaymentHistory';
 import { PartnerCapitalFlow } from './PartnerCapitalFlow';
 import { PartnerOpsBrief } from './PartnerOpsBrief';
+import { PartnerOpsReportExportButton } from './PartnerOpsReportExportButton';
 import COOPartnersPage from '@/components/coo/COOPartnersPage';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -293,6 +294,9 @@ export function PartnersOpsDashboard() {
       {/* ═══ D. WITHDRAWAL QUEUE — now inside Withdrawals tab ═══ */}
 
       {/* ═══ E. DAILY BRIEF ═══ */}
+      <div className="flex justify-end">
+        <PartnerOpsReportExportButton />
+      </div>
       <PartnerOpsBrief onNavigate={(t) => setTab(t as Tab)} />
 
 
