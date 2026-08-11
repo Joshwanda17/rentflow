@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { UsersRound, CheckCircle, XCircle, Loader2, Phone, Calendar, Clock, Search, ArrowLeftRight, UserPlus } from 'lucide-react';
+import { UsersRound, CheckCircle, XCircle, Loader2, Phone, Calendar, Clock, Search, ArrowLeftRight, UserPlus, Unlink } from 'lucide-react';
 import { format } from 'date-fns';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 
@@ -44,6 +44,11 @@ export function SubAgentVerificationQueue() {
   const [transferReason, setTransferReason] = useState('');
   const [newParent, setNewParent] = useState<{ id: string; full_name: string; phone: string | null } | null>(null);
   const [transferring, setTransferring] = useState(false);
+  // Ops-only unlink: detaches the sub-agent from their parent so they become
+  // a fully independent agent.
+  const [unlinkRecord, setUnlinkRecord] = useState<SubAgentRecord | null>(null);
+  const [unlinkReason, setUnlinkReason] = useState('');
+  const [unlinking, setUnlinking] = useState(false);
   const [parentResults, setParentResults] = useState<{ id: string; full_name: string; phone: string | null }[]>([]);
   const [searchingParents, setSearchingParents] = useState(false);
 
@@ -238,6 +243,37 @@ export function SubAgentVerificationQueue() {
     setTransferReason('');
     setNewParent(null);
     setParentResults([]);
+  };
+
+  const openUnlink = (r: SubAgentRecord) => {
+    setUnlinkRecord(r);
+    setUnlinkReason('');
+  };
+
+  const handleUnlink = async () => {
+    if (!unlinkRecord) return;
+    if (unlinkReason.trim().length < 10) {
+      toast.error('Please provide a reason (at least 10 characters).');
+      return;
+    }
+    setUnlinking(true);
+    try {
+      const { error } = await supabase.rpc('admin_unlink_subagent' as any, {
+        _record_id: unlinkRecord.id,
+        _reason: unlinkReason.trim(),
+      });
+      if (error) throw error;
+      toast.success(`${unlinkRecord.sub_name} is now an independent agent.`, {
+        description: 'Link archived and the action was logged.',
+      });
+      setUnlinkRecord(null);
+      setSelectedRecord(null);
+      queryClient.invalidateQueries({ queryKey: ['subagent-verification-queue'] });
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to unlink');
+    } finally {
+      setUnlinking(false);
+    }
   };
 
   const searchParents = async (term: string) => {
