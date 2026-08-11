@@ -84,6 +84,16 @@ function StatusBadge({ status }: { status: string }) {
   return <Badge variant="outline" className="text-muted-foreground capitalize">{status.replace(/_/g, ' ')}</Badge>;
 }
 
+function CashLocationBadge({ location }: { location: string | null }) {
+  const isBank = location === 'bank';
+  return (
+    <Badge variant="outline" className={`text-[10px] gap-1 ${isBank ? 'border-sky-500/30 text-sky-600 bg-sky-500/10' : 'border-emerald-500/30 text-emerald-600 bg-emerald-500/10'}`}>
+      {isBank ? <Building2 className="h-3 w-3" /> : <Banknote className="h-3 w-3" />}
+      {cashLocationLabel(location)}
+    </Badge>
+  );
+}
+
 /** Live mm:ss countdown to expiry; color shifts from emerald → amber → rose as time runs low. */
 function Countdown({ expiresAt, inline = false }: { expiresAt: string | null; inline?: boolean }) {
   const [now, setNow] = useState(Date.now());
