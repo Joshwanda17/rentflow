@@ -126,6 +126,9 @@ interface GmailStyleEmailListProps {
 export function GmailStyleEmailList({ rows, onCreditUser }: GmailStyleEmailListProps) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [selectedUsers, setSelectedUsers] = useState<Record<string, UserResult>>({});
+  // Remembered payer → wallet bindings, keyed by the normalised payer name.
+  const [bindings, setBindings] = useState<Record<string, SenderBinding | null>>({});
+  const [showManual, setShowManual] = useState(false);
   // Always present the newest email first, even if the parent list order drifts
   // (e.g. realtime inserts, focus-direction resets, or cached presets).
   const sortedRows = useMemo(
