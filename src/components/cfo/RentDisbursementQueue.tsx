@@ -142,9 +142,16 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
       // Fetch profiles for tenants and agents
       const allUserIds = [...new Set([...tenantIds, ...agentIds])];
       const profileMap = new Map<string, string>();
+      const tenantLocMap = new Map<string, any>();
       if (allUserIds.length) {
-        const { data: profiles } = await supabase.from('profiles').select('id, full_name').in('id', allUserIds);
-        for (const p of profiles || []) profileMap.set(p.id, p.full_name || 'Unknown');
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name, town, city, sub_county, parish, village, region, tenant_house_category')
+          .in('id', allUserIds);
+        for (const p of profiles || []) {
+          profileMap.set(p.id, (p as any).full_name || 'Unknown');
+          tenantLocMap.set(p.id, p);
+        }
       }
 
       // Fetch landlord names
@@ -179,6 +186,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
       return requests.map(r => {
         const agentId = r.assigned_agent_id || r.agent_id;
         const hasWallet = walletSet.has(r.landlord_id);
+        const loc: any = tenantLocMap.get(r.tenant_id) || {};
         return {
           ...r,
           access_fee: r.access_fee ?? 0,
@@ -192,6 +200,13 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
           request_country: (r as any).request_country ?? null,
           request_city: (r as any).request_city ?? null,
           request_district: districtMap.get((r as any).house_listing_id) ?? null,
+          loc_town: loc.town ?? null,
+          loc_city: loc.city ?? null,
+          loc_sub_county: loc.sub_county ?? null,
+          loc_parish: loc.parish ?? null,
+          loc_village: loc.village ?? null,
+          loc_region: loc.region ?? null,
+          loc_house_category: loc.tenant_house_category ?? null,
         };
       });
     },
