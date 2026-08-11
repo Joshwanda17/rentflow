@@ -30,6 +30,7 @@ import {
   UnlinkSubAgentDialog,
 } from '@/components/agent/service-center/SubAgentActionDialogs';
 import { useRestoreBodyPointerEvents } from '@/hooks/useRestoreBodyPointerEvents';
+import { SubAgentInviteLinkDialog } from '@/components/agent/SubAgentInviteLinkDialog';
 
 export default function AgentServiceCenter() {
   const navigate = useNavigate();
