@@ -27,7 +27,7 @@ import {
 import { toast } from 'sonner';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
 import { WithdrawalPayoutCard } from '@/components/withdrawals/WithdrawalPayoutCard';
-import { MerchantFloatRequestCard } from '@/components/agent/MerchantFloatRequestCard';
+import { MerchantFloatAvailableCard } from '@/components/agent/MerchantFloatAvailableCard';
 import { MerchantAgreementGate } from '@/components/merchant/agreement/MerchantAgreementGate';
 import { MerchantOnlineToggle } from '@/components/agent/MerchantOnlineToggle';
 import { MerchantDispatchHistory } from '@/components/agent/MerchantDispatchHistory';
@@ -1220,8 +1220,8 @@ export function AgentCashPayoutsTab() {
         </Card>
       )}
 
-      {/* Available float — agent requests any amount, CFO owns the allocation. */}
-      <MerchantFloatRequestCard />
+      {/* Shared payout float — no float requests any more. Claim, pay, get reimbursed. */}
+      <MerchantFloatAvailableCard />
 
       {/* Authorized payout categories — the CFO permission matrix decides which
           categories of transactions this merchant agent may claim & process.
