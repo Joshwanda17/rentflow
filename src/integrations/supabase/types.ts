@@ -34797,6 +34797,7 @@ export type Database = {
           tenant_ops_reviewed_at: string
         }[]
       }
+      get_cash_at_hand_total: { Args: never; Returns: Json }
       get_cashflow_forecast_series: {
         Args: { p_bucket?: string; p_end: string; p_start: string }
         Returns: Json
@@ -35547,6 +35548,7 @@ export type Database = {
         Args: { p_user_id: string; p_window_days?: number }
         Returns: Json
       }
+      get_phone_platform_reconciliation: { Args: never; Returns: Json }
       get_platform_cash_breakdown: { Args: never; Returns: Json }
       get_platform_cash_summary: { Args: never; Returns: Json }
       get_platform_user_counts: {
