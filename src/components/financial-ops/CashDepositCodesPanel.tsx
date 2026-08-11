@@ -4,8 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
-import { KeyRound, RefreshCw, Loader2, Check, Clock, Radio, ChevronDown, Smartphone } from 'lucide-react';
+import { KeyRound, RefreshCw, Loader2, Check, Clock, Radio, Smartphone, Search, Inbox, X, ChevronDown } from 'lucide-react';
 import { StartCashDepositDialog } from './StartCashDepositDialog';
 
 interface CashCodeRow {
@@ -28,6 +27,46 @@ const fmtUgx = (n: number | null) =>
 
 const purposeLabel = (p: string | null) =>
   p === 'operational_float' ? 'Operational Float' : p === 'other' ? 'Other' : 'Personal Deposit';
+
+// Muted tonal avatars, same calm palette as the Gmail-style email inbox.
+const AVATAR_TONES = [
+  'bg-rose-500/12 text-rose-600', 'bg-amber-500/12 text-amber-600',
+  'bg-emerald-500/12 text-emerald-600', 'bg-sky-500/12 text-sky-600',
+  'bg-indigo-500/12 text-indigo-600', 'bg-violet-500/12 text-violet-600',
+  'bg-teal-500/12 text-teal-600', 'bg-orange-500/12 text-orange-600',
+];
+
+function toneFor(seed: string) {
+  let h = 0;
+  for (let i = 0; i < seed.length; i += 1) h = (h * 31 + seed.charCodeAt(i)) % 997;
+  return AVATAR_TONES[h % AVATAR_TONES.length];
+}
+
+/** Gmail-style date column: time for today, "MMM d" otherwise. */
+function gmailDate(iso?: string | null) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const sameDay = d.toDateString() === new Date().toDateString();
+  return sameDay
+    ? d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+    : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+/** Gmail groups its inbox under date rollups: Today, Yesterday, then dates. */
+function dateGroupLabel(iso?: string | null) {
+  if (!iso) return 'No date';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return 'No date';
+  const now = new Date();
+  const dayKey = (x: Date) => `${x.getFullYear()}-${x.getMonth()}-${x.getDate()}`;
+  if (dayKey(d) === dayKey(now)) return 'Today';
+  if (dayKey(d) === dayKey(new Date(now.getTime() - 86_400_000))) return 'Yesterday';
+  const sameYear = d.getFullYear() === now.getFullYear();
+  return d.toLocaleDateString(undefined, sameYear
+    ? { weekday: 'short', month: 'short', day: 'numeric' }
+    : { month: 'short', day: 'numeric', year: 'numeric' });
+}
 
 function StatusBadge({ status }: { status: string }) {
   if (status === 'awaiting_code')
