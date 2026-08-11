@@ -108,6 +108,28 @@ export function useUgSubcounties(countyId: number | null) {
   });
 }
 
+/**
+ * Every sub-county in a district (across all its counties) in ONE round trip,
+ * using the existing county → district link. Used by area FILTERS, which skip
+ * the county level so tenants pick Region → District → Sub-county.
+ */
+export function useUgSubcountiesByDistrict(districtId: number | null) {
+  return useQuery({
+    queryKey: ['ug', 'subcounties-by-district', districtId],
+    enabled: districtId != null,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('ug_subcounties' as any)
+        .select('id, name, ug_counties!inner(district_id)')
+        .eq('ug_counties.district_id', districtId as number)
+        .order('name');
+      if (error) throw error;
+      return ((data ?? []) as any[]).map((r) => ({ id: r.id, name: r.name })) as UgOption[];
+    },
+    ...STATIC,
+  });
+}
+
 export function useUgParishes(subcountyId: number | null) {
   return useQuery({
     queryKey: ['ug', 'parishes', subcountyId],
