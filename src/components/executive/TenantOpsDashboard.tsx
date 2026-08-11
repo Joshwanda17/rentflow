@@ -1649,11 +1649,7 @@ export function TenantOpsDashboard() {
 
             {/* Reports & Exports */}
             <Collapsible open={openReports || !isMobile} onOpenChange={setOpenReports} className="pt-2">
-              <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg border bg-muted/30 px-3 py-2 sm:hidden">
-                <span className="text-xs font-bold uppercase tracking-wider">Reports & Exports</span>
-                <ChevronDown className={`h-4 w-4 transition-transform ${openReports ? 'rotate-180' : ''}`} />
-              </CollapsibleTrigger>
-              <p className="hidden sm:block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Reports &amp; Exports</p>
+              {renderSectionBar('Reports & Exports', 'reports-hub', openReports)}
               <CollapsibleContent className="pt-2 sm:pt-0">
               {reportsToolbar}
               </CollapsibleContent>
