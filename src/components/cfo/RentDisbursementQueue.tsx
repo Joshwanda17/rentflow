@@ -416,7 +416,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
           Recipient selection only: it ticks rows in the queue below, which then
           runs the identical existing funding logic.
         */}
-        <div className="mb-3 rounded-lg border border-primary/25 bg-primary/[0.04] p-2">
+        <div className="rounded-lg border border-primary/25 bg-primary/[0.04] p-3">
           <div className="flex items-center justify-between gap-2 flex-wrap mb-1.5 px-1">
             <p className="text-[11px] font-semibold text-primary uppercase tracking-wide flex items-center gap-1.5">
               <MapPin className="h-3.5 w-3.5" />
@@ -471,7 +471,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
         </div>
 
         {locationScopeIds?.length ? (
-          <p className="text-[11px] font-semibold text-primary uppercase tracking-wide mb-2 px-1">
+          <p className="text-[11px] font-semibold text-primary uppercase tracking-wide px-1">
             Step 2 · Fund the selected float payouts (unchanged process)
           </p>
         ) : null}
@@ -495,6 +495,36 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
           </div>
         ) : (
           <div className="space-y-3">
+            {/* Revenue summary for selection or location scope */}
+            {(selected.size > 0 || locationScopeIds?.length > 0) && (
+              <div className="rounded-lg border-2 border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20 p-3 space-y-2">
+                <p className="text-xs font-bold flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
+                  <TrendingUp className="h-3.5 w-3.5" />
+                  Revenue from this disbursement
+                  {locationScopeIds?.length > 0 && (
+                    <span className="ml-2 text-[10px] font-normal text-emerald-600/80">
+                      · Scoped by location
+                    </span>
+                  )}
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-center">
+                  <div className="rounded-md bg-background/60 py-2">
+                    <p className="text-[10px] text-muted-foreground">Rent Out</p>
+                    <p className="font-bold text-sm text-orange-600">{fmt(locationScopeIds?.length ? queueTotalRent : totalRent)}</p>
+                  </div>
+                  <div className="rounded-md bg-background/60 py-2">
+                    <p className="text-[10px] text-muted-foreground">We Earn (Fees)</p>
+                    <p className="font-bold text-sm text-emerald-600">{fmt(locationScopeIds?.length ? queueTotalRevenue : totalRevenue)}</p>
+                  </div>
+                  <div className="rounded-md bg-background/60 py-2">
+                    <p className="text-[10px] text-muted-foreground">Total Repayment</p>
+                    <p className="font-bold text-sm text-primary">{fmt(locationScopeIds?.length ? queueTotalRepaymentExpected : totalRepaymentExpected)}</p>
+                  </div>
+                </div>
+                <TreasuryImpactBanner payoutAmount={locationScopeIds?.length ? queueTotalRent : totalRent} />
+              </div>
+            )}
+
             {/* Country breakdown — click a chip to filter the queue by country */}
             {countryStats.length > 0 && (
               <div className="rounded-lg border border-border/60 bg-muted/30 p-2">
