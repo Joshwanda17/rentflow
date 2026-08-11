@@ -4904,6 +4904,29 @@ export function EmailTransactionsPanel() {
                         transaction reference tied to the row. */}
                     {expandedRows.has(r.id) && (
                       <div className="mt-2 rounded-lg border border-border bg-muted/30 p-3 space-y-3 text-[11px]">
+                        {/* Top-of-email credit CTA — the first thing an operator
+                            sees when they open a deposit that has not reached a
+                            wallet yet. Full-width and unmissable. */}
+                        {r.direction === 'in' && !isCredited && !isRouted && (
+                          <div className="rounded-lg border-2 border-emerald-500/60 bg-emerald-500/10 p-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[11px] font-bold uppercase tracking-wide text-emerald-800 dark:text-emerald-300 inline-flex items-center gap-1">
+                                <AlertTriangle className="h-3.5 w-3.5" /> Not in any wallet yet
+                              </p>
+                              <p className="text-[11px] text-muted-foreground mt-0.5 break-words">
+                                {fmtUgx(r.amount)} received{r.counterparty ? ` from ${r.counterparty}` : ''} — search the user by phone or name and credit it.
+                              </p>
+                            </div>
+                            <Button
+                              size="lg"
+                              className="w-full sm:w-auto h-12 px-6 text-sm font-bold gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/30 ring-2 ring-emerald-400/60 ring-offset-1 animate-pulse shrink-0"
+                              title="Credit this deposit to any user's wallet — search by phone number or name."
+                              onClick={() => navigateToRow(r, 'credit')}
+                            >
+                              <Wallet className="h-5 w-5" /> Credit to wallet
+                            </Button>
+                          </div>
+                        )}
                         {/* 0) Full receipt — the complete parsed email so a phone
                             user never has to squint at truncated text. Every
                             field is stacked one-per-line on small screens. */}
