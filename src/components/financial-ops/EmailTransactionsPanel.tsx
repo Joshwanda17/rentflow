@@ -815,11 +815,14 @@ export function EmailTransactionsPanel() {
   //   credited     → incoming money already credited or routed to a wallet
   //   needs_routing→ incoming money not yet credited / routed (triage)
   //   unparsed     → rows the parser could not read (no amount / not parsed)
-  type StatusFilter = 'all' | 'credited' | 'needs_routing' | 'unparsed';
+  // 'needs_routing'     → Needs routing 1: money IN that was not auto-credited
+  // 'needs_routing_out' → Needs routing 2: money OUT that was not auto-deducted
+  //                        from the wallet of the number that was paid out
+  type StatusFilter = 'all' | 'credited' | 'needs_routing' | 'needs_routing_out' | 'unparsed';
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(() => {
     if (typeof window === 'undefined') return 'all';
     const v = localStorage.getItem('gmail_filter_status') as StatusFilter | null;
-    return v && ['all', 'credited', 'needs_routing', 'unparsed'].includes(v) ? v : 'all';
+    return v && ['all', 'credited', 'needs_routing', 'needs_routing_out', 'unparsed'].includes(v) ? v : 'all';
   });
   useEffect(() => { try { localStorage.setItem('gmail_filter_status', statusFilter); } catch {} }, [statusFilter]);
 
