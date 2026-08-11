@@ -466,9 +466,15 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
             ].join(','),
           );
         }
-        if (options.district) query = query.eq('district', options.district);
-        if (options.subCounty) query = query.eq('sub_county', options.subCounty);
-        if (options.village) query = query.eq('village', options.village);
+        // District / sub-county / village: id-based where the listing has been
+        // upgraded, normalised case-insensitive text otherwise (shared builder
+        // so the list and the exact counters can never diverge).
+        query = applyAreaFilter(query as any, {
+          district: options.district,
+          subCounty: options.subCounty,
+          village: options.village,
+          villageId: options.villageId ?? null,
+        }) as typeof query;
         if (options.category) query = query.eq('house_category', options.category);
         if (options.minDailyRate) query = query.gte('daily_rate', options.minDailyRate);
         if (options.maxDailyRate) query = query.lte('daily_rate', options.maxDailyRate);
@@ -679,7 +685,7 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
     setMetrics({ ...metricsRef.current });
     pgLog('refresh', { filterKey: key });
     fetchPage(runId, true);
-  }, [fetchPage, options.latitude, options.longitude, options.radiusKm, options.category, options.region, options.district, options.subCounty, options.village, options.search, options.minDailyRate, options.maxDailyRate, options.minRooms, options.hasWater, options.hasElectricity, options.hasSecurity, options.hasParking, options.isFurnished, options.sort, paginate, pageSize]);
+  }, [fetchPage, options.latitude, options.longitude, options.radiusKm, options.category, options.region, options.district, options.subCounty, options.village, options.villageId, options.search, options.minDailyRate, options.maxDailyRate, options.minRooms, options.hasWater, options.hasElectricity, options.hasSecurity, options.hasParking, options.isFurnished, options.sort, paginate, pageSize]);
 
   return { listings, loading, loadingMore, hasMore, loadMore, error, refresh, metrics };
 }
@@ -716,6 +722,8 @@ export interface HouseListingCountOptions {
   subCounty?: string;
   /** Exact village selected in the cascading filter. */
   village?: string;
+  /** Official ug_villages id for the picked village (upgraded listings). */
+  villageId?: number | null;
   /** house_category filter. */
   category?: string;
   /** Cap on daily_rate. */
@@ -760,6 +768,7 @@ export function useHouseListingCount(options: HouseListingCountOptions): HouseLi
     district,
     subCounty,
     village,
+    villageId,
     category,
     maxDailyRate,
     minDailyRate,
@@ -807,9 +816,7 @@ export function useHouseListingCount(options: HouseListingCountOptions): HouseLi
           ].join(','),
         );
       }
-      if (district && district !== 'all') q = q.eq('district', district);
-      if (subCounty && subCounty !== 'all') q = q.eq('sub_county', subCounty);
-      if (village && village !== 'all') q = q.eq('village', village);
+      q = applyAreaFilter(q as any, { district, subCounty, village, villageId: villageId ?? null }) as typeof q;
       if (category && category !== 'all') q = q.eq('house_category', category);
       if (maxDailyRate) q = q.lte('daily_rate', maxDailyRate);
       if (minDailyRate) q = q.gte('daily_rate', minDailyRate);
@@ -852,7 +859,7 @@ export function useHouseListingCount(options: HouseListingCountOptions): HouseLi
     return () => {
       cancelled = true;
     };
-  }, [region, district, subCounty, village, category, maxDailyRate, minDailyRate, minRooms, hasWater, hasElectricity, hasSecurity, hasParking, isFurnished, search, enabled]);
+  }, [region, district, subCounty, village, villageId, category, maxDailyRate, minDailyRate, minRooms, hasWater, hasElectricity, hasSecurity, hasParking, isFurnished, search, enabled]);
 
   return {
     verified: counts.verified,
