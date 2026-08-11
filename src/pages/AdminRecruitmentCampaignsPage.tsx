@@ -490,12 +490,14 @@ function RecruitmentLocationsCard({
         if (error) throw error;
         toast.success("Location updated");
       } else {
-        const { error } = await supabase.from("recruitment_locations").insert({
-          ...payload,
-          country: "UG",
-          slug: slugify([district.name, division.trim() || city.trim()].filter(Boolean).join("-")),
-          is_active: true,
-        });
+        const { error } = await supabase.from("recruitment_locations").insert([
+          {
+            ...payload,
+            country: "UG",
+            slug: slugify([district.name, division.trim() || city.trim()].filter(Boolean).join("-")),
+            is_active: true,
+          },
+        ] as any);
         if (error) throw error;
         toast.success("Location created");
       }
