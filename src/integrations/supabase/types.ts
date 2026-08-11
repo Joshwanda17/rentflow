@@ -35687,15 +35687,18 @@ export type Database = {
           p_agent_id?: string
           p_country?: string
           p_district?: string
+          p_district_id?: number
           p_funded_since?: string
           p_funded_until?: string
           p_level: string
           p_region?: string
+          p_subcounty_id?: number
           p_ward?: string
         }
         Returns: {
           agent_id: string
           agent_name: string
+          district_id: number
           hidden: number
           key: string
           label: string
@@ -35703,6 +35706,7 @@ export type Database = {
           landlord_name: string
           occupied: number
           revenue_ugx: number
+          subcounty_id: number
           total: number
           vacant: number
         }[]
