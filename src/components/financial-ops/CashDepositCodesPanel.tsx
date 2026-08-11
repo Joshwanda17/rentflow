@@ -698,6 +698,7 @@ export function CashDepositCodesPanel({
               <div className="flex flex-wrap items-center gap-2">
                 <StatusBadge status={openRow.status} />
                 <Badge variant="outline" className="text-xs">{purposeLabel(openRow.deposit_purpose)}</Badge>
+                <CashLocationBadge location={openRow.cash_location} />
                 <Countdown expiresAt={openRow.expires_at} inline />
               </div>
               <p className="text-muted-foreground text-xs leading-relaxed">
