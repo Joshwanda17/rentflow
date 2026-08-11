@@ -1653,25 +1653,25 @@ export function TenantOpsDashboard() {
             <div className="pt-2">
               <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Pipeline status</p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <Card className="border bg-amber-500/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setOverviewFilter('pending')}>
+              <Card className="border bg-amber-500/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setOverviewFilter('pending'); openHub('all-tenants-hub'); }}>
                 <CardContent className="p-2.5 text-center">
                   <p className="text-2xl font-extrabold text-amber-600">{pending}</p>
                   <p className="text-[10px] text-muted-foreground font-medium">Pending</p>
                 </CardContent>
               </Card>
-              <Card className="border bg-green-500/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setOverviewFilter('active')}>
+              <Card className="border bg-green-500/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setOverviewFilter('active'); openHub('all-tenants-hub'); }}>
                 <CardContent className="p-2.5 text-center">
                   <p className="text-2xl font-extrabold text-green-600">{funded}</p>
                   <p className="text-[10px] text-muted-foreground font-medium">Funded</p>
                 </CardContent>
               </Card>
-              <Card className="border bg-purple-500/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setOverviewFilter('repaying')}>
+              <Card className="border bg-purple-500/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setOverviewFilter('repaying'); openHub('all-tenants-hub'); }}>
                 <CardContent className="p-2.5 text-center">
                   <p className="text-2xl font-extrabold text-purple-600">{repaying}</p>
                   <p className="text-[10px] text-muted-foreground font-medium">Repaying</p>
                 </CardContent>
               </Card>
-              <Card className="border bg-destructive/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setOverviewFilter('defaulted')}>
+              <Card className="border bg-destructive/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setOverviewFilter('defaulted'); openHub('all-tenants-hub'); }}>
                 <CardContent className="p-2.5 text-center">
                   <p className="text-2xl font-extrabold text-destructive">{defaulted}</p>
                   <p className="text-[10px] text-muted-foreground font-medium">Defaulted</p>
