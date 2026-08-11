@@ -448,36 +448,58 @@ function buildHtml(r: Report, prettyDate: string): string {
   const k = r.kpis || ({} as Record<string, number>);
   const f = r.forecast;
   const tile = (label: string, value: string, sub: string, color: string) =>
-    `<td style="width:25%;background:#faf8ff;border-radius:10px;padding:12px;vertical-align:top">
-       <div style="font-size:10px;color:#787484;text-transform:uppercase;font-weight:700">${esc(label)}</div>
-       <div style="font-size:18px;font-weight:800;color:${color};margin-top:2px">${esc(value)}</div>
-       <div style="font-size:11px;color:#787484">${esc(sub)}</div>
-     </td>`;
+    `<table class="tile" role="presentation" cellpadding="0" cellspacing="0" border="0" width="25%" align="left" style="width:25%;max-width:25%;border-collapse:collapse;">
+       <tr><td style="padding:0 4px 8px 4px;vertical-align:top">
+         <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#faf8ff;border:1px solid #ece5fb;border-radius:10px;">
+           <tr><td style="padding:12px">
+             <div style="font-size:10px;color:#787484;text-transform:uppercase;font-weight:700;letter-spacing:.4px">${esc(label)}</div>
+             <div style="font-size:18px;font-weight:800;color:${color};margin-top:3px;line-height:1.2">${esc(value)}</div>
+             <div style="font-size:11px;color:#787484;margin-top:2px;line-height:1.4">${esc(sub)}</div>
+           </td></tr>
+         </table>
+       </td></tr>
+     </table>`;
   const row = (label: string, count: string, amount: string) =>
     `<tr>
-      <td style="padding:9px 12px;border-bottom:1px solid #eee;font-size:14px;color:#333;">${esc(label)}</td>
-      <td style="padding:9px 12px;border-bottom:1px solid #eee;font-size:14px;color:#111;text-align:right;font-weight:600;">${esc(count)}</td>
-      <td style="padding:9px 12px;border-bottom:1px solid #eee;font-size:14px;color:#111;text-align:right;font-weight:600;">${esc(amount)}</td>
+      <td style="padding:9px 8px;border-bottom:1px solid #eee;font-size:13px;color:#333;">${esc(label)}</td>
+      <td style="padding:9px 8px;border-bottom:1px solid #eee;font-size:13px;color:#111;text-align:right;font-weight:600;white-space:nowrap;">${esc(count)}</td>
+      <td style="padding:9px 8px;border-bottom:1px solid #eee;font-size:13px;color:#111;text-align:right;font-weight:600;white-space:nowrap;">${esc(amount)}</td>
     </tr>`;
-  return `<!DOCTYPE html><html><body style="margin:0;padding:24px;background:#f6f6f8;font-family:Arial,Helvetica,sans-serif;">
+  return `<!DOCTYPE html><html><head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style type="text/css">
+    @media only screen and (max-width:600px) {
+      .wrap { padding: 12px !important; }
+      .pad { padding: 16px 14px !important; }
+      .tile { width: 50% !important; max-width: 50% !important; }
+      .tile-val { font-size: 16px !important; }
+      table.data td { padding: 8px 6px !important; font-size: 12px !important; }
+    }
+    @media only screen and (max-width:400px) {
+      .tile { width: 100% !important; max-width: 100% !important; }
+    }
+  </style>
+</head><body style="margin:0;padding:0;background:#f6f6f8;font-family:Arial,Helvetica,sans-serif;">
+  <div class="wrap" style="padding:24px;">
   <div style="max-width:680px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e6e6ec;">
-    <div style="background:${PURPLE};padding:20px 24px;">
+    <div class="pad" style="background:${PURPLE};padding:20px 24px;">
       <img src="${LOGO_URL}" alt="Welile" width="110" style="display:block;max-width:110px;height:auto;margin-bottom:10px" />
       <div style="color:#fff;font-size:18px;font-weight:700;">Partner Operations - Daily Report</div>
       <div style="color:#e8dcfa;font-size:13px;margin-top:4px;">${esc(prettyDate)} · ${esc(COMPANY_LOCATION)}</div>
     </div>
-    <div style="padding:20px 24px;">
-      <table style="width:100%;border-collapse:separate;border-spacing:6px 0;"><tr>
+    <div class="pad" style="padding:20px 24px;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;"><tr><td style="padding:0">
         ${tile("Partners", num(k.total_partners), `${num(k.onboarded_partners)} onboarded`, "#6c21c4")}
         ${tile("Portfolios", num(k.total_portfolios), `${num(k.new_portfolios_today)} new today`, "#2563eb")}
         ${tile("Paid out today", compactUGX(k.paid_out_today_amount), `${num(k.paid_out_today_count)} payouts · ${num(k.paid_out_today_partners)} partners`, "#db2777")}
         ${tile("Compounded today", compactUGX(k.compounded_today_amount), `${num(k.compounded_today_count)} portfolios`, "#0d9488")}
-      </tr></table>
-      <table style="width:100%;border-collapse:collapse;margin-top:18px;">
+      </td></tr></table>
+      <table class="data" role="presentation" style="width:100%;border-collapse:collapse;margin-top:18px;">
         <thead><tr>
-          <th style="text-align:left;padding:8px 12px;font-size:12px;color:#666;text-transform:uppercase;">Section</th>
-          <th style="text-align:right;padding:8px 12px;font-size:12px;color:#666;text-transform:uppercase;">Count</th>
-          <th style="text-align:right;padding:8px 12px;font-size:12px;color:#666;text-transform:uppercase;">Value</th>
+          <th style="text-align:left;padding:8px;font-size:11px;color:#666;text-transform:uppercase;">Section</th>
+          <th style="text-align:right;padding:8px;font-size:11px;color:#666;text-transform:uppercase;">Count</th>
+          <th style="text-align:right;padding:8px;font-size:11px;color:#666;text-transform:uppercase;">Value</th>
         </tr></thead>
         <tbody>
           ${row("Compounding portfolios", num(k.compounding_portfolios), "-")}
@@ -500,7 +522,7 @@ function buildHtml(r: Report, prettyDate: string): string {
     <div style="padding:14px 24px;background:#faf8fe;color:#777;font-size:11px;">
       ${esc(COMPANY_LOCATION)} · automated Partner Ops brief
     </div>
-  </div></body></html>`;
+  </div></div></body></html>`;
 }
 
 function buildText(r: Report, prettyDate: string): string {
