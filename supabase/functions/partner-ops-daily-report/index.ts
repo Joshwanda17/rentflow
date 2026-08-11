@@ -391,6 +391,71 @@ function buildPdf(r: Report, win: { title: string; pretty: string }, logo: Uint8
     y += 8;
   };
 
+  /** Two-series line chart for a daily trend. */
+  const lineChart = (
+    points: { label: string; a: number; b: number; weekend?: boolean }[],
+    legend: { a: string; b: string },
+    colorA: RGB,
+    colorB: RGB,
+  ) => {
+    if (!points.length) return;
+    const chartH = 38;
+    if (y > pageHeight - (chartH + 24)) { doc.addPage(); y = 18; }
+    const plotX = margin + 2;
+    const plotW = pageWidth - margin * 2 - 4;
+    const baseY = y + chartH;
+    const max = Math.max(1, ...points.map((p) => Math.max(Number(p.a) || 0, Number(p.b) || 0)));
+    // weekend shading + gridlines
+    const slot = plotW / Math.max(1, points.length);
+    points.forEach((p, i) => {
+      if (p.weekend) {
+        doc.setFillColor(...tint(AMBER, 0.95));
+        doc.rect(plotX + i * slot, y, slot, chartH, "F");
+      }
+    });
+    doc.setDrawColor(...BORDER);
+    doc.setLineWidth(0.15);
+    [0.25, 0.5, 0.75].forEach((f) => doc.line(plotX, baseY - chartH * f, plotX + plotW, baseY - chartH * f));
+    doc.setLineWidth(0.2);
+    doc.line(plotX, baseY, plotX + plotW, baseY);
+    const xAt = (i: number) => (points.length === 1 ? plotX + plotW / 2 : plotX + (i * plotW) / (points.length - 1));
+    const yAt = (v: number) => baseY - ((Number(v) || 0) / max) * (chartH - 3);
+    const drawSeries = (key: "a" | "b", color: RGB) => {
+      doc.setDrawColor(...color);
+      doc.setLineWidth(0.7);
+      points.forEach((p, i) => {
+        if (i === 0) return;
+        doc.line(xAt(i - 1), yAt(points[i - 1][key]), xAt(i), yAt(p[key]));
+      });
+      doc.setFillColor(...color);
+      points.forEach((p, i) => doc.circle(xAt(i), yAt(p[key]), points.length > 20 ? 0.5 : 0.9, "F"));
+    };
+    drawSeries("a", colorA);
+    drawSeries("b", colorB);
+    // x labels
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(points.length > 16 ? 4.4 : 5.4);
+    doc.setTextColor(...MUTED);
+    const every = points.length > 20 ? Math.ceil(points.length / 12) : 1;
+    points.forEach((p, i) => {
+      if (i % every !== 0 && i !== points.length - 1) return;
+      const lbl = points.length > 16 ? ascii(p.label).slice(4, 6) : ascii(p.label).slice(0, 6);
+      doc.text(lbl, xAt(i), baseY + 3.4, { align: "center" });
+    });
+    y = baseY + 6;
+    doc.setFontSize(6.2);
+    doc.setFillColor(...colorA);
+    doc.rect(margin, y - 2, 3, 3, "F");
+    doc.setTextColor(...MUTED);
+    doc.text(legend.a, margin + 4.5, y + 0.6);
+    const off = margin + 4.5 + doc.getTextWidth(legend.a) + 6;
+    doc.setFillColor(...colorB);
+    doc.rect(off, y - 2, 3, 3, "F");
+    doc.text(legend.b, off + 4.5, y + 0.6);
+    doc.text(`Peak ${compactUGX(max)} - shaded bands are weekend days`, pageWidth - margin, y + 0.6, { align: "right" });
+    y += 8;
+  };
+
   const tableTheme = {
     theme: "grid" as const,
     styles: { fontSize: 7.4, cellPadding: 1.7, textColor: INK, lineColor: BORDER, lineWidth: 0.1 },
