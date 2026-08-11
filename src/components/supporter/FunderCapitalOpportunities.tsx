@@ -355,22 +355,22 @@ export function FunderCapitalOpportunities() {
           </div>
 
           <TooltipProvider delayDuration={150}>
-            <div className="space-y-2">
-              <OptionRow
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <OptionCard
                 icon={Handshake}
                 title="Support Tenants via Welile"
                 description="Sign a tenant-support contract with Welile. We manage the deployment and returns."
                 tooltip="A managed contract between you and Welile. We source verified tenants, deploy your capital, collect repayments, and send monthly returns to your wallet."
                 onClick={() => setView('managed')}
               />
-              <OptionRow
+              <OptionCard
                 icon={HandCoins}
                 title="Support Tenants Directly"
                 description="Pay landlords directly. Welile facilitates the introduction and documentation."
                 tooltip="You pay the landlord directly for a verified tenant. Welile handles introductions, documentation, and repayment tracking on your behalf."
                 onClick={() => setView('direct')}
               />
-              <OptionRow
+              <OptionCard
                 icon={Rocket}
                 title="Angel Pool"
                 description="Buy a Welile share. Invest in the long-term Welile vision."
