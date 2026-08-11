@@ -1113,6 +1113,36 @@ export function TenantOpsDashboard() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const openHub = (view: ActiveView) => {
+    setActiveView(view);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Shared section header for the collapsible Classic sections.
+  // Mirrors the Global Verification / Welile Operations pattern: the section
+  // stays collapsible inline, and an "Open hub" pill promotes it to a
+  // dedicated full-width working view.
+  const renderSectionBar = (title: string, view: ActiveView, open: boolean) => (
+    <div className="flex items-center gap-2">
+      <CollapsibleTrigger className="flex flex-1 min-w-0 items-center justify-between rounded-lg border bg-muted/30 px-3 py-2 sm:hidden">
+        <span className="text-xs font-bold uppercase tracking-wider truncate">{title}</span>
+        <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </CollapsibleTrigger>
+      <p className="hidden sm:block flex-1 min-w-0 text-[11px] font-bold uppercase tracking-wider text-muted-foreground truncate">
+        {title}
+      </p>
+      <button
+        type="button"
+        onClick={() => openHub(view)}
+        aria-label={`Open ${title} hub`}
+        className="shrink-0 inline-flex items-center gap-1 rounded-full bg-primary px-3 py-1.5 text-[11px] font-bold text-primary-foreground shadow-sm hover:bg-primary/90 active:scale-[0.97] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+      >
+        Open hub
+        <ArrowRight className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  );
+
   const columns: Column<any>[] = [
     { key: 'created_at', label: 'Date', render: (v) => v ? format(new Date(v as string), 'dd MMM yy') : '—' },
     { key: 'tenant_name', label: 'Tenant', render: (v, row: any) => (
