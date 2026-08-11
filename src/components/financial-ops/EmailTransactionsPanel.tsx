@@ -4665,15 +4665,16 @@ export function EmailTransactionsPanel() {
                           Needs Routing badge so ops can jump straight into the
                           routing dialog without scanning across the row to the
                           amount-side CTA. Shown for any uncredited, unrouted
-                          incoming deposit (parsed or not). */}
+                          incoming deposit (parsed or not). Made very visible
+                          with a large, pulsing emerald button. */}
                       {r.direction === 'in' && !isCredited && !isRouted && (
                         <Button
                           size="sm"
-                          className="h-6 px-2 text-[10px] gap-1 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+                          className="h-8 px-3 text-[11px] gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/30 ring-2 ring-emerald-400/60 ring-offset-1 animate-pulse"
                           title="Route this deposit now — search any user by name or number and credit it to their wallet."
                           onClick={() => navigateToRow(r, 'credit')}
                         >
-                          <Zap className="h-3 w-3" /> Send to wallet
+                          <Wallet className="h-3.5 w-3.5" /> Credit to wallet
                         </Button>
                       )}
                       {/* Click-to-expand drilldown toggle. Opens a panel with the
@@ -4903,6 +4904,29 @@ export function EmailTransactionsPanel() {
                         transaction reference tied to the row. */}
                     {expandedRows.has(r.id) && (
                       <div className="mt-2 rounded-lg border border-border bg-muted/30 p-3 space-y-3 text-[11px]">
+                        {/* Top-of-email credit CTA — the first thing an operator
+                            sees when they open a deposit that has not reached a
+                            wallet yet. Full-width and unmissable. */}
+                        {r.direction === 'in' && !isCredited && !isRouted && (
+                          <div className="rounded-lg border-2 border-emerald-500/60 bg-emerald-500/10 p-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[11px] font-bold uppercase tracking-wide text-emerald-800 dark:text-emerald-300 inline-flex items-center gap-1">
+                                <AlertTriangle className="h-3.5 w-3.5" /> Not in any wallet yet
+                              </p>
+                              <p className="text-[11px] text-muted-foreground mt-0.5 break-words">
+                                {fmtUgx(r.amount)} received{r.counterparty ? ` from ${r.counterparty}` : ''} — search the user by phone or name and credit it.
+                              </p>
+                            </div>
+                            <Button
+                              size="lg"
+                              className="w-full sm:w-auto h-12 px-6 text-sm font-bold gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/30 ring-2 ring-emerald-400/60 ring-offset-1 animate-pulse shrink-0"
+                              title="Credit this deposit to any user's wallet — search by phone number or name."
+                              onClick={() => navigateToRow(r, 'credit')}
+                            >
+                              <Wallet className="h-5 w-5" /> Credit to wallet
+                            </Button>
+                          </div>
+                        )}
                         {/* 0) Full receipt — the complete parsed email so a phone
                             user never has to squint at truncated text. Every
                             field is stacked one-per-line on small screens. */}
@@ -5378,11 +5402,11 @@ export function EmailTransactionsPanel() {
                         const needsWallet = !isCredited && !isRouted;
                         return (
                       <Button
-                        size="sm"
+                        size="default"
                         variant={needsWallet ? 'default' : 'outline'}
-                        className={`mt-1.5 h-8 sm:h-7 text-[11px] gap-1 ${
+                        className={`mt-1.5 h-10 sm:h-9 text-xs sm:text-[11px] gap-1.5 font-semibold ${
                           needsWallet
-                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm ring-2 ring-emerald-500/40 ring-offset-1'
+                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/30 ring-2 ring-emerald-400/60 ring-offset-1 animate-pulse'
                             : ''
                         }`}
                         title={
@@ -5413,10 +5437,10 @@ export function EmailTransactionsPanel() {
                         }}
                       >
                         {needsWallet
-                          ? <><Wallet className="h-3 w-3" /> Put in a user's wallet</>
+                          ? <><Wallet className="h-4 w-4" /> Credit to wallet</>
                           : isRouted && !isReversed
-                            ? <>Route to another user <ArrowRight className="h-3 w-3" /></>
-                            : <>Route to user <ArrowRight className="h-3 w-3" /></>}
+                            ? <>Route to another user <ArrowRight className="h-3.5 w-3.5" /></>
+                            : <>Route to user <ArrowRight className="h-3.5 w-3.5" /></>}
                       </Button>
                         );
                       })()

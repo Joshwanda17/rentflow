@@ -455,12 +455,12 @@ export function CashDepositCodesPanel({
       />
       <Button
         size="sm"
-        className={`${size === 'pane' ? 'h-9' : 'h-8'} gap-1 rounded-full text-xs`}
+        className={`${size === 'pane' ? 'h-10' : 'h-9'} gap-1.5 rounded-full text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-500/20 ring-1 ring-emerald-400/50`}
         disabled={verifying === r.verification_id || (codeInputs[r.verification_id] ?? '').length !== 4}
         onClick={(e) => { e.stopPropagation(); void submitCode(r); }}
       >
-        {verifying === r.verification_id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
-        Credit
+        {verifying === r.verification_id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+        Credit wallet
       </Button>
     </div>
   );
