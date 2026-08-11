@@ -34,6 +34,7 @@ interface CatalogItem {
   image_url: string | null;
   image_urls: string[] | null;
   is_active: boolean;
+  sizes: string[] | null;
 }
 
 interface RecoveryPlan {
@@ -68,6 +69,7 @@ export default function MerchandiseStore() {
   const [selected, setSelected] = useState<CatalogItem | null>(null);
   const [quantity, setQuantity] = useState('1');
   const [payMode, setPayMode] = useState<'full' | 'installment'>('full');
+  const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [confirmStep, setConfirmStep] = useState(false);
   const [ordering, setOrdering] = useState(false);
   const [phoneOpen, setPhoneOpen] = useState(false);
@@ -139,6 +141,13 @@ export default function MerchandiseStore() {
   const totalRecovered = plans.reduce((s, p) => s + Number(p.amount_recovered), 0);
 
   const qty = Math.max(1, parseInt(quantity || '1', 10) || 1);
+  // Sizes on the catalog row are exactly what the company has in stock for the
+  // item. Empty list = one-size item, no choice needed.
+  const availableSizes: string[] = Array.isArray(selected?.sizes)
+    ? (selected!.sizes as string[]).map((s) => String(s).trim()).filter(Boolean)
+    : [];
+  const needsSize = availableSizes.length > 0;
+  const sizeMissing = needsSize && !selectedSize;
   const orderTotal = selected ? Number(selected.unit_price) * qty : 0;
   // Pay in full needs the whole price today. Installments are 25% of the item
   // price each — paid now and at every recovery run until the selling price is
@@ -227,6 +236,7 @@ export default function MerchandiseStore() {
       setSelected(match);
       setQuantity('1');
       setPayMode('full');
+      setSelectedSize(null);
       setConfirmStep(false);
     }
     // Clear the param so refreshes/back-navigation don't reopen unexpectedly.
@@ -238,6 +248,10 @@ export default function MerchandiseStore() {
 
   const placeOrder = async () => {
     if (!selected) return;
+    if (sizeMissing) {
+      toast.error('Choose a size', { description: 'Pick one of the sizes currently in stock.' });
+      return;
+    }
     if (insufficient) {
       toast.error('Insufficient balance', {
         description: `Your wallet has ${formatUGX(availableWallet)} but this order needs ${formatUGX(orderTotal)}.`,
@@ -249,6 +263,7 @@ export default function MerchandiseStore() {
       p_catalog_id: selected.id,
       p_quantity: qty,
       p_payment_mode: payMode,
+      p_size: selectedSize,
     });
     setOrdering(false);
     if (error) {
@@ -280,6 +295,7 @@ export default function MerchandiseStore() {
     setSelected(null);
     setQuantity('1');
     setPayMode('full');
+    setSelectedSize(null);
     setConfirmStep(false);
     queryClient.invalidateQueries({ queryKey: ['my-merchandise-plans', user?.id] });
     queryClient.invalidateQueries({ queryKey: ['my-merchandise-deductions', user?.id] });
