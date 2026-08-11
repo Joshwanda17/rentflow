@@ -1403,7 +1403,9 @@ export function DirectCreditTool() {
               {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
               {operation === 'withdraw'
                 ? `Withdraw UGX ${amt.toLocaleString()} → ${selectedUser?.full_name || '...'}`
-                : `${isCredit ? CFO_PAYOUT_VERB.credit : CFO_PAYOUT_VERB.debit} ${selectedUser?.full_name || '...'}'s wallet · UGX ${amt.toLocaleString()}`}
+                : locationRecipients.length > 1
+                  ? `${isCredit ? CFO_PAYOUT_VERB.credit : CFO_PAYOUT_VERB.debit} ${locationRecipients.length} recipients' wallets · UGX ${amt.toLocaleString()} each`
+                  : `${isCredit ? CFO_PAYOUT_VERB.credit : CFO_PAYOUT_VERB.debit} ${selectedUser?.full_name || '...'}'s wallet · UGX ${amt.toLocaleString()}`}
             </Button>
 
             <AlertDialog open={floatConfirmOpen} onOpenChange={setFloatConfirmOpen}>
@@ -1414,7 +1416,12 @@ export function DirectCreditTool() {
                     <div className="space-y-2 text-sm">
                       <p>
                         You're sending <strong>UGX {amt.toLocaleString()}</strong> to{' '}
-                        <strong>{selectedUser?.full_name || '...'}</strong>'s Float (Operational Wallet)
+                        <strong>
+                          {locationRecipients.length > 1
+                            ? `${locationRecipients.length} recipients`
+                            : selectedUser?.full_name || '...'}
+                        </strong>
+                        {locationRecipients.length > 1 ? "' Float (Operational Wallet) each" : "'s Float (Operational Wallet)"}
                         {selectedCategory ? <> via <strong>{selectedCategory.label}</strong></> : null}.
                       </p>
                       <p className="text-muted-foreground">
