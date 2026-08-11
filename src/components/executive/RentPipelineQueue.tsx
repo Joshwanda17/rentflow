@@ -1414,6 +1414,16 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
                   <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                     <span className="text-xs text-muted-foreground">{selectedRequest.agent_phone}</span>
                     <WhatsAppButton phone={selectedRequest.agent_phone} name={selectedRequest.assigned_agent_name || selectedRequest.agent_name} label="WhatsApp" />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 px-2 text-xs gap-1"
+                      onClick={() => setTransferOpen(true)}
+                    >
+                      <ArrowRightLeft className="h-3 w-3" />
+                      Transfer Agent
+                    </Button>
                   </div>
                   {selectedRequest.agent_email && (
                     <p className="text-xs text-muted-foreground mt-0.5">✉️ {selectedRequest.agent_email}</p>
