@@ -305,9 +305,11 @@ export function CashDepositCodesPanel({
     return 0;
   })();
 
-  const rangeRows = rows.filter((r) =>
-    !r.created_at ? range === 'all' : new Date(r.created_at).getTime() >= rangeStart,
-  );
+  const rangeRows = rows.filter((r) => {
+    const inRange = !r.created_at ? range === 'all' : new Date(r.created_at).getTime() >= rangeStart;
+    const inLocation = cashLocation === 'all' || r.cash_location === cashLocation;
+    return inRange && inLocation;
+  });
 
   const activeRows = rangeRows.filter(
     (r) => r.status === 'awaiting_code' && r.expires_at && new Date(r.expires_at).getTime() > Date.now(),
