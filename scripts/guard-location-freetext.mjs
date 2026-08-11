@@ -110,8 +110,8 @@ for (const file of walk(ROOT)) {
 
   for (const el of elements(src)) {
     const value = el.text.match(/\bvalue=\{([^}]*)\}/)?.[1] ?? '';
-    const onChange = el.text.match(/\bonChange=\{([\s\S]*)/)?.[1] ?? '';
-    const bound = `${value} ${onChange}`;
+    const name = el.text.match(/\b(?:name|id|aria-label)=\{?["']([^"'}]+)/)?.[1] ?? '';
+    const bound = `${value} ${name}`;
     if (!ADMIN_FIELD.test(bound) && !ADMIN_FIELD.test(el.text)) continue;
     // Auto-exempt: read-only / search / disabled / free-text-by-design.
     if (READ_ONLY_HINT.test(el.text)) { skipped.push(`${rel}:${el.line} (search/filter)`); continue; }
