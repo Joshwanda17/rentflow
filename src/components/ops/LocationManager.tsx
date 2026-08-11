@@ -242,7 +242,7 @@ export function LocationManager() {
       district: form.ugDistrict.name,
       region: form.ugDistrict.region ?? null,
       ug_district_id: form.ugDistrict.id,
-      ug_subcounty_id: fine ? fine.subcountyId : (editing ? null : null),
+      ug_subcounty_id: fine ? fine.subcountyId : null,
       ug_parish_id: fine ? fine.parishId : null,
       ug_village_id: fine ? fine.villageId : null,
       latitude: lat,
