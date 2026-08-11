@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import PaymentConfirmationForm from './PaymentConfirmationForm';
 import mtnLogoAsset from '@/assets/mtn-logo.png.asset.json';
+import airtelLogoAsset from '@/assets/airtel-logo.png.asset.json';
 
 interface PaymentPartnersCardProps {
   dashboardType: 'tenant' | 'supporter';
@@ -118,6 +119,8 @@ export default function PaymentPartnersCard({ dashboardType, onPaymentSubmitted 
               )}>
                 {ch.id === 'momo_mtn' ? (
                   <img src={mtnLogoAsset.url} alt="MTN MoMo" className="w-full h-full object-cover" />
+                ) : ch.id === 'momo_airtel' ? (
+                  <img src={airtelLogoAsset.url} alt="Airtel Money" className="w-full h-full object-cover" />
                 ) : (
                   <ch.icon className="h-5 w-5 text-white" />
                 )}
