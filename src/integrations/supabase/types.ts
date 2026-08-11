@@ -35639,7 +35639,6 @@ export type Database = {
         Args: { p_agent_id?: string }
         Returns: Json
       }
-      get_proxy_agent_team: { Args: { p_agent_id?: string }; Returns: Json }
       get_proxy_partner_balance: {
         Args: { p_agent_id: string; p_partner_id: string }
         Returns: number
