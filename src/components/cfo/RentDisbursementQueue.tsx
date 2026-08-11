@@ -148,7 +148,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
       if (allUserIds.length) {
         const { data: profiles } = await supabase
           .from('profiles')
-          .select('id, full_name, town, city, sub_county, parish, village, region, tenant_house_category')
+          .select('id, full_name, town, city, sub_county, parish, village, region, district, tenant_house_category')
           .in('id', allUserIds);
         for (const p of profiles || []) {
           profileMap.set(p.id, (p as any).full_name || 'Unknown');
@@ -201,7 +201,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
           payout_target: hasWallet ? 'landlord_wallet' as const : 'agent_float' as const,
           request_country: (r as any).request_country ?? null,
           request_city: (r as any).request_city ?? null,
-          request_district: districtMap.get((r as any).house_listing_id) ?? null,
+          request_district: loc.district ?? districtMap.get((r as any).house_listing_id) ?? null,
           loc_town: loc.town ?? null,
           loc_city: loc.city ?? null,
           loc_sub_county: loc.sub_county ?? null,
