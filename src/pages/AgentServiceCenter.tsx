@@ -1,7 +1,7 @@
 import { cn } from '@/lib/utils';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ClipboardCheck, Route, Search, ShoppingBag, Store, Users } from 'lucide-react';
+import { ArrowLeft, ClipboardCheck, Route, Search, ShoppingBag, Store, UserPlus, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
