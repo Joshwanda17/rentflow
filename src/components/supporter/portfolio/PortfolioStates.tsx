@@ -24,8 +24,8 @@ export function PortfolioSkeleton() {
 export function PortfolioEmptyState({ onExplore }: { onExplore: () => void }) {
   return (
     <div className="rounded-2xl border border-border/60 bg-card p-4 space-y-2">
-      <p className="text-sm font-bold text-foreground">Your capital could be working.</p>
-      <p className="text-[11px] text-muted-foreground">You don't have an active portfolio yet.</p>
+      <p className="text-sm font-bold text-foreground">No active portfolios</p>
+      <p className="text-[11px] text-muted-foreground">You currently have no capital deployed.</p>
       <Button size="sm" className="mt-1 w-full" onClick={onExplore}>Explore Capital Opportunities</Button>
     </div>
   );
