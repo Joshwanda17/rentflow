@@ -214,16 +214,16 @@ export default function RoiDisbursementReportPanel() {
                 </div>
               </div>
             </div>
-            <div className="flex flex-wrap items-center gap-2 xl:border-l xl:pl-5">
-              <Button className="h-11 rounded-xl px-5" onClick={() => refetch()} disabled={isFetching}>
-                {isFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                <span className="ml-2 font-semibold">Refresh</span>
+            <div className="flex flex-nowrap items-center gap-2 xl:border-l xl:pl-5">
+              <Button className="h-9 shrink-0 rounded-lg px-3 text-xs font-semibold" onClick={() => refetch()} disabled={isFetching}>
+                {isFetching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                <span className="ml-1.5">Refresh</span>
               </Button>
-              <Button variant="outline" className="h-11 rounded-xl px-5" onClick={() => window.print()} disabled={!data}>
-                <Printer className="h-4 w-4 mr-2" /><span className="font-semibold">Print</span>
+              <Button variant="outline" className="h-9 shrink-0 rounded-lg px-3 text-xs font-semibold" onClick={() => window.print()} disabled={!data}>
+                <Printer className="h-3.5 w-3.5" /><span className="ml-1.5">Print</span>
               </Button>
-              <Button variant="outline" className="h-11 rounded-xl px-5" onClick={exportPdf} disabled={!data}>
-                <FileDown className="h-4 w-4 mr-2" /><span className="font-semibold">PDF</span>
+              <Button variant="outline" className="h-9 shrink-0 rounded-lg px-3 text-xs font-semibold" onClick={exportPdf} disabled={!data}>
+                <FileDown className="h-3.5 w-3.5" /><span className="ml-1.5">PDF</span>
               </Button>
             </div>
           </div>
