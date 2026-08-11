@@ -508,6 +508,35 @@ export function CashDepositCodesPanel({
     </Button>
   );
 
+  const bankButton = (r: CashCodeRow, size: 'row' | 'pane' = 'row') => {
+    const isBank = r.cash_location === 'bank';
+    return (
+      <Button
+        variant="outline"
+        size="sm"
+        className={`${size === 'pane' ? 'h-10' : 'h-8'} gap-1 rounded-full text-xs ${
+          isBank
+            ? 'border-emerald-500/40 text-emerald-600'
+            : 'border-sky-500/40 text-sky-600 hover:bg-sky-500/10'
+        }`}
+        disabled={banking === r.verification_id}
+        onClick={(e) => {
+          e.stopPropagation();
+          void setCashLocationFor(r, isBank ? 'cash_at_hand' : 'bank');
+        }}
+      >
+        {banking === r.verification_id ? (
+          <Loader2 className="h-3 w-3 animate-spin" />
+        ) : isBank ? (
+          <Banknote className="h-3 w-3" />
+        ) : (
+          <Building2 className="h-3 w-3" />
+        )}
+        {isBank ? 'Move to cash at hand' : 'Mark as banked'}
+      </Button>
+    );
+  };
+
   return (
     <>
       <StartCashDepositDialog open={startOpen} onOpenChange={setStartOpen} onIssued={load} />
