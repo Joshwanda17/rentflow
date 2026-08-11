@@ -480,7 +480,7 @@ export function CashDepositCodesPanel({
   );
 
   /** Move a deposit between "cash at hand" and "cash banked". */
-  const setCashLocation = async (r: CashCodeRow, location: 'bank' | 'cash_at_hand') => {
+  const applyCashLocation = async (r: CashCodeRow, location: 'bank' | 'cash_at_hand') => {
     setBanking(r.verification_id);
     const { error } = await (supabase.rpc as any)('fin_ops_set_cash_location', {
       p_deposit_request_id: r.deposit_request_id,
@@ -506,7 +506,7 @@ export function CashDepositCodesPanel({
         size="sm"
         className={`${size === 'pane' ? 'h-9' : 'h-8'} gap-1 rounded-full text-xs`}
         disabled={banking === r.verification_id}
-        onClick={(e) => { e.stopPropagation(); void setCashLocation(r, isBanked ? 'cash_at_hand' : 'bank'); }}
+        onClick={(e) => { e.stopPropagation(); void applyCashLocation(r, isBanked ? 'cash_at_hand' : 'bank'); }}
       >
         {banking === r.verification_id
           ? <Loader2 className="h-3 w-3 animate-spin" />
