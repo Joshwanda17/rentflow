@@ -3754,6 +3754,51 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     </div>
                   </div>
 
+                  {/* Property GPS — mandatory on every rent request, outstanding included */}
+                  <div className="space-y-1">
+                    <Label className="flex items-center gap-1">
+                      <Navigation className="h-3 w-3" /> Property GPS *
+                    </Label>
+                    <p className="text-[11px] text-muted-foreground">
+                      Required — stand at the property and capture its exact location.
+                    </p>
+                    {gpsLocation ? (
+                      <div className="flex items-center gap-2 p-2.5 rounded-xl bg-success/10 border border-success/30">
+                        <Navigation className="h-4 w-4 text-success flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-success">📍 GPS Captured</p>
+                          <p className="text-[10px] text-muted-foreground truncate">
+                            {gpsLocation.lat.toFixed(5)}, {gpsLocation.lng.toFixed(5)} (±{Math.round(gpsLocation.accuracy)}m)
+                          </p>
+                        </div>
+                        <Button type="button" size="sm" variant="ghost" className="text-xs h-7 px-2" onClick={captureGPS}>
+                          Retake
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full h-10 gap-2 border-dashed"
+                        onClick={captureGPS}
+                        disabled={gpsLoading}
+                      >
+                        {gpsLoading ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Getting GPS...
+                          </>
+                        ) : (
+                          <>
+                            <Navigation className="h-4 w-4" />
+                            Capture Property GPS
+                          </>
+                        )}
+                      </Button>
+                    )}
+                    {!gpsLocation && <FieldError message={getFieldError('gpsLocation')} />}
+                  </div>
+
                   {/* FIX #2: Add GuarantorConsentCheckbox to outstanding flow */}
                   <GuarantorConsentCheckbox checked={guarantorConsent} onCheckedChange={setGuarantorConsent} />
 
