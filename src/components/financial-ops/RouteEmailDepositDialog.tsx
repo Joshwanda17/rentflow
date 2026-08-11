@@ -2690,17 +2690,21 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
                 </div>
               )}
               <div className="flex gap-2">
-                <Button type="button" variant="outline" className="flex-1 h-10" onClick={() => setAwaitingConfirm(false)} disabled={send.isPending}>
+                <Button type="button" variant="outline" className="flex-1 h-11" onClick={() => setAwaitingConfirm(false)} disabled={send.isPending}>
                   Back to edit
                 </Button>
                 <Button
                   type="button"
-                  className="flex-1 h-10 gap-2"
+                  className={`flex-1 h-11 gap-2 text-sm font-bold shadow-lg ${
+                    mode === 'credit'
+                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/30 ring-2 ring-emerald-400/60 ring-offset-2 animate-pulse'
+                      : ''
+                  }`}
                   onClick={() => send.mutate()}
                   disabled={send.isPending || !!sourceBucketShort}
                 >
-                  {send.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
-                  Confirm & route {amount ? formatUGX(amtNum) : ''}
+                  {send.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Wallet className="h-5 w-5" />}
+                  {mode === 'credit' ? 'Credit wallet' : 'Confirm & route'} {amount ? formatUGX(amtNum) : ''}
                 </Button>
               </div>
             </div>
