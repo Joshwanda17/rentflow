@@ -49,6 +49,7 @@ export default function AgentServiceCenter() {
   const [transferRentRequestId, setTransferRentRequestId] = useState<string | null>(null);
   const [unlinkTarget, setUnlinkTarget] = useState<ServiceCenterSubAgent | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [inviteOpen, setInviteOpen] = useState(false);
 
   const subAgents = data?.sub_agents ?? [];
   // Derived so the open sheet re-renders with fresh data after suspend/restore/transfer,
