@@ -12,9 +12,18 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { ChevronDown, ChevronRight, Plus, Pencil, ArrowRightLeft, Ban, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
-import { useHRPositions, slugifyPositionKey, type HRPositionRow } from '@/hooks/useHRPositions';
+import {
+  useHRPositions,
+  slugifyPositionKey,
+  isProtectedTitle,
+  PROTECTED_TITLE_KEY,
+  PROTECTED_TITLE_MESSAGE,
+  MIN_REASON_LENGTH,
+  type HRPositionRow,
+} from '@/hooks/useHRPositions';
 
 const UNASSIGNED = '__unassigned__';
 
@@ -39,6 +48,30 @@ export default function HRRolesPanel() {
   const [moveRole, setMoveRole] = useState<HRPositionRow | null>(null);
   const [moveTarget, setMoveTarget] = useState<string>(UNASSIGNED);
   const [deactivateRole, setDeactivateRole] = useState<HRPositionRow | null>(null);
+  const [reactivateRole, setReactivateRole] = useState<HRPositionRow | null>(null);
+  const [addReason, setAddReason] = useState('');
+  const [editReason, setEditReason] = useState('');
+  const [moveReason, setMoveReason] = useState('');
+  const [statusReason, setStatusReason] = useState('');
+
+  const reasonOk = (value: string) => value.trim().length >= MIN_REASON_LENGTH;
+
+  const ReasonField = ({ value, onChange }: { value: string; onChange: (v: string) => void }) => (
+    <div>
+      <Label>Reason (min {MIN_REASON_LENGTH} characters)</Label>
+      <Textarea
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder="Why is this change being made?"
+        className="min-h-[60px]"
+      />
+      <p className="text-[10px] text-muted-foreground mt-1">{value.trim().length}/{MIN_REASON_LENGTH}</p>
+    </div>
+  );
+
+  const editProtected = !!editRole && (editRole.key === PROTECTED_TITLE_KEY || isProtectedTitle(editRole.title));
+  const editTargetProtected = isProtectedTitle(editTitle);
+  const addTargetProtected = isProtectedTitle(addTitle);
 
   const grouped = useMemo(() => {
     const map: Record<string, HRPositionRow[]> = { [UNASSIGNED]: [] };
@@ -58,12 +91,13 @@ export default function HRRolesPanel() {
   const submitAdd = () => {
     const departmentId = addFor === UNASSIGNED ? null : addFor;
     addPosition.mutate(
-      { title: addTitle, departmentId },
+      { title: addTitle, departmentId, reason: addReason },
       {
         onSuccess: () => {
           toast.success('Role added');
           setAddFor(null);
           setAddTitle('');
+          setAddReason('');
         },
         onError: (err: any) => toast.error(err.message),
       },
@@ -73,11 +107,18 @@ export default function HRRolesPanel() {
   const submitEdit = () => {
     if (!editRole) return;
     renamePosition.mutate(
-      { id: editRole.id, title: editTitle },
+      {
+        id: editRole.id,
+        title: editTitle,
+        currentKey: editRole.key,
+        currentTitle: editRole.title,
+        reason: editReason,
+      },
       {
         onSuccess: () => {
           toast.success('Role title updated');
           setEditRole(null);
+          setEditReason('');
         },
         onError: (err: any) => toast.error(err.message),
       },
@@ -87,11 +128,12 @@ export default function HRRolesPanel() {
   const submitMove = () => {
     if (!moveRole) return;
     movePosition.mutate(
-      { id: moveRole.id, departmentId: moveTarget === UNASSIGNED ? null : moveTarget },
+      { id: moveRole.id, departmentId: moveTarget === UNASSIGNED ? null : moveTarget, reason: moveReason },
       {
         onSuccess: () => {
           toast.success('Role moved');
           setMoveRole(null);
+          setMoveReason('');
         },
         onError: (err: any) => toast.error(err.message),
       },
@@ -101,18 +143,28 @@ export default function HRRolesPanel() {
   const submitDeactivate = () => {
     if (!deactivateRole) return;
     const held = heldBy[deactivateRole.id] || 0;
-    if (held > 0) {
-      toast.error(
-        `Cannot deactivate: this position is held by ${held} ${held === 1 ? 'person' : 'people'}. The position must be vacated first.`,
-      );
-      return;
-    }
     setPositionActive.mutate(
-      { id: deactivateRole.id, active: false },
+      { id: deactivateRole.id, active: false, heldBy: held, reason: statusReason },
       {
         onSuccess: () => {
           toast.success('Role deactivated');
           setDeactivateRole(null);
+          setStatusReason('');
+        },
+        onError: (err: any) => toast.error(err.message),
+      },
+    );
+  };
+
+  const submitReactivate = () => {
+    if (!reactivateRole) return;
+    setPositionActive.mutate(
+      { id: reactivateRole.id, active: true, heldBy: heldBy[reactivateRole.id] || 0, reason: statusReason },
+      {
+        onSuccess: () => {
+          toast.success('Role reactivated');
+          setReactivateRole(null);
+          setStatusReason('');
         },
         onError: (err: any) => toast.error(err.message),
       },
