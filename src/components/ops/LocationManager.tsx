@@ -15,10 +15,16 @@ import {
   MapPin, Plus, Loader2, Search, X, Pencil, Power, PowerOff, Crosshair, Globe,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { UGANDA_REGIONS } from '@/lib/ugandaDistricts';
+import { UgDistrictSelect, type UgDistrictValue } from '@/components/location/UgDistrictSelect';
+import {
+  useUgDistricts, useUgVillageSearch, findUgDistrictByName, type UgLocationSelection,
+} from '@/hooks/useUgLocations';
 
 const LOCATION_TYPES = ['town', 'division', 'area', 'cell', 'parish', 'village'] as const;
 type LocationType = (typeof LOCATION_TYPES)[number];
+
+/** Types finer than a district may optionally attach the exact sub-county chain. */
+const FINE_TYPES: readonly LocationType[] = ['parish', 'village', 'cell', 'division'];
 
 interface ManagedLocation {
   id: string;
@@ -26,6 +32,10 @@ interface ManagedLocation {
   location_type: string;
   district: string | null;
   region: string | null;
+  ug_district_id: number | null;
+  ug_subcounty_id: number | null;
+  ug_parish_id: number | null;
+  ug_village_id: number | null;
   latitude: number | null;
   longitude: number | null;
   active: boolean;
@@ -38,6 +48,8 @@ interface FormState {
   location_type: LocationType;
   district: string;
   region: string;
+  ugDistrict: UgDistrictValue | null;
+  fine: UgLocationSelection | null;
   latitude: string;
   longitude: string;
   notes: string;
@@ -45,6 +57,7 @@ interface FormState {
 
 const EMPTY_FORM: FormState = {
   name: '', location_type: 'town', district: '', region: '',
+  ugDistrict: null, fine: null,
   latitude: '', longitude: '', notes: '',
 };
 
@@ -60,16 +73,22 @@ export function LocationManager() {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [capturing, setCapturing] = useState(false);
+  const { data: allDistricts } = useUgDistricts();
+  const [fineQuery, setFineQuery] = useState('');
+  const fineSearch = useUgVillageSearch(fineQuery, 15, {
+    districtId: form.ugDistrict?.id ?? null,
+  });
+  const showFine = FINE_TYPES.includes(form.location_type) && !!form.ugDistrict;
 
   const load = async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from('managed_locations')
-      .select('id, name, location_type, district, region, latitude, longitude, active, notes, created_at')
+      .select('id, name, location_type, district, region, ug_district_id, ug_subcounty_id, ug_parish_id, ug_village_id, latitude, longitude, active, notes, created_at')
       .order('active', { ascending: false })
       .order('name', { ascending: true });
     if (error) {
-      toast.error('Could not load locations');
+      toast.error(error.message || 'Could not load locations');
     } else {
       setRows((data ?? []) as ManagedLocation[]);
     }
@@ -108,11 +127,15 @@ export function LocationManager() {
   const openCreate = () => {
     setEditing(null);
     setForm(EMPTY_FORM);
+    setFineQuery('');
     setDialogOpen(true);
   };
 
   const openEdit = (row: ManagedLocation) => {
     setEditing(row);
+    const stored = row.ug_district_id != null
+      ? (allDistricts ?? []).find((d) => d.id === row.ug_district_id) ?? null
+      : findUgDistrictByName(allDistricts, row.district);
     setForm({
       name: row.name,
       location_type: (LOCATION_TYPES.includes(row.location_type as LocationType)
@@ -120,10 +143,13 @@ export function LocationManager() {
         : 'town') as LocationType,
       district: row.district ?? '',
       region: row.region ?? '',
+      ugDistrict: stored ? { id: stored.id, name: stored.name, region: stored.region ?? null } : null,
+      fine: null,
       latitude: row.latitude != null ? String(row.latitude) : '',
       longitude: row.longitude != null ? String(row.longitude) : '',
       notes: row.notes ?? '',
     });
+    setFineQuery('');
     setDialogOpen(true);
   };
 
@@ -156,6 +182,10 @@ export function LocationManager() {
       toast.error('Enter a location name');
       return;
     }
+    if (!form.ugDistrict) {
+      toast.error('Select the official district');
+      return;
+    }
     const lat = form.latitude.trim() ? Number(form.latitude) : null;
     const lng = form.longitude.trim() ? Number(form.longitude) : null;
     if ((lat != null && Number.isNaN(lat)) || (lng != null && Number.isNaN(lng))) {
@@ -172,25 +202,29 @@ export function LocationManager() {
     }
 
     // Unique-GPS guard: block reusing the same coordinate pair within the SAME
-    // administrative area (district + region). Mirrors the database rule.
+    // administrative area. Keyed on the official district id, falling back to
+    // the stored district/region text for rows that predate the id. Mirrors the
+    // database rule and keeps the same warning wording.
     if (lat != null && lng != null) {
       const norm = (v: string | null | undefined) => (v ?? '').trim().toLowerCase();
-      const areaDistrict = norm(form.district);
-      const areaRegion = norm(form.region);
+      const districtName = form.ugDistrict.name;
+      const regionName = form.ugDistrict.region ?? '';
+      const districtId = form.ugDistrict.id;
       const clash = rows.find(
         (r) =>
           r.id !== editing?.id &&
           r.active &&
           r.latitude != null &&
           r.longitude != null &&
-          norm(r.district) === areaDistrict &&
-          norm(r.region) === areaRegion &&
+          (r.ug_district_id != null
+            ? r.ug_district_id === districtId
+            : norm(r.district) === norm(districtName) && norm(r.region) === norm(regionName)) &&
           Math.abs(r.latitude - lat) < 0.00001 &&
           Math.abs(r.longitude - lng) < 0.00001,
       );
       if (clash) {
         const areaLabel =
-          [form.district.trim(), form.region.trim()].filter(Boolean).join(' / ') ||
+          [districtName, regionName].filter(Boolean).join(' / ') ||
           'this administrative area';
         toast.error(
           `Those GPS coordinates are already used by "${clash.name}" in ${areaLabel}. Each location in the same area must have unique coordinates.`,
@@ -200,11 +234,17 @@ export function LocationManager() {
     }
 
     setSaving(true);
+    const fine = FINE_TYPES.includes(form.location_type) ? form.fine : null;
     const payload = {
       name: form.name.trim(),
       location_type: form.location_type,
-      district: form.district.trim() || null,
-      region: form.region.trim() || null,
+      // Text columns stay populated exactly as before; the ids are additive.
+      district: form.ugDistrict.name,
+      region: form.ugDistrict.region ?? null,
+      ug_district_id: form.ugDistrict.id,
+      ug_subcounty_id: fine ? fine.subcountyId : null,
+      ug_parish_id: fine ? fine.parishId : null,
+      ug_village_id: fine ? fine.villageId : null,
       latitude: lat,
       longitude: lng,
       notes: form.notes.trim() || null,
@@ -382,45 +422,91 @@ export function LocationManager() {
                 className="h-10"
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-sm">Type</Label>
-                <Select
-                  value={form.location_type}
-                  onValueChange={(v) => setForm((f) => ({ ...f, location_type: v as LocationType }))}
-                >
-                  <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {LOCATION_TYPES.map((t) => (
-                      <SelectItem key={t} value={t} className="capitalize">{t}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label className="text-sm">Region</Label>
-                <Select
-                  value={form.region || undefined}
-                  onValueChange={(v) => setForm((f) => ({ ...f, region: v }))}
-                >
-                  <SelectTrigger className="h-10"><SelectValue placeholder="Select" /></SelectTrigger>
-                  <SelectContent>
-                    {UGANDA_REGIONS.map((r) => (
-                      <SelectItem key={r} value={r}>{r}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
             <div>
-              <Label className="text-sm">District</Label>
-              <Input
-                value={form.district}
-                onChange={(e) => setForm((f) => ({ ...f, district: e.target.value }))}
-                placeholder="e.g. Wakiso"
-                className="h-10"
-              />
+              <Label className="text-sm">Type</Label>
+              <Select
+                value={form.location_type}
+                onValueChange={(v) => setForm((f) => ({
+                  ...f,
+                  location_type: v as LocationType,
+                  fine: FINE_TYPES.includes(v as LocationType) ? f.fine : null,
+                }))}
+              >
+                <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {LOCATION_TYPES.map((t) => (
+                    <SelectItem key={t} value={t} className="capitalize">{t}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
+
+            <UgDistrictSelect
+              value={form.ugDistrict}
+              onChange={(v) => setForm((f) => ({
+                ...f,
+                ugDistrict: v,
+                district: v?.name ?? f.district,
+                region: v?.region ?? '',
+                fine: null,
+              }))}
+              required
+              legacyText={form.district}
+            />
+
+            {showFine && (
+              <div>
+                <Label className="text-sm">
+                  Sub-county / parish / village <span className="text-muted-foreground">(optional)</span>
+                </Label>
+                {form.fine ? (
+                  <div className="flex items-center gap-2 rounded-md border border-border bg-muted/30 px-2.5 py-2 mt-1">
+                    <MapPin className="h-3.5 w-3.5 text-primary shrink-0" />
+                    <span className="text-[11px] flex-1 truncate">
+                      {form.fine.village}, {form.fine.parish}, {form.fine.subcounty}
+                    </span>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-6 w-6"
+                      onClick={() => setForm((f) => ({ ...f, fine: null }))}
+                      title="Clear"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <Input
+                      value={fineQuery}
+                      onChange={(e) => setFineQuery(e.target.value)}
+                      placeholder={`Search a village in ${form.ugDistrict?.name}`}
+                      className="h-10 mt-1"
+                    />
+                    {fineSearch.isFetching && (
+                      <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
+                        <Loader2 className="h-3 w-3 animate-spin" /> Searching…
+                      </p>
+                    )}
+                    {(fineSearch.data ?? []).length > 0 && (
+                      <div className="mt-1 max-h-40 overflow-y-auto rounded-md border border-border divide-y divide-border">
+                        {(fineSearch.data ?? []).map((s) => (
+                          <button
+                            key={s.villageId}
+                            type="button"
+                            onClick={() => { setForm((f) => ({ ...f, fine: s })); setFineQuery(''); }}
+                            className="w-full text-left px-2.5 py-1.5 text-[11px] hover:bg-muted"
+                          >
+                            <span className="font-medium">{s.village}</span>
+                            <span className="text-muted-foreground"> · {s.parish}, {s.subcounty}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
             <div>
               <div className="flex items-center justify-between">
                 <Label className="text-sm">GPS coordinates</Label>

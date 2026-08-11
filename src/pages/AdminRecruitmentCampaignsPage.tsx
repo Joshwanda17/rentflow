@@ -36,6 +36,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Trash2 } from "lucide-react";
+import { UgDistrictSelect, type UgDistrictValue } from "@/components/location/UgDistrictSelect";
+import { useUgDistricts, findUgDistrictByName } from "@/hooks/useUgLocations";
 
 type Campaign = {
   id: string;
@@ -80,7 +82,7 @@ export default function AdminRecruitmentCampaignsPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("recruitment_locations")
-        .select("id, district, display_name, slug, region")
+        .select("id, district, display_name, slug, region, ug_district_id, city, division, is_active")
         .eq("is_active", true)
         .order("district");
       if (error) throw error;
@@ -357,6 +359,11 @@ export default function AdminRecruitmentCampaignsPage() {
         />
       </div>
 
+      <RecruitmentLocationsCard
+        locations={locationsQ.data ?? []}
+        onChanged={() => qc.invalidateQueries({ queryKey: ["recruitment-locations"] })}
+      />
+
       <PerfTable
         title="Performance by agent"
         rows={analyticsQ.data?.by_agent ?? []}
@@ -409,6 +416,190 @@ export default function AdminRecruitmentCampaignsPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function slugify(s: string) {
+  return s.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+/**
+ * Manage the recruitment location catalogue. District comes from the official
+ * ug_districts dataset and the region is derived from it — never typed.
+ * Link generation, attribution and QR flows are untouched.
+ */
+function RecruitmentLocationsCard({
+  locations,
+  onChanged,
+}: {
+  locations: any[];
+  onChanged: () => void;
+}) {
+  const { data: districts } = useUgDistricts();
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<any | null>(null);
+  const [district, setDistrict] = useState<UgDistrictValue | null>(null);
+  const [displayName, setDisplayName] = useState("");
+  const [city, setCity] = useState("");
+  const [division, setDivision] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const openCreate = () => {
+    setEditing(null);
+    setDistrict(null);
+    setDisplayName("");
+    setCity("");
+    setDivision("");
+    setOpen(true);
+  };
+
+  const openEdit = (row: any) => {
+    setEditing(row);
+    const match =
+      row.ug_district_id != null
+        ? (districts ?? []).find((d) => d.id === row.ug_district_id) ?? null
+        : findUgDistrictByName(districts, row.district);
+    setDistrict(match ? { id: match.id, name: match.name, region: match.region ?? null } : null);
+    setDisplayName(row.display_name ?? "");
+    setCity(row.city ?? "");
+    setDivision(row.division ?? "");
+    setOpen(true);
+  };
+
+  const save = async () => {
+    if (!district) {
+      toast.error("Select the official district");
+      return;
+    }
+    const name = displayName.trim() || district.name;
+    setSaving(true);
+    try {
+      const payload: Record<string, any> = {
+        district: district.name,
+        region: district.region ?? null,
+        ug_district_id: district.id,
+        display_name: name,
+        city: city.trim() || null,
+        division: division.trim() || null,
+      };
+      if (editing) {
+        const { error } = await supabase
+          .from("recruitment_locations")
+          .update(payload)
+          .eq("id", editing.id);
+        if (error) throw error;
+        toast.success("Location updated");
+      } else {
+        const { error } = await supabase.from("recruitment_locations").insert([
+          {
+            ...payload,
+            country: "UG",
+            slug: slugify([district.name, division.trim() || city.trim()].filter(Boolean).join("-")),
+            is_active: true,
+          },
+        ] as any);
+        if (error) throw error;
+        toast.success("Location created");
+      }
+      setOpen(false);
+      onChanged();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Could not save location");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-3 flex-row items-center justify-between space-y-0">
+        <CardTitle className="text-base">Recruitment locations</CardTitle>
+        <Button size="sm" onClick={openCreate}>Add location</Button>
+      </CardHeader>
+      <CardContent>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs uppercase text-muted-foreground">
+                <th className="py-2">Display name</th>
+                <th className="py-2">District</th>
+                <th className="py-2">Region</th>
+                <th className="py-2">Slug</th>
+                <th className="py-2" />
+              </tr>
+            </thead>
+            <tbody>
+              {locations.map((l) => (
+                <tr key={l.id} className="border-t">
+                  <td className="py-2">{l.display_name}</td>
+                  <td className="py-2">{l.district}</td>
+                  <td className="py-2">
+                    {l.region ?? "—"}
+                    {l.ug_district_id == null && (
+                      <Badge variant="outline" className="ml-2 text-[10px]">unlinked</Badge>
+                    )}
+                  </td>
+                  <td className="py-2 font-mono text-xs text-muted-foreground">{l.slug}</td>
+                  <td className="py-2 text-right">
+                    <Button size="sm" variant="ghost" onClick={() => openEdit(l)}>Edit</Button>
+                  </td>
+                </tr>
+              ))}
+              {locations.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="py-8 text-center text-muted-foreground">
+                    No locations yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editing ? "Edit location" : "Add location"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <UgDistrictSelect
+              value={district}
+              onChange={(v) => {
+                setDistrict(v);
+                if (v && !displayName.trim()) setDisplayName(v.name);
+              }}
+              required
+              legacyText={editing?.district ?? null}
+            />
+            <div className="space-y-1.5">
+              <Label>Display name</Label>
+              <Input
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder="Shown to agents"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>City (optional)</Label>
+                <Input value={city} onChange={(e) => setCity(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Division (optional)</Label>
+                <Input value={division} onChange={(e) => setDivision(e.target.value)} />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>Cancel</Button>
+            <Button onClick={save} disabled={saving}>
+              {editing ? "Save changes" : "Create location"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Card>
   );
 }
 

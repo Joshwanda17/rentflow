@@ -65,6 +65,16 @@ async function fetchLevel(table: string, parentCol: string | null, parentId: num
 
 export interface UgDistrictOption extends UgOption { region: string | null }
 
+/** Case/space-insensitive match of legacy typed district text to an official row. */
+export function findUgDistrictByName(
+  list: UgDistrictOption[] | undefined,
+  name?: string | null,
+): UgDistrictOption | null {
+  const n = (name ?? '').trim().toLowerCase().replace(/\s+district$/, '');
+  if (!n) return null;
+  return (list ?? []).find((d) => d.name.trim().toLowerCase() === n) ?? null;
+}
+
 /** All districts, each carrying its region. Optionally filtered by region. */
 export function useUgDistricts(region?: string | null) {
   return useQuery({

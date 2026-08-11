@@ -17173,6 +17173,10 @@ export type Database = {
           name: string
           notes: string | null
           region: string | null
+          ug_district_id: number | null
+          ug_parish_id: number | null
+          ug_subcounty_id: number | null
+          ug_village_id: number | null
           updated_at: string
         }
         Insert: {
@@ -17187,6 +17191,10 @@ export type Database = {
           name: string
           notes?: string | null
           region?: string | null
+          ug_district_id?: number | null
+          ug_parish_id?: number | null
+          ug_subcounty_id?: number | null
+          ug_village_id?: number | null
           updated_at?: string
         }
         Update: {
@@ -17201,9 +17209,42 @@ export type Database = {
           name?: string
           notes?: string | null
           region?: string | null
+          ug_district_id?: number | null
+          ug_parish_id?: number | null
+          ug_subcounty_id?: number | null
+          ug_village_id?: number | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "managed_locations_ug_district_id_fkey"
+            columns: ["ug_district_id"]
+            isOneToOne: false
+            referencedRelation: "ug_districts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "managed_locations_ug_parish_id_fkey"
+            columns: ["ug_parish_id"]
+            isOneToOne: false
+            referencedRelation: "ug_parishes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "managed_locations_ug_subcounty_id_fkey"
+            columns: ["ug_subcounty_id"]
+            isOneToOne: false
+            referencedRelation: "ug_subcounties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "managed_locations_ug_village_id_fkey"
+            columns: ["ug_village_id"]
+            isOneToOne: false
+            referencedRelation: "ug_villages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       managed_proxy_roi_routing_violations: {
         Row: {
@@ -23314,6 +23355,7 @@ export type Database = {
           is_active: boolean
           region: string | null
           slug: string
+          ug_district_id: number | null
         }
         Insert: {
           city?: string | null
@@ -23326,6 +23368,7 @@ export type Database = {
           is_active?: boolean
           region?: string | null
           slug: string
+          ug_district_id?: number | null
         }
         Update: {
           city?: string | null
@@ -23338,8 +23381,17 @@ export type Database = {
           is_active?: boolean
           region?: string | null
           slug?: string
+          ug_district_id?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "recruitment_locations_ug_district_id_fkey"
+            columns: ["ug_district_id"]
+            isOneToOne: false
+            referencedRelation: "ug_districts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       redirect_monitor: {
         Row: {
@@ -25615,6 +25667,7 @@ export type Database = {
           status: string
           submitted_at: string
           supporting_note: string | null
+          ug_district_id: number | null
           updated_at: string
         }
         Insert: {
@@ -25641,6 +25694,7 @@ export type Database = {
           status?: string
           submitted_at?: string
           supporting_note?: string | null
+          ug_district_id?: number | null
           updated_at?: string
         }
         Update: {
@@ -25667,9 +25721,18 @@ export type Database = {
           status?: string
           submitted_at?: string
           supporting_note?: string | null
+          ug_district_id?: number | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "service_center_requests_ug_district_id_fkey"
+            columns: ["ug_district_id"]
+            isOneToOne: false
+            referencedRelation: "ug_districts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       service_centre_setups: {
         Row: {
@@ -37849,6 +37912,7 @@ export type Database = {
           p_ready: boolean
           p_reason: string
           p_supporting_note?: string
+          p_ug_district_id?: number
         }
         Returns: Json
       }
