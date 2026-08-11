@@ -254,6 +254,12 @@ export function CashDepositCodesPanel() {
 
   const activeCount = activeRows.length;
 
+  const totalVerified = rows
+    .filter((r) => r.status === 'verified')
+    .reduce((sum, r) => sum + (r.amount ?? 0), 0);
+
+  const totalPending = activeRows.reduce((sum, r) => sum + (r.amount ?? 0), 0);
+
   const [open, setOpen] = useState(true);
   const [startOpen, setStartOpen] = useState(false);
 
