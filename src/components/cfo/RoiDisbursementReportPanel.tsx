@@ -153,43 +153,94 @@ export default function RoiDisbursementReportPanel() {
 
   return (
     <div className="space-y-4 printable">
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <CardTitle className="text-lg">Returns (ROI) Disbursement Report</CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">
-                Read-only report generated from the ledger and approval history. Daily, weekly, monthly and yearly windows in EAT.
-              </p>
+      <Card className="overflow-hidden rounded-2xl border shadow-sm">
+        <CardHeader className="gap-0 border-b bg-card px-5 py-5 sm:px-7 sm:py-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
+                <FileText className="h-6 w-6" />
+              </div>
+              <div>
+                <CardTitle className="text-xl font-bold tracking-tight sm:text-2xl">
+                  Returns (ROI) Disbursement Report
+                </CardTitle>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Read-only report generated from the ledger and approval history.
+                </p>
+                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                  <span className="inline-flex items-center gap-1.5">
+                    <CalendarDays className="h-3.5 w-3.5" /> Reporting in EAT
+                  </span>
+                  {data ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      <Clock className="h-3.5 w-3.5" /> Generated: {new Date(data.generated_at).toLocaleString()}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
             </div>
-            <div className="flex flex-wrap items-center gap-2 no-print">
-              <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
-                {isFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                <span className="ml-2">Refresh</span>
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => window.print()} disabled={!data}>
-                <Printer className="h-4 w-4 mr-2" />Print
-              </Button>
-              <Button variant="outline" size="sm" onClick={exportPdf} disabled={!data}>
-                <FileDown className="h-4 w-4 mr-2" />PDF
-              </Button>
-            </div>
+            {data ? (
+              <div
+                className={`inline-flex h-10 shrink-0 items-center gap-2 self-start rounded-full border px-4 text-sm font-medium ${
+                  data.reconciliation.balanced
+                    ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                    : 'border-destructive/30 bg-destructive/10 text-destructive'
+                }`}
+              >
+                {data.reconciliation.balanced ? <ShieldCheck className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
+                Ledger Check: {data.reconciliation.balanced ? 'Balanced' : 'Review needed'}
+              </div>
+            ) : null}
           </div>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-wrap items-end gap-3 no-print">
-            <Tabs value={period} onValueChange={(v) => setPeriod(v as Period)}>
-              <TabsList>
-                {(Object.keys(PERIOD_LABEL) as Period[]).map((p) => (
-                  <TabsTrigger key={p} value={p}>{PERIOD_LABEL[p]}</TabsTrigger>
-                ))}
-              </TabsList>
-            </Tabs>
-            <div className="space-y-1">
-              <Label htmlFor="roi-report-anchor" className="text-xs">
-                {period === 'daily' ? 'Report date' : period === 'weekly' ? 'Any date in the week' : period === 'monthly' ? 'Any date in the month' : 'Any date in the year'}
-              </Label>
-              <Input id="roi-report-anchor" type="date" value={anchor} onChange={(e) => setAnchor(e.target.value || today)} className="w-[170px]" />
+        <CardContent className="space-y-4 px-5 pt-5 sm:px-7 sm:pt-6">
+          <div className="no-print flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-end">
+              <div className="space-y-2">
+                <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Report period
+                </Label>
+                <Tabs value={period} onValueChange={(v) => setPeriod(v as Period)}>
+                  <TabsList className="h-11 rounded-xl border bg-muted/40 p-1">
+                    {(Object.keys(PERIOD_LABEL) as Period[]).map((p) => (
+                      <TabsTrigger
+                        key={p}
+                        value={p}
+                        className="rounded-lg px-4 text-sm font-semibold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
+                      >
+                        {PERIOD_LABEL[p]}
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+                </Tabs>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="roi-report-anchor" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  {period === 'daily' ? 'Report date' : period === 'weekly' ? 'Any date in the week' : period === 'monthly' ? 'Any date in the month' : 'Any date in the year'}
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="roi-report-anchor"
+                    type="date"
+                    value={anchor}
+                    onChange={(e) => setAnchor(e.target.value || today)}
+                    className="h-11 w-full rounded-xl pr-10 text-sm font-medium sm:w-[200px] [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                  />
+                  <CalendarDays className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary" />
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 xl:border-l xl:pl-5">
+              <Button className="h-11 rounded-xl px-5" onClick={() => refetch()} disabled={isFetching}>
+                {isFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                <span className="ml-2 font-semibold">Refresh</span>
+              </Button>
+              <Button variant="outline" className="h-11 rounded-xl px-5" onClick={() => window.print()} disabled={!data}>
+                <Printer className="h-4 w-4 mr-2" /><span className="font-semibold">Print</span>
+              </Button>
+              <Button variant="outline" className="h-11 rounded-xl px-5" onClick={exportPdf} disabled={!data}>
+                <FileDown className="h-4 w-4 mr-2" /><span className="font-semibold">PDF</span>
+              </Button>
             </div>
           </div>
 
