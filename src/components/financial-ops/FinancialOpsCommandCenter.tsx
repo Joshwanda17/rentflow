@@ -141,7 +141,6 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { formatUGX } from '@/lib/rentCalculations';
 
 type View = 'home' | 'deposits' | 'offline_collections';
 type Tool =
@@ -715,21 +714,6 @@ function FinOpsHome({
     staleTime: 60_000,
   });
 
-  const { data: strict } = useQuery({
-    queryKey: ['finops-wallet-overview-strict'],
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_wallet_totals_strict');
-      if (error) throw error;
-      const d = data as any;
-      return {
-        strictTotal: Number(d?.strict_total ?? 0),
-        driftedWallets: Number(d?.drifted_wallets ?? 0),
-        totalDrift: Number(d?.total_drift ?? 0),
-      };
-    },
-    staleTime: 60_000,
-  });
-
   const { data: queues } = useQuery({
     queryKey: ['finops-wallet-overview-queues'],
     queryFn: async () => {
@@ -758,11 +742,8 @@ function FinOpsHome({
     staleTime: 15_000,
   });
 
-  const driftMaterial = (strict?.totalDrift ?? 0) > 100 || (strict?.driftedWallets ?? 0) > 0;
-
   const refreshAll = () => {
     qc.invalidateQueries({ queryKey: ['finops-wallet-overview'] });
-    qc.invalidateQueries({ queryKey: ['finops-wallet-overview-strict'] });
     qc.invalidateQueries({ queryKey: ['finops-wallet-overview-queues'] });
   };
 
@@ -836,7 +817,7 @@ function FinOpsHome({
         )}
       </div>
 
-      {/* Hero + Ledger Health */}
+      {/* Hero + Phone Money */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 min-w-0">
           <WalletOverviewCard
@@ -845,45 +826,11 @@ function FinOpsHome({
             onDrillBucket={(bucket) => onFocusBucket(bucket)}
           />
         </div>
-        <button
-          onClick={() => onOpenTool('recon')}
-          className="text-left rounded-2xl border border-border bg-card p-5 hover:border-primary/40 hover:shadow-sm transition-all min-w-0 flex flex-col focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-        >
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Ledger Health</p>
-            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-              driftMaterial
-                ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400'
-                : 'bg-primary/10 text-primary'
-            }`}>
-              {driftMaterial ? <AlertTriangle className="h-3 w-3" /> : <CheckCircle2 className="h-3 w-3" />}
-              {driftMaterial ? 'Needs Review' : 'Reconciled'}
-            </span>
-          </div>
-          <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
-            <CheckCircle2 className="h-4 w-4 text-primary" />
-            <span>Last verified moments ago</span>
-          </div>
-          <div className="flex-1" />
-          <div className="mt-6 pt-4 border-t border-border">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Ledger total</p>
-            <p className="mt-1 font-mono text-lg font-bold tabular-nums text-foreground break-all">
-              {formatUGX(strict?.strictTotal ?? 0)}
-            </p>
-            {driftMaterial && (
-              <p className="mt-1 text-[11px] text-amber-600 dark:text-amber-400 font-medium">
-                {strict?.driftedWallets ?? 0} wallet(s) need review · {formatUGX(strict?.totalDrift ?? 0)}
-              </p>
-            )}
-          </div>
-        </button>
+        <PhonePlatformReconciliationCard compact />
       </div>
 
-      {/* Phone Money vs Platform Money + Auto-Credit Success Rate */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 min-w-0">
-          <PhonePlatformReconciliationCard compact />
-        </div>
+      {/* Auto-Credit Success Rate */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <AutoCreditSuccessRateTile onClick={() => onOpenTool('auto_credit_review')} />
       </div>
 

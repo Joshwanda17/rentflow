@@ -17,23 +17,27 @@ interface SuccessRateData {
 export function AutoCreditSuccessRateTile({ onClick }: AutoCreditSuccessRateTileProps) {
   const autoRefresh = useFinOpsAutoRefresh();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ['finops-autocredit-success-rate', 24],
     queryFn: async (): Promise<SuccessRateData> => {
       const { data, error } = await supabase.rpc('get_deposit_autocredit_success_rate' as any, { p_window_hours: 24 });
       if (error) throw error;
       const d = data as any;
       return {
-        attempted: Number(d.attempted ?? 0),
-        successful: Number(d.successful ?? 0),
-        successRatePct: d.success_rate_pct === null ? null : Number(d.success_rate_pct),
+        attempted: Number(d?.attempted ?? 0),
+        successful: Number(d?.successful ?? 0),
+        successRatePct: d?.success_rate_pct == null ? null : Number(d.success_rate_pct),
       };
     },
     staleTime: 60_000,
     refetchInterval: autoRefresh ? 60_000 : false,
   });
 
-  const hasActivity = !isLoading && (data?.attempted ?? 0) > 0;
+  const hasActivity = !isLoading && !isError && (data?.attempted ?? 0) > 0;
+  // `data` stays undefined (not null) when the RPC call itself fails, e.g. a
+  // migration hasn't been applied yet — treat that the same as "no rate" so
+  // the hero number never renders the literal string "undefined%".
+  const displayPct = data?.successRatePct ?? null;
 
   const className = `text-left rounded-2xl border border-border bg-card p-5 min-w-0 flex flex-col ${
     onClick ? 'hover:border-primary/40 hover:shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary' : ''
@@ -59,14 +63,16 @@ export function AutoCreditSuccessRateTile({ onClick }: AutoCreditSuccessRateTile
 
       <div className="mt-6 pt-4 border-t border-border">
         <p className={`font-mono text-3xl sm:text-4xl font-black tabular-nums ${isLoading ? 'animate-pulse text-muted-foreground' : 'text-foreground'}`}>
-          {isLoading ? '——' : data?.successRatePct === null ? '—' : `${data?.successRatePct}%`}
+          {isLoading ? '——' : displayPct === null ? '—' : `${displayPct}%`}
         </p>
         <p className="mt-1 text-[11px] text-muted-foreground font-medium">
           {isLoading
             ? 'Loading…'
-            : hasActivity
-              ? `${data?.successful} / ${data?.attempted} successful`
-              : 'No deposit SMS in the last 24h'}
+            : isError
+              ? "Couldn't load — try again shortly"
+              : hasActivity
+                ? `${data?.successful} / ${data?.attempted} successful`
+                : 'No deposit SMS in the last 24h'}
         </p>
       </div>
     </>
