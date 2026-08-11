@@ -29,6 +29,7 @@ export function StartCashDepositDialog({ open, onOpenChange, onIssued }: StartCa
   const [phone, setPhone] = useState('');
   const [amount, setAmount] = useState('');
   const [purpose, setPurpose] = useState('personal_deposit');
+  const [cashLocation, setCashLocation] = useState<'bank' | 'cash_at_hand'>('cash_at_hand');
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,6 +42,7 @@ export function StartCashDepositDialog({ open, onOpenChange, onIssued }: StartCa
     setPhone('');
     setAmount('');
     setPurpose('personal_deposit');
+    setCashLocation('cash_at_hand');
     setReason('');
     setError(null);
   };
@@ -53,6 +55,7 @@ export function StartCashDepositDialog({ open, onOpenChange, onIssued }: StartCa
         phone: digits,
         amount: amountNum,
         deposit_purpose: purpose,
+        cash_location: cashLocation,
         reason: reason.trim() || undefined,
       },
     });
@@ -128,6 +131,28 @@ export function StartCashDepositDialog({ open, onOpenChange, onIssued }: StartCa
                 UGX {amountNum.toLocaleString()}
               </p>
             )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Where is the cash?</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                variant={cashLocation === 'cash_at_hand' ? 'default' : 'outline'}
+                onClick={() => setCashLocation('cash_at_hand')}
+                className="justify-center"
+              >
+                Cash at hand
+              </Button>
+              <Button
+                type="button"
+                variant={cashLocation === 'bank' ? 'default' : 'outline'}
+                onClick={() => setCashLocation('bank')}
+                className="justify-center"
+              >
+                Deposited on bank
+              </Button>
+            </div>
           </div>
 
           <div className="space-y-1.5">
