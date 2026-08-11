@@ -588,9 +588,12 @@ function buildPdf(r: Report, win: { title: string; pretty: string }, logo: Uint8
   );
 
   // ── Backlog scoreboard ──
-  heading("Operational backlog (as at now)", "Queues that partner operations must clear - counts and value, no names.");
+  heading(
+    "Open queues - snapshot at generation time",
+    "Work still sitting unfinished right now, regardless of when it arrived. Unlike every figure above, this is not limited to the reporting window.",
+  );
   table(
-    ["Queue", "Count", "Value"],
+    ["Queue - waiting for action", "Count", "Value"],
     [
       ["Portfolios awaiting ops approval", num(b.pending_portfolios_count), fmtUGX(b.pending_portfolios_amount)],
       ["Funder deployment queue", num(b.funder_queue_count), fmtUGX(b.funder_queue_amount)],
