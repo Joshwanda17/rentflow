@@ -572,7 +572,9 @@ export default function FindAHouse() {
   const [selectedRegion, setSelectedRegion] = useState(() => {
     if (landingRegion) return landingRegion;
     const r = searchParams.get('region');
-    return r && REGIONS.includes(r) ? r : 'All Regions';
+    // Any stored region/area term is honoured (legacy links stored districts
+    // and cities here); it is matched with the broad location OR filter.
+    return r && r.trim() ? r : 'All Regions';
   });
   const [selectedCategory, setSelectedCategory] = useState(() => searchParams.get('category') || 'all');
   // Cascading location filters (region -> district -> sub-county/area -> village).
@@ -586,7 +588,7 @@ export default function FindAHouse() {
   const [geoDefaultApplied, setGeoDefaultApplied] = useState(() => {
     if (landingRegion) return true;
     const r = searchParams.get('region');
-    return !!(r && REGIONS.includes(r));
+    return !!(r && r.trim());
   });
   const [copied, setCopied] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>(() => (searchParams.get('sort') as SortKey) || 'newest');
