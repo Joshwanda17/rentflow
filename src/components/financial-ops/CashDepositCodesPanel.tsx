@@ -584,6 +584,25 @@ export function CashDepositCodesPanel({
               </button>
             ))}
           </div>
+          <div className="flex items-center gap-1 overflow-x-auto">
+            {[
+              { key: 'all' as const, label: 'All cash' },
+              { key: 'cash_at_hand' as const, label: 'Cash at hand' },
+              { key: 'bank' as const, label: 'Cash banked' },
+            ].map((loc) => (
+              <button
+                key={loc.key}
+                onClick={() => { setCashLocation(loc.key); setOpenId(null); }}
+                className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] border transition-colors ${
+                  cashLocation === loc.key
+                    ? 'bg-primary/10 border-primary/30 text-primary font-medium'
+                    : 'bg-background border-border text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {loc.label}
+              </button>
+            ))}
+          </div>
           <span className="text-muted-foreground">
             Verified cash <span className="font-semibold text-emerald-600">{fmtUgx(totalVerified)}</span>
           </span>
