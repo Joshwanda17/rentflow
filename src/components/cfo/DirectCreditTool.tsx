@@ -25,7 +25,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { TreasuryImpactBanner } from './TreasuryImpactBanner';
 import { RecipientRoutingWarningBanner } from './RecipientRoutingWarningBanner';
 import { RentDisbursementQueue } from './RentDisbursementQueue';
-import { PayByLocationRecipientPicker, type LocationRecipient } from './PayByLocationRecipientPicker';
+import { type LocationRecipient } from './PayByLocationRecipientPicker';
 import { BusinessAdvanceDisbursementQueue } from './BusinessAdvanceDisbursementQueue';
 import { CreditDrawApprovalQueue } from './CreditDrawApprovalQueue';
 import { ROIPayoutQueue } from './ROIPayoutQueue';
@@ -1027,26 +1027,6 @@ export function DirectCreditTool() {
               )}
             </div>
           </div>
-        )}
-
-        {/* ── PAY BY LOCATION / CATEGORY RECIPIENT PICKER (all categories) ── */}
-        {selectedCategoryId && !needsSubCategory && (
-          <PayByLocationRecipientPicker
-            mode={isRentDisbursement ? 'rent_queue' : 'profiles'}
-            queuedCount={locationRecipients.length}
-            disabled={mutation.isPending}
-            onUseRecipients={(recips) => {
-              setLocationRecipients(recips);
-              if (isRentDisbursement) {
-                // Rent payouts keep using the existing queue below — it owns the
-                // amount calculation, validation and disbursement. We only
-                // narrow it to the tenants picked here.
-                setSelectedUser(null);
-                return;
-              }
-              setSelectedUser({ id: recips[0].id, full_name: recips[0].full_name, phone: recips[0].phone });
-            }}
-          />
         )}
 
         {/* ── RENT DISBURSEMENT QUEUE ── */}
