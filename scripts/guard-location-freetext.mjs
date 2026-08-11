@@ -60,10 +60,17 @@ const ALLOWLIST = new Map([
   ['components/executive/AgentBulkOpsConsole.tsx:region', 'bulk-ops target filter, not a capture'],
   ['components/executive/AgentBulkOpsConsole.tsx:district', 'bulk-ops target filter, not a capture'],
   ['components/agent/Lc1ChairpersonPicker.tsx:value', 'cell/zone note beneath a dataset-picked village'],
+  // Non-Uganda residence branch: "Region / State" and "District / County" are
+  // outside the ug_* dataset entirely (the Uganda branch uses UgLocationPicker).
+  ['components/onboarding/ProfileCompletionGate.tsx:region', 'non-Uganda residence branch — outside the ug_* dataset'],
+  ['components/onboarding/ProfileCompletionGate.tsx:district', 'non-Uganda residence branch — outside the ug_* dataset'],
+  // CSV bulk import review grid: shows the raw uploaded cell so ops can see and
+  // correct exactly what the file contained before it is resolved server-side.
+  ['components/executive/landlord-ops/BulkImportLC1Dialog.tsx:r', 'raw CSV cell shown for review before server-side resolution'],
   ['components/agent/CreateUserInviteDialog.tsx:supporterData', 'invite pre-fill hint (district/city), not a stored admin unit'],
 ]);
 
-const PICKER = /(UgLocationPicker|UgDistrictSelect|DistrictCombobox|Lc1ChairpersonPicker)/;
+const PICKER = /(UgLocationPicker|UgDistrictSelect|DistrictCombobox|Lc1ChairpersonPicker|Lc1VillagePicker)/;
 
 function* walk(dir) {
   for (const entry of readdirSync(dir)) {
