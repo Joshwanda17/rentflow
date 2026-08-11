@@ -992,22 +992,10 @@ export function DirectCreditTool() {
 
         {/* ── RENT DISBURSEMENT QUEUE ── */}
         {isRentDisbursement && (
-          <div className="space-y-4">
+          <>
+            <RentCategoryBulkPayout />
             <RentDisbursementQueue />
-            {selectedCategory && (
-              <RentCategoryBulkPayout
-                walletCategory={selectedCategory.walletCategory}
-                platformCategory={selectedCategory.platformCategory}
-                financialImpact={selectedCategory.impact}
-                categoryLabel={selectedCategory.label}
-                recipientType={
-                  selectedCategory.recipientLock !== 'either'
-                    ? selectedCategory.recipientLock
-                    : (recipientType || 'operational_wallet')
-                }
-              />
-            )}
-          </div>
+          </>
         )}
 
         {/* ── BUSINESS ADVANCE DISBURSEMENT QUEUE ── */}
