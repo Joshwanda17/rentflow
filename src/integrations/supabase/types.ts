@@ -35528,6 +35528,10 @@ export type Database = {
         }[]
       }
       get_partner_ops_daily_report: { Args: { p_date?: string }; Returns: Json }
+      get_partner_ops_range_report: {
+        Args: { p_end: string; p_start: string }
+        Returns: Json
+      }
       get_payout_delivery_audit: {
         Args: { p_limit?: number; p_user_id?: string }
         Returns: {
