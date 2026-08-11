@@ -85,6 +85,66 @@ export function WithdrawalPayoutCard({
   const [rejecting, setRejecting] = useState(false);
   const qc = useQueryClient();
 
+  // ── Reload-proof proof state ───────────────────────────────────────────────
+  // On mobile, opening the camera/gallery frequently makes the browser discard
+  // and re-create the page. When that happens this component remounts with
+  // empty state, so an already-uploaded proof looks "missing" and the agent
+  // cannot confirm. We therefore persist the uploaded storage path locally and
+  // also recover it from Cloud storage on mount.
+  const proofStorageKey = `welile:payout-proof:${withdrawal.id}`;
+
+  function persistProof(path: string | null, url: string | null, name?: string) {
+    try {
+      if (!path) localStorage.removeItem(proofStorageKey);
+      else localStorage.setItem(proofStorageKey, JSON.stringify({ path, url, name, at: Date.now() }));
+    } catch { /* private mode / quota — non-fatal */ }
+  }
+  const [recoveredProofName, setRecoveredProofName] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (proofPath || proofUrl) return;
+      // 1) Local breadcrumb written the moment the upload succeeded.
+      let path: string | null = null;
+      let name: string | undefined;
+      try {
+        const raw = localStorage.getItem(proofStorageKey);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed?.path) { path = parsed.path; name = parsed.name; }
+        }
+      } catch { /* ignore */ }
+
+      // 2) Fallback: ask storage directly — covers a reload that happened
+      //    after the upload but before the breadcrumb could be written.
+      if (!path) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user?.id) return;
+        const { data: files } = await supabase.storage
+          .from('payment-proofs')
+          .list(`${user.id}/payout-proofs`, { limit: 100, sortBy: { column: 'created_at', order: 'desc' } });
+        const match = (files ?? []).find(f => f.name.startsWith(`${withdrawal.id}-`));
+        if (match) {
+          path = `${user.id}/payout-proofs/${match.name}`;
+          name = match.name;
+        }
+      }
+      if (!path || cancelled) return;
+
+      const { data: signed } = await supabase.storage
+        .from('payment-proofs')
+        .createSignedUrl(path, 60 * 60 * 24 * 365);
+      if (cancelled || !signed?.signedUrl) return;
+      setProofPath(path);
+      setProofUrl(signed.signedUrl);
+      setRecoveredProofName(name ?? path.split('/').pop() ?? 'proof');
+      persistProof(path, signed.signedUrl, name);
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [withdrawal.id]);
+
   const REJECT_REASONS = [
     'Customer no-show',
     'Wrong amount',
