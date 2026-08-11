@@ -1777,7 +1777,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       if (!propertyAddress.trim()) errors.push('Type the property address');
       const missingHousePhotos = HOUSE_PHOTO_SLOTS.some((_, i) => !housePhotos[i]);
       if (missingHousePhotos) errors.push('Take all 4 house photos (front, back, left and right)');
-      if (!tenantPhoto) errors.push("Take the tenant's passport photo");
+      if (!tenantPhoto && !carriedDocs?.passportUrl) errors.push("Take the tenant's passport photo");
       if (!gpsLocation) errors.push('Capture the property GPS at the house');
     } else if (idx === 3) {
       if (!lc1Name.trim()) errors.push("Type the LC1 chairperson's name");
@@ -1839,7 +1839,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       if (!propertyAddress.trim()) map['propertyAddress'] = 'Type the property address';
       const missingHousePhotos = HOUSE_PHOTO_SLOTS.some((_, i) => !housePhotos[i]);
       if (missingHousePhotos) map['housePhotos'] = 'Take all 4 house photos (front, back, left and right)';
-      if (!tenantPhoto) map['tenantPhoto'] = "Take the tenant's passport photo";
+      if (!tenantPhoto && !carriedDocs?.passportUrl) map['tenantPhoto'] = "Take the tenant's passport photo";
       if (!gpsLocation) map['gpsLocation'] = 'Capture the property GPS at the house';
     } else if (idx === 3) {
       if (!lc1Name.trim()) map['lc1Name'] = "Type the LC1 chairperson's name";
@@ -1925,7 +1925,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       if (!propertyAddress.trim()) map['propertyAddress'] = 'Type the property address';
       const missingHousePhotos = HOUSE_PHOTO_SLOTS.some((_, i) => !housePhotos[i]);
       if (missingHousePhotos) map['housePhotos'] = 'Take all 4 house photos (front, back, left and right)';
-      if (!tenantPhoto) map['tenantPhoto'] = "Take the tenant's passport photo";
+      if (!tenantPhoto && !carriedDocs?.passportUrl) map['tenantPhoto'] = "Take the tenant's passport photo";
       if (!gpsLocation) map['gpsLocation'] = 'Capture the property GPS at the house';
       if (!lc1Name.trim()) map['lc1Name'] = "Type the LC1 chairperson's name";
       if (!lc1Phone.trim()) map['lc1Phone'] = 'Type the LC1 phone number';
@@ -1950,7 +1950,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
     const missingHousePhotos = HOUSE_PHOTO_SLOTS.some((_, i) => !housePhotos[i]);
     if (missingHousePhotos) map['housePhotos'] = 'Take all 4 house photos (front, back, left and right)';
-    if (!tenantPhoto) map['tenantPhoto'] = "Take the tenant's passport photo";
+    if (!tenantPhoto && !carriedDocs?.passportUrl) map['tenantPhoto'] = "Take the tenant's passport photo";
 
     return map;
   };
@@ -2533,7 +2533,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     // House photos and tenant passport photo are mandatory.
     const missingHousePhotos = HOUSE_PHOTO_SLOTS.some((_, i) => !housePhotos[i]);
     if (missingHousePhotos) errors.push('Take all 4 house photos (front, back, left and right)');
-    if (!tenantPhoto) errors.push("Take the tenant's passport photo");
+    if (!tenantPhoto && !carriedDocs?.passportUrl) errors.push("Take the tenant's passport photo");
 
     return errors;
   };
