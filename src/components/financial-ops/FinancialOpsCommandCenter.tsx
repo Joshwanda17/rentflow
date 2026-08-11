@@ -837,7 +837,7 @@ function FinOpsHome({
         )}
       </div>
 
-      {/* Hero + Phone Money vs Platform Money */}
+      {/* Hero + Phone Money */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 min-w-0">
           <WalletOverviewCard
@@ -846,13 +846,13 @@ function FinOpsHome({
             onDrillBucket={(bucket) => onFocusBucket(bucket)}
           />
         </div>
-        <PhonePlatformReconciliationCard compact />
+        <PhoneMoneyCard />
       </div>
 
-      {/* Phone Money + Auto-Credit Success Rate */}
+      {/* Phone Money vs Platform Money + Auto-Credit Success Rate */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 min-w-0">
-          <PhoneMoneyCard />
+          <PhonePlatformReconciliationCard compact />
         </div>
         <AutoCreditSuccessRateTile onClick={() => onOpenTool('auto_credit_review')} />
       </div>
