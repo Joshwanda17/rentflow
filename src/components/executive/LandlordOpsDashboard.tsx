@@ -36,6 +36,8 @@ import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import {
   useLandlordOpsTotals,
   useLandlordOpsList,
+  useLandlordScopedCounts,
+  fetchLandlordReport,
   type LandlordCategory as LandlordOpsCategory,
   type LandlordPendingFilter as LandlordOpsPendingFilter,
   type LandlordSort as LandlordOpsSort,
@@ -64,6 +66,10 @@ import { toast as sonnerToast } from 'sonner';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
 import { generateLandlordOpsReportPdf } from '@/lib/generateLandlordOpsReportPdf';
 import { generateHouseVerificationReportPdf, type HouseReportRow } from '@/lib/generateHouseVerificationReportPdf';
+import {
+  generateLandlordVerificationReportPdf,
+  type LandlordReportScope,
+} from '@/lib/generateLandlordVerificationReportPdf';
 import { generateLc1VerificationReportPdf, lc1ReportFileName, type Lc1ReportRow } from '@/lib/generateLc1VerificationReportPdf';
 import { FileDown } from 'lucide-react';
 import { RentAdjustmentDialog } from './RentAdjustmentDialog';
@@ -561,6 +567,14 @@ export function LandlordOpsDashboard() {
   type PendingFilter = 'all' | 'has_address' | 'has_phone' | 'has_smartphone' | 'has_bank' | 'has_momo';
   const [pendingFilter, setPendingFilter] = useState<PendingFilter>('all');
 
+  // ─── Landlord verification date-range filter + PDF export ───
+  // Mirrors the Houses verification queue: the range is applied to the
+  // landlord's STATE date (registration date for pending, decision date for
+  // verified / rejected / resubmitted), never blindly to created_at.
+  const [landlordDateFrom, setLandlordDateFrom] = useState<string>('');
+  const [landlordDateTo, setLandlordDateTo] = useState<string>('');
+  const [exportingLandlordReport, setExportingLandlordReport] = useState(false);
+
   // ─── LC1 Verification Filter ───
   // Keys on the canonical `verification_status` (verified / rejected / pending)
   // so approved chairpersons live here and rejected ones are never lost.
@@ -602,6 +616,11 @@ export function LandlordOpsDashboard() {
   const debouncedLandlordSearch = useDebouncedValue(search, 300);
   const { data: landlordOpsTotalsData } = useLandlordOpsTotals();
   const landlordOpsTotals = landlordOpsTotalsData?.totals;
+  // ISO bounds for the landlord date range (end of the "to" day is inclusive).
+  const landlordDateFromIso = landlordDateFrom ? new Date(landlordDateFrom).toISOString() : null;
+  const landlordDateToIso = landlordDateTo
+    ? new Date(new Date(landlordDateTo).getTime() + 24 * 60 * 60 * 1000 - 1).toISOString()
+    : null;
   const landlordOpsListParams = {
     search: debouncedLandlordSearch,
     sort: (landlordSort === 'recently_updated' ? 'newest' : landlordSort) as LandlordOpsSort,
@@ -610,15 +629,72 @@ export function LandlordOpsDashboard() {
     page: landlordPage,
     perPage: 20,
     enabled: view === 'landlords',
+    dateFrom: landlordDateFromIso,
+    dateTo: landlordDateToIso,
   };
   const {
     data: landlordOpsList,
     isFetching: landlordOpsListFetching,
   } = useLandlordOpsList(landlordOpsListParams);
+  // True per-status counts honouring the active search + date range, so a chip
+  // and the list it opens can never disagree.
+  const { data: landlordScopedCountsData, isFetching: landlordCountsFetching } = useLandlordScopedCounts({
+    search: debouncedLandlordSearch,
+    dateFrom: landlordDateFromIso,
+    dateTo: landlordDateToIso,
+    enabled: view === 'landlords',
+  });
+  const landlordScopedCounts = landlordScopedCountsData?.counts;
   // Reset to page 1 when the user changes any filter/search/sort.
   useEffect(() => {
     setLandlordPage(1);
-  }, [debouncedLandlordSearch, landlordSort, landlordCategory, pendingFilter]);
+  }, [debouncedLandlordSearch, landlordSort, landlordCategory, pendingFilter, landlordDateFrom, landlordDateTo]);
+
+  /**
+   * Export a fully comprehensive landlord PDF for exactly the filters on screen.
+   * Pulls a dedicated report payload (verifier name, reason, location, payout
+   * details, tenants, agent) via the `report` action instead of reusing the
+   * paginated list rows, so the export is never a partial page.
+   */
+  const exportLandlordReportPdf = async () => {
+    setExportingLandlordReport(true);
+    try {
+      const scope = (landlordCategory || 'all') as LandlordOpsCategory;
+      const { rows, totalMatched } = await fetchLandlordReport({
+        category: scope,
+        pendingFilter: pendingFilter as LandlordOpsPendingFilter,
+        search: debouncedLandlordSearch,
+        dateFrom: landlordDateFromIso,
+        dateTo: landlordDateToIso,
+      });
+      if (!rows.length) {
+        sonnerToast.error('No landlords match these filters — nothing to export');
+        return;
+      }
+      const blob = generateLandlordVerificationReportPdf(rows, {
+        scope: scope as LandlordReportScope,
+        quickFilter: scope === 'pending' ? pendingFilter : 'all',
+        search: debouncedLandlordSearch || null,
+        dateFrom: landlordDateFromIso,
+        dateTo: landlordDateToIso,
+        totalMatches: totalMatched,
+        generatedBy: user?.email ?? null,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `welile-landlords-${scope}-${format(new Date(), 'yyyy-MM-dd-HHmm')}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      sonnerToast.success(`${scope} landlords report downloaded (${rows.length.toLocaleString()} landlords)`);
+    } catch (err: any) {
+      sonnerToast.error(err?.message || 'Failed to generate the landlord report');
+    } finally {
+      setExportingLandlordReport(false);
+    }
+  };
 
   // ─── All Requests delete state (mirrors Tenant Ops UX) ───
   const [allReqSelectedIds, setAllReqSelectedIds] = useState<string[]>([]);
@@ -2363,18 +2439,65 @@ export function LandlordOpsDashboard() {
     const totalPages = Math.max(1, Math.ceil(totalMatched / perPage));
     const safePage = Math.min(landlordPage, totalPages);
 
-    // Chip counts come from get_landlord_ops_totals(), which reads the same
-    // v_landlord_ops_status view the list RPC filters on — a chip and the list
-    // it opens can never disagree. `undefined` renders "…" while loading.
+    // Chip counts come from ops_landlord_status_counts(), which reads the same
+    // v_landlord_ops_status view the list RPC filters on AND honours the active
+    // search + date range — a chip and the list it opens can never disagree.
+    // Falls back to the unscoped totals while the scoped query loads.
+    const scoped = landlordScopedCounts;
     const categoryCounts: Record<LandlordCategory, number | undefined> = {
-      all: landlordOpsTotals?.total,
-      verified: landlordOpsTotals?.verified,
-      pending: landlordOpsTotals?.pending,
-      rejected: landlordOpsTotals?.rejected,
-      resubmitted: landlordOpsTotals?.resubmitted,
-      has_tenants: landlordOpsTotals?.has_tenants,
-      no_tenants: landlordOpsTotals?.no_tenants,
+      all: scoped?.all ?? landlordOpsTotals?.total,
+      verified: scoped?.verified ?? landlordOpsTotals?.verified,
+      pending: scoped?.pending ?? landlordOpsTotals?.pending,
+      rejected: scoped?.rejected ?? landlordOpsTotals?.rejected,
+      resubmitted: scoped?.resubmitted ?? landlordOpsTotals?.resubmitted,
+      has_tenants: scoped?.has_tenants ?? landlordOpsTotals?.has_tenants,
+      no_tenants: scoped?.no_tenants ?? landlordOpsTotals?.no_tenants,
     };
+
+    // Stat tiles for the scope on screen — the landlord counterpart of the
+    // Houses verification KPIs. Read-only: nothing here verifies or rejects.
+    const landlordStatCards: { label: string; value: string; hint?: string }[] = [
+      {
+        label: 'IN SCOPE',
+        value: (categoryCounts[categoryFilter] ?? totalMatched).toLocaleString(),
+        hint: 'matching the filters below',
+      },
+      {
+        label: 'PENDING',
+        value: (categoryCounts.pending ?? 0).toLocaleString(),
+        hint: 'awaiting review',
+      },
+      {
+        label: 'VERIFIED',
+        value: (categoryCounts.verified ?? 0).toLocaleString(),
+        hint: scoped
+          ? `${scoped.verified_human.toLocaleString()} reviewer · ${scoped.verified_auto.toLocaleString()} auto`
+          : 'reviewer + auto',
+      },
+      {
+        label: 'REJECTED',
+        value: (categoryCounts.rejected ?? 0).toLocaleString(),
+        hint: 'with a recorded reason',
+      },
+      {
+        label: 'WITH TENANTS',
+        value: (categoryCounts.has_tenants ?? 0).toLocaleString(),
+        hint: `${(categoryCounts.no_tenants ?? 0).toLocaleString()} without tenants`,
+      },
+      {
+        label: 'OCCUPIED RENT',
+        value: `UGX ${fmt(scoped?.occupied_monthly_revenue ?? 0)}`,
+        hint: `UGX ${fmt(scoped?.empty_monthly_revenue ?? 0)} empty`,
+      },
+    ];
+
+    const landlordFiltersDirty = !!(
+      landlordCategory !== 'verified'
+      || pendingFilter !== 'all'
+      || search
+      || landlordDateFrom
+      || landlordDateTo
+    );
 
     return (
       <>
@@ -2383,6 +2506,19 @@ export function LandlordOpsDashboard() {
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold flex items-center gap-2"><Building2 className="h-5 w-5 text-sky-600" /> All Landlords</h2>
           <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-9 gap-1.5"
+              disabled={exportingLandlordReport}
+              onClick={exportLandlordReportPdf}
+              title="Export a full PDF report for the filters currently applied"
+            >
+              {exportingLandlordReport
+                ? <Loader2 className="h-4 w-4 animate-spin" />
+                : <FileDown className="h-4 w-4" />}
+              Export PDF
+            </Button>
             <Button size="sm" onClick={() => setBulkImportLandlordsOpen(true)} className="h-9">
               <Upload className="h-4 w-4 mr-1.5" /> Bulk Import
             </Button>
@@ -2390,6 +2526,19 @@ export function LandlordOpsDashboard() {
               {landlordOpsListFetching ? 'Loading…' : `${totalMatched} landlords`}
             </span>
           </div>
+        </div>
+
+        {/* Verification statistics for the active scope (read-only) */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+          {landlordStatCards.map(card => (
+            <div key={card.label} className="rounded-xl border border-border bg-card p-2.5">
+              <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wide">{card.label}</p>
+              <p className="text-lg font-semibold tracking-tight leading-tight mt-0.5">
+                {landlordCountsFetching && !scoped ? '…' : card.value}
+              </p>
+              {card.hint && <p className="text-[10px] text-muted-foreground leading-snug truncate">{card.hint}</p>}
+            </div>
+          ))}
         </div>
 
         {/* Search */}
@@ -2417,6 +2566,60 @@ export function LandlordOpsDashboard() {
               </span>
             </button>
           ))}
+          {landlordFiltersDirty && (
+            <button
+              onClick={() => {
+                setLandlordCategory('verified');
+                setPendingFilter('all');
+                setSearch('');
+                setLandlordDateFrom('');
+                setLandlordDateTo('');
+                setLandlordPage(1);
+              }}
+              className="px-2.5 py-1 rounded-full text-[11px] font-semibold text-muted-foreground border border-border bg-background hover:bg-muted transition-all inline-flex items-center gap-1"
+              title="Reset filters"
+            >
+              <RotateCcw className="h-3 w-3" />
+              Reset
+            </button>
+          )}
+        </div>
+
+        {/* Date range filter — applied to the STATE date, not blindly to registration */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[11px] text-muted-foreground font-medium">
+            {categoryFilter === 'verified' ? 'Verified between:'
+              : categoryFilter === 'rejected' ? 'Rejected between:'
+              : categoryFilter === 'pending' ? 'Registered between:'
+              : categoryFilter === 'resubmitted' ? 'Resubmitted between:'
+              : 'Status changed between:'}
+          </span>
+          <Input
+            type="date"
+            value={landlordDateFrom}
+            onChange={e => { setLandlordDateFrom(e.target.value); setLandlordPage(1); }}
+            className="h-8 w-auto text-xs"
+            aria-label="Landlord from date"
+          />
+          <span className="text-[11px] text-muted-foreground">to</span>
+          <Input
+            type="date"
+            value={landlordDateTo}
+            onChange={e => { setLandlordDateTo(e.target.value); setLandlordPage(1); }}
+            className="h-8 w-auto text-xs"
+            aria-label="Landlord to date"
+          />
+          {(landlordDateFrom || landlordDateTo) && (
+            <button
+              onClick={() => { setLandlordDateFrom(''); setLandlordDateTo(''); setLandlordPage(1); }}
+              className="text-[11px] text-muted-foreground hover:text-foreground underline"
+            >
+              clear
+            </button>
+          )}
+          {landlordCountsFetching && (
+            <span className="text-[11px] text-muted-foreground">Updating counts…</span>
+          )}
         </div>
 
         {/* Verified attribution: human decisions vs automatic pipeline flips */}
