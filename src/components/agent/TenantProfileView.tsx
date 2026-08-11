@@ -38,6 +38,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Sparkles, ChevronRight } from 'lucide-react';
 import AgentContactLocationGate from './AgentContactLocationGate';
 import { useRequireContactLocation } from '@/hooks/useRequireContactLocation';
+import { RenewDocumentsDialog, type RenewDocsState } from './RenewDocumentsDialog';
 
 interface TenantProfileViewProps {
   tenantId: string;
@@ -221,6 +222,9 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
   const [reverseDialogOpen, setReverseDialogOpen] = useState(false);
   const [rentLimitOpen, setRentLimitOpen] = useState(false);
   const [renewing, setRenewing] = useState(false);
+  // Renewal document custody gate — a renewal only posts when the tenant has a
+  // passport photo, 4 house photos and an LC letter on file.
+  const [renewDocsGate, setRenewDocsGate] = useState<RenewDocsState | null>(null);
   const [historyRange, setHistoryRange] = useState<'all' | '7d' | '30d' | 'month' | 'custom'>('all');
   const [historyFrom, setHistoryFrom] = useState<string>('');
   const [historyTo, setHistoryTo] = useState<string>('');
