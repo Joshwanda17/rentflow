@@ -2223,7 +2223,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
                 ? `Route to user — ${formatUGX(existing.data.original_amount)} auto-credited`
                 : 'Route to user'
             }
-            placeholder="Search by name or phone…"
+            placeholder="Search any user by phone number or name…"
             selectedUser={user}
             onSelect={setUser}
           />
