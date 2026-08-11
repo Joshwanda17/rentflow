@@ -769,6 +769,7 @@ export function CashDepositCodesPanel({
             <div className="flex flex-wrap items-center gap-2">
               {isLive(openRow) && codeEntry(openRow, 'pane')}
               {openRow.status !== 'verified' && resendButton(openRow)}
+              {bankButton(openRow, 'pane')}
             </div>
           </div>
         ) : loading && displayRows.length === 0 ? (
@@ -842,6 +843,7 @@ export function CashDepositCodesPanel({
                       {isLive(r) ? (
                         <div className="hidden lg:block">{codeEntry(r, 'row')}</div>
                       ) : null}
+                      <div className="hidden sm:block">{bankButton(r)}</div>
                       <span className="text-[11px] text-muted-foreground w-14 text-right group-hover:opacity-0 transition-opacity">
                         {gmailDate(r.created_at)}
                       </span>
