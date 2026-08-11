@@ -205,14 +205,22 @@ export default function AgentServiceCenter() {
           </TabsContent>
 
           <TabsContent value="team" className="mt-3 space-y-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search name, phone or email"
-                className="pl-9"
-              />
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={() => setInviteOpen(true)}
+                className="gap-2 shrink-0 bg-primary text-primary-foreground"
+              >
+                <UserPlus className="h-4 w-4" /> Invite Sub-Agent
+              </Button>
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search name, phone or email"
+                  className="pl-9"
+                />
+              </div>
             </div>
 
             {isLoading ? (
