@@ -767,6 +767,7 @@ export function CashDepositCodesPanel({
                       </span>
                       <span className="hidden sm:inline text-xs text-muted-foreground truncate">
                         — {purposeLabel(r.deposit_purpose)}
+                        {r.cash_location ? ` · ${cashLocationLabel(r.cash_location)}` : ''}
                         {r.depositor_phone ? ` · ${r.depositor_phone}` : ''}
                       </span>
                     </div>
