@@ -309,7 +309,13 @@ export function RentCategoryBulkPayout() {
                       <p className="text-sm font-bold text-primary">{fmt(selectionRent.repayment)}</p>
                     </div>
                   </div>
-                  <TreasuryImpactBanner payoutAmount={selectionRent.rent || total} />
+                  <TreasuryImpactBanner payoutAmount={selectionRent.rent || total || groupRentTotal} />
+                  {selectionRent.rent === 0 && (
+                    <p className="text-[10px] text-amber-600">
+                      No pending (COO-approved) rent found for the ticked tenants — the payout figure falls back to
+                      the amount you enter below.
+                    </p>
+                  )}
                 </div>
               )}
 
