@@ -524,20 +524,17 @@ function buildPdf(r: Report, win: { title: string; pretty: string }, logo: Uint8
   ]);
 
   // ── Top-ups (period accurate) ──
-  heading("Top-ups", `Requested and applied inside the window; the backlog line is the standing queue as at now.`);
+  heading(
+    "Top-ups",
+    "Top-ups only (portfolio creations are excluded). Requested = submitted inside the window; applied = merged into capital inside the window.",
+  );
   miniKpis([
     { label: "Requested in period", value: `${num(t.requested_count)} - ${compactUGX(t.requested_amount)}`, accent: BLUE },
     { label: "Applied in period", value: `${num(t.applied_count)} - ${compactUGX(t.applied_amount)}`, accent: EMERALD },
-    { label: "Rejected in period", value: `${num(t.rejected_count)} - ${compactUGX(t.rejected_amount)}`, accent: ROSE },
+    { label: "Rejected / cancelled", value: `${num((Number(t.rejected_count) || 0) + (Number(t.cancelled_count) || 0))} - ${compactUGX((Number(t.rejected_amount) || 0) + (Number(t.cancelled_amount) || 0))}`, accent: ROSE },
     { label: "At renewal", value: `${num(t.renewal_topup_count)} - ${compactUGX(t.renewal_topup_amount)}`, accent: TEAL },
   ]);
-  barChart([
-    { label: "Requested", value: Number(t.requested_amount) || 0, note: `${num(t.requested_count)} requests`, color: BLUE },
-    { label: "Applied", value: Number(t.applied_amount) || 0, note: `${num(t.applied_count)} merged into capital`, color: EMERALD },
-    { label: "Rejected", value: Number(t.rejected_amount) || 0, note: `${num(t.rejected_count)} rejected`, color: ROSE },
-    { label: "Backlog (now)", value: Number(t.backlog_amount) || 0, note: `${num(t.backlog_count)} waiting - oldest ${num(t.backlog_oldest_days)}d`, color: AMBER },
-  ]);
-  columnChart(
+  lineChart(
     r.series.map((s: any) => ({
       label: ascii(s.label),
       a: Number(s.topups_requested) || 0,
@@ -548,6 +545,14 @@ function buildPdf(r: Report, win: { title: string; pretty: string }, logo: Uint8
     BLUE,
     EMERALD,
   );
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(6.8);
+  doc.setTextColor(...MUTED);
+  doc.text(
+    `Still waiting to be applied as at generation time: ${num(t.backlog_count)} top-ups worth ${compactUGX(t.backlog_amount)}, oldest ${num(t.backlog_oldest_days)} day(s). Detailed in the open-queues table below.`,
+    margin, y, { maxWidth: pageWidth - margin * 2 },
+  );
+  y += 8;
 
   // ── Portfolio mix ──
   heading("Portfolio mix", "How live capital is distributed across return modes and ticket sizes.");
