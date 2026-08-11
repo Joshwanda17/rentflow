@@ -28,7 +28,6 @@ import { ServiceCentreDirectory } from './service-centres/ServiceCentreDirectory
 import { ServiceCentrePayouts } from './service-centres/ServiceCentrePayouts';
 import { ServiceCentreOperatingModel } from './service-centres/ServiceCentreOperatingModel';
 import { SubAgentVerificationQueue } from './SubAgentVerificationQueue';
-import SubAgentTenantTransfersQueue from './agent-ops/SubAgentTenantTransfersQueue';
 import { TenantToSubAgentPanel } from './TenantToSubAgentPanel';
 import { AgentOpsFloatPayoutReview } from '@/components/agent/AgentOpsFloatPayoutReview';
 import { AgentBalancesPanel } from './AgentBalancesPanel';
@@ -96,7 +95,6 @@ const NAV_ITEMS: { key: ActiveView; icon: any; label: string; color: string; pri
   { key: 'sc-requests', icon: Store, label: 'Free Center Requests', color: 'bg-orange-800', priority: true },
   { key: 'sc-operating-model', icon: Workflow, label: 'Operating Model', color: 'bg-amber-700' },
   { key: 'sub-agents', icon: UsersRound, label: 'Sub-Agents', color: 'bg-amber-600', priority: true },
-  { key: 'subagent-transfers', icon: ArrowLeftRight, label: 'Sub-Agent Transfers', color: 'bg-amber-700', priority: true },
   { key: 'promote-tenant', icon: ArrowLeftRight, label: 'Tenant → Sub-Agent', color: 'bg-fuchsia-600', priority: true },
   { key: 'directory', icon: Search, label: 'Directory', color: 'bg-blue-500', priority: true },
   { key: 'rent-capacity', icon: Gauge, label: 'Rent Capacity', color: 'bg-cyan-500', priority: true },
@@ -243,7 +241,6 @@ export function AgentOpsDashboard() {
       case 'sc-requests': return <ServiceCenterRequestsQueue />;
       case 'sc-operating-model': return <ServiceCentreOperatingModel />;
       case 'sub-agents': return <SubAgentVerificationQueue />;
-      case 'subagent-transfers': return <SubAgentTenantTransfersQueue />;
       case 'promote-tenant': return <TenantToSubAgentPanel />;
       case 'float-payouts': return <AgentOpsFloatPayoutReview />;
       case 'balances': return <AgentBalancesPanel />;
