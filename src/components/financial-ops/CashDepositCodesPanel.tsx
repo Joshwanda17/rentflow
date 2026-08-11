@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { KeyRound, RefreshCw, Loader2, Check, Clock, Radio, Smartphone, Search, Inbox, X, ChevronDown } from 'lucide-react';
+import { KeyRound, RefreshCw, Loader2, Check, Clock, Radio, Smartphone, Search, Inbox, X, ChevronDown, ArrowLeft } from 'lucide-react';
 import { StartCashDepositDialog } from './StartCashDepositDialog';
 
 interface CashCodeRow {
@@ -112,7 +112,10 @@ function Countdown({ expiresAt, inline = false }: { expiresAt: string | null; in
  * code is only revealed while the deposit is still awaiting the code and not
  * expired — crediting still requires the depositor to enter it.
  */
-export function CashDepositCodesPanel() {
+export function CashDepositCodesPanel({
+  fullScreen = false,
+  onClose,
+}: { fullScreen?: boolean; onClose?: () => void } = {}) {
   const { toast } = useToast();
   const [rows, setRows] = useState<CashCodeRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -395,10 +398,27 @@ export function CashDepositCodesPanel() {
     <>
       <StartCashDepositDialog open={startOpen} onOpenChange={setStartOpen} onIssued={load} />
 
-      <div className="rounded-xl border bg-card overflow-hidden">
+      <div
+        className={
+          fullScreen
+            ? 'fixed inset-0 z-50 flex flex-col bg-background'
+            : 'rounded-xl border bg-card overflow-hidden'
+        }
+      >
         {/* ── Gmail-style toolbar ─────────────────────────────────────────── */}
-        <div className="flex flex-wrap items-center gap-2 px-3 py-2.5 border-b">
+        <div className={`flex flex-wrap items-center gap-2 px-3 py-2.5 border-b ${fullScreen ? 'shrink-0' : ''}`}>
           <div className="flex items-center gap-2 min-w-0">
+            {fullScreen && onClose ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 rounded-full -ml-1"
+                aria-label="Close"
+                onClick={onClose}
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+            ) : null}
             <Inbox className="h-5 w-5 text-primary shrink-0" />
             <span className="font-medium text-sm sm:text-base truncate">Cash deposit codes</span>
             {activeCount > 0 && (
@@ -443,7 +463,7 @@ export function CashDepositCodesPanel() {
         </div>
 
         {/* ── Gmail-style category tabs ───────────────────────────────────── */}
-        <div className="flex items-center gap-1 px-2 border-b overflow-x-auto">
+        <div className={`flex items-center gap-1 px-2 border-b overflow-x-auto ${fullScreen ? 'shrink-0' : ''}`}>
           {tabs.map((t) => (
             <button
               key={t.key}
@@ -464,7 +484,7 @@ export function CashDepositCodesPanel() {
         </div>
 
         {/* ── Totals strip ────────────────────────────────────────────────── */}
-        <div className="flex flex-wrap items-center gap-2 px-3 py-2 border-b bg-muted/30 text-xs">
+        <div className={`flex flex-wrap items-center gap-2 px-3 py-2 border-b bg-muted/30 text-xs ${fullScreen ? 'shrink-0' : ''}`}>
           <div className="flex items-center gap-1 overflow-x-auto">
             {ranges.map((rg) => (
               <button
@@ -492,6 +512,7 @@ export function CashDepositCodesPanel() {
         </div>
 
         {/* ── Reading pane or inbox list ──────────────────────────────────── */}
+        <div className={fullScreen ? 'flex-1 min-h-0 overflow-y-auto overscroll-contain' : ''}>
         {openRow ? (
           <div className="p-4 space-y-4">
             <Button
@@ -609,6 +630,7 @@ export function CashDepositCodesPanel() {
             })}
           </div>
         )}
+        </div>
       </div>
     </>
   );
