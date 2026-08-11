@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { KeyRound, RefreshCw, Loader2, Check, Clock, Radio, Smartphone, Search, Inbox, X, ChevronDown, ArrowLeft } from 'lucide-react';
+import { KeyRound, RefreshCw, Loader2, Check, Clock, Radio, Smartphone, Search, Inbox, X, ChevronDown, ArrowLeft, BarChart3, CheckCircle2, Menu } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { StartCashDepositDialog } from './StartCashDepositDialog';
 
 interface CashCodeRow {
@@ -291,6 +292,8 @@ export function CashDepositCodesPanel({
   const [tab, setTab] = useState<'all' | 'awaiting' | 'verified'>('all');
   const [openId, setOpenId] = useState<string | null>(null);
   const [range, setRange] = useState<'today' | '7d' | '30d' | 'all'>('today');
+  const [view, setView] = useState<'inbox' | 'report'>('inbox');
+  const [navOpen, setNavOpen] = useState(false);
 
   const rangeStart = (() => {
     const now = new Date();
@@ -340,6 +343,67 @@ export function CashDepositCodesPanel({
     { key: 'awaiting', label: 'Awaiting', count: rangeRows.filter((r) => r.status === 'awaiting_code').length },
     { key: 'verified', label: 'Verified', count: rangeRows.filter((r) => r.status === 'verified').length },
   ];
+
+  // Per-day rollups: verified cash actually banked vs cash still awaiting a code.
+  const dayKeyOf = (iso?: string | null) => (iso ? new Date(iso).toDateString() : 'unknown');
+  const dayTotals = new Map<string, { verified: number; awaiting: number; count: number }>();
+  for (const r of rangeRows) {
+    const k = dayKeyOf(r.created_at);
+    const e = dayTotals.get(k) ?? { verified: 0, awaiting: 0, count: 0 };
+    if (r.status === 'verified') e.verified += r.amount ?? 0;
+    else if (r.status === 'awaiting_code') e.awaiting += r.amount ?? 0;
+    e.count += 1;
+    dayTotals.set(k, e);
+  }
+
+  const chartData = Array.from(dayTotals.entries())
+    .filter(([k]) => k !== 'unknown')
+    .sort((a, b) => new Date(a[0]).getTime() - new Date(b[0]).getTime())
+    .map(([k, v]) => ({
+      label: new Date(k).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+      verified: v.verified,
+      awaiting: v.awaiting,
+      count: v.count,
+    }));
+
+  const navItems: { key: 'all' | 'awaiting' | 'verified' | 'report'; label: string; icon: typeof Inbox; count?: number }[] = [
+    { key: 'all', label: 'All', icon: Inbox, count: rangeRows.length },
+    { key: 'awaiting', label: 'Awaiting', icon: Clock, count: rangeRows.filter((r) => r.status === 'awaiting_code').length },
+    { key: 'verified', label: 'Verified', icon: CheckCircle2, count: rangeRows.filter((r) => r.status === 'verified').length },
+    { key: 'report', label: 'Cashflow', icon: BarChart3 },
+  ];
+
+  const selectNav = (key: 'all' | 'awaiting' | 'verified' | 'report') => {
+    setOpenId(null);
+    setNavOpen(false);
+    if (key === 'report') { setView('report'); return; }
+    setView('inbox');
+    setTab(key);
+  };
+
+  const sideNav = (
+    <nav className="p-2 space-y-0.5">
+      {navItems.map((n) => {
+        const active = n.key === 'report' ? view === 'report' : view === 'inbox' && tab === n.key;
+        const Icon = n.icon;
+        return (
+          <button
+            key={n.key}
+            onClick={() => selectNav(n.key)}
+            className={`w-full flex items-center gap-3 rounded-full px-3 py-2 text-sm transition-colors ${
+              active ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground hover:bg-muted'
+            }`}
+          >
+            <Icon className="h-4 w-4 shrink-0" />
+            <span className="truncate">{n.label}</span>
+            {typeof n.count === 'number' && (
+              <span className="ml-auto text-xs tabular-nums opacity-70">{n.count}</span>
+            )}
+          </button>
+        );
+      })}
+    </nav>
+  );
 
   const ranges: { key: 'today' | '7d' | '30d' | 'all'; label: string }[] = [
     { key: 'today', label: 'Today' },
@@ -408,6 +472,15 @@ export function CashDepositCodesPanel({
         {/* ── Gmail-style toolbar ─────────────────────────────────────────── */}
         <div className={`flex flex-wrap items-center gap-2 px-3 py-2.5 border-b ${fullScreen ? 'shrink-0' : ''}`}>
           <div className="flex items-center gap-2 min-w-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 rounded-full md:hidden"
+              aria-label="Menu"
+              onClick={() => setNavOpen((v) => !v)}
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
             {fullScreen && onClose ? (
               <Button
                 variant="ghost"
