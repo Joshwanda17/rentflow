@@ -758,6 +758,17 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [tenantPhoto, setTenantPhoto] = useState<{ file: File; preview: string } | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLabel, setPreviewLabel] = useState<string>('');
+  /**
+   * Documents the tenant already owns (tenant-scoped custody in
+   * `tenant_documents`). On renewal these are carried onto the new rent request
+   * automatically by the database, so the agent doesn't re-upload them and the
+   * files never get orphaned on the old request.
+   */
+  const [carriedDocs, setCarriedDocs] = useState<{
+    passportUrl: string | null;
+    hasLcLetter: boolean;
+    houseImages: number;
+  } | null>(null);
 
   // ===== House-search-first (standard flow) =====
   // The agent first searches for an available empty house (by landlord name,
