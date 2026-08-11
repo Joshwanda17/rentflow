@@ -20,6 +20,8 @@ import { MoveInOfferBadge } from '@/components/house/MoveInOfferBadge';
 import { motion } from 'framer-motion';
 import { ImageLightbox } from '@/components/marketplace/ImageLightbox';
 import { regionLabel } from '@/lib/ugandaDistricts';
+import { UG_REGIONS, useUgDistricts, useUgSubcountiesByDistrict } from '@/hooks/useUgLocations';
+import { normalizeAreaName } from '@/lib/listingAreaFilter';
 import { HousesMapView } from '@/components/tenant/HousesMapView';
 import { LoadMoreProgress } from '@/components/tenant/LoadMoreProgress';
 import { useNavigate } from 'react-router-dom';
@@ -29,12 +31,9 @@ interface AvailableHousesSheetProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const REGIONS = [
-  'All Regions', 'Central', 'Eastern', 'Northern', 'Western',
-  'Kampala', 'Wakiso', 'Mukono', 'Jinja', 'Mbale',
-  'Mbarara', 'Gulu', 'Lira', 'Fort Portal', 'Masaka',
-  'Entebbe', 'Nansana', 'Kira', 'Bweyogerere',
-];
+// Region control is dataset-backed: Uganda's four official regions only.
+// District and sub-county come from the ug_* reference tables (see below).
+const REGIONS = ['All Regions', ...UG_REGIONS];
 
 const CATEGORIES = [
   { value: 'all', label: 'All Types' },
