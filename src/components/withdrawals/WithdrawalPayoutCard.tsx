@@ -378,6 +378,8 @@ export function WithdrawalPayoutCard({
     setProofFile(null);
     setProofUrl(null);
     setProofPath(null);
+    setRecoveredProofName(null);
+    persistProof(null, null);
   }
 
   // Upload the proof to Cloud storage under the agent's own folder (RLS gate).
@@ -938,7 +940,7 @@ export function WithdrawalPayoutCard({
                       <Upload className="h-3.5 w-3.5 text-primary" />
                       Proof of payment <span className="text-destructive">*</span>
                     </label>
-                    {proofFile && (
+                    {(proofFile || proofUrl) && (
                       <button
                         type="button"
                         onClick={clearProof}
@@ -948,22 +950,32 @@ export function WithdrawalPayoutCard({
                       </button>
                     )}
                   </div>
-                  {proofFile ? (
+                  {proofFile || proofUrl ? (
                     <div className="flex items-center gap-3">
-                      {proofFile.type.startsWith('image/') ? (
+                      {proofFile ? (
+                        proofFile.type.startsWith('image/') ? (
                         <img
                           src={URL.createObjectURL(proofFile)}
                           alt="Payment proof preview"
                           className="h-20 w-20 object-cover rounded-lg border"
                         />
+                        ) : (
+                          <div className="h-20 w-20 flex items-center justify-center rounded-lg border bg-background">
+                            <FileText className="h-8 w-8 text-muted-foreground" />
+                          </div>
+                        )
                       ) : (
-                        <div className="h-20 w-20 flex items-center justify-center rounded-lg border bg-background">
-                          <FileText className="h-8 w-8 text-muted-foreground" />
-                        </div>
+                        <img
+                          src={proofUrl!}
+                          alt="Payment proof"
+                          className="h-20 w-20 object-cover rounded-lg border bg-background"
+                        />
                       )}
                       <div className="min-w-0 text-xs">
-                        <p className="font-semibold truncate">{proofFile.name}</p>
-                        <p className="text-muted-foreground">{(proofFile.size / 1024).toFixed(0)} KB</p>
+                        <p className="font-semibold truncate">{proofFile?.name || recoveredProofName || 'Payment proof'}</p>
+                        {proofFile
+                          ? <p className="text-muted-foreground">{(proofFile.size / 1024).toFixed(0)} KB</p>
+                          : <p className="text-muted-foreground">Recovered from your earlier upload</p>}
                         {proofUploading
                           ? <p className="text-muted-foreground font-medium mt-0.5">Uploading…</p>
                           : proofUrl
@@ -1010,10 +1022,12 @@ export function WithdrawalPayoutCard({
                           const uploaded = await uploadProofFile(f);
                           setProofUrl(uploaded.url);
                           setProofPath(uploaded.path);
+                          persistProof(uploaded.path, uploaded.url, f.name);
                           toast.success('Proof uploaded');
                         } catch (err: any) {
                           setProofUrl(null);
                           setProofPath(null);
+                          persistProof(null, null);
                           setCompleteError(err?.message || 'Failed to upload proof. Try again.');
                           toast.error(err?.message || 'Failed to upload proof');
                         } finally {
