@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect, useRef, Fragment } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -745,9 +745,8 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                         const isSel = selected.has(item.id);
                         const locationLabel = [item.request_city, item.request_country].filter(Boolean).join(', ');
                         return (
-                        <>
+                        <Fragment key={item.id}>
                         <tr
-                          key={item.id}
                           onClick={() => toggle(item.id)}
                           className={cn(
                             'border-b border-border/70 last:border-0 cursor-pointer transition-colors',
@@ -856,7 +855,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                           </td>
                           </tr>
                         )}
-                        </>
+                        </Fragment>
                         );
                       })}
                         </tbody>
