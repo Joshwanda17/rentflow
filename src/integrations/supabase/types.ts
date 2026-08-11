@@ -32628,6 +32628,10 @@ export type Database = {
         Args: { p_reason: string; p_user_id: string }
         Returns: undefined
       }
+      admin_unlink_subagent: {
+        Args: { _reason: string; _record_id: string }
+        Returns: Json
+      }
       advance_campaign_house_progress: {
         Args: { p_sub_agent_id: string }
         Returns: undefined

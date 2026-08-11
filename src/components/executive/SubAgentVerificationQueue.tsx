@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { UsersRound, CheckCircle, XCircle, Loader2, Phone, Calendar, Clock, Search, ArrowLeftRight, UserPlus } from 'lucide-react';
+import { UsersRound, CheckCircle, XCircle, Loader2, Phone, Calendar, Clock, Search, ArrowLeftRight, UserPlus, Unlink } from 'lucide-react';
 import { format } from 'date-fns';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 
@@ -44,6 +44,11 @@ export function SubAgentVerificationQueue() {
   const [transferReason, setTransferReason] = useState('');
   const [newParent, setNewParent] = useState<{ id: string; full_name: string; phone: string | null } | null>(null);
   const [transferring, setTransferring] = useState(false);
+  // Ops-only unlink: detaches the sub-agent from their parent so they become
+  // a fully independent agent.
+  const [unlinkRecord, setUnlinkRecord] = useState<SubAgentRecord | null>(null);
+  const [unlinkReason, setUnlinkReason] = useState('');
+  const [unlinking, setUnlinking] = useState(false);
   const [parentResults, setParentResults] = useState<{ id: string; full_name: string; phone: string | null }[]>([]);
   const [searchingParents, setSearchingParents] = useState(false);
 
@@ -240,6 +245,37 @@ export function SubAgentVerificationQueue() {
     setParentResults([]);
   };
 
+  const openUnlink = (r: SubAgentRecord) => {
+    setUnlinkRecord(r);
+    setUnlinkReason('');
+  };
+
+  const handleUnlink = async () => {
+    if (!unlinkRecord) return;
+    if (unlinkReason.trim().length < 10) {
+      toast.error('Please provide a reason (at least 10 characters).');
+      return;
+    }
+    setUnlinking(true);
+    try {
+      const { error } = await supabase.rpc('admin_unlink_subagent' as any, {
+        _record_id: unlinkRecord.id,
+        _reason: unlinkReason.trim(),
+      });
+      if (error) throw error;
+      toast.success(`${unlinkRecord.sub_name} is now an independent agent.`, {
+        description: 'Link archived and the action was logged.',
+      });
+      setUnlinkRecord(null);
+      setSelectedRecord(null);
+      queryClient.invalidateQueries({ queryKey: ['subagent-verification-queue'] });
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to unlink');
+    } finally {
+      setUnlinking(false);
+    }
+  };
+
   const searchParents = async (term: string) => {
     setTransferSearch(term);
     setNewParent(null);
@@ -319,7 +355,7 @@ export function SubAgentVerificationQueue() {
         )}
       </div>
 
-      <div onClick={e => e.stopPropagation()}>
+      <div onClick={e => e.stopPropagation()} className="grid grid-cols-2 gap-2">
         <Button
           size="sm"
           variant="outline"
@@ -327,7 +363,16 @@ export function SubAgentVerificationQueue() {
           className="w-full gap-1 h-7 text-xs"
         >
           <ArrowLeftRight className="h-3 w-3" />
-          Transfer to another agent
+          Transfer
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => openUnlink(r)}
+          className="w-full gap-1 h-7 text-xs text-destructive border-destructive/30 hover:bg-destructive/10"
+        >
+          <Unlink className="h-3 w-3" />
+          Unlink
         </Button>
       </div>
 
@@ -512,6 +557,15 @@ export function SubAgentVerificationQueue() {
                   >
                     <ArrowLeftRight className="h-3.5 w-3.5" />
                     Transfer to another agent
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => openUnlink(selectedRecord)}
+                    className="w-full gap-1 text-destructive border-destructive/30 hover:bg-destructive/10"
+                  >
+                    <Unlink className="h-3.5 w-3.5" />
+                    Unlink — make independent agent
                   </Button>
                 </CardContent>
               </Card>
@@ -746,6 +800,50 @@ export function SubAgentVerificationQueue() {
             >
               {assigning ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
               Confirm Assignment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Unlink → independent agent */}
+      <Dialog open={!!unlinkRecord} onOpenChange={(open) => { if (!open && !unlinking) setUnlinkRecord(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Unlink className="h-4 w-4 text-destructive" />
+              Make independent agent
+            </DialogTitle>
+          </DialogHeader>
+          {unlinkRecord && (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                <span className="font-medium text-foreground">{unlinkRecord.sub_name}</span> will be detached from{' '}
+                <span className="font-medium text-foreground">{unlinkRecord.parent_name}</span> and will operate as a fully
+                independent agent. Pending tenant transfers between them are cancelled and any suspension placed by the
+                parent is lifted. Blocked if the agent still has funded or repaying tenants — transfer those first.
+              </p>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground uppercase">Reason (for audit log)</label>
+                <Textarea
+                  placeholder="Why is this agent being made independent? (min 10 characters)"
+                  value={unlinkReason}
+                  onChange={(e) => setUnlinkReason(e.target.value)}
+                  maxLength={500}
+                  rows={3}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setUnlinkRecord(null)} disabled={unlinking}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={handleUnlink}
+              disabled={unlinking || unlinkReason.trim().length < 10}
+              className="gap-1"
+            >
+              {unlinking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Unlink className="h-4 w-4" />}
+              Unlink agent
             </Button>
           </DialogFooter>
         </DialogContent>
