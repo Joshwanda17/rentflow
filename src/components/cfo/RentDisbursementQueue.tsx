@@ -771,7 +771,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                   <button
                     type="button"
                     className="text-primary hover:underline"
-                    onClick={() => { setAgentFilter('all'); setCountryFilter('all'); setDateFilter('all'); }}
+                    onClick={() => { setAgentFilter('all'); setDateFilter('all'); clearLocation(); }}
                   >
                     Clear all filters
                   </button>
