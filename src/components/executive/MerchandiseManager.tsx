@@ -834,6 +834,55 @@ function RecoveryBadge({ status }: { status: 'active' | 'completed' | 'cancelled
 // ---------------------------------------------------------------------------
 // Edit storefront catalog item
 // ---------------------------------------------------------------------------
+const SIZE_PRESETS = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL'];
+
+function SizeEditor({ sizes, onChange, input, onInputChange }: {
+  sizes: string[]; onChange: (v: string[]) => void; input: string; onInputChange: (v: string) => void;
+}) {
+  const add = (raw: string) => {
+    const parts = raw.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+    if (parts.length === 0) return;
+    const next = [...sizes];
+    for (const p of parts) if (!next.includes(p)) next.push(p);
+    onChange(next.slice(0, 20));
+    onInputChange('');
+  };
+  const toggle = (s: string) => sizes.includes(s) ? onChange(sizes.filter(x => x !== s)) : add(s);
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-1.5">
+        {SIZE_PRESETS.map(s => (
+          <button key={s} type="button" onClick={() => toggle(s)}
+            className={`h-8 min-w-9 rounded-md border px-2 text-xs font-medium transition-colors ${
+              sizes.includes(s)
+                ? 'bg-primary text-primary-foreground border-primary'
+                : 'bg-background text-muted-foreground border-border hover:bg-muted'
+            }`}>{s}</button>
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <Input value={input} onChange={(e) => onInputChange(e.target.value)} placeholder="Custom size e.g. 42, Free size"
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(input); } }} maxLength={40} />
+        <Button type="button" variant="outline" onClick={() => add(input)} disabled={!input.trim()}>Add</Button>
+      </div>
+      {sizes.length > 0 ? (
+        <div className="flex flex-wrap gap-1.5">
+          {sizes.map(s => (
+            <span key={s} className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs">
+              {s}
+              <button type="button" onClick={() => onChange(sizes.filter(x => x !== s))} className="text-muted-foreground hover:text-destructive">
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+      ) : (
+        <p className="text-[11px] text-muted-foreground">No sizes set — item will show as one-size.</p>
+      )}
+    </div>
+  );
+}
+
 function EditCatalogItemButton({ item, userId, onSaved }: { item: any; userId?: string; onSaved: () => void }) {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -841,6 +890,8 @@ function EditCatalogItemButton({ item, userId, onSaved }: { item: any; userId?: 
   const [description, setDescription] = useState(item.description ?? '');
   const [price, setPrice] = useState(String(item.unit_price ?? ''));
   const [cost, setCost] = useState(String(item.unit_cost ?? ''));
+  const [sizes, setSizes] = useState<string[]>(Array.isArray(item.sizes) ? item.sizes : []);
+  const [sizeInput, setSizeInput] = useState('');
   const initialImages = (): string[] => {
     if (Array.isArray(item.image_urls) && item.image_urls.length > 0) return item.image_urls.slice(0, 2);
     if (item.image_url) return [item.image_url];
@@ -907,6 +958,7 @@ function EditCatalogItemButton({ item, userId, onSaved }: { item: any; userId?: 
         description: description.trim() || null,
         unit_price: p,
         unit_cost: c,
+        sizes,
         image_url: finalUrls[0] ?? null,
         image_urls: finalUrls,
       }).eq('id', item.id);
@@ -931,6 +983,8 @@ function EditCatalogItemButton({ item, userId, onSaved }: { item: any; userId?: 
         setDescription(item.description ?? '');
         setPrice(String(item.unit_price ?? ''));
         setCost(String(item.unit_cost ?? ''));
+        setSizes(Array.isArray(item.sizes) ? item.sizes : []);
+        setSizeInput('');
         setExistingUrls(initialImages());
         newImages.forEach(i => URL.revokeObjectURL(i.previewUrl));
         setNewImages([]);
@@ -961,6 +1015,10 @@ function EditCatalogItemButton({ item, userId, onSaved }: { item: any; userId?: 
               <Label>Cost (UGX)</Label>
               <Input type="number" inputMode="numeric" min={0} value={cost} onChange={(e) => setCost(e.target.value)} />
             </div>
+          </div>
+          <div className="space-y-1">
+            <Label>Available sizes</Label>
+            <SizeEditor sizes={sizes} onChange={setSizes} input={sizeInput} onInputChange={setSizeInput} />
           </div>
           <div className="space-y-1">
             <Label>Images (max 2)</Label>
@@ -1313,9 +1371,12 @@ function AddCatalogItemDialog({ userId, onSaved }: { userId?: string; onSaved: (
   const [unitCost, setUnitCost] = useState('');
   const [images, setImages] = useState<{ file: File; previewUrl: string }[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [sizes, setSizes] = useState<string[]>([]);
+  const [sizeInput, setSizeInput] = useState('');
 
   const reset = () => {
     setItemName(''); setDescription(''); setUnitPrice(''); setUnitCost('');
+    setSizes([]); setSizeInput('');
     images.forEach(i => URL.revokeObjectURL(i.previewUrl));
     setImages([]);
   };
@@ -1372,6 +1433,7 @@ function AddCatalogItemDialog({ userId, onSaved }: { userId?: string; onSaved: (
         description: description.trim() || null,
         unit_price: num(unitPrice),
         unit_cost: num(unitCost),
+        sizes,
         image_url: uploaded[0] ?? null,
         image_urls: uploaded,
         is_active: true,
@@ -1414,6 +1476,10 @@ function AddCatalogItemDialog({ userId, onSaved }: { userId?: string; onSaved: (
               <Label className="text-xs">Cost / unit (for profit)</Label>
               <Input type="number" min={0} value={unitCost} onChange={(e) => setUnitCost(e.target.value)} placeholder="Optional" />
             </div>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Available sizes</Label>
+            <SizeEditor sizes={sizes} onChange={setSizes} input={sizeInput} onInputChange={setSizeInput} />
           </div>
           <div className="space-y-2">
             <Label className="text-xs">Product photos ({images.length}/2)</Label>
