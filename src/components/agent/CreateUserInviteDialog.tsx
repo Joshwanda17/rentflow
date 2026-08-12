@@ -172,6 +172,11 @@ export function CreateUserInviteDialog({ open, onOpenChange, onSuccess, defaultR
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const nameCheck = validatePersonNameParts(nameParts);
+    if (!nameCheck.valid) {
+      toast({ title: 'Error', description: nameCheck.error || 'Enter first and last name', variant: 'destructive' });
+      return;
+    }
 
     if (selectedRole === 'tenant' && !guarantorConsent) {
       toast({ title: 'Please accept guarantor responsibility', description: 'You must acknowledge financial responsibility before registering a tenant.', variant: 'destructive' });
