@@ -74,13 +74,17 @@ vi.mock('@/integrations/supabase/client', () => ({
 
 async function renderAuth() {
   const Auth = (await import('@/pages/Auth')).default;
-  return render(
+  const utils = render(
     <HelmetProvider>
       <MemoryRouter>
         <Auth />
       </MemoryRouter>
     </HelmetProvider>,
   );
+  // The signup screen opens on the role picker — choose a role to reveal the form.
+  const roleButton = screen.queryByText(/I need rent help/i);
+  if (roleButton) fireEvent.click(roleButton);
+  return utils;
 }
 
 beforeEach(() => {
