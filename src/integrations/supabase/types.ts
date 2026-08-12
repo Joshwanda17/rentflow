@@ -18202,6 +18202,81 @@ export type Database = {
         }
         Relationships: []
       }
+      merchant_float_reservations: {
+        Row: {
+          agent_id: string
+          amount_requested: number
+          available_before: number
+          consumed_float: number
+          consumed_telecom: number
+          created_at: string
+          desk_id: string | null
+          float_after: number | null
+          float_before: number
+          id: string
+          out_of_pocket_amount: number
+          planned_out_of_pocket: number
+          receivable_after: number | null
+          released_reason: string | null
+          reserved_amount: number
+          reserved_at: string
+          reserved_before: number
+          settled_at: string | null
+          state: string
+          telecom_expected: number
+          updated_at: string
+          withdrawal_id: string
+        }
+        Insert: {
+          agent_id: string
+          amount_requested?: number
+          available_before?: number
+          consumed_float?: number
+          consumed_telecom?: number
+          created_at?: string
+          desk_id?: string | null
+          float_after?: number | null
+          float_before?: number
+          id?: string
+          out_of_pocket_amount?: number
+          planned_out_of_pocket?: number
+          receivable_after?: number | null
+          released_reason?: string | null
+          reserved_amount?: number
+          reserved_at?: string
+          reserved_before?: number
+          settled_at?: string | null
+          state?: string
+          telecom_expected?: number
+          updated_at?: string
+          withdrawal_id: string
+        }
+        Update: {
+          agent_id?: string
+          amount_requested?: number
+          available_before?: number
+          consumed_float?: number
+          consumed_telecom?: number
+          created_at?: string
+          desk_id?: string | null
+          float_after?: number | null
+          float_before?: number
+          id?: string
+          out_of_pocket_amount?: number
+          planned_out_of_pocket?: number
+          receivable_after?: number | null
+          released_reason?: string | null
+          reserved_amount?: number
+          reserved_at?: string
+          reserved_before?: number
+          settled_at?: string | null
+          state?: string
+          telecom_expected?: number
+          updated_at?: string
+          withdrawal_id?: string
+        }
+        Relationships: []
+      }
       merchant_out_of_pocket_advances: {
         Row: {
           agent_id: string
@@ -32547,6 +32622,32 @@ export type Database = {
         }
         Relationships: []
       }
+      v_merchant_payout_float_trace: {
+        Row: {
+          agent_id: string | null
+          agent_name: string | null
+          amount_requested: number | null
+          available_before: number | null
+          consumed_float: number | null
+          consumed_telecom: number | null
+          consumed_total: number | null
+          desk_id: string | null
+          float_after: number | null
+          float_before: number | null
+          float_state: string | null
+          fronted_personally: number | null
+          planned_out_of_pocket: number | null
+          receivable_after: number | null
+          reserved_amount: number | null
+          reserved_at: string | null
+          reserved_before: number | null
+          settled_at: string | null
+          telecom_expected: number | null
+          withdrawal_id: string | null
+          withdrawal_status: string | null
+        }
+        Relationships: []
+      }
       v_merchant_payout_queue: {
         Row: {
           agent_id: string | null
@@ -34136,6 +34237,16 @@ export type Database = {
           p_field_collection_id: string
           p_notes?: string
           p_tenant_id?: string
+        }
+        Returns: Json
+      }
+      consume_merchant_float: {
+        Args: {
+          p_agent_id: string
+          p_consumed_float: number
+          p_consumed_telecom: number
+          p_out_of_pocket: number
+          p_withdrawal_id: string
         }
         Returns: Json
       }
@@ -36011,6 +36122,10 @@ export type Database = {
         Returns: string
       }
       get_merchant_float_network_status: { Args: never; Returns: Json }
+      get_merchant_float_position: {
+        Args: { p_agent_id?: string }
+        Returns: Json
+      }
       get_merchant_float_positions: {
         Args: never
         Returns: {
@@ -37432,7 +37547,12 @@ export type Database = {
         }
         Returns: boolean
       }
+      merchant_reserved_float: { Args: { p_agent_id: string }; Returns: number }
       merchant_set_online: { Args: { p_online: boolean }; Returns: boolean }
+      merchant_telecom_sending_charge: {
+        Args: { p_amount: number }
+        Returns: number
+      }
       merge_lc1_duplicates: {
         Args: { p_canonical_id: string; p_duplicate_ids: string[] }
         Returns: Json
@@ -38606,6 +38726,10 @@ export type Database = {
         Args: { p_amount: number; p_reason: string; p_review_id: string }
         Returns: string
       }
+      release_merchant_float: {
+        Args: { p_reason?: string; p_withdrawal_id: string }
+        Returns: Json
+      }
       release_phantom_lock: {
         Args: { _amount: number; _reason: string; _user_id: string }
         Returns: Json
@@ -38721,6 +38845,10 @@ export type Database = {
       }
       resend_payout_code: {
         Args: { p_cooldown_seconds?: number; p_withdrawal_request_id: string }
+        Returns: Json
+      }
+      reserve_merchant_float: {
+        Args: { p_agent_id?: string; p_withdrawal_id: string }
         Returns: Json
       }
       reset_agent_float_if_stale: {

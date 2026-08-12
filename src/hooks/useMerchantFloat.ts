@@ -15,6 +15,16 @@ export interface MerchantPayoutFloat {
   landlordFloatTotal: number;
   claimedUnsettledTotal: number;
   availableFloat: number;
+  /** Merchant's OWN float bucket (company money held by them). */
+  ownFloatBalance: number;
+  /** Committed to payouts they already claimed but have not settled. */
+  ownReservedFloat: number;
+  /** Own float genuinely free to commit to a new payout. */
+  ownAvailableFloat: number;
+  /** Float actually consumed by settlements today. */
+  ownConsumedToday: number;
+  /** Money they fronted personally and the company still owes them. */
+  ownOutOfPocketOutstanding: number;
 }
 
 export function useMerchantPayoutFloat(enabled = true) {
@@ -33,6 +43,11 @@ export function useMerchantPayoutFloat(enabled = true) {
         landlordFloatTotal: Number(d.landlord_float_total ?? 0),
         claimedUnsettledTotal: Number(d.claimed_unsettled_total ?? 0),
         availableFloat: Number(d.available_float ?? 0),
+        ownFloatBalance: Number(d.own_float_balance ?? 0),
+        ownReservedFloat: Number(d.own_reserved_float ?? 0),
+        ownAvailableFloat: Number(d.own_available_float ?? 0),
+        ownConsumedToday: Number(d.own_consumed_today ?? 0),
+        ownOutOfPocketOutstanding: Number(d.own_out_of_pocket_outstanding ?? 0),
       };
     },
   });
