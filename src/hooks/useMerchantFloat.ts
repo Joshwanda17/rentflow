@@ -94,10 +94,10 @@ export type MerchantAdjustmentType =
   | 'write_off';
 
 export const MERCHANT_ADJUSTMENT_LABELS: Record<MerchantAdjustmentType, string> = {
-  opening_balance: 'Opening balance (money already with the agent)',
-  reimbursement_recorded: 'Reimbursement we sent outside the system',
-  payout_correction: 'Payout correction (reduce what we recognise as paid out)',
-  write_off: 'Write-off / settlement agreed with the agent',
+  opening_balance: 'Money already with the agent (starting balance)',
+  reimbursement_recorded: 'Money we paid them back outside the system',
+  payout_correction: 'Reduce what we count as paid out',
+  write_off: 'Agreed to let it go (settled with the agent)',
 };
 
 export interface MerchantAdjustmentInput {

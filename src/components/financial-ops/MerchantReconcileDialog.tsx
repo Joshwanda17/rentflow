@@ -67,29 +67,29 @@ export function MerchantReconcileDialog({
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-base">
-            Correct {position.agentName || position.label || 'merchant agent'}
+            Fix balance for {position.agentName || position.label || 'this agent'}
           </DialogTitle>
           <DialogDescription className="text-xs">
-            Record a finance correction. Wallets and the ledger are not touched — this only fixes what
-            the board recognises for this merchant.
+            This only fixes what the board shows for this agent. It does not move any real money or
+            change their wallet.
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid grid-cols-2 gap-2 text-[11px]">
-          <Stat label="Paid out (claimed & settled)" value={position.paidOut} />
-          <Stat label="Recognised reimbursement" value={position.reimbursed} />
-          <Stat label="Recorded float funding" value={position.floatCredits} />
-          <Stat label="Matched MTN/Airtel emails" value={position.emailMatched} muted />
-          <Stat label="Corrections applied" value={position.adjustments} muted />
+          <Stat label="Money they paid out" value={position.paidOut} />
+          <Stat label="Money we paid them back" value={position.reimbursed} />
+          <Stat label="Float we sent them" value={position.floatCredits} />
+          <Stat label="Payment messages matched" value={position.emailMatched} muted />
+          <Stat label="Fixes already made" value={position.adjustments} muted />
           <Stat
-            label={position.companyCashWithAgent > 0 ? 'Holding company cash' : 'We owe agent'}
+            label={position.companyCashWithAgent > 0 ? "They're holding our money" : 'We owe them'}
             value={position.companyCashWithAgent > 0 ? position.companyCashWithAgent : position.owedToAgent}
           />
         </div>
 
         <div className="space-y-3 pt-2">
           <div>
-            <Label className="text-xs">Correction type</Label>
+            <Label className="text-xs">What kind of fix</Label>
             <Select value={type} onValueChange={(v) => setType(v as MerchantAdjustmentType)}>
               <SelectTrigger className="mt-1 h-9 text-xs">
                 <SelectValue />
@@ -115,43 +115,43 @@ export function MerchantReconcileDialog({
             />
             <p className="mt-1 text-[10px] text-muted-foreground">
               {type === 'payout_correction'
-                ? 'Reduces what we treat as paid out by this merchant.'
-                : 'Increases the reimbursement already recognised for this merchant.'}{' '}
-              Use a negative amount to reverse an earlier correction.
+                ? 'Lowers what we count as paid out by this agent.'
+                : 'Adds to the money we already count as paid back to this agent.'}{' '}
+              Use a minus amount to undo an earlier fix.
             </p>
           </div>
 
           <div>
-            <Label className="text-xs">Reason (min 10 characters)</Label>
+            <Label className="text-xs">Why (at least 10 letters)</Label>
             <Textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               rows={3}
-              placeholder="Why this correction is being made"
+              placeholder="Why you are making this fix"
               className="mt-1 text-sm"
             />
             <p className="mt-1 text-[10px] text-muted-foreground">{reason.trim().length}/10</p>
           </div>
 
           <div>
-            <Label className="text-xs">Evidence reference (optional)</Label>
+            <Label className="text-xs">Proof (optional)</Label>
             <Input
               value={evidence}
               onChange={(e) => setEvidence(e.target.value)}
-              placeholder="MoMo transaction ID, statement line, approval note"
+              placeholder="MoMo transaction ID, statement line, or approval note"
               className="mt-1 h-9 text-sm"
             />
           </div>
 
           <Button onClick={submit} disabled={!valid || post.isPending} className="w-full">
-            {post.isPending ? 'Recording…' : 'Record correction'}
+            {post.isPending ? 'Saving…' : 'Save fix'}
           </Button>
         </div>
 
         {!!history?.length && (
           <div className="border-t border-border pt-3 space-y-2">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Correction history
+              Past fixes
             </p>
             {history.map((h) => (
               <div key={h.id} className="rounded-lg border border-border bg-muted/20 px-3 py-2">
