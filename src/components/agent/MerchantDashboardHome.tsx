@@ -204,7 +204,7 @@ export function MerchantDashboardHome({
             progress={insights?.avg ? Math.min(100, Math.round((insights.avg / 200_000) * 100)) : 0}
           />
           <InsightTile
-            label="Success Rate"
+            label="Proof Uploaded"
             value={successPct === null ? '—' : `${successPct}%`}
             icon={<CheckCircle2 className="h-3.5 w-3.5" />}
             accent={successPct !== null && successPct >= 80 ? 'bg-emerald-500' : 'bg-amber-500'}
