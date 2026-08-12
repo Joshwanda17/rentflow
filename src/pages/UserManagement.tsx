@@ -242,26 +242,41 @@ Just click the link and enter your password to get started!`;
     fetchPendingInvites();
   }, []);
 
-  // Growth: new profiles inside the selected window vs the baseline before it
+  // Growth: signups in the selected window vs the previous window of equal length
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
       setGrowthLoading(true);
       const days = GROWTH_WINDOWS[growthWindowIdx].days;
-      const since = new Date();
-      since.setDate(since.getDate() - days);
-      const { count, error } = await supabase
-        .from('profiles')
-        .select('id', { count: 'exact', head: true })
-        .gte('created_at', since.toISOString());
+      const now = Date.now();
+      const windowMs = days * 24 * 60 * 60 * 1000;
+      const currentStart = new Date(now - windowMs).toISOString();
+      const previousStart = new Date(now - windowMs * 2).toISOString();
+      const [currentRes, previousRes] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('id', { count: 'exact', head: true })
+          .gte('created_at', currentStart),
+        supabase
+          .from('profiles')
+          .select('id', { count: 'exact', head: true })
+          .gte('created_at', previousStart)
+          .lt('created_at', currentStart),
+      ]);
       if (cancelled) return;
-      if (error) {
+      if (currentRes.error || previousRes.error) {
         setGrowthPct(null);
       } else {
-        const added = count || 0;
-        const baseline = Math.max(totalUserCount - added, 0);
-        setGrowthNew(added);
-        setGrowthPct(baseline > 0 ? (added / baseline) * 100 : added > 0 ? 100 : 0);
+        const current = currentRes.count || 0;
+        const previous = previousRes.count || 0;
+        setGrowthNew(current);
+        setGrowthPct(
+          previous > 0
+            ? ((current - previous) / previous) * 100
+            : current > 0
+              ? 100
+              : 0,
+        );
       }
       setGrowthLoading(false);
     };
