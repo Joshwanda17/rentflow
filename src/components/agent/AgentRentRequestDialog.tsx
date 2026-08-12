@@ -1179,41 +1179,6 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setLc1Mode('register');
     setLc1Selected(false);
   }, [lc1Query]);
-  // ===== Landlord's existing houses overview =====
-  // When a landlord is already in the system, show the agent every house on
-  // file for that landlord: who is already living there (occupied), which are
-  // listed but still empty, and which are listed but not yet verified. This
-  // helps the agent avoid double-requesting an occupied unit and quickly pick
-  // a vacant/verified house for the new tenant.
-  type LandlordHouse = {
-    id: string;
-    title: string | null;
-    address: string | null;
-    region: string | null;
-    monthly_rent: number | null;
-    status: string | null;
-    verified: boolean | null;
-    tenant_id: string | null;
-    tenant_name: string | null;
-    landlord_phone: string | null;
-    updated_at: string | null;
-  };
-  const [landlordHouses, setLandlordHouses] = useState<LandlordHouse[]>([]);
-  const [landlordHousesLoading, setLandlordHousesLoading] = useState(false);
-  const [houseSearchQuery, setHouseSearchQuery] = useState('');
-  const [houseSort, setHouseSort] = useState<'recent' | 'occupied' | 'empty' | 'unverified'>('recent');
-  const [houseStatusFilter, setHouseStatusFilter] = useState<'all' | 'occupied' | 'empty' | 'unverified'>('all');
-  const houseStatusCounts = useMemo(() => {
-    let occupied = 0, empty = 0, unverified = 0;
-    for (const h of landlordHouses) {
-      const isOccupied = !!h.tenant_id || h.status === 'occupied';
-      const isVerified = h.verified === true && h.status !== 'rejected';
-      if (isOccupied) occupied++;
-      else if (!isVerified) unverified++;
-      else empty++;
-    }
-    return { occupied, empty, unverified };
-  }, [landlordHouses]);
   const LL_MODE_KEY = `welile:rentReq:landlordMode:${user?.id || 'anon'}`;
   const [landlordMode, setLandlordModeState] = useState<'search' | 'register'>(() => {
     try { return (sessionStorage.getItem(LL_MODE_KEY) as 'search' | 'register') || 'search'; }
