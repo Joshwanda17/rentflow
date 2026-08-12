@@ -1248,6 +1248,12 @@ export default function FunderOnboarding() {
         const cleanEmail = sanitizeInput(form.email).trim().toLowerCase();
         const cleanFirst = sanitizeInput(form.firstName).trim();
         const cleanLast = sanitizeInput(form.lastName).trim();
+        const cleanOther = sanitizeInput(form.otherNames).trim();
+        const cleanFullName = joinPersonName({
+          firstName: cleanFirst,
+          otherNames: cleanOther,
+          lastName: cleanLast,
+        });
         const cleanPhone = sanitizeInput(form.phone).trim();
         const cleanAddress = sanitizeInput(form.address).trim();
         const cleanBankName = sanitizeInput(form.bankName).trim();
@@ -1265,6 +1271,7 @@ export default function FunderOnboarding() {
           password: form.password,
           firstName: cleanFirst,
           lastName: cleanLast,
+          otherNames: cleanOther,
           phone: cleanPhone,
           role: definedRole || 'FUNDER',
           referrerId: referrerId || undefined,
@@ -1335,7 +1342,7 @@ export default function FunderOnboarding() {
                 .from('partner_agreements')
                 .upsert({
                   partner_id: newUserId,
-                  full_name: `${cleanFirst} ${cleanLast}`.trim(),
+                  full_name: cleanFullName,
                   phone: cleanPhone,
                   email: cleanEmail,
                   national_id: cleanNationalId,
