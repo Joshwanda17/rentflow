@@ -197,7 +197,7 @@ export function AgentMenuDrawer({
       items: [
         { icon: Share2, label: 'Share Tenant Form', description: 'Send registration link', onClick: onShareTenantForm, accent: 'teal-500', badge: '🔗' },
         { icon: Building2, label: 'Share Landlord Signup', description: 'Invite landlords', onClick: onShareLandlordSignup, accent: 'purple-600', badge: '🏠' },
-        { icon: UserPlus, label: 'Share Partner Form', description: 'Partner investment link', onClick: onSharePartnerForm, accent: 'emerald-600', badge: '🤝' },
+        { icon: UserPlus, label: 'Share Partner Form', description: 'Partner signup link', onClick: onSharePartnerForm, accent: 'emerald-600', badge: '🤝' },
         { icon: Heart, label: 'Invite Funder', description: 'Share signup for funders', onClick: onInviteFunder, accent: 'primary', badge: '💜' },
         { icon: Briefcase, label: 'Invite Investor', description: 'Angel Pool signup link', onClick: onInviteAngelInvestor, accent: 'purple-500', badge: '🦄' },
         { icon: Share2, label: 'Recruit Sub-Agent', description: 'WhatsApp / Copy link', onClick: onShareSubAgentLink, accent: 'green-500', badge: '🔗' },
