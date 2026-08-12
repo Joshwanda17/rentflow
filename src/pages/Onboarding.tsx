@@ -1190,6 +1190,7 @@ export default function FunderOnboarding() {
     supportAmount: '',
     firstName: '',
     lastName: '',
+    otherNames: '',
     email: '',
     password: '',
     confirmPassword: '',
