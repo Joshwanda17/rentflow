@@ -230,8 +230,8 @@ function buildPdf(r: Report, win: { title: string; pretty: string }, logo: Uint8
   let textX = margin + 8;
   if (logo) {
     try {
-      doc.addImage(`data:image/png;base64,${bytesToBase64(logo)}`, "PNG", margin + 8, y + 6, 16, 16);
-      textX = margin + 28;
+      doc.addImage(`data:image/png;base64,${bytesToBase64(logo)}`, "PNG", margin + 8, y + 5.5, 26, 8);
+      textX = margin + 40;
     } catch (_e) { textX = margin + 8; }
   }
   doc.setTextColor(255, 255, 255);
