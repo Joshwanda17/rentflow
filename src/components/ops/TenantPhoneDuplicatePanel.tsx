@@ -13,7 +13,7 @@ import {
   Check,
   EyeOff,
   Settings2,
-  ChevronDown,
+  ArrowRight,
 } from 'lucide-react';
 import { TenantPhoneDuplicateSettingsDialog } from './TenantPhoneDuplicateSettingsDialog';
 
@@ -48,12 +48,18 @@ function timeAgo(iso: string): string {
  * a common signature of typo'd or fraudulent re-registrations that slip past
  * the exact-match unique constraint.
  */
-export function TenantPhoneDuplicatePanel() {
+interface TenantPhoneDuplicatePanelProps {
+  /** `summary` renders the compact dashboard hero card with an "Open hub" action.
+   *  `full` renders the complete working view (used inside the dedicated hub). */
+  variant?: 'summary' | 'full';
+  onOpenHub?: () => void;
+}
+
+export function TenantPhoneDuplicatePanel({ variant = 'full', onOpenHub }: TenantPhoneDuplicatePanelProps = {}) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [showResolved, setShowResolved] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [panelOpen, setPanelOpen] = useState<boolean>(false);
 
   const { data, isFetching, refetch, error } = useQuery({
     queryKey: ['tenant-phone-duplicate-alerts', showResolved],
