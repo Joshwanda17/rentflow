@@ -97,6 +97,7 @@ interface FormState {
   supportAmount: string;
   firstName: string;
   lastName: string;
+  otherNames: string;
   email: string;
   password: string;
   confirmPassword: string;
