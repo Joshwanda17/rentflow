@@ -648,12 +648,15 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
         query = query.or('registration_type.is.null,registration_type.neq.outstanding_balance');
       }
 
-      const { data } = await query
+      const { data, error: queueError } = await query
         // FIFO by latest activity — most recently bumped/resubmitted/approved-into-stage first
         .order('resubmitted_at', { ascending: false, nullsFirst: false })
         .order('updated_at', { ascending: false, nullsFirst: false })
         .order('created_at', { ascending: false })
-        .limit(100);
+        // Raised from 100: the pending stage alone holds 200+ requests, so the
+        // queue was hiding more than half of the work.
+        .limit(1000);
+      if (queueError) throw queueError;
 
       if (!data || data.length === 0) return [];
 
