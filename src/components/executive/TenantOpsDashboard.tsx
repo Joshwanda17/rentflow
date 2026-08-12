@@ -1645,6 +1645,17 @@ export function TenantOpsDashboard() {
               <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Workspaces</p>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
                 {renderHubEntry({
+                  title: 'Pipeline Status',
+                  view: 'pipeline-hub',
+                  icon: Activity,
+                  description: 'Lifecycle counts, receivables, landlord payables, charts and auditable reports for any date range',
+                  stats: [
+                    { label: 'pending', value: pending },
+                    { label: 'in pipeline', value: inPipeline },
+                    { label: 'funded', value: funded },
+                  ],
+                })}
+                {renderHubEntry({
                   title: 'Agent Rent Capacity',
                   view: 'agent-capacity-hub',
                   icon: Gauge,
