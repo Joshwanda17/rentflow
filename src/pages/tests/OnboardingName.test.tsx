@@ -64,6 +64,7 @@ async function goToStep4() {
   await waitFor(() => expect(onStep(2)).toBe(true));
 
   // Step 2 — choose a path and enter an amount.
+  console.log('STEP2 TEXT>>>', document.body.textContent);
   fireEvent.click(screen.getByText(/Support a Tenant/i));
   const amount = await waitFor(() => screen.getByPlaceholderText(/0/));
   fireEvent.change(amount, { target: { value: '1,000,000' } });
