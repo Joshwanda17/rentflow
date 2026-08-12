@@ -3,6 +3,8 @@ import welileLogoUrl from '@/assets/welile-logo.png';
 
 export interface PartnerWithdrawalPdfRow {
   partner: string;
+  /** Portfolio the money was withdrawn for — partners withdraw per portfolio. */
+  portfolio?: string;
   agent: string;
   payee: string;
   method: string;
@@ -95,10 +97,11 @@ export async function generatePartnerWithdrawalsPdf(input: PartnerWithdrawalsPdf
   autoTable(doc, {
     startY: 37,
     margin: { left: margin, right: margin },
-    head: [['#', 'Partner', 'Agent', 'Payee', 'Method', 'Reference', 'Amount', 'Status', 'Date']],
+    head: [['#', 'Partner', 'Portfolio', 'Agent', 'Payee', 'Method', 'Reference', 'Amount', 'Status', 'Date']],
     body: input.rows.map((r, i) => [
       String(i + 1),
       r.partner || '—',
+      r.portfolio || '—',
       r.agent || '—',
       r.payee || '—',
       r.method || '—',
@@ -111,15 +114,16 @@ export async function generatePartnerWithdrawalsPdf(input: PartnerWithdrawalsPdf
     headStyles: { fillColor: THEME_PRIMARY, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
     alternateRowStyles: { fillColor: THEME_STRIPE },
     columnStyles: {
-      0: { cellWidth: 10, halign: 'right' },
-      1: { cellWidth: 45 },
-      2: { cellWidth: 42 },
-      3: { cellWidth: 40 },
-      4: { cellWidth: 26 },
-      5: { cellWidth: 34 },
-      6: { cellWidth: 30, halign: 'right' },
-      7: { cellWidth: 24 },
-      8: { cellWidth: 24 },
+      0: { cellWidth: 9, halign: 'right' },
+      1: { cellWidth: 40 },
+      2: { cellWidth: 38 },
+      3: { cellWidth: 36 },
+      4: { cellWidth: 34 },
+      5: { cellWidth: 22 },
+      6: { cellWidth: 30 },
+      7: { cellWidth: 27, halign: 'right' },
+      8: { cellWidth: 20 },
+      9: { cellWidth: 21 },
     },
     didDrawPage: () => {
       const h = doc.internal.pageSize.getHeight();
