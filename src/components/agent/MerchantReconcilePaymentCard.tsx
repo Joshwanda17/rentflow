@@ -90,6 +90,8 @@ export function MerchantReconcilePaymentCard({ agentId, cashoutAgentId, onDone }
         .in('user_id', ids)
         .in('status', CASHOUT_QUEUE_STATUSES)
         .is('transaction_id', null)
+        .is('processed_at', null)
+        .is('fin_ops_reference', null)
         .order('created_at', { ascending: false })
         .limit(20);
       const map = new Map<string, any>(profs.map((p: any) => [p.id, p]));

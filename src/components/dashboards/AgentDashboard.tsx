@@ -553,6 +553,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         .from('withdrawal_requests')
         .select('amount')
         .in('status', CASHOUT_QUEUE_STATUSES)
+        .is('processed_at', null)
+        .is('fin_ops_reference', null)
         .or(`assigned_cashout_agent_id.is.null,dispatched_at.lt.${cutoffIso}`);
       if (merchantCategoryOrClause) q = q.or(merchantCategoryOrClause);
       if (frozenUserIds.length) {

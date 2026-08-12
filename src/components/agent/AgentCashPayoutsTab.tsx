@@ -153,6 +153,11 @@ interface QueueFilterOpts {
  */
 function applyQueueFilters(q: any, o: QueueFilterOpts) {
   q = q.in('status', CASHOUT_QUEUE_STATUSES);
+  // Hard settlement fence: a payout that carries a FinOps reference or a
+  // processed timestamp has already been confirmed. Such a row must NEVER be
+  // returned by the merchant queue, even if its status column were somehow
+  // left in a queue state by a failed follow-up write.
+  q = q.is('processed_at', null).is('fin_ops_reference', null);
   // Available = unclaimed OR a claim the server cron would already have released
   // (>45 min, no settlement progress). Excludes rows
   // currently claimed by anyone (including me — those live in "Claimed by you").
@@ -533,6 +538,8 @@ export function AgentCashPayoutsTab() {
         .select('*')
         .eq('assigned_cashout_agent_id', isCashoutAgent!.id)
         .in('status', CASHOUT_QUEUE_STATUSES)
+        .is('processed_at', null)
+        .is('fin_ops_reference', null)
         .order('dispatched_at', { ascending: true });
       if (error) throw error;
       return attachProfiles(data || []);
@@ -552,6 +559,8 @@ export function AgentCashPayoutsTab() {
         .from('withdrawal_requests')
         .select('id', { count: 'exact', head: true })
         .in('status', CASHOUT_QUEUE_STATUSES)
+        .is('processed_at', null)
+        .is('fin_ops_reference', null)
         .or(`assigned_cashout_agent_id.is.null,dispatched_at.lt.${cutoffIso}`);
       if (categoryOrClause) q = q.or(categoryOrClause);
       if (channelProviderOrClause) q = q.or(channelProviderOrClause);
