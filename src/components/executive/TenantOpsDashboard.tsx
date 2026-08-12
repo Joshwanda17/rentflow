@@ -974,6 +974,10 @@ export function TenantOpsDashboard() {
   const defaulted = rows.filter(r => r.status === 'defaulted').length;
   const inPipeline = rows.filter(r => ['tenant_ops_approved', 'agent_verified', 'landlord_ops_approved', 'coo_approved'].includes(r.status)).length;
 
+  // Whole-system counts for the tool badges (the row set above is a capped page,
+  // so it cannot be trusted for dashboard-wide totals).
+  const { data: toolCounts } = useTenantOpsToolCounts();
+
   const navCards: NavCard[] = [
     {
       id: 'pipeline',
@@ -981,7 +985,7 @@ export function TenantOpsDashboard() {
       description: 'Approve or reject pending rent requests',
       icon: ClipboardList,
       color: 'bg-amber-500/10 text-amber-600 border-amber-200',
-      badge: pending,
+      badge: (toolCounts?.review_requests ?? 0) + (toolCounts?.new_requests ?? pending),
       badgeColor: 'bg-amber-500 text-white',
     },
     {
@@ -990,7 +994,7 @@ export function TenantOpsDashboard() {
       description: 'Who paid today & who hasn\'t',
       icon: CalendarCheck,
       color: 'bg-emerald-500/10 text-emerald-600 border-emerald-200',
-      badge: repaying,
+      badge: toolCounts?.payments_today ?? repaying,
       badgeColor: 'bg-emerald-500 text-white',
     },
     {
@@ -999,7 +1003,7 @@ export function TenantOpsDashboard() {
       description: 'Tenants behind on payments',
       icon: CalendarX2,
       color: 'bg-destructive/10 text-destructive border-destructive/20',
-      badge: defaulted,
+      badge: toolCounts?.missed_days_tenants ?? defaulted,
       badgeColor: 'bg-destructive text-white',
     },
     {
@@ -1008,6 +1012,8 @@ export function TenantOpsDashboard() {
       description: 'Risk scores & payment patterns',
       icon: Activity,
       color: 'bg-purple-500/10 text-purple-600 border-purple-200',
+      badge: toolCounts?.critical_tenants ?? 0,
+      badgeColor: 'bg-purple-500 text-white',
     },
     {
       id: 'history',
@@ -1015,6 +1021,8 @@ export function TenantOpsDashboard() {
       description: 'Past approvals & rejections log',
       icon: History,
       color: 'bg-blue-500/10 text-blue-600 border-blue-200',
+      badge: toolCounts?.approvals_today ?? 0,
+      badgeColor: 'bg-blue-500 text-white',
     },
     {
       id: 'all-requests',
@@ -1036,6 +1044,8 @@ export function TenantOpsDashboard() {
       description: 'Geo-stamped link & transfer history',
       icon: Shield,
       color: 'bg-emerald-500/10 text-emerald-600 border-emerald-200',
+      badge: toolCounts?.transfers_30d ?? 0,
+      badgeColor: 'bg-emerald-500 text-white',
     },
     {
       id: 'collect-rent',
