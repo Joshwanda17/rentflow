@@ -1107,6 +1107,15 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
         </div>
       </CardHeader>
       <CardContent className="p-0">
+        <div className="px-3 pb-3">
+          <TenantOpsReportToolbar
+            tool="review_requests"
+            status="all"
+            search={search}
+            visibleCount={filtered.length}
+            fileSlug="tenant-requests-review-queue"
+          />
+        </div>
         {isLoading ? (
           <div className="flex justify-center py-8">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
