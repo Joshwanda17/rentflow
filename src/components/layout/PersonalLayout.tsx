@@ -64,7 +64,7 @@ const PersonalLayout = ({ children, title }: PersonalLayoutProps) => {
             <button
               type="button"
               onClick={() => navigate('/me')}
-              className="absolute -top-2 left-2 p-2 rounded-full bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              className="absolute top-2 left-2 p-2 mt-2 mb-2 rounded-full bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
               aria-label="Back to My space"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -73,7 +73,7 @@ const PersonalLayout = ({ children, title }: PersonalLayoutProps) => {
           <button
             type="button"
             onClick={goToFunderDashboard}
-            className="absolute -top-2 right-2 p-2 rounded-full bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+            className="absolute top-2 right-2 p-2 mt-2 mb-2 rounded-full bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
             aria-label="Back to funder dashboard"
           >
             <X className="h-4 w-4" />
