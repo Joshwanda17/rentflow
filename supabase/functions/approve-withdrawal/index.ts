@@ -3696,6 +3696,12 @@ Deno.serve(async (req) => {
     );
   } catch (err) {
     console.error("[approve-withdrawal] Error:", err);
+    // Never leave an unsettled claim stranded in `processing`.
+    try {
+      await safetyRelease?.();
+    } catch (_e) {
+      /* already logged inside safetyRelease */
+    }
     return new Response(JSON.stringify({ error: "Internal server error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
