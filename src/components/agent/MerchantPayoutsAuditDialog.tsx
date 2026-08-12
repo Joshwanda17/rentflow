@@ -50,6 +50,8 @@ export function MerchantPayoutsAuditDialog({ open, onOpenChange }: Props) {
           'id, user_id, amount, status, payout_method, mobile_money_number, bank_account_number, assigned_cashout_agent_id, dispatched_at, created_at',
         )
         .in('status', CASHOUT_QUEUE_STATUSES)
+        .is('processed_at', null)
+        .is('fin_ops_reference', null)
         .or(`assigned_cashout_agent_id.is.null,dispatched_at.lt.${cutoffIso}`)
         .order('created_at', { ascending: false })
         .limit(2000);
