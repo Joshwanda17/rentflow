@@ -85,6 +85,7 @@ export default function RoiDisbursementReportPanel() {
   const today = new Date(Date.now() + 3 * 3600 * 1000).toISOString().slice(0, 10);
   const [period, setPeriod] = useState<Period>('daily');
   const [anchor, setAnchor] = useState<string>(today);
+  const [nameSearch, setNameSearch] = useState('');
   const range = useMemo(() => periodRange(period, anchor), [period, anchor]);
 
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
@@ -102,6 +103,18 @@ export default function RoiDisbursementReportPanel() {
 
   const periodTitle = `${PERIOD_LABEL[period]} Returns Disbursement Report`;
   const fileStem = `ROI_Disbursement_Report_${period}_${anchor}`;
+
+  const nameQuery = nameSearch.trim().toLowerCase();
+  const matchesName = (r: { partner?: string | null; paid_to?: string | null; portfolio_phone?: string | null }) =>
+    !nameQuery ||
+    (r.partner ?? '').toLowerCase().includes(nameQuery) ||
+    (r.paid_to ?? '').toLowerCase().includes(nameQuery) ||
+    (r.portfolio_phone ?? '').toLowerCase().includes(nameQuery);
+
+  const cashRows = useMemo(() => (data?.cash ?? []).filter(matchesName), [data, nameQuery]);
+  const compoundedRows = useMemo(() => (data?.compounded ?? []).filter(matchesName), [data, nameQuery]);
+  const cashFilteredTotal = cashRows.reduce((s, r) => s + Number(r.returns_paid ?? 0), 0);
+  const compoundedFilteredTotal = compoundedRows.reduce((s, r) => s + Number(r.returns_compounded ?? 0), 0);
 
   const exportCash = () => {
     if (!data) return;
