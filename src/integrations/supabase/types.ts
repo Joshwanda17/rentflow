@@ -18593,6 +18593,33 @@ export type Database = {
           },
         ]
       }
+      merchant_payout_success_runs: {
+        Row: {
+          created_at: string
+          id: string
+          per_merchant: Json
+          summary: Json
+          updated_at: string
+          window_days: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          per_merchant: Json
+          summary: Json
+          updated_at?: string
+          window_days: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          per_merchant?: Json
+          summary?: Json
+          updated_at?: string
+          window_days?: number
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           content: string
@@ -38117,6 +38144,25 @@ export type Database = {
         Returns: boolean
       }
       merchant_ledger_float: { Args: { p_agent_id: string }; Returns: number }
+      merchant_payout_success_matrix: {
+        Args: { p_days?: number }
+        Returns: {
+          actioned: number
+          attempts: number
+          grade: string
+          merchant_id: string
+          merchant_name: string
+          paid: number
+          pct_customer_debited: number
+          pct_fully_recorded: number
+          pct_paid: number
+          stranded_processing: number
+        }[]
+      }
+      merchant_payout_success_summary: {
+        Args: { p_days?: number }
+        Returns: Json
+      }
       merchant_reserved_float: { Args: { p_agent_id: string }; Returns: number }
       merchant_set_online: { Args: { p_online: boolean }; Returns: boolean }
       merchant_telecom_sending_charge: {
@@ -39175,6 +39221,10 @@ export type Database = {
           p_source_id?: string
           p_source_table: string
         }
+        Returns: string
+      }
+      record_merchant_payout_success_run: {
+        Args: { p_days?: number }
         Returns: string
       }
       record_payout_acceptance_run: {
