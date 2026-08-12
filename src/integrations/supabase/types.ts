@@ -34265,6 +34265,10 @@ export type Database = {
         Args: { _target_agent_id: string; _viewer_id: string }
         Returns: boolean
       }
+      can_view_payout_reconciliation: {
+        Args: { p_user_id: string }
+        Returns: boolean
+      }
       cancel_agent_advance: {
         Args: { p_advance_id: string; p_reason: string; p_recoup: boolean }
         Returns: Json
@@ -36606,6 +36610,32 @@ export type Database = {
       get_payout_proof_integrity_report: { Args: never; Returns: Json }
       get_payout_receipt: { Args: { p_withdrawal_id: string }; Returns: Json }
       get_payout_receipt_by_token: { Args: { p_token: string }; Returns: Json }
+      get_payout_reconciliation_counts: { Args: never; Returns: Json }
+      get_payout_reconciliation_queue: {
+        Args: { p_bucket?: string; p_limit?: number; p_offset?: number }
+        Returns: {
+          age_hours: number
+          amount: number
+          bucket: string
+          created_at: string
+          fin_ops_reference: string
+          has_payment_evidence: boolean
+          merchant_id: string
+          merchant_name: string
+          payout_method: string
+          processed_at: string
+          settlement_attempts: number
+          settlement_checked_at: string
+          settlement_missing_legs: Json
+          settlement_state: string
+          status: string
+          total_count: number
+          user_id: string
+          user_name: string
+          user_phone: string
+          withdrawal_id: string
+        }[]
+      }
       get_pending_wallet_ops: {
         Args: { p_page?: number; p_page_size?: number }
         Returns: Json
@@ -38689,6 +38719,10 @@ export type Database = {
         Returns: Json
       }
       pay_partner_self_cycles: { Args: { p_limit?: number }; Returns: Json }
+      payout_reconciliation_bucket: {
+        Args: { p_missing: Json; p_settlement_state: string; p_status: string }
+        Returns: string
+      }
       populate_wallet_review_queue: {
         Args: never
         Returns: {
