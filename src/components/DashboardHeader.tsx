@@ -109,7 +109,6 @@ const DashboardHeader = memo(function DashboardHeader({
 
   const showInstallButton = isInstallable && !isInstalled;
   const visibleRoles = availableRoles.filter((role) => role in roleConfigMap);
-  const showPersonalEntry = availableRoles.some((role) => !PUBLIC_ROLES.includes(role));
 
   return (
     <>
@@ -164,24 +163,6 @@ const DashboardHeader = memo(function DashboardHeader({
                           </button>
                         );
                       })}
-                      {showPersonalEntry && (
-                        <>
-                          <div className="h-px bg-border my-1.5" />
-                          <button
-                            onClick={() => {
-                              setRolePickerOpen(false);
-                              navigate('/me');
-                            }}
-                            className={cn(
-                              "w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl text-sm font-medium transition-all touch-manipulation min-h-[44px]",
-                              "text-foreground hover:bg-muted active:scale-[0.98]"
-                            )}
-                          >
-                            <UserRound className="h-4 w-4 text-muted-foreground" />
-                            <span>My space</span>
-                          </button>
-                        </>
-                      )}
                     </PopoverContent>
                   </Popover>
                 </>
