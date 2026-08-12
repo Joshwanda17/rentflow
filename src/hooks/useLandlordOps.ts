@@ -183,6 +183,8 @@ export interface LandlordReportRow {
   status: string | null;
   source: string | null;
   verification_reason: string | null;
+  /** Existing service-centre verification comment recorded on the landlord. */
+  service_center_comment?: string | null;
   verification_updated_at: string | null;
   verified_by_name: string | null;
   created_at: string | null;
