@@ -288,6 +288,13 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  // Safety net: set once the withdrawal has been atomically claimed so the
+  // top-level catch can return an unsettled `processing` row to the shared
+  // queue instead of leaving it permanently invisible. Only ever releases
+  // rows that are still `processing` AND have no settlement legs posted.
+  // Declared OUTSIDE the try so the catch block can actually reach it.
+  let safetyRelease: (() => Promise<void>) | null = null;
+
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
@@ -575,6 +582,15 @@ Deno.serve(async (req) => {
           ? (body as any).sms_text
           : null;
     const pasteSms = pasteSmsRaw && pasteSmsRaw.trim().length > 0 ? pasteSmsRaw : null;
+    // Hoisted so the post-claim "matched" audit write below can reach the
+    // logger that is created inside the SMS-validation block. Without this the
+    // post-claim call threw `logSmsPaste is not defined`, which aborted the
+    // invocation AFTER the atomic claim had already set `processing` —
+    // stranding the withdrawal with no settlement, no float debit, no
+    // commission, no SMS and no claim release.
+    let logSmsPasteRef:
+      | ((result: string, code: string | null, message: string | null) => Promise<void>)
+      | null = null;
     if (pasteSms && actingAsMerchant && !isCashPayout) {
       const parsed = parsePayoutConfirmationSms(pasteSms);
       const requestedAmount = Math.round(Number((wr as any).amount || 0));
@@ -664,6 +680,7 @@ Deno.serve(async (req) => {
           console.warn("[approve-withdrawal] sms audit log insert failed", e);
         }
       };
+      logSmsPasteRef = logSmsPaste;
 
       // (2) Amount sent must equal the amount requested.
       if (parsed.amount == null) {
@@ -1155,7 +1172,15 @@ Deno.serve(async (req) => {
     // The remainder of this invocation may still advance `paid` to `completed`;
     // retries cannot claim or return the already-paid row to pending.
     if (pasteSms && actingAsMerchant && !isCashPayout) {
-      await logSmsPaste("matched", null, null);
+      // Audit-only: must never abort the payout after the claim is held.
+      try {
+        await logSmsPasteRef?.("matched", null, null);
+      } catch (e) {
+        console.warn(
+          "[approve-withdrawal] matched sms audit log failed (non-blocking):",
+          (e as Error).message,
+        );
+      }
     }
 
     // Helper used by the early-failure paths below to release the claim so
@@ -1186,6 +1211,32 @@ Deno.serve(async (req) => {
           .eq("status", "processing");
       } catch (e) {
         console.error("[approve-withdrawal] releaseClaim failed:", (e as Error).message);
+      }
+    };
+
+    // Arm the top-level safety net now that the claim is held. It must never
+    // undo a payout that already posted settlement legs, so it checks the
+    // ledger for this withdrawal before reverting.
+    safetyRelease = async () => {
+      try {
+        const { data: legs } = await admin
+          .from("general_ledger")
+          .select("id")
+          .like("reference_id", `${withdrawal_id}%`)
+          .limit(1);
+        if (legs && legs.length > 0) {
+          console.error(
+            "[approve-withdrawal] settlement legs exist — NOT releasing claim",
+            withdrawal_id,
+          );
+          return;
+        }
+        await releaseClaim();
+      } catch (e) {
+        console.error(
+          "[approve-withdrawal] safetyRelease failed:",
+          (e as Error).message,
+        );
       }
     };
 
@@ -3647,6 +3698,12 @@ Deno.serve(async (req) => {
     );
   } catch (err) {
     console.error("[approve-withdrawal] Error:", err);
+    // Never leave an unsettled claim stranded in `processing`.
+    try {
+      await safetyRelease?.();
+    } catch (_e) {
+      /* already logged inside safetyRelease */
+    }
     return new Response(JSON.stringify({ error: "Internal server error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
