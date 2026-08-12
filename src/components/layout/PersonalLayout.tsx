@@ -28,6 +28,7 @@ const PersonalLayout = ({ children, title }: PersonalLayoutProps) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [displayName, setDisplayName] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -35,10 +36,13 @@ const PersonalLayout = ({ children, title }: PersonalLayoutProps) => {
       if (!user) return;
       const { data } = await supabase
         .from('profiles')
-        .select('full_name')
+        .select('full_name, avatar_url')
         .eq('id', user.id)
         .maybeSingle();
-      if (!cancelled && data?.full_name) setDisplayName(data.full_name);
+      if (!cancelled) {
+        if (data?.full_name) setDisplayName(data.full_name);
+        setAvatarUrl(data?.avatar_url || null);
+      }
     };
     load();
     return () => { cancelled = true; };
