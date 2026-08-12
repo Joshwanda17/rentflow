@@ -575,6 +575,15 @@ Deno.serve(async (req) => {
           ? (body as any).sms_text
           : null;
     const pasteSms = pasteSmsRaw && pasteSmsRaw.trim().length > 0 ? pasteSmsRaw : null;
+    // Hoisted so the post-claim "matched" audit write below can reach the
+    // logger that is created inside the SMS-validation block. Without this the
+    // post-claim call threw `logSmsPaste is not defined`, which aborted the
+    // invocation AFTER the atomic claim had already set `processing` —
+    // stranding the withdrawal with no settlement, no float debit, no
+    // commission, no SMS and no claim release.
+    let logSmsPasteRef:
+      | ((result: string, code: string | null, message: string | null) => Promise<void>)
+      | null = null;
     if (pasteSms && actingAsMerchant && !isCashPayout) {
       const parsed = parsePayoutConfirmationSms(pasteSms);
       const requestedAmount = Math.round(Number((wr as any).amount || 0));
@@ -664,6 +673,7 @@ Deno.serve(async (req) => {
           console.warn("[approve-withdrawal] sms audit log insert failed", e);
         }
       };
+      logSmsPasteRef = logSmsPaste;
 
       // (2) Amount sent must equal the amount requested.
       if (parsed.amount == null) {
