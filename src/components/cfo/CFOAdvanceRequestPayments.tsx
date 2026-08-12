@@ -807,7 +807,7 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
         const principalChanged = principal !== originalPrincipal;
         const cycleChanged = cycleDays !== originalCycle;
         const isApprovedAlready = req.status === 'cfo_approved';
-        const busy = payMutation.isPending || approveAndPayMutation.isPending;
+        const busy = payMutation.isPending || approveAndPayMutation.isPending || approveMutation.isPending;
 
         return (
           <Dialog open={!!confirmingId} onOpenChange={(open) => !open && setConfirmingId(null)}>
@@ -973,6 +973,19 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
                 >
                   <X className="h-4 w-4 mr-1" /> Cancel
                 </Button>
+                {!isApprovedAlready && (
+                  <Button
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() => {
+                      approveMutation.mutate(req);
+                      setConfirmingId(null);
+                    }}
+                    className="w-full sm:w-auto gap-2 border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+                  >
+                    <CheckCircle2 className="h-4 w-4" /> Approve only
+                  </Button>
+                )}
                 <Button
                   onClick={() => {
                     if (isApprovedAlready) {
