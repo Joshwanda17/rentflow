@@ -37164,6 +37164,10 @@ export type Database = {
           visible_scope: number
         }[]
       }
+      ops_landlord_funded_stats: {
+        Args: { p_date_from?: string; p_date_to?: string; p_search?: string }
+        Returns: Json
+      }
       ops_landlord_report: {
         Args: {
           p_date_from?: string
