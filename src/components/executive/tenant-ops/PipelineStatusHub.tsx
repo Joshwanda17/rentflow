@@ -90,16 +90,23 @@ const pct = (current: number, previous: number): number | null => {
 
 interface Props {
   onOpenTenant?: (tenantId: string, tenantName: string) => void;
+  /** Optional lifecycle group to preselect when the hub is deep-linked from
+   *  the Classic "Pipeline status" tiles. Must be a PIPELINE_STATUS_GROUPS key. */
+  initialStatusKey?: string;
 }
 
-export function PipelineStatusHub({ onOpenTenant }: Props) {
+export function PipelineStatusHub({ onOpenTenant, initialStatusKey }: Props) {
   const { data, isLoading, isFetching, refetch, error } = useTenantPipelineHubData();
   const { user, role } = useAuth();
 
   const [presetKey, setPresetKey] = useState('30d');
   const [range, setRange] = useState<{ from: Date; to: Date }>(() => PRESETS[2].make());
   const [dateBasis, setDateBasis] = useState<DateBasis>('created_at');
-  const [statusKey, setStatusKey] = useState('all');
+  const [statusKey, setStatusKey] = useState(() =>
+    initialStatusKey && PIPELINE_STATUS_GROUPS.some((g) => g.key === initialStatusKey)
+      ? initialStatusKey
+      : 'all',
+  );
   const [search, setSearch] = useState('');
   const [district, setDistrict] = useState('all');
   const [agent, setAgent] = useState('all');
