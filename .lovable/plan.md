@@ -2,7 +2,7 @@
 
 ## What is actually broken
 
-The chain (Claim → Approve → Float debit → Telecom charge → Out-of-pocket receivable → 0.5% commission → Mark paid → Welile SMS) is **not broken for most merchants**. Verified over the last 10 days:
+The chain (Claim → Approve → Float debit → Telecom charge → Out-of-pocket receivable → 0.5% commission → Mark paid → Welile SMS) is **not broken for most merchants**. Live check of the last 2 hours: MULUNGI AIDAH 4/4 settled correctly, **Bayo Mercy 2 payouts (UGX 75,700) with no float debit and no commission** — same failure, happening right now. The same pattern over the wider history:
 
 | Merchant | Settled | Float debited + commission | Missing |
 |---|---|---|---|
