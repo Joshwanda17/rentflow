@@ -432,7 +432,7 @@ export function AgentCollectionsCommandCenter() {
       <Card className="p-3">
         <div className="flex flex-wrap items-center gap-2 mb-2">
           <h3 className="text-sm font-semibold mr-auto">Agents by collections vs expected</h3>
-          <Badge variant="outline" className="text-[10px]">{agents.length} agents</Badge>
+          <Badge variant="outline" className="text-[10px]">{filteredAgents.length} agents</Badge>
           <div className="relative">
             <Search className="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
             <Input
@@ -446,12 +446,12 @@ export function AgentCollectionsCommandCenter() {
 
         {isLoading ? (
           <p className="text-sm text-muted-foreground py-6 text-center">Loading collections…</p>
-        ) : agents.length === 0 ? (
+        ) : filteredAgents.length === 0 ? (
           <p className="text-sm text-muted-foreground py-6 text-center">No agents match this range.</p>
         ) : (
           <>
             <div className="space-y-2">
-              {agents.slice(0, visibleAgents).map((a, i) => (
+              {filteredAgents.slice(0, visibleAgents).map((a, i) => (
                 <div
                   key={a.agent_id}
                   className="rounded-lg border bg-card/60 p-2.5 flex items-start gap-3 hover:bg-accent/40 transition-colors"
