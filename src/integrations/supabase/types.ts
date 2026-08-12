@@ -34325,6 +34325,7 @@ export type Database = {
       generate_portfolio_code: { Args: never; Returns: string }
       generate_short_code: { Args: never; Returns: string }
       generate_welile_ai_id: { Args: { user_uuid: string }; Returns: string }
+      get_active_employee_staff_count: { Args: never; Returns: number }
       get_admin_campaign_analytics: {
         Args: { p_campaign_id?: string; p_from?: string; p_to?: string }
         Returns: Json
