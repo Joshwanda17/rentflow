@@ -145,24 +145,22 @@ export function DailyPaymentTracker() {
   const dayStartIso = new Date(`${todayStr}T00:00:00+03:00`).toISOString();
   const dayEndIso = new Date(`${todayStr}T23:59:59.999+03:00`).toISOString();
 
-  // Fetch active rent requests (disbursed/repaying)
+  // Active rent plans, sourced from the platform's authoritative daily-eligibility
+  // view (the same rule that drives agent daily targets and the tool badges):
+  // funded/repaying, still owing, not paused, not marked "not paying".
   const { data: activeRequests, isLoading: reqLoading, refetch } = useQuery({
     queryKey: ['daily-tracker-active'],
     queryFn: async () => {
-      // `disbursed_at` is missing on most repaying plans, so it must not be used
-      // as a filter — doing so hid the majority of active plans from this tool.
-      // Paginated to survive the 1000-row Data API cap.
       const all: any[] = [];
       const page = 1000;
       for (let from = 0; ; from += page) {
         const { data, error } = await supabase
-          .from('rent_requests')
-          .select('id, tenant_id, agent_id, landlord_id, daily_repayment, rent_amount, amount_repaid, total_repayment, disbursed_at, funded_at, created_at, status, tenant_no_smartphone')
-          .in('status', ['disbursed', 'repaying', 'funded'])
-          .order('created_at', { ascending: false })
+          .from('v_tenant_daily_eligibility')
+          .select('rent_request_id, tenant_id, agent_id, landlord_id, daily_repayment, rent_amount, amount_repaid, total_repayment, start_at, status, tenant_no_smartphone')
+          .order('start_at', { ascending: false })
           .range(from, from + page - 1);
         if (error) throw error;
-        all.push(...(data || []));
+        all.push(...(data || []).map((r: any) => ({ ...r, id: r.rent_request_id, disbursed_at: r.start_at })));
         if (!data || data.length < page) break;
       }
       return all;
