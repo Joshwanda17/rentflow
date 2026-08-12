@@ -290,6 +290,11 @@ Deno.serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("Authorization");
+    // Safety net: set once the withdrawal has been atomically claimed so the
+    // top-level catch can return an unsettled `processing` row to the shared
+    // queue instead of leaving it permanently invisible. Only ever releases
+    // rows that are still `processing` AND have no settlement legs posted.
+    let safetyRelease: (() => Promise<void>) | null = null;
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Missing authorization" }), {
         status: 401,
