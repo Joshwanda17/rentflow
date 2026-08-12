@@ -101,7 +101,10 @@ async function goToStep4() {
 
   // Step 3 — bank payout
   // + next of kin
-  fireEvent.click(screen.getByText(/^Bank/i));
+  if (!screen.queryByPlaceholderText(/e.g. Stanbic Bank/i)) {
+    fireEvent.click(screen.getAllByText(/^Bank$/i)[0]);
+    await waitFor(() => expect(screen.getByPlaceholderText(/e.g. Stanbic Bank/i)).toBeInTheDocument());
+  }
   fireEvent.change(screen.getByPlaceholderText(/e.g. Stanbic Bank/i), { target: { value: 'Stanbic Bank' } });
   fireEvent.change(screen.getByPlaceholderText(/Name on the account/i), { target: { value: 'Alice Nakato' } });
   fireEvent.change(screen.getByPlaceholderText(/^Account number$/i), { target: { value: '123456789' } });
