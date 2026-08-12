@@ -99,7 +99,7 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
                     {r.agentName || r.label || 'Merchant agent'}
                   </p>
                   <p className="text-[11px] text-muted-foreground truncate">
-                    {r.agentPhone || '—'} · paid out {formatUGX(r.paidOut)} · received {formatUGX(r.reimbursed)}
+                    {r.agentPhone || '—'} · sent out {formatUGX(r.paidOut)} · we sent back {formatUGX(r.reimbursed)}
                   </p>
                 </div>
                 <div className="text-right shrink-0">
@@ -111,7 +111,7 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
                     {formatUGX(holding ? r.companyCashWithAgent : r.owedToAgent)}
                   </p>
                   <p className="text-[10px] text-muted-foreground">
-                    {holding ? 'holding company cash' : 'we owe agent'}
+                    {holding ? 'still holding our cash' : 'we owe them'}
                   </p>
                   <button
                     type="button"
@@ -130,9 +130,7 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
       <div className="mt-4 rounded-xl bg-primary/5 border border-primary/10 p-3 flex gap-2">
         <Wallet className="h-4 w-4 text-primary shrink-0 mt-0.5" />
         <p className="text-[11px] leading-relaxed text-muted-foreground">
-          A merchant may only demand money they have already claimed and paid out. Reimbursement is
-          recognised from recorded float funding sent to their line, with matched MTN/Airtel emails as
-          supporting evidence. Anything else must be posted as a correction with a written reason.
+          An agent can only ask to be paid back for money they have already sent out from their own phone. We only send money back after we see the MTN/Airtel payment message showing what they paid. If the numbers don't match, the difference must be fixed with a written reason.
         </p>
       </div>
 
