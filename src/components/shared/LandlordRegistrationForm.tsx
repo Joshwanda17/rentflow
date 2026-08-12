@@ -27,7 +27,14 @@ import FormStepHeader from '@/components/shared/FormStepHeader';
 import { LandlordAutocompleteInput } from '@/components/agent/LandlordAutocompleteInput';
 import type { LandlordOption } from '@/components/agent/LandlordSearchSelect';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
-import { validateFullName } from '@/lib/authValidation';
+import {
+  validateFullName,
+  joinPersonName,
+  splitPersonName,
+  validatePersonNameParts,
+  type PersonNameParts,
+} from '@/lib/authValidation';
+import PersonNameFields from '@/components/shared/PersonNameFields';
 import { UgLocationPicker } from '@/components/location/UgLocationPicker';
 import { ugLocationLabel, type UgLocationSelection } from '@/hooks/useUgLocations';
 
@@ -130,7 +137,7 @@ export default function LandlordRegistrationForm({
     if (name === 'lc1Name') {
       if (!trimmed) msg = 'LC1 name is required';
       else {
-        const r = validateFullName(trimmed);
+        const r = validatePersonNameParts(splitPersonName(trimmed));
         if (!r.valid) msg = r.error || 'Enter the LC1 chairperson\u2019s real full name.';
       }
     }
@@ -235,7 +242,10 @@ export default function LandlordRegistrationForm({
   const [houseCategory, setHouseCategory] = useState('');
 
   // LC1 (only collected in minimal/outstanding mode)
-  const [lc1Name, setLc1Name] = useState('');
+  // Captured in parts, submitted as the same single `name` string.
+  const [lc1NameParts, setLc1NameParts] = useState<PersonNameParts>({ firstName: '', otherNames: '', lastName: '' });
+  const lc1Name = joinPersonName(lc1NameParts);
+  const setLc1Name = (next: string) => setLc1NameParts(splitPersonName(next));
   const [lc1Phone, setLc1Phone] = useState('');
 
   // Mobile Money
@@ -1023,21 +1033,14 @@ export default function LandlordRegistrationForm({
               <div className="space-y-2">
                 <div data-field="lc1Name" className="space-y-1">
                   <Label className="text-sm font-semibold flex items-center gap-1.5">
-                    <User className="h-4 w-4" /> LC1 Name *
+                    <User className="h-4 w-4" /> LC1 Chairperson Name *
                   </Label>
-                  <Input
-                    value={lc1Name}
-                    onChange={(e) => { setLc1Name(e.target.value); clearError('lc1Name'); }}
-                    onBlur={(e) => validateField('lc1Name', e.target.value)}
-                    placeholder="e.g. Grace Nakato Ssebunya — LC1 Chairperson"
-                    className={`h-12 text-base ${errors.lc1Name ? 'border-destructive focus-visible:ring-destructive' : ''}`}
-                    required
+                  <PersonNameFields
+                    idPrefix="landlord-form-lc1"
+                    value={lc1NameParts}
+                    onChange={(next) => { setLc1NameParts(next); clearError('lc1Name'); }}
+                    errors={{ firstName: errors.lc1Name || null }}
                   />
-                  {errors.lc1Name && (
-                    <p className="text-[11px] text-destructive flex items-center gap-1">
-                      <AlertTriangle className="h-3 w-3" /> {errors.lc1Name}
-                    </p>
-                  )}
                 </div>
                 <div data-field="lc1Phone" className="space-y-1">
                   <Label className="text-sm font-semibold flex items-center gap-1.5">
