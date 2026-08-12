@@ -39,6 +39,8 @@ const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const DEFAULT_RECIPIENTS = ["pexpert46@gmail.com"];
 const EVENT_TYPE = "agent_daily_performance_report";
 const LABEL = "agent-daily-performance-report";
+const FROM = "Welile Reports <info@welile.com>";
+const SENDER_DOMAIN = "notify.welile.com";
 
 // Kept identical to the dashboard button.
 const ACTIVE_STATUSES = ["approved", "disbursed", "active", "repaying", "funded"];
@@ -523,10 +525,10 @@ async function sendWithAttachment(
 }
 
 async function queueFallback(
-  admin: Admin, to: string, subject: string, html: string, text: string, dateStr: string,
+  admin: Admin, to: string, subject: string, html: string, text: string, dateStr: string, force: boolean,
 ): Promise<string> {
   const messageId = crypto.randomUUID();
-  await ensureUnsubscribeToken(admin, to);
+  const unsubscribeToken = await ensureUnsubscribeToken(admin, to);
   await admin.from("email_send_log").insert({
     message_id: messageId,
     template_name: LABEL,
@@ -534,13 +536,14 @@ async function queueFallback(
     status: "pending",
     metadata: { subject, date: dateStr },
   });
-  const { error } = await admin.from("email_queue").insert({
-    to_email: to,
-    subject,
-    html_body: html,
-    text_body: text,
-    template_name: LABEL,
-    metadata: { message_id: messageId, date: dateStr },
+  const { error } = await admin.rpc("enqueue_email", {
+    queue_name: "transactional_emails",
+    payload: {
+      message_id: messageId, to, from: FROM, sender_domain: SENDER_DOMAIN,
+      subject, html, text, purpose: "transactional", label: LABEL,
+      idempotency_key: `${LABEL}:${dateStr}:${to}${force ? `:${messageId}` : ""}`,
+      unsubscribe_token: unsubscribeToken, queued_at: new Date().toISOString(),
+    },
   });
   return error ? `queue error: ${error.message}` : "queued (no attachment)";
 }
@@ -573,7 +576,7 @@ async function sendForDate(
     } else {
       console.error(`[${LABEL}] gmail send failed`, to, sent.status, sent.raw);
       usedQueue = true;
-      results[to] = await queueFallback(admin, to, subject, html, text, dateStr);
+      results[to] = await queueFallback(admin, to, subject, html, text, dateStr, force);
     }
   }
 
