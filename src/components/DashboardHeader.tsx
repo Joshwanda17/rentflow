@@ -109,6 +109,8 @@ const DashboardHeader = memo(function DashboardHeader({
 
   const showInstallButton = isInstallable && !isInstalled;
   const visibleRoles = availableRoles.filter((role) => role in roleConfigMap);
+  const hasNonPublicRole = availableRoles.some((role) => !PUBLIC_ROLES.includes(role));
+
 
   return (
     <>
