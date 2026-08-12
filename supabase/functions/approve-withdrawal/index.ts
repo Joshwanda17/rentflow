@@ -2999,6 +2999,53 @@ Deno.serve(async (req) => {
 
     // Public proof-of-payment receipt link (unguessable token). Fetched once so
     // both the customer SMS and the merchant confirmation SMS can share it.
+    // ── PHASE 4: stamp the actual float consumption / receivable position ──
+    // Turns the reservation into a complete, auditable money story:
+    //   float before -> reserved -> consumed -> fronted personally
+    //   -> resulting float -> resulting receivable
+    let merchantFloatTrace: any = null;
+    if (actingAsMerchant && !poolFunded && amount > 0) {
+      try {
+        const { data: traceRes, error: traceErr } = await admin.rpc(
+          "consume_merchant_float",
+          {
+            p_withdrawal_id: withdrawal_id,
+            p_agent_id: user.id,
+            p_consumed_float: merchantFloatConsumed,
+            p_consumed_telecom: merchantTelecomCharge,
+            p_out_of_pocket: Math.round(
+              merchantPrincipalShortfall + merchantTelecomShortfall,
+            ),
+          },
+        );
+        if (traceErr) {
+          console.error("[approve-withdrawal] consume_merchant_float error:", traceErr);
+          await logSettlementGap(
+            "merchant_float_reservation_not_closed",
+            merchantFloatConsumed + merchantTelecomCharge,
+            `float reservation could not be closed: ${String((traceErr as any)?.message ?? traceErr)}`,
+          );
+        } else {
+          merchantFloatTrace = traceRes ?? null;
+        }
+      } catch (e) {
+        console.error("[approve-withdrawal] consume_merchant_float exception:", e);
+      }
+      console.log("[approve-withdrawal] merchant float trace", {
+        withdrawal_id,
+        agent_id: user.id,
+        float_before: merchantFloatBefore,
+        reserved: merchantFloatReserved,
+        consumed_float: merchantFloatConsumed,
+        consumed_telecom: merchantTelecomCharge,
+        fronted_personally: Math.round(
+          merchantPrincipalShortfall + merchantTelecomShortfall,
+        ),
+        float_after: (merchantFloatTrace as any)?.float_after ?? null,
+        receivable_after: (merchantFloatTrace as any)?.receivable_after ?? null,
+      });
+    }
+
     let receiptToken: string | null = null;
     try {
       const { data: rtRow } = await admin
