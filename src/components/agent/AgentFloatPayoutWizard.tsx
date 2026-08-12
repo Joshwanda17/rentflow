@@ -107,10 +107,15 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
   // used only by Pay Landlord. Tenant rent collections use wallet float instead.
   const {
     floatBalance: authoritativeFloat,
+    availableBalance: authoritativeAvailable,
+    reservedBalance: reservedFloat,
     isLoading: landlordPayoutFloatLoading,
     refetch: refetchLandlordPayoutFloat,
   } = useAgentLandlordFloat(user?.id);
-  const rawFloatBalance = Number(authoritativeFloat ?? 0);
+  // Spend against the reservation-aware figure the backend enforces, not the
+  // gross pool — otherwise the wizard promises money the payout will refuse.
+  const grossFloatBalance = Number(authoritativeFloat ?? 0);
+  const rawFloatBalance = Number(authoritativeAvailable ?? 0);
   const floatBalance = Number.isFinite(rawFloatBalance) ? rawFloatBalance : 0;
 
   const { data: assignedRequests = [], isLoading } = useQuery({
@@ -194,10 +199,13 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
       : Number(selectedRequest?.rent_amount ?? 0);
   const rentDue = Number(selectedRequest?.rent_amount ?? 0);
   const allocationRemaining = selectedRequest?.__allocationId ? rentDue : 0;
-  // If the dedicated balance query is delayed/stale, an open allocation is still
-  // proof that this tenant has ring-fenced Landlord Payout Float. The backend
-  // re-checks the pool before disbursement, so this only prevents a false UI cap.
-  const availablePayoutFloat = Math.max(floatBalance, allocationRemaining);
+  // Spendable = backend-authoritative available float. An open allocation can
+  // only lift the cap while the balance query is still loading; once we know
+  // the real available figure we never inflate past it, because the backend
+  // will reject anything above it anyway.
+  const availablePayoutFloat = landlordPayoutFloatLoading
+    ? Math.max(floatBalance, allocationRemaining)
+    : floatBalance;
   const withinRent = effectiveAmount > 0 && effectiveAmount <= rentDue;
   const withinFloat = effectiveAmount > 0 && effectiveAmount <= availablePayoutFloat;
   const amountValid = withinRent && withinFloat;
@@ -743,9 +751,17 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
             <Landmark className="h-5 w-5 text-chart-4" />
             Pay Landlord
           </DialogTitle>
-          <Badge variant="outline" className="text-xs font-mono w-fit mt-1">
-            Landlord Payout Float: {landlordPayoutFloatLoading ? 'Loading…' : formatUGX(availablePayoutFloat)}
-          </Badge>
+          <div className="space-y-1 mt-1">
+            <Badge variant="outline" className="text-xs font-mono w-fit">
+              Available to pay: {landlordPayoutFloatLoading ? 'Loading…' : formatUGX(availablePayoutFloat)}
+            </Badge>
+            {!landlordPayoutFloatLoading && reservedFloat > 0 && (
+              <p className="text-[11px] text-muted-foreground">
+                Total float {formatUGX(grossFloatBalance)} · {formatUGX(reservedFloat)} is already
+                held by landlord payouts awaiting cash-out, so it cannot be spent again.
+              </p>
+            )}
+          </div>
         </DialogHeader>
 
         <AnimatePresence mode="wait">
