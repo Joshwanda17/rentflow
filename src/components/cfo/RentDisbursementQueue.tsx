@@ -764,6 +764,45 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, hideDistri
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent align="end" className="w-72 space-y-3 p-3">
+                  {!hideDistrictCityFilters && (
+                    <div className="space-y-1.5">
+                      <p className="text-xs font-semibold text-muted-foreground">District</p>
+                      <Select
+                        value={districtFilter}
+                        onValueChange={(v) => { setDistrictFilter(v); setCityFilter('all'); setSelected(new Set()); }}
+                      >
+                        <SelectTrigger className="h-9 rounded-lg text-sm">
+                          <SelectValue placeholder="All districts" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-[280px]">
+                          <SelectItem value="all">All districts</SelectItem>
+                          {districtOptions.map(o => (
+                            <SelectItem key={o.name} value={o.name}>
+                              <span className="truncate">{o.name} · {o.count}</span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  {!hideDistrictCityFilters && (
+                    <div className="space-y-1.5">
+                      <p className="text-xs font-semibold text-muted-foreground">Town / City</p>
+                      <Select value={cityFilter} onValueChange={(v) => { setCityFilter(v); setSelected(new Set()); }}>
+                        <SelectTrigger className="h-9 rounded-lg text-sm">
+                          <SelectValue placeholder="All towns/cities" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-[280px]">
+                          <SelectItem value="all">All towns/cities</SelectItem>
+                          {cityOptions.map(o => (
+                            <SelectItem key={o.name} value={o.name}>
+                              <span className="truncate">{o.name} · {o.count}</span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                   <div className="space-y-1.5">
                     <p className="text-xs font-semibold text-muted-foreground">Category type</p>
                     <Select value={catField} onValueChange={(v) => { setCatField(v as CatFieldKey); setCatValue('all'); setSelected(new Set()); }}>
