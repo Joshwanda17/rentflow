@@ -63,7 +63,7 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
         </div>
         <div className="rounded-xl border border-border bg-muted/30 p-3">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Owed to agents
+            We still owe agents
           </p>
           <p className="mt-1 font-mono text-xl font-bold tabular-nums text-foreground break-all">
             {isLoading ? '—' : formatUGX(owedTotal)}
