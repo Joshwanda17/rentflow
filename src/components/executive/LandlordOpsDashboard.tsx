@@ -2680,7 +2680,8 @@ export function LandlordOpsDashboard() {
         {/* Date range filter — applied to the STATE date, not blindly to registration */}
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-[11px] text-muted-foreground font-medium">
-            {categoryFilter === 'verified' ? 'Verified between:'
+            {categoryFilter === 'funded' ? 'Funded between:'
+              : categoryFilter === 'verified' ? 'Verified between:'
               : categoryFilter === 'rejected' ? 'Rejected between:'
               : categoryFilter === 'pending' ? 'Registered between:'
               : categoryFilter === 'resubmitted' ? 'Resubmitted between:'
