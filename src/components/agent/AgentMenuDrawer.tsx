@@ -184,7 +184,7 @@ export function AgentMenuDrawer({
         { icon: ArrowDownCircle, label: 'Deposit', description: 'Add funds to wallet', onClick: onDeposit, accent: 'success' },
         { icon: Wallet, label: 'Top Up Wallet', description: 'Deposit to tenant wallet', onClick: onTopUpTenant, accent: 'emerald-500' },
         { icon: HandCoins, label: 'Fund Partner', description: 'Proxy funding', onClick: onInvestForPartner, accent: 'emerald-600', badge: 'Proxy' },
-        { icon: PiggyBank, label: 'Angel Pool', description: 'Invest in equity pool', onClick: onAngelPoolInvest, accent: 'emerald-500', badge: 'Angel' },
+        { icon: PiggyBank, label: 'Angel Pool', description: 'Buy shares in the equity pool', onClick: onAngelPoolInvest, accent: 'emerald-500', badge: 'Angel' },
         { icon: Receipt, label: 'Issue Receipt', description: 'Record cash payment', onClick: onIssueReceipt, accent: 'amber-500' },
         { icon: Banknote, label: 'Cash, Mobile Money & Bank Payouts', description: 'Verify & pay cash-outs', path: '/agent/cash-payouts', accent: 'orange-500', badge: '💵' },
         { icon: Wallet, label: 'Request Advance', description: 'Get funds to your wallet', onClick: onRequestAdvance, accent: 'purple-500', badge: '💰' },
