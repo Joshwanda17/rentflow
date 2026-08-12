@@ -499,10 +499,10 @@ export function AgentCollectionsCommandCenter() {
                 </div>
               ))}
             </div>
-            {visibleAgents < agents.length && (
+            {visibleAgents < filteredAgents.length && (
               <div className="pt-3 text-center">
                 <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setVisibleAgents(v => v + 10)}>
-                  Load more · {agents.length - visibleAgents} remaining
+                  Load more · {filteredAgents.length - visibleAgents} remaining
                 </Button>
               </div>
             )}
