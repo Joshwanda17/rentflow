@@ -16,6 +16,7 @@ export default function AvailableHouses() {
         <meta name="description" content="Browse all available houses to rent on Welile." />
         <link rel="canonical" href="https://welileapp.com/houses" />
       </Helmet>
+      <h1 className="sr-only">Available Houses to Rent</h1>
       <AvailableHousesSheet
         open
         onOpenChange={(next) => {
