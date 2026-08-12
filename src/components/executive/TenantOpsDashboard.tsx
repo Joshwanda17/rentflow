@@ -1258,18 +1258,35 @@ export function TenantOpsDashboard() {
       case 'pipeline':
         return (
           <div className="space-y-4">
-            <PipelineStatusHub
-              onOpenTenant={(tenantId, tenantName) => {
-                setSelectedTenant({ id: tenantId, name: tenantName });
-                setActiveView('tenant-detail');
-              }}
-            />
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border bg-card p-3">
+              <div className="min-w-0">
+                <p className="text-sm font-bold">Reviewing requests</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Approvals live here. For counts, money and reports open the Pipeline Status hub.
+                </p>
+              </div>
+              <Button size="sm" variant="outline" className="gap-1.5" onClick={() => openPipelineHub('all')}>
+                <Activity className="h-3.5 w-3.5" />
+                Pipeline Status hub
+              </Button>
+            </div>
             <RentPipelineQueue
               stage="agent_ops_approved"
               additionalStatuses={['agent_verified']}
             />
             <RejectedRequestsQueue stageFilter="agent_ops_approved" title="Rejected at Tenant Ops" />
           </div>
+        );
+      case 'pipeline-hub':
+        return (
+          <PipelineStatusHub
+            key={pipelineSeed}
+            initialStatusKey={pipelineSeed}
+            onOpenTenant={(tenantId, tenantName) => {
+              setSelectedTenant({ id: tenantId, name: tenantName });
+              setActiveView('tenant-detail');
+            }}
+          />
         );
       case 'daily':
         return <DailyPaymentTracker />;
