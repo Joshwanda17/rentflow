@@ -34,6 +34,7 @@ import { BatchPayoutProcessor } from '@/components/cfo/BatchPayoutProcessor';
 import { LandlordFloatAllocationsPanel } from '@/components/cfo/LandlordFloatAllocationsPanel';
 import { WithdrawalHistoryStatement } from '@/components/financial-ops/WithdrawalHistoryStatement';
 import { StaleWithdrawalHoldsPanel } from '@/components/cfo/StaleWithdrawalHoldsPanel';
+import { PayoutReconciliationQueue } from '@/components/financial-ops/PayoutReconciliationQueue';
 import { AutoPayoutHistory } from '@/components/cfo/AutoPayoutHistory';
 import { DailyCashPositionReport } from '@/components/cfo/DailyCashPositionReport';
 import { RentPipelineQueue } from '@/components/executive/RentPipelineQueue';
@@ -245,7 +246,13 @@ export default function CFODashboardPage() {
       case 'withdrawal-history':
         return <WithdrawalHistoryStatement />;
       case 'withdrawal-reconciliation':
-        return <StaleWithdrawalHoldsPanel />;
+        return (
+          <div className="space-y-6">
+            {/* PHASE 8: incomplete/unsafe payouts always visible to CFO. */}
+            <PayoutReconciliationQueue />
+            <StaleWithdrawalHoldsPanel />
+          </div>
+        );
       case 'financial-agents':
         return <FinancialAgentsPanel />;
       case 'cashout-agents':
