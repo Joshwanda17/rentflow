@@ -40,6 +40,7 @@ interface DashboardHeaderProps {
   opportunityCount?: number;
   onOpportunityBadgeClick?: () => void;
   headerActions?: React.ReactNode;
+  showInstallPrompt?: boolean;
 }
 
 const roleConfigMap: Record<string, { label: string; emoji: string; icon: React.ReactNode }> = {
