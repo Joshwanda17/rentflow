@@ -31082,6 +31082,67 @@ export type Database = {
         }
         Relationships: []
       }
+      withdrawal_payment_evidence: {
+        Row: {
+          amount_confirmed: number | null
+          attached_by: string
+          created_at: string
+          evidence_note: string
+          evidence_source: string
+          id: string
+          raw_sms: string | null
+          transaction_id: string | null
+          updated_at: string
+          withdrawal_id: string
+        }
+        Insert: {
+          amount_confirmed?: number | null
+          attached_by: string
+          created_at?: string
+          evidence_note: string
+          evidence_source: string
+          id?: string
+          raw_sms?: string | null
+          transaction_id?: string | null
+          updated_at?: string
+          withdrawal_id: string
+        }
+        Update: {
+          amount_confirmed?: number | null
+          attached_by?: string
+          created_at?: string
+          evidence_note?: string
+          evidence_source?: string
+          id?: string
+          raw_sms?: string | null
+          transaction_id?: string | null
+          updated_at?: string
+          withdrawal_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "withdrawal_payment_evidence_withdrawal_id_fkey"
+            columns: ["withdrawal_id"]
+            isOneToOne: true
+            referencedRelation: "v_merchant_payout_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "withdrawal_payment_evidence_withdrawal_id_fkey"
+            columns: ["withdrawal_id"]
+            isOneToOne: true
+            referencedRelation: "v_withdrawal_holds_unbacked"
+            referencedColumns: ["withdrawal_id"]
+          },
+          {
+            foreignKeyName: "withdrawal_payment_evidence_withdrawal_id_fkey"
+            columns: ["withdrawal_id"]
+            isOneToOne: true
+            referencedRelation: "withdrawal_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       withdrawal_release_events: {
         Row: {
           created_at: string
@@ -31315,6 +31376,60 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      withdrawal_settlement_replay_audit: {
+        Row: {
+          actions: Json
+          blockers: Json
+          classification: string
+          created_at: string
+          detected_state: Json
+          dry_run: boolean
+          error_message: string | null
+          final_state: string | null
+          id: string
+          legs_created: Json
+          ok: boolean
+          performed_by: string | null
+          reason: string | null
+          wallet_state: string | null
+          withdrawal_id: string
+        }
+        Insert: {
+          actions?: Json
+          blockers?: Json
+          classification: string
+          created_at?: string
+          detected_state?: Json
+          dry_run?: boolean
+          error_message?: string | null
+          final_state?: string | null
+          id?: string
+          legs_created?: Json
+          ok?: boolean
+          performed_by?: string | null
+          reason?: string | null
+          wallet_state?: string | null
+          withdrawal_id: string
+        }
+        Update: {
+          actions?: Json
+          blockers?: Json
+          classification?: string
+          created_at?: string
+          detected_state?: Json
+          dry_run?: boolean
+          error_message?: string | null
+          final_state?: string | null
+          id?: string
+          legs_created?: Json
+          ok?: boolean
+          performed_by?: string | null
+          reason?: string | null
+          wallet_state?: string | null
+          withdrawal_id?: string
+        }
+        Relationships: []
       }
     }
     Views: {
@@ -33458,6 +33573,17 @@ export type Database = {
         Args: { p_attempt_id: string; p_user_id: string }
         Returns: undefined
       }
+      attach_withdrawal_payment_evidence: {
+        Args: {
+          p_amount_confirmed?: number
+          p_evidence_note: string
+          p_evidence_source: string
+          p_raw_sms?: string
+          p_transaction_id?: string
+          p_withdrawal_id: string
+        }
+        Returns: Json
+      }
       auto_activate_merchant_referral: {
         Args: { p_referrer: string }
         Returns: {
@@ -33669,6 +33795,7 @@ export type Database = {
         Args: { _user_id: string }
         Returns: boolean
       }
+      can_replay_settlement: { Args: { _user_id: string }; Returns: boolean }
       can_view_agent_data: {
         Args: { _target_agent_id: string; _viewer_id: string }
         Returns: boolean
@@ -33859,6 +33986,10 @@ export type Database = {
           p_momo_number?: string
           p_withdrawal_id: string
         }
+        Returns: Json
+      }
+      classify_stranded_withdrawal: {
+        Args: { p_withdrawal_id: string }
         Returns: Json
       }
       cleanup_expired_otps: { Args: never; Returns: undefined }
@@ -38459,6 +38590,15 @@ export type Database = {
         Args: { p_event_id: string }
         Returns: undefined
       }
+      replay_withdrawal_settlement: {
+        Args: {
+          p_approve_customer_wallet_debit?: boolean
+          p_dry_run?: boolean
+          p_reason?: string
+          p_withdrawal_id: string
+        }
+        Returns: Json
+      }
       report_float_auto_recover_obligations: {
         Args: never
         Returns: {
@@ -39414,6 +39554,10 @@ export type Database = {
           src: string
           unit_id: string
         }[]
+      }
+      welile_telecom_sending_charge: {
+        Args: { p_amount: number }
+        Returns: number
       }
       writedown_historical_drift: {
         Args: { p_amount: number; p_reason: string; p_review_id: string }
