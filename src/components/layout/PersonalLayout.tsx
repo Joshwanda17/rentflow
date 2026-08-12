@@ -13,7 +13,6 @@ interface PersonalLayoutProps {
 
 const PersonalLayout = ({ children, title }: PersonalLayoutProps) => {
   const { user } = useAuth();
-  const location = useLocation();
   const navigate = useNavigate();
   const [displayName, setDisplayName] = useState('');
 
