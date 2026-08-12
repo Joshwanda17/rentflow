@@ -2514,7 +2514,8 @@ Deno.serve(async (req) => {
     if (
       actingAsMerchant &&
       !poolFunded &&
-      amount > 0
+      amount > 0 &&
+      merchantFloatForPrincipal > 0
     ) {
       try {
         const txDate = new Date().toISOString();
@@ -2522,7 +2523,7 @@ Deno.serve(async (req) => {
           entries: [
             {
               user_id: user.id, ledger_scope: "wallet", direction: "cash_out",
-              amount, category: "agent_float_settlement",
+              amount: merchantFloatForPrincipal, category: "agent_float_settlement",
               recipient_type: "operational_wallet", wallet_bucket: "float",
               source_table: "withdrawal_requests", source_id: withdrawal_id,
               description: `Company float used to settle customer cash-out ${withdrawal_id}`,
@@ -2530,7 +2531,7 @@ Deno.serve(async (req) => {
             },
             {
               user_id: user.id, ledger_scope: "platform", direction: "cash_in",
-              amount, category: "agent_float_settlement",
+              amount: merchantFloatForPrincipal, category: "agent_float_settlement",
               source_table: "withdrawal_requests", source_id: withdrawal_id,
               description: `Merchant float settled to customer for withdrawal ${withdrawal_id}`,
               currency: "UGX", reference_id: `${withdrawal_id}-merchant-float-consume`, transaction_date: txDate,
@@ -2542,17 +2543,17 @@ Deno.serve(async (req) => {
           console.error("[approve-withdrawal] Merchant float consume RPC error:", floatErr);
           await logSettlementGap(
             "merchant_float_consume",
-            amount,
+            merchantFloatForPrincipal,
             `float debit failed: ${String((floatErr as any)?.message ?? floatErr)}`,
           );
         } else {
-          merchantFloatConsumed = amount;
+          merchantFloatConsumed = merchantFloatForPrincipal;
         }
       } catch (e) {
         console.error("[approve-withdrawal] Merchant float consume exception:", e);
         await logSettlementGap(
           "merchant_float_consume",
-          amount,
+          merchantFloatForPrincipal,
           `float debit exception: ${String((e as any)?.message ?? e)}`,
         );
       }
