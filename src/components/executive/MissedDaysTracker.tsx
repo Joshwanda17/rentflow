@@ -22,6 +22,14 @@ const chunk = <T,>(list: T[], size = 300): T[][] => {
   return out;
 };
 
+/**
+ * Repayment clock anchor. `disbursed_at` is missing on most repaying plans
+ * (funding was recorded without it), so fall back to the funding date and then
+ * to creation — otherwise the majority of active plans disappear from this tool.
+ */
+const startAnchor = (r: { disbursed_at?: string | null; funded_at?: string | null; created_at?: string | null }) =>
+  r.disbursed_at || r.funded_at || r.created_at || null;
+
 type SortBy = 'missed_days' | 'balance' | 'name';
 
 interface TenantMissedData {
