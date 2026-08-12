@@ -2573,9 +2573,9 @@ Deno.serve(async (req) => {
     if (
       actingAsMerchant &&
       !poolFunded &&
-      merchantFloatConsumed > 0 // only post if the principal consume succeeded
+      amount > 0
     ) {
-      const telecomCharge = getTelecomSendingCharge(amount);
+      const telecomCharge = merchantFloatForTelecom;
       if (telecomCharge > 0) {
         try {
           const txDate = new Date().toISOString();
@@ -2617,6 +2617,85 @@ Deno.serve(async (req) => {
             `telecom charge exception: ${String((e as any)?.message ?? e)}`,
           );
         }
+      }
+    }
+
+    // ── Merchant OUT-OF-POCKET record (2026-08) ───────────────────────────
+    // Whatever the merchant funded beyond their float (payout principal and/or
+    // the telecom sending charge) is money the company owes them. Recorded
+    // clearly here and surfaced on their dashboard + to Finance for repayment.
+    if (
+      actingAsMerchant &&
+      !poolFunded &&
+      (merchantPrincipalShortfall > 0 || merchantTelecomShortfall > 0)
+    ) {
+      const rows: Record<string, unknown>[] = [];
+      if (merchantPrincipalShortfall > 0) {
+        rows.push({
+          agent_id: user.id,
+          withdrawal_id,
+          kind: "payout",
+          payout_amount: amount,
+          telecom_charge: merchantTelecomExpected,
+          float_used: merchantFloatConsumed,
+          shortfall_amount: Math.round(merchantPrincipalShortfall),
+          status: "pending_reimbursement",
+          note:
+            `Merchant paid UGX ${amount.toLocaleString()} while holding only ` +
+            `UGX ${Math.round(merchantFloatAvailable).toLocaleString()} float. ` +
+            `Own money fronted: UGX ${Math.round(merchantPrincipalShortfall).toLocaleString()}.`,
+        });
+      }
+      if (merchantTelecomShortfall > 0) {
+        rows.push({
+          agent_id: user.id,
+          withdrawal_id,
+          kind: "telecom",
+          payout_amount: amount,
+          telecom_charge: merchantTelecomExpected,
+          float_used: merchantTelecomCharge,
+          shortfall_amount: Math.round(merchantTelecomShortfall),
+          status: "pending_reimbursement",
+          note:
+            `Telecom sending charge of UGX ${merchantTelecomExpected.toLocaleString()} paid from the ` +
+            `merchant's own line (float could not cover UGX ` +
+            `${Math.round(merchantTelecomShortfall).toLocaleString()}).`,
+        });
+      }
+      try {
+        const { error: oopErr } = await admin
+          .from("merchant_out_of_pocket_advances")
+          .upsert(rows, { onConflict: "withdrawal_id,kind", ignoreDuplicates: true });
+        if (oopErr) {
+          console.error("[approve-withdrawal] out-of-pocket insert error:", oopErr);
+          await logSettlementGap(
+            "merchant_out_of_pocket",
+            Math.round(merchantPrincipalShortfall + merchantTelecomShortfall),
+            `out-of-pocket record failed: ${String((oopErr as any)?.message ?? oopErr)}`,
+          );
+        } else {
+          try {
+            await admin.from("system_events").insert({
+              event_type: "wallet_transfer",
+              user_id: user.id,
+              description:
+                `Merchant agent fronted UGX ` +
+                `${Math.round(merchantPrincipalShortfall + merchantTelecomShortfall).toLocaleString()} ` +
+                `of their own money on withdrawal ${withdrawal_id} (float short). Company owes them.`,
+              metadata: {
+                withdrawal_id,
+                payout_amount: amount,
+                float_available: Math.round(merchantFloatAvailable),
+                float_used: merchantFloatConsumed,
+                telecom_charge: merchantTelecomExpected,
+                principal_shortfall: Math.round(merchantPrincipalShortfall),
+                telecom_shortfall: Math.round(merchantTelecomShortfall),
+              },
+            });
+          } catch (_e) { /* non-blocking */ }
+        }
+      } catch (e) {
+        console.error("[approve-withdrawal] out-of-pocket exception:", e);
       }
     }
 
