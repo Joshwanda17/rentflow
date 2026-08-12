@@ -152,15 +152,11 @@ async function sendSMS(
     { provider: "lana", fn: () => sendViaLana(phone, message) },
     { provider: "twilio", fn: () => sendViaTwilio(phone, message) },
   ];
-  const previousProvider = String(options.previousAcceptedProvider ?? "")
-    .replace(/^provider:/, "")
-    .trim()
-    .toLowerCase() as ProviderName;
-  const previousIndex = primaryChain.findIndex((p) => p.provider === previousProvider);
-  const backupFirstChain = previousIndex >= 0
-    ? [...primaryChain.slice(previousIndex + 1), ...primaryChain.slice(0, previousIndex + 1)]
-    : [primaryChain[1], primaryChain[2], primaryChain[0]];
-  const chain = options.preferBackupRoute ? backupFirstChain : primaryChain;
+  // POLICY: Yoola is ALWAYS first, on first sends and on resends. The other
+  // providers are fallbacks only (used when Yoola is unconfigured or rejects).
+  void options.previousAcceptedProvider;
+  void options.preferBackupRoute;
+  const chain = primaryChain;
 
   let bestReason: string | undefined;
   for (let i = 0; i < chain.length; i++) {
