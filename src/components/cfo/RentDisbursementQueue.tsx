@@ -507,6 +507,40 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, hideDistri
                 className="h-11 rounded-xl text-sm pl-9 bg-background border-border/70"
               />
             </div>
+            {!hideDistrictCityFilters && (
+              <Select
+                value={districtFilter}
+                onValueChange={(v) => { setDistrictFilter(v); setCityFilter('all'); setSelected(new Set()); }}
+              >
+                <SelectTrigger className="h-11 rounded-xl text-sm w-full bg-background border-border/70">
+                  <MapPin className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <SelectValue placeholder="All districts" />
+                </SelectTrigger>
+                <SelectContent className="max-h-[320px]">
+                  <SelectItem value="all">All districts ({items.length})</SelectItem>
+                  {districtOptions.map(o => (
+                    <SelectItem key={o.name} value={o.name}>
+                      <span className="truncate">{o.name} · {o.count}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {!hideDistrictCityFilters && (
+              <Select value={cityFilter} onValueChange={(v) => { setCityFilter(v); setSelected(new Set()); }}>
+                <SelectTrigger className="h-11 rounded-xl text-sm w-full bg-background border-border/70">
+                  <SelectValue placeholder="All towns/cities" />
+                </SelectTrigger>
+                <SelectContent className="max-h-[320px]">
+                  <SelectItem value="all">All towns/cities</SelectItem>
+                  {cityOptions.map(o => (
+                    <SelectItem key={o.name} value={o.name}>
+                      <span className="truncate">{o.name} · {o.count}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
             <Select value={agentFilter} onValueChange={setAgentFilter}>
               <SelectTrigger className="h-11 rounded-xl text-sm w-full bg-background border-border/70">
                 <Users className="h-4 w-4 mr-2 text-muted-foreground" />
