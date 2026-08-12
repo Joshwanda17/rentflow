@@ -121,36 +121,59 @@ export function TenantPhoneDuplicatePanel({ variant = 'full', onOpenHub }: Tenan
   const rows = data ?? [];
   const openCount = useMemo(() => rows.filter((r) => r.status === 'open').length, [rows]);
 
+  // Compact dashboard hero card — mirrors the "Open hub" entry pattern used by
+  // the other Tenant Ops workspaces: icon, name, one summary stat, one action.
+  if (variant === 'summary') {
+    return (
+      <button
+        type="button"
+        onClick={onOpenHub}
+        aria-label="Open Tenant Phone Duplicate Monitor hub"
+        className="group w-full cursor-pointer rounded-xl border border-amber-500/30 bg-card p-3 sm:p-3.5 flex items-start gap-3 text-left min-h-[64px] touch-manipulation hover:border-primary/60 hover:shadow-md active:scale-[0.99] transition-all shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+      >
+        <div className="p-2 rounded-lg bg-amber-500/10 shrink-0">
+          <ShieldAlert className="h-5 w-5 text-amber-600" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-bold text-sm text-foreground leading-tight break-words">
+            Tenant Phone Duplicate Monitor
+          </p>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            <span className="inline-flex items-baseline gap-1 rounded-full border bg-muted/40 px-2 py-0.5 text-[10px] text-muted-foreground">
+              <span className="font-bold text-foreground">{openCount}</span>
+              open
+            </span>
+          </div>
+        </div>
+        <span className="shrink-0 hidden sm:inline-flex items-center gap-1 rounded-full bg-primary px-3 py-1.5 text-[11px] font-bold text-primary-foreground shadow-sm group-hover:bg-primary/90 transition-colors">
+          Open hub
+          <ArrowRight className="h-3.5 w-3.5" />
+        </span>
+        <ArrowRight className="h-5 w-5 text-primary shrink-0 sm:hidden mt-1" />
+      </button>
+    );
+  }
+
   return (
     <Card className="border-amber-500/30">
       <CardHeader>
-        <div className="flex items-start justify-between gap-3">
-          <button
-            type="button"
-            onClick={() => setPanelOpen((v) => !v)}
-            aria-expanded={panelOpen}
-            className="min-w-0 flex-1 text-left rounded-md -m-1 p-1 hover:bg-muted/40 transition-colors"
-          >
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0 flex-1">
             <CardTitle className="flex items-center gap-2 text-base">
-              <ShieldAlert className="h-4 w-4 text-amber-600" />
-              Tenant Phone Duplicate Monitor
+              <ShieldAlert className="h-4 w-4 text-amber-600 shrink-0" />
+              <span className="min-w-0 break-words">Tenant Phone Duplicate Monitor</span>
               {openCount > 0 && (
-                <Badge variant="destructive" className="ml-1">
+                <Badge variant="destructive" className="ml-1 shrink-0">
                   {openCount} open
                 </Badge>
               )}
-              <ChevronDown
-                className={`h-4 w-4 text-muted-foreground transition-transform ${
-                  panelOpen ? 'rotate-180' : ''
-                }`}
-              />
             </CardTitle>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-xs text-muted-foreground mt-1 leading-snug">
               Runs automatically every hour. Flags tenant phone numbers that nearly match an
               existing record (same last 8 digits) — likely typos or duplicate sign-ups.
             </p>
-          </button>
-          <div className="flex items-center gap-2 shrink-0">
+          </div>
+          <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
             <Button
               variant="ghost"
               size="sm"
@@ -183,7 +206,6 @@ export function TenantPhoneDuplicatePanel({ variant = 'full', onOpenHub }: Tenan
           </div>
         </div>
       </CardHeader>
-      {panelOpen && (
       <CardContent className="space-y-3">
         {error && (
           <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs text-destructive">
