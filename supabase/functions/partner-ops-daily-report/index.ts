@@ -180,473 +180,372 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-// ── PDF (metrics + charts only) ──
+// ── PDF — mirrors the emailed HTML brief layout exactly (tiles, numbered
+//    sections, brief-styled tables, daily bar chart, footer) ──
 function buildPdf(r: Report, win: { title: string; pretty: string }, logo: Uint8Array | null): Uint8Array {
   const k = r.kpis || ({} as Record<string, number>);
   const t = r.topups || {};
   const b = r.backlog || ({} as Record<string, number>);
+  const f = r.forecast;
+  const days = Math.max(1, Number(r.days) || 1);
+  const inflow = (Number(k.new_capital) || 0) + (Number(t.applied_amount) || 0);
+  const outflow = Number(k.paid_out_amount) || 0;
+
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 12;
-  const gap = 4;
+  const margin = 14;
+  const contentW = pageWidth - margin * 2;
+  const bottomLimit = pageHeight - 16;
   const generatedAt = new Date();
-  const days = Math.max(1, Number(r.days) || 1);
-  const perDay = (v: unknown) => Math.round((Number(v) || 0) / days);
 
-  // Header band
-  doc.setFillColor(...BRAND);
-  doc.rect(0, 0, pageWidth, 28, "F");
-  doc.setFillColor(...BRAND_DARK);
-  doc.rect(0, 28, pageWidth, 1.5, "F");
-  let titleX = margin;
+  const HERO_BG: RGB = [250, 248, 255];
+  const HERO_BC: RGB = [236, 229, 251];
+  const GOOD_BG: RGB = [241, 251, 246];
+  const GOOD_BC: RGB = [201, 236, 219];
+  const BAD_BG: RGB = [255, 245, 248];
+  const BAD_BC: RGB = [246, 207, 224];
+  const CARD_BC: RGB = [230, 225, 240];
+  const PAGE_BG: RGB = [246, 244, 251];
+  const ROW_LINE: RGB = [242, 239, 249];
+  const BRIEF_PURPLE: RGB = [108, 33, 196];
+
+  let y = margin;
+  let sectionNo = 0;
+
+  const paintPageBg = () => {
+    doc.setFillColor(...PAGE_BG);
+    doc.rect(0, 0, pageWidth, pageHeight, "F");
+  };
+  paintPageBg();
+
+  const newPage = () => {
+    doc.addPage();
+    paintPageBg();
+    y = margin;
+  };
+  const ensure = (h: number) => {
+    if (y + h > bottomLimit) newPage();
+  };
+
+  // ── Header block (purple card, like the brief hero) ──
+  const headerH = 34;
+  doc.setFillColor(...BRIEF_PURPLE);
+  doc.roundedRect(margin, y, contentW, headerH, 3.5, 3.5, "F");
+  let textX = margin + 8;
   if (logo) {
     try {
-      doc.addImage(`data:image/png;base64,${bytesToBase64(logo)}`, "PNG", margin, 5.5, 17, 17);
-      titleX = margin + 21;
-    } catch (_e) { titleX = margin; }
+      doc.addImage(`data:image/png;base64,${bytesToBase64(logo)}`, "PNG", margin + 8, y + 6, 16, 16);
+      textX = margin + 28;
+    } catch (_e) { textX = margin + 8; }
   }
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(15);
-  doc.text(`Partner Operations - ${win.title}`, titleX, 12);
+  doc.setFontSize(13.5);
+  doc.text(`Partner Operations - ${ascii(win.title)}`, textX, y + 13);
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(8.6);
-  doc.setTextColor(233, 222, 250);
-  doc.text(COMPANY_LOCATION, titleX, 17.6);
-  doc.text("Aggregate metrics only - no partner-level records", titleX, 22.6);
-  doc.setFontSize(8.5);
-  doc.setTextColor(255, 255, 255);
-  doc.text(`Period: ${win.pretty}`, pageWidth - margin, 12, { align: "right" });
-  doc.setTextColor(225, 210, 248);
+  doc.setFontSize(8);
+  doc.setTextColor(232, 220, 250);
+  const sub = doc.splitTextToSize(
+    `${ascii(win.pretty)} (EAT) - aggregate only, no partner names - source: Partner Ops book (portfolios, parked top-ups, compounding, returns ledger)`,
+    contentW - (textX - margin) - 10,
+  );
+  doc.text(sub, textX, y + 19.5);
+  doc.setFontSize(7.4);
   doc.text(
     `Generated ${generatedAt.toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Africa/Nairobi" })} EAT`,
-    pageWidth - margin, 18, { align: "right" },
+    textX, y + headerH - 5,
   );
+  y += headerH + 6;
 
-  // KPI strip
-  const cards: { label: string; value: string; sub: string; accent: RGB }[] = [
-    { label: "Capital live", value: compactUGX(k.total_capital), sub: `${num(k.active_portfolios)} active portfolios`, accent: BRAND },
-    { label: "Active partners", value: num(k.active_partners), sub: `${num(k.total_partners)} on file`, accent: VIOLET },
-    { label: "Avg ticket", value: compactUGX(k.avg_ticket), sub: `avg return ${num(k.avg_return_rate)}% / month`, accent: BLUE },
-    { label: "New capital (period)", value: compactUGX(k.new_capital), sub: `${num(k.new_portfolios)} new portfolios`, accent: EMERALD },
-    { label: "Returns paid (period)", value: compactUGX(k.paid_out_amount), sub: `${num(k.paid_out_count)} payouts`, accent: ROSE },
-    { label: "Compounded (period)", value: compactUGX(k.compounded_amount), sub: `${num(k.compounded_count)} portfolios`, accent: TEAL },
-    { label: "Top-ups applied", value: compactUGX(t.applied_amount), sub: `${num(t.applied_count)} in period`, accent: AMBER },
-    {
-      label: "Net capital movement",
-      value: compactUGX(
-        (Number(k.new_capital) || 0) + (Number(t.applied_amount) || 0) + (Number(k.compounded_amount) || 0) -
-          (Number(k.paid_out_amount) || 0),
-      ),
-      sub: "capital in minus returns paid",
-      accent: SLATE,
-    },
-  ];
-  const cols = 4;
-  const cardW = (pageWidth - margin * 2 - gap * (cols - 1)) / cols;
-  const cardH = 21, startY = 35;
-  cards.forEach((c, i) => {
-    const x = margin + (i % cols) * (cardW + gap);
-    const y0 = startY + Math.floor(i / cols) * (cardH + gap);
-    doc.setFillColor(...tint(c.accent, 0.93));
-    doc.setDrawColor(...BORDER);
-    doc.setLineWidth(0.2);
-    doc.roundedRect(x, y0, cardW, cardH, 2, 2, "FD");
-    doc.setFillColor(...c.accent);
-    doc.roundedRect(x, y0, cardW, 2.4, 2, 2, "F");
-    doc.rect(x, y0 + 1.4, cardW, 1, "F");
+  // ── Section helper (white rounded card with number + title + note) ──
+  type Tile = { label: string; value: string; sub: string; kind?: "hero" | "good" | "bad" };
+
+  const drawSectionHead = (title: string, note: string) => {
+    sectionNo += 1;
+    ensure(26);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(6.4);
-    doc.setTextColor(...MUTED);
-    doc.text(c.label.toUpperCase(), x + 3.5, y0 + 8);
-    doc.setFontSize(11.5);
-    doc.setTextColor(...c.accent);
-    doc.text(c.value, x + 3.5, y0 + 15);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(5.9);
-    doc.setTextColor(...MUTED);
-    doc.text(c.sub, x + 3.5, y0 + 19);
-  });
-
-  let y = startY + 2 * (cardH + gap) + 6;
-
-  const heading = (title: string, subtitle?: string) => {
-    if (y > pageHeight - 45) { doc.addPage(); y = 18; }
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.setTextColor(...BRAND_DARK);
-    doc.text(title, margin, y);
-    doc.setDrawColor(...BRAND);
-    doc.setLineWidth(0.4);
-    doc.line(margin, y + 1.8, pageWidth - margin, y + 1.8);
-    y += 6;
-    if (subtitle) {
+    doc.setFontSize(10);
+    doc.setTextColor(154, 148, 171);
+    doc.text(String(sectionNo), margin + 6, y + 9);
+    doc.setTextColor(...BRIEF_PURPLE);
+    doc.text(ascii(title).toUpperCase(), margin + 13, y + 9);
+    let bottom = y + 12;
+    if (note) {
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(7.4);
+      doc.setFontSize(7.8);
       doc.setTextColor(...MUTED);
-      doc.text(subtitle, margin, y);
-      y += 4;
+      const lines = doc.splitTextToSize(ascii(note), contentW - 12);
+      doc.text(lines, margin + 6, y + 14.5);
+      bottom = y + 12.5 + lines.length * 3.4;
     }
+    return bottom;
   };
 
-  const miniKpis = (items: { label: string; value: string; accent: RGB }[]) => {
-    if (y > pageHeight - 30) { doc.addPage(); y = 18; }
-    const n = items.length || 1;
-    const w = (pageWidth - margin * 2 - gap * (n - 1)) / n;
-    items.forEach((it, i) => {
-      const x = margin + i * (w + gap);
-      doc.setFillColor(...tint(it.accent, 0.94));
-      doc.setDrawColor(...BORDER);
+  const drawTiles = (tiles: Tile[], startY: number): number => {
+    const cols = 3;
+    const gap = 4;
+    const tw = (contentW - 12 - gap * (cols - 1)) / cols;
+    const th = 20;
+    let ty = startY + 2;
+    tiles.forEach((tl, i) => {
+      const col = i % cols;
+      if (col === 0 && i > 0) ty += th + gap;
+      const x = margin + 6 + col * (tw + gap);
+      const bg = tl.kind === "good" ? GOOD_BG : tl.kind === "bad" ? BAD_BG : HERO_BG;
+      const bc = tl.kind === "good" ? GOOD_BC : tl.kind === "bad" ? BAD_BC : HERO_BC;
+      doc.setFillColor(...bg);
+      doc.setDrawColor(...bc);
       doc.setLineWidth(0.2);
-      doc.roundedRect(x, y, w, 14, 2, 2, "FD");
+      doc.roundedRect(x, ty, tw, th, 2.5, 2.5, "FD");
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(6.1);
+      doc.setFontSize(6);
       doc.setTextColor(...MUTED);
-      doc.text(it.label.toUpperCase(), x + 3, y + 5.5);
-      doc.setFontSize(9.4);
-      doc.setTextColor(...it.accent);
-      doc.text(it.value, x + 3, y + 11.5);
-    });
-    y += 19;
-  };
-
-  const barChart = (rows: { label: string; value: number; note?: string; color: RGB }[]) => {
-    if (!rows.length) return;
-    if (y > pageHeight - (rows.length * 7.4 + 14)) { doc.addPage(); y = 18; }
-    const max = Math.max(1, ...rows.map((x) => Number(x.value) || 0));
-    rows.forEach((bar) => {
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(7.4);
+      doc.text(ascii(tl.label).toUpperCase(), x + 3.5, ty + 5.4);
+      doc.setFontSize(10.2);
       doc.setTextColor(...INK);
-      doc.text(ascii(bar.label), margin, y + 3.6);
-      const trackX = margin + 34;
-      const trackW = pageWidth - margin - 62 - trackX;
-      doc.setFillColor(...tint(bar.color, 0.9));
-      doc.roundedRect(trackX, y, trackW, 5, 1, 1, "F");
-      const w = ((Number(bar.value) || 0) / max) * trackW;
-      if (w > 0.4) {
-        doc.setFillColor(...bar.color);
-        doc.roundedRect(trackX, y, w, 5, 1, 1, "F");
-      }
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(7);
-      doc.setTextColor(...bar.color);
-      doc.text(`${compactUGX(bar.value)}${bar.note ? ` - ${bar.note}` : ""}`, pageWidth - margin, y + 3.6, { align: "right" });
-      y += 7.4;
-    });
-    y += 5;
-  };
-
-  /** Grouped column chart for a daily series (two measures per day). */
-  const columnChart = (
-    points: { label: string; a: number; b: number; weekend?: boolean }[],
-    legend: { a: string; b: string },
-    colorA: RGB,
-    colorB: RGB,
-  ) => {
-    if (!points.length) return;
-    const chartH = 34;
-    if (y > pageHeight - (chartH + 24)) { doc.addPage(); y = 18; }
-    const plotX = margin + 2;
-    const plotW = pageWidth - margin * 2 - 4;
-    const baseY = y + chartH;
-    const max = Math.max(1, ...points.map((p) => Math.max(Number(p.a) || 0, Number(p.b) || 0)));
-    // axis
-    doc.setDrawColor(...BORDER);
-    doc.setLineWidth(0.2);
-    doc.line(plotX, baseY, plotX + plotW, baseY);
-    const slot = plotW / points.length;
-    const barW = Math.min(6, Math.max(1.6, (slot - 2) / 2));
-    points.forEach((p, i) => {
-      const cx = plotX + i * slot + slot / 2;
-      if (p.weekend) {
-        doc.setFillColor(...tint(AMBER, 0.93));
-        doc.rect(plotX + i * slot, y, slot, chartH, "F");
-      }
-      const ha = ((Number(p.a) || 0) / max) * (chartH - 2);
-      const hb = ((Number(p.b) || 0) / max) * (chartH - 2);
-      doc.setFillColor(...colorA);
-      if (ha > 0.2) doc.rect(cx - barW - 0.4, baseY - ha, barW, ha, "F");
-      doc.setFillColor(...colorB);
-      if (hb > 0.2) doc.rect(cx + 0.4, baseY - hb, barW, hb, "F");
+      doc.text(doc.splitTextToSize(ascii(tl.value), tw - 7)[0], x + 3.5, ty + 11.6);
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(points.length > 16 ? 4.4 : 5.4);
+      doc.setFontSize(6.6);
       doc.setTextColor(...MUTED);
-      const lbl = points.length > 16 ? ascii(p.label).slice(4, 6) : ascii(p.label).slice(0, 6);
-      doc.text(lbl, cx, baseY + 3.4, { align: "center" });
+      const subLines = doc.splitTextToSize(ascii(tl.sub), tw - 7).slice(0, 2);
+      doc.text(subLines, x + 3.5, ty + 16);
     });
-    y = baseY + 6;
-    // legend + scale
-    doc.setFontSize(6.2);
-    doc.setFillColor(...colorA);
-    doc.rect(margin, y - 2, 3, 3, "F");
-    doc.setTextColor(...MUTED);
-    doc.text(legend.a, margin + 4.5, y + 0.6);
-    const off = margin + 4.5 + doc.getTextWidth(legend.a) + 6;
-    doc.setFillColor(...colorB);
-    doc.rect(off, y - 2, 3, 3, "F");
-    doc.text(legend.b, off + 4.5, y + 0.6);
-    doc.text(`Peak ${compactUGX(max)} - shaded columns are weekend days`, pageWidth - margin, y + 0.6, { align: "right" });
-    y += 8;
+    return ty + th;
   };
 
-  /** Two-series line chart for a daily trend. */
-  const lineChart = (
-    points: { label: string; a: number; b: number; weekend?: boolean }[],
-    legend: { a: string; b: string },
-    colorA: RGB,
-    colorB: RGB,
-  ) => {
-    if (!points.length) return;
-    const chartH = 38;
-    if (y > pageHeight - (chartH + 24)) { doc.addPage(); y = 18; }
-    const plotX = margin + 2;
-    const plotW = pageWidth - margin * 2 - 4;
-    const baseY = y + chartH;
-    const max = Math.max(1, ...points.map((p) => Math.max(Number(p.a) || 0, Number(p.b) || 0)));
-    // weekend shading + gridlines
-    const slot = plotW / Math.max(1, points.length);
-    points.forEach((p, i) => {
-      if (p.weekend) {
-        doc.setFillColor(...tint(AMBER, 0.95));
-        doc.rect(plotX + i * slot, y, slot, chartH, "F");
-      }
-    });
-    doc.setDrawColor(...BORDER);
-    doc.setLineWidth(0.15);
-    [0.25, 0.5, 0.75].forEach((f) => doc.line(plotX, baseY - chartH * f, plotX + plotW, baseY - chartH * f));
-    doc.setLineWidth(0.2);
-    doc.line(plotX, baseY, plotX + plotW, baseY);
-    const xAt = (i: number) => (points.length === 1 ? plotX + plotW / 2 : plotX + (i * plotW) / (points.length - 1));
-    const yAt = (v: number) => baseY - ((Number(v) || 0) / max) * (chartH - 3);
-    const drawSeries = (key: "a" | "b", color: RGB) => {
-      doc.setDrawColor(...color);
-      doc.setLineWidth(0.7);
-      points.forEach((p, i) => {
-        if (i === 0) return;
-        doc.line(xAt(i - 1), yAt(points[i - 1][key]), xAt(i), yAt(p[key]));
-      });
-      doc.setFillColor(...color);
-      points.forEach((p, i) => doc.circle(xAt(i), yAt(p[key]), points.length > 20 ? 0.5 : 0.9, "F"));
-    };
-    drawSeries("a", colorA);
-    drawSeries("b", colorB);
-    // x labels
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(points.length > 16 ? 4.4 : 5.4);
-    doc.setTextColor(...MUTED);
-    const every = points.length > 20 ? Math.ceil(points.length / 12) : 1;
-    points.forEach((p, i) => {
-      if (i % every !== 0 && i !== points.length - 1) return;
-      const lbl = points.length > 16 ? ascii(p.label).slice(4, 6) : ascii(p.label).slice(0, 6);
-      doc.text(lbl, xAt(i), baseY + 3.4, { align: "center" });
-    });
-    y = baseY + 6;
-    doc.setFontSize(6.2);
-    doc.setFillColor(...colorA);
-    doc.rect(margin, y - 2, 3, 3, "F");
-    doc.setTextColor(...MUTED);
-    doc.text(legend.a, margin + 4.5, y + 0.6);
-    const off = margin + 4.5 + doc.getTextWidth(legend.a) + 6;
-    doc.setFillColor(...colorB);
-    doc.rect(off, y - 2, 3, 3, "F");
-    doc.text(legend.b, off + 4.5, y + 0.6);
-    doc.text(`Peak ${compactUGX(max)} - shaded bands are weekend days`, pageWidth - margin, y + 0.6, { align: "right" });
-    y += 8;
-  };
-
-  const tableTheme = {
-    theme: "grid" as const,
-    styles: { fontSize: 7.4, cellPadding: 1.7, textColor: INK, lineColor: BORDER, lineWidth: 0.1 },
-    headStyles: { fillColor: BRAND, textColor: [255, 255, 255] as RGB, fontStyle: "bold" as const, fontSize: 7.2 },
-    alternateRowStyles: { fillColor: [248, 245, 254] as RGB },
-    margin: { left: margin, right: margin },
-  };
-  const table = (head: string[], body: (string | number)[][]) => {
-    if (y > pageHeight - 40) { doc.addPage(); y = 18; }
+  const drawTable = (head: string[], rows: string[][], startY: number, foot?: string[]): number => {
     autoTable(doc, {
-      ...tableTheme,
-      startY: y,
-      head: [head],
-      body: body.length ? body : [Array(head.length).fill("").map((_, i) => (i === 0 ? "No activity" : ""))],
-      columnStyles: Object.fromEntries(head.map((_, i) => [i, { halign: i === 0 ? "left" : "right" }])) as any,
+      startY: startY + 4,
+      margin: { left: margin + 6, right: margin + 6 },
+      head: [head.map(ascii)],
+      body: rows.map(r2 => r2.map(ascii)),
+      foot: foot ? [foot.map(ascii)] : undefined,
+      theme: "plain",
+      styles: { font: "helvetica", fontSize: 7.6, cellPadding: { top: 2, bottom: 2, left: 2.4, right: 2.4 }, textColor: INK, lineWidth: 0 },
+      headStyles: { fontStyle: "bold", fontSize: 6.4, textColor: MUTED, lineWidth: { bottom: 0.25 }, lineColor: CARD_BC },
+      footStyles: { fontStyle: "bold", fontSize: 7.6, textColor: INK, lineWidth: { top: 0.25 }, lineColor: CARD_BC, fillColor: [255, 255, 255] },
+      bodyStyles: { lineWidth: { bottom: 0.15 }, lineColor: ROW_LINE },
+      columnStyles: { 0: { halign: "left" } },
+      didParseCell: (data: any) => {
+        if (data.column.index > 0) data.cell.styles.halign = "right";
+      },
+      willDrawPage: () => { paintPageBg(); },
     });
-    y = ((doc as any).lastAutoTable?.finalY ?? y) + 9;
+    return (doc as any).lastAutoTable.finalY;
   };
 
-  // ── Capital movement in the period ──
-  heading("Capital movement in the period", `Every figure below is measured strictly inside ${win.pretty} (EAT).`);
-  miniKpis([
-    { label: "New capital", value: compactUGX(k.new_capital), accent: EMERALD },
-    { label: "Top-ups applied", value: compactUGX(t.applied_amount), accent: AMBER },
-    { label: "Compounded in", value: compactUGX(k.compounded_amount), accent: TEAL },
-    { label: "Returns paid out", value: compactUGX(k.paid_out_amount), accent: ROSE },
-  ]);
-  const inflow = (Number(k.new_capital) || 0) + (Number(t.applied_amount) || 0) + (Number(k.compounded_amount) || 0);
-  const outflow = Number(k.paid_out_amount) || 0;
-  barChart([
-    { label: "Capital in", value: inflow, note: "new + top-ups + compounded", color: EMERALD },
-    { label: "Capital out", value: outflow, note: "returns paid to partner wallets", color: ROSE },
-    { label: "Net movement", value: Math.abs(inflow - outflow), note: inflow - outflow >= 0 ? "net inflow" : "net outflow", color: inflow - outflow >= 0 ? BLUE : AMBER },
-  ]);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(6.8);
-  doc.setTextColor(...MUTED);
-  doc.text(
-    `Capital in excludes nothing except partner wallet withdrawals, which only move returns already counted above - they are not a second reduction of capital.`,
-    margin, y, { maxWidth: pageWidth - margin * 2 },
-  );
-  y += 8;
+  const drawNote = (txt: string, startY: number): number => {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.4);
+    doc.setTextColor(...MUTED);
+    const lines = doc.splitTextToSize(ascii(txt), contentW - 12);
+    ensure(lines.length * 3.4 + 6);
+    doc.text(lines, margin + 6, startY + 5);
+    return startY + 3 + lines.length * 3.4;
+  };
 
-  // ── Daily trend ──
-  heading("Daily trend", "Per-day capital in versus returns settled - one column pair per calendar day in the window.");
-  columnChart(
-    r.series.map((s: any) => ({
-      label: ascii(s.label),
-      a: (Number(s.new_capital) || 0) + (Number(s.topups_applied) || 0),
-      b: (Number(s.paid_out) || 0) + (Number(s.compounded) || 0),
-      weekend: !!s.is_weekend,
-    })),
-    { a: "Capital in (new + top-ups)", b: "Returns settled (paid + compounded)" },
-    EMERALD,
-    ROSE,
-  );
-  const wkEnd = r.series.filter((s: any) => s.is_weekend);
-  const wkDay = r.series.filter((s: any) => !s.is_weekend);
-  const sum = (rows: any[], key: string) => rows.reduce((a, x) => a + (Number(x[key]) || 0), 0);
-  miniKpis([
-    { label: "Avg capital in / day", value: compactUGX(perDay(inflow)), accent: EMERALD },
-    { label: "Avg paid out / day", value: compactUGX(perDay(k.paid_out_amount)), accent: ROSE },
-    { label: `Weekdays (${wkDay.length}d)`, value: compactUGX(sum(wkDay, "paid_out")), accent: BLUE },
-    { label: `Weekend (${wkEnd.length}d)`, value: compactUGX(sum(wkEnd, "paid_out")), accent: AMBER },
-  ]);
+  const finishSection = (endY: number) => {
+    y = endY + 8;
+  };
 
-  // ── Top-ups (period accurate) ──
-  heading(
-    "Top-ups",
-    "Top-ups only (portfolio creations are excluded). Requested = submitted inside the window; applied = merged into capital inside the window.",
-  );
-  miniKpis([
-    { label: `Requested in period (${num(t.requested_count)})`, value: compactUGX(t.requested_amount), accent: BLUE },
-    { label: `Applied in period (${num(t.applied_count)})`, value: compactUGX(t.applied_amount), accent: EMERALD },
-    { label: `Pending now (${num(t.backlog_count)})`, value: compactUGX(t.backlog_amount), accent: AMBER },
-    { label: `Applied all time (${num(t.applied_all_count)})`, value: compactUGX(t.applied_all_amount), accent: TEAL },
-  ]);
-  table(
-    ["Top-up state", "Count", "Amount (UGX)"],
-    [
-      ["Requested in the window", num(t.requested_count), fmtUGX(t.requested_amount)],
-      ["Applied in the window", num(t.applied_count), fmtUGX(t.applied_amount)],
-      ["Rejected in the window", num(t.rejected_count), fmtUGX(t.rejected_amount)],
-      ["Cancelled in the window", num(t.cancelled_count), fmtUGX(t.cancelled_amount)],
-      ["Pending right now (all dates)", num(t.backlog_count), fmtUGX(t.backlog_amount)],
-      ["Applied all time (all dates)", num(t.applied_all_count), fmtUGX(t.applied_all_amount)],
-      [
-        "Carried at renewal (window / last 90d)",
-        `${num(t.renewal_topup_count)} / ${num(t.renewal_topup_count_90d)}`,
-        `${fmtUGX(t.renewal_topup_amount)} / ${fmtUGX(t.renewal_topup_amount_90d)}`,
-      ],
-    ],
-  );
-  columnChart(
-    r.series.map((s: any) => ({
-      label: ascii(s.label),
-      a: Number(s.topups_requested) || 0,
-      b: Number(s.topups_applied) || 0,
-      weekend: !!s.is_weekend,
-    })),
-    { a: "Top-ups requested", b: "Top-ups applied" },
-    BLUE,
-    EMERALD,
-  );
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(6.8);
-  doc.setTextColor(...MUTED);
-  doc.text(
-    `Still waiting to be applied as at generation time: ${num(t.backlog_count)} top-ups worth ${compactUGX(t.backlog_amount)}, oldest ${num(t.backlog_oldest_days)} day(s). Detailed in the open-queues table below.`,
-    margin, y, { maxWidth: pageWidth - margin * 2 },
-  );
-  y += 8;
+  // 1 — Headline
+  {
+    let cur = drawSectionHead(
+      "Headline - the window",
+      `Window is ${days} day${days === 1 ? "" : "s"} of EAT calendar activity. Capital in excludes compounded returns - compounding is a non-cash movement already inside portfolio principal.`,
+    );
+    cur = drawTiles([
+      { label: "Capital live (close)", value: compactUGX(k.total_capital), sub: `${num(k.active_portfolios)} active portfolios` },
+      { label: "Capital in (cash)", value: fmtUGX(inflow), sub: `${num(k.new_portfolios)} new - ${num(t.applied_count)} top-ups applied`, kind: "good" },
+      { label: "Returns paid", value: fmtUGX(k.paid_out_amount), sub: `${num(k.paid_out_count)} credits`, kind: "good" },
+      { label: "Compounded", value: fmtUGX(k.compounded_amount), sub: `${num(k.compounded_count)} portfolios (non-cash)` },
+      { label: "Net capital movement", value: fmtUGX(inflow - outflow), sub: inflow - outflow >= 0 ? "net inflow" : "net outflow", kind: inflow - outflow >= 0 ? "good" : "bad" },
+      { label: "Parked top-ups", value: fmtUGX(t.backlog_amount), sub: `${num(t.backlog_count)} awaiting merge`, kind: "bad" },
+    ], cur);
+    finishSection(cur);
+  }
 
-  // ── Portfolio mix ──
-  heading("Portfolio mix", "How live capital is distributed across return modes and ticket sizes.");
-  barChart(
-    (r.mix.by_mode || []).map((m: any, i: number) => ({
-      label: ascii(m.label), value: Number(m.amount) || 0, note: `${num(m.count)} portfolios`,
-      color: i === 0 ? TEAL : VIOLET,
-    })),
-  );
-  barChart(
-    (r.mix.by_band || []).map((m: any, i: number) => ({
-      label: ascii(m.label), value: Number(m.amount) || 0, note: `${num(m.count)} portfolios`,
-      color: [SLATE, BLUE, VIOLET, BRAND][i % 4],
-    })),
-  );
+  // 2 — Capital in + daily chart + movement table
+  {
+    let cur = drawSectionHead(
+      "Capital in - new money and top-ups",
+      "New portfolio capital plus top-ups merged into existing portfolios. Parked top-ups are real money held but not yet inside capital live.",
+    );
+    cur = drawTiles([
+      { label: "New portfolio capital", value: fmtUGX(k.new_capital), sub: `${num(k.new_portfolios)} portfolios`, kind: "good" },
+      { label: "Top-ups applied", value: fmtUGX(t.applied_amount), sub: `${num(t.applied_count)} top-ups`, kind: "good" },
+      { label: "Top-ups requested", value: fmtUGX(t.requested_amount), sub: `${num(t.requested_count)} requests` },
+    ], cur);
 
-  // ── Forecast ──
-  const f = r.forecast;
-  heading("Payout forecast - next 7 days", "What falls due per day from the end of the reporting window.");
-  miniKpis([
-    { label: "Working days due", value: compactUGX(f.weekdays_total), accent: BLUE },
-    { label: "Portfolios (Mon-Fri)", value: num(f.weekdays_count), accent: BLUE },
-    { label: "Weekend due", value: compactUGX(f.weekend_total), accent: AMBER },
-    { label: "Portfolios (Sat-Sun)", value: num(f.weekend_count), accent: AMBER },
-  ]);
-  barChart(
-    f.days.map((d: any) => ({
-      label: ascii(d.label),
-      value: Number(d.total_amount) || 0,
-      note: `${num(d.portfolios)} portfolios`,
-      color: d.is_weekend ? AMBER : BLUE,
-    })),
-  );
+    // Daily bar chart — capital in vs returns settled
+    const series = r.series || [];
+    if (series.length) {
+      const chartH = 34;
+      ensure(chartH + 22);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(...INK);
+      doc.text("Daily capital in vs returns settled", margin + 6, cur + 8);
+      const baseY = cur + 12 + chartH;
+      const maxSeries = Math.max(
+        1,
+        ...series.map((s: any) => Math.max(
+          (Number(s.new_capital) || 0) + (Number(s.topups_applied) || 0),
+          (Number(s.paid_out) || 0) + (Number(s.compounded) || 0),
+        )),
+      );
+      const slot = (contentW - 12) / series.length;
+      series.forEach((s: any, i: number) => {
+        const cin = (Number(s.new_capital) || 0) + (Number(s.topups_applied) || 0);
+        const cout = (Number(s.paid_out) || 0) + (Number(s.compounded) || 0);
+        const h = (v: number) => Math.max(v > 0 ? 1 : 0, (v / maxSeries) * chartH);
+        const cx = margin + 6 + i * slot + slot / 2;
+        const bw = Math.min(4, slot / 3);
+        doc.setFillColor(...EMERALD);
+        doc.rect(cx - bw - 0.6, baseY - h(cin), bw, h(cin), "F");
+        doc.setFillColor(...ROSE);
+        doc.rect(cx + 0.6, baseY - h(cout), bw, h(cout), "F");
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(5.6);
+        doc.setTextColor(...MUTED);
+        doc.text(compactUGX(Math.max(cin, cout)), cx, baseY + 3, { align: "center" });
+        doc.setTextColor(...(s.is_weekend ? AMBER : MUTED));
+        doc.text(ascii(s.label), cx, baseY + 6, { align: "center" });
+      });
+      doc.setDrawColor(...CARD_BC);
+      doc.setLineWidth(0.2);
+      doc.line(margin + 6, baseY, pageWidth - margin - 6, baseY);
+      doc.setFontSize(6.4);
+      doc.setTextColor(...EMERALD);
+      doc.text("capital in", margin + 6, baseY + 11);
+      doc.setTextColor(...ROSE);
+      doc.text("returns settled", margin + 28, baseY + 11);
+      doc.setTextColor(...MUTED);
+      doc.text(`peak ${compactUGX(maxSeries)}`, margin + 58, baseY + 11);
+      cur = baseY + 12;
+    }
 
-  // ── Backlog scoreboard ──
-  heading(
-    "Open queues - snapshot at generation time",
-    "Work still sitting unfinished right now, regardless of when it arrived. Unlike every figure above, this is not limited to the reporting window.",
-  );
-  table(
-    ["Queue - waiting for action", "Count", "Value"],
-    [
-      ["Portfolios awaiting ops approval", num(b.pending_portfolios_count), fmtUGX(b.pending_portfolios_amount)],
-      ["Funder deployment queue", num(b.funder_queue_count), fmtUGX(b.funder_queue_amount)],
-      ["Top-ups waiting to be applied", num(t.backlog_count), fmtUGX(t.backlog_amount)],
-      ["Renewal requests pending", num(b.pending_renewal_requests), "-"],
-      ["Redemption requests pending", num(b.pending_redemption_requests), "-"],
-      ["Promissory notes pending", num(b.promissory_pending_count), fmtUGX(b.promissory_pending_amount)],
-      ["Partner withdrawals in flight", num(b.withdrawals_pending_count), fmtUGX(b.withdrawals_pending_amount)],
-    ],
-  );
+    cur = drawTable(["Movement", "Count", "Volume"], [
+      ["New portfolio capital", num(k.new_portfolios), fmtUGX(k.new_capital)],
+      ["Top-ups applied", num(t.applied_count), fmtUGX(t.applied_amount)],
+      ["Renewals", num(k.renewals_count), fmtUGX(k.renewals_topup_amount)],
+      ["Parked top-ups (now)", num(t.backlog_count), fmtUGX(t.backlog_amount)],
+    ], cur, ["Capital in (cash)", "", fmtUGX(inflow)]);
 
-  // ── Period summary table ──
-  heading("Period summary", `Window ${win.pretty} - ${days} day${days === 1 ? "" : "s"}.`);
-  table(
-    ["Metric", "Period total", "Daily average"],
-    [
-      ["New portfolios", num(k.new_portfolios), num(perDay(k.new_portfolios))],
-      ["New capital", fmtUGX(k.new_capital), fmtUGX(perDay(k.new_capital))],
-      ["Returns paid out", fmtUGX(k.paid_out_amount), fmtUGX(perDay(k.paid_out_amount))],
-      ["Returns compounded", fmtUGX(k.compounded_amount), fmtUGX(perDay(k.compounded_amount))],
-      ["Top-ups applied", fmtUGX(t.applied_amount), fmtUGX(perDay(t.applied_amount))],
-      ["Renewals", num(k.renewals_count), num(perDay(k.renewals_count))],
-      ["Promissory notes created", num(k.promissory_created_count), num(perDay(k.promissory_created_count))],
-    ],
-  );
+    if ((r.series || []).length) {
+      cur = drawTable(
+        ["Day", "New capital", "Top-ups applied", "Returns paid", "Compounded"],
+        (r.series || []).map((s: any) => [
+          ascii(s.label),
+          fmtUGX(s.new_capital),
+          fmtUGX(s.topups_applied),
+          fmtUGX(s.paid_out),
+          fmtUGX(s.compounded),
+        ]),
+        cur,
+        ["Window total", fmtUGX(k.new_capital), fmtUGX(t.applied_amount), fmtUGX(k.paid_out_amount), fmtUGX(k.compounded_amount)],
+      );
+    }
+    finishSection(cur);
+  }
 
-  // Footers
-  const pageCount = doc.getNumberOfPages();
+  // 3 — Returns
+  {
+    let cur = drawSectionHead(
+      "Returns - paid and compounded",
+      "Returns settled in the window split between cash credited to partner wallets and returns reinvested into principal.",
+    );
+    cur = drawTiles([
+      { label: "Paid in cash to wallets", value: fmtUGX(k.paid_out_amount), sub: `${num(k.paid_out_count)} credits`, kind: "good" },
+      { label: "Compounded (non-cash)", value: fmtUGX(k.compounded_amount), sub: `${num(k.compounded_count)} portfolios` },
+      { label: "Returns settled", value: fmtUGX(Number(k.paid_out_amount) + Number(k.compounded_amount)), sub: "cash plus compounded" },
+    ], cur);
+    cur = drawTable(["Reconciliation", "Count", "Volume"], [
+      ["Credited to partner wallets", num(k.paid_out_count), fmtUGX(k.paid_out_amount)],
+      ["Compounded into principal", num(k.compounded_count), fmtUGX(k.compounded_amount)],
+    ], cur, ["Returns settled", "", fmtUGX(Number(k.paid_out_amount) + Number(k.compounded_amount))]);
+    cur = drawNote("Compounded returns add to capital live but never to capital in or capital out - they never leave the business.", cur);
+    finishSection(cur);
+  }
+
+  // 4 — Forecast
+  {
+    let cur = drawSectionHead(
+      "Returns forecast - next 7 days",
+      "Active portfolios whose next payout date falls in the coming week, valued at principal times monthly rate.",
+    );
+    cur = drawTiles([
+      { label: "Working days (Mon-Fri)", value: fmtUGX(f.weekdays_total), sub: `${num(f.weekdays_count)} portfolios due` },
+      { label: "Weekend (Sat-Sun)", value: fmtUGX(f.weekend_total), sub: `${num(f.weekend_count)} portfolios due` },
+      { label: "Total due", value: fmtUGX(Number(f.weekdays_total) + Number(f.weekend_total)), sub: `${num(Number(f.weekdays_count) + Number(f.weekend_count))} portfolios`, kind: "bad" },
+    ], cur);
+    const forecastRows = (f.days || []).map((d: any) => [
+      ascii(d.label ?? d.date),
+      num(d.portfolios ?? d.count),
+      fmtUGX(Number(d.total_amount ?? d.cash_due ?? d.amount ?? 0)),
+    ]);
+    if (forecastRows.length) cur = drawTable(["Day", "Portfolios due", "Cash due"], forecastRows, cur);
+    finishSection(cur);
+  }
+
+  // 5 — Portfolio mix
+  {
+    const modeRows = (r.mix?.by_mode || []).map((m: any) => [ascii(m.label ?? m.mode), num(m.portfolios ?? m.count), fmtUGX(m.amount ?? m.volume)]);
+    const bandRows = (r.mix?.by_band || []).map((m: any) => [ascii(m.label ?? m.band), num(m.portfolios ?? m.count), fmtUGX(m.amount ?? m.volume)]);
+    if (modeRows.length || bandRows.length) {
+      let cur = drawSectionHead("Portfolio mix", "Book composition by payout mode and ticket size at window close.");
+      if (modeRows.length) cur = drawTable(["Payout mode", "Portfolios", "Volume"], modeRows, cur);
+      if (bandRows.length) cur = drawTable(["Ticket band", "Portfolios", "Volume"], bandRows, cur);
+      finishSection(cur);
+    }
+  }
+
+  // 6 — Watchlist
+  {
+    const watch: string[] = [];
+    if (Number(t.backlog_amount) > 0) watch.push(`Parked top-ups awaiting merge: ${num(t.backlog_count)} - ${fmtUGX(t.backlog_amount)}`);
+    if (Number(b.pending_portfolios_count) > 0) watch.push(`Portfolios awaiting ops approval: ${num(b.pending_portfolios_count)} - ${fmtUGX(b.pending_portfolios_amount)}`);
+    if (Number(k.renewals_count) > 0) watch.push(`Renewals in the window: ${num(k.renewals_count)} - ${fmtUGX(k.renewals_topup_amount)}`);
+    if (Number(f.weekdays_total) + Number(f.weekend_total) > outflow) {
+      watch.push(`Next 7 days of returns (${fmtUGX(Number(f.weekdays_total) + Number(f.weekend_total))}) exceed the returns paid this window (${fmtUGX(outflow)}) - cover must come from new capital`);
+    }
+    if (!watch.length) watch.push("No open exceptions - backlog, approvals and forecast cover are all clean.");
+
+    let cur = drawSectionHead("Watchlist", "Only items needing action are listed. Clean areas are omitted rather than printed as zeros.");
+    watch.forEach((w) => {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7.6);
+      const lines = doc.splitTextToSize(ascii(w), contentW - 24);
+      const h = Math.max(8, lines.length * 3.6 + 4.5);
+      if (cur + h + 6 > bottomLimit) { newPage(); cur = y; }
+      doc.setFillColor(255, 253, 245);
+      doc.setDrawColor(...AMBER);
+      doc.rect(margin + 6, cur + 4, contentW - 12, h, "F");
+      doc.setFillColor(...AMBER);
+      doc.rect(margin + 6, cur + 4, 1.1, h, "F");
+      doc.setTextColor(...INK);
+      doc.text(lines, margin + 11, cur + 9.5);
+      cur += h + 2.5;
+    });
+    finishSection(cur);
+  }
+
+  // ── Footer on every page ──
+  const pageCount = (doc as any).internal.getNumberOfPages();
   for (let p = 1; p <= pageCount; p++) {
     doc.setPage(p);
-    doc.setDrawColor(...BORDER);
+    doc.setDrawColor(...CARD_BC);
     doc.setLineWidth(0.2);
-    doc.line(margin, pageHeight - 9, pageWidth - margin, pageHeight - 9);
+    doc.line(margin, pageHeight - 11, pageWidth - margin, pageHeight - 11);
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(7);
+    doc.setFontSize(6.6);
     doc.setTextColor(...MUTED);
-    doc.text(`${COMPANY_LOCATION} - confidential partner operations analytics`, margin, pageHeight - 5);
-    doc.text(`Page ${p} / ${pageCount}`, pageWidth - margin, pageHeight - 5, { align: "right" });
+    doc.text(
+      `${COMPANY_LOCATION} - window ${ascii(win.pretty)} (EAT). Figures in UGX. Ledger reads exclude admin corrections and system balance corrections.`,
+      margin, pageHeight - 6.5,
+    );
+    doc.text(`Page ${p} / ${pageCount}`, pageWidth - margin, pageHeight - 6.5, { align: "right" });
   }
 
   return new Uint8Array(doc.output("arraybuffer") as ArrayBuffer);
