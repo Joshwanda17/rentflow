@@ -109,6 +109,8 @@ const DashboardHeader = memo(function DashboardHeader({
 
   const showInstallButton = isInstallable && !isInstalled;
   const visibleRoles = availableRoles.filter((role) => role in roleConfigMap);
+  const hasNonPublicRole = availableRoles.some((role) => !PUBLIC_ROLES.includes(role));
+
 
   return (
     <>
@@ -163,7 +165,23 @@ const DashboardHeader = memo(function DashboardHeader({
                           </button>
                         );
                       })}
+                      {hasNonPublicRole && (
+                        <>
+                          <div className="my-1.5 h-px bg-border" />
+                          <button
+                            onClick={() => {
+                              setRolePickerOpen(false);
+                              navigate('/me');
+                            }}
+                            className="w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-foreground hover:bg-muted active:scale-[0.98] transition-all touch-manipulation min-h-[44px]"
+                          >
+                            <span className="text-base">👤</span>
+                            <span>My space</span>
+                          </button>
+                        </>
+                      )}
                     </PopoverContent>
+
                   </Popover>
                 </>
               ) : (
