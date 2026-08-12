@@ -82,14 +82,14 @@ export function ProxyInvestmentHistorySheet({ open, onOpenChange }: ProxyInvestm
         <SheetHeader className="p-4 pb-3 border-b border-border">
           <SheetTitle className="flex items-center gap-2 text-lg">
             <HandCoins className="h-5 w-5 text-emerald-500" />
-            Proxy Investment History
+            Proxy Funding History
           </SheetTitle>
         </SheetHeader>
 
         {/* Summary Cards */}
         <div className="grid grid-cols-3 gap-2 p-4 pb-2">
           <div className="rounded-xl bg-muted/50 p-3 text-center">
-            <p className="text-xs text-muted-foreground">Invested</p>
+            <p className="text-xs text-muted-foreground">Funded</p>
             <p className="text-sm font-bold text-destructive">{formatUGX(totalInvested)}</p>
           </div>
           <div className="rounded-xl bg-muted/50 p-3 text-center">
@@ -109,9 +109,9 @@ export function ProxyInvestmentHistorySheet({ open, onOpenChange }: ProxyInvestm
             ) : transactions.length === 0 ? (
               <div className="text-center py-12">
                 <History className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
-                <p className="text-sm text-muted-foreground">No proxy investments yet</p>
+                <p className="text-sm text-muted-foreground">No proxy funding yet</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Use "Invest for Partner" to get started
+                  Use "Fund Partner" to get started
                 </p>
               </div>
             ) : (

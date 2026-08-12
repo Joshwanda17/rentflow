@@ -351,7 +351,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
             </div>
             <h3 className="font-bold text-lg">Portfolio Activated!</h3>
             <div className="space-y-2 text-sm text-muted-foreground">
-              <p>Invested on behalf of <strong className="text-foreground">{success.partner_name}</strong></p>
+              <p>Funded on behalf of <strong className="text-foreground">{success.partner_name}</strong></p>
               {success.portfolio_code && (
                 <p>Portfolio: <strong className="font-mono text-foreground">{success.portfolio_code}</strong></p>
               )}
@@ -420,10 +420,10 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <HandCoins className="h-5 w-5 text-primary" />
-              Invest for Partner
+              Fund Partner
             </DialogTitle>
             <DialogDescription>
-              Enter partner details and investment amount. If the partner is new, they'll be registered automatically.
+              Enter partner details and funding amount. If the partner is new, they'll be registered automatically.
             </DialogDescription>
           </DialogHeader>
 
@@ -471,7 +471,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
 
             {/* Funding Amount */}
             <div className="space-y-2">
-              <Label htmlFor="invest-amount">Investment Amount (UGX)</Label>
+              <Label htmlFor="invest-amount">Funding Amount (UGX)</Label>
               <Input
                 id="invest-amount"
                 type="number"
@@ -501,7 +501,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
 
             {/* Funding Reference */}
             <div className="space-y-2">
-              <Label htmlFor="invest-ref">Investment Reference</Label>
+              <Label htmlFor="invest-ref">Funding Reference</Label>
               <div className="relative">
                 <FileText className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -588,7 +588,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
               ) : (
                 <>
                   <HandCoins className="h-4 w-4 mr-2" />
-                  Invest {parsedAmount >= 1000 ? formatUGX(parsedAmount) : ''} for Partner
+                  Fund {parsedAmount >= 1000 ? formatUGX(parsedAmount) : ''} for Partner
                 </>
               )}
             </Button>
@@ -601,7 +601,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
             <AlertDialogHeader>
               <AlertDialogTitle className="flex items-center gap-2">
                 <HandCoins className="h-5 w-5 text-primary" />
-                Confirm Investment
+                Confirm Funding
               </AlertDialogTitle>
               <AlertDialogDescription asChild>
                 <div className="space-y-3 pt-2">

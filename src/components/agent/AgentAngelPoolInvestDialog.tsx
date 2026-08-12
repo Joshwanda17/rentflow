@@ -397,7 +397,7 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
             </div>
 
             <div className="space-y-2">
-              <Label>Investment Amount (UGX)</Label>
+              <Label>Funding Amount (UGX)</Label>
               <Input
                 type="number"
                 placeholder={`Min ${PRICE_PER_SHARE.toLocaleString()}`}
@@ -418,7 +418,7 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
             </div>
 
             <div className="space-y-2">
-              <Label>Investment Date <span className="text-destructive">*</span></Label>
+              <Label>Funding Date <span className="text-destructive">*</span></Label>
               <Input
                 type="date"
                 value={investmentDate}
@@ -498,7 +498,7 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
                 <span className="font-medium">{selectedInvestor.full_name}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Investment Date</span>
+                <span className="text-muted-foreground">Funding Date</span>
                 <span className="font-medium">{investmentDate}</span>
               </div>
               <div className="flex justify-between text-sm">
@@ -551,7 +551,7 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
               <CheckCircle className="h-8 w-8 text-emerald-500" />
             </div>
             <div>
-              <p className="font-bold text-lg">Investment Confirmed!</p>
+              <p className="font-bold text-lg">Funding Confirmed!</p>
               <p className="text-sm text-muted-foreground mt-1">
                 {Number(result.shares).toLocaleString(undefined, { maximumFractionDigits: 4 })} shares allocated to {selectedInvestor.full_name}
               </p>
