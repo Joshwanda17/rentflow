@@ -3860,6 +3860,9 @@ Deno.serve(async (req) => {
         target_user: targetName,
         txn_group_id: txnGroupId,
         cashout_commission: cashoutCommission,
+        cashout_commission_reason:
+          (commissionVerdict as any)?.reason ??
+          (actingAsMerchant ? "not_evaluated" : "not_merchant"),
         merchant_reimbursed: merchantFloatConsumed,
         merchant_float_consumed: merchantFloatConsumed,
         merchant_telecom_charge: merchantTelecomCharge,
