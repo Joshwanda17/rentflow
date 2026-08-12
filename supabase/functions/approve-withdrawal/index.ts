@@ -1165,7 +1165,15 @@ Deno.serve(async (req) => {
     // The remainder of this invocation may still advance `paid` to `completed`;
     // retries cannot claim or return the already-paid row to pending.
     if (pasteSms && actingAsMerchant && !isCashPayout) {
-      await logSmsPaste("matched", null, null);
+      // Audit-only: must never abort the payout after the claim is held.
+      try {
+        await logSmsPasteRef?.("matched", null, null);
+      } catch (e) {
+        console.warn(
+          "[approve-withdrawal] matched sms audit log failed (non-blocking):",
+          (e as Error).message,
+        );
+      }
     }
 
     // Helper used by the early-failure paths below to release the claim so
