@@ -59,7 +59,7 @@ export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialo
   const [deductionDay, setDeductionDay] = useState('1');
 
   const resetForm = () => {
-    setPartnerName('');
+    setNameParts({ firstName: '', otherNames: '', lastName: '' });
     setWhatsappNumber('');
     setPhoneNumber('');
     setEmail('');
