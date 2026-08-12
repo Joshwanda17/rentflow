@@ -111,38 +111,24 @@ export function UnifiedWalletHeroCard({
     (onViewStatement ?? onOpenWallet)?.();
   };
 
-  const [collapsed, setCollapsed] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return defaultCollapsed;
-    const stored = window.localStorage.getItem(collapseKey(role));
-    if (stored === 'open') return false;
-    if (stored === 'closed') return true;
-    return defaultCollapsed;
-  });
+  // Always start collapsed when a dashboard loads, regardless of previous session state.
+  const [collapsed, setCollapsed] = useState<boolean>(defaultCollapsed);
   const [reduceMotion, setReduceMotion] = useState(false);
 
   useEffect(() => { setReduceMotion(prefersReducedMotion()); }, []);
 
-  // Auto re-collapse when the user scrolls down, or reaches the bottom of the page.
-  const scrollAnchor = useRef(0);
+  // Auto-collapse only when the user reaches the bottom of the page.
   useEffect(() => {
     if (collapsed || typeof window === 'undefined') return;
     const getY = () => window.scrollY || document.documentElement.scrollTop || 0;
-    scrollAnchor.current = getY();
     const atBottom = () => {
       const doc = document.documentElement;
       const scrollHeight = Math.max(doc.scrollHeight, document.body.scrollHeight);
       return getY() + window.innerHeight >= scrollHeight - 24;
     };
     const onScroll = () => {
-      const y = getY();
       if (atBottom()) {
         setCollapsed(true);
-        return;
-      }
-      if (y > scrollAnchor.current + 48) {
-        setCollapsed(true);
-      } else if (y < scrollAnchor.current) {
-        scrollAnchor.current = y;
       }
     };
     window.addEventListener('scroll', onScroll, { passive: true });
