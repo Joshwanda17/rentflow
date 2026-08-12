@@ -92,8 +92,7 @@ export function ApprovalHistoryLog() {
     const matchesSearch = !search ||
       r.tenant_name.toLowerCase().includes(search.toLowerCase()) ||
       (r.agent_name || '').toLowerCase().includes(search.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || r.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    return matchesSearch;
   });
 
   return (
