@@ -582,6 +582,8 @@ export function LandlordOpsDashboard() {
   const [landlordDateFrom, setLandlordDateFrom] = useState<string>('');
   const [landlordDateTo, setLandlordDateTo] = useState<string>('');
   const [exportingLandlordReport, setExportingLandlordReport] = useState(false);
+  // "Landlords Funded" statistics + its own comprehensive export.
+  const [exportingFundedReport, setExportingFundedReport] = useState(false);
 
   // ─── LC1 Verification Filter ───
   // Keys on the canonical `verification_status` (verified / rejected / pending)
