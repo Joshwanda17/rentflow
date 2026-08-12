@@ -10,6 +10,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Zap, BookOpen, Banknote, ArrowRight, Loader2, GraduationCap, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import PersonNameFields from '@/components/shared/PersonNameFields';
+import { joinPersonName, validatePersonNameParts, type PersonNameParts } from '@/lib/authValidation';
 import { cn } from '@/lib/utils';
 import welileLogo from '@/assets/welile-logo.png';
 
@@ -33,13 +35,20 @@ export default function Internship() {
     readyToLearn: 'yes',
     referralCode: '',
   });
+  // Name captured in parts; `form.fullName` stays the single submitted string.
+  const [nameParts, setNameParts] = useState<PersonNameParts>({ firstName: '', otherNames: '', lastName: '' });
+  const applyNameParts = (next: PersonNameParts) => {
+    setNameParts(next);
+    setForm(prev => ({ ...prev, fullName: joinPersonName(next) }));
+  };
 
   const updateField = (field: string, value: string) => setForm(prev => ({ ...prev, [field]: value }));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.fullName.trim() || !form.phone.trim()) {
-      toast({ title: 'Required fields', description: 'Please fill in your name and phone number', variant: 'destructive' });
+    const nameCheck = validatePersonNameParts(nameParts);
+    if (!nameCheck.valid || !form.phone.trim()) {
+      toast({ title: 'Required fields', description: nameCheck.error || 'Please fill in your name and phone number', variant: 'destructive' });
       return;
     }
     if (!form.motivation.trim()) {
@@ -153,8 +162,8 @@ export default function Internship() {
           {/* Basic Info */}
           <div className="space-y-3">
             <div>
-              <Label htmlFor="fullName">Full Name *</Label>
-              <Input id="fullName" placeholder="Your full name" value={form.fullName} onChange={e => updateField('fullName', e.target.value)} required />
+              <Label>Full Name *</Label>
+              <PersonNameFields idPrefix="internship" value={nameParts} onChange={applyNameParts} />
             </div>
             <div>
               <Label htmlFor="phone">Phone Number *</Label>

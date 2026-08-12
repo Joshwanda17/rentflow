@@ -4,6 +4,8 @@ import DashboardPermissionsTab from './DashboardPermissionsTab';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
+import PersonNameFields from '@/components/shared/PersonNameFields';
+import { joinPersonName, splitPersonName, validatePersonNameParts, type PersonNameParts } from '@/lib/authValidation';
 import {
   Dialog,
   DialogContent,
@@ -168,6 +170,12 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
     monthly_rent: ''
   });
   const [savingProfile, setSavingProfile] = useState(false);
+  // Name captured in parts; `editForm.full_name` stays the single saved string.
+  const [nameParts, setNameParts] = useState<PersonNameParts>({ firstName: '', otherNames: '', lastName: '' });
+  const applyNameParts = (next: PersonNameParts) => {
+    setNameParts(next);
+    setEditForm(prev => ({ ...prev, full_name: joinPersonName(next) }));
+  };
   const [deletingUser, setDeletingUser] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState<boolean>(false);
@@ -377,6 +385,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
         phone: user.phone,
         monthly_rent: user.monthly_rent?.toString() || ''
       });
+      setNameParts(splitPersonName(user.full_name || ''));
       // Fetch referral count
       supabase
         .from('profiles')
@@ -708,6 +717,11 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
 
   const handleSaveProfile = async () => {
     if (!user) return;
+    const nameCheck = validatePersonNameParts(nameParts);
+    if (!nameCheck.valid) {
+      toast.error(nameCheck.error || 'Enter first and last name');
+      return;
+    }
     setSavingProfile(true);
     
     try {
@@ -1649,12 +1663,10 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                     <CardContent className="pt-0 space-y-4">
                       <div className="space-y-2">
                         <Label htmlFor="edit-name-mobile">Full Name</Label>
-                        <Input
-                          id="edit-name-mobile"
-                          value={editForm.full_name}
-                          onChange={(e) => setEditForm(prev => ({ ...prev, full_name: e.target.value }))}
-                          placeholder="Enter full name"
-                          className="h-12 text-base"
+                        <PersonNameFields
+                          idPrefix="user-details-mobile"
+                          value={nameParts}
+                          onChange={applyNameParts}
                         />
                       </div>
                       <div className="space-y-2">
@@ -2303,7 +2315,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                 <Card>
                   <CardHeader className="py-3"><CardTitle className="text-sm flex items-center gap-2"><Pencil className="h-4 w-4 text-primary" />Edit Profile</CardTitle></CardHeader>
                   <CardContent className="pt-0 space-y-4">
-                    <div className="space-y-2"><Label htmlFor="edit-name">Full Name</Label><Input id="edit-name" value={editForm.full_name} onChange={(e) => setEditForm(prev => ({ ...prev, full_name: e.target.value }))} placeholder="Enter full name" /></div>
+                    <div className="space-y-2"><Label>Full Name</Label><PersonNameFields idPrefix="user-details" value={nameParts} onChange={applyNameParts} /></div>
                     <div className="space-y-2"><Label htmlFor="edit-email">Email</Label><Input id="edit-email" type="email" value={editForm.email} onChange={(e) => setEditForm(prev => ({ ...prev, email: e.target.value }))} placeholder="Enter email" /></div>
                     <div className="space-y-2"><Label htmlFor="edit-phone">Phone</Label><Input id="edit-phone" value={editForm.phone} onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))} placeholder="Enter phone number" /></div>
                     <div className="space-y-2"><Label htmlFor="edit-rent">Monthly Rent (UGX)</Label><Input id="edit-rent" type="number" value={editForm.monthly_rent} onChange={(e) => setEditForm(prev => ({ ...prev, monthly_rent: e.target.value }))} placeholder="Enter monthly rent amount" /></div>

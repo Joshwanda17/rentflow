@@ -4,6 +4,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useOtpVerification } from '@/hooks/useOtpVerification';
 import { cleanPhoneNumber } from '@/lib/phoneUtils';
+import PersonNameFields from '@/components/shared/PersonNameFields';
+import { joinPersonName, validatePersonNameParts, type PersonNameParts } from '@/lib/authValidation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,7 +40,9 @@ export default function MerchantRegister() {
   const ref = UUID_RX.test(rawRef) ? rawRef : '';
 
   const [step, setStep] = useState<'form' | 'otp'>('form');
-  const [fullName, setFullName] = useState('');
+  // Captured in parts; the submitted string stays a single `full_name`.
+  const [nameParts, setNameParts] = useState<PersonNameParts>({ firstName: '', otherNames: '', lastName: '' });
+  const fullName = joinPersonName(nameParts);
   const [phone, setPhone] = useState('');
   const [nin, setNin] = useState('');
   const [agree, setAgree] = useState(false);
@@ -74,13 +78,13 @@ export default function MerchantRegister() {
   const cleanedPhone = cleanPhoneNumber(phone);
 
   const formValid = useMemo(() => {
-    if (trimmedName.split(/\s+/).filter(Boolean).length < 2) return false;
+    if (!validatePersonNameParts(nameParts).valid) return false;
     if (cleanedPhone.replace(/\D/g, '').length < 9) return false;
     if (trimmedNin.length < 10 || trimmedNin.length > 14) return false;
     if (!/^[A-Z0-9]+$/.test(trimmedNin)) return false;
     if (!agree) return false;
     return true;
-  }, [trimmedName, cleanedPhone, trimmedNin, agree]);
+  }, [nameParts, cleanedPhone, trimmedNin, agree]);
 
   const handleContinue = async () => {
     if (!formValid) {
@@ -203,15 +207,8 @@ export default function MerchantRegister() {
         {step === 'form' && (
           <Card className="p-5 rounded-2xl space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="mr-name" className="text-xs font-semibold">Full Name</Label>
-              <Input
-                id="mr-name"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                placeholder="e.g. Kalyango Timothy"
-                className="h-11 rounded-xl"
-                autoComplete="name"
-              />
+              <Label className="text-xs font-semibold">Full Name</Label>
+              <PersonNameFields idPrefix="mr" value={nameParts} onChange={setNameParts} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="mr-phone" className="text-xs font-semibold">Phone Number</Label>

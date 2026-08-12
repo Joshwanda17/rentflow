@@ -13,6 +13,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { normalizeWa, isValidWaNumber } from '@/lib/whatsapp';
+import PersonNameFields from '@/components/shared/PersonNameFields';
+import { joinPersonName, validatePersonNameParts, type PersonNameParts } from '@/lib/authValidation';
 import welileLogo from '@/assets/welile-logo.png';
 
 const CATEGORIES = [
@@ -44,6 +46,12 @@ export default function Careers() {
     location: '',
     coverNote: '',
   });
+  // Name captured in parts; `form.fullName` stays the single submitted string.
+  const [nameParts, setNameParts] = useState<PersonNameParts>({ firstName: '', otherNames: '', lastName: '' });
+  const applyNameParts = (next: PersonNameParts) => {
+    setNameParts(next);
+    setForm(prev => ({ ...prev, fullName: joinPersonName(next) }));
+  };
 
   // Read UTM params + log an anonymous click for platform attribution.
   useEffect(() => {
@@ -75,8 +83,9 @@ export default function Careers() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.fullName.trim() || !form.whatsapp.trim()) {
-      toast({ title: 'Required fields', description: 'Please enter your name and WhatsApp number', variant: 'destructive' });
+    const nameCheck = validatePersonNameParts(nameParts);
+    if (!nameCheck.valid || !form.whatsapp.trim()) {
+      toast({ title: 'Required fields', description: nameCheck.error || 'Please enter your name and WhatsApp number', variant: 'destructive' });
       return;
     }
 
@@ -146,7 +155,7 @@ export default function Careers() {
           <p className="text-muted-foreground">
             Our team will review your details and reach out on WhatsApp or by email from <span className="font-semibold text-foreground">info@welile.com</span>.
           </p>
-          <Button variant="outline" onClick={() => { setSubmitted(false); setForm({ fullName: '', whatsapp: '', email: '', category: 'developer', roleInterest: '', experience: '', portfolio: '', location: '', coverNote: '' }); }}>
+          <Button variant="outline" onClick={() => { setSubmitted(false); setNameParts({ firstName: '', otherNames: '', lastName: '' }); setForm({ fullName: '', whatsapp: '', email: '', category: 'developer', roleInterest: '', experience: '', portfolio: '', location: '', coverNote: '' }); }}>
             Submit another application
           </Button>
         </div>
@@ -219,8 +228,8 @@ export default function Careers() {
           {/* Basic info */}
           <div className="space-y-3">
             <div>
-              <Label htmlFor="fullName">Full Name *</Label>
-              <Input id="fullName" placeholder="Your full name" value={form.fullName} onChange={e => updateField('fullName', e.target.value)} required />
+              <Label>Full Name *</Label>
+              <PersonNameFields idPrefix="careers" value={nameParts} onChange={applyNameParts} />
             </div>
 
             {/* WhatsApp — highlighted */}

@@ -14,7 +14,13 @@ import { UserPlus, LogIn, ArrowLeft, Lock, User, Phone, TrendingUp, Wallet, User
 import WelileLogo from '@/components/WelileLogo';
 import { CurrencySwitcher } from '@/components/CurrencySwitcher';
 
-import { validateFullName } from '@/lib/authValidation';
+import {
+  validateFullName,
+  joinPersonName,
+  validatePersonNameParts,
+  type PersonNameParts,
+} from '@/lib/authValidation';
+import PersonNameFields from '@/components/shared/PersonNameFields';
 
 // Simplified validation - check inline for faster response
 const validateSignUp = (data: { password: string; fullName: string; phone: string }) => {
@@ -54,7 +60,9 @@ export default function BecomeSupporter() {
   
   const [isSignUp, setIsSignUp] = useState(true);
   const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
+  // Captured in parts; the signup payload keeps one concatenated string.
+  const [nameParts, setNameParts] = useState<PersonNameParts>({ firstName: '', otherNames: '', lastName: '' });
+  const fullName = joinPersonName(nameParts);
   const [phone, setPhone] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [referrerName, setReferrerName] = useState<string | null>(null);
@@ -153,6 +161,12 @@ export default function BecomeSupporter() {
           return;
         }
 
+        const partsCheck = validatePersonNameParts(nameParts);
+        if (!partsCheck.valid) {
+          toast({ title: 'Error', description: partsCheck.error || 'Enter first and last name', variant: 'destructive' });
+          setIsLoading(false);
+          return;
+        }
         const nameCheck = validateFullName(fullName);
         const trimmedFullName = nameCheck.trimmed;
         const validationError = validateSignUp({ password, fullName: trimmedFullName, phone });
@@ -395,19 +409,10 @@ export default function BecomeSupporter() {
                   <form onSubmit={handleSubmit} className="space-y-4">
                     {isSignUp && (
                       <div className="space-y-2">
-                        <Label htmlFor="fullName">Full Name</Label>
-                        <div className="relative">
-                          <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                          <Input
-                            id="fullName"
-                            value={fullName}
-                            onChange={(e) => setFullName(e.target.value)}
-                            placeholder="Enter your full name"
-                            className="pl-10 h-12 text-base"
-                            style={{ fontSize: '16px' }}
-                            required
-                          />
-                        </div>
+                        <Label className="flex items-center gap-2">
+                          <User className="h-4 w-4 text-muted-foreground" /> Full Name
+                        </Label>
+                        <PersonNameFields idPrefix="become-supporter" value={nameParts} onChange={setNameParts} />
                       </div>
                     )}
 

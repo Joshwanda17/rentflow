@@ -12,6 +12,8 @@ import { Loader2, UserPlus, Share2, Copy, Check, Eye, EyeOff, Users, Briefcase, 
 import { Card, CardContent } from '@/components/ui/card';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import PersonNameFields from '@/components/shared/PersonNameFields';
+import { joinPersonName, validatePersonNameParts, type PersonNameParts } from '@/lib/authValidation';
 interface CreateUserInviteDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -77,6 +79,12 @@ export function CreateUserInviteDialog({ open, onOpenChange }: CreateUserInviteD
     role: UserRole;
     autoActivated?: boolean;
   } | null>(null);
+  // Name captured in parts; `formData.fullName` stays the single submitted string.
+  const [nameParts, setNameParts] = useState<PersonNameParts>({ firstName: '', otherNames: '', lastName: '' });
+  const applyNameParts = (next: PersonNameParts) => {
+    setNameParts(next);
+    setFormData(prev => ({ ...prev, fullName: joinPersonName(next) }));
+  };
 
   const generatePassword = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
@@ -96,6 +104,11 @@ export function CreateUserInviteDialog({ open, onOpenChange }: CreateUserInviteD
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const nameCheck = validatePersonNameParts(nameParts);
+    if (!nameCheck.valid) {
+      toast({ title: 'Error', description: nameCheck.error || 'Enter first and last name', variant: 'destructive' });
+      return;
+    }
     setIsLoading(true);
 
     try {
@@ -191,6 +204,7 @@ Just click the link and enter your password to get started!`;
 
   const handleClose = () => {
     setFormData({ email: '', fullName: '', phone: '', password: '' });
+    setNameParts({ firstName: '', otherNames: '', lastName: '' });
     setCreatedInvite(null);
     setCopied(false);
     setSelectedRole('tenant');
@@ -234,15 +248,11 @@ Just click the link and enter your password to get started!`;
       {/* Form fields with larger inputs */}
       <div className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="fullName" className="text-sm font-medium">Full Name</Label>
-          <Input
-            id="fullName"
-            placeholder="Enter user's full name"
-            value={formData.fullName}
-            onChange={(e) => setFormData(prev => ({ ...prev, fullName: e.target.value }))}
-            required
-            className="h-12 text-base"
-            autoComplete="off"
+          <Label className="text-sm font-medium">Full Name</Label>
+          <PersonNameFields
+            idPrefix="manager-invite"
+            value={nameParts}
+            onChange={applyNameParts}
           />
         </div>
 

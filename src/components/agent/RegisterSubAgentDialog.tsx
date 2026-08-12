@@ -11,6 +11,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Loader2, UserPlus, Share2, Copy, Check, Eye, EyeOff, Users, Sparkles, RefreshCw, AlertCircle, Link2, ExternalLink } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useIsMobile } from '@/hooks/use-mobile';
+import PersonNameFields from '@/components/shared/PersonNameFields';
+import { joinPersonName, validatePersonNameParts, type PersonNameParts } from '@/lib/authValidation';
 
 // User-friendly error messages mapping
 const getErrorMessage = (error: string): string => {
@@ -60,6 +62,8 @@ export function RegisterSubAgentDialog({ open, onOpenChange, onSuccess }: Regist
     phone: '',
     password: '',
   });
+  // Captured in parts; `formData.fullName` stays the single submitted string.
+  const [nameParts, setNameParts] = useState<PersonNameParts>({ firstName: '', otherNames: '', lastName: '' });
   const [createdInvite, setCreatedInvite] = useState<{
     token: string;
     fullName: string;
@@ -83,6 +87,11 @@ export function RegisterSubAgentDialog({ open, onOpenChange, onSuccess }: Regist
 
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
+    const nameCheck = validatePersonNameParts(nameParts);
+    if (!nameCheck.valid) {
+      toast({ title: 'Error', description: nameCheck.error || 'Enter first and last name', variant: 'destructive' });
+      return;
+    }
     setIsLoading(true);
     setLastError(null);
 
@@ -169,6 +178,7 @@ Password: ${createdInvite?.password}`;
 
   const handleClose = () => {
     setFormData({ fullName: '', phone: '', password: '' });
+    setNameParts({ firstName: '', otherNames: '', lastName: '' });
     setCreatedInvite(null);
     setCopied(false);
     setLastError(null);
@@ -205,15 +215,14 @@ Password: ${createdInvite?.password}`;
 
       <div className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="fullName" className="text-base font-semibold">👤 Full Name</Label>
-          <Input
-            id="fullName"
-            placeholder="Enter sub-agent's full name"
-            value={formData.fullName}
-            onChange={(e) => setFormData(prev => ({ ...prev, fullName: e.target.value }))}
-            required
-            className="h-14 text-base rounded-xl"
-            autoComplete="off"
+          <Label className="text-base font-semibold">👤 Full Name</Label>
+          <PersonNameFields
+            idPrefix="sub-agent"
+            value={nameParts}
+            onChange={(next) => {
+              setNameParts(next);
+              setFormData(prev => ({ ...prev, fullName: joinPersonName(next) }));
+            }}
           />
         </div>
 

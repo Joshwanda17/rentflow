@@ -13,6 +13,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Loader2, UserPlus, Share2, Copy, Check, Eye, EyeOff, Users, Building2, Sparkles, UsersRound, ChevronDown, ChevronUp } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useIsMobile } from '@/hooks/use-mobile';
+import PersonNameFields from '@/components/shared/PersonNameFields';
+import { joinPersonName, validatePersonNameParts, type PersonNameParts } from '@/lib/authValidation';
 
 interface CreateUserInviteDialogProps {
   open: boolean;
@@ -124,6 +126,12 @@ export function CreateUserInviteDialog({ open, onOpenChange, onSuccess, defaultR
     address: '',
   });
   const [supporterData, setSupporterData] = useState<SupporterFormData>(defaultSupporterData);
+  // Name captured in parts; `formData.fullName` stays the single submitted string.
+  const [nameParts, setNameParts] = useState<PersonNameParts>({ firstName: '', otherNames: '', lastName: '' });
+  const applyNameParts = (next: PersonNameParts) => {
+    setNameParts(next);
+    setFormData(prev => ({ ...prev, fullName: joinPersonName(next) }));
+  };
   const [investmentData, setInvestmentData] = useState<InvestmentFormData>(defaultInvestmentData);
   const [expandedSection, setExpandedSection] = useState<string | null>('personal');
   const [guarantorConsent, setGuarantorConsent] = useState(false);
@@ -164,6 +172,11 @@ export function CreateUserInviteDialog({ open, onOpenChange, onSuccess, defaultR
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const nameCheck = validatePersonNameParts(nameParts);
+    if (!nameCheck.valid) {
+      toast({ title: 'Error', description: nameCheck.error || 'Enter first and last name', variant: 'destructive' });
+      return;
+    }
 
     if (selectedRole === 'tenant' && !guarantorConsent) {
       toast({ title: 'Please accept guarantor responsibility', description: 'You must acknowledge financial responsibility before registering a tenant.', variant: 'destructive' });
@@ -342,6 +355,7 @@ Just click the link and enter your password to get started!`;
 
   const handleClose = () => {
     setFormData({ email: '', fullName: '', phone: '', password: '', address: '' });
+    setNameParts({ firstName: '', otherNames: '', lastName: '' });
     setSupporterData(defaultSupporterData);
     setInvestmentData(defaultInvestmentData);
     setCreatedInvite(null);
@@ -378,8 +392,8 @@ Just click the link and enter your password to get started!`;
       {expandedSection === 'personal' && (
         <div className="space-y-3 px-1">
           <div className="space-y-1.5">
-            <Label htmlFor="fullName" className="text-xs font-medium">Full Name *</Label>
-            <Input id="fullName" placeholder="Enter full name" value={formData.fullName} onChange={(e) => setFormData(prev => ({ ...prev, fullName: e.target.value }))} required className="h-12 text-base rounded-xl" autoComplete="off" />
+            <Label className="text-xs font-medium">Full Name *</Label>
+            <PersonNameFields idPrefix="agent-invite-compact" value={nameParts} onChange={applyNameParts} />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="phone" className="text-xs font-medium">Phone Number *</Label>
@@ -529,8 +543,8 @@ Just click the link and enter your password to get started!`;
   const standardFormFields = (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="fullName" className="text-sm font-medium">Full Name</Label>
-        <Input id="fullName" placeholder="Enter user's full name" value={formData.fullName} onChange={(e) => setFormData(prev => ({ ...prev, fullName: e.target.value }))} required className="h-12 text-base rounded-xl" autoComplete="off" />
+        <Label className="text-sm font-medium">Full Name</Label>
+        <PersonNameFields idPrefix="agent-invite" value={nameParts} onChange={applyNameParts} />
       </div>
       <div className="space-y-2">
         <Label htmlFor="email" className="text-sm font-medium">Email <span className="text-muted-foreground font-normal">(optional)</span></Label>
