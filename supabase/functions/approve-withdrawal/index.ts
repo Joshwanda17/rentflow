@@ -3874,6 +3874,17 @@ Deno.serve(async (req) => {
         settled_available: settledAvailable,
         settlement_state: settlementState,
         settlement_missing_legs: settlementMissingLegs,
+        merchant_float_trace: {
+          float_before: merchantFloatBefore,
+          reserved: merchantFloatReserved,
+          consumed_float: merchantFloatConsumed,
+          consumed_telecom: merchantTelecomCharge,
+          fronted_personally: Math.round(
+            merchantPrincipalShortfall + merchantTelecomShortfall,
+          ),
+          float_after: (merchantFloatTrace as any)?.float_after ?? null,
+          receivable_after: (merchantFloatTrace as any)?.receivable_after ?? null,
+        },
       }),
       {
         status: 200,
