@@ -171,7 +171,8 @@ export function MissedDaysTracker() {
       const totalRepayment = Number(r.total_repayment || 0);
       const amountRepaid = Number(r.amount_repaid || 0);
       const outstandingBalance = totalRepayment - amountRepaid;
-      const disbursedAt = r.disbursed_at ? parseISO(r.disbursed_at) : today;
+      const anchor = startAnchor(r);
+      const disbursedAt = anchor ? parseISO(anchor) : today;
       const daysSinceDisbursed = Math.max(1, differenceInDays(today, disbursedAt));
       const expectedRepaid = Math.min(dailyRepayment * daysSinceDisbursed, totalRepayment);
       const missedDays = dailyRepayment > 0
@@ -190,7 +191,7 @@ export function MissedDaysTracker() {
           amount_repaid: amountRepaid,
           total_repayment: totalRepayment,
           outstanding_balance: outstandingBalance,
-          disbursed_at: r.disbursed_at || '',
+          disbursed_at: anchor || '',
           days_since_disbursed: daysSinceDisbursed,
           expected_repaid: expectedRepaid,
           missed_days: missedDays,
