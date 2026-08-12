@@ -340,7 +340,8 @@ export function DailyPaymentTracker() {
   const tenantList = useMemo(() => {
     if (!activeRequests) return [];
 
-    // Group by tenant - take the one with highest daily repayment if multiple
+    // Group by tenant — keep the plan with the largest outstanding balance, the
+    // same de-duplication the Tenant Ops counters and Missed Days tool use.
     const tenantMap = new Map<string, ActiveTenant>();
     activeRequests.forEach(r => {
       const existing = tenantMap.get(r.tenant_id);
@@ -368,7 +369,9 @@ export function DailyPaymentTracker() {
         agent_wallet: r.agent_id ? (walletMap.get(r.agent_id) || 0) : 0,
         tenant_no_smartphone: r.tenant_no_smartphone ?? false,
       };
-      if (!existing || entry.daily_repayment > existing.daily_repayment) {
+      const outstanding = entry.total_repayment - entry.amount_repaid;
+      const existingOutstanding = existing ? existing.total_repayment - existing.amount_repaid : -1;
+      if (!existing || outstanding > existingOutstanding) {
         tenantMap.set(r.tenant_id, entry);
       }
     });
@@ -430,7 +433,7 @@ export function DailyPaymentTracker() {
         tool="daily_payments"
         status="all"
         search={search}
-        visibleCount={paidCount}
+        visibleCount={filtered.length}
         fileSlug="tenant-daily-payments"
       />
 
