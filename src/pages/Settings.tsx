@@ -466,6 +466,7 @@ export default function Settings() {
                       <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
                       <Card className="border-border/40 rounded-2xl">
                         <CardContent className="pt-5 space-y-3">
+                          <NameCompletionReminder />
                           <div className="space-y-1.5">
                             <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Your Name</Label>
                             <PersonNameFields idPrefix="settings" value={nameParts} onChange={setNameParts} disabled={saving} />
