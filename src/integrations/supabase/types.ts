@@ -5638,6 +5638,13 @@ export type Database = {
             foreignKeyName: "bulk_bank_payout_allocations_withdrawal_request_id_fkey"
             columns: ["withdrawal_request_id"]
             isOneToOne: true
+            referencedRelation: "v_merchant_payout_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bulk_bank_payout_allocations_withdrawal_request_id_fkey"
+            columns: ["withdrawal_request_id"]
+            isOneToOne: true
             referencedRelation: "v_withdrawal_holds_unbacked"
             referencedColumns: ["withdrawal_id"]
           },
@@ -6675,6 +6682,13 @@ export type Database = {
           withdrawal_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "cashout_claim_comments_withdrawal_id_fkey"
+            columns: ["withdrawal_id"]
+            isOneToOne: false
+            referencedRelation: "v_merchant_payout_queue"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "cashout_claim_comments_withdrawal_id_fkey"
             columns: ["withdrawal_id"]
@@ -20410,6 +20424,13 @@ export type Database = {
             foreignKeyName: "payout_codes_withdrawal_request_id_fkey"
             columns: ["withdrawal_request_id"]
             isOneToOne: false
+            referencedRelation: "v_merchant_payout_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payout_codes_withdrawal_request_id_fkey"
+            columns: ["withdrawal_request_id"]
+            isOneToOne: false
             referencedRelation: "v_withdrawal_holds_unbacked"
             referencedColumns: ["withdrawal_id"]
           },
@@ -20475,6 +20496,13 @@ export type Database = {
           withdrawal_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "payout_delivery_disputes_withdrawal_id_fkey"
+            columns: ["withdrawal_id"]
+            isOneToOne: false
+            referencedRelation: "v_merchant_payout_queue"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "payout_delivery_disputes_withdrawal_id_fkey"
             columns: ["withdrawal_id"]
@@ -32356,6 +32384,216 @@ export type Database = {
           verified_flag: boolean | null
         }
         Relationships: []
+      }
+      v_merchant_payout_queue: {
+        Row: {
+          agent_id: string | null
+          agent_location: string | null
+          amount: number | null
+          assigned_cashout_agent_id: string | null
+          auto_dispatched: boolean | null
+          bank_account_name: string | null
+          bank_account_number: string | null
+          bank_name: string | null
+          beneficiary_id: string | null
+          cfo_approved_at: string | null
+          cfo_approved_by: string | null
+          client_request_id: string | null
+          coo_approved_at: string | null
+          coo_approved_by: string | null
+          created_at: string | null
+          dispatch_claimed_at: string | null
+          dispatch_claimed_by: string | null
+          dispatch_escalated_at: string | null
+          dispatch_expires_at: string | null
+          dispatch_round: number | null
+          dispatched_at: string | null
+          fin_ops_approved_at: string | null
+          fin_ops_approved_by: string | null
+          fin_ops_payment_method: string | null
+          fin_ops_reference: string | null
+          fin_ops_verified_at: string | null
+          fin_ops_verified_by: string | null
+          id: string | null
+          initiated_by: string | null
+          intent_key: string | null
+          landlord_payout_id: string | null
+          linked_party: string | null
+          manager_approved_at: string | null
+          manager_approved_by: string | null
+          mobile_money_name: string | null
+          mobile_money_number: string | null
+          mobile_money_provider: string | null
+          payout_code: string | null
+          payout_method: string | null
+          payout_proof: string | null
+          payout_proof_bucket: string | null
+          payout_proof_path: string | null
+          payout_proof_type: string | null
+          payout_proof_uploaded_at: string | null
+          payout_proof_uploaded_by: string | null
+          payout_route_ref: string | null
+          pool_funded: boolean | null
+          preferred_cashout_agent_id: string | null
+          priority_level: string | null
+          processed_at: string | null
+          processed_by: string | null
+          processing_started_at: string | null
+          processing_started_by: string | null
+          proxy_partner_id: string | null
+          reason: string | null
+          receipt_token: string | null
+          rejection_reason: string | null
+          status: string | null
+          transaction_id: string | null
+          transaction_time: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          agent_id?: string | null
+          agent_location?: string | null
+          amount?: number | null
+          assigned_cashout_agent_id?: string | null
+          auto_dispatched?: boolean | null
+          bank_account_name?: string | null
+          bank_account_number?: string | null
+          bank_name?: string | null
+          beneficiary_id?: string | null
+          cfo_approved_at?: string | null
+          cfo_approved_by?: string | null
+          client_request_id?: string | null
+          coo_approved_at?: string | null
+          coo_approved_by?: string | null
+          created_at?: string | null
+          dispatch_claimed_at?: string | null
+          dispatch_claimed_by?: string | null
+          dispatch_escalated_at?: string | null
+          dispatch_expires_at?: string | null
+          dispatch_round?: number | null
+          dispatched_at?: string | null
+          fin_ops_approved_at?: string | null
+          fin_ops_approved_by?: string | null
+          fin_ops_payment_method?: string | null
+          fin_ops_reference?: string | null
+          fin_ops_verified_at?: string | null
+          fin_ops_verified_by?: string | null
+          id?: string | null
+          initiated_by?: string | null
+          intent_key?: string | null
+          landlord_payout_id?: string | null
+          linked_party?: string | null
+          manager_approved_at?: string | null
+          manager_approved_by?: string | null
+          mobile_money_name?: string | null
+          mobile_money_number?: string | null
+          mobile_money_provider?: string | null
+          payout_code?: string | null
+          payout_method?: string | null
+          payout_proof?: string | null
+          payout_proof_bucket?: string | null
+          payout_proof_path?: string | null
+          payout_proof_type?: string | null
+          payout_proof_uploaded_at?: string | null
+          payout_proof_uploaded_by?: string | null
+          payout_route_ref?: string | null
+          pool_funded?: boolean | null
+          preferred_cashout_agent_id?: string | null
+          priority_level?: string | null
+          processed_at?: string | null
+          processed_by?: string | null
+          processing_started_at?: string | null
+          processing_started_by?: string | null
+          proxy_partner_id?: string | null
+          reason?: string | null
+          receipt_token?: string | null
+          rejection_reason?: string | null
+          status?: string | null
+          transaction_id?: string | null
+          transaction_time?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          agent_id?: string | null
+          agent_location?: string | null
+          amount?: number | null
+          assigned_cashout_agent_id?: string | null
+          auto_dispatched?: boolean | null
+          bank_account_name?: string | null
+          bank_account_number?: string | null
+          bank_name?: string | null
+          beneficiary_id?: string | null
+          cfo_approved_at?: string | null
+          cfo_approved_by?: string | null
+          client_request_id?: string | null
+          coo_approved_at?: string | null
+          coo_approved_by?: string | null
+          created_at?: string | null
+          dispatch_claimed_at?: string | null
+          dispatch_claimed_by?: string | null
+          dispatch_escalated_at?: string | null
+          dispatch_expires_at?: string | null
+          dispatch_round?: number | null
+          dispatched_at?: string | null
+          fin_ops_approved_at?: string | null
+          fin_ops_approved_by?: string | null
+          fin_ops_payment_method?: string | null
+          fin_ops_reference?: string | null
+          fin_ops_verified_at?: string | null
+          fin_ops_verified_by?: string | null
+          id?: string | null
+          initiated_by?: string | null
+          intent_key?: string | null
+          landlord_payout_id?: string | null
+          linked_party?: string | null
+          manager_approved_at?: string | null
+          manager_approved_by?: string | null
+          mobile_money_name?: string | null
+          mobile_money_number?: string | null
+          mobile_money_provider?: string | null
+          payout_code?: string | null
+          payout_method?: string | null
+          payout_proof?: string | null
+          payout_proof_bucket?: string | null
+          payout_proof_path?: string | null
+          payout_proof_type?: string | null
+          payout_proof_uploaded_at?: string | null
+          payout_proof_uploaded_by?: string | null
+          payout_route_ref?: string | null
+          pool_funded?: boolean | null
+          preferred_cashout_agent_id?: string | null
+          priority_level?: string | null
+          processed_at?: string | null
+          processed_by?: string | null
+          processing_started_at?: string | null
+          processing_started_by?: string | null
+          proxy_partner_id?: string | null
+          reason?: string | null
+          receipt_token?: string | null
+          rejection_reason?: string | null
+          status?: string | null
+          transaction_id?: string | null
+          transaction_time?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "withdrawal_requests_assigned_cashout_agent_id_fkey"
+            columns: ["assigned_cashout_agent_id"]
+            isOneToOne: false
+            referencedRelation: "cashout_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "withdrawal_requests_preferred_cashout_agent_id_fkey"
+            columns: ["preferred_cashout_agent_id"]
+            isOneToOne: false
+            referencedRelation: "cashout_agents"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       v_operational_float_tid_duplicates: {
         Row: {

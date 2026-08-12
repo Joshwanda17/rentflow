@@ -140,6 +140,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MissionBanner } from '@/components/mission/MissionBanner';
+import { MERCHANT_QUEUE_STATUSES } from '@/lib/merchantPayoutQueue';
 
 // Lazy-loaded modals/sheets — code-split so their JS only downloads when opened.
 const FullScreenWalletSheet = lazy(() => import('@/components/wallet/FullScreenWalletSheet').then(m => ({ default: m.FullScreenWalletSheet })));
@@ -516,7 +517,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   // if they claimed and processed them all. Drives the notification badge that
   // sits on top of the "Merchant Payouts" button. 0.5% commission per payout,
   // matching approve-withdrawal.
-  const CASHOUT_QUEUE_STATUSES = ['pending', 'requested', 'manager_approved', 'cfo_approved', 'fin_ops_approved'];
+  const CASHOUT_QUEUE_STATUSES = MERCHANT_QUEUE_STATUSES as unknown as string[];
   const CLAIM_WINDOW_MS = 15 * 60 * 1000;
   const COMMISSION_RATE = 0.005;
   // Mirror the exact filters the Merchant Payouts sheet uses so the badge
