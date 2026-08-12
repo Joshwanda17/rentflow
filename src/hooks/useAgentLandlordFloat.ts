@@ -18,6 +18,7 @@ export function useAgentLandlordFloat(agentId?: string) {
   const queryClient = useQueryClient();
 
   const balanceKey = ['agent-landlord-payout-float-balance', effectiveId ?? ''];
+  const availableKey = ['agent-landlord-payout-float-available', effectiveId ?? ''];
 
   // Also listen for deposit_requests transitions (pending → approved) so the
   // float shows up the moment FinOps / auto-credit flips the row, even if
