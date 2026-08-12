@@ -18,6 +18,7 @@ import { AgentTenantConnector } from './AgentTenantConnector';
 import { AgentOpsPipelineHub } from './AgentOpsPipelineHub';
 import { AgentDirectory } from './AgentDirectory';
 import { AgentPerformanceTiers } from './AgentPerformanceTiers';
+import { AgentCollectionsCommandCenter } from './agent-ops-v2/AgentCollectionsCommandCenter';
 import { AgentLifecyclePipeline } from './AgentLifecyclePipeline';
 import { AgentTaskManager } from './AgentTaskManager';
 import { AgentEscalationQueue } from './AgentEscalationQueue';
@@ -230,7 +231,7 @@ export function AgentOpsDashboard() {
       case 'directory': return <AgentDirectory />;
       case 'rent-capacity': return <AgentRentCapacityPanel />;
       case 'connector': return <AgentTenantConnector />;
-      case 'performance': return <AgentPerformanceTiers />;
+      case 'performance': return <AgentCollectionsCommandCenter />;
       case 'lifecycle': return <AgentLifecyclePipeline />;
       case 'tasks': return <AgentTaskManager />;
       case 'escalations': return <AgentEscalationQueue />;
