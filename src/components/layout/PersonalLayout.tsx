@@ -55,25 +55,6 @@ const PersonalLayout = ({ children, title }: PersonalLayoutProps) => {
             <p className="font-bold truncate">{displayName || 'Your Name'}</p>
             <span className="text-xs text-muted-foreground flex-none">My space</span>
           </div>
-          <nav className="mt-3 -mx-1 flex items-center gap-1 overflow-x-auto no-scrollbar">
-            {LINKS.map((link) => {
-              const active = location.pathname === link.to;
-              return (
-                <Link
-                  key={link.to}
-                  to={link.to}
-                  className={cn(
-                    'flex-none rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
-                    active
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:bg-muted'
-                  )}
-                >
-                  {link.label}
-                </Link>
-              );
-            })}
-          </nav>
         </div>
       </header>
 
