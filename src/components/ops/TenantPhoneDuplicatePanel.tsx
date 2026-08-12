@@ -282,7 +282,6 @@ export function TenantPhoneDuplicatePanel({ variant = 'full', onOpenHub }: Tenan
           </div>
         )}
       </CardContent>
-      )}
       <TenantPhoneDuplicateSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </Card>
   );
