@@ -138,7 +138,7 @@ export function ProxyInvestmentHistorySheet({ open, onOpenChange }: ProxyInvestm
                           {isInvestment ? `Funded for ${partner}` : isAngelCommission ? '1% Angel Commission' : '2% Commission'}
                         </p>
                         <Badge variant="outline" className="text-[10px] px-1.5 shrink-0">
-                          {isInvestment ? 'Investment' : 'Earned'}
+                          {isInvestment ? 'Funding' : 'Earned'}
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground">

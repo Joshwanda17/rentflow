@@ -167,7 +167,7 @@ export function AgentPartnerDashboardSheet({ open, onOpenChange }: Props) {
   const getEarningLabel = (type: string) => {
     const labels: Record<string, string> = {
       commission: 'Rent commission earned',
-      investment_commission: 'Investment commission (2%)',
+      investment_commission: 'Funding commission (2%)',
       approval_bonus: 'Registration bonus',
       verification_bonus: 'Verification bonus',
       rent_funded_bonus: 'Rent funded bonus',
@@ -260,7 +260,7 @@ I'll personally guide you.`;
                   {[
                     { label: 'Partners', value: totalPartners, icon: Users, color: 'text-primary', bg: 'bg-primary/10' },
                     { label: 'Active', value: activePartners, icon: UserCheck, color: 'text-success', bg: 'bg-success/10' },
-                    { label: 'Total Invested', value: formatUGX(totalDeposits), icon: PiggyBank, color: 'text-primary', bg: 'bg-primary/10' },
+                    { label: 'Total Funded', value: formatUGX(totalDeposits), icon: PiggyBank, color: 'text-primary', bg: 'bg-primary/10' },
                     { label: 'Commission', value: formatUGX(totalCommission), icon: Coins, color: 'text-success', bg: 'bg-success/10' },
                   ].map((card) => (
                     <Card key={card.label} className="border-border/50">

@@ -196,7 +196,7 @@ export function CreateUserInviteDialog({ open, onOpenChange, onSuccess, defaultR
       if (isSupporterRole) {
         const amt = parseFloat(investmentData.investmentAmount);
         if (isNaN(amt) || amt < 50000) {
-          toast({ title: 'Investment amount must be at least UGX 50,000', variant: 'destructive' });
+          toast({ title: 'Funding amount must be at least UGX 50,000', variant: 'destructive' });
           return;
         }
         if (!/^\d{4}$/.test(investmentData.portfolioPin)) {
@@ -700,7 +700,7 @@ Just click the link and enter your password to get started!`;
             <SheetDescription>
               {createdInvite
                 ? `Share this link with the ${roleConfig[createdInvite.role].label.toLowerCase()}`
-                : isSupporterRole ? 'Register a new supporter with investment details' : 'Create a new account'}
+                : isSupporterRole ? 'Register a new supporter with funding details' : 'Create a new account'}
             </SheetDescription>
           </SheetHeader>
           {!createdInvite ? formContent : successContent}
@@ -720,7 +720,7 @@ Just click the link and enter your password to get started!`;
           <DialogDescription>
             {createdInvite
               ? `Share this link with the ${roleConfig[createdInvite.role].label.toLowerCase()} to activate their account`
-              : isSupporterRole ? 'Register a new supporter with investment details' : 'Create a new account and share the activation link'}
+              : isSupporterRole ? 'Register a new supporter with funding details' : 'Create a new account and share the activation link'}
           </DialogDescription>
         </DialogHeader>
         {!createdInvite ? formContent : successContent}
