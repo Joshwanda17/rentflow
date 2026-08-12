@@ -78,13 +78,13 @@ export default function MerchantRegister() {
   const cleanedPhone = cleanPhoneNumber(phone);
 
   const formValid = useMemo(() => {
-    if (trimmedName.split(/\s+/).filter(Boolean).length < 2) return false;
+    if (!validatePersonNameParts(nameParts).valid) return false;
     if (cleanedPhone.replace(/\D/g, '').length < 9) return false;
     if (trimmedNin.length < 10 || trimmedNin.length > 14) return false;
     if (!/^[A-Z0-9]+$/.test(trimmedNin)) return false;
     if (!agree) return false;
     return true;
-  }, [trimmedName, cleanedPhone, trimmedNin, agree]);
+  }, [nameParts, cleanedPhone, trimmedNin, agree]);
 
   const handleContinue = async () => {
     if (!formValid) {
