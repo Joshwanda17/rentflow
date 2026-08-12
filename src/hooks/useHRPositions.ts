@@ -57,6 +57,13 @@ export function useHRPositions() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
+  // An audit row with a null actor records nothing: refuse the change instead.
+  const requireActor = () => {
+    const actorId = user?.id;
+    if (!actorId) throw new Error('You must be signed in to change roles');
+    return actorId;
+  };
+
   const refetchAll = async () => {
     await Promise.all([
       queryClient.refetchQueries({ queryKey: POSITIONS_KEY }),
@@ -148,6 +155,7 @@ export function useHRPositions() {
       reason,
     }: { title: string; departmentId: string | null; reason: string }) => {
       const cleanReason = requireReason(reason);
+      const actorId = requireActor();
       const cleanTitle = title.trim();
       if (!cleanTitle) throw new Error('Title is required');
       if (isProtectedTitle(cleanTitle)) throw new Error(PROTECTED_TITLE_MESSAGE);
@@ -157,16 +165,17 @@ export function useHRPositions() {
         .from('hr_positions')
         .insert({ title: cleanTitle, key, department_id: departmentId })
         .select('id')
-        .maybeSingle();
+        .single();
       if (error) {
         if (describeError(error) === null) {
           throw new Error(`a role with this key already exists: ${key}`);
         }
         throw error;
       }
+      if (!inserted?.id) throw new Error('Role was not created');
       await logAudit({
-        user_id: user?.id ?? null, action_type: 'hr_position_created', table_name: 'hr_positions',
-        record_id: inserted?.id ?? key,
+        user_id: actorId, action_type: 'hr_position_created', table_name: 'hr_positions',
+        record_id: inserted.id,
         metadata: { title: cleanTitle, key, department_id: departmentId, reason: cleanReason },
       });
     },
@@ -182,6 +191,7 @@ export function useHRPositions() {
       reason,
     }: { id: string; title: string; currentKey: string; currentTitle: string; reason: string }) => {
       const cleanReason = requireReason(reason);
+      const actorId = requireActor();
       const cleanTitle = title.trim();
       if (!cleanTitle) throw new Error('Title is required');
       // Protected in both directions: the row that carries it, and any title becoming it.
@@ -191,7 +201,7 @@ export function useHRPositions() {
       const { error } = await supabase.from('hr_positions').update({ title: cleanTitle }).eq('id', id);
       if (error) throw error;
       await logAudit({
-        user_id: user?.id ?? null, action_type: 'hr_position_updated', table_name: 'hr_positions', record_id: id,
+        user_id: actorId, action_type: 'hr_position_updated', table_name: 'hr_positions', record_id: id,
         metadata: { title: cleanTitle, previous_title: currentTitle, reason: cleanReason },
       });
     },
@@ -205,13 +215,14 @@ export function useHRPositions() {
       reason,
     }: { id: string; departmentId: string | null; reason: string }) => {
       const cleanReason = requireReason(reason);
+      const actorId = requireActor();
       const { error } = await supabase
         .from('hr_positions')
         .update({ department_id: departmentId })
         .eq('id', id);
       if (error) throw error;
       await logAudit({
-        user_id: user?.id ?? null, action_type: 'hr_position_moved', table_name: 'hr_positions', record_id: id,
+        user_id: actorId, action_type: 'hr_position_moved', table_name: 'hr_positions', record_id: id,
         metadata: { department_id: departmentId, reason: cleanReason },
       });
     },
@@ -226,6 +237,7 @@ export function useHRPositions() {
       reason,
     }: { id: string; active: boolean; heldBy: number; reason: string }) => {
       const cleanReason = requireReason(reason);
+      const actorId = requireActor();
       if (!active && heldByCount > 0) {
         throw new Error(
           `Cannot deactivate: this position is held by ${heldByCount} ${heldByCount === 1 ? 'person' : 'people'}. The position must be vacated first.`,
@@ -234,7 +246,7 @@ export function useHRPositions() {
       const { error } = await supabase.from('hr_positions').update({ active }).eq('id', id);
       if (error) throw error;
       await logAudit({
-        user_id: user?.id ?? null,
+        user_id: actorId,
         action_type: active ? 'hr_position_activated' : 'hr_position_deactivated',
         table_name: 'hr_positions', record_id: id,
         metadata: { active, reason: cleanReason },
