@@ -1212,6 +1212,32 @@ Deno.serve(async (req) => {
       }
     };
 
+    // Arm the top-level safety net now that the claim is held. It must never
+    // undo a payout that already posted settlement legs, so it checks the
+    // ledger for this withdrawal before reverting.
+    safetyRelease = async () => {
+      try {
+        const { data: legs } = await admin
+          .from("general_ledger")
+          .select("id")
+          .like("reference_id", `${withdrawal_id}%`)
+          .limit(1);
+        if (legs && legs.length > 0) {
+          console.error(
+            "[approve-withdrawal] settlement legs exist — NOT releasing claim",
+            withdrawal_id,
+          );
+          return;
+        }
+        await releaseClaim();
+      } catch (e) {
+        console.error(
+          "[approve-withdrawal] safetyRelease failed:",
+          (e as Error).message,
+        );
+      }
+    };
+
     // Proxy payouts are requested by the agent and funded from the proxy
     // agent's wallet. Newer rows are partner-owned for visibility
     // (`user_id = partner`) but carry `agent_id` / `proxy_partner_id`, so
