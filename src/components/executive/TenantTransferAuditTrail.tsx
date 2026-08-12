@@ -312,6 +312,14 @@ export function TenantTransferAuditTrail() {
             </div>
           </div>
 
+          <TenantOpsReportToolbar
+            tool="transfer_audit"
+            status="all"
+            search={search}
+            visibleCount={filtered.length}
+            fileSlug="tenant-transfer-audit"
+          />
+
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
