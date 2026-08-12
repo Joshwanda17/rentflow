@@ -4,6 +4,18 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { X } from 'lucide-react';
 import workInProgressIllustration from '@/assets/work-in-progress.svg.asset.json';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+
+const getInitials = (name: string) => {
+  if (!name) return 'Me';
+  return name
+    .split(' ')
+    .map((part) => part[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+};
 
 interface PersonalLayoutProps {
   children: ReactNode;
@@ -16,6 +28,7 @@ const PersonalLayout = ({ children, title }: PersonalLayoutProps) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [displayName, setDisplayName] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -23,10 +36,13 @@ const PersonalLayout = ({ children, title }: PersonalLayoutProps) => {
       if (!user) return;
       const { data } = await supabase
         .from('profiles')
-        .select('full_name')
+        .select('full_name, avatar_url')
         .eq('id', user.id)
         .maybeSingle();
-      if (!cancelled && data?.full_name) setDisplayName(data.full_name);
+      if (!cancelled) {
+        if (data?.full_name) setDisplayName(data.full_name);
+        setAvatarUrl(data?.avatar_url || null);
+      }
     };
     load();
     return () => { cancelled = true; };
@@ -44,9 +60,17 @@ const PersonalLayout = ({ children, title }: PersonalLayoutProps) => {
           >
             <X className="h-4 w-4" />
           </button>
-          <div className="flex items-center gap-2 min-w-0 pt-4">
-            <p className="font-bold truncate">{displayName || 'Your Name'}</p>
-            <span className="text-xs text-muted-foreground flex-none">My space</span>
+          <div className="flex items-center gap-3 min-w-0 pt-4">
+            <Avatar className="h-11 w-11 border-2 border-primary/10 shrink-0">
+              <AvatarImage src={avatarUrl || ''} alt={displayName || 'Your profile'} />
+              <AvatarFallback className="bg-primary/10 text-primary font-semibold text-sm">
+                {getInitials(displayName)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <p className="font-bold truncate leading-tight">{displayName || 'Your Name'}</p>
+              <span className="text-xs text-muted-foreground">My space</span>
+            </div>
           </div>
         </div>
       </header>
