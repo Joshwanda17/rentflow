@@ -1112,6 +1112,13 @@ export function TenantOpsDashboard() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  /** Enter the Pipeline Status hub, optionally pre-filtered to one lifecycle
+   *  group (used by the Classic "Pipeline status" tiles). */
+  const openPipelineHub = (statusKey: string = 'all') => {
+    setPipelineSeed(statusKey);
+    openHub('pipeline-hub');
+  };
+
   // Hub entry card for the Classic sections — same interaction model as the
   // Global Verification Center / Welile Operations hero cards: icon, section
   // name, a minimal summary, and an "Open hub" pill that promotes the section
