@@ -1931,21 +1931,6 @@ Deno.serve(async (req) => {
     // (invisible to the cash-out queue, which only lists pre-settlement
     // statuses), stamp the reference/proof so CFO can reconcile it from
     // Stale Withdrawal Holds, and audit the abort.
-    const isTransientLedgerError = (msg: string) => {
-      const m = (msg || "").toLowerCase();
-      return (
-        m.includes("statement timeout") ||
-        m.includes("canceling statement") ||
-        m.includes("cancelling statement") ||
-        m.includes("57014") ||
-        m.includes("timeout") ||
-        m.includes("connection") ||
-        m.includes("deadlock") ||
-        m.includes("could not obtain lock") ||
-        m.includes("fetch failed")
-      );
-    };
-
     const holdForReconciliation = async (failureReason: string, code: string) => {
       try {
         await admin
