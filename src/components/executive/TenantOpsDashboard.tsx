@@ -1682,9 +1682,10 @@ export function TenantOpsDashboard() {
                   icon: Users,
                   description: 'Full tenant register with search, filters, profiles and bulk actions',
                   stats: [
-                    { label: 'tenants', value: rows.length },
-                    { label: 'pending', value: pending },
-                    { label: 'repaying', value: repaying },
+                    // Unique tenants, not rent-request rows.
+                    { label: 'tenants', value: toolCounts?.tenant_count ?? new Set(rows.map(r => r.tenant_id)).size },
+                    { label: 'pending', value: toolCounts?.new_requests ?? pending },
+                    { label: 'repaying', value: toolCounts?.repaying_plans ?? repaying },
                   ],
                 })}
                 {renderHubEntry({
