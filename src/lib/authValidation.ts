@@ -171,3 +171,64 @@ export const withTimeout = <T,>(promise: Promise<T>, ms: number): Promise<T> =>
       setTimeout(() => reject(new Error('Request timed out. Please check your connection and try again.')), ms)
     ),
   ]);
+
+// ---------------------------------------------------------------------------
+// Person-name standardisation helpers (see
+// docs/internal/reports/person-name-standardisation-design.md).
+// `validateFullName` above stays the single name authority — these helpers only
+// split/join the parts and delegate to it.
+// ---------------------------------------------------------------------------
+
+export interface PersonNameParts {
+  firstName: string;
+  otherNames: string;
+  lastName: string;
+}
+
+const normalizeNamePart = (value: string | null | undefined): string =>
+  (value ?? '').trim().replace(/\s+/g, ' ');
+
+/** Joins parts as `First Other Last`, dropping empties and collapsing whitespace. */
+export const joinPersonName = (parts: Partial<PersonNameParts>): string =>
+  [parts?.firstName, parts?.otherNames, parts?.lastName]
+    .map(normalizeNamePart)
+    .filter((p) => p.length > 0)
+    .join(' ');
+
+/**
+ * Splits a stored name string into parts.
+ * 0 tokens -> all empty; 1 -> first only; 2 -> first + last;
+ * 3+ -> first = token[0], last = last token, otherNames = middle joined.
+ */
+export const splitPersonName = (raw: string | null | undefined): PersonNameParts => {
+  const tokens = normalizeNamePart(raw).split(' ').filter(Boolean);
+  if (tokens.length === 0) return { firstName: '', otherNames: '', lastName: '' };
+  if (tokens.length === 1) return { firstName: tokens[0], otherNames: '', lastName: '' };
+  if (tokens.length === 2) return { firstName: tokens[0], otherNames: '', lastName: tokens[1] };
+  return {
+    firstName: tokens[0],
+    otherNames: tokens.slice(1, -1).join(' '),
+    lastName: tokens[tokens.length - 1],
+  };
+};
+
+export interface PersonNamePartsValidationResult {
+  valid: boolean;
+  fullName: string;
+  error: string | null;
+}
+
+/** Required-check on first/last, then delegates to the existing `validateFullName`. */
+export const validatePersonNameParts = (
+  parts: Partial<PersonNameParts>,
+): PersonNamePartsValidationResult => {
+  const firstName = normalizeNamePart(parts?.firstName);
+  const lastName = normalizeNamePart(parts?.lastName);
+  const fullName = joinPersonName(parts);
+
+  if (!firstName) return { valid: false, fullName, error: 'First name is required' };
+  if (!lastName) return { valid: false, fullName, error: 'Last name is required' };
+
+  const check = validateFullName(fullName);
+  return { valid: check.valid, fullName: check.trimmed || fullName, error: check.error };
+};
