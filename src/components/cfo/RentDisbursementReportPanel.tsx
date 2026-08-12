@@ -12,12 +12,66 @@ import { toast } from 'sonner';
 const fmtUGX = (n: number | null | undefined) =>
   `UGX ${Math.round(Number(n ?? 0)).toLocaleString('en-US')}`;
 
-/** EAT (UTC+3) day boundaries expressed as UTC instants. */
-function dayRange(anchor: string) {
+type Granularity = 'daily' | 'weekly' | 'monthly';
+
+/** UTC instant for the EAT (UTC+3) midnight starting the given calendar date. */
+function eatMidnight(y: number, m: number, d: number) {
+  return new Date(Date.UTC(y, m - 1, d, 0, 0, 0) - 3 * 3600 * 1000);
+}
+
+const pad = (n: number) => String(n).padStart(2, '0');
+const isoDate = (y: number, m: number, d: number) => `${y}-${pad(m)}-${pad(d)}`;
+
+/** EAT period boundaries expressed as UTC instants, plus human labels. */
+function periodRange(anchor: string, granularity: Granularity) {
   const [y, m, d] = anchor.split('-').map(Number);
-  const start = new Date(Date.UTC(y, m - 1, d, 0, 0, 0) - 3 * 3600 * 1000);
+
+  if (granularity === 'monthly') {
+    const start = eatMidnight(y, m, 1);
+    const end = eatMidnight(m === 12 ? y + 1 : y, m === 12 ? 1 : m + 1, 1);
+    const lastDay = new Date(Date.UTC(m === 12 ? y + 1 : y, m === 12 ? 0 : m, 0)).getUTCDate();
+    return {
+      start: start.toISOString(),
+      end: end.toISOString(),
+      label: new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString('en-GB', {
+        month: 'long', year: 'numeric', timeZone: 'UTC',
+      }),
+      stem: `${y}-${pad(m)}`,
+      firstDate: isoDate(y, m, 1),
+      lastDate: isoDate(y, m, lastDay),
+    };
+  }
+
+  if (granularity === 'weekly') {
+    // Monday-to-Sunday week containing the anchor date.
+    const anchorUtc = new Date(Date.UTC(y, m - 1, d));
+    const offset = (anchorUtc.getUTCDay() + 6) % 7; // Mon = 0
+    const first = new Date(anchorUtc.getTime() - offset * 24 * 3600 * 1000);
+    const last = new Date(first.getTime() + 6 * 24 * 3600 * 1000);
+    const start = eatMidnight(first.getUTCFullYear(), first.getUTCMonth() + 1, first.getUTCDate());
+    const end = new Date(start.getTime() + 7 * 24 * 3600 * 1000);
+    const firstDate = isoDate(first.getUTCFullYear(), first.getUTCMonth() + 1, first.getUTCDate());
+    const lastDate = isoDate(last.getUTCFullYear(), last.getUTCMonth() + 1, last.getUTCDate());
+    return {
+      start: start.toISOString(),
+      end: end.toISOString(),
+      label: `${firstDate} → ${lastDate}`,
+      stem: `${firstDate}_to_${lastDate}`,
+      firstDate,
+      lastDate,
+    };
+  }
+
+  const start = eatMidnight(y, m, d);
   const end = new Date(start.getTime() + 24 * 3600 * 1000);
-  return { start: start.toISOString(), end: end.toISOString() };
+  return {
+    start: start.toISOString(),
+    end: end.toISOString(),
+    label: anchor,
+    stem: anchor,
+    firstDate: anchor,
+    lastDate: anchor,
+  };
 }
 
 interface Row {
@@ -44,7 +98,10 @@ interface Report {
 export default function RentDisbursementReportPanel() {
   const today = new Date(Date.now() + 3 * 3600 * 1000).toISOString().slice(0, 10);
   const [anchor, setAnchor] = useState<string>(today);
-  const range = useMemo(() => dayRange(anchor), [anchor]);
+  const [granularity, setGranularity] = useState<Granularity>('daily');
+  const range = useMemo(() => periodRange(anchor, granularity), [anchor, granularity]);
+  const periodNoun =
+    granularity === 'daily' ? 'day' : granularity === 'weekly' ? 'week' : 'month';
 
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['rent-disbursement-report', range.start, range.end],
@@ -59,7 +116,7 @@ export default function RentDisbursementReportPanel() {
     staleTime: 30_000,
   });
 
-  const fileStem = `Rent_Disbursement_Report_${anchor}`;
+  const fileStem = `Rent_Disbursement_Report_${granularity}_${range.stem}`;
 
   const exportCsv = () => {
     if (!data) return;
@@ -80,7 +137,7 @@ export default function RentDisbursementReportPanel() {
     if (!data) return;
     try {
       const { downloadRentDisbursementPdf } = await import('@/lib/rentDisbursementPdf');
-      await downloadRentDisbursementPdf({ filename: `${fileStem}.pdf`, dateLabel: anchor, report: data });
+      await downloadRentDisbursementPdf({ filename: `${fileStem}.pdf`, dateLabel: range.label, report: data });
     } catch (e: any) {
       toast.error(e?.message ?? 'Could not build the PDF');
     }
@@ -100,8 +157,8 @@ export default function RentDisbursementReportPanel() {
                   Rent Disbursement Report
                 </CardTitle>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Read-only report of every rent disbursement recorded today. Built from the existing
-                  rent disbursement transactions — no separate calculation.
+                  Read-only report of every rent disbursement recorded in the selected {periodNoun}.
+                  Built from the existing rent disbursement transactions — no separate calculation.
                 </p>
                 <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                   <span className="inline-flex items-center gap-1.5">
@@ -119,20 +176,48 @@ export default function RentDisbursementReportPanel() {
         </CardHeader>
         <CardContent className="space-y-4 px-5 pt-5 sm:px-7 sm:pt-6">
           <div className="no-print flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+            <div className="flex flex-wrap items-end gap-4">
+            <div className="space-y-2">
+              <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Report period
+              </Label>
+              <div className="flex h-11 items-center gap-1 rounded-xl border bg-muted/40 p-1">
+                {(['daily', 'weekly', 'monthly'] as Granularity[]).map((g) => (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => setGranularity(g)}
+                    className={`h-9 rounded-lg px-4 text-xs font-semibold capitalize transition ${
+                      granularity === g
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {g}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="rent-report-anchor" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Report date
+                {granularity === 'daily' ? 'Report date' : granularity === 'weekly' ? 'Week containing' : 'Month'}
               </Label>
               <div className="relative">
                 <Input
                   id="rent-report-anchor"
-                  type="date"
-                  value={anchor}
-                  onChange={(e) => setAnchor(e.target.value || today)}
+                  type={granularity === 'monthly' ? 'month' : 'date'}
+                  value={granularity === 'monthly' ? anchor.slice(0, 7) : anchor}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (!v) { setAnchor(today); return; }
+                    setAnchor(granularity === 'monthly' ? `${v}-01` : v);
+                  }}
                   className="h-11 w-full rounded-xl pr-10 text-sm font-medium sm:w-[200px] [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
                 />
                 <CalendarDays className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary" />
               </div>
+              <p className="text-[11px] text-muted-foreground">Covers {range.firstDate} → {range.lastDate} (EAT)</p>
+            </div>
             </div>
             <div className="flex flex-wrap items-center gap-2 xl:border-l xl:pl-5">
               <Button className="h-11 rounded-xl px-5" onClick={() => refetch()} disabled={isFetching}>
@@ -164,11 +249,11 @@ export default function RentDisbursementReportPanel() {
               <div className="rounded-lg border p-4">
                 <h2 className="text-base font-semibold">Welile — Rent Disbursement Report</h2>
                 <p className="text-sm text-muted-foreground">
-                  Reporting date: {anchor} (EAT) · Window {data.period.start_eat} to {data.period.end_eat} ·
+                  Reporting {periodNoun}: {range.label} (EAT) · Window {data.period.start_eat} to {data.period.end_eat} ·
                   Generated {new Date(data.generated_at).toLocaleString()}
                 </p>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 mt-4">
-                  <Kpi label="Rent disbursements" value={String(data.summary.disbursements_count)} hint="Successful entries for the day" />
+                  <Kpi label="Rent disbursements" value={String(data.summary.disbursements_count)} hint={`Successful entries for the ${periodNoun}`} />
                   <Kpi label="Total amount disbursed" value={fmtUGX(data.summary.total_amount)} hint="Sum of rent paid out" />
                   <Kpi label="Tenants covered" value={String(data.summary.tenants_count)} hint="Distinct tenants" />
                   <Kpi label="Landlords paid" value={String(data.summary.landlords_count)} hint="Distinct landlords" />
@@ -178,7 +263,7 @@ export default function RentDisbursementReportPanel() {
               <section className="space-y-2">
                 <SectionTitle index={1} title={`Rent disbursements (${data.rows.length})`} />
                 {data.rows.length === 0 ? (
-                  <Empty text="No rent disbursements were recorded on this date." />
+                  <Empty text={`No rent disbursements were recorded in this ${periodNoun}.`} />
                 ) : (
                   <div className="overflow-x-auto rounded-md border">
                     <table className="w-full text-sm">
