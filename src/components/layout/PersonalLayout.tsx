@@ -28,7 +28,9 @@ interface PersonalLayoutProps {
 const PersonalLayout = ({ children, title }: PersonalLayoutProps) => {
   const { user, roles, switchRole } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [displayName, setDisplayName] = useState('');
+
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   useEffect(() => {
