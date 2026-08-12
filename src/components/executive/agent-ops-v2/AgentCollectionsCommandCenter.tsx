@@ -168,10 +168,16 @@ export function AgentCollectionsCommandCenter() {
       expected: num(a.expected),
       pct: num(a.expected) > 0 ? Math.round((num(a.collected) / num(a.expected)) * 100) : null,
     }));
+    return list.sort((a, b) => b.collected - a.collected);
+  }, [data]);
+
+  /** Agents visible in the "collections vs expected" list — search only affects this list. */
+  const filteredAgents = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const filtered = q ? list.filter(a => (a.name || '').toLowerCase().includes(q) || (a.phone || '').includes(q)) : list;
-    return filtered.sort((a, b) => b.collected - a.collected);
-  }, [data, search]);
+    return q
+      ? agents.filter(a => (a.name || '').toLowerCase().includes(q) || (a.phone || '').includes(q))
+      : agents;
+  }, [agents, search]);
 
   // Reset pagination when the range or search changes
   useEffect(() => { setVisibleAgents(10); }, [search, preset, custom, bucket]);
@@ -426,7 +432,7 @@ export function AgentCollectionsCommandCenter() {
       <Card className="p-3">
         <div className="flex flex-wrap items-center gap-2 mb-2">
           <h3 className="text-sm font-semibold mr-auto">Agents by collections vs expected</h3>
-          <Badge variant="outline" className="text-[10px]">{agents.length} agents</Badge>
+          <Badge variant="outline" className="text-[10px]">{filteredAgents.length} agents</Badge>
           <div className="relative">
             <Search className="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
             <Input
@@ -440,12 +446,12 @@ export function AgentCollectionsCommandCenter() {
 
         {isLoading ? (
           <p className="text-sm text-muted-foreground py-6 text-center">Loading collections…</p>
-        ) : agents.length === 0 ? (
+        ) : filteredAgents.length === 0 ? (
           <p className="text-sm text-muted-foreground py-6 text-center">No agents match this range.</p>
         ) : (
           <>
             <div className="space-y-2">
-              {agents.slice(0, visibleAgents).map((a, i) => (
+              {filteredAgents.slice(0, visibleAgents).map((a, i) => (
                 <div
                   key={a.agent_id}
                   className="rounded-lg border bg-card/60 p-2.5 flex items-start gap-3 hover:bg-accent/40 transition-colors"
@@ -493,10 +499,10 @@ export function AgentCollectionsCommandCenter() {
                 </div>
               ))}
             </div>
-            {visibleAgents < agents.length && (
+            {visibleAgents < filteredAgents.length && (
               <div className="pt-3 text-center">
                 <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setVisibleAgents(v => v + 10)}>
-                  Load more · {agents.length - visibleAgents} remaining
+                  Load more · {filteredAgents.length - visibleAgents} remaining
                 </Button>
               </div>
             )}
