@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import sendMoneyIllustration from '@/assets/undraw_wallet_diag.svg.asset.json';
 import { useWallet } from '@/hooks/useWallet';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -591,7 +592,13 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
               exit={{ opacity: 0, y: -8 }}
               className="relative"
             >
-              <DialogHeader>
+              <img
+                src={sendMoneyIllustration.url}
+                alt="Illustration of a wallet and money transfer"
+                loading="lazy"
+                className="mx-auto mb-3 h-24 w-auto sm:h-28"
+              />
+              <DialogHeader className="pr-12">
                 <DialogTitle className="flex items-center gap-2">
                   <div className="p-2 rounded-lg bg-primary/10">
                     <CheckCircle className="h-5 w-5 text-primary" />
