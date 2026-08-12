@@ -12,6 +12,8 @@ import { Loader2, UserPlus, Share2, Copy, Check, Eye, EyeOff, Users, Briefcase, 
 import { Card, CardContent } from '@/components/ui/card';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import PersonNameFields from '@/components/shared/PersonNameFields';
+import { joinPersonName, validatePersonNameParts, type PersonNameParts } from '@/lib/authValidation';
 interface CreateUserInviteDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -234,15 +236,11 @@ Just click the link and enter your password to get started!`;
       {/* Form fields with larger inputs */}
       <div className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="fullName" className="text-sm font-medium">Full Name</Label>
-          <Input
-            id="fullName"
-            placeholder="Enter user's full name"
-            value={formData.fullName}
-            onChange={(e) => setFormData(prev => ({ ...prev, fullName: e.target.value }))}
-            required
-            className="h-12 text-base"
-            autoComplete="off"
+          <Label className="text-sm font-medium">Full Name</Label>
+          <PersonNameFields
+            idPrefix="manager-invite"
+            value={nameParts}
+            onChange={applyNameParts}
           />
         </div>
 
