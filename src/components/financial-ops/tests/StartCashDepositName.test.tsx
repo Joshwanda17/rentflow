@@ -26,8 +26,8 @@ describe('StartCashDepositDialog — depositor name', () => {
     fill(/First name/i, 'Nankambo');
     fill(/Other names/i, 'Grace');
     fill(/Last name/i, 'Sharimah');
-    fill(/phone/i, '0771234567');
-    fill(/Cash received/i, '50000');
+    fill(/Depositor phone number/i, '0771234567');
+    fill(/Cash amount/i, '50000');
     fireEvent.click(screen.getByRole('button', { name: /Send code by SMS/i }));
     await waitFor(() => expect(invokeSpy).toHaveBeenCalled());
     const body = (invokeSpy.mock.calls[0] as any)[1].body;
@@ -37,8 +37,8 @@ describe('StartCashDepositDialog — depositor name', () => {
   it('blocks submission when the last name is blank', () => {
     setup();
     fill(/First name/i, 'Nankambo');
-    fill(/phone/i, '0771234567');
-    fill(/Cash received/i, '50000');
+    fill(/Depositor phone number/i, '0771234567');
+    fill(/Cash amount/i, '50000');
     expect(screen.getByRole('button', { name: /Send code by SMS/i })).toBeDisabled();
     expect(invokeSpy).not.toHaveBeenCalled();
   });
