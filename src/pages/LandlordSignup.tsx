@@ -39,7 +39,6 @@ export default function LandlordSignup() {
 
   // Form state
   const [form, setForm] = useState({
-    fullName: '',
     phone: '',
     location: '',
     units: '',
