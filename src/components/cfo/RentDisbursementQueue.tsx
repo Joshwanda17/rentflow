@@ -818,6 +818,8 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
                       </SelectContent>
                     </Select>
                   </div>
+                  )}
+                  {!locationProvisionsOnly && (
                   <div className="space-y-1.5">
                     <p className="text-xs font-semibold text-muted-foreground">{CAT_FIELD_LABELS[catField]}</p>
                     <Select value={catValue} onValueChange={(v) => { setCatValue(v); setSelected(new Set()); }}>
@@ -834,6 +836,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
                       </SelectContent>
                     </Select>
                   </div>
+                  )}
                   <div className="space-y-1.5">
                     <p className="text-xs font-semibold text-muted-foreground">Agent</p>
                     <Select value={agentFilter} onValueChange={setAgentFilter}>
@@ -850,6 +853,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
                       </SelectContent>
                     </Select>
                   </div>
+                  {!locationProvisionsOnly && (
                   <div className="space-y-1.5">
                     <p className="text-xs font-semibold text-muted-foreground">Country</p>
                     <Select value={countryFilter} onValueChange={setCountryFilter}>
@@ -866,6 +870,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
                       </SelectContent>
                     </Select>
                   </div>
+                  )}
                   <button
                     type="button"
                     className="text-xs font-medium text-primary hover:underline"
