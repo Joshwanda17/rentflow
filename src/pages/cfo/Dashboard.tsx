@@ -282,7 +282,7 @@ export default function CFODashboardPage() {
               </p>
             </div>
             <CFOAllocationReturnApprovals />
-            <RentDisbursementQueue />
+            <RentDisbursementQueue hideDistrictCityFilters />
             <BatchPayoutProcessor />
             <LandlordFloatAllocationsPanel />
           </div>

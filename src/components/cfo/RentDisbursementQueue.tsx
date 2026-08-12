@@ -104,9 +104,11 @@ interface RentDisbursementQueueProps {
   restrictToIds?: string[];
   /** Optional: tick these rows on mount (same checkboxes as usual). */
   autoSelectIds?: string[];
+  /** When true, the district and town/city filter controls are hidden. */
+  hideDistrictCityFilters?: boolean;
 }
 
-export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisbursementQueueProps = {}) {
+export function RentDisbursementQueue({ restrictToIds, autoSelectIds, hideDistrictCityFilters = false }: RentDisbursementQueueProps = {}) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [agentFilter, setAgentFilter] = useState<string>('all');
   const [countryFilter, setCountryFilter] = useState<string>('all');
@@ -505,6 +507,40 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                 className="h-11 rounded-xl text-sm pl-9 bg-background border-border/70"
               />
             </div>
+            {!hideDistrictCityFilters && (
+              <Select
+                value={districtFilter}
+                onValueChange={(v) => { setDistrictFilter(v); setCityFilter('all'); setSelected(new Set()); }}
+              >
+                <SelectTrigger className="h-11 rounded-xl text-sm w-full bg-background border-border/70">
+                  <MapPin className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <SelectValue placeholder="All districts" />
+                </SelectTrigger>
+                <SelectContent className="max-h-[320px]">
+                  <SelectItem value="all">All districts ({items.length})</SelectItem>
+                  {districtOptions.map(o => (
+                    <SelectItem key={o.name} value={o.name}>
+                      <span className="truncate">{o.name} · {o.count}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {!hideDistrictCityFilters && (
+              <Select value={cityFilter} onValueChange={(v) => { setCityFilter(v); setSelected(new Set()); }}>
+                <SelectTrigger className="h-11 rounded-xl text-sm w-full bg-background border-border/70">
+                  <SelectValue placeholder="All towns/cities" />
+                </SelectTrigger>
+                <SelectContent className="max-h-[320px]">
+                  <SelectItem value="all">All towns/cities</SelectItem>
+                  {cityOptions.map(o => (
+                    <SelectItem key={o.name} value={o.name}>
+                      <span className="truncate">{o.name} · {o.count}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
             <Select value={agentFilter} onValueChange={setAgentFilter}>
               <SelectTrigger className="h-11 rounded-xl text-sm w-full bg-background border-border/70">
                 <Users className="h-4 w-4 mr-2 text-muted-foreground" />
@@ -728,6 +764,45 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent align="end" className="w-72 space-y-3 p-3">
+                  {!hideDistrictCityFilters && (
+                    <div className="space-y-1.5">
+                      <p className="text-xs font-semibold text-muted-foreground">District</p>
+                      <Select
+                        value={districtFilter}
+                        onValueChange={(v) => { setDistrictFilter(v); setCityFilter('all'); setSelected(new Set()); }}
+                      >
+                        <SelectTrigger className="h-9 rounded-lg text-sm">
+                          <SelectValue placeholder="All districts" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-[280px]">
+                          <SelectItem value="all">All districts</SelectItem>
+                          {districtOptions.map(o => (
+                            <SelectItem key={o.name} value={o.name}>
+                              <span className="truncate">{o.name} · {o.count}</span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  {!hideDistrictCityFilters && (
+                    <div className="space-y-1.5">
+                      <p className="text-xs font-semibold text-muted-foreground">Town / City</p>
+                      <Select value={cityFilter} onValueChange={(v) => { setCityFilter(v); setSelected(new Set()); }}>
+                        <SelectTrigger className="h-9 rounded-lg text-sm">
+                          <SelectValue placeholder="All towns/cities" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-[280px]">
+                          <SelectItem value="all">All towns/cities</SelectItem>
+                          {cityOptions.map(o => (
+                            <SelectItem key={o.name} value={o.name}>
+                              <span className="truncate">{o.name} · {o.count}</span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                   <div className="space-y-1.5">
                     <p className="text-xs font-semibold text-muted-foreground">Category type</p>
                     <Select value={catField} onValueChange={(v) => { setCatField(v as CatFieldKey); setCatValue('all'); setSelected(new Set()); }}>
