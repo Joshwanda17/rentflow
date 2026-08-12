@@ -5645,6 +5645,13 @@ export type Database = {
             foreignKeyName: "bulk_bank_payout_allocations_withdrawal_request_id_fkey"
             columns: ["withdrawal_request_id"]
             isOneToOne: true
+            referencedRelation: "v_unsettled_payouts"
+            referencedColumns: ["withdrawal_id"]
+          },
+          {
+            foreignKeyName: "bulk_bank_payout_allocations_withdrawal_request_id_fkey"
+            columns: ["withdrawal_request_id"]
+            isOneToOne: true
             referencedRelation: "v_withdrawal_holds_unbacked"
             referencedColumns: ["withdrawal_id"]
           },
@@ -6688,6 +6695,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_merchant_payout_queue"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cashout_claim_comments_withdrawal_id_fkey"
+            columns: ["withdrawal_id"]
+            isOneToOne: false
+            referencedRelation: "v_unsettled_payouts"
+            referencedColumns: ["withdrawal_id"]
           },
           {
             foreignKeyName: "cashout_claim_comments_withdrawal_id_fkey"
@@ -20431,6 +20445,13 @@ export type Database = {
             foreignKeyName: "payout_codes_withdrawal_request_id_fkey"
             columns: ["withdrawal_request_id"]
             isOneToOne: false
+            referencedRelation: "v_unsettled_payouts"
+            referencedColumns: ["withdrawal_id"]
+          },
+          {
+            foreignKeyName: "payout_codes_withdrawal_request_id_fkey"
+            columns: ["withdrawal_request_id"]
+            isOneToOne: false
             referencedRelation: "v_withdrawal_holds_unbacked"
             referencedColumns: ["withdrawal_id"]
           },
@@ -20502,6 +20523,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_merchant_payout_queue"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payout_delivery_disputes_withdrawal_id_fkey"
+            columns: ["withdrawal_id"]
+            isOneToOne: false
+            referencedRelation: "v_unsettled_payouts"
+            referencedColumns: ["withdrawal_id"]
           },
           {
             foreignKeyName: "payout_delivery_disputes_withdrawal_id_fkey"
@@ -31131,6 +31159,13 @@ export type Database = {
             foreignKeyName: "withdrawal_payment_evidence_withdrawal_id_fkey"
             columns: ["withdrawal_id"]
             isOneToOne: true
+            referencedRelation: "v_unsettled_payouts"
+            referencedColumns: ["withdrawal_id"]
+          },
+          {
+            foreignKeyName: "withdrawal_payment_evidence_withdrawal_id_fkey"
+            columns: ["withdrawal_id"]
+            isOneToOne: true
             referencedRelation: "v_withdrawal_holds_unbacked"
             referencedColumns: ["withdrawal_id"]
           },
@@ -31226,6 +31261,10 @@ export type Database = {
           reason: string | null
           receipt_token: string | null
           rejection_reason: string | null
+          settlement_attempts: number
+          settlement_checked_at: string | null
+          settlement_missing_legs: Json
+          settlement_state: string
           status: string
           transaction_id: string | null
           transaction_time: string | null
@@ -31290,6 +31329,10 @@ export type Database = {
           reason?: string | null
           receipt_token?: string | null
           rejection_reason?: string | null
+          settlement_attempts?: number
+          settlement_checked_at?: string | null
+          settlement_missing_legs?: Json
+          settlement_state?: string
           status?: string
           transaction_id?: string | null
           transaction_time?: string | null
@@ -31354,6 +31397,10 @@ export type Database = {
           reason?: string | null
           receipt_token?: string | null
           rejection_reason?: string | null
+          settlement_attempts?: number
+          settlement_checked_at?: string | null
+          settlement_missing_legs?: Json
+          settlement_state?: string
           status?: string
           transaction_id?: string | null
           transaction_time?: string | null
@@ -32964,6 +33011,25 @@ export type Database = {
             referencedColumns: ["listing_id"]
           },
         ]
+      }
+      v_unsettled_payouts: {
+        Row: {
+          amount: number | null
+          created_at: string | null
+          fin_ops_reference: string | null
+          has_payment_evidence: boolean | null
+          merchant_id: string | null
+          payout_method: string | null
+          processed_at: string | null
+          settlement_attempts: number | null
+          settlement_checked_at: string | null
+          settlement_missing_legs: Json | null
+          settlement_state: string | null
+          status: string | null
+          user_id: string | null
+          withdrawal_id: string | null
+        }
+        Relationships: []
       }
       v_user_wallet_strict: {
         Row: {
@@ -38455,6 +38521,10 @@ export type Database = {
             }
             Returns: Json
           }
+      record_withdrawal_settlement_state: {
+        Args: { p_withdrawal_id: string }
+        Returns: Json
+      }
       recover_agent_arrears_from_credit: {
         Args: {
           p_agent_id: string
