@@ -1,6 +1,8 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { addDays, format } from 'date-fns';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
+import PersonNameFields from '@/components/shared/PersonNameFields';
+import { joinPersonName, splitPersonName, type PersonNameParts } from '@/lib/authValidation';
 import { computeUndoSelection } from '@/lib/undoHouseSelection';
 import { motion, AnimatePresence } from '@/lib/motion-lite';
 import { supabase } from '@/integrations/supabase/client';
@@ -691,7 +693,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [incomeType, setIncomeType] = useState<IncomeType | null>(null);
   
   // Tenant info (for non-account holders)
-  const [tenantName, setTenantName] = useState('');
+  // Captured in parts; every downstream read/write still uses the single
+  // concatenated `tenantName` string.
+  const [tenantNameParts, setTenantNameParts] = useState<PersonNameParts>({ firstName: '', otherNames: '', lastName: '' });
+  const tenantName = joinPersonName(tenantNameParts);
+  const setTenantName = (next: string) => setTenantNameParts(splitPersonName(next));
   const [tenantPhone, setTenantPhone] = useState('');
   const [tenantNationalId, setTenantNationalId] = useState('');
   const [preferredLanguage, setPreferredLanguage] = useState<string>('');
@@ -736,7 +742,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   };
   
   // LC1 info
-  const [lc1Name, setLc1Name] = useState('');
+  const [lc1NameParts, setLc1NameParts] = useState<PersonNameParts>({ firstName: '', otherNames: '', lastName: '' });
+  const lc1Name = joinPersonName(lc1NameParts);
+  const setLc1Name = (next: string) => setLc1NameParts(splitPersonName(next));
   const [lc1Phone, setLc1Phone] = useState('');
   const [lc1Village, setLc1Village] = useState('');
   // LC letter — one image (JPG/PNG/JPEG, max 10 MB) stored in the private
@@ -3742,12 +3750,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         <Label >Tenant Name *</Label>
                         <p className="text-xs text-muted-foreground leading-snug">The tenant's name as on their ID.</p>
                         <p className="text-[11px] text-muted-foreground">e.g. John Mukasa</p>
-                        <Input
-                          value={tenantName}
-                          onChange={(e) => setTenantName(formatNameInput(e.target.value))}
-                          placeholder="Full name"
-                          className={`${hasFieldError('tenantName') ? 'border-destructive border-2' : ''}`}
-                          required
+                        <PersonNameFields
+                          idPrefix="rent-req-tenant-a"
+                          value={tenantNameParts}
+                          onChange={setTenantNameParts}
                         />
                         <FieldError message={vName(tenantName) || getFieldError('tenantName')} />
                         <TenantDuplicateNotice
@@ -4243,13 +4249,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     <Label htmlFor="tenantName" >Full Name *</Label>
                     <p className="text-xs text-muted-foreground leading-snug">Write the tenant's name as it is on their ID.</p>
                     <p className="text-[11px] text-muted-foreground">e.g. Sarah Nalwoga</p>
-                    <Input
-                      id="tenantName"
-                      value={tenantName}
-                      onChange={(e) => setTenantName(formatNameInput(e.target.value))}
-                      placeholder="Tenant's name"
-                      className={`${hasFieldError('tenantName') ? 'border-destructive border-2' : ''}`}
-                      required
+                    <PersonNameFields
+                      idPrefix="rent-req-tenant"
+                      value={tenantNameParts}
+                      onChange={setTenantNameParts}
                     />
                     <FieldError message={vName(tenantName) || getFieldError('tenantName')} />
                     <TenantDuplicateNotice
@@ -5156,12 +5159,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     <Label >Name *</Label>
                     <p className="text-xs text-muted-foreground leading-snug">The local council (LC1) chairperson for that area.</p>
                     <p className="text-[11px] text-muted-foreground">e.g. Mr. Ssemwanga</p>
-                    <Input
-                      value={lc1Name}
-                      onChange={(e) => setLc1Name(formatNameInput(e.target.value))}
-                      placeholder="LC1 name"
-                      className={`${hasFieldError('lc1Name') ? 'border-destructive border-2' : ''}`}
-                      required
+                    <PersonNameFields
+                      idPrefix="rent-req-lc1"
+                      value={lc1NameParts}
+                      onChange={setLc1NameParts}
                     />
                     <FieldError message={vName(lc1Name) || getFieldError('lc1Name')} />
                   </div>
