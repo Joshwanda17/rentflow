@@ -75,8 +75,8 @@ export function FunderQuickActions({ availableBalance, roiBalance = 0, onChanged
           className={btnClass + depositHighlightClass}
           onClick={() => { hapticTap(); setShowDeposit(true); }}
         >
-          <ArrowDownLeft className={`w-3.5 h-3.5 shrink-0 ${isHero ? 'text-emerald-300' : 'text-emerald-600'}`} />
-          <span className="font-semibold text-[10px] sm:text-xs truncate">Deposit</span>
+          <ArrowDownLeft className={`w-3.5 h-3.5 shrink-0 ${isHero ? 'text-emerald-300' : 'text-success'}`} />
+          <span className="font-semibold text-[9px] sm:text-[11px] truncate">Deposit</span>
         </Button>
         <Button
           variant={btnVariant}
@@ -85,8 +85,8 @@ export function FunderQuickActions({ availableBalance, roiBalance = 0, onChanged
           title={payoutsUiEnabled ? undefined : 'Withdrawals are temporarily disabled'}
           onClick={() => { hapticTap(); setShowWithdraw(true); }}
         >
-          <ArrowUpRight className={`w-3.5 h-3.5 shrink-0 ${isHero ? 'text-rose-300' : 'text-rose-600'}`} />
-          <span className="font-semibold text-[10px] sm:text-xs truncate">Withdraw</span>
+          <ArrowUpRight className={`w-3.5 h-3.5 shrink-0 ${isHero ? 'text-rose-300' : 'text-destructive'}`} />
+          <span className="font-semibold text-[9px] sm:text-[11px] truncate">Withdraw</span>
         </Button>
         <Button
           variant={btnVariant}
@@ -94,7 +94,7 @@ export function FunderQuickActions({ availableBalance, roiBalance = 0, onChanged
           onClick={() => { hapticTap(); setShowTransfer(true); }}
         >
           <Send className={`w-3.5 h-3.5 shrink-0 ${isHero ? 'text-primary-foreground' : 'text-primary'}`} />
-          <span className="font-semibold text-[10px] sm:text-xs truncate">Transfer</span>
+          <span className="font-semibold text-[9px] sm:text-[11px] truncate">Transfer</span>
         </Button>
       </div>
 
