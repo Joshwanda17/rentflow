@@ -307,6 +307,7 @@ export default function Settings() {
       toast.success('Profile updated successfully');
       setProfile({ ...profile, full_name: trimmedName, phone: savedPhone });
       setPhone(savedPhone);
+      queryClient.invalidateQueries({ queryKey: ['name-completion-status'] });
     } catch (e: any) {
       toast.error(e?.message || 'Failed to update profile');
     } finally {
