@@ -11,7 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import {
-  ResponsiveContainer, AreaChart, Area, BarChart, Bar, LineChart, Line,
+  ResponsiveContainer, AreaChart, Area, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell,
 } from 'recharts';
 import {
@@ -89,12 +89,32 @@ interface CommandCenterData {
 const num = (v: any) => Number(v ?? 0);
 const compact = (v: number) =>
   v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1)}M` : v >= 1_000 ? `${Math.round(v / 1_000)}K` : `${v}`;
-const hourLabel = (h: number) => `${String(h).padStart(2, '0')}:00`;
+/** EAT hour in 12-hour format, e.g. 0 -> "12 AM", 13 -> "1 PM" */
+const hourLabel = (h: number) => {
+  const suffix = h < 12 ? 'AM' : 'PM';
+  const base = h % 12 === 0 ? 12 : h % 12;
+  return `${base} ${suffix}`;
+};
+
+/** Convert an RPC bucket string to a friendly, EAT-aware label. */
+function bucketLabel(bucketStr: string, bucket: string): string {
+  if (bucket === 'hour') {
+    const h = Number(bucketStr.slice(11, 13));
+    return Number.isFinite(h) ? hourLabel(h) : bucketStr.slice(11, 16);
+  }
+  if (bucket === 'month') {
+    const d = new Date(`${bucketStr.slice(0, 7)}-01T00:00:00`);
+    return isNaN(d.getTime()) ? bucketStr : format(d, 'MMM yyyy');
+  }
+  const d = new Date(`${bucketStr.slice(0, 10)}T00:00:00`);
+  return isNaN(d.getTime()) ? bucketStr : format(d, 'EEEE d MMM');
+}
 
 export function AgentCollectionsCommandCenter() {
   const [preset, setPreset] = useState<PresetKey>('today');
   const [custom, setCustom] = useState<DateRange | undefined>();
   const [search, setSearch] = useState('');
+  const [visibleAgents, setVisibleAgents] = useState(10);
   const qc = useQueryClient();
 
   const { start, end, bucket } = useMemo(() => resolveRange(preset, custom), [preset, custom]);
@@ -131,7 +151,7 @@ export function AgentCollectionsCommandCenter() {
 
   const totals = data?.totals;
   const series = (data?.series ?? []).map(s => ({
-    label: bucket === 'hour' ? s.bucket.slice(11) : bucket === 'month' ? s.bucket : s.bucket.slice(5),
+    label: bucketLabel(s.bucket, bucket),
     collected: num(s.collected),
     requests: num(s.requests_amount),
     collectionsCount: num(s.collections_count),
@@ -152,6 +172,24 @@ export function AgentCollectionsCommandCenter() {
     const filtered = q ? list.filter(a => (a.name || '').toLowerCase().includes(q) || (a.phone || '').includes(q)) : list;
     return filtered.sort((a, b) => b.collected - a.collected);
   }, [data, search]);
+
+  // Reset pagination when the range or search changes
+  useEffect(() => { setVisibleAgents(10); }, [search, preset, custom, bucket]);
+
+  /** Bar chart: only agents achieving at least 5% of their expected target. */
+  const agentBars = useMemo(
+    () =>
+      agents
+        .filter(a => a.pct !== null && a.pct >= 5 && a.collected > 0)
+        .slice(0, 15)
+        .map(a => ({
+          name: (a.name || 'Agent').split(' ').slice(0, 2).join(' '),
+          collected: a.collected,
+          expected: a.expected,
+          pct: a.pct as number,
+        })),
+    [agents],
+  );
 
   const expectedTotal = agents.reduce((s, a) => s + a.expected, 0);
   const collectedTotal = num(totals?.collected);
@@ -207,8 +245,8 @@ export function AgentCollectionsCommandCenter() {
       </div>
 
       <p className="text-[11px] text-muted-foreground">
-        {format(start, 'dd MMM yyyy HH:mm')} → {format(end, 'dd MMM yyyy HH:mm')} · grouped by {bucket} · East Africa Time
-        {data?.generated_at ? ` · updated ${format(new Date(data.generated_at), 'HH:mm:ss')}` : ''}
+        {format(start, 'dd MMM yyyy h:mm a')} → {format(end, 'dd MMM yyyy h:mm a')} · grouped by {bucket} · East Africa Time
+        {data?.generated_at ? ` · updated ${format(new Date(data.generated_at), 'h:mm:ss a')}` : ''}
       </p>
 
       {error && (
@@ -290,7 +328,7 @@ export function AgentCollectionsCommandCenter() {
               <YAxis tickFormatter={compact} tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
               <Tooltip
                 formatter={(v: any) => formatUGX(Number(v))}
-                labelFormatter={(l: any) => `Hour ${l} (EAT)`}
+                labelFormatter={(l: any) => `${l} (EAT)`}
               />
               <Bar dataKey="amount" name="Collected" radius={[3, 3, 0, 0]}>
                 {peak.map(p => (
@@ -306,27 +344,89 @@ export function AgentCollectionsCommandCenter() {
       </Card>
 
       {/* Collections vs rent requests */}
-      <Card className="p-3">
-        <h3 className="text-sm font-semibold mb-2">Collections vs new rent requests</h3>
-        <div className="h-64">
+      <Card className="p-3 bg-muted/30">
+        <div className="flex flex-wrap items-center gap-2 mb-2">
+          <h3 className="text-sm font-semibold mr-auto">Collections vs new rent requests</h3>
+          <Badge variant="outline" className="text-[10px] gap-1">
+            <span className="inline-block h-2 w-2 rounded-full" style={{ background: 'hsl(160 84% 39%)' }} /> Collected
+          </Badge>
+          <Badge variant="outline" className="text-[10px] gap-1">
+            <span className="inline-block h-2 w-2 rounded-full" style={{ background: 'hsl(262 83% 58%)' }} /> Rent requested
+          </Badge>
+        </div>
+        <div className="h-64 rounded-lg bg-background/70 p-2">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={series}>
+            <AreaChart data={series}>
+              <defs>
+                <linearGradient id="vsCollected" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="hsl(160 84% 39%)" stopOpacity={0.35} />
+                  <stop offset="95%" stopColor="hsl(160 84% 39%)" stopOpacity={0.02} />
+                </linearGradient>
+                <linearGradient id="vsRequests" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="hsl(262 83% 58%)" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="hsl(262 83% 58%)" stopOpacity={0.02} />
+                </linearGradient>
+              </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis dataKey="label" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
               <YAxis tickFormatter={compact} tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
-              <Tooltip formatter={(v: any) => formatUGX(Number(v))} />
+              <Tooltip
+                formatter={(v: any) => formatUGX(Number(v))}
+                contentStyle={{ background: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 11 }}
+              />
               <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Line type="monotone" dataKey="collected" name="Collected" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="requests" name="Rent requested" stroke="hsl(262 83% 58%)" strokeWidth={2} dot={false} />
-            </LineChart>
+              <Area type="monotone" dataKey="collected" name="Collected" stroke="hsl(160 84% 39%)" fill="url(#vsCollected)" strokeWidth={2} />
+              <Area type="monotone" dataKey="requests" name="Rent requested" stroke="hsl(262 83% 58%)" fill="url(#vsRequests)" strokeWidth={2} />
+            </AreaChart>
           </ResponsiveContainer>
         </div>
+      </Card>
+
+      {/* Agent collections bar chart (>= 5% of expected only) */}
+      <Card className="p-3">
+        <div className="flex flex-wrap items-center gap-2 mb-2">
+          <h3 className="text-sm font-semibold mr-auto">Agent collections (performing agents)</h3>
+          <Badge variant="outline" className="text-[10px]">≥ 5% of expected</Badge>
+        </div>
+        {agentBars.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-6 text-center">
+            No agent has reached 5% of their expected target in this range.
+          </p>
+        ) : (
+          <div className="h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={agentBars} layout="vertical" margin={{ left: 8, right: 12 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+                <XAxis type="number" tickFormatter={compact} tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                <Tooltip
+                  formatter={(v: any, n: any) => [formatUGX(Number(v)), n]}
+                  contentStyle={{ background: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 11 }}
+                />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Bar dataKey="expected" name="Expected" fill="hsl(var(--muted))" radius={[0, 3, 3, 0]} />
+                <Bar dataKey="collected" name="Collected" radius={[0, 3, 3, 0]}>
+                  {agentBars.map(b => (
+                    <Cell
+                      key={b.name}
+                      fill={b.pct >= 90 ? 'hsl(160 84% 39%)' : b.pct >= 50 ? 'hsl(38 92% 50%)' : 'hsl(var(--primary))'}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+        <p className="text-[11px] text-muted-foreground mt-1">
+          Agents below 5% coverage are hidden to keep the chart free of empty data.
+        </p>
       </Card>
 
       {/* Agents by collections vs expected */}
       <Card className="p-3">
         <div className="flex flex-wrap items-center gap-2 mb-2">
           <h3 className="text-sm font-semibold mr-auto">Agents by collections vs expected</h3>
+          <Badge variant="outline" className="text-[10px]">{agents.length} agents</Badge>
           <div className="relative">
             <Search className="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
             <Input
@@ -343,36 +443,64 @@ export function AgentCollectionsCommandCenter() {
         ) : agents.length === 0 ? (
           <p className="text-sm text-muted-foreground py-6 text-center">No agents match this range.</p>
         ) : (
-          <div className="divide-y">
-            {agents.slice(0, 100).map(a => (
-              <div key={a.agent_id} className="py-2.5 flex items-center gap-3">
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium truncate">{a.name}</p>
-                  <p className="text-[11px] text-muted-foreground">
-                    {a.collections_count} payments · {a.tenants_paid}/{a.active_tenants} tenants paid
-                    {a.expected_source === 'projected' && a.expected > 0 ? ' · projected target' : ''}
-                  </p>
-                  <div className="mt-1 flex items-center gap-2">
-                    <Progress value={Math.min(100, a.pct ?? 0)} className="h-1.5 flex-1" />
-                    <span
-                      className={cn(
-                        'text-[11px] font-semibold w-12 text-right',
-                        a.pct === null ? 'text-muted-foreground'
-                          : a.pct >= 90 ? 'text-emerald-600'
-                          : a.pct >= 50 ? 'text-amber-600' : 'text-destructive',
+          <>
+            <div className="space-y-2">
+              {agents.slice(0, visibleAgents).map((a, i) => (
+                <div
+                  key={a.agent_id}
+                  className="rounded-lg border bg-card/60 p-2.5 flex items-start gap-3 hover:bg-accent/40 transition-colors"
+                >
+                  <div className="h-7 w-7 shrink-0 rounded-full bg-muted grid place-items-center text-[11px] font-semibold text-muted-foreground">
+                    {i + 1}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{a.name}</p>
+                        <p className="text-[11px] text-muted-foreground truncate">
+                          {a.phone ? `${a.phone} · ` : ''}{a.collections_count} payments · {a.tenants_paid}/{a.active_tenants} tenants paid
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-sm font-bold">{formatUGX(a.collected)}</p>
+                        <p className="text-[11px] text-muted-foreground">of {formatUGX(a.expected)}</p>
+                      </div>
+                    </div>
+                    <div className="mt-2 flex items-center gap-2">
+                      <Progress value={Math.min(100, a.pct ?? 0)} className="h-2 flex-1" />
+                      <span
+                        className={cn(
+                          'text-[11px] font-semibold w-12 text-right',
+                          a.pct === null ? 'text-muted-foreground'
+                            : a.pct >= 90 ? 'text-emerald-600'
+                            : a.pct >= 50 ? 'text-amber-600' : 'text-destructive',
+                        )}
+                      >
+                        {a.pct === null ? '—' : `${a.pct}%`}
+                      </span>
+                    </div>
+                    <div className="mt-1 flex flex-wrap gap-1.5">
+                      {a.expected_source === 'projected' && a.expected > 0 && (
+                        <Badge variant="outline" className="text-[10px]">Projected target</Badge>
                       )}
-                    >
-                      {a.pct === null ? '—' : `${a.pct}%`}
-                    </span>
+                      {a.last_collection_at && (
+                        <Badge variant="outline" className="text-[10px]">
+                          Last {format(new Date(a.last_collection_at), 'dd MMM h:mm a')}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 </div>
-                <div className="text-right shrink-0">
-                  <p className="text-sm font-bold">{formatUGX(a.collected)}</p>
-                  <p className="text-[11px] text-muted-foreground">of {formatUGX(a.expected)}</p>
-                </div>
+              ))}
+            </div>
+            {visibleAgents < agents.length && (
+              <div className="pt-3 text-center">
+                <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setVisibleAgents(v => v + 10)}>
+                  Load more · {agents.length - visibleAgents} remaining
+                </Button>
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
         <p className="text-[11px] text-muted-foreground mt-2">
           Collected comes from recorded agent collections. Expected uses the daily-target snapshots for each day in
