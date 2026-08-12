@@ -7,13 +7,17 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Loader2, UserCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { validateFullName } from "@/lib/authValidation";
+import {
+  validateFullName,
+  validatePersonNameParts,
+  splitPersonName,
+  type PersonNameParts,
+} from "@/lib/authValidation";
+import PersonNameFields from "@/components/shared/PersonNameFields";
 import { loginTelemetry as lt } from "@/lib/loginTelemetry";
 
 const SNOOZE_KEY = "welile:name-completion:snoozed-until";
@@ -24,8 +28,11 @@ const SNOOZE_MS = 6 * 60 * 60 * 1000;
 export default function NameCompletionGate() {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
+  const [nameParts, setNameParts] = useState<PersonNameParts>({
+    firstName: "",
+    otherNames: "",
+    lastName: "",
+  });
   const [reason, setReason] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [checked, setChecked] = useState(false);
@@ -46,10 +53,8 @@ export default function NameCompletionGate() {
       const currentName = String(data?.full_name ?? "").trim();
       const check = validateFullName(currentName);
       if (!check.valid) {
-        // Pre-fill any usable first token so the user isn't retyping.
-        const parts = currentName.split(/\s+/).filter(Boolean);
-        setFirstName(parts[0] || "");
-        setLastName(parts.slice(1).join(" ") || "");
+        // Pre-fill any usable tokens so the user isn't retyping.
+        setNameParts(splitPersonName(currentName));
         setReason(check.error || "Please add your full legal name.");
         setOpen(true);
         stop('needs_completion');
@@ -63,8 +68,7 @@ export default function NameCompletionGate() {
   }, [user?.id]);
 
   const handleSave = async () => {
-    const combined = `${firstName.trim()} ${lastName.trim()}`.trim();
-    const check = validateFullName(combined);
+    const check = validatePersonNameParts(nameParts);
     if (!check.valid) {
       toast.error(check.error || "Enter your real first and last name");
       return;
@@ -73,7 +77,7 @@ export default function NameCompletionGate() {
     try {
       const { error } = await supabase
         .from("profiles")
-        .update({ full_name: check.trimmed })
+        .update({ full_name: check.fullName })
         .eq("id", user!.id);
       if (error) throw error;
       toast.success("Name updated — thank you");
@@ -108,30 +112,12 @@ export default function NameCompletionGate() {
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 pt-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="ncg-first">First name</Label>
-            <Input
-              id="ncg-first"
-              autoComplete="given-name"
-              autoCapitalize="words"
-              placeholder="e.g. Alice"
-              value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
-              disabled={saving}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="ncg-last">Last name (surname)</Label>
-            <Input
-              id="ncg-last"
-              autoComplete="family-name"
-              autoCapitalize="words"
-              placeholder="e.g. Namono"
-              value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
-              disabled={saving}
-            />
-          </div>
+          <PersonNameFields
+            idPrefix="ncg"
+            value={nameParts}
+            onChange={setNameParts}
+            disabled={saving}
+          />
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button variant="ghost" onClick={snooze} disabled={saving}>
               Not now
