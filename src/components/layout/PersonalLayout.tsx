@@ -60,9 +60,17 @@ const PersonalLayout = ({ children, title }: PersonalLayoutProps) => {
           >
             <X className="h-4 w-4" />
           </button>
-          <div className="flex items-center gap-2 min-w-0 pt-4">
-            <p className="font-bold truncate">{displayName || 'Your Name'}</p>
-            <span className="text-xs text-muted-foreground flex-none">My space</span>
+          <div className="flex items-center gap-3 min-w-0 pt-4">
+            <Avatar className="h-11 w-11 border-2 border-primary/10 shrink-0">
+              <AvatarImage src={avatarUrl || ''} alt={displayName || 'Your profile'} />
+              <AvatarFallback className="bg-primary/10 text-primary font-semibold text-sm">
+                {getInitials(displayName)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <p className="font-bold truncate leading-tight">{displayName || 'Your Name'}</p>
+              <span className="text-xs text-muted-foreground">My space</span>
+            </div>
           </div>
         </div>
       </header>
