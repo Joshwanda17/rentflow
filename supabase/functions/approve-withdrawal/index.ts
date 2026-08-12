@@ -3672,6 +3672,45 @@ Deno.serve(async (req) => {
       );
     }
 
+    // ── PHASE 2: explicit settlement state (never silently "settled") ───
+    // Every required financial leg (customer wallet debit, merchant float or
+    // out-of-pocket receivable, telecom charge, commission) is verified
+    // against the ledger by the DB. If any leg failed post-commit, the
+    // payout is stamped `unsettled` and surfaced in `v_unsettled_payouts`
+    // for reconciliation instead of being treated as complete.
+    let settlementState: string | null = null;
+    let settlementMissingLegs: string[] = [];
+    try {
+      const { data: settlementRes, error: settlementErr } = await admin.rpc(
+        "record_withdrawal_settlement_state",
+        { p_withdrawal_id: withdrawal_id },
+      );
+      if (settlementErr) {
+        console.error(
+          "[approve-withdrawal] settlement state stamp failed:",
+          settlementErr.message,
+        );
+      } else {
+        settlementState = (settlementRes as any)?.settlement_state ?? null;
+        settlementMissingLegs = ((settlementRes as any)?.missing ?? []) as string[];
+        if (settlementState !== "settled") {
+          console.error(
+            "[approve-withdrawal] PARTIAL SETTLEMENT",
+            withdrawal_id,
+            "state:",
+            settlementState,
+            "missing legs:",
+            JSON.stringify(settlementMissingLegs),
+          );
+        }
+      }
+    } catch (e) {
+      console.error(
+        "[approve-withdrawal] settlement state exception:",
+        (e as Error).message,
+      );
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -3690,6 +3729,8 @@ Deno.serve(async (req) => {
         ),
         merchant_float_total_debit: merchantFloatConsumed + merchantTelecomCharge,
         settled_available: settledAvailable,
+        settlement_state: settlementState,
+        settlement_missing_legs: settlementMissingLegs,
       }),
       {
         status: 200,
