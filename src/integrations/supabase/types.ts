@@ -17971,6 +17971,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "merchant_agent_referrals_cashout_agent_id_fkey"
+            columns: ["cashout_agent_id"]
+            isOneToOne: false
+            referencedRelation: "v_merchant_float_ledger_variance"
+            referencedColumns: ["desk_id"]
+          },
+          {
             foreignKeyName: "merchant_agent_referrals_invitee_id_fkey"
             columns: ["invitee_id"]
             isOneToOne: true
@@ -18203,8 +18210,12 @@ export type Database = {
           desk_id: string
           evidence_note: string | null
           id: string
+          ledger_effect: string
+          ledger_float_at_post: number | null
           reason: string
+          stored_float_at_post: number | null
           updated_at: string
+          variance_at_post: number | null
         }
         Insert: {
           adjustment_type: string
@@ -18215,8 +18226,12 @@ export type Database = {
           desk_id: string
           evidence_note?: string | null
           id?: string
+          ledger_effect?: string
+          ledger_float_at_post?: number | null
           reason: string
+          stored_float_at_post?: number | null
           updated_at?: string
+          variance_at_post?: number | null
         }
         Update: {
           adjustment_type?: string
@@ -18227,8 +18242,12 @@ export type Database = {
           desk_id?: string
           evidence_note?: string | null
           id?: string
+          ledger_effect?: string
+          ledger_float_at_post?: number | null
           reason?: string
+          stored_float_at_post?: number | null
           updated_at?: string
+          variance_at_post?: number | null
         }
         Relationships: [
           {
@@ -18237,6 +18256,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "cashout_agents"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "merchant_float_reconciliations_desk_id_fkey"
+            columns: ["desk_id"]
+            isOneToOne: false
+            referencedRelation: "v_merchant_float_ledger_variance"
+            referencedColumns: ["desk_id"]
           },
         ]
       }
@@ -18369,6 +18395,57 @@ export type Database = {
           telecom_expected?: number
           updated_at?: string
           withdrawal_id?: string
+        }
+        Relationships: []
+      }
+      merchant_float_variance_alerts: {
+        Row: {
+          agent_id: string | null
+          agent_name: string | null
+          created_at: string
+          desk_id: string
+          detected_at: string
+          display_only_adjustments: number
+          id: string
+          ledger_float: number
+          resolved_at: string | null
+          severity: string
+          stored_float: number
+          updated_at: string
+          variance: number
+          variance_state: string
+        }
+        Insert: {
+          agent_id?: string | null
+          agent_name?: string | null
+          created_at?: string
+          desk_id: string
+          detected_at?: string
+          display_only_adjustments?: number
+          id?: string
+          ledger_float?: number
+          resolved_at?: string | null
+          severity?: string
+          stored_float?: number
+          updated_at?: string
+          variance?: number
+          variance_state: string
+        }
+        Update: {
+          agent_id?: string | null
+          agent_name?: string | null
+          created_at?: string
+          desk_id?: string
+          detected_at?: string
+          display_only_adjustments?: number
+          id?: string
+          ledger_float?: number
+          resolved_at?: string | null
+          severity?: string
+          stored_float?: number
+          updated_at?: string
+          variance?: number
+          variance_state?: string
         }
         Relationships: []
       }
@@ -31700,11 +31777,25 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "withdrawal_requests_assigned_cashout_agent_id_fkey"
+            columns: ["assigned_cashout_agent_id"]
+            isOneToOne: false
+            referencedRelation: "v_merchant_float_ledger_variance"
+            referencedColumns: ["desk_id"]
+          },
+          {
             foreignKeyName: "withdrawal_requests_preferred_cashout_agent_id_fkey"
             columns: ["preferred_cashout_agent_id"]
             isOneToOne: false
             referencedRelation: "cashout_agents"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "withdrawal_requests_preferred_cashout_agent_id_fkey"
+            columns: ["preferred_cashout_agent_id"]
+            isOneToOne: false
+            referencedRelation: "v_merchant_float_ledger_variance"
+            referencedColumns: ["desk_id"]
           },
         ]
       }
@@ -32845,6 +32936,75 @@ export type Database = {
         }
         Relationships: []
       }
+      v_merchant_float_ledger_variance: {
+        Row: {
+          adjustment_count: number | null
+          agent_id: string | null
+          agent_name: string | null
+          agent_phone: string | null
+          computed_at: string | null
+          desk_id: string | null
+          display_only_adjustments: number | null
+          is_active: boolean | null
+          label: string | null
+          last_adjustment_at: string | null
+          ledger_float: number | null
+          stored_float: number | null
+          variance: number | null
+          variance_state: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cashout_agents_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "cashout_agents_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cashout_agents_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "cashout_agents_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "v_accounts_no_verified_phone"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cashout_agents_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "cashout_agents_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "v_tenant_ops_tenant_base"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "cashout_agents_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+        ]
+      }
       v_merchant_payout_float_trace: {
         Row: {
           agent_id: string | null
@@ -33148,11 +33308,25 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "withdrawal_requests_assigned_cashout_agent_id_fkey"
+            columns: ["assigned_cashout_agent_id"]
+            isOneToOne: false
+            referencedRelation: "v_merchant_float_ledger_variance"
+            referencedColumns: ["desk_id"]
+          },
+          {
             foreignKeyName: "withdrawal_requests_preferred_cashout_agent_id_fkey"
             columns: ["preferred_cashout_agent_id"]
             isOneToOne: false
             referencedRelation: "cashout_agents"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "withdrawal_requests_preferred_cashout_agent_id_fkey"
+            columns: ["preferred_cashout_agent_id"]
+            isOneToOne: false
+            referencedRelation: "v_merchant_float_ledger_variance"
+            referencedColumns: ["desk_id"]
           },
         ]
       }
@@ -34893,6 +35067,7 @@ export type Database = {
         Args: { p_since_hours?: number }
         Returns: number
       }
+      detect_merchant_float_variances: { Args: never; Returns: Json }
       detect_payout_proof_integrity: { Args: never; Returns: Json }
       detect_sms_failure_alerts: { Args: never; Returns: Json }
       detect_sms_verification_failures: { Args: never; Returns: Json }
@@ -36431,6 +36606,24 @@ export type Database = {
         Args: { p_catalog_id: string }
         Returns: string
       }
+      get_merchant_float_ledger_variance: {
+        Args: never
+        Returns: {
+          adjustment_count: number
+          agent_id: string
+          agent_name: string
+          agent_phone: string
+          desk_id: string
+          display_only_adjustments: number
+          is_active: boolean
+          label: string
+          last_adjustment_at: string
+          ledger_float: number
+          stored_float: number
+          variance: number
+          variance_state: string
+        }[]
+      }
       get_merchant_float_network_status: { Args: never; Returns: Json }
       get_merchant_float_position: {
         Args: { p_agent_id?: string }
@@ -37887,6 +38080,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      merchant_ledger_float: { Args: { p_agent_id: string }; Returns: number }
       merchant_reserved_float: { Args: { p_agent_id: string }; Returns: number }
       merchant_set_online: { Args: { p_online: boolean }; Returns: boolean }
       merchant_telecom_sending_charge: {
