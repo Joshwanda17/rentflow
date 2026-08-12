@@ -714,7 +714,6 @@ Deno.serve(async (req) => {
       }
 
       // All checks passed for this paste.
-      await logSmsPaste("matched", null, null);
     }
 
     // Hoisted so the post-completion success-burn block can also write
@@ -1122,6 +1121,16 @@ Deno.serve(async (req) => {
         }),
         { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
+    }
+
+    // Persist the matched payment confirmation only after this invocation has
+    // atomically claimed the withdrawal. The database confirmation trigger
+    // immediately moves the row to the terminal `paid` state, so it disappears
+    // from every merchant queue before the heavier ledger follow-up begins.
+    // The remainder of this invocation may still advance `paid` to `completed`;
+    // retries cannot claim or return the already-paid row to pending.
+    if (pasteSms && actingAsMerchant && !isCashPayout) {
+      await logSmsPaste("matched", null, null);
     }
 
     // Helper used by the early-failure paths below to release the claim so
