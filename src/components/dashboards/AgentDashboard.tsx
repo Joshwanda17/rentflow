@@ -140,6 +140,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MissionBanner } from '@/components/mission/MissionBanner';
+import { MERCHANT_QUEUE_STATUSES } from '@/lib/merchantPayoutQueue';
 
 // Lazy-loaded modals/sheets — code-split so their JS only downloads when opened.
 const FullScreenWalletSheet = lazy(() => import('@/components/wallet/FullScreenWalletSheet').then(m => ({ default: m.FullScreenWalletSheet })));
