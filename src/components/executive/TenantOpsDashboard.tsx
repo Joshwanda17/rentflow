@@ -86,6 +86,9 @@ export function TenantOpsDashboard() {
   const [deleting, setDeleting] = useState(false);
   const [selectedTenant, setSelectedTenant] = useState<{ id: string; name: string } | null>(null);
   const [overviewFilter, setOverviewFilter] = useState<string | undefined>(undefined);
+  // Lifecycle group the Pipeline Status hub should open on when it is entered
+  // from one of the Classic "Pipeline status" tiles.
+  const [pipelineSeed, setPipelineSeed] = useState<string>('all');
   const [printingPdf, setPrintingPdf] = useState(false);
   const [reportFrom, setReportFrom] = useState<Date | undefined>(undefined);
   const [reportTo, setReportTo] = useState<Date | undefined>(undefined);
