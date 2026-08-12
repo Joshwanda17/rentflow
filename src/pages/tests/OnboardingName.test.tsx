@@ -6,6 +6,11 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
 
+class IO {
+  observe() {} unobserve() {} disconnect() {} takeRecords() { return []; }
+}
+(globalThis as any).IntersectionObserver = IO;
+
 const invokeSpy = vi.fn().mockResolvedValue({ data: { userId: 'u9' }, error: null });
 const toastError = vi.fn();
 
@@ -19,14 +24,17 @@ vi.mock('@/lib/signupGuard', () => ({
   preflightSignup: vi.fn().mockResolvedValue({ allowed: true, attempt_id: 'a1' }),
   attachSignupUser: vi.fn().mockResolvedValue(undefined),
 }));
+vi.mock('@/components/partner/renderAgreementPdf', () => ({
+  renderAgreementPdfBase64: vi.fn().mockResolvedValue(null),
+}));
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
     functions: { invoke: (...a: any[]) => invokeSpy(...a) },
     auth: { signInWithPassword: async () => ({ data: { user: { id: 'u9' }, session: {} }, error: null }) },
     from: () => ({
       select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }) }),
-      update: () => ({ eq: () => ({ then: (cb: any) => cb({ error: null }) }) }),
-      insert: () => ({ then: (cb: any) => cb({ error: null }) }),
+      update: () => ({ eq: () => Promise.resolve({ error: null }) }),
+      insert: () => Promise.resolve({ error: null }),
       upsert: async () => ({ error: null }),
     }),
   },
@@ -44,25 +52,57 @@ async function renderOnboarding() {
 }
 
 const clickContinue = () => fireEvent.click(screen.getByRole('button', { name: /Continue|Create Account/i }));
+const onStep = (n: number) => screen.queryByText(new RegExp(`Step ${n} / 4`, 'i')) !== null;
+
+/** Walks the wizard to step 4 with valid values for steps 1-3. */
+async function goToStep4() {
+  // Step 1 — tick the acknowledgement checkbox.
+  const ack = screen.getByText(/Welile manages tenant relationships/i);
+  const checkbox = ack.parentElement!.querySelector('div[class*="rounded"]') as HTMLElement;
+  fireEvent.click(checkbox);
+  clickContinue();
+  await waitFor(() => expect(onStep(2)).toBe(true));
+
+  // Step 2 — choose a path and enter an amount.
+  fireEvent.click(screen.getByText(/Support a Tenant/i));
+  const amount = await waitFor(() => screen.getByPlaceholderText(/0/));
+  fireEvent.change(amount, { target: { value: '1,000,000' } });
+  clickContinue();
+  await waitFor(() => expect(onStep(3)).toBe(true));
+
+  // Step 3 — bank payout + next of kin.
+  fireEvent.change(screen.getByPlaceholderText(/e.g. Stanbic Bank/i), { target: { value: 'Stanbic Bank' } });
+  fireEvent.change(screen.getByPlaceholderText(/Name on the account/i), { target: { value: 'Alice Nakato' } });
+  fireEvent.change(screen.getByPlaceholderText(/^Account number$/i), { target: { value: '123456789' } });
+  fireEvent.change(screen.getByPlaceholderText(/^Full name$/i), { target: { value: 'Grace Nakato' } });
+  fireEvent.change(screen.getByPlaceholderText(/\+256 700 000 000/i), { target: { value: '+256771234567' } });
+  clickContinue();
+  await waitFor(() => expect(onStep(4)).toBe(true));
+}
 
 beforeEach(() => { invokeSpy.mockClear(); toastError.mockClear(); });
 
-describe('Onboarding — step 4 name capture', () => {
+describe('Onboarding — split name capture', () => {
   it('still blocks step 1 until the confirmation box is ticked', async () => {
     await renderOnboarding();
     clickContinue();
     await waitFor(() => expect(toastError).toHaveBeenCalled());
-    expect(screen.getByText(/Step 1 \/ 4/i)).toBeInTheDocument();
+    expect(onStep(1)).toBe(true);
   });
 
-  it('renders the three split name fields on step 4 and gates on first + last name', async () => {
+  it('renders the three split name fields on step 4 and blocks advance without a last name', async () => {
     await renderOnboarding();
-    // Step 1
-    fireEvent.click(screen.getByText(/Welile manages/i, { selector: 'p,span,div' }).closest('div')!);
-    // Fallback: tick via the checkbox button if the copy click did not register.
+    await goToStep4();
+
+    expect(screen.getByLabelText(/First name/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Other names/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Last name/i)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/First name/i), { target: { value: 'Timothy' } });
+    fireEvent.change(screen.getByLabelText(/Other names/i), { target: { value: 'Christian' } });
+    toastError.mockClear();
     clickContinue();
-    if (screen.getByText(/Step 1 \/ 4/i)) {
-      // no-op: asserted below after an explicit tick
-    }
+    await waitFor(() => expect(toastError).toHaveBeenCalled());
+    expect(invokeSpy).not.toHaveBeenCalled();
   });
 });
