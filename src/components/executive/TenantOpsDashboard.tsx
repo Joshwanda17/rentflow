@@ -986,7 +986,9 @@ export function TenantOpsDashboard() {
       description: 'Approve or reject pending rent requests',
       icon: ClipboardList,
       color: 'bg-amber-500/10 text-amber-600 border-amber-200',
-      badge: (toolCounts?.review_requests ?? 0) + (toolCounts?.new_requests ?? pending),
+      // Only what the review queue below actually renders (agent_ops_approved /
+      // agent_verified). New `pending` requests sit at the service-centre stage.
+      badge: toolCounts?.review_requests ?? 0,
       badgeColor: 'bg-amber-500 text-white',
     },
     {
@@ -995,7 +997,8 @@ export function TenantOpsDashboard() {
       description: 'Who paid today & who hasn\'t',
       icon: CalendarCheck,
       color: 'bg-emerald-500/10 text-emerald-600 border-emerald-200',
-      badge: toolCounts?.payments_today ?? repaying,
+      // Tenants who paid today (>= half the daily amount) — same rule as the tool.
+      badge: toolCounts?.paid_today_tenants ?? 0,
       badgeColor: 'bg-emerald-500 text-white',
     },
     {
@@ -1013,7 +1016,8 @@ export function TenantOpsDashboard() {
       description: 'Risk scores & payment patterns',
       icon: Activity,
       color: 'bg-purple-500/10 text-purple-600 border-purple-200',
-      badge: toolCounts?.critical_tenants ?? 0,
+      // Tenant Behavior tool's own risk model, not the missed-days model.
+      badge: toolCounts?.behavior_critical ?? 0,
       badgeColor: 'bg-purple-500 text-white',
     },
     {
