@@ -896,8 +896,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                 className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-white/20 hover:bg-white/10 active:scale-95 transition-all min-h-[44px]"
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
-                <ArrowDownToLine className="h-4 w-4 text-white/80" />
-                <span className="text-[11px] font-bold text-white/80 uppercase tracking-wider">Deposit</span>
+                <ArrowDownToLine className="h-4 w-4 text-white" />
+                <span className="text-[11px] font-bold text-white uppercase tracking-wider">Deposit</span>
               </button>
               <button
                 onClick={() => {
@@ -911,16 +911,16 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                 className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border min-h-[44px] ${payoutsUiEnabled ? 'border-white/20 hover:bg-white/10 active:scale-95 transition-all' : 'border-white/10 bg-white/5 opacity-50 cursor-not-allowed'}`}
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
-                <ArrowUpFromLine className="h-4 w-4 text-white/80" />
-                <span className="text-[11px] font-bold text-white/80 uppercase tracking-wider">Withdraw</span>
+                <ArrowUpFromLine className="h-4 w-4 text-white" />
+                <span className="text-[11px] font-bold text-white uppercase tracking-wider">Withdraw</span>
               </button>
               <button
                 onClick={() => { hapticTap(); setShowQuickTransfer(true); }}
                 className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-white/20 hover:bg-white/10 active:scale-95 transition-all min-h-[44px]"
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
-                <ArrowLeftRight className="h-4 w-4 text-white/80" />
-                <span className="text-[11px] font-bold text-white/80 uppercase tracking-wider">Transfer</span>
+                <ArrowLeftRight className="h-4 w-4 text-white" />
+                <span className="text-[11px] font-bold text-white uppercase tracking-wider">Transfer</span>
               </button>
             </div>
           }
