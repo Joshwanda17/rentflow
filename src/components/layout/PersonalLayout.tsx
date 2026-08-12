@@ -25,7 +25,7 @@ interface PersonalLayoutProps {
 
 
 const PersonalLayout = ({ children, title }: PersonalLayoutProps) => {
-  const { user } = useAuth();
+  const { user, roles, switchRole } = useAuth();
   const navigate = useNavigate();
   const [displayName, setDisplayName] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -48,15 +48,20 @@ const PersonalLayout = ({ children, title }: PersonalLayoutProps) => {
     return () => { cancelled = true; };
   }, [user]);
 
+  const goToFunderDashboard = () => {
+    if (roles?.includes('supporter')) switchRole('supporter');
+    navigate('/dashboard', { replace: true });
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card/60 backdrop-blur sticky top-0 z-30">
         <div className="max-w-3xl mx-auto px-4 py-3 relative">
           <button
             type="button"
-            onClick={() => navigate('/dashboard')}
+            onClick={goToFunderDashboard}
             className="absolute -top-2 right-2 p-2 rounded-full bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-            aria-label="Close"
+            aria-label="Back to funder dashboard"
           >
             <X className="h-4 w-4" />
           </button>
