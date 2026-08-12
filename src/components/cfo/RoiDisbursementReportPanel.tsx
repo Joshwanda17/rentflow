@@ -263,6 +263,18 @@ export default function RoiDisbursementReportPanel() {
                   <Kpi label="Compounded to principal" value={fmtUGX(data.summary.compounded_total)} hint={`${data.summary.compounded_portfolios} portfolios`} />
                   <Kpi label="Partners affected" value={String(data.summary.partners_affected)} hint={`Principal base ${fmtUGX(data.summary.principal_total)}`} />
                 </div>
+                <div className="mt-4 no-print">
+                  <label className="text-xs font-medium text-muted-foreground" htmlFor="roi-name-search">
+                    Search name
+                  </label>
+                  <Input
+                    id="roi-name-search"
+                    value={nameSearch}
+                    onChange={(e) => setNameSearch(e.target.value)}
+                    placeholder="Type a name to filter the report"
+                    className="mt-1 h-9 max-w-xs"
+                  />
+                </div>
               </div>
 
               {/* Section 1 */}
@@ -274,6 +286,8 @@ export default function RoiDisbursementReportPanel() {
                 />
                 {data.cash.length === 0 ? (
                   <Empty text="No cash Returns were disbursed in this window." />
+                ) : cashRows.length === 0 ? (
+                  <Empty text="No records match this name." />
                 ) : (
                   <div className="overflow-x-auto rounded-md border">
                     <table className="w-full text-sm">
@@ -284,7 +298,7 @@ export default function RoiDisbursementReportPanel() {
                         </tr>
                       </thead>
                       <tbody>
-                        {data.cash.map((r) => (
+                        {cashRows.map((r) => (
                           <tr key={`${r.n}-${r.portfolio_code}`} className="border-t">
                             <Td>{r.n}</Td>
                             <Td className="font-mono text-xs">{r.portfolio_phone}</Td>
@@ -298,8 +312,8 @@ export default function RoiDisbursementReportPanel() {
                       </tbody>
                       <tfoot>
                         <tr className="border-t bg-muted/40 font-semibold">
-                          <Td colSpan={5}>Total cash disbursed</Td>
-                          <Td align="right">{fmtUGX(data.summary.cash_total)}</Td>
+                          <Td colSpan={5}>{nameQuery ? 'Total cash disbursed (filtered)' : 'Total cash disbursed'}</Td>
+                          <Td align="right">{fmtUGX(nameQuery ? cashFilteredTotal : data.summary.cash_total)}</Td>
                           <Td />
                         </tr>
                       </tfoot>
@@ -317,6 +331,8 @@ export default function RoiDisbursementReportPanel() {
                 />
                 {data.compounded.length === 0 ? (
                   <Empty text="No Returns were compounded in this window." />
+                ) : compoundedRows.length === 0 ? (
+                  <Empty text="No records match this name." />
                 ) : (
                   <div className="overflow-x-auto rounded-md border">
                     <table className="w-full text-sm">
@@ -327,7 +343,7 @@ export default function RoiDisbursementReportPanel() {
                         </tr>
                       </thead>
                       <tbody>
-                        {data.compounded.map((r) => (
+                        {compoundedRows.map((r) => (
                           <tr key={`${r.n}-${r.portfolio_code}`} className="border-t">
                             <Td>{r.n}</Td>
                             <Td className="font-mono text-xs">{r.portfolio_phone}</Td>
@@ -341,8 +357,8 @@ export default function RoiDisbursementReportPanel() {
                       </tbody>
                       <tfoot>
                         <tr className="border-t bg-muted/40 font-semibold">
-                          <Td colSpan={4}>Total compounded</Td>
-                          <Td align="right">{fmtUGX(data.summary.compounded_total)}</Td>
+                          <Td colSpan={4}>{nameQuery ? 'Total compounded (filtered)' : 'Total compounded'}</Td>
+                          <Td align="right">{fmtUGX(nameQuery ? compoundedFilteredTotal : data.summary.compounded_total)}</Td>
                           <Td colSpan={2} />
                         </tr>
                       </tfoot>
