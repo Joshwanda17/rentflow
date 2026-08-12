@@ -79,7 +79,8 @@ const STATUS_STYLE: Record<string, string> = {
   frozen: 'bg-destructive/10 text-destructive border-destructive/30',
 };
 
-const GRID = 'grid-cols-[minmax(0,2.2fr)_minmax(0,1.1fr)_minmax(0,0.9fr)_minmax(0,1.3fr)_minmax(0,1fr)_92px_20px]';
+const GRID_LG =
+  'lg:grid-cols-[minmax(0,2.2fr)_minmax(0,1.1fr)_minmax(0,0.9fr)_minmax(0,1.4fr)_minmax(0,1fr)_92px_20px]';
 
 export function AgentDirectory() {
   const [searchInput, setSearchInput] = useState('');
@@ -268,7 +269,7 @@ export function AgentDirectory() {
           ) : (
             <div className="divide-y divide-border border-y border-border">
               {/* Column head (desktop) */}
-              <div className={cn('hidden lg:grid gap-3 px-3 py-2 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold', GRID)}>
+              <div className={cn('hidden lg:grid gap-3 px-3 py-2 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold', GRID_LG)}>
                 <span>Agent</span>
                 <span>Location</span>
                 <span>Role</span>
@@ -286,8 +287,7 @@ export function AgentDirectory() {
                 <button
                   key={a.id}
                   onClick={() => setOpenAgentId(a.id)}
-                  className={cn('w-full text-left grid grid-cols-1 gap-3 lg:items-center px-3 py-3 hover:bg-muted/50 transition-colors', `lg:${''}`, 'lg:' + GRID.replace('grid-cols-', 'grid-cols-'))}
-                  style={undefined}
+                  className={cn('w-full text-left grid grid-cols-1 sm:grid-cols-2 gap-3 lg:items-center px-3 py-3 hover:bg-muted/50 transition-colors', GRID_LG)}
                 >
                   {/* Identity */}
                   <div className="flex items-center gap-3 min-w-0">
