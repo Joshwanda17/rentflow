@@ -256,9 +256,9 @@ export function AgentDirectory() {
           )}
 
           {isLoading && !data ? (
-            <div className="space-y-2">
+            <div className="divide-y divide-border border-y border-border">
               {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="h-14 rounded-xl bg-muted/50 animate-pulse" />
+                <div key={i} className="h-16 bg-muted/40 animate-pulse" />
               ))}
             </div>
           ) : rows.length === 0 ? (
