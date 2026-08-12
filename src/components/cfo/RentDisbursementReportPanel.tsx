@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, FileDown, Printer, RefreshCw, FileText, CalendarDays, Clock } from 'lucide-react';
+import { Loader2, FileDown, Printer, RefreshCw, FileText, CalendarDays, Clock, Search } from 'lucide-react';
 import { downloadCsv } from '@/lib/csvExport';
 import { toast } from 'sonner';
 
@@ -99,6 +99,7 @@ export default function RentDisbursementReportPanel() {
   const today = new Date(Date.now() + 3 * 3600 * 1000).toISOString().slice(0, 10);
   const [anchor, setAnchor] = useState<string>(today);
   const [granularity, setGranularity] = useState<Granularity>('daily');
+  const [tenantSearch, setTenantSearch] = useState('');
   const range = useMemo(() => periodRange(anchor, granularity), [anchor, granularity]);
   const periodNoun =
     granularity === 'daily' ? 'day' : granularity === 'weekly' ? 'week' : 'month';
@@ -261,55 +262,92 @@ export default function RentDisbursementReportPanel() {
               </div>
 
               <section className="space-y-2">
-                <SectionTitle index={1} title={`Rent disbursements (${data.rows.length})`} />
+                <SectionTitle
+                  index={1}
+                  title={`Rent disbursements (${data.rows.length})`}
+                  right={
+                    <div className="relative w-full sm:w-64">
+                      <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        type="text"
+                        value={tenantSearch}
+                        onChange={(e) => setTenantSearch(e.target.value)}
+                        placeholder="Filter by tenant name…"
+                        className="h-9 rounded-lg pl-8 text-sm"
+                        aria-label="Filter by tenant name"
+                      />
+                    </div>
+                  }
+                />
                 {data.rows.length === 0 ? (
                   <Empty text={`No rent disbursements were recorded in this ${periodNoun}.`} />
                 ) : (
-                  <div className="overflow-x-auto rounded-md border">
-                    <table className="w-full text-sm">
-                      <thead className="bg-muted/60">
-                        <tr>
-                          <Th>#</Th><Th>Tenant</Th><Th>Landlord</Th><Th>Property / location</Th>
-                          <Th>Recipient</Th><Th>Method</Th><Th>Reference</Th><Th>Status</Th>
-                          <Th>Time (EAT)</Th><Th align="right">Amount</Th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {data.rows.map((r) => (
-                          <tr key={r.ledger_id} className="border-t">
-                            <Td>{r.n}</Td>
-                            <Td>
-                              <span className="font-medium">{r.tenant_name}</span>
-                              <span className="block font-mono text-[11px] text-muted-foreground">{r.tenant_phone}</span>
-                            </Td>
-                            <Td>
-                              {r.landlord_name}
-                              <span className="block font-mono text-[11px] text-muted-foreground">{r.landlord_phone}</span>
-                            </Td>
-                            <Td className="max-w-[220px] text-xs">
-                              {r.property ?? '—'}
-                              <span className="block text-muted-foreground">{r.location ?? '—'}</span>
-                            </Td>
-                            <Td className="text-xs">
-                              {r.recipient_name !== '—' ? r.recipient_name : r.recipient_type}
-                              <span className="block text-muted-foreground">{r.recipient_type}</span>
-                            </Td>
-                            <Td className="text-xs">{r.payout_method}</Td>
-                            <Td className="font-mono text-[11px]">{r.reference}</Td>
-                            <Td className="text-xs">{r.status}</Td>
-                            <Td className="whitespace-nowrap text-xs">{r.date_eat} {r.time_eat}</Td>
-                            <Td align="right" className="font-semibold">{fmtUGX(r.amount)}</Td>
-                          </tr>
-                        ))}
-                      </tbody>
-                      <tfoot>
-                        <tr className="border-t bg-muted/40 font-semibold">
-                          <Td colSpan={9}>Total rent disbursed ({data.summary.disbursements_count} disbursements)</Td>
-                          <Td align="right">{fmtUGX(data.summary.total_amount)}</Td>
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </div>
+                  (() => {
+                    const q = tenantSearch.trim().toLowerCase();
+                    const visibleRows = q
+                      ? data.rows.filter((r) => r.tenant_name.toLowerCase().includes(q))
+                      : data.rows;
+                    return (
+                      <div className="overflow-x-auto rounded-md border">
+                        <table className="w-full text-sm">
+                          <thead className="bg-muted/60">
+                            <tr>
+                              <Th>#</Th><Th>Tenant</Th><Th>Landlord</Th><Th>Property / location</Th>
+                              <Th>Recipient</Th><Th>Method</Th><Th>Reference</Th><Th>Status</Th>
+                              <Th>Time (EAT)</Th><Th align="right">Amount</Th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {visibleRows.map((r) => (
+                              <tr key={r.ledger_id} className="border-t">
+                                <Td>{r.n}</Td>
+                                <Td>
+                                  <span className="font-medium">{r.tenant_name}</span>
+                                  <span className="block font-mono text-[11px] text-muted-foreground">{r.tenant_phone}</span>
+                                </Td>
+                                <Td>
+                                  {r.landlord_name}
+                                  <span className="block font-mono text-[11px] text-muted-foreground">{r.landlord_phone}</span>
+                                </Td>
+                                <Td className="max-w-[220px] text-xs">
+                                  {r.property ?? '—'}
+                                  <span className="block text-muted-foreground">{r.location ?? '—'}</span>
+                                </Td>
+                                <Td className="text-xs">
+                                  {r.recipient_name !== '—' ? r.recipient_name : r.recipient_type}
+                                  <span className="block text-muted-foreground">{r.recipient_type}</span>
+                                </Td>
+                                <Td className="text-xs">{r.payout_method}</Td>
+                                <Td className="font-mono text-[11px]">{r.reference}</Td>
+                                <Td className="text-xs">{r.status}</Td>
+                                <Td className="whitespace-nowrap text-xs">{r.date_eat} {r.time_eat}</Td>
+                                <Td align="right" className="font-semibold">{fmtUGX(r.amount)}</Td>
+                              </tr>
+                            ))}
+                            {visibleRows.length === 0 && (
+                              <tr className="border-t">
+                                <Td colSpan={10}>
+                                  <span className="text-sm text-muted-foreground">
+                                    No tenants match “{tenantSearch}”.
+                                  </span>
+                                </Td>
+                              </tr>
+                            )}
+                          </tbody>
+                          <tfoot>
+                            <tr className="border-t bg-muted/40 font-semibold">
+                              <Td colSpan={9}>
+                                Total rent disbursed ({visibleRows.length} of {data.summary.disbursements_count} disbursements)
+                              </Td>
+                              <Td align="right">
+                                {fmtUGX(visibleRows.reduce((sum, r) => sum + r.amount, 0))}
+                              </Td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
+                    );
+                  })()
                 )}
               </section>
 
