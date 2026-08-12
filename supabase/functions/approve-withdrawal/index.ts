@@ -2773,6 +2773,7 @@ Deno.serve(async (req) => {
     // Whatever the merchant funded beyond their float (payout principal and/or
     // the telecom sending charge) is money the company owes them. Recorded
     // clearly here and surfaced on their dashboard + to Finance for repayment.
+    let merchantOutOfPocketRecorded = false;
     if (
       actingAsMerchant &&
       !poolFunded &&
@@ -2823,6 +2824,7 @@ Deno.serve(async (req) => {
             `out-of-pocket record failed: ${String((oopErr as any)?.message ?? oopErr)}`,
           );
         } else {
+          merchantOutOfPocketRecorded = true;
           try {
             await admin.from("system_events").insert({
               event_type: "wallet_transfer",
