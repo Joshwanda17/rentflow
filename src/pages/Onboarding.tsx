@@ -16,6 +16,8 @@ import { numberToWords } from '@/lib/numberToWords';
 import { buildAgreementHtml } from '@/components/partner/agreementTemplate';
 import { renderAgreementPdfBase64 } from '@/components/partner/renderAgreementPdf';
 import { SignaturePad } from '@/components/shared/SignaturePad';
+import PersonNameFields from '@/components/shared/PersonNameFields';
+import { joinPersonName, validatePersonNameParts, type PersonNameParts } from '@/lib/authValidation';
 import { preflightSignup, attachSignupUser } from '@/lib/signupGuard';
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
@@ -26,11 +28,16 @@ const registerUser = async (payload: {
   password: string;
   firstName: string;
   lastName: string;
+  otherNames?: string;
   phone: string;
   role: string;
   referrerId?: string;
 }): Promise<{ status: string; data: { user: any; userId: string; hasSession: boolean } }> => {
-  const fullName = `${payload.firstName} ${payload.lastName}`.trim();
+  const fullName = joinPersonName({
+    firstName: payload.firstName,
+    otherNames: payload.otherNames ?? '',
+    lastName: payload.lastName,
+  });
   const guard = await preflightSignup({ email: payload.email, phone: payload.phone, path: '/funder-onboarding' });
   if (!guard.allowed) {
     throw new Error(guard.reason || 'Sign-up is temporarily unavailable from this device or network. Please try again tomorrow.');
