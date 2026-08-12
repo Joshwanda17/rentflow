@@ -1,6 +1,22 @@
-import { Bell, TrendingUp, Home } from 'lucide-react';
+import {
+  Bell,
+  TrendingUp,
+  Home,
+  Banknote,
+  Store,
+  CreditCard,
+  Undo2,
+  FileText,
+  Users,
+  Briefcase,
+  Wallet,
+  ArrowDownToLine,
+} from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { useCfoApprovalNotifications } from '@/hooks/useCfoApprovalNotifications';
+import {
+  useCfoApprovalNotifications,
+  type CfoApprovalNotificationKey,
+} from '@/hooks/useCfoApprovalNotifications';
 
 /**
  * Notification bell for the CFO dashboard header. Purely an alert layer over
@@ -13,10 +29,21 @@ export function CFOApprovalNotificationsBell({
 }) {
   const { notifications, total, isLoading } = useCfoApprovalNotifications();
 
-  const icons = {
+  const icons: Record<CfoApprovalNotificationKey, typeof Bell> = {
     roi: TrendingUp,
     rent: Home,
-  } as const;
+    agentAdvances: Banknote,
+    businessAdvances: Briefcase,
+    creditDraws: CreditCard,
+    allocationReturns: Undo2,
+    unfunding: Undo2,
+    merchantFloat: Store,
+    agentRequisitions: FileText,
+    partnerTopups: Wallet,
+    directorRequisitions: FileText,
+    employeeRequisitions: Users,
+    withdrawals: ArrowDownToLine,
+  };
 
   return (
     <Popover>
@@ -52,7 +79,7 @@ export function CFOApprovalNotificationsBell({
             </p>
           )}
           {notifications.map((n) => {
-            const Icon = icons[n.key];
+            const Icon = icons[n.key] ?? Bell;
             return (
               <button
                 key={n.key}
