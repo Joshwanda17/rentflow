@@ -205,15 +205,14 @@ Password: ${createdInvite?.password}`;
 
       <div className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="fullName" className="text-base font-semibold">👤 Full Name</Label>
-          <Input
-            id="fullName"
-            placeholder="Enter sub-agent's full name"
-            value={formData.fullName}
-            onChange={(e) => setFormData(prev => ({ ...prev, fullName: e.target.value }))}
-            required
-            className="h-14 text-base rounded-xl"
-            autoComplete="off"
+          <Label className="text-base font-semibold">👤 Full Name</Label>
+          <PersonNameFields
+            idPrefix="sub-agent"
+            value={nameParts}
+            onChange={(next) => {
+              setNameParts(next);
+              setFormData(prev => ({ ...prev, fullName: joinPersonName(next) }));
+            }}
           />
         </div>
 
