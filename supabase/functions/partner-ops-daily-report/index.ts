@@ -199,6 +199,9 @@ function buildPdf(r: Report, win: { title: string; pretty: string }, logo: Uint8
   const bottomLimit = pageHeight - 16;
   const generatedAt = new Date();
 
+  /** Table cell text: preserves blanks (unlike ascii(), which renders "-"). */
+  const cell = (v: unknown) => (String(v ?? "").trim() === "" ? "" : ascii(v));
+
   const HERO_BG: RGB = [250, 248, 255];
   const HERO_BC: RGB = [236, 229, 251];
   const GOOD_BG: RGB = [241, 251, 246];
@@ -206,22 +209,14 @@ function buildPdf(r: Report, win: { title: string; pretty: string }, logo: Uint8
   const BAD_BG: RGB = [255, 245, 248];
   const BAD_BC: RGB = [246, 207, 224];
   const CARD_BC: RGB = [230, 225, 240];
-  const PAGE_BG: RGB = [246, 244, 251];
   const ROW_LINE: RGB = [242, 239, 249];
   const BRIEF_PURPLE: RGB = [108, 33, 196];
 
   let y = margin;
   let sectionNo = 0;
 
-  const paintPageBg = () => {
-    doc.setFillColor(...PAGE_BG);
-    doc.rect(0, 0, pageWidth, pageHeight, "F");
-  };
-  paintPageBg();
-
   const newPage = () => {
     doc.addPage();
-    paintPageBg();
     y = margin;
   };
   const ensure = (h: number) => {
@@ -318,9 +313,9 @@ function buildPdf(r: Report, win: { title: string; pretty: string }, logo: Uint8
     autoTable(doc, {
       startY: startY + 4,
       margin: { left: margin + 6, right: margin + 6 },
-      head: [head.map(ascii)],
-      body: rows.map(r2 => r2.map(ascii)),
-      foot: foot ? [foot.map(ascii)] : undefined,
+      head: [head.map(cell)],
+      body: rows.map(r2 => r2.map(cell)),
+      foot: foot ? [foot.map(cell)] : undefined,
       theme: "plain",
       styles: { font: "helvetica", fontSize: 7.6, cellPadding: { top: 2, bottom: 2, left: 2.4, right: 2.4 }, textColor: INK, lineWidth: 0 },
       headStyles: { fontStyle: "bold", fontSize: 6.4, textColor: MUTED, lineWidth: { bottom: 0.25 }, lineColor: CARD_BC },
@@ -330,7 +325,6 @@ function buildPdf(r: Report, win: { title: string; pretty: string }, logo: Uint8
       didParseCell: (data: any) => {
         if (data.column.index > 0) data.cell.styles.halign = "right";
       },
-      willDrawPage: () => { paintPageBg(); },
     });
     return (doc as any).lastAutoTable.finalY;
   };
@@ -542,7 +536,7 @@ function buildPdf(r: Report, win: { title: string; pretty: string }, logo: Uint8
     doc.setFontSize(6.6);
     doc.setTextColor(...MUTED);
     doc.text(
-      `${COMPANY_LOCATION} - window ${ascii(win.pretty)} (EAT). Figures in UGX. Ledger reads exclude admin corrections and system balance corrections.`,
+      `${COMPANY_LOCATION} - window ${ascii(win.pretty)} (EAT). Figures in UGX.`,
       margin, pageHeight - 6.5,
     );
     doc.text(`Page ${p} / ${pageCount}`, pageWidth - margin, pageHeight - 6.5, { align: "right" });
