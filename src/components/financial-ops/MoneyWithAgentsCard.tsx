@@ -99,7 +99,7 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
                     {r.agentName || r.label || 'Merchant agent'}
                   </p>
                   <p className="text-[11px] text-muted-foreground truncate">
-                    {r.agentPhone || '—'} · sent out {formatUGX(r.paidOut)} · we sent back {formatUGX(r.reimbursed)}
+                    {r.agentPhone || '—'} · they paid out {formatUGX(r.paidOut)} · we paid them back {formatUGX(r.reimbursed)}
                   </p>
                 </div>
                 <div className="text-right shrink-0">
@@ -111,14 +111,14 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
                     {formatUGX(holding ? r.companyCashWithAgent : r.owedToAgent)}
                   </p>
                   <p className="text-[10px] text-muted-foreground">
-                    {holding ? 'still holding our cash' : 'we owe them'}
+                    {holding ? "they're holding our money" : 'we owe them'}
                   </p>
                   <button
                     type="button"
                     onClick={() => setReconciling(r)}
                     className="mt-1 inline-flex items-center gap-1 text-[10px] font-medium text-primary hover:underline"
                   >
-                    <SlidersHorizontal className="h-3 w-3" /> Correct
+                    <SlidersHorizontal className="h-3 w-3" /> Fix balance
                   </button>
                 </div>
               </div>
