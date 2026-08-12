@@ -5638,6 +5638,13 @@ export type Database = {
             foreignKeyName: "bulk_bank_payout_allocations_withdrawal_request_id_fkey"
             columns: ["withdrawal_request_id"]
             isOneToOne: true
+            referencedRelation: "v_merchant_commission_outstanding"
+            referencedColumns: ["withdrawal_id"]
+          },
+          {
+            foreignKeyName: "bulk_bank_payout_allocations_withdrawal_request_id_fkey"
+            columns: ["withdrawal_request_id"]
+            isOneToOne: true
             referencedRelation: "v_merchant_payout_queue"
             referencedColumns: ["id"]
           },
@@ -6689,6 +6696,13 @@ export type Database = {
           withdrawal_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "cashout_claim_comments_withdrawal_id_fkey"
+            columns: ["withdrawal_id"]
+            isOneToOne: false
+            referencedRelation: "v_merchant_commission_outstanding"
+            referencedColumns: ["withdrawal_id"]
+          },
           {
             foreignKeyName: "cashout_claim_comments_withdrawal_id_fkey"
             columns: ["withdrawal_id"]
@@ -18098,6 +18112,87 @@ export type Database = {
         }
         Relationships: []
       }
+      merchant_commission_awards: {
+        Row: {
+          agent_id: string
+          awarded_at: string
+          awarded_via: string
+          commission_amount: number
+          commission_rate: number
+          created_at: string
+          desk_id: string | null
+          id: string
+          payout_amount: number
+          reference_id: string
+          updated_at: string
+          withdrawal_id: string
+        }
+        Insert: {
+          agent_id: string
+          awarded_at?: string
+          awarded_via?: string
+          commission_amount: number
+          commission_rate?: number
+          created_at?: string
+          desk_id?: string | null
+          id?: string
+          payout_amount: number
+          reference_id: string
+          updated_at?: string
+          withdrawal_id: string
+        }
+        Update: {
+          agent_id?: string
+          awarded_at?: string
+          awarded_via?: string
+          commission_amount?: number
+          commission_rate?: number
+          created_at?: string
+          desk_id?: string | null
+          id?: string
+          payout_amount?: number
+          reference_id?: string
+          updated_at?: string
+          withdrawal_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "merchant_commission_awards_withdrawal_id_fkey"
+            columns: ["withdrawal_id"]
+            isOneToOne: true
+            referencedRelation: "v_merchant_commission_outstanding"
+            referencedColumns: ["withdrawal_id"]
+          },
+          {
+            foreignKeyName: "merchant_commission_awards_withdrawal_id_fkey"
+            columns: ["withdrawal_id"]
+            isOneToOne: true
+            referencedRelation: "v_merchant_payout_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "merchant_commission_awards_withdrawal_id_fkey"
+            columns: ["withdrawal_id"]
+            isOneToOne: true
+            referencedRelation: "v_unsettled_payouts"
+            referencedColumns: ["withdrawal_id"]
+          },
+          {
+            foreignKeyName: "merchant_commission_awards_withdrawal_id_fkey"
+            columns: ["withdrawal_id"]
+            isOneToOne: true
+            referencedRelation: "v_withdrawal_holds_unbacked"
+            referencedColumns: ["withdrawal_id"]
+          },
+          {
+            foreignKeyName: "merchant_commission_awards_withdrawal_id_fkey"
+            columns: ["withdrawal_id"]
+            isOneToOne: true
+            referencedRelation: "withdrawal_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       merchant_float_reconciliations: {
         Row: {
           adjustment_type: string
@@ -20513,6 +20608,13 @@ export type Database = {
             foreignKeyName: "payout_codes_withdrawal_request_id_fkey"
             columns: ["withdrawal_request_id"]
             isOneToOne: false
+            referencedRelation: "v_merchant_commission_outstanding"
+            referencedColumns: ["withdrawal_id"]
+          },
+          {
+            foreignKeyName: "payout_codes_withdrawal_request_id_fkey"
+            columns: ["withdrawal_request_id"]
+            isOneToOne: false
             referencedRelation: "v_merchant_payout_queue"
             referencedColumns: ["id"]
           },
@@ -20592,6 +20694,13 @@ export type Database = {
           withdrawal_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "payout_delivery_disputes_withdrawal_id_fkey"
+            columns: ["withdrawal_id"]
+            isOneToOne: false
+            referencedRelation: "v_merchant_commission_outstanding"
+            referencedColumns: ["withdrawal_id"]
+          },
           {
             foreignKeyName: "payout_delivery_disputes_withdrawal_id_fkey"
             columns: ["withdrawal_id"]
@@ -31227,6 +31336,13 @@ export type Database = {
             foreignKeyName: "withdrawal_payment_evidence_withdrawal_id_fkey"
             columns: ["withdrawal_id"]
             isOneToOne: true
+            referencedRelation: "v_merchant_commission_outstanding"
+            referencedColumns: ["withdrawal_id"]
+          },
+          {
+            foreignKeyName: "withdrawal_payment_evidence_withdrawal_id_fkey"
+            columns: ["withdrawal_id"]
+            isOneToOne: true
             referencedRelation: "v_merchant_payout_queue"
             referencedColumns: ["id"]
           },
@@ -32619,6 +32735,20 @@ export type Database = {
           verified_at: string | null
           verified_by: string | null
           verified_flag: boolean | null
+        }
+        Relationships: []
+      }
+      v_merchant_commission_outstanding: {
+        Row: {
+          agent_id: string | null
+          agent_name: string | null
+          blocker: string | null
+          commission_due: number | null
+          payout_amount: number | null
+          payout_at: string | null
+          settlement_state: string | null
+          status: string | null
+          withdrawal_id: string | null
         }
         Relationships: []
       }
@@ -34428,6 +34558,10 @@ export type Database = {
             }
             Returns: Json
           }
+      credit_merchant_payout_commission: {
+        Args: { p_awarded_via?: string; p_withdrawal_id: string }
+        Returns: Json
+      }
       credit_proxy_approval:
         | {
             Args: {
@@ -37528,6 +37662,10 @@ export type Database = {
         }
         Returns: Json
       }
+      merchant_commission_eligibility: {
+        Args: { p_withdrawal_id: string }
+        Returns: Json
+      }
       merchant_config_allows_payout: {
         Args: {
           p_bank_name: string
@@ -38547,6 +38685,10 @@ export type Database = {
       }
       reconcile_credited_deposit_profiles: { Args: never; Returns: number }
       reconcile_evidenced_withdrawal_settlements: { Args: never; Returns: Json }
+      reconcile_merchant_payout_commissions: {
+        Args: { p_limit?: number; p_since?: string }
+        Returns: Json
+      }
       reconcile_negative_wallets: {
         Args: { p_dry_run?: boolean; p_max_users?: number }
         Returns: Json
@@ -38862,6 +39004,10 @@ export type Database = {
       resolve_ai_id_to_user: { Args: { p_ai_id: string }; Returns: string }
       resolve_campaign_short_code: {
         Args: { p_short_code: string }
+        Returns: Json
+      }
+      resolve_payout_commission_agent: {
+        Args: { p_withdrawal_id: string }
         Returns: Json
       }
       resolve_payout_merchant_identity: {

@@ -3066,22 +3066,14 @@ Deno.serve(async (req) => {
     // withdrawable wallet bucket (recipient_type: "user" guarantees withdrawable
     // routing), then we SMS the agent to confirm the earning.
     let cashoutCommission = 0;
-    // Commission may only post when its offsetting float debit actually landed.
-    // Pool-funded settlements debit float in the main block above, so they are
-    // still eligible. Otherwise the gap is logged for CFO reconciliation.
-    // A merchant who held ZERO float still fronted 100% of the payout from
-    // their own line — that shortfall is recorded as a company receivable in
-    // `merchant_out_of_pocket_advances`, which is a valid offsetting leg. They
-    // earn their commission just like a float-funded settlement (2026-08-12).
-    const floatLegSettled =
-      poolFunded || merchantFloatConsumed > 0 || merchantOutOfPocketRecorded;
-    if (actingAsMerchant && !floatLegSettled) {
-      await logSettlementGap(
-        "commission_paid_float_pending",
-        Math.round(amount * 0.005),
-        "commission withheld because neither a merchant float debit nor an out-of-pocket receivable landed",
-      );
-    }
+    // PHASE 5 — commission is NO LONGER gated on a fragile local side effect
+    // (the old `floatLegSettled` flag). The authoritative writer
+    // `credit_merchant_payout_commission` decides from the payout's own
+    // settlement event: server-resolved merchant identity + a real customer
+    // wallet debit + terminal-good status. It is idempotent, so a transient
+    // float failure here can never permanently lose the agent's earning — the
+    // 15-minute reconciler pays it later.
+    let commissionVerdict: any = null;
     // ── LOUD FAILURE (2026-08-12) ───────────────────────────────────────────
     // A merchant settlement that closes with NO float debit AND NO
     // out-of-pocket receivable means the compensation chain was skipped. Log it
@@ -3104,39 +3096,43 @@ Deno.serve(async (req) => {
         "merchant settlement closed with no float debit and no out-of-pocket receivable",
       );
     }
-    if (actingAsMerchant && floatLegSettled) {
-      cashoutCommission = Math.round(amount * 0.005);
-      if (cashoutCommission > 0) {
-        try {
-          const txDate = new Date().toISOString();
-          const { error: commErr } = await admin.rpc("create_ledger_transaction", {
-            entries: [
-              {
-                user_id: user.id, ledger_scope: "platform", direction: "cash_out",
-                amount: cashoutCommission, category: "agent_commission_earned",
-                source_table: "withdrawal_requests", source_id: withdrawal_id,
-                description: `Cashout payout commission expense (0.5%) for withdrawal ${withdrawal_id}`,
-                currency: "UGX", reference_id: `${withdrawal_id}-cashout-commission`, transaction_date: txDate,
-              },
-              {
-                user_id: user.id, ledger_scope: "wallet", direction: "cash_in",
-                amount: cashoutCommission, category: "agent_commission_earned",
-                recipient_type: "user", wallet_bucket: "withdrawable",
-                source_table: "withdrawal_requests", source_id: withdrawal_id,
-                description: `Cashout payout commission (0.5%) for withdrawal ${withdrawal_id}`,
-                currency: "UGX", reference_id: `${withdrawal_id}-cashout-commission`, transaction_date: txDate,
-              },
-            ],
-            idempotency_key: `approve-withdrawal-cashout-commission-${withdrawal_id}`,
-          });
-          if (commErr) {
-            console.error("[approve-withdrawal] Cashout commission RPC error:", commErr);
-            cashoutCommission = 0;
+    if (actingAsMerchant) {
+      try {
+        const { data: commRes, error: commErr } = await admin.rpc(
+          "credit_merchant_payout_commission",
+          { p_withdrawal_id: withdrawal_id, p_awarded_via: "settlement_event" },
+        );
+        if (commErr) {
+          console.error("[approve-withdrawal] commission RPC error:", commErr);
+        } else {
+          commissionVerdict = commRes ?? null;
+          if ((commRes as any)?.credited) {
+            cashoutCommission = Math.round(
+              Number((commRes as any)?.commission_amount ?? 0),
+            );
+          } else {
+            console.warn("[approve-withdrawal] commission not credited", {
+              withdrawal_id,
+              reason: (commRes as any)?.reason,
+            });
           }
-        } catch (e) {
-          console.error("[approve-withdrawal] Cashout commission exception:", e);
-          cashoutCommission = 0;
         }
+      } catch (e) {
+        console.error("[approve-withdrawal] commission exception:", e);
+      }
+      // Only a genuinely blocked commission is a gap — "already_paid" is fine.
+      if (
+        cashoutCommission === 0 &&
+        commissionVerdict &&
+        !["already_paid", "award_already_recorded", "commission_rounds_to_zero"].includes(
+          String((commissionVerdict as any)?.reason ?? ""),
+        )
+      ) {
+        await logSettlementGap(
+          "merchant_commission_pending",
+          Math.round(amount * 0.005),
+          `commission not yet payable: ${String((commissionVerdict as any)?.reason ?? "unknown")} — the reconciler will retry`,
+        );
       }
 
       // ── Cashout agent commission SMS (into withdrawable) ──
@@ -3864,6 +3860,9 @@ Deno.serve(async (req) => {
         target_user: targetName,
         txn_group_id: txnGroupId,
         cashout_commission: cashoutCommission,
+        cashout_commission_reason:
+          (commissionVerdict as any)?.reason ??
+          (actingAsMerchant ? "not_evaluated" : "not_merchant"),
         merchant_reimbursed: merchantFloatConsumed,
         merchant_float_consumed: merchantFloatConsumed,
         merchant_telecom_charge: merchantTelecomCharge,
