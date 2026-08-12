@@ -118,7 +118,7 @@ export function StartCashDepositDialog({ open, onOpenChange, onIssued }: StartCa
 
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="fin-cash-owner">
+            <Label>
               Depositor's full name <span className="text-destructive">*</span>
             </Label>
             <PersonNameFields idPrefix="fin-cash-owner" value={nameParts} onChange={setNameParts} />
