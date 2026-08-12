@@ -11,6 +11,35 @@ class IO {
 }
 (globalThis as any).IntersectionObserver = IO;
 
+
+// AnimatePresence mode="wait" never finishes exit animations in jsdom, so the
+// next step would never mount. Render motion elements as plain DOM instead.
+vi.mock('framer-motion', () => {
+  const React = require('react');
+  const strip = (props: any) => {
+    const {
+      initial, animate, exit, transition, variants, whileHover, whileTap, whileInView,
+      viewport, layout, layoutId, drag, dragConstraints, onAnimationComplete, custom,
+      ...rest
+    } = props || {};
+    return rest;
+  };
+  const make = (tag: string) =>
+    React.forwardRef((props: any, ref: any) => React.createElement(tag, { ...strip(props), ref }, props?.children));
+  const motion: any = new Proxy({}, { get: (_t, tag: string) => make(tag) });
+  return {
+    motion,
+    AnimatePresence: ({ children }: any) => React.createElement(React.Fragment, null, children),
+    useReducedMotion: () => false,
+    useInView: () => true,
+    useAnimation: () => ({ start: vi.fn(), stop: vi.fn(), set: vi.fn() }),
+    useMotionValue: (v: any) => ({ get: () => v, set: vi.fn(), on: () => () => {} }),
+    useTransform: () => ({ get: () => 0, set: vi.fn(), on: () => () => {} }),
+    useSpring: (v: any) => ({ get: () => v, set: vi.fn(), on: () => () => {} }),
+    animate: vi.fn(),
+  };
+});
+
 const invokeSpy = vi.fn().mockResolvedValue({ data: { userId: 'u9' }, error: null });
 const toastError = vi.fn();
 
@@ -64,14 +93,14 @@ async function goToStep4() {
   await waitFor(() => expect(onStep(2)).toBe(true));
 
   // Step 2 — choose a path and enter an amount.
-  console.log('STEP2 TEXT>>>', document.body.textContent);
   fireEvent.click(screen.getByText(/Support a Tenant/i));
-  const amount = await waitFor(() => screen.getByPlaceholderText(/0/));
+  const amount = await waitFor(() => screen.getByPlaceholderText(/Enter amount/i));
   fireEvent.change(amount, { target: { value: '1,000,000' } });
   clickContinue();
   await waitFor(() => expect(onStep(3)).toBe(true));
 
-  // Step 3 — bank payout + next of kin.
+  // Step 3 — bank payout
+  fireEvent.click(screen.getByText(/^Bank/i)); + next of kin.
   fireEvent.change(screen.getByPlaceholderText(/e.g. Stanbic Bank/i), { target: { value: 'Stanbic Bank' } });
   fireEvent.change(screen.getByPlaceholderText(/Name on the account/i), { target: { value: 'Alice Nakato' } });
   fireEvent.change(screen.getByPlaceholderText(/^Account number$/i), { target: { value: '123456789' } });
