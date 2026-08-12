@@ -26,6 +26,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
 import UgLocationPicker from '@/components/location/UgLocationPicker';
 import { resolveUgVillage, resolveUgVillageByNames, type UgLocationSelection } from '@/hooks/useUgLocations';
+import PersonNameFields from '@/components/shared/PersonNameFields';
+import { joinPersonName, splitPersonName, validatePersonNameParts, type PersonNameParts } from '@/lib/authValidation';
 import { Switch } from '@/components/ui/switch';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format, parseISO, startOfDay, endOfDay, startOfMonth, endOfMonth } from 'date-fns';
@@ -240,7 +242,9 @@ function ProfileHeader({
 }: { profile: any; roles: string[]; userId?: string; canEdit?: boolean }) {
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
-  const [name, setName] = useState<string>(profile?.full_name ?? '');
+  // Captured in parts; the RPC keeps receiving one concatenated string.
+  const [nameParts, setNameParts] = useState<PersonNameParts>(splitPersonName(profile?.full_name ?? ''));
+  const name = joinPersonName(nameParts);
   const [phone, setPhone] = useState<string>(profile?.phone ?? '');
   const [avatarUrl, setAvatarUrl] = useState<string>(profile?.avatar_url ?? '');
   const [opsNote, setOpsNote] = useState<string>(profile?.ops_note ?? '');
@@ -250,6 +254,8 @@ function ProfileHeader({
     mutationFn: async () => {
       if (!userId) throw new Error('Missing user');
       if (reason.trim().length < 10) throw new Error('Reason must be ≥ 10 characters');
+      const nameCheck = validatePersonNameParts(nameParts);
+      if (!nameCheck.valid) throw new Error(nameCheck.error || 'Enter first and last name');
       const { error } = await supabase.rpc('ops_update_user_identity', {
         p_user_id: userId,
         p_full_name: name,
@@ -330,7 +336,7 @@ function ProfileHeader({
           </div>
           <div>
             <Label className="text-[10px] uppercase text-muted-foreground">Full name</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} className="h-8 text-sm" />
+            <PersonNameFields idPrefix="drilldown-identity" value={nameParts} onChange={setNameParts} />
           </div>
           <div>
             <Label className="text-[10px] uppercase text-muted-foreground">Phone</Label>
