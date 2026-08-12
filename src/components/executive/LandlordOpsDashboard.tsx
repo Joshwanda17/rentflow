@@ -655,6 +655,60 @@ export function LandlordOpsDashboard() {
     enabled: view === 'landlords',
   });
   const landlordScopedCounts = landlordScopedCountsData?.counts;
+  // ─── Landlords Funded statistics (same search + date range as the tab) ───
+  // A landlord is FUNDED when company money was committed to their property
+  // inside the window. The RPC also returns the previous equal-length window so
+  // the tile and the export can show a like-for-like comparison.
+  const {
+    data: landlordFundedStats,
+    isFetching: landlordFundedFetching,
+  } = useLandlordFundedStats({
+    dateFrom: landlordDateFrom,
+    dateTo: landlordDateTo,
+    search: debouncedLandlordSearch,
+    enabled: view === 'landlords',
+  });
+
+  /**
+   * Export the full "Landlords Funded" management pack for the period on
+   * screen: KPI comparisons, daily trend chart, district bar chart, and the
+   * per-district / per-agent / per-service-centre tables plus the register.
+   */
+  const exportFundedReportPdf = async () => {
+    setExportingFundedReport(true);
+    try {
+      const stats = await fetchLandlordFundedStats({
+        dateFrom: landlordDateFrom,
+        dateTo: landlordDateTo,
+        search: debouncedLandlordSearch,
+      });
+      if (!stats?.summary?.landlords_funded) {
+        sonnerToast.error('No landlords were funded in this period — nothing to export');
+        return;
+      }
+      const blob = generateLandlordFundedReportPdf(stats, {
+        dateFrom: landlordDateFrom || null,
+        dateTo: landlordDateTo || null,
+        search: debouncedLandlordSearch || null,
+        generatedBy: user?.email ?? null,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = landlordFundedFileName({ dateFrom: landlordDateFrom, dateTo: landlordDateTo });
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      sonnerToast.success(
+        `Landlords funded report downloaded (${stats.summary.landlords_funded.toLocaleString()} landlords)`,
+      );
+    } catch (err: any) {
+      sonnerToast.error(err?.message || 'Failed to generate the landlords funded report');
+    } finally {
+      setExportingFundedReport(false);
+    }
+  };
   // Reset to page 1 when the user changes any filter/search/sort.
   useEffect(() => {
     setLandlordPage(1);
