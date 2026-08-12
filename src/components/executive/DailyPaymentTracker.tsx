@@ -357,7 +357,8 @@ export function DailyPaymentTracker() {
         rent_amount: Number(r.rent_amount || 0),
         amount_repaid: Number(r.amount_repaid || 0),
         total_repayment: Number(r.total_repayment || 0),
-        disbursed_at: r.disbursed_at || '',
+        // Funding date is the fallback anchor when no disbursement stamp exists.
+        disbursed_at: r.disbursed_at || r.funded_at || r.created_at || '',
         rent_request_id: r.id,
         agent_id: r.agent_id || '',
         agent_name: agentProfile?.name || '—',
