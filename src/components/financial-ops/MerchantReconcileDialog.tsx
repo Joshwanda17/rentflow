@@ -151,7 +151,7 @@ export function MerchantReconcileDialog({
         {!!history?.length && (
           <div className="border-t border-border pt-3 space-y-2">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Correction history
+              Past fixes
             </p>
             {history.map((h) => (
               <div key={h.id} className="rounded-lg border border-border bg-muted/20 px-3 py-2">
