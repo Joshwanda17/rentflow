@@ -288,9 +288,11 @@ Deno.serve(async (req) => {
           `Withdrawable balance: UGX ${withdrawableAfter.toLocaleString()}. Ref: ${refId}.`;
         // Awaited on purpose: a fire-and-forget promise dies with the isolate.
         smsGate.sent = await sendSMS(targetProfile.phone, smsMsg, {
-          recipientUserId: targetUserId,
-          recipientName: targetProfile.full_name ?? null,
-          referenceId: refId,
+          admin: adminClient,
+          recipient_user_id: targetUserId,
+          recipient_name: targetProfile.full_name ?? null,
+          reference_id: refId,
+          idempotencyKey: `flt2wdr:${refId}`,
           source: "admin-float-to-withdrawable",
         });
       } else {
