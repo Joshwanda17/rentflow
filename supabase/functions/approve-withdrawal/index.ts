@@ -1269,6 +1269,14 @@ Deno.serve(async (req) => {
           } as any)
           .eq("id", withdrawal_id)
           .eq("status", "processing");
+        // PHASE 4: releasing the claim must also free the reserved float,
+        // otherwise the agent's available float stays understated forever.
+        try {
+          await admin.rpc("release_merchant_float", {
+            p_withdrawal_id: withdrawal_id,
+            p_reason: "claim_released_by_approve_withdrawal",
+          });
+        } catch (_e) { /* non-blocking */ }
       } catch (e) {
         console.error("[approve-withdrawal] releaseClaim failed:", (e as Error).message);
       }
