@@ -456,6 +456,56 @@ export function generateLandlordVerificationReportPdf(
     });
   };
 
+  /**
+   * The existing review comment recorded against a landlord: the decision
+   * reason captured by the verification write path, otherwise the existing
+   * service-centre verification comment. Returns null when no comment exists.
+   */
+  const reviewCommentOf = (r: LandlordReportRow): { text: string; label: string } | null => {
+    if (txt(r.verification_reason, '') !== '') {
+      return {
+        text: txt(r.verification_reason),
+        label: r.status === 'rejected' ? 'Rejection reason' : r.status === 'verified' ? 'Verification note' : 'Review note',
+      };
+    }
+    if (txt(r.service_center_comment, '') !== '') {
+      return { text: txt(r.service_center_comment), label: 'Service centre comment' };
+    }
+    return null;
+  };
+
+  /**
+   * Review comments recorded against each landlord in this section, verbatim.
+   * Landlords with no recorded comment are omitted (no placeholders).
+   */
+  const drawReviewCommentsAppendix = (sectionRows: LandlordReportRow[], heading: string) => {
+    const withComment = sectionRows
+      .map(r => ({ r, c: reviewCommentOf(r) }))
+      .filter((x): x is { r: LandlordReportRow; c: { text: string; label: string } } => x.c !== null);
+    if (!withComment.length) return;
+    y += 6;
+    ensure(16);
+    sectionHeading(heading);
+    y += 1;
+    doc.setFontSize(7.5);
+    withComment.forEach(({ r, c }, i) => {
+      const who = txt(r.verified_by_name, '') !== '' ? ` by ${txt(r.verified_by_name)}` : '';
+      const when = r.verification_updated_at ? ` on ${dt(r.verification_updated_at, true)}` : '';
+      const head = `${i + 1}. ${txt(r.name)} (${txt(r.phone)}) — ${txt(r.village, '?')}, ${txt(r.district, '?')} — ${c.label}${who}${when}`;
+      const lines = doc.splitTextToSize(c.text, contentWidth - 4) as string[];
+      ensure(4 + lines.length * 3.4 + 2);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7.5);
+      doc.setTextColor(15, 23, 42);
+      doc.text(clip(head, 175), margin, y);
+      y += 3.6;
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(80, 85, 100);
+      lines.forEach(ln => { doc.text(ln, margin + 3, y); y += 3.4; });
+      y += 1.6;
+    });
+  };
+
   /** Payout readiness for the supplied rows. */
   const drawPayoutAppendix = (sectionRows: LandlordReportRow[], heading: string) => {
     const missingPayout = sectionRows.filter(
@@ -517,6 +567,7 @@ export function generateLandlordVerificationReportPdf(
     drawDistrictBreakdown(sectionRows, sectionAccent, 20, `${SECTION_TITLE[sec]} — breakdown by district`);
     drawDetailTable(sectionRows, [...baseCols, ...stateCols(sec)], sectionAccent, `${SECTION_TITLE[sec]} — landlord-by-landlord detail`);
     if (sec === 'rejected') drawRejectionAppendix(sectionRows, 'Rejected landlords — full rejection reasons');
+    if (sec !== 'rejected') drawReviewCommentsAppendix(sectionRows, `${SECTION_TITLE[sec]} — review comments`);
     if (sec === 'verified') { drawAttribution(sectionRows); drawPayoutAppendix(sectionRows, 'Verified landlords — payout readiness'); }
     y += 8;
   };
@@ -567,6 +618,7 @@ export function generateLandlordVerificationReportPdf(
     drawDistrictBreakdown(rows, accent, 40, 'Breakdown by district');
     drawDetailTable(rows, [...baseCols, ...stateCols(sec)], accent, 'Landlord-by-landlord detail');
     if (sec === 'rejected') drawRejectionAppendix(rows, 'Appendix — full rejection reasons');
+    if (sec !== 'rejected') drawReviewCommentsAppendix(rows, 'Appendix — review comments');
     if (sec === 'verified') { drawAttribution(rows); drawPayoutAppendix(rows, 'Appendix — payout readiness'); }
   }
 

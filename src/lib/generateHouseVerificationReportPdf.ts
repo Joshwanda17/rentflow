@@ -38,6 +38,17 @@ export interface HouseReportRow {
   rejection_reason: string | null;
   rejected_at: string | null;
   rejected_by_name: string | null;
+  /**
+   * Existing review note the operator left when verifying / rejecting this
+   * listing (audit_logs.metadata.reason). Not a new field — it is simply
+   * surfaced by `ops_house_listing_report`.
+   */
+  review_comment?: string | null;
+  review_comment_at?: string | null;
+  review_comment_by_name?: string | null;
+  review_comment_action?: string | null;
+  /** Existing service-centre vetting comment on the listing. */
+  service_center_comment?: string | null;
   activity_at: string | null;
   created_at: string | null;
   updated_at: string | null;
@@ -355,6 +366,33 @@ export function generateHouseVerificationReportPdf(
 
   type Col = { label: string; w: number; align?: 'left' | 'right'; get: (r: HouseReportRow, i: number) => string };
 
+  /**
+   * The existing review comment for a listing, in the system's own order of
+   * precedence: the rejection reason for a rejected listing, otherwise the
+   * reviewer's note captured on the verification decision, otherwise the
+   * service-centre vetting comment. Never invented — returns null when the
+   * record genuinely carries no comment.
+   */
+  const reviewCommentOf = (
+    r: HouseReportRow,
+  ): { text: string; label: string; by: string | null; at: string | null } | null => {
+    if (r.status === 'rejected' && txt(r.rejection_reason, '') !== '') {
+      return { text: txt(r.rejection_reason), label: 'Rejection reason', by: r.rejected_by_name ?? null, at: r.rejected_at ?? null };
+    }
+    if (txt(r.review_comment, '') !== '') {
+      return {
+        text: txt(r.review_comment),
+        label: r.review_comment_action === 'listing_rejected' ? 'Rejection note' : 'Verification note',
+        by: r.review_comment_by_name ?? null,
+        at: r.review_comment_at ?? null,
+      };
+    }
+    if (txt(r.service_center_comment, '') !== '') {
+      return { text: txt(r.service_center_comment), label: 'Service centre comment', by: null, at: null };
+    }
+    return null;
+  };
+
   const baseCols: Col[] = [
     { label: '#', w: 8, get: (_r, i) => `${i + 1}` },
     { label: 'House', w: 40, get: r => clip(txt(r.title), 26) },
@@ -480,6 +518,38 @@ export function generateHouseVerificationReportPdf(
     });
   };
 
+  /**
+   * Review comments recorded against each house in this section, verbatim.
+   * Houses with no recorded comment are simply omitted (no placeholders).
+   */
+  const drawReviewCommentsAppendix = (sectionRows: HouseReportRow[], heading: string) => {
+    const withComment = sectionRows
+      .map(r => ({ r, c: reviewCommentOf(r) }))
+      .filter((x): x is { r: HouseReportRow; c: NonNullable<ReturnType<typeof reviewCommentOf>> } => x.c !== null);
+    if (!withComment.length) return;
+    y += 6;
+    ensure(16);
+    sectionHeading(heading);
+    y += 1;
+    doc.setFontSize(7.5);
+    withComment.forEach(({ r, c }, i) => {
+      const who = c.by ? ` by ${c.by}` : '';
+      const when = c.at ? ` on ${dt(c.at, true)}` : '';
+      const head = `${i + 1}. ${txt(r.title)} — ${txt(r.village, '?')}, ${txt(r.district, '?')} — ${c.label}${who}${when}`;
+      const lines = doc.splitTextToSize(c.text, contentWidth - 4) as string[];
+      ensure(4 + lines.length * 3.4 + 2);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7.5);
+      doc.setTextColor(15, 23, 42);
+      doc.text(clip(head, 175), margin, y);
+      y += 3.6;
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(80, 85, 100);
+      lines.forEach(ln => { doc.text(ln, margin + 3, y); y += 3.4; });
+      y += 1.6;
+    });
+  };
+
   /** Landlord payout readiness for the supplied (verified) rows. */
   const drawPayoutAppendix = (sectionRows: HouseReportRow[], heading: string) => {
     const missingPayout = sectionRows.filter(
@@ -526,6 +596,7 @@ export function generateHouseVerificationReportPdf(
     drawDistrictBreakdown(sectionRows, sectionAccent, 20, `${SECTION_TITLE[sec]} — breakdown by district`);
     drawDetailTable(sectionRows, [...baseCols, ...stateCols(sec)], sectionAccent, `${SECTION_TITLE[sec]} — house-by-house detail`);
     if (sec === 'rejected') drawRejectionAppendix(sectionRows, 'Rejected houses — full rejection reasons');
+    if (sec !== 'rejected') drawReviewCommentsAppendix(sectionRows, `${SECTION_TITLE[sec]} — review comments`);
     if (sec === 'verified') drawPayoutAppendix(sectionRows, 'Verified houses — landlord payout readiness');
     y += 8;
   };
@@ -578,6 +649,7 @@ export function generateHouseVerificationReportPdf(
     drawDistrictBreakdown(rows, accent, 40, 'Breakdown by district');
     drawDetailTable(rows, [...baseCols, ...stateCols(sec)], accent, 'House-by-house detail');
     if (sec === 'rejected') drawRejectionAppendix(rows, 'Appendix — full rejection reasons');
+    if (sec !== 'rejected') drawReviewCommentsAppendix(rows, 'Appendix — review comments');
     if (sec === 'verified') drawPayoutAppendix(rows, 'Appendix — landlord payout readiness');
   }
 
