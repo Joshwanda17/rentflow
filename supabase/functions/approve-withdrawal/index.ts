@@ -2875,12 +2875,39 @@ Deno.serve(async (req) => {
     // Commission may only post when its offsetting float debit actually landed.
     // Pool-funded settlements debit float in the main block above, so they are
     // still eligible. Otherwise the gap is logged for CFO reconciliation.
-    const floatLegSettled = poolFunded || merchantFloatConsumed > 0;
+    // A merchant who held ZERO float still fronted 100% of the payout from
+    // their own line — that shortfall is recorded as a company receivable in
+    // `merchant_out_of_pocket_advances`, which is a valid offsetting leg. They
+    // earn their commission just like a float-funded settlement (2026-08-12).
+    const floatLegSettled =
+      poolFunded || merchantFloatConsumed > 0 || merchantOutOfPocketRecorded;
     if (actingAsMerchant && !floatLegSettled) {
       await logSettlementGap(
         "commission_paid_float_pending",
         Math.round(amount * 0.005),
-        "commission withheld because the merchant float debit did not land",
+        "commission withheld because neither a merchant float debit nor an out-of-pocket receivable landed",
+      );
+    }
+    // ── LOUD FAILURE (2026-08-12) ───────────────────────────────────────────
+    // A merchant settlement that closes with NO float debit AND NO
+    // out-of-pocket receivable means the compensation chain was skipped. Log it
+    // the same day instead of discovering it weeks later during reconciliation.
+    if (
+      actingAsMerchant &&
+      !poolFunded &&
+      merchantFloatConsumed === 0 &&
+      !merchantOutOfPocketRecorded
+    ) {
+      console.error("[approve-withdrawal] MERCHANT_CHAIN_SKIPPED", {
+        withdrawal_id,
+        agent_id: user.id,
+        amount,
+        float_available: Math.round(merchantFloatAvailable),
+      });
+      await logSettlementGap(
+        "merchant_settlement_chain_skipped",
+        amount,
+        "merchant settlement closed with no float debit and no out-of-pocket receivable",
       );
     }
     if (actingAsMerchant && floatLegSettled) {
