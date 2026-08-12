@@ -30,6 +30,7 @@ import { setCriticalFlowActive } from '@/lib/criticalFlowGuard';
 import { captureOAuthRedirectError } from '@/lib/oauthErrorLog';
 import { getStoredAttributionToken, restoreAttributionFromToken } from '@/lib/campaignAttribution';
 import ScreenLoader from '@/components/common/ScreenLoader';
+import PersonNameFields from '@/components/shared/PersonNameFields';
 
 const VALID_SIGNUP_ROLES = ['tenant', 'agent', 'landlord', 'supporter'] as const;
 
@@ -81,6 +82,8 @@ export default function Auth() {
     confirmPassword, setConfirmPassword,
     showConfirmPassword, setShowConfirmPassword,
     fullName, setFullName,
+    nameParts, setNameParts,
+    namePartsError, setNamePartsError,
     phone, setPhone,
     countryCode, setCountryCode,
     isLoading,
@@ -1226,21 +1229,26 @@ export default function Auth() {
                 </div>
 
                 <form onSubmit={wrappedHandleSubmit} className="space-y-4">
-                  {/* Full Name */}
+                  {/* Person name — split capture, single `full_name` payload */}
                   <div className="space-y-1.5">
-                    <Label htmlFor="signup-name" className="px-1">Name</Label>
-                    <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="signup-name"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      placeholder="Full name (first and last)"
-                      className="pl-10 h-14 text-base rounded-lg"
-                      style={{ fontSize: '16px' }}
-                      required
-                    />
+                    <div className="flex items-center gap-2 px-1">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      <Label className="p-0">Your name</Label>
                     </div>
+                    <PersonNameFields
+                      idPrefix="signup"
+                      value={nameParts}
+                      onChange={(next) => {
+                        setNameParts(next);
+                        if (namePartsError) setNamePartsError(null);
+                      }}
+                      disabled={isLoading}
+                      errors={{
+                        firstName: namePartsError && !nameParts.firstName.trim() ? namePartsError : null,
+                        lastName: namePartsError && nameParts.firstName.trim() && !nameParts.lastName.trim() ? namePartsError : null,
+                        otherNames: namePartsError && nameParts.firstName.trim() && nameParts.lastName.trim() ? namePartsError : null,
+                      }}
+                    />
                   </div>
 
                   {/* Email (optional — lets users sign up without SMS OTP) */}
