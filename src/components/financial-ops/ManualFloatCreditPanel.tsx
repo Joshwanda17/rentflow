@@ -81,7 +81,7 @@ export function ManualFloatCreditPanel() {
       toast.success(`Float credited — TID ${cleanTid} locked. Ref ${res.transaction_group_id.slice(0, 8)}`);
       setTid('');
       setAmount('');
-      setDepositorName('');
+      setNameParts({ firstName: '', otherNames: '', lastName: '' });
       setNotes('');
       setConfirming(false);
       qc.invalidateQueries({ queryKey: ['bridge-health'] });
