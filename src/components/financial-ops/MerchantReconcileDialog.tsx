@@ -67,22 +67,22 @@ export function MerchantReconcileDialog({
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-base">
-            Correct {position.agentName || position.label || 'merchant agent'}
+            Fix balance for {position.agentName || position.label || 'this agent'}
           </DialogTitle>
           <DialogDescription className="text-xs">
-            Record a finance correction. Wallets and the ledger are not touched — this only fixes what
-            the board recognises for this merchant.
+            This only fixes what the board shows for this agent. It does not move any real money or
+            change their wallet.
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid grid-cols-2 gap-2 text-[11px]">
-          <Stat label="Paid out (claimed & settled)" value={position.paidOut} />
-          <Stat label="Recognised reimbursement" value={position.reimbursed} />
-          <Stat label="Recorded float funding" value={position.floatCredits} />
-          <Stat label="Matched MTN/Airtel emails" value={position.emailMatched} muted />
-          <Stat label="Corrections applied" value={position.adjustments} muted />
+          <Stat label="Money they paid out" value={position.paidOut} />
+          <Stat label="Money we paid them back" value={position.reimbursed} />
+          <Stat label="Float we sent them" value={position.floatCredits} />
+          <Stat label="Payment messages matched" value={position.emailMatched} muted />
+          <Stat label="Fixes already made" value={position.adjustments} muted />
           <Stat
-            label={position.companyCashWithAgent > 0 ? 'Holding company cash' : 'We owe agent'}
+            label={position.companyCashWithAgent > 0 ? "They're holding our money" : 'We owe them'}
             value={position.companyCashWithAgent > 0 ? position.companyCashWithAgent : position.owedToAgent}
           />
         </div>
