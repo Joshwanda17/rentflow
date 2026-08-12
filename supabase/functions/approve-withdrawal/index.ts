@@ -2022,7 +2022,7 @@ Deno.serve(async (req) => {
     let ledgerResult = await admin.rpc("create_ledger_transaction", ledgerPayload as any);
     // Idempotency key makes the retry safe: a partially-applied first attempt
     // is returned as-is instead of double-posting.
-    if (ledgerResult.error && isTransientLedgerError(ledgerResult.error.message || "")) {
+    if (ledgerResult.error && isTransientDbError(ledgerResult.error.message || "")) {
       console.warn(
         "[approve-withdrawal] transient ledger failure — retrying once:",
         ledgerResult.error.message,
@@ -2042,7 +2042,7 @@ Deno.serve(async (req) => {
         ledgerMessage.includes("wallets_balance_check") ||
         ledgerMessage.includes("violates check constraint") ||
         ledgerMessage.includes("Insufficient ledger balance");
-      const isTransient = !isInsufficientBalance && isTransientLedgerError(ledgerMessage);
+      const isTransient = !isInsufficientBalance && isTransientDbError(ledgerMessage);
       const failureReason = isInsufficientBalance
         ? isProxyPayout
           ? `Insufficient proxy agent wallet balance (ledger-checked). Available: UGX ${Math.round(totalSpendable).toLocaleString()}, requested: UGX ${amount.toLocaleString()}. This payout debits the assigned proxy agent wallet for the selected partner.`
