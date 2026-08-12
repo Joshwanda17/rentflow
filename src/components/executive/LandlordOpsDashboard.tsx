@@ -70,6 +70,14 @@ import {
   generateLandlordVerificationReportPdf,
   type LandlordReportScope,
 } from '@/lib/generateLandlordVerificationReportPdf';
+import {
+  generateLandlordFundedReportPdf,
+  landlordFundedFileName,
+} from '@/lib/generateLandlordFundedReportPdf';
+import {
+  useLandlordFundedStats,
+  fetchLandlordFundedStats,
+} from '@/hooks/useLandlordFundedStats';
 import { generateLc1VerificationReportPdf, lc1ReportFileName, type Lc1ReportRow } from '@/lib/generateLc1VerificationReportPdf';
 import { FileDown } from 'lucide-react';
 import { RentAdjustmentDialog } from './RentAdjustmentDialog';
