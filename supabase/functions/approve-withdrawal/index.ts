@@ -493,37 +493,97 @@ Deno.serve(async (req) => {
       });
     }
 
-    // A genuine merchant is an active cashout agent who completes the payout
-    // FROM THE MERCHANT QUEUE (the only caller that sends `acting_as_merchant`).
-    // They fronted their own MoMo/cash, so they earn the principal reimbursement
-    // + 0.5% commission + SMS — even if they also hold staff roles. Staff
-    // settling from the Financial Ops desk never send the flag, and system/bulk
-    // auto-settlement never sends it either, so neither wrongly earns merchant
-    // compensation. Backward-compatible: if a legacy merchant client omits the
-    // flag but the caller is a cashout agent AND no staff settlement desk is in
-    // play, we still credit them.
+    // ── PHASE 3: AUTHORITATIVE SERVER-SIDE MERCHANT IDENTITY ────────────
+    // Merchant identity is resolved from the DATABASE (the active Merchant
+    // Agent relationship in `cashout_agents`, via
+    // `resolve_payout_merchant_identity`), never from the UI that initiated
+    // the request. Any authorized desk — merchant queue, FinOps, CFO, staff
+    // desk, withdrawal verification, receipt-code entry, proxy/partner tools —
+    // produces the SAME settlement treatment for the same merchant.
     //
-    // 2026-08-12 FIX — the flag is now an OPT-OUT signal, never the sole
-    // enabler. Several merchant agents ALSO hold staff roles (manager, coo,
-    // financial_ops, *_ops) and close the very same customer payout from a
-    // staff desk UI that never sent `acting_as_merchant`. In those cases the
-    // merchant fronted real MoMo cash but the entire compensation chain
-    // (float debit -> telecom charge -> out-of-pocket receivable -> 0.5%
-    // commission -> Welile SMS) was silently skipped: their float never
-    // reduced, no commission was credited and no message was sent.
-    // Authoritative rule: an ACTIVE cashout agent settling a payout by hand IS
-    // the merchant, whichever desk they clicked from. Only an explicit
-    // `acting_as_merchant: false` / `staff_desk: true` (a non-merchant desk
-    // paying on someone else's behalf) or a system/bulk call opts out.
-    const bodyActingFlag =
-      (body as any)?.acting_as_merchant === true ||
-      (body as any)?.actingAsMerchant === true;
-    const merchantOptOut =
+    // The client `acting_as_merchant` / `actingAsMerchant` / `staff_desk` flags
+    // can no longer silently suppress merchant compensation. A legitimate
+    // opt-out (a staff user genuinely paying on behalf of another party) is
+    // still possible, but it must be EXPLICIT and AUDITED:
+    //   merchant_opt_out: true  +  merchant_opt_out_reason: >= 10 chars
+    // Anything else is ignored and the DB verdict wins.
+    let merchantIdentity: any = null;
+    try {
+      const { data: mi } = await admin.rpc("resolve_payout_merchant_identity", {
+        p_actor_id: user.id,
+      });
+      merchantIdentity = mi ?? null;
+    } catch (_e) {
+      merchantIdentity = null;
+    }
+    // Fall back to the row already fetched above if the RPC is unavailable.
+    const serverSideIsMerchant =
+      merchantIdentity?.is_merchant === true || isCashoutAgent;
+    const merchantAgentIdResolved =
+      merchantIdentity?.merchant_agent_id ?? agentRow?.id ?? null;
+
+    const optOutRequested =
+      (body as any)?.merchant_opt_out === true ||
       (body as any)?.acting_as_merchant === false ||
       (body as any)?.actingAsMerchant === false ||
       (body as any)?.staff_desk === true;
+    const optOutReasonRaw =
+      typeof (body as any)?.merchant_opt_out_reason === "string"
+        ? (body as any).merchant_opt_out_reason.trim()
+        : "";
+    const optOutHonoured =
+      optOutRequested && optOutReasonRaw.length >= 10;
+
+    if (serverSideIsMerchant && optOutRequested && !optOutHonoured) {
+      // Silent suppression attempt: a real merchant desk tried to opt out of
+      // merchant settlement without a documented on-behalf-of reason.
+      console.warn("[approve-withdrawal] MERCHANT_OPT_OUT_REJECTED", {
+        withdrawal_id,
+        actor: user.id,
+      });
+      await admin.from("audit_logs").insert({
+        user_id: user.id,
+        action_type: "merchant_opt_out_rejected",
+        action: "merchant_opt_out_rejected",
+        table_name: "withdrawal_requests",
+        record_id: withdrawal_id,
+        metadata: {
+          reason:
+            "Client attempted to suppress merchant settlement without an on-behalf-of reason; server-side merchant identity enforced.",
+          merchant_agent_id: merchantAgentIdResolved,
+          merchant_identity: merchantIdentity,
+        },
+      }).then(() => {}, () => {});
+    }
+
+    if (serverSideIsMerchant && optOutHonoured) {
+      await admin.from("audit_logs").insert({
+        user_id: user.id,
+        action_type: "merchant_settlement_opt_out",
+        action: "merchant_settlement_opt_out",
+        table_name: "withdrawal_requests",
+        record_id: withdrawal_id,
+        metadata: {
+          reason: optOutReasonRaw,
+          merchant_agent_id: merchantAgentIdResolved,
+          merchant_identity: merchantIdentity,
+        },
+      }).then(() => {}, () => {});
+    }
+
     actingAsMerchant =
-      isCashoutAgent && !isSystemCall && (bodyActingFlag || !merchantOptOut);
+      serverSideIsMerchant && !isSystemCall && !optOutHonoured;
+
+    console.log("[approve-withdrawal] merchant identity resolved", {
+      withdrawal_id,
+      actor: user.id,
+      server_side_is_merchant: serverSideIsMerchant,
+      merchant_agent_id: merchantAgentIdResolved,
+      opt_out_requested: optOutRequested,
+      opt_out_honoured: optOutHonoured,
+      is_system_call: isSystemCall,
+      acting_as_merchant: actingAsMerchant,
+    });
 
     // ── PROOF-OF-PAYMENT GATE (merchant settlements) ────────────────────
     // No proof image => no wallet debit. A merchant agent can only close a
