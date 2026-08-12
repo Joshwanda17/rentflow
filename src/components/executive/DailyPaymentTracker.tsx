@@ -145,24 +145,22 @@ export function DailyPaymentTracker() {
   const dayStartIso = new Date(`${todayStr}T00:00:00+03:00`).toISOString();
   const dayEndIso = new Date(`${todayStr}T23:59:59.999+03:00`).toISOString();
 
-  // Fetch active rent requests (disbursed/repaying)
+  // Active rent plans, sourced from the platform's authoritative daily-eligibility
+  // view (the same rule that drives agent daily targets and the tool badges):
+  // funded/repaying, still owing, not paused, not marked "not paying".
   const { data: activeRequests, isLoading: reqLoading, refetch } = useQuery({
     queryKey: ['daily-tracker-active'],
     queryFn: async () => {
-      // `disbursed_at` is missing on most repaying plans, so it must not be used
-      // as a filter — doing so hid the majority of active plans from this tool.
-      // Paginated to survive the 1000-row Data API cap.
       const all: any[] = [];
       const page = 1000;
       for (let from = 0; ; from += page) {
         const { data, error } = await supabase
-          .from('rent_requests')
-          .select('id, tenant_id, agent_id, landlord_id, daily_repayment, rent_amount, amount_repaid, total_repayment, disbursed_at, funded_at, created_at, status, tenant_no_smartphone')
-          .in('status', ['disbursed', 'repaying', 'funded'])
-          .order('created_at', { ascending: false })
+          .from('v_tenant_daily_eligibility')
+          .select('rent_request_id, tenant_id, agent_id, landlord_id, daily_repayment, rent_amount, amount_repaid, total_repayment, start_at, status, tenant_no_smartphone')
+          .order('start_at', { ascending: false })
           .range(from, from + page - 1);
         if (error) throw error;
-        all.push(...(data || []));
+        all.push(...(data || []).map((r: any) => ({ ...r, id: r.rent_request_id, disbursed_at: r.start_at })));
         if (!data || data.length < page) break;
       }
       return all;
@@ -342,7 +340,8 @@ export function DailyPaymentTracker() {
   const tenantList = useMemo(() => {
     if (!activeRequests) return [];
 
-    // Group by tenant - take the one with highest daily repayment if multiple
+    // Group by tenant — keep the plan with the largest outstanding balance, the
+    // same de-duplication the Tenant Ops counters and Missed Days tool use.
     const tenantMap = new Map<string, ActiveTenant>();
     activeRequests.forEach(r => {
       const existing = tenantMap.get(r.tenant_id);
@@ -370,7 +369,9 @@ export function DailyPaymentTracker() {
         agent_wallet: r.agent_id ? (walletMap.get(r.agent_id) || 0) : 0,
         tenant_no_smartphone: r.tenant_no_smartphone ?? false,
       };
-      if (!existing || entry.daily_repayment > existing.daily_repayment) {
+      const outstanding = entry.total_repayment - entry.amount_repaid;
+      const existingOutstanding = existing ? existing.total_repayment - existing.amount_repaid : -1;
+      if (!existing || outstanding > existingOutstanding) {
         tenantMap.set(r.tenant_id, entry);
       }
     });
@@ -432,7 +433,7 @@ export function DailyPaymentTracker() {
         tool="daily_payments"
         status="all"
         search={search}
-        visibleCount={paidCount}
+        visibleCount={filtered.length}
         fileSlug="tenant-daily-payments"
       />
 

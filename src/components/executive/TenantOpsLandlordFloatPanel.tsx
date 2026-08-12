@@ -58,18 +58,31 @@ export function TenantOpsLandlordFloatPanel() {
   const { data, isLoading } = useQuery({
     queryKey: ['tenant-ops-agent-landlord-float'],
     queryFn: async () => {
+      // Paginated: hard limits truncated the fleet (760 float rows vs a 500 cap),
+      // so totals and per-agent rows silently under-reported.
+      const PAGE = 1000;
+      const fetchAll = async (build: (from: number) => any) => {
+        const rows: any[] = [];
+        for (let from = 0; ; from += PAGE) {
+          const { data, error } = await build(from);
+          if (error) return { data: rows, error };
+          rows.push(...(data || []));
+          if (!data || data.length < PAGE) break;
+        }
+        return { data: rows, error: null as any };
+      };
       const [floatRes, allocRes] = await Promise.all([
-        supabase
+        fetchAll((from) => supabase
           .from('agent_landlord_float' as any)
           .select('agent_id, balance, total_funded, total_paid_out, updated_at, region')
           .order('balance', { ascending: false })
-          .limit(500),
-        supabase
+          .range(from, from + PAGE - 1)),
+        fetchAll((from) => supabase
           .from('agent_landlord_float_allocations' as any)
           .select('id, agent_id, tenant_id, landlord_id, landlord_name, landlord_phone, mobile_money_provider, allocated_amount, paid_out_amount, remaining_amount, status, created_at')
           .in('status', ['open', 'partially_paid'])
           .order('created_at', { ascending: false })
-          .limit(1000),
+          .range(from, from + PAGE - 1)),
       ]);
       if (floatRes.error) throw floatRes.error;
       if (allocRes.error) throw allocRes.error;
