@@ -1,10 +1,11 @@
 import { ReactNode, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { X } from 'lucide-react';
+import { X, ArrowLeft } from 'lucide-react';
 import workInProgressIllustration from '@/assets/work-in-progress.svg.asset.json';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+
 
 const getInitials = (name: string) => {
   if (!name) return 'Me';
