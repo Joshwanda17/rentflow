@@ -107,27 +107,34 @@ export function MerchantDashboardHome({
   return (
     <div className="space-y-5">
       {/* Quick actions */}
-      <section className="grid grid-cols-4 gap-3">
-        <QuickAction
-          icon={<ArrowDownToLine className="h-5 w-5" />}
-          label="Deposit"
-          onClick={onDeposit}
-        />
-        <QuickAction
-          icon={<ArrowUpFromLine className="h-5 w-5" />}
-          label="Withdraw"
-          onClick={onWithdraw}
-        />
-        <QuickAction
-          icon={<ArrowLeftRight className="h-5 w-5" />}
-          label="Transfer"
-          onClick={onTransfer}
-        />
-        <QuickAction
-          icon={<Landmark className="h-5 w-5" />}
-          label="Statement"
-          onClick={onViewStatement ?? onViewWallet}
-        />
+      <section>
+        <h2 className="mb-2 px-1 text-sm font-bold text-foreground">What do you want to do?</h2>
+        <div className="grid grid-cols-2 gap-3">
+          <QuickAction
+            icon={<ArrowDownToLine className="h-5 w-5" />}
+            label="Add money"
+            hint="Put money into your wallet"
+            onClick={onDeposit}
+          />
+          <QuickAction
+            icon={<ArrowUpFromLine className="h-5 w-5" />}
+            label="Take out money"
+            hint="Send your money to you"
+            onClick={onWithdraw}
+          />
+          <QuickAction
+            icon={<ArrowLeftRight className="h-5 w-5" />}
+            label="Send money"
+            hint="Move it to someone else"
+            onClick={onTransfer}
+          />
+          <QuickAction
+            icon={<Landmark className="h-5 w-5" />}
+            label="See my records"
+            hint="Money in and money out"
+            onClick={onViewStatement ?? onViewWallet}
+          />
+        </div>
       </section>
 
       {/* Shared payout float + this merchant's settlement position */}
@@ -150,7 +157,7 @@ export function MerchantDashboardHome({
               <Banknote className="h-7 w-7 text-white" />
             </div>
             <div className="min-w-0">
-              <p className="text-base font-bold text-white">Merchant Payouts</p>
+              <p className="text-base font-bold text-white">People waiting for their money</p>
               <div className="mt-1 flex items-center gap-2">
                 {pendingCount > 0 ? (
                   <>
@@ -159,19 +166,19 @@ export function MerchantDashboardHome({
                       <span className="relative inline-flex h-2 w-2 rounded-full bg-white" />
                     </span>
                     <p className="truncate text-xs text-white/90">
-                      {pendingCount} unclaimed {pendingCount === 1 ? 'request' : 'requests'} waiting
+                      {pendingCount} {pendingCount === 1 ? 'person is' : 'people are'} waiting to be paid
                     </p>
                   </>
                 ) : (
                   <p className="truncate text-xs text-white/90">
-                    MoMo · Bank{handlesCash ? ' · Cash' : ''}
+                    Nobody is waiting right now · Mobile money, bank{handlesCash ? ' or cash' : ''}
                   </p>
                 )}
               </div>
             </div>
           </div>
           <div className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-white/30 bg-white/10 px-4 py-2.5 text-xs font-bold text-white backdrop-blur-md">
-            Open
+            Pay now
             <ChevronRight className="h-4 w-4" />
           </div>
         </div>
@@ -182,36 +189,40 @@ export function MerchantDashboardHome({
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-primary" />
-            <h3 className="text-sm font-bold">Quick Insights</h3>
+            <h3 className="text-sm font-bold">How you did this week</h3>
           </div>
-          <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+          <span className="text-[11px] font-medium text-muted-foreground">
             Last 7 days
           </span>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <InsightTile
-            label="Volume"
+            label="Money you paid out"
+            hint="Total in the last 7 days"
             value={formatUGX(insights?.volume ?? 0)}
             icon={<TrendingUp className="h-3.5 w-3.5" />}
             accent="bg-emerald-500"
             progress={insights?.volume ? Math.min(100, Math.round((insights.volume / 5_000_000) * 100)) : 0}
           />
           <InsightTile
-            label="Avg Ticket"
+            label="Usual payment size"
+            hint="Average of each payout"
             value={formatUGX(insights?.avg ?? 0)}
             icon={<Banknote className="h-3.5 w-3.5" />}
             accent="bg-indigo-500"
             progress={insights?.avg ? Math.min(100, Math.round((insights.avg / 200_000) * 100)) : 0}
           />
           <InsightTile
-            label="Proof Uploaded"
+            label="Receipts you added"
+            hint="Payouts with proof attached"
             value={successPct === null ? '—' : `${successPct}%`}
             icon={<CheckCircle2 className="h-3.5 w-3.5" />}
             accent={successPct !== null && successPct >= 80 ? 'bg-emerald-500' : 'bg-amber-500'}
             progress={successPct ?? 0}
           />
           <InsightTile
-            label="Pending Comm."
+            label="Your pay coming"
+            hint="Commission not yet paid to you"
             value={formatUGX(pendingCommission ?? 0)}
             icon={<Timer className="h-3.5 w-3.5" />}
             accent="bg-amber-500"
@@ -236,9 +247,9 @@ export function MerchantDashboardHome({
             <History className="h-5 w-5" />
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-bold text-foreground">Transaction History</p>
+            <p className="text-sm font-bold text-foreground">Everyone you have paid</p>
             <p className="truncate text-xs text-muted-foreground">
-              Name, phone, amount, date &amp; TID
+              Name, phone, amount, date and payment code
             </p>
           </div>
         </div>
@@ -284,10 +295,12 @@ function BentoBalance({
 function QuickAction({
   icon,
   label,
+  hint,
   onClick,
 }: {
   icon: React.ReactNode;
   label: string;
+  hint?: string;
   onClick: () => void;
 }) {
   return (
@@ -296,14 +309,17 @@ function QuickAction({
         hapticTap();
         onClick();
       }}
-      className="group flex flex-col items-center justify-center gap-2.5 rounded-3xl border border-border/60 bg-card p-4 transition-all hover:border-primary/40 active:scale-95"
+      className="group flex items-center gap-3 rounded-3xl border border-border/60 bg-card p-4 text-left transition-all hover:border-primary/40 active:scale-95"
       style={{ WebkitTapHighlightColor: 'transparent' }}
     >
-      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20 transition-transform group-active:rotate-6">
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20 transition-transform group-active:rotate-6">
         {icon}
       </div>
-      <span className="text-[11px] font-bold uppercase tracking-wider text-foreground">
-        {label}
+      <span className="min-w-0">
+        <span className="block truncate text-sm font-bold text-foreground">{label}</span>
+        {hint && (
+          <span className="block truncate text-[11px] text-muted-foreground">{hint}</span>
+        )}
       </span>
     </button>
   );
@@ -311,12 +327,14 @@ function QuickAction({
 
 function InsightTile({
   label,
+  hint,
   value,
   icon,
   accent,
   progress,
 }: {
   label: string;
+  hint?: string;
   value: string;
   icon: React.ReactNode;
   accent: string;
@@ -326,9 +344,10 @@ function InsightTile({
     <div className="rounded-2xl bg-muted/40 p-3.5">
       <div className="mb-1 flex items-center gap-1.5 text-muted-foreground">
         {icon}
-        <span className="text-[10px] font-semibold uppercase tracking-wider">{label}</span>
+        <span className="text-[11px] font-semibold leading-tight">{label}</span>
       </div>
-      <p className="truncate text-base font-bold tabular-nums text-foreground">{value}</p>
+      <p className="truncate text-lg font-bold tabular-nums text-foreground">{value}</p>
+      {hint && <p className="mt-0.5 truncate text-[10px] text-muted-foreground">{hint}</p>}
       <div className="mt-2.5 h-1 w-full overflow-hidden rounded-full bg-background/80">
         <div
           className={cn('h-full rounded-full transition-all', accent)}
