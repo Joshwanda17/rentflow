@@ -38736,6 +38736,10 @@ export type Database = {
         Args: { p_short_code: string }
         Returns: Json
       }
+      resolve_payout_merchant_identity: {
+        Args: { p_actor_id: string }
+        Returns: Json
+      }
       resolve_service_center_manager_for_agent: {
         Args: { p_agent_id: string }
         Returns: string
