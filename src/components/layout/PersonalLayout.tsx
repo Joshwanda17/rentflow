@@ -1,8 +1,7 @@
 import { ReactNode, useEffect, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { cn } from '@/lib/utils';
 import { X } from 'lucide-react';
 
 interface PersonalLayoutProps {
@@ -10,13 +9,7 @@ interface PersonalLayoutProps {
   title?: string;
 }
 
-const LINKS = [
-  { label: 'My payslips', to: '/me/payslips' },
-  { label: 'My work', to: '/me/work' },
-  { label: 'My profile', to: '/your-profile' },
-  { label: 'Settings', to: '/settings' },
-  { label: 'Notifications', to: '/notifications' },
-];
+
 
 const PersonalLayout = ({ children, title }: PersonalLayoutProps) => {
   const { user } = useAuth();
