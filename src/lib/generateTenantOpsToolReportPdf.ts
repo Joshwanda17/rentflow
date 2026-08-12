@@ -238,9 +238,9 @@ const TOOL_CONFIG: Record<TenantOpsTool, ToolConfig> = {
     statusLabel: 'Risk segment',
     kpis: rows => [
       { label: 'TENANTS', value: num(rows.length) },
-      { label: 'HIGH RISK', value: num(rows.filter(r => String(r.risk_level).toLowerCase() === 'high').length) },
-      { label: 'MEDIUM RISK', value: num(rows.filter(r => String(r.risk_level).toLowerCase() === 'medium').length) },
-      { label: 'LOW RISK', value: num(rows.filter(r => String(r.risk_level).toLowerCase() === 'low').length) },
+      { label: 'CRITICAL', value: num(rows.filter(r => String(r.risk_level).toLowerCase() === 'critical').length) },
+      { label: 'WARNING', value: num(rows.filter(r => String(r.risk_level).toLowerCase() === 'warning').length) },
+      { label: 'HEALTHY', value: num(rows.filter(r => String(r.risk_level).toLowerCase() === 'healthy').length) },
       { label: 'ACTIVE PLANS', value: num(sum(rows, 'active_requests')) },
       { label: 'RENT VALUE', value: ugx(sum(rows, 'total_rent_amount')) },
       { label: 'REPAID', value: ugx(sum(rows, 'total_repaid')) },
