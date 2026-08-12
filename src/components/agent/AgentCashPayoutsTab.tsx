@@ -153,6 +153,11 @@ interface QueueFilterOpts {
  */
 function applyQueueFilters(q: any, o: QueueFilterOpts) {
   q = q.in('status', CASHOUT_QUEUE_STATUSES);
+  // Hard settlement fence: a payout that carries a FinOps reference or a
+  // processed timestamp has already been confirmed. Such a row must NEVER be
+  // returned by the merchant queue, even if its status column were somehow
+  // left in a queue state by a failed follow-up write.
+  q = q.is('processed_at', null).is('fin_ops_reference', null);
   // Available = unclaimed OR a claim the server cron would already have released
   // (>45 min, no settlement progress). Excludes rows
   // currently claimed by anyone (including me — those live in "Claimed by you").
