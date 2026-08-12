@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, lazy, Suspense, Component, ReactNode, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { Helmet } from 'react-helmet-async';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -32,6 +33,7 @@ import { useOtpVerification } from '@/hooks/useOtpVerification';
 import { normalizeE164OrNull } from '@/lib/phoneUtils';
 import { joinPersonName, splitPersonName, validatePersonNameParts, type PersonNameParts } from '@/lib/authValidation';
 import PersonNameFields from '@/components/shared/PersonNameFields';
+import NameCompletionReminder from '@/components/notifications/NameCompletionReminder';
 import { OtpVerificationStep } from '@/components/auth/OtpVerificationStep';
 
 const WalletCard = lazy(() => import('@/components/wallet/WalletCard').then(m => ({ default: m.WalletCard })));
