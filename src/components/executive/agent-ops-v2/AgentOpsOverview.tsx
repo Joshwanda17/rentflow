@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import { format, subDays, subHours, startOfDay, endOfDay } from 'date-fns';
+import { format, subDays, startOfDay } from 'date-fns';
 import {
   ResponsiveContainer, AreaChart, Area,
   XAxis, YAxis,
@@ -23,27 +23,9 @@ import { AgentRentCapacityPanel } from '../AgentRentCapacityPanel';
 
 
 
-export type OverviewRange = 'today' | 'yesterday' | '24h' | '7d' | '1m';
-
-const RANGES: { key: OverviewRange; label: string }[] = [
-  { key: 'today', label: 'Today' },
-  { key: 'yesterday', label: 'Yesterday' },
-  { key: '24h', label: '24H' },
-  { key: '7d', label: '7D' },
-  { key: '1m', label: '1M' },
-];
-
-function rangeWindow(r: OverviewRange): { start: Date; end: Date } {
-  const now = new Date();
-  if (r === 'today') return { start: startOfDay(now), end: now };
-  if (r === 'yesterday') {
-    const y = subDays(now, 1);
-    return { start: startOfDay(y), end: endOfDay(y) };
-  }
-  if (r === '24h') return { start: subHours(now, 24), end: now };
-  if (r === '7d') return { start: subDays(now, 7), end: now };
-  return { start: subDays(now, 30), end: now };
-}
+// The overview is daily-only: KPIs always aggregate today, and every chart is
+// built from daily buckets. There is no range selector.
+const DAILY_TREND_DAYS = 30;
 
 function fmtMoney(n: number): string {
   if (n >= 1e9) return `UGX ${(n / 1e9).toFixed(2)}B`;
@@ -133,11 +115,16 @@ export interface AgentOpsOverviewProps {
 
 export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
   const qc = useQueryClient();
-  const [range, setRange] = useState<OverviewRange>('7d');
-  const { start, end } = useMemo(() => {
-    const w = rangeWindow(range);
-    return { start: w.start.toISOString(), end: w.end.toISOString() };
-  }, [range]);
+  // Today's window (local day start → now) drives every KPI and table.
+  const [today] = useState(() => startOfDay(new Date()).toISOString());
+  const { start, end, trendStart } = useMemo(() => {
+    const now = new Date();
+    return {
+      start: today,
+      end: now.toISOString(),
+      trendStart: startOfDay(subDays(now, DAILY_TREND_DAYS)).toISOString(),
+    };
+  }, [today]);
 
   useEffect(() => {
     const ch = supabase
@@ -151,7 +138,7 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
   }, [qc]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['agent-ops-overview', range, start, end],
+    queryKey: ['agent-ops-overview', 'daily', start],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_agent_ops_overview' as any, {
         p_range_start: start,
@@ -163,15 +150,25 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
     staleTime: 60_000,
   });
 
+  // Daily series for the charts — same RPC, daily buckets over the last 30 days.
+  const { data: trendPayload } = useQuery({
+    queryKey: ['agent-ops-overview', 'daily-trend', trendStart],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_agent_ops_overview' as any, {
+        p_range_start: trendStart,
+        p_range_end: end,
+      });
+      if (error) throw error;
+      return data as unknown as OverviewPayload;
+    },
+    staleTime: 60_000,
+  });
+
   const k = data?.kpis || ({} as Record<string, number>);
-  const trend = data?.trend || [];
-  const trendLabelKey = range === '24h' ? 'day' : 'day';
+  const trend = trendPayload?.trend || data?.trend || [];
 
   const trendData = trend.map((t) => ({
-    label: format(
-      new Date(t.day),
-      range === '1m' ? 'd MMM' : range === 'today' || range === 'yesterday' ? 'd MMM' : 'EEE',
-    ),
+    label: format(new Date(t.day), 'd MMM'),
     agents: t.agents,
     requests: t.requests,
     activeAgents: t.active_agents,
@@ -183,27 +180,11 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
 
   return (
     <div className="space-y-4">
-      {/* Range switch */}
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div>
-          <h2 className="text-base font-bold text-foreground">Agent Operations Overview</h2>
-          <p className="text-xs text-muted-foreground">All agents, all activities — one glance.</p>
-        </div>
-        <div className="inline-flex flex-wrap rounded-full bg-muted p-0.5">
-          {RANGES.map((r) => (
-            <button
-              key={r.key}
-              type="button"
-              onClick={() => setRange(r.key)}
-              className={cn(
-                'px-3 py-1 text-xs font-semibold rounded-full transition-colors',
-                range === r.key ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground',
-              )}
-            >
-              {r.label}
-            </button>
-          ))}
-        </div>
+      <div>
+        <h2 className="text-base font-bold text-foreground">Agent Operations Overview</h2>
+        <p className="text-xs text-muted-foreground">
+          Today · {format(new Date(today), 'EEEE d MMM yyyy')} — daily aggregates across all agents.
+        </p>
       </div>
 
 
