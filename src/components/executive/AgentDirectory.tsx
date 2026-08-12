@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import {
   Search, Users, Phone, X, Loader2, UserPlus, Activity,
   ChevronLeft, ChevronRight, LayoutList, Map, ChevronRight as Chevron,
+  MapPin, Mail, BadgeCheck, Home, Network, CalendarClock,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AgentAvatar } from './AgentAvatar';
@@ -21,10 +22,19 @@ interface DirectoryRow {
   avatar_url: string | null;
   verified: boolean;
   territory: string | null;
+  region: string | null;
+  district: string | null;
+  agent_tier: string | null;
   created_at: string | null;
   last_active_at: string | null;
   agent_kind: 'agent' | 'sub_agent';
   total_tenants: number;
+  sub_agents_count: number;
+  houses_listed: number;
+  daily_target: number;
+  collected_today: number;
+  outstanding: number;
+  last_collection_at: string | null;
   status: 'active' | 'inactive' | 'frozen';
 }
 
@@ -50,11 +60,26 @@ const STATUS_FILTERS = [
 const fmt = (n: number) =>
   n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}K` : n.toLocaleString();
 
+const ugx = (n: number) => `UGX ${Math.round(Number(n) || 0).toLocaleString()}`;
+
+const relative = (iso: string | null) => {
+  if (!iso) return 'never';
+  const diff = Date.now() - new Date(iso).getTime();
+  const d = Math.floor(diff / 86_400_000);
+  if (d <= 0) return 'today';
+  if (d === 1) return 'yesterday';
+  if (d < 30) return `${d}d ago`;
+  if (d < 365) return `${Math.floor(d / 30)}mo ago`;
+  return `${Math.floor(d / 365)}y ago`;
+};
+
 const STATUS_STYLE: Record<string, string> = {
   active: 'bg-emerald-500/10 text-emerald-700 border-emerald-300',
   inactive: 'bg-muted text-muted-foreground border-border',
   frozen: 'bg-destructive/10 text-destructive border-destructive/30',
 };
+
+const GRID = 'grid-cols-[minmax(0,2.2fr)_minmax(0,1.1fr)_minmax(0,0.9fr)_minmax(0,1.3fr)_minmax(0,1fr)_92px_20px]';
 
 export function AgentDirectory() {
   const [searchInput, setSearchInput] = useState('');
