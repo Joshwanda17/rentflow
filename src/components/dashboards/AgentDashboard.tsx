@@ -31,9 +31,8 @@ import {
   FileText,
   Users,
   Sparkles,
-  ArrowDownToLine,
-  ArrowUpFromLine,
-  ArrowLeftRight,
+  ArrowDownLeft,
+  ArrowUpRight,
   Building2,
   Briefcase,
   UserCog,
@@ -896,7 +895,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                 className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-white/20 hover:bg-white/10 active:scale-95 transition-all min-h-[44px]"
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
-                <ArrowDownToLine className="h-4 w-4 text-white" />
+                <ArrowDownLeft className="h-4 w-4 text-white" />
                 <span className="text-[11px] font-bold text-white uppercase tracking-wider">Deposit</span>
               </button>
               <button
@@ -911,7 +910,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                 className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border min-h-[44px] ${payoutsUiEnabled ? 'border-white/20 hover:bg-white/10 active:scale-95 transition-all' : 'border-white/10 bg-white/5 opacity-50 cursor-not-allowed'}`}
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
-                <ArrowUpFromLine className="h-4 w-4 text-white" />
+                <ArrowUpRight className="h-4 w-4 text-white" />
                 <span className="text-[11px] font-bold text-white uppercase tracking-wider">Withdraw</span>
               </button>
               <button
@@ -919,7 +918,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                 className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-white/20 hover:bg-white/10 active:scale-95 transition-all min-h-[44px]"
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
-                <ArrowLeftRight className="h-4 w-4 text-white" />
+                <Send className="h-4 w-4 text-white" />
                 <span className="text-[11px] font-bold text-white uppercase tracking-wider">Transfer</span>
               </button>
             </div>
@@ -940,7 +939,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                 className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-border bg-muted/40 hover:bg-muted active:scale-95 transition-all min-h-[44px]"
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
-                <ArrowDownToLine className="h-4 w-4 text-muted-foreground" />
+                <ArrowDownLeft className="h-4 w-4 text-muted-foreground" />
                 <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Deposit</span>
               </button>
               <button
@@ -955,7 +954,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                 className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-border min-h-[44px] ${payoutsUiEnabled ? 'bg-muted/40 hover:bg-muted active:scale-95 transition-all' : 'bg-muted/40 opacity-50 cursor-not-allowed'}`}
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
-                <ArrowUpFromLine className="h-4 w-4 text-muted-foreground" />
+                <ArrowUpRight className="h-4 w-4 text-muted-foreground" />
                 <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Withdraw</span>
               </button>
               <button
@@ -963,7 +962,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                 className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-border bg-muted/40 hover:bg-muted active:scale-95 transition-all min-h-[44px]"
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
-                <ArrowLeftRight className="h-4 w-4 text-muted-foreground" />
+                <Send className="h-4 w-4 text-muted-foreground" />
                 <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Transfer</span>
               </button>
             </div>
