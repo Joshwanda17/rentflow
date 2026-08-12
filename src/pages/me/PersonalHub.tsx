@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { FileText, Briefcase, User, Bell, Settings, FolderOpen } from 'lucide-react';
+import { FileText, Briefcase, User, Bell, FolderOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import PersonalLayout from '@/components/layout/PersonalLayout';
 
@@ -75,12 +75,6 @@ const CARDS = [
     icon: Bell,
     title: 'Notifications',
     description: 'Messages and alerts',
-  },
-  {
-    to: '/settings',
-    icon: Settings,
-    title: 'Settings',
-    description: 'Account preferences',
   },
   {
     icon: FolderOpen,
