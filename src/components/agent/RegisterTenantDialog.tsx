@@ -77,7 +77,11 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
   const [tenantEmail, setTenantEmail] = useState('');
   const [tenantPhone, setTenantPhone] = useState('');
   const [tenantNationalId, setTenantNationalId] = useState('');
-  const [tenantFullName, setTenantFullName] = useState('');
+  // Names are captured in parts (first / other / last) but submitted as the
+  // same single strings the edge function already expects.
+  const [tenantNameParts, setTenantNameParts] = useState<PersonNameParts>({ firstName: '', otherNames: '', lastName: '' });
+  const tenantFullName = joinPersonName(tenantNameParts);
+  const setTenantFullName = (next: string) => setTenantNameParts(splitPersonName(next));
 
   // Live fraud guard: reveal if this tenant phone is already registered.
   const { match: existingTenantByPhone, checking: checkingTenantPhone } =
@@ -89,7 +93,9 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
   };
   
   // Landlord info
-  const [landlordName, setLandlordName] = useState('');
+  const [landlordNameParts, setLandlordNameParts] = useState<PersonNameParts>({ firstName: '', otherNames: '', lastName: '' });
+  const landlordName = joinPersonName(landlordNameParts);
+  const setLandlordName = (next: string) => setLandlordNameParts(splitPersonName(next));
   const [landlordPhone, setLandlordPhone] = useState('');
   const [propertyAddress, setPropertyAddress] = useState('');
   const [monthlyRent, setMonthlyRent] = useState('');
@@ -100,7 +106,9 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
   const [longitude, setLongitude] = useState<number | null>(null);
 
   // LC1 Chairperson
-  const [lc1Name, setLc1Name] = useState('');
+  const [lc1NameParts, setLc1NameParts] = useState<PersonNameParts>({ firstName: '', otherNames: '', lastName: '' });
+  const lc1Name = joinPersonName(lc1NameParts);
+  const setLc1Name = (next: string) => setLc1NameParts(splitPersonName(next));
   const [lc1Phone, setLc1Phone] = useState('');
   const [lc1Village, setLc1Village] = useState('');
   const [guarantorConsent, setGuarantorConsent] = useState(false);
@@ -143,7 +151,13 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
 
   // Jump the agent straight to a field that needs attention.
   const focusField = (field: string) => {
-    const el = document.getElementById(field) as HTMLElement | null;
+    // Split name fields render with their own ids; point the shortcuts at them.
+    const nameFieldIds: Record<string, string> = {
+      tenantFullName: 'tenant-reg-first-name',
+      landlordName: 'tenant-reg-landlord-first-name',
+      lc1Name: 'tenant-reg-lc1-first-name',
+    };
+    const el = document.getElementById(nameFieldIds[field] || field) as HTMLElement | null;
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       el.focus({ preventScroll: true });
@@ -154,7 +168,8 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
   const getStepErrors = (s: number): Record<string, string> => {
     const e: Record<string, string> = {};
     if (s === 1) {
-      if (!tenantFullName.trim()) e.tenantFullName = "Enter the tenant's full name";
+      const tenantNameCheck = validatePersonNameParts(tenantNameParts);
+      if (!tenantNameCheck.valid) e.tenantFullName = tenantNameCheck.error || "Enter the tenant's full name";
       if (!tenantNationalId.trim()) e.tenantNationalId = "Enter the tenant's National ID";
       else if (nationalIdError) e.tenantNationalId = nationalIdError;
       if (!tenantEmail.trim() && !tenantPhone.trim()) {
@@ -165,7 +180,8 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
       }
     }
     if (s === 2) {
-      if (!landlordName.trim()) e.landlordName = "Enter the landlord's name";
+      const landlordNameCheck = validatePersonNameParts(landlordNameParts);
+      if (!landlordNameCheck.valid) e.landlordName = landlordNameCheck.error || "Enter the landlord's name";
       if (!landlordPhone.trim()) {
         e.landlordPhone = "Enter the landlord's phone";
       } else {
@@ -615,23 +631,14 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                   Tenant Details
                 </h4>
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label htmlFor="tenantFullName" className="text-xs">Full Name (as on ID) *</Label>
-                    <Input
-                      id="tenantFullName"
-                      value={tenantFullName}
-                      onChange={(e) => { setTenantFullName(e.target.value); clearFieldError('tenantFullName'); }}
-                      onBlur={() => validateFieldOnBlur('tenantFullName')}
-                      placeholder="Names on National ID"
-                      className={`h-11 text-base ${fieldErrors.tenantFullName ? 'border-destructive focus-visible:ring-destructive' : ''}`}
-                      aria-invalid={!!fieldErrors.tenantFullName}
-                      autoComplete="name"
-                      autoCapitalize="words"
-                      required
+                  <div className="col-span-2 space-y-1">
+                    <Label className="text-xs">Names (as on ID) *</Label>
+                    <PersonNameFields
+                      idPrefix="tenant-reg"
+                      value={tenantNameParts}
+                      onChange={(next) => { setTenantNameParts(next); clearFieldError('tenantFullName'); }}
+                      errors={{ firstName: fieldErrors.tenantFullName || null }}
                     />
-                    {fieldErrors.tenantFullName && (
-                      <p className="text-[11px] text-destructive font-medium">{fieldErrors.tenantFullName}</p>
-                    )}
                   </div>
                   <div className="space-y-1">
                     <Label htmlFor="tenantNationalId" className="text-xs">National ID Number *</Label>
@@ -709,22 +716,14 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                 </h4>
                 
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label htmlFor="landlordName" className="text-xs">Name *</Label>
-                    <Input
-                      id="landlordName"
-                      value={landlordName}
-                      onChange={(e) => { setLandlordName(e.target.value); clearFieldError('landlordName'); }}
-                      onBlur={() => validateFieldOnBlur('landlordName')}
-                      placeholder="Landlord name"
-                      className={`h-11 text-base ${fieldErrors.landlordName ? 'border-destructive focus-visible:ring-destructive' : ''}`}
-                      aria-invalid={!!fieldErrors.landlordName}
-                      autoCapitalize="words"
-                      required
+                  <div className="col-span-2 space-y-1">
+                    <Label className="text-xs">Landlord Name *</Label>
+                    <PersonNameFields
+                      idPrefix="tenant-reg-landlord"
+                      value={landlordNameParts}
+                      onChange={(next) => { setLandlordNameParts(next); clearFieldError('landlordName'); }}
+                      errors={{ firstName: fieldErrors.landlordName || null }}
                     />
-                    {fieldErrors.landlordName && (
-                      <p className="text-[11px] text-destructive font-medium">{fieldErrors.landlordName}</p>
-                    )}
                   </div>
                   <div className="space-y-1">
                     <Label htmlFor="landlordPhone" className="text-xs">Phone *</Label>
@@ -892,14 +891,13 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                 </h4>
                 <div className="p-3 rounded-lg bg-muted/50 border border-border/50 space-y-3">
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <Label htmlFor="lc1Name" className="text-xs">LC1 Name</Label>
-                      <Input
-                        id="lc1Name"
-                        value={lc1Name}
-                        onChange={(e) => setLc1Name(e.target.value)}
-                        placeholder="Chairperson name"
-                        className="h-9"
+                    <div className="col-span-2 space-y-1">
+                      <Label className="text-xs">LC1 Name</Label>
+                      <PersonNameFields
+                        idPrefix="tenant-reg-lc1"
+                        value={lc1NameParts}
+                        onChange={setLc1NameParts}
+                        required={false}
                       />
                     </div>
                     <div className="space-y-1">
