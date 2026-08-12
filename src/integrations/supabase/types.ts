@@ -6512,10 +6512,10 @@ export type Database = {
           config: Json
           created_at: string
           current_queue_count: number | null
-          handles_airtel: boolean | null
+          handles_airtel: boolean
           handles_bank: boolean
           handles_cash: boolean
-          handles_mtn: boolean | null
+          handles_mtn: boolean
           id: string
           is_active: boolean
           is_online: boolean
@@ -6531,10 +6531,10 @@ export type Database = {
           config?: Json
           created_at?: string
           current_queue_count?: number | null
-          handles_airtel?: boolean | null
+          handles_airtel?: boolean
           handles_bank?: boolean
           handles_cash?: boolean
-          handles_mtn?: boolean | null
+          handles_mtn?: boolean
           id?: string
           is_active?: boolean
           is_online?: boolean
@@ -6550,10 +6550,10 @@ export type Database = {
           config?: Json
           created_at?: string
           current_queue_count?: number | null
-          handles_airtel?: boolean | null
+          handles_airtel?: boolean
           handles_bank?: boolean
           handles_cash?: boolean
-          handles_mtn?: boolean | null
+          handles_mtn?: boolean
           id?: string
           is_active?: boolean
           is_online?: boolean
