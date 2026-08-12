@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { checkTreasuryGuard } from "../_shared/treasuryGuard.ts";
+import { sendSMS } from "../_shared/sendSmsMultiProvider.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -107,7 +108,7 @@ Deno.serve(async (req) => {
 
     const { data: targetProfile } = await adminClient
       .from("profiles")
-      .select("full_name")
+      .select("full_name, phone")
       .eq("id", targetUserId)
       .maybeSingle();
     const targetName = targetProfile?.full_name || targetUserId;
