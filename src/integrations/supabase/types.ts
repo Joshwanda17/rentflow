@@ -20451,6 +20451,42 @@ export type Database = {
           },
         ]
       }
+      payout_acceptance_check_runs: {
+        Row: {
+          check_key: string
+          created_at: string
+          detail: string | null
+          expected: number
+          id: string
+          observed: number
+          run_id: string
+          status: string
+          title: string
+        }
+        Insert: {
+          check_key: string
+          created_at?: string
+          detail?: string | null
+          expected?: number
+          id?: string
+          observed?: number
+          run_id: string
+          status: string
+          title: string
+        }
+        Update: {
+          check_key?: string
+          created_at?: string
+          detail?: string | null
+          expected?: number
+          id?: string
+          observed?: number
+          run_id?: string
+          status?: string
+          title?: string
+        }
+        Relationships: []
+      }
       payout_claim_sms_audit_log: {
         Row: {
           approver_email: string | null
@@ -39141,6 +39177,10 @@ export type Database = {
         }
         Returns: string
       }
+      record_payout_acceptance_run: {
+        Args: { p_window_days?: number }
+        Returns: string
+      }
       record_rent_payment: {
         Args: { p_amount: number; p_landlord_id: string }
         Returns: undefined
@@ -39486,6 +39526,17 @@ export type Database = {
         Returns: Json
       }
       run_layer_a_bulk: { Args: { p_dry_run?: boolean }; Returns: Json }
+      run_payout_acceptance_checks: {
+        Args: { p_window_days?: number }
+        Returns: {
+          check_key: string
+          detail: string
+          expected: number
+          observed: number
+          status: string
+          title: string
+        }[]
+      }
       run_phantom_clamp_pass: {
         Args: { p_dry_run?: boolean }
         Returns: {
