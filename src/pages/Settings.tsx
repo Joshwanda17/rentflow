@@ -30,7 +30,7 @@ import { playNotificationSound } from '@/lib/notificationSound';
 import { cn } from '@/lib/utils';
 import { useOtpVerification } from '@/hooks/useOtpVerification';
 import { normalizeE164OrNull } from '@/lib/phoneUtils';
-import { joinPersonName, splitPersonName, type PersonNameParts } from '@/lib/authValidation';
+import { joinPersonName, splitPersonName, validatePersonNameParts, type PersonNameParts } from '@/lib/authValidation';
 import PersonNameFields from '@/components/shared/PersonNameFields';
 import { OtpVerificationStep } from '@/components/auth/OtpVerificationStep';
 
