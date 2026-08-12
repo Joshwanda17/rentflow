@@ -971,6 +971,7 @@ export default function LandlordRegistrationForm({
             </Label>
             <LandlordAutocompleteInput
               field="name"
+              mode="status"
               value={landlordName}
               onChange={(v) => { setLandlordName(v); clearError('landlordName'); clearSubmitError(); setPhoneVerified(false); }}
               onBlur={(e) => validateField('landlordName', e.target.value)}
@@ -993,6 +994,7 @@ export default function LandlordRegistrationForm({
             </Label>
             <LandlordAutocompleteInput
               field="phone"
+              mode="status"
               type="tel"
               inputMode="tel"
               value={landlordPhone}
