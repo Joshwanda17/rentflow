@@ -99,6 +99,7 @@ export default function RentDisbursementReportPanel() {
   const today = new Date(Date.now() + 3 * 3600 * 1000).toISOString().slice(0, 10);
   const [anchor, setAnchor] = useState<string>(today);
   const [granularity, setGranularity] = useState<Granularity>('daily');
+  const [tenantSearch, setTenantSearch] = useState('');
   const range = useMemo(() => periodRange(anchor, granularity), [anchor, granularity]);
   const periodNoun =
     granularity === 'daily' ? 'day' : granularity === 'weekly' ? 'week' : 'month';
