@@ -3046,6 +3046,41 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ── PHASE 6: funding-source truth (float vs merchant's own cash) ───────
+    // Intent is not accounting. This classifier re-reads the ACTUAL ledger
+    // float legs for this payout and records whether it was funded by company
+    // float, the merchant's own external cash, or a combination — then repairs
+    // the out-of-pocket receivable rows to match. If a float leg failed to
+    // post, the amount becomes a visible receivable instead of a fake float
+    // deduction.
+    let merchantFundingVerdict: any = null;
+    if (actingAsMerchant && !poolFunded && amount > 0) {
+      try {
+        const { data: fundRes, error: fundErr } = await admin.rpc(
+          "classify_merchant_payout_funding",
+          { p_withdrawal_id: withdrawal_id, p_via: "settlement_event" },
+        );
+        if (fundErr) {
+          console.error("[approve-withdrawal] funding classification error:", fundErr);
+          await logSettlementGap(
+            "merchant_funding_classification",
+            amount,
+            `funding classification failed: ${String((fundErr as any)?.message ?? fundErr)}`,
+          );
+        } else {
+          merchantFundingVerdict = fundRes ?? null;
+          console.log("[approve-withdrawal] merchant funding source", merchantFundingVerdict);
+        }
+      } catch (e) {
+        console.error("[approve-withdrawal] funding classification exception:", e);
+        await logSettlementGap(
+          "merchant_funding_classification",
+          amount,
+          `funding classification exception: ${String((e as any)?.message ?? e)}`,
+        );
+      }
+    }
+
     let receiptToken: string | null = null;
     try {
       const { data: rtRow } = await admin
@@ -3870,6 +3905,10 @@ Deno.serve(async (req) => {
           merchantPrincipalShortfall + merchantTelecomShortfall,
         ),
         merchant_float_total_debit: merchantFloatConsumed + merchantTelecomCharge,
+        merchant_funding_source:
+          (merchantFundingVerdict as any)?.funding_source ??
+          (actingAsMerchant ? "unknown" : null),
+        merchant_funding: merchantFundingVerdict,
         settled_available: settledAvailable,
         settlement_state: settlementState,
         settlement_missing_legs: settlementMissingLegs,
