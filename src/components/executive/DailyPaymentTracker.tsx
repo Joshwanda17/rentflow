@@ -132,19 +132,33 @@ export function DailyPaymentTracker() {
     shareDailyPerformanceWhatsApp(buildReportData());
   };
 
-  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  // Today in East Africa Time (the operating day used across the platform),
+  // with explicit UTC boundaries so the query is not shifted by the browser tz.
+  const todayStr = format(new Date(Date.now() + 3 * 60 * 60 * 1000), 'yyyy-MM-dd');
+  const dayStartIso = new Date(`${todayStr}T00:00:00+03:00`).toISOString();
+  const dayEndIso = new Date(`${todayStr}T23:59:59.999+03:00`).toISOString();
 
   // Fetch active rent requests (disbursed/repaying)
   const { data: activeRequests, isLoading: reqLoading, refetch } = useQuery({
     queryKey: ['daily-tracker-active'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('rent_requests')
-        .select('id, tenant_id, agent_id, landlord_id, daily_repayment, rent_amount, amount_repaid, total_repayment, disbursed_at, status, tenant_no_smartphone')
-        .in('status', ['disbursed', 'repaying', 'funded'])
-        .not('disbursed_at', 'is', null);
-      if (error) throw error;
-      return data || [];
+      // `disbursed_at` is missing on most repaying plans, so it must not be used
+      // as a filter — doing so hid the majority of active plans from this tool.
+      // Paginated to survive the 1000-row Data API cap.
+      const all: any[] = [];
+      const page = 1000;
+      for (let from = 0; ; from += page) {
+        const { data, error } = await supabase
+          .from('rent_requests')
+          .select('id, tenant_id, agent_id, landlord_id, daily_repayment, rent_amount, amount_repaid, total_repayment, disbursed_at, funded_at, created_at, status, tenant_no_smartphone')
+          .in('status', ['disbursed', 'repaying', 'funded'])
+          .order('created_at', { ascending: false })
+          .range(from, from + page - 1);
+        if (error) throw error;
+        all.push(...(data || []));
+        if (!data || data.length < page) break;
+      }
+      return all;
     },
     staleTime: 120000,
   });
