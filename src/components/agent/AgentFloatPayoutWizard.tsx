@@ -199,10 +199,13 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
       : Number(selectedRequest?.rent_amount ?? 0);
   const rentDue = Number(selectedRequest?.rent_amount ?? 0);
   const allocationRemaining = selectedRequest?.__allocationId ? rentDue : 0;
-  // If the dedicated balance query is delayed/stale, an open allocation is still
-  // proof that this tenant has ring-fenced Landlord Payout Float. The backend
-  // re-checks the pool before disbursement, so this only prevents a false UI cap.
-  const availablePayoutFloat = Math.max(floatBalance, allocationRemaining);
+  // Spendable = backend-authoritative available float. An open allocation can
+  // only lift the cap while the balance query is still loading; once we know
+  // the real available figure we never inflate past it, because the backend
+  // will reject anything above it anyway.
+  const availablePayoutFloat = landlordPayoutFloatLoading
+    ? Math.max(floatBalance, allocationRemaining)
+    : floatBalance;
   const withinRent = effectiveAmount > 0 && effectiveAmount <= rentDue;
   const withinFloat = effectiveAmount > 0 && effectiveAmount <= availablePayoutFloat;
   const amountValid = withinRent && withinFloat;
