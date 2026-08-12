@@ -11,6 +11,13 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useIdempotentSubmit } from '@/hooks/useIdempotentSubmit';
 import UgLocationPicker from '@/components/location/UgLocationPicker';
+import PersonNameFields from '@/components/shared/PersonNameFields';
+import {
+  joinPersonName,
+  splitPersonName,
+  validatePersonNameParts,
+  type PersonNameParts,
+} from '@/lib/authValidation';
 import { resolveUgVillage, resolveUgVillageByNames, type UgLocationSelection } from '@/hooks/useUgLocations';
 
 interface EditTenantDialogProps {
@@ -76,7 +83,10 @@ type PermissionBlock = {
 };
 
 export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTenantDialogProps) {
-  const [fullName, setFullName] = useState(tenant.full_name);
+  // Captured in parts, stored as the same single `full_name` string.
+  const [nameParts, setNameParts] = useState<PersonNameParts>(splitPersonName(tenant.full_name));
+  const fullName = joinPersonName(nameParts);
+  const setFullName = (next: string) => setNameParts(splitPersonName(next));
   const [phone, setPhone] = useState(tenant.phone);
   const [email, setEmail] = useState(tenant.email || '');
   const [nationalId, setNationalId] = useState(tenant.national_id || '');
@@ -131,7 +141,7 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
 
   useEffect(() => {
     if (open) {
-      setFullName(tenant.full_name);
+      setNameParts(splitPersonName(tenant.full_name));
       setPhone(tenant.phone);
       setEmail(tenant.email || '');
       setNationalId(tenant.national_id || '');
@@ -326,6 +336,11 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
   };
 
   const handleSave = async () => {
+    const nameCheck = validatePersonNameParts(nameParts);
+    if (!nameCheck.valid) {
+      setErrors((prev) => ({ ...prev, full_name: nameCheck.error || 'Full name is required' }));
+      return;
+    }
     const parsed = editSchema.safeParse({
       full_name: fullName,
       phone,
@@ -812,13 +827,10 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
                 <Label className="flex items-center gap-2 text-sm font-semibold">
                   <User className="h-5 w-5 text-primary" /> Name
                 </Label>
-                <Input
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  onBlur={() => validateField('full_name')}
-                  placeholder="Jane Doe"
-                  maxLength={100}
-                  className="h-12 text-base"
+                <PersonNameFields
+                  idPrefix="edit-tenant"
+                  value={nameParts}
+                  onChange={setNameParts}
                 />
                 {errors.full_name && (
                   <p className="text-xs text-destructive mt-1 flex items-center gap-1">
