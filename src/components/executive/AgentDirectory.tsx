@@ -128,7 +128,7 @@ export function AgentDirectory() {
   ]), [kpis]);
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-4 space-y-4">
+    <div className="space-y-4">
       {openAgentId ? (
         <>
           <div className="flex items-center gap-2">
@@ -142,23 +142,28 @@ export function AgentDirectory() {
       ) : (
       <>
       <div className="flex items-center justify-between gap-3">
-        <h3 className="text-sm font-semibold flex items-center gap-2">
-          <Users className="h-4 w-4" />
-          Agent Directory
-          {kpis && <Badge variant="secondary" className="text-xs">{fmt(kpis.total_all)}</Badge>}
-        </h3>
+        <div className="min-w-0">
+          <h3 className="text-base font-semibold flex items-center gap-2 tracking-tight">
+            <Users className="h-4 w-4 text-primary" />
+            Agent Directory
+            {kpis && <Badge variant="secondary" className="text-xs">{fmt(kpis.total_all)}</Badge>}
+          </h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Field force register — portfolio size, daily collection target and today&apos;s performance.
+          </p>
+        </div>
         {isFetching && !isLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-border border-y border-border">
         {kpiCards.map(k => (
-          <div key={k.label} className="rounded-xl border border-border bg-background p-3">
+          <div key={k.label} className="px-4 py-3">
             <div className="flex items-center gap-1.5">
               <k.icon className={cn('h-3.5 w-3.5', k.color)} />
-              <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium truncate">{k.label}</p>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold truncate">{k.label}</p>
             </div>
-            <p className="font-bold text-lg mt-1 tabular-nums">{k.value}</p>
+            <p className="font-semibold text-2xl mt-1 tabular-nums tracking-tight">{k.value}</p>
           </div>
         ))}
       </div>
