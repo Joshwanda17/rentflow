@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { History, Search, CheckCircle2, XCircle, User, Clock, Loader2 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
+import { TenantOpsReportToolbar } from './TenantOpsReportToolbar';
 
 const PIPELINE_STATUSES = [
   'tenant_ops_approved',
@@ -128,6 +129,15 @@ export function ApprovalHistoryLog() {
         </div>
       </CardHeader>
       <CardContent className="p-0">
+        <div className="px-4 pb-3">
+          <TenantOpsReportToolbar
+            tool="approval_history"
+            status={statusFilter}
+            search={search}
+            visibleCount={filtered.length}
+            fileSlug="tenant-approval-history"
+          />
+        </div>
         {isLoading ? (
           <div className="flex justify-center py-8">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />

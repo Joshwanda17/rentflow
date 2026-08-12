@@ -37578,6 +37578,21 @@ export type Database = {
           trust_tier: string
         }[]
       }
+      ops_tenant_ops_tool_counts: { Args: never; Returns: Json }
+      ops_tenant_ops_tool_report: {
+        Args: {
+          p_date_from?: string
+          p_date_to?: string
+          p_limit?: number
+          p_search?: string
+          p_status?: string
+          p_tool: string
+        }
+        Returns: {
+          row_data: Json
+          total_count: number
+        }[]
+      }
       ops_transfer_pipeline_request_agent: {
         Args: { p_reason: string; p_request_id: string; p_to_agent_id: string }
         Returns: Json

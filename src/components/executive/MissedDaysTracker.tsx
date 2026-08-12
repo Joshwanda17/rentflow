@@ -13,6 +13,14 @@ import {
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { differenceInDays, parseISO } from 'date-fns';
+import { TenantOpsReportToolbar } from './TenantOpsReportToolbar';
+
+/** Fetches in batches so large tenant sets are never silently truncated. */
+const chunk = <T,>(list: T[], size = 300): T[][] => {
+  const out: T[][] = [];
+  for (let i = 0; i < list.length; i += size) out.push(list.slice(i, i + size));
+  return out;
+};
 
 type SortBy = 'missed_days' | 'balance' | 'name';
 
@@ -72,11 +80,12 @@ export function MissedDaysTracker() {
     queryKey: ['missed-days-profiles', allUserIds],
     queryFn: async () => {
       if (!allUserIds.length) return [];
-      const { data } = await supabase
-        .from('profiles')
-        .select('id, full_name, phone')
-        .in('id', allUserIds.slice(0, 200));
-      return data || [];
+      const batches = await Promise.all(
+        chunk(allUserIds).map(ids =>
+          supabase.from('profiles').select('id, full_name, phone').in('id', ids),
+        ),
+      );
+      return batches.flatMap(b => b.data || []);
     },
     enabled: allUserIds.length > 0,
     staleTime: 300000,
@@ -87,11 +96,12 @@ export function MissedDaysTracker() {
     queryKey: ['missed-days-wallets', allUserIds],
     queryFn: async () => {
       if (!allUserIds.length) return [];
-      const { data } = await supabase
-        .from('wallets')
-        .select('user_id, balance')
-        .in('user_id', allUserIds.slice(0, 200));
-      return data || [];
+      const batches = await Promise.all(
+        chunk(allUserIds).map(ids =>
+          supabase.from('wallets').select('user_id, balance').in('user_id', ids),
+        ),
+      );
+      return batches.flatMap(b => b.data || []);
     },
     enabled: allUserIds.length > 0,
     staleTime: 120000,
@@ -102,11 +112,12 @@ export function MissedDaysTracker() {
     queryKey: ['missed-days-all-collections', tenantIds],
     queryFn: async () => {
       if (!tenantIds.length) return new Map<string, number>();
-      const { data, error } = await supabase
-        .from('agent_collections')
-        .select('tenant_id, amount')
-        .in('tenant_id', tenantIds.slice(0, 100));
-      if (error) throw error;
+      const batches = await Promise.all(
+        chunk(tenantIds).map(ids =>
+          supabase.from('agent_collections').select('tenant_id, amount').in('tenant_id', ids),
+        ),
+      );
+      const data = batches.flatMap(b => b.data || []);
       const map = new Map<string, number>();
       (data || []).forEach(c => {
         map.set(c.tenant_id, (map.get(c.tenant_id) || 0) + Number(c.amount));
@@ -238,6 +249,14 @@ export function MissedDaysTracker() {
           <KPICard title="Missed Days" value={totalMissedDays} icon={CalendarX2} loading={isLoading} color="bg-destructive/10 text-destructive" />
         </div>
       </div>
+
+      <TenantOpsReportToolbar
+        tool="missed_days"
+        status={riskFilter}
+        search={search}
+        visibleCount={filtered.length}
+        fileSlug="tenants-behind-on-payments"
+      />
 
       {/* Sticky search + filters */}
       <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm pb-2 -mx-1 px-1 space-y-2">

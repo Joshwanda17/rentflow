@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
+import { TenantOpsReportToolbar } from './TenantOpsReportToolbar';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import { supabase } from '@/integrations/supabase/client';
@@ -404,6 +405,14 @@ export function DailyPaymentTracker() {
           color={collectionRate >= 70 ? 'bg-emerald-500/10 text-emerald-600' : collectionRate >= 40 ? 'bg-amber-500/10 text-amber-600' : 'bg-destructive/10 text-destructive'}
         />
       </div>
+
+      <TenantOpsReportToolbar
+        tool="daily_payments"
+        status="all"
+        search={search}
+        visibleCount={paidCount}
+        fileSlug="tenant-daily-payments"
+      />
 
       {/* Share Actions */}
       <div className="flex gap-2">
