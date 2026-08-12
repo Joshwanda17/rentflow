@@ -482,7 +482,6 @@ function buildPdf(r: Report, win: { title: string; pretty: string }, logo: Uint8
     { label: "Top-ups applied", value: compactUGX(t.applied_amount), accent: AMBER },
     { label: "Compounded in", value: compactUGX(k.compounded_amount), accent: TEAL },
     { label: "Returns paid out", value: compactUGX(k.paid_out_amount), accent: ROSE },
-    { label: "Partner cash-out", value: compactUGX(k.withdrawals_completed_amount), accent: SLATE },
   ]);
   const inflow = (Number(k.new_capital) || 0) + (Number(t.applied_amount) || 0) + (Number(k.compounded_amount) || 0);
   const outflow = Number(k.paid_out_amount) || 0;
@@ -495,7 +494,7 @@ function buildPdf(r: Report, win: { title: string; pretty: string }, logo: Uint8
   doc.setFontSize(6.8);
   doc.setTextColor(...MUTED);
   doc.text(
-    `Partner cash-out in the window: ${compactUGX(k.withdrawals_completed_amount)} (${num(k.withdrawals_completed_count)} withdrawals). This is returns already counted above being moved out of the wallet - it is not a second reduction of capital, so it is excluded from Capital out.`,
+    `Capital in excludes nothing except partner wallet withdrawals, which only move returns already counted above - they are not a second reduction of capital.`,
     margin, y, { maxWidth: pageWidth - margin * 2 },
   );
   y += 8;
@@ -633,7 +632,6 @@ function buildPdf(r: Report, win: { title: string; pretty: string }, logo: Uint8
       ["Top-ups applied", fmtUGX(t.applied_amount), fmtUGX(perDay(t.applied_amount))],
       ["Renewals", num(k.renewals_count), num(perDay(k.renewals_count))],
       ["Promissory notes created", num(k.promissory_created_count), num(perDay(k.promissory_created_count))],
-      ["Partner withdrawals completed", fmtUGX(k.withdrawals_completed_amount), fmtUGX(perDay(k.withdrawals_completed_amount))],
     ],
   );
 
@@ -655,107 +653,169 @@ function buildPdf(r: Report, win: { title: string; pretty: string }, logo: Uint8
 }
 
 // ── Email HTML (metrics only) ──
+// ── HTML email — same layout language as the printed Partner Ops brief ──
 function buildHtml(r: Report, win: { title: string; pretty: string }): string {
   const k = r.kpis || ({} as Record<string, number>);
   const t = r.topups || {};
   const b = r.backlog || ({} as Record<string, number>);
   const f = r.forecast;
   const days = Math.max(1, Number(r.days) || 1);
-  const inflow = (Number(k.new_capital) || 0) + (Number(t.applied_amount) || 0) + (Number(k.compounded_amount) || 0);
+  const inflow = (Number(k.new_capital) || 0) + (Number(t.applied_amount) || 0);
   const outflow = Number(k.paid_out_amount) || 0;
-  const tile = (label: string, value: string, sub: string, color: string) =>
-    `<table class="tile" role="presentation" cellpadding="0" cellspacing="0" border="0" width="25%" align="left" style="width:25%;max-width:25%;border-collapse:collapse;">
-       <tr><td style="padding:0 4px 8px 4px;vertical-align:top">
-         <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#faf8ff;border:1px solid #ece5fb;border-radius:10px;">
-           <tr><td style="padding:12px">
-             <div style="font-size:10px;color:#787484;text-transform:uppercase;font-weight:700;letter-spacing:.4px">${esc(label)}</div>
-             <div class="tile-val" style="font-size:18px;font-weight:800;color:${color};margin-top:3px;line-height:1.2">${esc(value)}</div>
-             <div style="font-size:11px;color:#787484;margin-top:2px;line-height:1.4">${esc(sub)}</div>
-           </td></tr>
-         </table>
-       </td></tr>
-     </table>`;
-  const row = (label: string, count: string, amount: string) =>
-    `<tr>
-      <td style="padding:9px 8px;border-bottom:1px solid #eee;font-size:13px;color:#333;">${esc(label)}</td>
-      <td style="padding:9px 8px;border-bottom:1px solid #eee;font-size:13px;color:#111;text-align:right;font-weight:600;white-space:nowrap;">${esc(count)}</td>
-      <td style="padding:9px 8px;border-bottom:1px solid #eee;font-size:13px;color:#111;text-align:right;font-weight:600;white-space:nowrap;">${esc(amount)}</td>
-    </tr>`;
-  const maxSeries = Math.max(1, ...r.series.map((s: any) => (Number(s.new_capital) || 0) + (Number(s.topups_applied) || 0) + (Number(s.paid_out) || 0) + (Number(s.compounded) || 0)));
+
+  const tile = (label: string, value: string, sub: string, kind: "hero" | "good" | "bad" = "hero") => {
+    const bg = kind === "good" ? "#f1fbf6" : kind === "bad" ? "#fff5f8" : "#faf8ff";
+    const bc = kind === "good" ? "#c9ecdb" : kind === "bad" ? "#f6cfe0" : "#ece5fb";
+    return `<td class="tile" width="33%" style="width:33.33%;padding:0 4px 8px 4px;vertical-align:top">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:${bg};border:1px solid ${bc};border-radius:12px;">
+        <tr><td style="padding:12px 14px">
+          <div style="font-size:10px;color:#787484;text-transform:uppercase;font-weight:700;letter-spacing:.4px">${esc(label)}</div>
+          <div class="tile-val" style="font-size:19px;font-weight:800;color:#1e1b2e;margin-top:4px;line-height:1.2">${esc(value)}</div>
+          <div style="font-size:11px;color:#787484;margin-top:3px;line-height:1.4">${esc(sub)}</div>
+        </td></tr>
+      </table>
+    </td>`;
+  };
+  const tiles = (cells: string[]) => {
+    const rows: string[] = [];
+    for (let i = 0; i < cells.length; i += 3) {
+      const grp = cells.slice(i, i + 3);
+      while (grp.length < 3) grp.push('<td width="33%" style="width:33.33%"></td>');
+      rows.push(`<tr>${grp.join("")}</tr>`);
+    }
+    return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;table-layout:fixed;margin-top:10px">${rows.join("")}</table>`;
+  };
+  let sectionNo = 0;
+  const section = (title: string, note: string, inner: string) => {
+    sectionNo += 1;
+    return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#fff;border:1px solid #e6e1f0;border-radius:14px;margin-top:16px;border-collapse:separate">
+      <tr><td class="pad" style="padding:18px 20px">
+        <div style="font-size:13px;font-weight:800;color:${PURPLE};text-transform:uppercase;letter-spacing:.4px">
+          <span style="color:#9a94ab">${sectionNo}</span>&nbsp;&nbsp;${esc(title)}
+        </div>
+        ${note ? `<div style="font-size:12px;color:#787484;margin-top:6px;line-height:1.5">${esc(note)}</div>` : ""}
+        ${inner}
+      </td></tr>
+    </table>`;
+  };
+  const dataTable = (head: string[], rows: string[][], foot?: string[]) => {
+    const th = head.map((h, i) => `<th style="text-align:${i === 0 ? "left" : "right"};padding:7px 8px;font-size:10.5px;color:#787484;text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid #e6e1f0">${esc(h)}</th>`).join("");
+    const tb = rows.map(cells => `<tr>${cells.map((c, i) => `<td style="padding:7px 8px;font-size:12.5px;color:#1e1b2e;text-align:${i === 0 ? "left" : "right"};border-bottom:1px solid #f2eff9;white-space:${i === 0 ? "normal" : "nowrap"}">${esc(c)}</td>`).join("")}</tr>`).join("");
+    const tf = foot ? `<tr>${foot.map((c, i) => `<td style="padding:8px;font-size:12.5px;font-weight:800;color:#1e1b2e;text-align:${i === 0 ? "left" : "right"};border-top:1px solid #e6e1f0;white-space:nowrap">${esc(c)}</td>`).join("")}</tr>` : "";
+    return `<table class="data" role="presentation" width="100%" style="width:100%;border-collapse:collapse;margin-top:12px"><thead><tr>${th}</tr></thead><tbody>${tb}</tbody>${tf ? `<tfoot>${tf}</tfoot>` : ""}</table>`;
+  };
+  const note = (txt: string) => `<div style="font-size:11.5px;color:#787484;margin-top:10px;line-height:1.55">${esc(txt)}</div>`;
+
+  // Daily chart — capital in vs returns settled
+  const maxSeries = Math.max(
+    1,
+    ...r.series.map((s: any) => Math.max(
+      (Number(s.new_capital) || 0) + (Number(s.topups_applied) || 0),
+      (Number(s.paid_out) || 0) + (Number(s.compounded) || 0),
+    )),
+  );
   const bars = r.series.map((s: any) => {
     const cin = (Number(s.new_capital) || 0) + (Number(s.topups_applied) || 0);
     const cout = (Number(s.paid_out) || 0) + (Number(s.compounded) || 0);
-    const h = (v: number) => Math.max(v > 0 ? 3 : 0, Math.round((v / maxSeries) * 90));
-    return `<td style="vertical-align:bottom;text-align:center;padding:0 2px;">
-      <div style="height:96px;position:relative;">
-        <div style="display:inline-block;width:8px;height:${h(cin)}px;background:#109664;vertical-align:bottom;border-radius:2px 2px 0 0"></div>
-        <div style="display:inline-block;width:8px;height:${h(cout)}px;background:#db2777;vertical-align:bottom;border-radius:2px 2px 0 0"></div>
+    const h = (v: number) => Math.max(v > 0 ? 3 : 0, Math.round((v / maxSeries) * 92));
+    return `<td style="vertical-align:bottom;text-align:center;padding:0 2px">
+      <div style="height:100px;font-size:0;line-height:0">
+        <div style="display:inline-block;width:9px;height:${h(cin)}px;background:#0f9664;vertical-align:bottom;border-radius:3px 3px 0 0"></div>
+        <div style="display:inline-block;width:9px;height:${h(cout)}px;background:#db2777;vertical-align:bottom;border-radius:3px 3px 0 0"></div>
       </div>
-      <div style="font-size:9px;color:${s.is_weekend ? "#ca8a04" : "#787484"};margin-top:4px;">${esc(String(s.label).slice(4, 6))}</div>
+      <div style="font-size:9.5px;color:#787484;margin-top:5px">${esc(compactUGX(Math.max(cin, cout)))}</div>
+      <div style="font-size:9.5px;color:${s.is_weekend ? "#b45309" : "#787484"};margin-top:2px">${esc(ascii(s.label))}</div>
     </td>`;
   }).join("");
+
+  const modeRows = (r.mix?.by_mode || []).map((m: any) => [ascii(m.label ?? m.mode), num(m.portfolios ?? m.count), fmtUGX(m.amount ?? m.volume)]);
+  const bandRows = (r.mix?.by_band || []).map((m: any) => [ascii(m.label ?? m.band), num(m.portfolios ?? m.count), fmtUGX(m.amount ?? m.volume)]);
+  const forecastRows = (f.days || []).map((d: any) => [
+    ascii(d.label ?? d.date),
+    num(d.portfolios ?? d.count),
+    fmtUGX(Number(d.total_amount ?? d.cash_due ?? d.amount ?? 0)),
+  ]);
+
+  const watch: string[] = [];
+  if (Number(t.backlog_amount) > 0) watch.push(`Parked top-ups awaiting merge: ${num(t.backlog_count)} - ${fmtUGX(t.backlog_amount)}`);
+  if (Number(b.pending_portfolios_count) > 0) watch.push(`Portfolios awaiting ops approval: ${num(b.pending_portfolios_count)} - ${fmtUGX(b.pending_portfolios_amount)}`);
+  if (Number(k.renewals_count) > 0) watch.push(`Renewals in the window: ${num(k.renewals_count)} - ${fmtUGX(k.renewals_topup_amount)}`);
+  if (Number(f.weekdays_total) + Number(f.weekend_total) > outflow) watch.push(`Next 7 days of returns (${fmtUGX(Number(f.weekdays_total) + Number(f.weekend_total))}) exceed the returns paid this window (${fmtUGX(outflow)}) - cover must come from new capital`);
+  if (!watch.length) watch.push("No open exceptions - backlog, approvals and forecast cover are all clean.");
+
   return `<!DOCTYPE html><html><head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>${esc(`Partner Operations - ${win.title} - ${win.pretty}`)}</title>
   <style type="text/css">
     @media only screen and (max-width:600px) {
-      .wrap { padding: 12px !important; }
-      .pad { padding: 16px 14px !important; }
-      .tile { width: 50% !important; max-width: 50% !important; }
-      .tile-val { font-size: 16px !important; }
-      table.data td { padding: 8px 6px !important; font-size: 12px !important; }
+      .wrap { padding: 10px !important; }
+      .pad { padding: 14px 12px !important; }
+      .tile { display:block !important; width:100% !important; max-width:100% !important; }
+      .tile-val { font-size: 17px !important; }
+      table.data td, table.data th { padding: 6px 5px !important; font-size: 11.5px !important; }
     }
-    @media only screen and (max-width:400px) { .tile { width: 100% !important; max-width: 100% !important; } }
   </style>
-</head><body style="margin:0;padding:0;background:#f6f6f8;font-family:Arial,Helvetica,sans-serif;">
-  <div class="wrap" style="padding:24px;">
-  <div style="max-width:680px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e6e6ec;">
-    <div class="pad" style="background:${PURPLE};padding:20px 24px;">
-      <img src="${LOGO_URL}" alt="Welile" width="110" style="display:block;max-width:110px;height:auto;margin-bottom:10px" />
-      <div style="color:#fff;font-size:18px;font-weight:700;">Partner Operations - ${esc(win.title)}</div>
-      <div style="color:#e8dcfa;font-size:13px;margin-top:4px;">${esc(win.pretty)} · ${esc(COMPANY_LOCATION)}</div>
-    </div>
-    <div class="pad" style="padding:20px 24px;">
-      <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;"><tr><td style="padding:0">
-        ${tile("Capital live", compactUGX(k.total_capital), `${num(k.active_portfolios)} active portfolios`, "#6c21c4")}
-        ${tile("New capital", compactUGX(k.new_capital), `${num(k.new_portfolios)} new in period`, "#109664")}
-        ${tile("Returns paid", compactUGX(k.paid_out_amount), `${num(k.paid_out_count)} payouts`, "#db2777")}
-        ${tile("Top-ups applied", compactUGX(t.applied_amount), `${num(t.applied_count)} in period`, "#ca8a04")}
-      </td></tr></table>
-      <div style="margin-top:20px;font-size:12px;font-weight:700;color:#444;text-transform:uppercase;letter-spacing:.4px">Daily trend</div>
-      <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;margin-top:8px;"><tr>${bars}</tr></table>
-      <div style="font-size:11px;color:#787484;margin-top:6px;">
-        <span style="color:#109664;font-weight:700;">■</span> capital in &nbsp;
-        <span style="color:#db2777;font-weight:700;">■</span> returns settled &nbsp; · peak ${esc(compactUGX(maxSeries))}
-      </div>
-      <table class="data" role="presentation" style="width:100%;border-collapse:collapse;margin-top:18px;">
-        <thead><tr>
-          <th style="text-align:left;padding:8px;font-size:11px;color:#666;text-transform:uppercase;">Metric (${esc(String(days))} day window)</th>
-          <th style="text-align:right;padding:8px;font-size:11px;color:#666;text-transform:uppercase;">Count</th>
-          <th style="text-align:right;padding:8px;font-size:11px;color:#666;text-transform:uppercase;">Value</th>
-        </tr></thead>
-        <tbody>
-          ${row("Capital in (new + top-ups + compounded)", "-", fmtUGX(inflow))}
-          ${row("Capital out (returns paid to wallets)", "-", fmtUGX(outflow))}
-          ${row("Net capital movement", "-", fmtUGX(inflow - outflow))}
-          ${row("Returns compounded", num(k.compounded_count), fmtUGX(k.compounded_amount))}
-          ${row("Top-ups requested", num(t.requested_count), fmtUGX(t.requested_amount))}
-          ${row("Top-ups applied", num(t.applied_count), fmtUGX(t.applied_amount))}
-          ${row("Top-ups still waiting to be applied (now)", num(t.backlog_count), fmtUGX(t.backlog_amount))}
-          ${row("Renewals", num(k.renewals_count), fmtUGX(k.renewals_topup_amount))}
-          ${row("Partner cash-out of paid returns", num(k.withdrawals_completed_count), fmtUGX(k.withdrawals_completed_amount))}
-          ${row("Forecast - working days (Mon-Fri)", num(f.weekdays_count), fmtUGX(f.weekdays_total))}
-          ${row("Forecast - weekend (Sat-Sun)", num(f.weekend_count), fmtUGX(f.weekend_total))}
-          ${row("Portfolios awaiting ops approval", num(b.pending_portfolios_count), fmtUGX(b.pending_portfolios_amount))}
-        </tbody>
-      </table>
-      <p style="font-size:13px;color:#555;line-height:1.6;margin-top:18px;">
-        📎 <strong>Attached PDF</strong> — aggregate metrics and charts only: capital movement, daily trend,
-        top-up flow, portfolio mix, 7-day payout forecast and the operational backlog. No partner-level records.
-      </p>
-    </div>
-    <div style="padding:14px 24px;background:#faf8fe;color:#777;font-size:11px;">
-      ${esc(COMPANY_LOCATION)} · automated Partner Ops brief
+</head><body style="margin:0;padding:0;background:#f6f4fb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1e1b2e">
+  <div class="wrap" style="padding:20px">
+  <div style="max-width:700px;margin:0 auto">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;background:${PURPLE};border-radius:14px">
+      <tr><td class="pad" style="padding:22px 24px">
+        <img src="${LOGO_URL}" alt="Welile" width="104" style="display:block;max-width:104px;height:auto;margin-bottom:10px" />
+        <div style="color:#fff;font-size:19px;font-weight:800;letter-spacing:-.3px">Partner Operations - ${esc(win.title)}</div>
+        <div style="color:#e8dcfa;font-size:12.5px;margin-top:6px;line-height:1.5">
+          ${esc(win.pretty)} (EAT) · aggregate only, no partner names · source: Partner Ops book (portfolios, parked top-ups, compounding, returns ledger)
+        </div>
+      </td></tr>
+    </table>
+
+    ${section("Headline - the window", `Window is ${days} day${days === 1 ? "" : "s"} of EAT calendar activity. Capital in excludes compounded returns - compounding is a non-cash movement already inside portfolio principal.`, tiles([
+      tile("Capital live (close)", compactUGX(k.total_capital), `${num(k.active_portfolios)} active portfolios`),
+      tile("Capital in (cash)", fmtUGX(inflow), `${num(k.new_portfolios)} new · ${num(t.applied_count)} top-ups applied`, "good"),
+      tile("Returns paid", fmtUGX(k.paid_out_amount), `${num(k.paid_out_count)} credits`, "good"),
+      tile("Compounded", fmtUGX(k.compounded_amount), `${num(k.compounded_count)} portfolios (non-cash)`),
+      tile("Net capital movement", fmtUGX(inflow - outflow), inflow - outflow >= 0 ? "net inflow" : "net outflow", inflow - outflow >= 0 ? "good" : "bad"),
+      tile("Parked top-ups", fmtUGX(t.backlog_amount), `${num(t.backlog_count)} awaiting merge`, "bad"),
+    ]))}
+
+    ${section("Capital in - new money and top-ups", "New portfolio capital plus top-ups merged into existing portfolios. Parked top-ups are real money held but not yet inside capital live.", tiles([
+      tile("New portfolio capital", fmtUGX(k.new_capital), `${num(k.new_portfolios)} portfolios`, "good"),
+      tile("Top-ups applied", fmtUGX(t.applied_amount), `${num(t.applied_count)} top-ups`, "good"),
+      tile("Top-ups requested", fmtUGX(t.requested_amount), `${num(t.requested_count)} requests`),
+    ]) + `<div style="font-size:12px;font-weight:700;color:#1e1b2e;margin-top:16px">Daily capital in vs returns settled</div>
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;margin-top:8px"><tr>${bars}</tr></table>
+      <div style="font-size:11px;color:#787484;margin-top:8px">
+        <span style="color:#0f9664;font-weight:800">&#9632;</span> capital in &nbsp;
+        <span style="color:#db2777;font-weight:800">&#9632;</span> returns settled &nbsp;· peak ${esc(compactUGX(maxSeries))}
+      </div>` + dataTable(["Movement", "Count", "Volume"], [
+        ["New portfolio capital", num(k.new_portfolios), fmtUGX(k.new_capital)],
+        ["Top-ups applied", num(t.applied_count), fmtUGX(t.applied_amount)],
+        ["Renewals", num(k.renewals_count), fmtUGX(k.renewals_topup_amount)],
+        ["Parked top-ups (now)", num(t.backlog_count), fmtUGX(t.backlog_amount)],
+      ], ["Capital in (cash)", "", fmtUGX(inflow)]))}
+
+    ${section("Returns - paid and compounded", "Returns settled in the window split between cash credited to partner wallets and returns reinvested into principal.", tiles([
+      tile("Paid in cash to wallets", fmtUGX(k.paid_out_amount), `${num(k.paid_out_count)} credits`, "good"),
+      tile("Compounded (non-cash)", fmtUGX(k.compounded_amount), `${num(k.compounded_count)} portfolios`),
+      tile("Returns settled", fmtUGX(Number(k.paid_out_amount) + Number(k.compounded_amount)), "cash plus compounded"),
+    ]) + note("Compounded returns add to capital live but never to capital in or capital out - they never leave the business."))}
+
+    ${section("Returns forecast - next 7 days", "Active portfolios whose next payout date falls in the coming week, valued at principal times monthly rate.", tiles([
+      tile("Working days (Mon-Fri)", fmtUGX(f.weekdays_total), `${num(f.weekdays_count)} portfolios due`),
+      tile("Weekend (Sat-Sun)", fmtUGX(f.weekend_total), `${num(f.weekend_count)} portfolios due`),
+      tile("Total due", fmtUGX(Number(f.weekdays_total) + Number(f.weekend_total)), `${num(Number(f.weekdays_count) + Number(f.weekend_count))} portfolios`, "bad"),
+    ]) + (forecastRows.length ? dataTable(["Day", "Portfolios due", "Cash due"], forecastRows) : ""))}
+
+    ${(modeRows.length || bandRows.length) ? section("Portfolio mix", "Book composition by payout mode and ticket size at window close.",
+      (modeRows.length ? dataTable(["Payout mode", "Portfolios", "Volume"], modeRows) : "") +
+      (bandRows.length ? dataTable(["Ticket band", "Portfolios", "Volume"], bandRows) : "")) : ""}
+
+    ${section("Watchlist", "Only items needing action are listed. Clean areas are omitted rather than printed as zeros.",
+      watch.map(w => `<div style="border-left:3px solid #b45309;background:#fffdf5;border-radius:0 8px 8px 0;padding:9px 12px;margin-top:8px;font-size:12.5px;color:#1e1b2e">${esc(w)}</div>`).join(""))}
+
+    <div style="padding:16px 6px;color:#787484;font-size:11px;text-align:center;line-height:1.6">
+      ${esc(COMPANY_LOCATION)} · window ${esc(win.pretty)} (EAT), aggregated from the Partner Ops book at generation time.
+      Figures in UGX. Ledger reads exclude admin corrections and system balance corrections. The attached PDF carries the same metrics with print charts.
     </div>
   </div></div></body></html>`;
 }
