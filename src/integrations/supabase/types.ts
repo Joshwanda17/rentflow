@@ -18423,6 +18423,99 @@ export type Database = {
         }
         Relationships: []
       }
+      merchant_payout_funding: {
+        Row: {
+          agent_id: string
+          classified_at: string
+          classified_via: string | null
+          created_at: string
+          float_consumed_principal: number
+          float_consumed_telecom: number
+          funding_source: string
+          id: string
+          notes: string | null
+          own_cash_principal: number
+          own_cash_telecom: number
+          payout_amount: number
+          receivable_recorded: number
+          telecom_charge_expected: number
+          updated_at: string
+          withdrawal_id: string
+        }
+        Insert: {
+          agent_id: string
+          classified_at?: string
+          classified_via?: string | null
+          created_at?: string
+          float_consumed_principal?: number
+          float_consumed_telecom?: number
+          funding_source?: string
+          id?: string
+          notes?: string | null
+          own_cash_principal?: number
+          own_cash_telecom?: number
+          payout_amount?: number
+          receivable_recorded?: number
+          telecom_charge_expected?: number
+          updated_at?: string
+          withdrawal_id: string
+        }
+        Update: {
+          agent_id?: string
+          classified_at?: string
+          classified_via?: string | null
+          created_at?: string
+          float_consumed_principal?: number
+          float_consumed_telecom?: number
+          funding_source?: string
+          id?: string
+          notes?: string | null
+          own_cash_principal?: number
+          own_cash_telecom?: number
+          payout_amount?: number
+          receivable_recorded?: number
+          telecom_charge_expected?: number
+          updated_at?: string
+          withdrawal_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "merchant_payout_funding_withdrawal_id_fkey"
+            columns: ["withdrawal_id"]
+            isOneToOne: true
+            referencedRelation: "v_merchant_commission_outstanding"
+            referencedColumns: ["withdrawal_id"]
+          },
+          {
+            foreignKeyName: "merchant_payout_funding_withdrawal_id_fkey"
+            columns: ["withdrawal_id"]
+            isOneToOne: true
+            referencedRelation: "v_merchant_payout_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "merchant_payout_funding_withdrawal_id_fkey"
+            columns: ["withdrawal_id"]
+            isOneToOne: true
+            referencedRelation: "v_unsettled_payouts"
+            referencedColumns: ["withdrawal_id"]
+          },
+          {
+            foreignKeyName: "merchant_payout_funding_withdrawal_id_fkey"
+            columns: ["withdrawal_id"]
+            isOneToOne: true
+            referencedRelation: "v_withdrawal_holds_unbacked"
+            referencedColumns: ["withdrawal_id"]
+          },
+          {
+            foreignKeyName: "merchant_payout_funding_withdrawal_id_fkey"
+            columns: ["withdrawal_id"]
+            isOneToOne: true
+            referencedRelation: "withdrawal_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           content: string
@@ -32778,6 +32871,81 @@ export type Database = {
         }
         Relationships: []
       }
+      v_merchant_payout_funding_mismatch: {
+        Row: {
+          agent_id: string | null
+          classified_at: string | null
+          float_consumed_principal: number | null
+          funding_source: string | null
+          ledger_float_principal: number | null
+          own_cash_principal: number | null
+          payout_amount: number | null
+          receivable_now: number | null
+          receivable_recorded: number | null
+          withdrawal_id: string | null
+        }
+        Insert: {
+          agent_id?: string | null
+          classified_at?: string | null
+          float_consumed_principal?: number | null
+          funding_source?: string | null
+          ledger_float_principal?: never
+          own_cash_principal?: number | null
+          payout_amount?: number | null
+          receivable_now?: never
+          receivable_recorded?: number | null
+          withdrawal_id?: string | null
+        }
+        Update: {
+          agent_id?: string | null
+          classified_at?: string | null
+          float_consumed_principal?: number | null
+          funding_source?: string | null
+          ledger_float_principal?: never
+          own_cash_principal?: number | null
+          payout_amount?: number | null
+          receivable_now?: never
+          receivable_recorded?: number | null
+          withdrawal_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "merchant_payout_funding_withdrawal_id_fkey"
+            columns: ["withdrawal_id"]
+            isOneToOne: true
+            referencedRelation: "v_merchant_commission_outstanding"
+            referencedColumns: ["withdrawal_id"]
+          },
+          {
+            foreignKeyName: "merchant_payout_funding_withdrawal_id_fkey"
+            columns: ["withdrawal_id"]
+            isOneToOne: true
+            referencedRelation: "v_merchant_payout_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "merchant_payout_funding_withdrawal_id_fkey"
+            columns: ["withdrawal_id"]
+            isOneToOne: true
+            referencedRelation: "v_unsettled_payouts"
+            referencedColumns: ["withdrawal_id"]
+          },
+          {
+            foreignKeyName: "merchant_payout_funding_withdrawal_id_fkey"
+            columns: ["withdrawal_id"]
+            isOneToOne: true
+            referencedRelation: "v_withdrawal_holds_unbacked"
+            referencedColumns: ["withdrawal_id"]
+          },
+          {
+            foreignKeyName: "merchant_payout_funding_withdrawal_id_fkey"
+            columns: ["withdrawal_id"]
+            isOneToOne: true
+            referencedRelation: "withdrawal_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_merchant_payout_queue: {
         Row: {
           agent_id: string | null
@@ -34283,6 +34451,10 @@ export type Database = {
           p_momo_number?: string
           p_withdrawal_id: string
         }
+        Returns: Json
+      }
+      classify_merchant_payout_funding: {
+        Args: { p_via?: string; p_withdrawal_id: string }
         Returns: Json
       }
       classify_stranded_withdrawal: {
@@ -38689,6 +38861,10 @@ export type Database = {
         Args: { p_limit?: number; p_since?: string }
         Returns: Json
       }
+      reconcile_merchant_payout_funding: {
+        Args: { p_limit?: number; p_lookback_hours?: number }
+        Returns: Json
+      }
       reconcile_negative_wallets: {
         Args: { p_dry_run?: boolean; p_max_users?: number }
         Returns: Json
@@ -39389,6 +39565,7 @@ export type Database = {
         Returns: undefined
       }
       sync_service_center_manager_tags: { Args: never; Returns: Json }
+      telecom_sending_charge: { Args: { p_amount: number }; Returns: number }
       tenant_ops_correct_rent_request: {
         Args: {
           p_access_fee?: number
