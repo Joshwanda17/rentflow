@@ -1378,7 +1378,7 @@ export default function FunderOnboarding() {
               pdfBase64 = await Promise.race<string | null>([
                 renderAgreementPdfBase64(
                 buildAgreementHtml({
-                  partnerName: `${cleanFirst} ${cleanLast}`.trim(),
+                  partnerName: cleanFullName,
                   partnerId: cleanNationalId,
                   partnerAddress: cleanAddress,
                   partnerPhone: cleanPhone,
