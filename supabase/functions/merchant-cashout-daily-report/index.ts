@@ -379,6 +379,17 @@ function buildText(report: any, prettyDate: string): string {
   lines.push(`Float consumed:  ${fmtUGX(report.total_float_consumed || ((report.total_paid || 0) + (report.total_telecom || 0)))}`);
   lines.push(`Total commission: ${fmtUGX(report.total_commission || 0)}`);
   lines.push("");
+  const byStatus: Array<any> = report.by_settlement_status || [];
+  if (byStatus.length) {
+    lines.push("Settlement status:");
+    for (const s of byStatus) {
+      lines.push(`- ${s.status_label}: ${s.payouts} payouts, ${fmtUGX(s.total_amount || 0)}`);
+    }
+    lines.push(
+      `Needs reconciliation: ${report.unresolved_payouts || 0} payouts, ${fmtUGX(report.unresolved_amount || 0)}`,
+    );
+    lines.push("");
+  }
   const byCategory: Array<any> = report.by_category || [];
   if (byCategory.length) {
     lines.push("Breakdown by cash-out category:");
