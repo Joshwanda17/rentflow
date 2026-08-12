@@ -54,6 +54,7 @@ export const LandlordAutocompleteInput = forwardRef<HTMLInputElement, LandlordAu
     disabled,
     id,
     autoFocus,
+    mode = 'dropdown',
   }: LandlordAutocompleteInputProps,
   ref: Ref<HTMLInputElement>
 ) {
@@ -70,9 +71,10 @@ export const LandlordAutocompleteInput = forwardRef<HTMLInputElement, LandlordAu
     return () => clearTimeout(t);
   }, [value]);
 
-  // Fetch matches while focused
+  // Background existence check. In `status` mode it keeps running after blur so
+  // the label stays accurate once the agent moves to the next field.
   useEffect(() => {
-    if (!focused) return;
+    if (mode === 'dropdown' && !focused) return;
     const term = debounced;
     // Require at least 3 characters — shorter terms fan out to millions of
     // ILIKE matches and pin the database CPU at 100%.
@@ -109,9 +111,11 @@ export const LandlordAutocompleteInput = forwardRef<HTMLInputElement, LandlordAu
         if (myId === reqIdRef.current) setLoading(false);
       }
     })();
-  }, [debounced, focused]);
+  }, [debounced, focused, mode]);
 
-  const showDropdown = focused && debounced.length >= 3;
+  const showDropdown = mode === 'dropdown' && focused && debounced.length >= 3;
+  const showStatus = mode === 'status' && debounced.length >= 3;
+  const match = results[0];
 
   return (
     <div className="relative">
@@ -136,6 +140,36 @@ export const LandlordAutocompleteInput = forwardRef<HTMLInputElement, LandlordAu
         maxLength={maxLength}
         autoComplete="off"
       />
+      {showStatus && (
+        <div className="mt-1 text-[11px]">
+          {loading ? (
+            <span className="flex items-center gap-1 text-muted-foreground">
+              <Loader2 className="h-3 w-3 animate-spin" /> Checking our records…
+            </span>
+          ) : match ? (
+            <button
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                if (blurTimer.current) clearTimeout(blurTimer.current);
+                onSelect(match);
+                setFocused(false);
+              }}
+              className="flex items-center gap-1 text-left font-medium text-primary"
+            >
+              <CheckCircle2 className="h-3 w-3 shrink-0" />
+              <span className="truncate">
+                Already on record: {match.name} • {match.phone}
+                {match.verified ? ' (verified)' : ''} — tap to use
+              </span>
+            </button>
+          ) : (
+            <span className="flex items-center gap-1 text-muted-foreground">
+              <UserPlus className="h-3 w-3 shrink-0" /> No match found — this will be registered as a new landlord.
+            </span>
+          )}
+        </div>
+      )}
       {showDropdown && (
         <div className="absolute z-50 mt-1.5 w-full rounded-xl border-2 bg-popover shadow-xl overflow-hidden max-h-72 overflow-y-auto">
           {loading && (
