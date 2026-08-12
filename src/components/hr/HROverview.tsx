@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -20,6 +21,7 @@ interface HROverviewProps {
 
 export default function HROverview({ onNavigate }: HROverviewProps) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const handleNav = (id: string) => {
     if (id === 'employees') {
       navigate('/hr/people');
@@ -32,14 +34,29 @@ export default function HROverview({ onNavigate }: HROverviewProps) {
   const { data: staffCount = 0 } = useQuery({
     queryKey: ['hr-staff-count'],
     queryFn: async () => {
-      const { count } = await supabase
-        .from('user_roles')
-        .select('*', { count: 'exact', head: true })
-        .eq('role', 'employee')
-        .eq('enabled', true);
-      return count || 0;
+      const { data, error } = await supabase.rpc('get_active_employee_staff_count');
+      if (error) throw new Error(error.message);
+      return Number(data ?? 0);
     },
   });
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('hr-active-employee-role-count')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'user_roles', filter: 'role=eq.employee' },
+        () => {
+          void queryClient.invalidateQueries({ queryKey: ['hr-staff-count'] });
+          void queryClient.invalidateQueries({ queryKey: ['hr-role-breakdown'] });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   const { data: totalUsers = 0 } = useQuery({
     queryKey: ['hr-total-users'],
