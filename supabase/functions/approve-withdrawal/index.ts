@@ -172,6 +172,24 @@ async function sendViaLana(
     return { ok: false, error: `LANA network error: ${(err as Error)?.message || err}`, response: null };
   }
 }
+// Infrastructure-level (retryable) database failure detector. Used to decide
+// whether a failed settlement should be returned to the payout queue (never,
+// for these) or held for CFO reconciliation.
+function isTransientDbError(msg: string): boolean {
+  const m = (msg || "").toLowerCase();
+  return (
+    m.includes("statement timeout") ||
+    m.includes("canceling statement") ||
+    m.includes("cancelling statement") ||
+    m.includes("57014") ||
+    m.includes("timeout") ||
+    m.includes("connection") ||
+    m.includes("deadlock") ||
+    m.includes("could not obtain lock") ||
+    m.includes("fetch failed")
+  );
+}
+
 // Optional delivery-status logging context. When supplied, sendSMS records a
 // full audit row (provider response, attempts, failures) to `sms_delivery_log`.
 interface SmsLogCtx {
@@ -1922,7 +1940,52 @@ Deno.serve(async (req) => {
       }
     }
 
-    const { data: _txnGroupId, error: ledgerErr } = await admin.rpc("create_ledger_transaction", {
+    // ── Held-for-reconciliation guard ────────────────────────────────────
+    // Once a merchant confirms a payout the cash has ALREADY left their MoMo
+    // float. If the ledger write then fails for an infrastructure reason
+    // (statement timeout, cancelled statement, dropped connection) the request
+    // must NEVER be returned to the shared queue — a second merchant would pay
+    // the same person again. Instead we keep the row parked in `processing`
+    // (invisible to the cash-out queue, which only lists pre-settlement
+    // statuses), stamp the reference/proof so CFO can reconcile it from
+    // Stale Withdrawal Holds, and audit the abort.
+    const holdForReconciliation = async (failureReason: string, code: string) => {
+      try {
+        await admin
+          .from("withdrawal_requests")
+          .update({
+            // status intentionally left at 'processing' — out of the queue.
+            fin_ops_reference: reference.trim().toUpperCase(),
+            fin_ops_payment_method: payment_method,
+            ...((body as any)?.payout_proof
+              ? {
+                  payout_proof: String((body as any).payout_proof),
+                  payout_proof_type: (body as any)?.payout_proof_type
+                    ? String((body as any).payout_proof_type)
+                    : "image",
+                  ...((body as any)?.payout_proof_path
+                    ? {
+                        payout_proof_path: String((body as any).payout_proof_path),
+                        payout_proof_bucket: (body as any)?.payout_proof_bucket
+                          ? String((body as any).payout_proof_bucket)
+                          : "payment-proofs",
+                      }
+                    : {}),
+                  payout_proof_uploaded_at: new Date().toISOString(),
+                  payout_proof_uploaded_by: user.id,
+                }
+              : {}),
+            updated_at: new Date().toISOString(),
+          } as any)
+          .eq("id", withdrawal_id)
+          .eq("status", "processing");
+      } catch (e) {
+        console.error("[approve-withdrawal] holdForReconciliation failed:", (e as Error).message);
+      }
+      await auditFailedWithdrawalAttempt(failureReason, code);
+    };
+
+    const ledgerPayload: Record<string, unknown> = {
       entries: [
         ...debitEntries,
         {
@@ -1954,7 +2017,21 @@ Deno.serve(async (req) => {
       // merchant agents. Since the authoritative check has already
       // passed, skip the redundant DB re-check for every payout.
       skip_balance_check: true,
-    });
+    };
+
+    let ledgerResult = await admin.rpc("create_ledger_transaction", ledgerPayload as any);
+    // Idempotency key makes the retry safe: a partially-applied first attempt
+    // is returned as-is instead of double-posting.
+    if (ledgerResult.error && isTransientDbError(ledgerResult.error.message || "")) {
+      console.warn(
+        "[approve-withdrawal] transient ledger failure — retrying once:",
+        ledgerResult.error.message,
+      );
+      await new Promise((r) => setTimeout(r, 1500));
+      ledgerResult = await admin.rpc("create_ledger_transaction", ledgerPayload as any);
+    }
+    const _txnGroupId = ledgerResult.data;
+    const ledgerErr = ledgerResult.error;
     txnGroupId = _txnGroupId;
 
     if (ledgerErr) {
@@ -1965,6 +2042,7 @@ Deno.serve(async (req) => {
         ledgerMessage.includes("wallets_balance_check") ||
         ledgerMessage.includes("violates check constraint") ||
         ledgerMessage.includes("Insufficient ledger balance");
+      const isTransient = !isInsufficientBalance && isTransientDbError(ledgerMessage);
       const failureReason = isInsufficientBalance
         ? isProxyPayout
           ? `Insufficient proxy agent wallet balance (ledger-checked). Available: UGX ${Math.round(totalSpendable).toLocaleString()}, requested: UGX ${amount.toLocaleString()}. This payout debits the assigned proxy agent wallet for the selected partner.`
@@ -1972,8 +2050,28 @@ Deno.serve(async (req) => {
         : "Failed to record ledger entry: " + ledgerMessage;
       if (isInsufficientBalance) {
         await auditFailedWithdrawalAttempt(failureReason, "INSUFFICIENT_WITHDRAWABLE");
+        await releaseClaim();
+      } else if (isTransient) {
+        await holdForReconciliation(
+          `Ledger settlement aborted by infrastructure error after confirmation: ${ledgerMessage}`,
+          "SETTLEMENT_HELD",
+        );
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error:
+              "The payment was recorded as sent but the ledger settlement could not finish. " +
+              "This payout is now HELD for Financial Ops / CFO reconciliation and will NOT " +
+              "return to the payout queue. Do not pay it again.",
+            code: "SETTLEMENT_HELD",
+            held: true,
+            requested: amount,
+          }),
+          { status: 202, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      } else {
+        await releaseClaim();
       }
-      await releaseClaim();
       return new Response(JSON.stringify({
         success: false,
         error: failureReason,
@@ -1991,9 +2089,7 @@ Deno.serve(async (req) => {
     } // end if (!isLandlordFloatPayout)
 
     // Update withdrawal request status
-    const { error: updateErr } = await admin
-      .from("withdrawal_requests")
-      .update({
+    const completionPayload = {
         status: "completed",
         fin_ops_reference: reference.trim().toUpperCase(),
         fin_ops_payment_method: payment_method,
@@ -2045,8 +2141,27 @@ Deno.serve(async (req) => {
         // proxy payouts that share a single bank reference, so these rows are
         // exempt from `withdrawal_requests_fin_ops_reference_uq`.
         ...(poolFunded ? { pool_funded: true } : {}),
-      } as any)
+    } as any;
+
+    let completeRes = await admin
+      .from("withdrawal_requests")
+      .update(completionPayload)
       .eq("id", withdrawal_id);
+    // The ledger is already posted at this point, so a transient DB failure here
+    // must not leave the row un-finalised (which is what made confirmed payouts
+    // reappear). Retry once before falling through to the error handling.
+    if (completeRes.error && isTransientDbError(completeRes.error.message || "")) {
+      console.warn(
+        "[approve-withdrawal] transient completion update failure — retrying once:",
+        completeRes.error.message,
+      );
+      await new Promise((r) => setTimeout(r, 1500));
+      completeRes = await admin
+        .from("withdrawal_requests")
+        .update(completionPayload)
+        .eq("id", withdrawal_id);
+    }
+    const updateErr = completeRes.error;
 
     if (updateErr) {
       console.error("[approve-withdrawal] Update error:", updateErr);
