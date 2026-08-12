@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import { format, subDays, subHours, startOfDay, endOfDay } from 'date-fns';
+import { format, subDays, startOfDay } from 'date-fns';
 import {
   ResponsiveContainer, AreaChart, Area,
   XAxis, YAxis,
@@ -23,27 +23,9 @@ import { AgentRentCapacityPanel } from '../AgentRentCapacityPanel';
 
 
 
-export type OverviewRange = 'today' | 'yesterday' | '24h' | '7d' | '1m';
-
-const RANGES: { key: OverviewRange; label: string }[] = [
-  { key: 'today', label: 'Today' },
-  { key: 'yesterday', label: 'Yesterday' },
-  { key: '24h', label: '24H' },
-  { key: '7d', label: '7D' },
-  { key: '1m', label: '1M' },
-];
-
-function rangeWindow(r: OverviewRange): { start: Date; end: Date } {
-  const now = new Date();
-  if (r === 'today') return { start: startOfDay(now), end: now };
-  if (r === 'yesterday') {
-    const y = subDays(now, 1);
-    return { start: startOfDay(y), end: endOfDay(y) };
-  }
-  if (r === '24h') return { start: subHours(now, 24), end: now };
-  if (r === '7d') return { start: subDays(now, 7), end: now };
-  return { start: subDays(now, 30), end: now };
-}
+// The overview is daily-only: KPIs always aggregate today, and every chart is
+// built from daily buckets. There is no range selector.
+const DAILY_TREND_DAYS = 30;
 
 function fmtMoney(n: number): string {
   if (n >= 1e9) return `UGX ${(n / 1e9).toFixed(2)}B`;
@@ -133,11 +115,16 @@ export interface AgentOpsOverviewProps {
 
 export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
   const qc = useQueryClient();
-  const [range, setRange] = useState<OverviewRange>('7d');
-  const { start, end } = useMemo(() => {
-    const w = rangeWindow(range);
-    return { start: w.start.toISOString(), end: w.end.toISOString() };
-  }, [range]);
+  // Today's window (local day start → now) drives every KPI and table.
+  const [today] = useState(() => startOfDay(new Date()).toISOString());
+  const { start, end, trendStart } = useMemo(() => {
+    const now = new Date();
+    return {
+      start: today,
+      end: now.toISOString(),
+      trendStart: startOfDay(subDays(now, DAILY_TREND_DAYS)).toISOString(),
+    };
+  }, [today]);
 
   useEffect(() => {
     const ch = supabase
@@ -151,7 +138,7 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
   }, [qc]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['agent-ops-overview', range, start, end],
+    queryKey: ['agent-ops-overview', 'daily', start],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_agent_ops_overview' as any, {
         p_range_start: start,
@@ -163,15 +150,25 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
     staleTime: 60_000,
   });
 
+  // Daily series for the charts — same RPC, daily buckets over the last 30 days.
+  const { data: trendPayload } = useQuery({
+    queryKey: ['agent-ops-overview', 'daily-trend', trendStart],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_agent_ops_overview' as any, {
+        p_range_start: trendStart,
+        p_range_end: end,
+      });
+      if (error) throw error;
+      return data as unknown as OverviewPayload;
+    },
+    staleTime: 60_000,
+  });
+
   const k = data?.kpis || ({} as Record<string, number>);
-  const trend = data?.trend || [];
-  const trendLabelKey = range === '24h' ? 'day' : 'day';
+  const trend = trendPayload?.trend || data?.trend || [];
 
   const trendData = trend.map((t) => ({
-    label: format(
-      new Date(t.day),
-      range === '1m' ? 'd MMM' : range === 'today' || range === 'yesterday' ? 'd MMM' : 'EEE',
-    ),
+    label: format(new Date(t.day), 'd MMM'),
     agents: t.agents,
     requests: t.requests,
     activeAgents: t.active_agents,
@@ -183,27 +180,11 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
 
   return (
     <div className="space-y-4">
-      {/* Range switch */}
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div>
-          <h2 className="text-base font-bold text-foreground">Agent Operations Overview</h2>
-          <p className="text-xs text-muted-foreground">All agents, all activities — one glance.</p>
-        </div>
-        <div className="inline-flex flex-wrap rounded-full bg-muted p-0.5">
-          {RANGES.map((r) => (
-            <button
-              key={r.key}
-              type="button"
-              onClick={() => setRange(r.key)}
-              className={cn(
-                'px-3 py-1 text-xs font-semibold rounded-full transition-colors',
-                range === r.key ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground',
-              )}
-            >
-              {r.label}
-            </button>
-          ))}
-        </div>
+      <div>
+        <h2 className="text-base font-bold text-foreground">Agent Operations Overview</h2>
+        <p className="text-xs text-muted-foreground">
+          Today · {format(new Date(today), 'EEEE d MMM yyyy')} — daily aggregates across all agents.
+        </p>
       </div>
 
 
@@ -213,7 +194,7 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
           title="Total Agents"
           value={fmtNum(k.total_agents || 0)}
           delta={pctDelta(k.total_agents || 0, k.total_agents_prev || 0)}
-          subtitle={`+${fmtNum(k.new_agents_curr || 0)} new this period`}
+          subtitle={`+${fmtNum(k.new_agents_curr || 0)} new today`}
           icon={Users}
           accent="bg-primary"
           onClick={() => onOpenSection('directory')}
@@ -234,7 +215,7 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
           title="Total Sub-Agents"
           value={fmtNum(k.total_subagents || 0)}
           delta={pctDelta(k.total_subagents || 0, k.total_subagents_prev || 0)}
-          subtitle={`+${fmtNum(k.new_subagents_curr || 0)} new this period`}
+          subtitle={`+${fmtNum(k.new_subagents_curr || 0)} new today`}
           icon={UsersRound}
           accent="bg-sky-600"
           onClick={() => onOpenSection('sub-agents')}
@@ -302,7 +283,7 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
         <div className="flex items-start justify-between mb-2">
           <div>
             <h3 className="text-sm font-semibold">Rent Collections</h3>
-            <p className="text-[11px] text-muted-foreground">Collected (green) vs still pending (red), UGX</p>
+            <p className="text-[11px] text-muted-foreground">Daily collected (green) vs still pending (red), UGX — last 30 days</p>
           </div>
         </div>
         <div className="h-64 w-full">
@@ -345,7 +326,7 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
           <div className="flex items-start justify-between mb-2">
             <div>
               <h3 className="text-sm font-semibold">Agent Activity</h3>
-              <p className="text-[11px] text-muted-foreground">New / Active agents & rent requests</p>
+              <p className="text-[11px] text-muted-foreground">Daily new / active agents & rent requests — last 30 days</p>
             </div>
           </div>
           <div className="h-56">
@@ -557,13 +538,13 @@ function TopPerformers({
         <Trophy className="h-4 w-4 text-amber-500" />
         <div>
           <h3 className="text-sm font-semibold">Top Performers</h3>
-          <p className="text-[11px] text-muted-foreground">Agents and sub-agents by rent collected this period</p>
+          <p className="text-[11px] text-muted-foreground">Agents and sub-agents by rent collected today</p>
         </div>
       </div>
       {loading ? (
         <Skeleton className="h-32 w-full" />
       ) : rows.length === 0 ? (
-        <p className="text-xs text-muted-foreground p-4 text-center">No collections recorded in this period.</p>
+        <p className="text-xs text-muted-foreground p-4 text-center">No collections recorded today.</p>
       ) : (
         <div className="overflow-x-auto">
           <Table>
