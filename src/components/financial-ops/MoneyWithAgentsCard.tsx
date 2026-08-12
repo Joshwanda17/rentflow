@@ -36,7 +36,7 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
               MONEY WITH AGENTS
             </p>
             <p className="text-[11px] text-muted-foreground mt-0.5">
-              Company money in merchant hands vs what we still owe them
+              Our money still held by agents vs what we still owe them
             </p>
           </div>
         </div>
