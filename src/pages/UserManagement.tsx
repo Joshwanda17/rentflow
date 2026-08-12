@@ -630,6 +630,37 @@ Just click the link and enter your password to get started!`;
               <span className="ml-1 opacity-80">{filter.count.toLocaleString()}</span>
             </button>
           ))}
+
+          {/* Growth tab — % change of total users, toggles 1D / 7D / 30D / 365D */}
+          <div className="shrink-0 flex items-center gap-1 rounded-full bg-muted px-2 py-1 min-h-[36px]">
+            <span className="text-[10px] font-medium text-muted-foreground">Growth</span>
+            <span
+              className={cn(
+                'text-xs font-bold tabular-nums',
+                growthPct === null || growthLoading
+                  ? 'text-muted-foreground'
+                  : growthPct < 0
+                    ? 'text-destructive'
+                    : 'text-success',
+              )}
+            >
+              {growthLoading || growthPct === null
+                ? '—'
+                : `${growthPct >= 0 ? '+' : ''}${growthPct.toFixed(growthPct !== 0 && Math.abs(growthPct) < 1 ? 2 : 1)}%`}
+            </span>
+            {!growthLoading && growthPct !== null && (
+              <span className="text-[9px] text-muted-foreground">({growthNew.toLocaleString()})</span>
+            )}
+            <button
+              type="button"
+              onClick={() => { hapticTap(); setGrowthWindowIdx((i) => (i + 1) % GROWTH_WINDOWS.length); }}
+              className="ml-0.5 rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground active:scale-95 transition-all touch-manipulation"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+              aria-label={`Growth window: last ${GROWTH_WINDOWS[growthWindowIdx].days} days. Tap to change`}
+            >
+              {GROWTH_WINDOWS[growthWindowIdx].label}
+            </button>
+          </div>
         </div>
 
         {selectedUserIds.size > 0 && (
