@@ -597,7 +597,6 @@ export function AgentCashPayoutsTab() {
     },
     enabled: !!isCashoutAgent,
     staleTime: 15_000,
-    placeholderData: keepPreviousData,
   });
 
   // The current, server-paginated page of the Pending Queue for the active tab.
@@ -628,7 +627,6 @@ export function AgentCashPayoutsTab() {
     enabled: !!isCashoutAgent,
     staleTime: 15_000,
     refetchOnWindowFocus: true,
-    placeholderData: keepPreviousData,
   });
 
   // Daily stats: ONLY count actual cash payouts handled by THIS cash-out agent today.
@@ -883,8 +881,29 @@ export function AgentCashPayoutsTab() {
     const channel = supabase
       .channel('cashout-agent-withdrawals')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'withdrawal_requests' }, (payload) => {
-        invalidateQueue();
         const newRow = payload.new as any;
+        const isSettled =
+          !CASHOUT_QUEUE_STATUSES.includes(String(newRow?.status || '')) ||
+          newRow?.processed_at != null ||
+          newRow?.fin_ops_reference != null;
+
+        // Never keep a paid row visible while the fresh database query is in
+        // flight (or if that refetch fails). The database status remains the
+        // source of truth; this only evicts the now-terminal row from an older
+        // React Query page snapshot as soon as its backend UPDATE arrives.
+        if (isSettled && newRow?.id) {
+          qc.setQueriesData({ queryKey: ['cashout-queue-page'] }, (old: any) => {
+            if (!old?.rows) return old;
+            const rows = old.rows.filter((row: any) => row.id !== newRow.id);
+            return rows.length === old.rows.length
+              ? old
+              : { ...old, rows, count: Math.max(0, Number(old.count || 0) - 1) };
+          });
+          qc.setQueriesData({ queryKey: ['cashout-my-active-claims'] }, (old: any) =>
+            Array.isArray(old) ? old.filter((row: any) => row.id !== newRow.id) : old,
+          );
+        }
+        invalidateQueue();
         // When a payout this merchant settled completes, refresh their earnings
         // views immediately so Today's Payouts, Commission and Payout Activity
         // never lag behind the actual ledger.
@@ -1132,7 +1151,11 @@ export function AgentCashPayoutsTab() {
 
   // Server-driven queue values. The active tab's page comes from `queuePage`,
   // counts come from `queueCounts`, and the unfiltered total from `availableTotal`.
-  const pageRows: any[] = queuePage?.rows ?? [];
+  const pageRows: any[] = (queuePage?.rows ?? []).filter((row: any) =>
+    CASHOUT_QUEUE_STATUSES.includes(String(row?.status || '')) &&
+    row?.processed_at == null &&
+    row?.fin_ops_reference == null,
+  );
   const pageCount = queuePage?.count ?? 0;
   const channelCounts = queueCounts ?? { all: 0, momo: 0, cash: 0, bank: 0 };
   const totalPending = availableTotal;
