@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, lazy, Suspense, Component, ReactNode, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { Helmet } from 'react-helmet-async';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -32,6 +33,7 @@ import { useOtpVerification } from '@/hooks/useOtpVerification';
 import { normalizeE164OrNull } from '@/lib/phoneUtils';
 import { joinPersonName, splitPersonName, validatePersonNameParts, type PersonNameParts } from '@/lib/authValidation';
 import PersonNameFields from '@/components/shared/PersonNameFields';
+import NameCompletionReminder from '@/components/notifications/NameCompletionReminder';
 import { OtpVerificationStep } from '@/components/auth/OtpVerificationStep';
 
 const WalletCard = lazy(() => import('@/components/wallet/WalletCard').then(m => ({ default: m.WalletCard })));
@@ -179,6 +181,7 @@ const ACCOUNT_TABS: { id: AccountTab; label: string; icon: typeof User }[] = [
 
 export default function Settings() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user, roles, loading: authLoading, role } = useAuth();
   const { fontSize, setFontSize } = useFontSize();
   const { intensity: hapticIntensity, setIntensity: setHapticIntensity } = useHapticSettings();
@@ -304,6 +307,7 @@ export default function Settings() {
       toast.success('Profile updated successfully');
       setProfile({ ...profile, full_name: trimmedName, phone: savedPhone });
       setPhone(savedPhone);
+      queryClient.invalidateQueries({ queryKey: ['name-completion-status'] });
     } catch (e: any) {
       toast.error(e?.message || 'Failed to update profile');
     } finally {
@@ -462,6 +466,7 @@ export default function Settings() {
                       <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
                       <Card className="border-border/40 rounded-2xl">
                         <CardContent className="pt-5 space-y-3">
+                          <NameCompletionReminder />
                           <div className="space-y-1.5">
                             <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Your Name</Label>
                             <PersonNameFields idPrefix="settings" value={nameParts} onChange={setNameParts} disabled={saving} />
