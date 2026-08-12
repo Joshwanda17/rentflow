@@ -678,7 +678,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
             )}
 
             {/* Country breakdown — click a chip to filter the queue by country */}
-            {countryStats.length > 0 && (
+            {!locationProvisionsOnly && countryStats.length > 0 && (
               <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
                 <div className="flex items-center justify-between mb-1.5 px-1">
                   <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
