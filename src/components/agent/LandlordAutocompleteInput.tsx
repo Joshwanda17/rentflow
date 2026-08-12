@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, forwardRef, type Ref, type FocusEvent, type HTMLAttributes } from 'react';
-import { Building2, Loader2, Phone, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { Building2, CheckCircle2, Loader2, Phone, ShieldCheck, ShieldAlert, UserPlus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -24,6 +24,12 @@ interface LandlordAutocompleteInputProps {
   disabled?: boolean;
   id?: string;
   autoFocus?: boolean;
+  /**
+   * `dropdown` (default) renders the tap-to-use suggestion list.
+   * `status` renders no preview list at all — it only checks in the background
+   * whether this name/phone already exists and shows a single plain label.
+   */
+  mode?: 'dropdown' | 'status';
 }
 
 /**
