@@ -123,6 +123,7 @@ class ToolErrorBoundary extends Component<
 const ApprovalQueue = lz(() => import('./ApprovalQueue'), 'ApprovalQueue');
 const TransactionSearch = lz(() => import('./TransactionSearch'), 'TransactionSearch');
 const ReconciliationDashboard = lz(() => import('./ReconciliationDashboard'), 'ReconciliationDashboard');
+const PayoutReconciliationQueue = lz(() => import('./PayoutReconciliationQueue'), 'PayoutReconciliationQueue');
 const AuditFeed = lz(() => import('./AuditFeed'), 'AuditFeed');
 const ScaleDashboard = lz(() => import('./ScaleDashboard'), 'ScaleDashboard');
 const FinOpsWithdrawalVerification = lz(() => import('./FinOpsWithdrawalVerification'), 'FinOpsWithdrawalVerification');
@@ -416,6 +417,9 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
               </p>
             </div>
             <LandlordPayoutsQueue />
+            {/* PHASE 8: incomplete/unsafe payouts stay visible to FinOps/CFO
+                instead of being pushed back into the merchant desk queue. */}
+            <PayoutReconciliationQueue />
             <EmailPayoutAutoMatchPanel />
             <BulkBankPayoutPanel />
             <FinOpsWithdrawalVerification />
