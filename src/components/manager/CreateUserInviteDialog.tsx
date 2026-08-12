@@ -79,6 +79,12 @@ export function CreateUserInviteDialog({ open, onOpenChange }: CreateUserInviteD
     role: UserRole;
     autoActivated?: boolean;
   } | null>(null);
+  // Name captured in parts; `formData.fullName` stays the single submitted string.
+  const [nameParts, setNameParts] = useState<PersonNameParts>({ firstName: '', otherNames: '', lastName: '' });
+  const applyNameParts = (next: PersonNameParts) => {
+    setNameParts(next);
+    setFormData(prev => ({ ...prev, fullName: joinPersonName(next) }));
+  };
 
   const generatePassword = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
@@ -98,6 +104,11 @@ export function CreateUserInviteDialog({ open, onOpenChange }: CreateUserInviteD
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const nameCheck = validatePersonNameParts(nameParts);
+    if (!nameCheck.valid) {
+      toast({ title: 'Error', description: nameCheck.error || 'Enter first and last name', variant: 'destructive' });
+      return;
+    }
     setIsLoading(true);
 
     try {
@@ -193,6 +204,7 @@ Just click the link and enter your password to get started!`;
 
   const handleClose = () => {
     setFormData({ email: '', fullName: '', phone: '', password: '' });
+    setNameParts({ firstName: '', otherNames: '', lastName: '' });
     setCreatedInvite(null);
     setCopied(false);
     setSelectedRole('tenant');
