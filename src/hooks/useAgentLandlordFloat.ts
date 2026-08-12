@@ -63,6 +63,7 @@ export function useAgentLandlordFloat(agentId?: string) {
         },
         () => {
           queryClient.invalidateQueries({ queryKey: balanceKey });
+          queryClient.invalidateQueries({ queryKey: availableKey });
           queryClient.invalidateQueries({ queryKey: ['agent-landlord-float-row', effectiveId] });
         },
       )
@@ -95,10 +96,39 @@ export function useAgentLandlordFloat(agentId?: string) {
     refetchInterval: 30_000,
   });
 
+  // Spendable float — gross balance minus amounts already ring-fenced by
+  // landlord payouts that are verified but not yet paid out. This is the
+  // SAME figure the disbursement backend enforces, so the agent can never
+  // be told they have money the payout will then refuse to spend.
+  const availableQuery = useQuery({
+    queryKey: availableKey,
+    queryFn: async (): Promise<number> => {
+      if (!effectiveId) return 0;
+      const { data, error } = await supabase.rpc('get_agent_lp_float_available', {
+        p_agent_id: effectiveId,
+      });
+      if (error) throw error;
+      const n = Number(data ?? 0);
+      return Number.isFinite(n) ? n : 0;
+    },
+    enabled: !!effectiveId,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    refetchInterval: 30_000,
+  });
+
   return {
     floatBalance: query.data ?? 0,
-    isLoading: query.isLoading,
-    error: query.error,
-    refetch: query.refetch,
+    // Reservation-aware spendable amount (backend-authoritative).
+    availableBalance: availableQuery.data ?? 0,
+    reservedBalance: Math.max(0, (query.data ?? 0) - (availableQuery.data ?? 0)),
+    isLoading: query.isLoading || availableQuery.isLoading,
+    error: query.error || availableQuery.error,
+    refetch: async () => {
+      await Promise.all([query.refetch(), availableQuery.refetch()]);
+    },
   };
 }
