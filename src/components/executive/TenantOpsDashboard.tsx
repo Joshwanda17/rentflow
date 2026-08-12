@@ -63,7 +63,7 @@ import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Gauge } from 'lucide-react';
 
-type ActiveView = 'overview' | 'pipeline' | 'daily' | 'missed' | 'behavior' | 'history' | 'all-requests' | 'link-agent' | 'transfer-audit' | 'collect-rent' | 'agent-tenants' | 'tenant-detail' | 'registration-review' | 'advance-requests' | 'agent-allocations' | 'daily-collections' | 'landlord-float' | 'landlord-float-timeline' | 'location-browser' | 'tenant-location-browser' | 'global-verification' | 'welile-operations' | 'daily-repayments-report' | 'agent-capacity-hub' | 'all-tenants-hub' | 'reports-hub';
+type ActiveView = 'overview' | 'pipeline' | 'pipeline-hub' | 'daily' | 'missed' | 'behavior' | 'history' | 'all-requests' | 'link-agent' | 'transfer-audit' | 'collect-rent' | 'agent-tenants' | 'tenant-detail' | 'registration-review' | 'advance-requests' | 'agent-allocations' | 'daily-collections' | 'landlord-float' | 'landlord-float-timeline' | 'location-browser' | 'tenant-location-browser' | 'global-verification' | 'welile-operations' | 'daily-repayments-report' | 'agent-capacity-hub' | 'all-tenants-hub' | 'reports-hub';
 
 interface NavCard {
   id: ActiveView;
@@ -86,6 +86,9 @@ export function TenantOpsDashboard() {
   const [deleting, setDeleting] = useState(false);
   const [selectedTenant, setSelectedTenant] = useState<{ id: string; name: string } | null>(null);
   const [overviewFilter, setOverviewFilter] = useState<string | undefined>(undefined);
+  // Lifecycle group the Pipeline Status hub should open on when it is entered
+  // from one of the Classic "Pipeline status" tiles.
+  const [pipelineSeed, setPipelineSeed] = useState<string>('all');
   const [printingPdf, setPrintingPdf] = useState(false);
   const [reportFrom, setReportFrom] = useState<Date | undefined>(undefined);
   const [reportTo, setReportTo] = useState<Date | undefined>(undefined);
@@ -1109,6 +1112,13 @@ export function TenantOpsDashboard() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  /** Enter the Pipeline Status hub, optionally pre-filtered to one lifecycle
+   *  group (used by the Classic "Pipeline status" tiles). */
+  const openPipelineHub = (statusKey: string = 'all') => {
+    setPipelineSeed(statusKey);
+    openHub('pipeline-hub');
+  };
+
   // Hub entry card for the Classic sections — same interaction model as the
   // Global Verification Center / Welile Operations hero cards: icon, section
   // name, a minimal summary, and an "Open hub" pill that promotes the section
@@ -1248,18 +1258,35 @@ export function TenantOpsDashboard() {
       case 'pipeline':
         return (
           <div className="space-y-4">
-            <PipelineStatusHub
-              onOpenTenant={(tenantId, tenantName) => {
-                setSelectedTenant({ id: tenantId, name: tenantName });
-                setActiveView('tenant-detail');
-              }}
-            />
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border bg-card p-3">
+              <div className="min-w-0">
+                <p className="text-sm font-bold">Reviewing requests</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Approvals live here. For counts, money and reports open the Pipeline Status hub.
+                </p>
+              </div>
+              <Button size="sm" variant="outline" className="gap-1.5" onClick={() => openPipelineHub('all')}>
+                <Activity className="h-3.5 w-3.5" />
+                Pipeline Status hub
+              </Button>
+            </div>
             <RentPipelineQueue
               stage="agent_ops_approved"
               additionalStatuses={['agent_verified']}
             />
             <RejectedRequestsQueue stageFilter="agent_ops_approved" title="Rejected at Tenant Ops" />
           </div>
+        );
+      case 'pipeline-hub':
+        return (
+          <PipelineStatusHub
+            key={pipelineSeed}
+            initialStatusKey={pipelineSeed}
+            onOpenTenant={(tenantId, tenantName) => {
+              setSelectedTenant({ id: tenantId, name: tenantName });
+              setActiveView('tenant-detail');
+            }}
+          />
         );
       case 'daily':
         return <DailyPaymentTracker />;
@@ -1389,6 +1416,7 @@ export function TenantOpsDashboard() {
   };
 
   const sectionHubLabels: Partial<Record<ActiveView, string>> = {
+    'pipeline-hub': 'Pipeline Status',
     'agent-capacity-hub': 'Agent Rent Capacity',
     'all-tenants-hub': 'All Tenants',
     'daily-collections': 'Daily Collection Monitoring',
@@ -1617,6 +1645,17 @@ export function TenantOpsDashboard() {
               <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Workspaces</p>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
                 {renderHubEntry({
+                  title: 'Pipeline Status',
+                  view: 'pipeline-hub',
+                  icon: Activity,
+                  description: 'Lifecycle counts, receivables, landlord payables, charts and auditable reports for any date range',
+                  stats: [
+                    { label: 'pending', value: pending },
+                    { label: 'in pipeline', value: inPipeline },
+                    { label: 'funded', value: funded },
+                  ],
+                })}
+                {renderHubEntry({
                   title: 'Agent Rent Capacity',
                   view: 'agent-capacity-hub',
                   icon: Gauge,
@@ -1650,27 +1689,37 @@ export function TenantOpsDashboard() {
 
             {/* Pipeline status strip */}
             <div className="pt-2">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Pipeline status</p>
+              <div className="flex items-center justify-between gap-2 mb-1.5">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Pipeline status</p>
+                <button
+                  type="button"
+                  onClick={() => openPipelineHub('all')}
+                  className="inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:underline"
+                >
+                  Open hub
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <Card className="border bg-amber-500/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setOverviewFilter('pending'); openHub('all-tenants-hub'); }}>
+              <Card className="border bg-amber-500/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => openPipelineHub('pending')}>
                 <CardContent className="p-2.5 text-center">
                   <p className="text-2xl font-extrabold text-amber-600">{pending}</p>
                   <p className="text-[10px] text-muted-foreground font-medium">Pending</p>
                 </CardContent>
               </Card>
-              <Card className="border bg-green-500/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setOverviewFilter('active'); openHub('all-tenants-hub'); }}>
+              <Card className="border bg-green-500/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => openPipelineHub('funded')}>
                 <CardContent className="p-2.5 text-center">
                   <p className="text-2xl font-extrabold text-green-600">{funded}</p>
                   <p className="text-[10px] text-muted-foreground font-medium">Funded</p>
                 </CardContent>
               </Card>
-              <Card className="border bg-purple-500/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setOverviewFilter('repaying'); openHub('all-tenants-hub'); }}>
+              <Card className="border bg-purple-500/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => openPipelineHub('repaying')}>
                 <CardContent className="p-2.5 text-center">
                   <p className="text-2xl font-extrabold text-purple-600">{repaying}</p>
                   <p className="text-[10px] text-muted-foreground font-medium">Repaying</p>
                 </CardContent>
               </Card>
-              <Card className="border bg-destructive/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setOverviewFilter('defaulted'); openHub('all-tenants-hub'); }}>
+              <Card className="border bg-destructive/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => openPipelineHub('defaulted')}>
                 <CardContent className="p-2.5 text-center">
                   <p className="text-2xl font-extrabold text-destructive">{defaulted}</p>
                   <p className="text-[10px] text-muted-foreground font-medium">Defaulted</p>
