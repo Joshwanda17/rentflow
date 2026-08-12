@@ -538,6 +538,8 @@ export function AgentCashPayoutsTab() {
         .select('*')
         .eq('assigned_cashout_agent_id', isCashoutAgent!.id)
         .in('status', CASHOUT_QUEUE_STATUSES)
+        .is('processed_at', null)
+        .is('fin_ops_reference', null)
         .order('dispatched_at', { ascending: true });
       if (error) throw error;
       return attachProfiles(data || []);
@@ -557,6 +559,8 @@ export function AgentCashPayoutsTab() {
         .from('withdrawal_requests')
         .select('id', { count: 'exact', head: true })
         .in('status', CASHOUT_QUEUE_STATUSES)
+        .is('processed_at', null)
+        .is('fin_ops_reference', null)
         .or(`assigned_cashout_agent_id.is.null,dispatched_at.lt.${cutoffIso}`);
       if (categoryOrClause) q = q.or(categoryOrClause);
       if (channelProviderOrClause) q = q.or(channelProviderOrClause);
