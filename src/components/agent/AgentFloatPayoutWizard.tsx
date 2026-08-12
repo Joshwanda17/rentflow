@@ -107,10 +107,15 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
   // used only by Pay Landlord. Tenant rent collections use wallet float instead.
   const {
     floatBalance: authoritativeFloat,
+    availableBalance: authoritativeAvailable,
+    reservedBalance: reservedFloat,
     isLoading: landlordPayoutFloatLoading,
     refetch: refetchLandlordPayoutFloat,
   } = useAgentLandlordFloat(user?.id);
-  const rawFloatBalance = Number(authoritativeFloat ?? 0);
+  // Spend against the reservation-aware figure the backend enforces, not the
+  // gross pool — otherwise the wizard promises money the payout will refuse.
+  const grossFloatBalance = Number(authoritativeFloat ?? 0);
+  const rawFloatBalance = Number(authoritativeAvailable ?? 0);
   const floatBalance = Number.isFinite(rawFloatBalance) ? rawFloatBalance : 0;
 
   const { data: assignedRequests = [], isLoading } = useQuery({
