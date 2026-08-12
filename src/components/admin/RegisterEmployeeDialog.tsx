@@ -158,7 +158,14 @@ export default function RegisterEmployeeDialog({ open, onOpenChange, onSuccess }
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Full Name *</Label>
-              <Input value={form.fullName} onChange={e => setForm(f => ({ ...f, fullName: e.target.value }))} placeholder="John Doe" />
+              <PersonNameFields
+                idPrefix="register-employee"
+                value={nameParts}
+                onChange={(next) => {
+                  setNameParts(next);
+                  setForm(f => ({ ...f, fullName: joinPersonName(next) }));
+                }}
+              />
             </div>
             <div className="space-y-2">
               <Label>Email *</Label>
