@@ -2089,9 +2089,7 @@ Deno.serve(async (req) => {
     } // end if (!isLandlordFloatPayout)
 
     // Update withdrawal request status
-    const { error: updateErr } = await admin
-      .from("withdrawal_requests")
-      .update({
+    const completionPayload = {
         status: "completed",
         fin_ops_reference: reference.trim().toUpperCase(),
         fin_ops_payment_method: payment_method,
@@ -2143,8 +2141,27 @@ Deno.serve(async (req) => {
         // proxy payouts that share a single bank reference, so these rows are
         // exempt from `withdrawal_requests_fin_ops_reference_uq`.
         ...(poolFunded ? { pool_funded: true } : {}),
-      } as any)
+    } as any;
+
+    let completeRes = await admin
+      .from("withdrawal_requests")
+      .update(completionPayload)
       .eq("id", withdrawal_id);
+    // The ledger is already posted at this point, so a transient DB failure here
+    // must not leave the row un-finalised (which is what made confirmed payouts
+    // reappear). Retry once before falling through to the error handling.
+    if (completeRes.error && isTransientDbError(completeRes.error.message || "")) {
+      console.warn(
+        "[approve-withdrawal] transient completion update failure — retrying once:",
+        completeRes.error.message,
+      );
+      await new Promise((r) => setTimeout(r, 1500));
+      completeRes = await admin
+        .from("withdrawal_requests")
+        .update(completionPayload)
+        .eq("id", withdrawal_id);
+    }
+    const updateErr = completeRes.error;
 
     if (updateErr) {
       console.error("[approve-withdrawal] Update error:", updateErr);
