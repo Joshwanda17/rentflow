@@ -18174,6 +18174,57 @@ export type Database = {
         }
         Relationships: []
       }
+      merchant_out_of_pocket_advances: {
+        Row: {
+          agent_id: string
+          created_at: string
+          float_used: number
+          id: string
+          kind: string
+          note: string | null
+          payout_amount: number
+          reimbursed_at: string | null
+          reimbursed_by: string | null
+          shortfall_amount: number
+          status: string
+          telecom_charge: number
+          updated_at: string
+          withdrawal_id: string | null
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string
+          float_used?: number
+          id?: string
+          kind?: string
+          note?: string | null
+          payout_amount?: number
+          reimbursed_at?: string | null
+          reimbursed_by?: string | null
+          shortfall_amount?: number
+          status?: string
+          telecom_charge?: number
+          updated_at?: string
+          withdrawal_id?: string | null
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string
+          float_used?: number
+          id?: string
+          kind?: string
+          note?: string | null
+          payout_amount?: number
+          reimbursed_at?: string | null
+          reimbursed_by?: string | null
+          shortfall_amount?: number
+          status?: string
+          telecom_charge?: number
+          updated_at?: string
+          withdrawal_id?: string | null
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           content: string
@@ -35544,6 +35595,10 @@ export type Database = {
           paid_out_total: number
           reimbursed_total: number
         }[]
+      }
+      get_merchant_out_of_pocket_summary: {
+        Args: { p_agent_id?: string }
+        Returns: Json
       }
       get_merchant_payout_float: { Args: never; Returns: Json }
       get_mission_leaderboard: { Args: { p_limit?: number }; Returns: Json }
