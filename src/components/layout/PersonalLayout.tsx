@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { X } from 'lucide-react';
+import workInProgressIllustration from '@/assets/work-in-progress.svg.asset.json';
 
 interface PersonalLayoutProps {
   children: ReactNode;
@@ -51,7 +52,17 @@ const PersonalLayout = ({ children, title }: PersonalLayoutProps) => {
       </header>
 
       <main className="max-w-3xl mx-auto px-4 py-5 space-y-4">
-        {title && <h1 className="text-xl font-bold tracking-tight">{title}</h1>}
+        {title && (
+          <div className="flex items-center gap-3">
+            <img
+              src={workInProgressIllustration.url}
+              alt="Work in progress illustration"
+              loading="lazy"
+              className="h-10 w-10 flex-none sm:h-12 sm:w-12"
+            />
+            <h1 className="text-xl font-bold tracking-tight">{title}</h1>
+          </div>
+        )}
         {children}
       </main>
     </div>
