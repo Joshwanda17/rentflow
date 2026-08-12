@@ -751,9 +751,17 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
             <Landmark className="h-5 w-5 text-chart-4" />
             Pay Landlord
           </DialogTitle>
-          <Badge variant="outline" className="text-xs font-mono w-fit mt-1">
-            Landlord Payout Float: {landlordPayoutFloatLoading ? 'Loading…' : formatUGX(availablePayoutFloat)}
-          </Badge>
+          <div className="space-y-1 mt-1">
+            <Badge variant="outline" className="text-xs font-mono w-fit">
+              Available to pay: {landlordPayoutFloatLoading ? 'Loading…' : formatUGX(availablePayoutFloat)}
+            </Badge>
+            {!landlordPayoutFloatLoading && reservedFloat > 0 && (
+              <p className="text-[11px] text-muted-foreground">
+                Total float {formatUGX(grossFloatBalance)} · {formatUGX(reservedFloat)} is already
+                held by landlord payouts awaiting cash-out, so it cannot be spent again.
+              </p>
+            )}
+          </div>
         </DialogHeader>
 
         <AnimatePresence mode="wait">
