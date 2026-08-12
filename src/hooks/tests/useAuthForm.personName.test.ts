@@ -124,7 +124,7 @@ describe('useAuthForm — signup gating on name parts', () => {
       result.current.setNameParts(parts);
       result.current.setPassword('hunter22');
       result.current.setConfirmPassword('hunter22');
-      result.current.setPhone('712345678');
+      result.current.setPhone('774839201');
       result.current.setSignupEmail('timothy@example.com');
     });
   };
@@ -161,7 +161,6 @@ describe('useAuthForm — signup gating on name parts', () => {
     const { result } = renderHook(() => useAuthForm());
     prime(result, { firstName: 'Timothy', otherNames: 'Christian', lastName: 'Waniaye' });
     await act(async () => { await result.current.handleSubmit(fakeFormEvent()); });
-    if (!signUpMock.mock.calls.length) console.log("TOASTS", JSON.stringify(toastMock.mock.calls));
     expect(signUpMock).toHaveBeenCalled();
     expect(signUpMock.mock.calls[0][2]).toBe('Timothy Christian Waniaye');
   });
@@ -171,7 +170,6 @@ describe('useAuthForm — signup gating on name parts', () => {
     const { result } = renderHook(() => useAuthForm());
     prime(result, { firstName: 'Timothy', otherNames: '', lastName: 'Waniaye' });
     await act(async () => { await result.current.handleSubmit(fakeFormEvent()); });
-    if (!signUpMock.mock.calls.length) console.log("TOASTS", JSON.stringify(toastMock.mock.calls));
     expect(signUpMock).toHaveBeenCalled();
     expect(signUpMock.mock.calls[0][2]).toBe('Timothy Waniaye');
   });
