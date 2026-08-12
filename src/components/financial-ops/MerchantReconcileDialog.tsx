@@ -89,7 +89,7 @@ export function MerchantReconcileDialog({
 
         <div className="space-y-3 pt-2">
           <div>
-            <Label className="text-xs">Correction type</Label>
+            <Label className="text-xs">What kind of fix</Label>
             <Select value={type} onValueChange={(v) => setType(v as MerchantAdjustmentType)}>
               <SelectTrigger className="mt-1 h-9 text-xs">
                 <SelectValue />
