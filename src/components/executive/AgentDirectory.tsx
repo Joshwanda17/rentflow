@@ -266,50 +266,116 @@ export function AgentDirectory() {
               <p className="text-sm font-medium">No agents match these filters</p>
             </div>
           ) : (
-            <div className="divide-y divide-border/60 rounded-xl border border-border overflow-hidden">
+            <div className="divide-y divide-border border-y border-border">
               {/* Column head (desktop) */}
-              <div className="hidden sm:grid grid-cols-[minmax(0,1fr)_110px_110px_110px_24px] gap-2 px-3 py-2 bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground font-medium">
-                <span>Agent</span><span>Type</span><span className="text-right">Tenants</span><span>Status</span><span />
+              <div className={cn('hidden lg:grid gap-3 px-3 py-2 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold', GRID)}>
+                <span>Agent</span>
+                <span>Location</span>
+                <span>Role</span>
+                <span>Portfolio</span>
+                <span>Today vs target</span>
+                <span>Status</span>
+                <span />
               </div>
-              {rows.map(a => (
+              {rows.map(a => {
+                const target = Number(a.daily_target) || 0;
+                const today = Number(a.collected_today) || 0;
+                const pct = target > 0 ? Math.min(100, Math.round((today / target) * 100)) : 0;
+                const place = [a.district, a.region].filter(Boolean).join(', ') || a.territory || null;
+                return (
                 <button
                   key={a.id}
                   onClick={() => setOpenAgentId(a.id)}
-                  className="w-full text-left grid grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[minmax(0,1fr)_110px_110px_110px_24px] gap-2 items-center px-3 py-2.5 hover:bg-muted/60 transition-colors"
+                  className={cn('w-full text-left grid grid-cols-1 gap-3 lg:items-center px-3 py-3 hover:bg-muted/50 transition-colors', `lg:${''}`, 'lg:' + GRID.replace('grid-cols-', 'grid-cols-'))}
+                  style={undefined}
                 >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <AgentAvatar src={a.avatar_url} name={a.full_name} className="h-9 w-9" />
+                  {/* Identity */}
+                  <div className="flex items-center gap-3 min-w-0">
+                    <AgentAvatar src={a.avatar_url} name={a.full_name} className="h-10 w-10" />
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <span className="font-medium text-sm truncate">{a.full_name || 'Unknown Agent'}</span>
-                        {a.verified && <Badge variant="default" className="text-[10px] px-1 py-0 h-4 shrink-0">✓</Badge>}
+                        <span className="font-semibold text-sm truncate">{a.full_name || 'Unknown Agent'}</span>
+                        {a.verified && <BadgeCheck className="h-3.5 w-3.5 text-primary shrink-0" aria-label="Verified" />}
                       </div>
                       <span className="flex items-center gap-1 text-xs text-muted-foreground truncate">
-                        <Phone className="h-3 w-3 shrink-0" />{a.phone || a.email || '—'}
+                        <Phone className="h-3 w-3 shrink-0" />{a.phone || '—'}
                       </span>
-                      <div className="flex sm:hidden items-center gap-2 mt-1">
-                        <Badge variant={a.agent_kind === 'sub_agent' ? 'secondary' : 'outline'} className="text-[10px]">
-                          {a.agent_kind === 'sub_agent' ? 'Sub-Agent' : 'Agent'}
-                        </Badge>
-                        <span className="text-[10px] text-muted-foreground tabular-nums">{a.total_tenants} tenants</span>
-                        <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full border capitalize', STATUS_STYLE[a.status])}>
-                          {a.status}
+                      {a.email && (
+                        <span className="hidden lg:flex items-center gap-1 text-[11px] text-muted-foreground/80 truncate">
+                          <Mail className="h-3 w-3 shrink-0" /><span className="truncate">{a.email}</span>
                         </span>
-                      </div>
+                      )}
                     </div>
                   </div>
-                  <div className="hidden sm:block">
+
+                  {/* Location */}
+                  <div className="min-w-0 text-xs">
+                    <span className="flex items-center gap-1 text-foreground truncate">
+                      <MapPin className="h-3 w-3 shrink-0 text-muted-foreground" />
+                      {place || <span className="text-muted-foreground">No location</span>}
+                    </span>
+                    <span className="flex items-center gap-1 text-[11px] text-muted-foreground mt-0.5">
+                      <CalendarClock className="h-3 w-3 shrink-0" />
+                      Last collection {relative(a.last_collection_at)}
+                    </span>
+                  </div>
+
+                  {/* Role */}
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <Badge variant={a.agent_kind === 'sub_agent' ? 'secondary' : 'outline'} className="text-[10px]">
                       {a.agent_kind === 'sub_agent' ? 'Sub-Agent' : 'Agent'}
                     </Badge>
+                    {a.agent_tier && (
+                      <Badge variant="outline" className="text-[10px] capitalize">{a.agent_tier}</Badge>
+                    )}
                   </div>
-                  <span className="hidden sm:block text-sm text-right tabular-nums font-medium">{a.total_tenants}</span>
-                  <span className={cn('hidden sm:inline-block text-[10px] px-2 py-0.5 rounded-full border capitalize w-fit', STATUS_STYLE[a.status])}>
-                    {a.status}
-                  </span>
-                  <Chevron className="h-4 w-4 text-muted-foreground shrink-0 justify-self-end" />
+
+                  {/* Portfolio */}
+                  <div className="flex items-center gap-3 text-xs tabular-nums">
+                    <span className="flex items-center gap-1" title="Tenants">
+                      <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="font-semibold">{a.total_tenants}</span>
+                    </span>
+                    <span className="flex items-center gap-1" title="Sub-agents recruited">
+                      <Network className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="font-semibold">{a.sub_agents_count}</span>
+                    </span>
+                    <span className="flex items-center gap-1" title="Houses listed">
+                      <Home className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="font-semibold">{a.houses_listed}</span>
+                    </span>
+                    <span className="text-[11px] text-muted-foreground" title="Outstanding balance">
+                      Out {ugx(a.outstanding)}
+                    </span>
+                  </div>
+
+                  {/* Today vs target */}
+                  <div className="min-w-0">
+                    <div className="flex items-baseline justify-between gap-2 text-xs tabular-nums">
+                      <span className={cn('font-semibold', today > 0 ? 'text-emerald-600' : 'text-muted-foreground')}>
+                        {ugx(today)}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground">/ {ugx(target)}</span>
+                    </div>
+                    <div className="mt-1 h-1.5 w-full bg-muted overflow-hidden rounded-full">
+                      <div
+                        className={cn('h-full', pct >= 100 ? 'bg-emerald-500' : pct > 0 ? 'bg-primary' : 'bg-transparent')}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Status */}
+                  <div className="flex items-center gap-2">
+                    <span className={cn('text-[10px] px-2 py-0.5 rounded-full border capitalize w-fit', STATUS_STYLE[a.status])}>
+                      {a.status}
+                    </span>
+                  </div>
+
+                  <Chevron className="hidden lg:block h-4 w-4 text-muted-foreground shrink-0 justify-self-end" />
                 </button>
-              ))}
+                );
+              })}
             </div>
           )}
 
