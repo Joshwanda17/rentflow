@@ -32,8 +32,8 @@ describe('PromissoryNoteDialog — partner name', () => {
     fill(/First name/i, 'John');
     fill(/Other names/i, 'Ssalongo');
     fill(/Last name/i, 'Mukasa');
-    fill(/WhatsApp/i, '0780000000');
-    fill(/Promised Amount/i, '500000');
+    fireEvent.change(screen.getAllByPlaceholderText('0780000000')[0], { target: { value: '0780000000' } });
+    fireEvent.change(screen.getByPlaceholderText(/e.g. 500000/i), { target: { value: '500000' } });
     fireEvent.click(screen.getByRole('button', { name: /Create/i }));
     await waitFor(() => expect(insertSpy).toHaveBeenCalled());
     expect(insertSpy.mock.calls[0][0].partner_name).toBe('John Ssalongo Mukasa');
@@ -42,8 +42,8 @@ describe('PromissoryNoteDialog — partner name', () => {
   it('blocks submission when the first name is blank', () => {
     render(<PromissoryNoteDialog open onOpenChange={() => {}} />);
     fill(/Last name/i, 'Mukasa');
-    fill(/WhatsApp/i, '0780000000');
-    fill(/Promised Amount/i, '500000');
+    fireEvent.change(screen.getAllByPlaceholderText('0780000000')[0], { target: { value: '0780000000' } });
+    fireEvent.change(screen.getByPlaceholderText(/e.g. 500000/i), { target: { value: '500000' } });
     expect(screen.getByRole('button', { name: /Create/i })).toBeDisabled();
     expect(insertSpy).not.toHaveBeenCalled();
   });
