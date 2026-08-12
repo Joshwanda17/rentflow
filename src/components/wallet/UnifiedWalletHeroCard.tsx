@@ -419,8 +419,8 @@ export function UnifiedWalletHeroCard({
         {/* Footer — View Wallet link */}
         <div className="flex items-center justify-between pt-1">
           <div className="flex items-center gap-1.5">
-            <Shield className="h-3 w-3 text-primary-foreground/30" />
-            <span className="text-[9px] text-primary-foreground/30 font-medium">{ROLE_TRUST[role]}</span>
+            <Shield className="h-3 w-3 text-white" />
+            <span className="text-[9px] text-white font-medium">{ROLE_TRUST[role]}</span>
           </div>
           <button
             onClick={handleViewStatement}
