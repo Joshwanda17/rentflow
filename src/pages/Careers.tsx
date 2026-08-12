@@ -155,7 +155,7 @@ export default function Careers() {
           <p className="text-muted-foreground">
             Our team will review your details and reach out on WhatsApp or by email from <span className="font-semibold text-foreground">info@welile.com</span>.
           </p>
-          <Button variant="outline" onClick={() => { setSubmitted(false); setForm({ fullName: '', whatsapp: '', email: '', category: 'developer', roleInterest: '', experience: '', portfolio: '', location: '', coverNote: '' }); }}>
+          <Button variant="outline" onClick={() => { setSubmitted(false); setNameParts({ firstName: '', otherNames: '', lastName: '' }); setForm({ fullName: '', whatsapp: '', email: '', category: 'developer', roleInterest: '', experience: '', portfolio: '', location: '', coverNote: '' }); }}>
             Submit another application
           </Button>
         </div>
