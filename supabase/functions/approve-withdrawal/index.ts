@@ -172,6 +172,24 @@ async function sendViaLana(
     return { ok: false, error: `LANA network error: ${(err as Error)?.message || err}`, response: null };
   }
 }
+// Infrastructure-level (retryable) database failure detector. Used to decide
+// whether a failed settlement should be returned to the payout queue (never,
+// for these) or held for CFO reconciliation.
+function isTransientDbError(msg: string): boolean {
+  const m = (msg || "").toLowerCase();
+  return (
+    m.includes("statement timeout") ||
+    m.includes("canceling statement") ||
+    m.includes("cancelling statement") ||
+    m.includes("57014") ||
+    m.includes("timeout") ||
+    m.includes("connection") ||
+    m.includes("deadlock") ||
+    m.includes("could not obtain lock") ||
+    m.includes("fetch failed")
+  );
+}
+
 // Optional delivery-status logging context. When supplied, sendSMS records a
 // full audit row (provider response, attempts, failures) to `sms_delivery_log`.
 interface SmsLogCtx {
