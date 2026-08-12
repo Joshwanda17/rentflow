@@ -9,6 +9,8 @@ import { generateEmployeeId } from '@/lib/employeeId';
 import { toast } from 'sonner';
 import { Loader2, Copy, Check } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import PersonNameFields from '@/components/shared/PersonNameFields';
+import { joinPersonName, validatePersonNameParts, type PersonNameParts } from '@/lib/authValidation';
 
 interface RegisterEmployeeDialogProps {
   open: boolean;
@@ -32,6 +34,8 @@ export default function RegisterEmployeeDialog({ open, onOpenChange, onSuccess }
     tempPassword: '',
   });
   const [result, setResult] = useState<{ employeeId: string; email: string; password: string } | null>(null);
+  // Captured in parts; `form.fullName` stays the single stored string.
+  const [nameParts, setNameParts] = useState<PersonNameParts>({ firstName: '', otherNames: '', lastName: '' });
   const [copied, setCopied] = useState(false);
 
   const generatePassword = () => {
@@ -43,11 +47,17 @@ export default function RegisterEmployeeDialog({ open, onOpenChange, onSuccess }
 
   const resetForm = () => {
     setForm({ fullName: '', email: '', phone: '', department: '', position: '', role: 'employee', tempPassword: '' });
+    setNameParts({ firstName: '', otherNames: '', lastName: '' });
     setResult(null);
     setCopied(false);
   };
 
   const handleSubmit = async () => {
+    const nameCheck = validatePersonNameParts(nameParts);
+    if (!nameCheck.valid) {
+      toast.error(nameCheck.error || 'Enter first and last name');
+      return;
+    }
     if (!form.fullName || !form.email || !form.phone || !form.department || !form.position || !form.tempPassword) {
       toast.error('All fields are required');
       return;
