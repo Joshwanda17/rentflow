@@ -250,6 +250,14 @@ export function MissedDaysTracker() {
         </div>
       </div>
 
+      <TenantOpsReportToolbar
+        tool="missed_days"
+        status={riskFilter}
+        search={search}
+        visibleCount={filtered.length}
+        fileSlug="tenants-behind-on-payments"
+      />
+
       {/* Sticky search + filters */}
       <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm pb-2 -mx-1 px-1 space-y-2">
         {/* Search */}
