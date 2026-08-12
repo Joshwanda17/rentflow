@@ -242,6 +242,33 @@ Just click the link and enter your password to get started!`;
     fetchPendingInvites();
   }, []);
 
+  // Growth: new profiles inside the selected window vs the baseline before it
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      setGrowthLoading(true);
+      const days = GROWTH_WINDOWS[growthWindowIdx].days;
+      const since = new Date();
+      since.setDate(since.getDate() - days);
+      const { count, error } = await supabase
+        .from('profiles')
+        .select('id', { count: 'exact', head: true })
+        .gte('created_at', since.toISOString());
+      if (cancelled) return;
+      if (error) {
+        setGrowthPct(null);
+      } else {
+        const added = count || 0;
+        const baseline = Math.max(totalUserCount - added, 0);
+        setGrowthNew(added);
+        setGrowthPct(baseline > 0 ? (added / baseline) * 100 : added > 0 ? 100 : 0);
+      }
+      setGrowthLoading(false);
+    };
+    if (totalUserCount > 0) load();
+    return () => { cancelled = true; };
+  }, [growthWindowIdx, totalUserCount]);
+
   // Fetch pending invites when filter switches to pending_invites
   useEffect(() => {
     if (roleFilter === 'pending_invites') {
