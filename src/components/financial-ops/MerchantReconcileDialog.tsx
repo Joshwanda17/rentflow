@@ -115,36 +115,36 @@ export function MerchantReconcileDialog({
             />
             <p className="mt-1 text-[10px] text-muted-foreground">
               {type === 'payout_correction'
-                ? 'Reduces what we treat as paid out by this merchant.'
-                : 'Increases the reimbursement already recognised for this merchant.'}{' '}
-              Use a negative amount to reverse an earlier correction.
+                ? 'Lowers what we count as paid out by this agent.'
+                : 'Adds to the money we already count as paid back to this agent.'}{' '}
+              Use a minus amount to undo an earlier fix.
             </p>
           </div>
 
           <div>
-            <Label className="text-xs">Reason (min 10 characters)</Label>
+            <Label className="text-xs">Why (at least 10 letters)</Label>
             <Textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               rows={3}
-              placeholder="Why this correction is being made"
+              placeholder="Why you are making this fix"
               className="mt-1 text-sm"
             />
             <p className="mt-1 text-[10px] text-muted-foreground">{reason.trim().length}/10</p>
           </div>
 
           <div>
-            <Label className="text-xs">Evidence reference (optional)</Label>
+            <Label className="text-xs">Proof (optional)</Label>
             <Input
               value={evidence}
               onChange={(e) => setEvidence(e.target.value)}
-              placeholder="MoMo transaction ID, statement line, approval note"
+              placeholder="MoMo transaction ID, statement line, or approval note"
               className="mt-1 h-9 text-sm"
             />
           </div>
 
           <Button onClick={submit} disabled={!valid || post.isPending} className="w-full">
-            {post.isPending ? 'Recording…' : 'Record correction'}
+            {post.isPending ? 'Saving…' : 'Save fix'}
           </Button>
         </div>
 
