@@ -198,7 +198,9 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
     onError: (err: Error) => toast.error(err.message),
   });
 
-  // Step 1 of the gate: CFO approves (and locks in edits). No money moves here.
+  // CFO approval = approval + disbursement. Stamping the approval fields alone
+  // left requests parked at 'cfo_approved' with no advance row and no ledger
+  // legs, so approval now always completes the existing disbursement path.
   const approveMutation = useMutation({
     mutationFn: async (req: any) => {
       if (!user?.id) throw new Error('Not authenticated');
@@ -227,9 +229,50 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
         monthly_rate: adjustedRate,
       }).eq('id', req.id);
       if (error) throw error;
+
+      // Same disbursement path used by "Approve & Disburse" — one atomic RPC
+      // that stamps the request paid, creates the advance row and posts both
+      // ledger legs (wallet credit + platform cash out).
+      if (isTopup) {
+        await applyAdvanceTopupForRequest(req, principal, Number(req.extend_days ?? cycleDays));
+      } else {
+        const { error: disburseErr } = await supabase.rpc('disburse_agent_advance_request' as any, {
+          p_request_id: req.id,
+          p_principal: principal,
+          p_cycle_days: cycleDays,
+          p_monthly_rate: adjustedRate,
+          p_repayment_frequency: req.repayment_frequency ?? 'daily',
+          p_notes: notes[req.id] || null,
+          p_skip_reason: null,
+          p_recovery_source: 'wallet_daily',
+          p_roi_recovery_percent: 0,
+        } as any);
+        if (disburseErr) throw disburseErr;
+      }
+
+      supabase.functions.invoke('notify-agent-advance-disbursed', {
+        body: { agent_id: req.agent_id, amount: principal, request_id: req.id },
+      }).catch((e) => console.error('advance disbursement SMS failed', e));
     },
-    onSuccess: () => {
-      toast.success('Advance approved — ready to disburse');
+    onSuccess: (_data, req: any) => {
+      const adjustedRate = adjustedRates[req.id] ?? Number(req.monthly_rate);
+      const principal = adjustedPrincipals[req.id] ?? Number(req.principal);
+      const cycleDays = adjustedCycles[req.id] ?? Number(req.cycle_days);
+      const registrationFee = calculateRegistrationFee(principal);
+      const accessFee = calculateAccessFee(principal, cycleDays, adjustedRate);
+      const totalPayable = principal + accessFee + registrationFee;
+      toast.success('Advance approved & disbursed to agent wallet!');
+      setDisbursed({
+        agentName: req.profiles?.full_name || 'Agent',
+        agentPhone: req.profiles?.phone || '',
+        principal,
+        cycleDays,
+        rate: adjustedRate,
+        accessFee,
+        registrationFee,
+        totalPayable,
+        daily: Math.ceil(totalPayable / cycleDays),
+      });
       queryClient.invalidateQueries({ queryKey: ['cfo-advance-requests'] });
     },
     onError: (err: Error) => toast.error(err.message),
@@ -973,19 +1016,6 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
                 >
                   <X className="h-4 w-4 mr-1" /> Cancel
                 </Button>
-                {!isApprovedAlready && (
-                  <Button
-                    variant="outline"
-                    disabled={busy}
-                    onClick={() => {
-                      approveMutation.mutate(req);
-                      setConfirmingId(null);
-                    }}
-                    className="w-full sm:w-auto gap-2 border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
-                  >
-                    <CheckCircle2 className="h-4 w-4" /> Approve only
-                  </Button>
-                )}
                 <Button
                   onClick={() => {
                     if (isApprovedAlready) {
