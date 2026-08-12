@@ -497,25 +497,14 @@ async function sendSMS(
     { provider: "lana", fn: () => sendViaLana(phone, message) },
   ];
 
-  // If the user is resending a still-valid OTP after the previous network said
-  // "accepted" but the phone was not verified, rotate away from the previous
-  // accepted provider. Gateway acceptance is not handset delivery; repeatedly
-  // trying the same accepted-but-undelivered carrier route can trap one phone in
-  // a delivery black hole.
-  const previousProvider = String(options.previousAcceptedProvider ?? "")
-    .replace(/^provider:/, "")
-    .trim()
-    .toLowerCase() as SmsProviderName;
-  const previousIndex = primaryChain.findIndex((p) => p.provider === previousProvider);
-  const backupFirstChain = previousProvider === "yoola"
-    // If Yoola accepted but the user is asking again, the carrier route likely
-    // accepted without handset delivery. Try LANA before AT because AT can also
-    // report gateway acceptance without delivery in this market.
-    ? [primaryChain[2], primaryChain[1], primaryChain[0]]
-    : previousIndex >= 0
-      ? [...primaryChain.slice(previousIndex + 1), ...primaryChain.slice(0, previousIndex + 1)]
-      : [primaryChain[2], primaryChain[1], primaryChain[0]];
-  const chain = options.preferBackupRoute ? backupFirstChain : primaryChain;
+  // POLICY: Yoola is ALWAYS tried first — on first sends AND on resends. The
+  // other providers are fallbacks only, used when Yoola is unconfigured or
+  // rejects. No rotation away from Yoola: the previous "rotate to backup on
+  // resend" behaviour pushed resends onto AT (unregistered sender, silently
+  // dropped) and LANA (out of credits), making resends less likely to arrive.
+  void options.previousAcceptedProvider;
+  void options.preferBackupRoute;
+  const chain = primaryChain;
 
   let bestReason: string | undefined;
   for (let i = 0; i < chain.length; i++) {
