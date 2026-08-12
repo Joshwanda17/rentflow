@@ -100,7 +100,8 @@ async function goToStep4() {
   await waitFor(() => expect(onStep(3)).toBe(true));
 
   // Step 3 — bank payout
-  fireEvent.click(screen.getByText(/^Bank/i)); + next of kin.
+  // + next of kin
+  fireEvent.click(screen.getByText(/^Bank/i));
   fireEvent.change(screen.getByPlaceholderText(/e.g. Stanbic Bank/i), { target: { value: 'Stanbic Bank' } });
   fireEvent.change(screen.getByPlaceholderText(/Name on the account/i), { target: { value: 'Alice Nakato' } });
   fireEvent.change(screen.getByPlaceholderText(/^Account number$/i), { target: { value: '123456789' } });
