@@ -87,6 +87,84 @@ export function useMerchantFloatPositions(enabled = true) {
   });
 }
 
+/**
+ * Money the merchant fronted from their own line beyond the float they held,
+ * plus their telecom sending charges. Read-only reporting RPC.
+ */
+export interface MerchantOutOfPocketSummary {
+  owedToAgent: number;
+  reimbursedTotal: number;
+  telecomToday: number;
+  telecomMonth: number;
+  telecomTotal: number;
+  pendingCount: number;
+}
+
+export function useMerchantOutOfPocket(enabled = true) {
+  return useQuery({
+    queryKey: ['merchant-out-of-pocket'],
+    enabled,
+    retry: false,
+    staleTime: 20_000,
+    refetchInterval: 45_000,
+    queryFn: async (): Promise<MerchantOutOfPocketSummary> => {
+      const { data, error } = await supabase.rpc('get_merchant_out_of_pocket_summary' as any, {});
+      if (error) throw error;
+      const d = (data ?? {}) as any;
+      return {
+        owedToAgent: Number(d.owed_to_agent ?? 0),
+        reimbursedTotal: Number(d.reimbursed_total ?? 0),
+        telecomToday: Number(d.telecom_today ?? 0),
+        telecomMonth: Number(d.telecom_month ?? 0),
+        telecomTotal: Number(d.telecom_total ?? 0),
+        pendingCount: Number(d.pending_count ?? 0),
+      };
+    },
+  });
+}
+
+export interface MerchantOutOfPocketRow {
+  id: string;
+  withdrawalId: string | null;
+  kind: 'payout' | 'telecom';
+  payoutAmount: number;
+  telecomCharge: number;
+  floatUsed: number;
+  shortfallAmount: number;
+  status: string;
+  note: string | null;
+  createdAt: string;
+}
+
+export function useMerchantOutOfPocketRows(enabled = true) {
+  return useQuery({
+    queryKey: ['merchant-out-of-pocket-rows'],
+    enabled,
+    retry: false,
+    staleTime: 20_000,
+    queryFn: async (): Promise<MerchantOutOfPocketRow[]> => {
+      const { data, error } = await supabase
+        .from('merchant_out_of_pocket_advances' as any)
+        .select('id, withdrawal_id, kind, payout_amount, telecom_charge, float_used, shortfall_amount, status, note, created_at')
+        .order('created_at', { ascending: false })
+        .limit(30);
+      if (error) throw error;
+      return ((data ?? []) as any[]).map((r) => ({
+        id: String(r.id),
+        withdrawalId: r.withdrawal_id ?? null,
+        kind: r.kind,
+        payoutAmount: Number(r.payout_amount ?? 0),
+        telecomCharge: Number(r.telecom_charge ?? 0),
+        floatUsed: Number(r.float_used ?? 0),
+        shortfallAmount: Number(r.shortfall_amount ?? 0),
+        status: String(r.status),
+        note: r.note ?? null,
+        createdAt: String(r.created_at),
+      }));
+    },
+  });
+}
+
 export type MerchantAdjustmentType =
   | 'opening_balance'
   | 'reimbursement_recorded'
