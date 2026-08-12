@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import { format, subDays, subHours } from 'date-fns';
+import { format, subDays, subHours, startOfDay, endOfDay } from 'date-fns';
 import {
   ResponsiveContainer, AreaChart, Area,
   XAxis, YAxis,
@@ -23,18 +23,26 @@ import { AgentRentCapacityPanel } from '../AgentRentCapacityPanel';
 
 
 
-export type OverviewRange = '24h' | '7d' | '1m';
+export type OverviewRange = 'today' | 'yesterday' | '24h' | '7d' | '1m';
 
 const RANGES: { key: OverviewRange; label: string }[] = [
+  { key: 'today', label: 'Today' },
+  { key: 'yesterday', label: 'Yesterday' },
   { key: '24h', label: '24H' },
   { key: '7d', label: '7D' },
   { key: '1m', label: '1M' },
 ];
 
-function rangeStart(r: OverviewRange): Date {
-  if (r === '24h') return subHours(new Date(), 24);
-  if (r === '7d') return subDays(new Date(), 7);
-  return subDays(new Date(), 30);
+function rangeWindow(r: OverviewRange): { start: Date; end: Date } {
+  const now = new Date();
+  if (r === 'today') return { start: startOfDay(now), end: now };
+  if (r === 'yesterday') {
+    const y = subDays(now, 1);
+    return { start: startOfDay(y), end: endOfDay(y) };
+  }
+  if (r === '24h') return { start: subHours(now, 24), end: now };
+  if (r === '7d') return { start: subDays(now, 7), end: now };
+  return { start: subDays(now, 30), end: now };
 }
 
 function fmtMoney(n: number): string {
@@ -126,7 +134,10 @@ export interface AgentOpsOverviewProps {
 export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
   const qc = useQueryClient();
   const [range, setRange] = useState<OverviewRange>('7d');
-  const start = useMemo(() => rangeStart(range).toISOString(), [range]);
+  const { start, end } = useMemo(() => {
+    const w = rangeWindow(range);
+    return { start: w.start.toISOString(), end: w.end.toISOString() };
+  }, [range]);
 
   useEffect(() => {
     const ch = supabase
@@ -140,11 +151,11 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
   }, [qc]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['agent-ops-overview', range],
+    queryKey: ['agent-ops-overview', range, start, end],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_agent_ops_overview' as any, {
         p_range_start: start,
-        p_range_end: new Date().toISOString(),
+        p_range_end: end,
       });
       if (error) throw error;
       return data as unknown as OverviewPayload;
@@ -157,7 +168,10 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
   const trendLabelKey = range === '24h' ? 'day' : 'day';
 
   const trendData = trend.map((t) => ({
-    label: format(new Date(t.day), range === '1m' ? 'd MMM' : 'EEE'),
+    label: format(
+      new Date(t.day),
+      range === '1m' ? 'd MMM' : range === 'today' || range === 'yesterday' ? 'd MMM' : 'EEE',
+    ),
     agents: t.agents,
     requests: t.requests,
     activeAgents: t.active_agents,
@@ -175,7 +189,7 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
           <h2 className="text-base font-bold text-foreground">Agent Operations Overview</h2>
           <p className="text-xs text-muted-foreground">All agents, all activities — one glance.</p>
         </div>
-        <div className="inline-flex rounded-full bg-muted p-0.5">
+        <div className="inline-flex flex-wrap rounded-full bg-muted p-0.5">
           {RANGES.map((r) => (
             <button
               key={r.key}
