@@ -11,7 +11,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { GuarantorConsentCheckbox } from '@/components/agent/GuarantorConsentCheckbox';
 import { calculateRentRepayment, formatUGX } from '@/lib/rentCalculations';
 import { addDays, format } from 'date-fns';
-import { validateFullName } from '@/lib/authValidation';
+import { joinPersonName, validatePersonNameParts, type PersonNameParts } from '@/lib/authValidation';
+import PersonNameFields from '@/components/shared/PersonNameFields';
 import { toast } from 'sonner';
 import {
   UserPlus, CheckCircle2, AlertCircle, Phone, User, Home, Banknote,
@@ -78,17 +79,20 @@ export default function RegisterTenantPublic() {
   const [rentAmount, setRentAmount] = useState('');
   const [duration, setDuration] = useState<'30' | '60' | '90'>('30');
   const [repaymentPeriod, setRepaymentPeriod] = useState<RepaymentPeriod>('7');
-  const [fullName, setFullName] = useState('');
+  const [tenantNameParts, setTenantNameParts] = useState<PersonNameParts>({ firstName: '', otherNames: '', lastName: '' });
+  const fullName = joinPersonName(tenantNameParts);
   const [phone, setPhone] = useState('');
   const [noSmartphone, setNoSmartphone] = useState(false);
   const [houseCategory, setHouseCategory] = useState('');
-  const [landlordName, setLandlordName] = useState('');
+  const [landlordNameParts, setLandlordNameParts] = useState<PersonNameParts>({ firstName: '', otherNames: '', lastName: '' });
+  const landlordName = joinPersonName(landlordNameParts);
   const [landlordPhone, setLandlordPhone] = useState('');
   const [propertyAddress, setPropertyAddress] = useState('');
   const [gpsLocation, setGpsLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [housePhotos, setHousePhotos] = useState<{ file: File; preview: string }[]>([]);
-  const [lc1Name, setLc1Name] = useState('');
+  const [lc1NameParts, setLc1NameParts] = useState<PersonNameParts>({ firstName: '', otherNames: '', lastName: '' });
+  const lc1Name = joinPersonName(lc1NameParts);
   const [shownInsight, setShownInsight] = useState(false);
   const [insightVisible, setInsightVisible] = useState(false);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -176,10 +180,10 @@ export default function RegisterTenantPublic() {
   }, [amount, incomeType, duration, repaymentPeriod]);
 
   const canSubmit = !!(
-    validateFullName(fullName).valid && phone.trim() && amount > 0 && houseCategory &&
-    landlordName.trim() && landlordPhone.trim() && propertyAddress.trim() &&
-    validateFullName(landlordName).valid && lc1Phone.trim() &&
-    validateFullName(lc1Name).valid && lc1Village.trim() && guarantorConsent
+    validatePersonNameParts(tenantNameParts).valid && phone.trim() && amount > 0 && houseCategory &&
+    landlordPhone.trim() && propertyAddress.trim() &&
+    validatePersonNameParts(landlordNameParts).valid && lc1Phone.trim() &&
+    validatePersonNameParts(lc1NameParts).valid && lc1Village.trim() && guarantorConsent
   );
 
   const fileToBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
@@ -192,9 +196,9 @@ export default function RegisterTenantPublic() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!agentId || !token || !canSubmit || !fees) return;
-    const tenantNameCheck = validateFullName(fullName);
-    const landlordNameCheck = validateFullName(landlordName);
-    const lc1NameCheck = validateFullName(lc1Name);
+    const tenantNameCheck = validatePersonNameParts(tenantNameParts);
+    const landlordNameCheck = validatePersonNameParts(landlordNameParts);
+    const lc1NameCheck = validatePersonNameParts(lc1NameParts);
     if (!tenantNameCheck.valid) { toast.error(`Tenant name: ${tenantNameCheck.error}`); return; }
     if (!landlordNameCheck.valid) { toast.error(`Landlord name: ${landlordNameCheck.error}`); return; }
     if (!lc1NameCheck.valid) { toast.error(`LC1 chairperson name: ${lc1NameCheck.error}`); return; }
@@ -208,7 +212,7 @@ export default function RegisterTenantPublic() {
         body: {
           token,
           agent_id: agentId,
-          full_name: tenantNameCheck.trimmed,
+          full_name: tenantNameCheck.fullName,
           phone,
           income_type: incomeType,
           rent_amount: fees.rentAmount,
@@ -219,12 +223,12 @@ export default function RegisterTenantPublic() {
           daily_repayment: fees.dailyRepayment,
           no_smartphone: noSmartphone,
           house_category: houseCategory,
-          landlord_name: landlordNameCheck.trimmed,
+          landlord_name: landlordNameCheck.fullName,
           landlord_phone: landlordPhone,
           property_address: propertyAddress,
           gps_lat: gpsLocation?.lat ?? null,
           gps_lng: gpsLocation?.lng ?? null,
-          lc1_name: lc1NameCheck.trimmed,
+          lc1_name: lc1NameCheck.fullName,
           lc1_phone: lc1Phone,
           lc1_village: lc1Village,
           house_photos: photosBase64,
@@ -472,10 +476,7 @@ export default function RegisterTenantPublic() {
             <Label className="text-xs">Tenant has no smartphone</Label>
             <Switch checked={noSmartphone} onCheckedChange={setNoSmartphone} />
           </div>
-          <div className="space-y-2">
-            <Label>Full Name <span className="text-destructive">*</span></Label>
-            <Input value={fullName} onChange={e => setFullName(e.target.value)} placeholder="e.g. Alice Namono" required autoCapitalize="words" />
-          </div>
+          <PersonNameFields idPrefix="tenant-public" value={tenantNameParts} onChange={setTenantNameParts} />
           <div className="space-y-2">
             <Label>Phone Number <span className="text-destructive">*</span></Label>
             <Input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="e.g. 0770 123 456" required />
@@ -498,10 +499,7 @@ export default function RegisterTenantPublic() {
         {/* D. Landlord Details */}
         <section id="sec-landlord" className="space-y-3 scroll-mt-32">
           <h2 className="text-sm font-semibold flex items-center gap-1.5"><Home className="h-4 w-4" /> Landlord Details</h2>
-          <div className="space-y-2">
-            <Label>Landlord Name <span className="text-destructive">*</span></Label>
-            <Input value={landlordName} onChange={e => setLandlordName(e.target.value)} placeholder="e.g. Mr. Mukasa" required />
-          </div>
+          <PersonNameFields idPrefix="tenant-public-landlord" value={landlordNameParts} onChange={setLandlordNameParts} />
           <div className="space-y-2">
             <Label>Landlord Phone <span className="text-destructive">*</span></Label>
             <Input type="tel" value={landlordPhone} onChange={e => setLandlordPhone(e.target.value)} placeholder="e.g. 0700 000 000" required />
@@ -546,10 +544,7 @@ export default function RegisterTenantPublic() {
         {/* F. LC1 Chairperson */}
         <section id="sec-lc1" className="space-y-3 scroll-mt-32">
           <h2 className="text-sm font-semibold flex items-center gap-1.5"><Users className="h-4 w-4" /> LC1 Chairperson</h2>
-          <div className="space-y-2">
-            <Label>Name <span className="text-destructive">*</span></Label>
-            <Input value={lc1Name} onChange={e => setLc1Name(e.target.value)} placeholder="LC1 Chairperson name" required />
-          </div>
+          <PersonNameFields idPrefix="tenant-public-lc1" value={lc1NameParts} onChange={setLc1NameParts} />
           <div className="space-y-2">
             <Label>Phone <span className="text-destructive">*</span></Label>
             <Input type="tel" value={lc1Phone} onChange={e => setLc1Phone(e.target.value)} placeholder="e.g. 0700 000 000" required />
