@@ -495,10 +495,28 @@ Deno.serve(async (req) => {
     // compensation. Backward-compatible: if a legacy merchant client omits the
     // flag but the caller is a cashout agent AND no staff settlement desk is in
     // play, we still credit them.
+    //
+    // 2026-08-12 FIX — the flag is now an OPT-OUT signal, never the sole
+    // enabler. Several merchant agents ALSO hold staff roles (manager, coo,
+    // financial_ops, *_ops) and close the very same customer payout from a
+    // staff desk UI that never sent `acting_as_merchant`. In those cases the
+    // merchant fronted real MoMo cash but the entire compensation chain
+    // (float debit -> telecom charge -> out-of-pocket receivable -> 0.5%
+    // commission -> Welile SMS) was silently skipped: their float never
+    // reduced, no commission was credited and no message was sent.
+    // Authoritative rule: an ACTIVE cashout agent settling a payout by hand IS
+    // the merchant, whichever desk they clicked from. Only an explicit
+    // `acting_as_merchant: false` / `staff_desk: true` (a non-merchant desk
+    // paying on someone else's behalf) or a system/bulk call opts out.
     const bodyActingFlag =
       (body as any)?.acting_as_merchant === true ||
       (body as any)?.actingAsMerchant === true;
-    actingAsMerchant = isCashoutAgent && !isSystemCall && bodyActingFlag;
+    const merchantOptOut =
+      (body as any)?.acting_as_merchant === false ||
+      (body as any)?.actingAsMerchant === false ||
+      (body as any)?.staff_desk === true;
+    actingAsMerchant =
+      isCashoutAgent && !isSystemCall && (bodyActingFlag || !merchantOptOut);
 
     // ── PROOF-OF-PAYMENT GATE (merchant settlements) ────────────────────
     // No proof image => no wallet debit. A merchant agent can only close a
@@ -506,12 +524,19 @@ Deno.serve(async (req) => {
     // MoMo confirmation screenshot). This runs BEFORE the claim flip and
     // before any ledger write, so a proofless attempt leaves both the
     // request and the customer's wallet untouched.
+    // Since staff-desk settlements by an active cashout agent now qualify as
+    // merchant settlements (2026-08-12), the gate also accepts a proof that is
+    // ALREADY lodged on the request row by those desks — otherwise the fix
+    // would lock FinOps/ops merchants out of settling entirely.
     if (actingAsMerchant) {
       const proofUrlIn = (body as any)?.payout_proof;
       const proofPathIn = (body as any)?.payout_proof_path;
+      const existingProof =
+        (wr as any)?.payout_proof_path ?? (wr as any)?.payout_proof ?? null;
       const hasProof =
         (typeof proofUrlIn === "string" && proofUrlIn.trim().length > 0) ||
-        (typeof proofPathIn === "string" && proofPathIn.trim().length > 0);
+        (typeof proofPathIn === "string" && proofPathIn.trim().length > 0) ||
+        (typeof existingProof === "string" && existingProof.trim().length > 0);
       if (!hasProof) {
         console.warn("[approve-withdrawal] PROOF_REQUIRED", { withdrawal_id, user: user.id });
         return new Response(
@@ -2748,6 +2773,7 @@ Deno.serve(async (req) => {
     // Whatever the merchant funded beyond their float (payout principal and/or
     // the telecom sending charge) is money the company owes them. Recorded
     // clearly here and surfaced on their dashboard + to Finance for repayment.
+    let merchantOutOfPocketRecorded = false;
     if (
       actingAsMerchant &&
       !poolFunded &&
@@ -2798,6 +2824,7 @@ Deno.serve(async (req) => {
             `out-of-pocket record failed: ${String((oopErr as any)?.message ?? oopErr)}`,
           );
         } else {
+          merchantOutOfPocketRecorded = true;
           try {
             await admin.from("system_events").insert({
               event_type: "wallet_transfer",
@@ -2848,12 +2875,39 @@ Deno.serve(async (req) => {
     // Commission may only post when its offsetting float debit actually landed.
     // Pool-funded settlements debit float in the main block above, so they are
     // still eligible. Otherwise the gap is logged for CFO reconciliation.
-    const floatLegSettled = poolFunded || merchantFloatConsumed > 0;
+    // A merchant who held ZERO float still fronted 100% of the payout from
+    // their own line — that shortfall is recorded as a company receivable in
+    // `merchant_out_of_pocket_advances`, which is a valid offsetting leg. They
+    // earn their commission just like a float-funded settlement (2026-08-12).
+    const floatLegSettled =
+      poolFunded || merchantFloatConsumed > 0 || merchantOutOfPocketRecorded;
     if (actingAsMerchant && !floatLegSettled) {
       await logSettlementGap(
         "commission_paid_float_pending",
         Math.round(amount * 0.005),
-        "commission withheld because the merchant float debit did not land",
+        "commission withheld because neither a merchant float debit nor an out-of-pocket receivable landed",
+      );
+    }
+    // ── LOUD FAILURE (2026-08-12) ───────────────────────────────────────────
+    // A merchant settlement that closes with NO float debit AND NO
+    // out-of-pocket receivable means the compensation chain was skipped. Log it
+    // the same day instead of discovering it weeks later during reconciliation.
+    if (
+      actingAsMerchant &&
+      !poolFunded &&
+      merchantFloatConsumed === 0 &&
+      !merchantOutOfPocketRecorded
+    ) {
+      console.error("[approve-withdrawal] MERCHANT_CHAIN_SKIPPED", {
+        withdrawal_id,
+        agent_id: user.id,
+        amount,
+        float_available: Math.round(merchantFloatAvailable),
+      });
+      await logSettlementGap(
+        "merchant_settlement_chain_skipped",
+        amount,
+        "merchant settlement closed with no float debit and no out-of-pocket receivable",
       );
     }
     if (actingAsMerchant && floatLegSettled) {
