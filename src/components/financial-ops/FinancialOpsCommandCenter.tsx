@@ -130,6 +130,7 @@ const EmployeeRequisitionQueuePanel = lz(() => import('./EmployeeRequisitionQueu
 const FinancialOpsPulseStrip = lz(() => import('./FinancialOpsPulseStrip'), 'FinancialOpsPulseStrip');
 const LiquidityForecastPanel = lz(() => import('./LiquidityForecastPanel'), 'LiquidityForecastPanel');
 const DailyWalletReportsPanel = lz(() => import('./DailyWalletReportsPanel'), 'DailyWalletReportsPanel');
+const StaleWithdrawalHoldsPanel = lz(() => import('@/components/cfo/StaleWithdrawalHoldsPanel'), 'StaleWithdrawalHoldsPanel');
 import { 
   ShieldCheck, Banknote, ArrowLeft, ChevronDown, ChevronUp,
   ClipboardList, Search, Scale, Shield, Gauge, BookOpen, TrendingUp, FileText,
@@ -157,7 +158,8 @@ type Tool =
   | 'bridge_health' | 'manual_float_credit'
   | 'earnings_explainer'
   | 'liquidity_forecast'
-  | 'reports';
+  | 'reports'
+  | 'stale_withdrawal_holds';
 // Extend Tool type via union above; add new tools:
 
 
@@ -186,6 +188,7 @@ const moreActions: MoreAction[] = [
   { kind: 'view', id: 'offline_collections', label: 'Offline Collections', desc: 'Drafts agents submitted with proof', icon: WifiOff },
   { kind: 'view', id: 'deposits', label: 'User Deposits', desc: 'Live queue of every pending user deposit request (TID, name, phone, amount) plus Gmail-matched verification', icon: ReceiptText },
   { kind: 'tool', id: 'funded_tenants', label: 'Funded Landlords & Tenants', desc: 'Tenants whose landlords have been paid — share to agent on WhatsApp', icon: HomeIcon },
+  { kind: 'tool', id: 'stale_withdrawal_holds', label: 'Stale Withdrawal Holds', desc: 'Withdrawal requests stuck without a payout or rejection — each one hides a user’s real balance until it’s settled or cancelled.', icon: AlertTriangle },
   { kind: 'tool', id: 'withdrawal_history', label: 'Withdrawal History', desc: 'Statement of every withdrawal — balance before & after', icon: Receipt },
   { kind: 'tool', id: 'withdrawal_notif_log', label: 'Withdrawal Notification Log', desc: 'Every merchant withdrawal-alert email — search by recipient, amount & date', icon: Bell },
   { kind: 'tool', id: 'sms_delivery_log', label: 'SMS Delivery Log', desc: 'Delivery-status audit of every claim & payout SMS — provider response, retries & failures', icon: MessageSquare },
@@ -423,6 +426,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
         )}
         {activeTool === 'mismatch_metrics' && <MismatchMetricsPanel />}
         {activeTool === 'bridge_health' && <DepositBridgeHealthPanel />}
+        {activeTool === 'stale_withdrawal_holds' && <StaleWithdrawalHoldsPanel />}
         {activeTool === 'withdrawal_history' && <WithdrawalHistoryStatement />}
         {activeTool === 'funded_tenants' && <FundedTenantsList />}
         {activeTool === 'proxy_diagnostics' && <ProxyWithdrawalDiagnosticsPanel />}
@@ -501,7 +505,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
     {
       title: 'Withdrawals & Payouts',
       items: moreActions.filter(a => [
-        'withdrawal_history','withdrawal_notif_log','cashout_settlement',
+        'stale_withdrawal_holds','withdrawal_history','withdrawal_notif_log','cashout_settlement',
         'proxy_diagnostics','receipt_archive',
       ].includes(a.id as string)),
     },
@@ -614,6 +618,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
               <div className="flex flex-col gap-0.5">
                 {group.items.map((a) => {
                   const isActive = activeId === a.id;
+                  const badgeCount = badgeCounts[a.id as string];
                   return (
                     <button
                       key={`${a.kind}-${a.id}`}
@@ -623,16 +628,28 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
                           ? 'bg-primary/10 text-primary font-semibold'
                           : 'text-foreground/85 hover:bg-muted/60 hover:text-foreground'
                       }`}
-                      title={sidebarCollapsed ? a.label : a.desc}
+                      title={sidebarCollapsed ? `${a.label}${badgeCount ? ` (${badgeCount})` : ''}` : a.desc}
                     >
                       {isActive && !sidebarCollapsed && (
                         <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-r-full bg-primary" />
                       )}
-                      <a.icon className={`h-3.5 w-3.5 shrink-0 transition-colors ${
-                        isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
-                      }`} />
+                      <span className="relative shrink-0">
+                        <a.icon className={`h-3.5 w-3.5 transition-colors ${
+                          isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
+                        }`} />
+                        {!!badgeCount && sidebarCollapsed && (
+                          <span className="absolute -top-1.5 -right-1.5 h-3.5 min-w-[0.875rem] px-0.5 rounded-full bg-amber-500 text-[9px] font-bold text-white flex items-center justify-center leading-none">
+                            {badgeCount > 9 ? '9+' : badgeCount}
+                          </span>
+                        )}
+                      </span>
                       {!sidebarCollapsed && (
-                        <span className="text-[13px] leading-tight truncate">{a.label}</span>
+                        <span className="text-[13px] leading-tight truncate flex-1">{a.label}</span>
+                      )}
+                      {!!badgeCount && !sidebarCollapsed && (
+                        <span className="shrink-0 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-400 text-[10px] font-bold px-1.5 py-0.5 tabular-nums">
+                          {badgeCount}
+                        </span>
                       )}
                     </button>
                   );
@@ -741,6 +758,28 @@ function FinOpsHome({
     },
     staleTime: 15_000,
   });
+
+  // Broadly-visible count so a stale withdrawal hold can't sit unnoticed for
+  // months again — anyone who can see Financial Ops can see this number, even
+  // if they're not personally authorized to settle/cancel one (that stays
+  // gated inside StaleWithdrawalHoldsPanel itself).
+  const { data: staleHolds } = useQuery({
+    queryKey: ['finops-stale-withdrawal-hold-count'],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_stale_withdrawal_hold_count' as any);
+      if (error) throw error;
+      const d = data as any;
+      return {
+        count: Number(d?.count ?? 0),
+        criticalCount: Number(d?.critical_count ?? 0),
+        oldestAgeDays: Number(d?.oldest_age_days ?? 0),
+      };
+    },
+    staleTime: 60_000,
+  });
+  const badgeCounts: Partial<Record<string, number>> = staleHolds?.count
+    ? { stale_withdrawal_holds: staleHolds.count }
+    : {};
 
   const refreshAll = () => {
     qc.invalidateQueries({ queryKey: ['finops-wallet-overview'] });
@@ -897,21 +936,31 @@ function FinOpsHome({
             <SheetDescription>Everything beyond verifying deposits and approving withdrawals</SheetDescription>
           </SheetHeader>
           <div className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-3 min-w-0">
-            {moreActions.map(a => (
-              <button
-                key={`${a.kind}-${a.id}`}
-                onClick={() => openMoreAction(a)}
-                className="w-full max-w-full flex items-center gap-3 p-3 rounded-xl hover:bg-primary/5 border border-transparent hover:border-primary/20 transition-colors text-left overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-              >
-                <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                  <a.icon className="h-4.5 w-4.5 text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <span className="font-medium text-sm block break-words">{a.label}</span>
-                  <span className="text-[11px] text-muted-foreground block break-words">{a.desc}</span>
-                </div>
-              </button>
-            ))}
+            {moreActions.map(a => {
+              const badgeCount = badgeCounts[a.id as string];
+              return (
+                <button
+                  key={`${a.kind}-${a.id}`}
+                  onClick={() => openMoreAction(a)}
+                  className="w-full max-w-full flex items-center gap-3 p-3 rounded-xl hover:bg-primary/5 border border-transparent hover:border-primary/20 transition-colors text-left overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <a.icon className="h-4.5 w-4.5 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="font-medium text-sm flex items-center gap-1.5 break-words">
+                      {a.label}
+                      {!!badgeCount && (
+                        <span className="shrink-0 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-400 text-[10px] font-bold px-1.5 py-0.5 tabular-nums">
+                          {badgeCount}
+                        </span>
+                      )}
+                    </span>
+                    <span className="text-[11px] text-muted-foreground block break-words">{a.desc}</span>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </SheetContent>
       </Sheet>
