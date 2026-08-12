@@ -1416,6 +1416,7 @@ export function TenantOpsDashboard() {
   };
 
   const sectionHubLabels: Partial<Record<ActiveView, string>> = {
+    'pipeline-hub': 'Pipeline Status',
     'agent-capacity-hub': 'Agent Rent Capacity',
     'all-tenants-hub': 'All Tenants',
     'daily-collections': 'Daily Collection Monitoring',
