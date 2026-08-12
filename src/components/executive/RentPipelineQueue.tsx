@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { TenantOpsReportToolbar } from './TenantOpsReportToolbar';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { RentPipelineTracker } from './RentPipelineTracker';
