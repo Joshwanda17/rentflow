@@ -109,6 +109,7 @@ function HouseImageCarousel({ images, title, houseId }: { images: string[] | nul
         <>
           <button
             type="button"
+            aria-label="Previous photo"
             onClick={(e) => { e.stopPropagation(); setIdx(i => (i - 1 + images.length) % images.length); }}
             className="absolute left-1 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full p-1"
           >
@@ -116,6 +117,7 @@ function HouseImageCarousel({ images, title, houseId }: { images: string[] | nul
           </button>
           <button
             type="button"
+            aria-label="Next photo"
             onClick={(e) => { e.stopPropagation(); setIdx(i => (i + 1) % images.length); }}
             className="absolute right-1 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full p-1"
           >
