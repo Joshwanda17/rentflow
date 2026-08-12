@@ -54,12 +54,12 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
       <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="rounded-xl border border-warning/30 bg-warning/5 p-3">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Company cash in agents' hands
+            Our cash held by agents
           </p>
           <p className="mt-1 font-mono text-xl font-bold tabular-nums text-warning break-all">
             {isLoading ? '—' : formatUGX(heldTotal)}
           </p>
-          <p className="text-[10px] text-muted-foreground mt-1">Sent before it was worked off by claims</p>
+          <p className="text-[10px] text-muted-foreground mt-1">We sent this, they haven't paid it out yet</p>
         </div>
         <div className="rounded-xl border border-border bg-muted/30 p-3">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
