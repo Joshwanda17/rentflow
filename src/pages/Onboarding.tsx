@@ -797,28 +797,13 @@ function _Step3Impl({
         variants={fadeUp}
         className="bg-white border border-gray-100 rounded-2xl p-4 space-y-3"
       >
-        <div className="flex gap-3">
-          <div className="space-y-1 flex-1 min-w-0">
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">First Name</label>
-            <input
-              type="text"
-              placeholder="First Name"
-              value={form.firstName}
-              onChange={e => setForm(p => ({ ...p, firstName: e.target.value }))}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder:text-gray-300 outline-none focus:bg-white focus:border-[#6c11d4] transition-all"
-            />
-          </div>
-          <div className="space-y-1 flex-1 min-w-0">
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Last Name</label>
-            <input
-              type="text"
-              placeholder="Last Name"
-              value={form.lastName}
-              onChange={e => setForm(p => ({ ...p, lastName: e.target.value }))}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder:text-gray-300 outline-none focus:bg-white focus:border-[#6c11d4] transition-all"
-            />
-          </div>
-        </div>
+        <PersonNameFields
+          idPrefix="funder-onboarding"
+          value={{ firstName: form.firstName, otherNames: form.otherNames, lastName: form.lastName }}
+          onChange={(next: PersonNameParts) =>
+            setForm(p => ({ ...p, firstName: next.firstName, otherNames: next.otherNames, lastName: next.lastName }))
+          }
+        />
 
         <div className="space-y-1">
           <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Email</label>
