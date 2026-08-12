@@ -1027,7 +1027,11 @@ function isValid(step: number, form: FormState): boolean {
   }
   if (step === 4) {
     const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email);
-    const nameOk = form.firstName.length >= 2 && form.lastName.length >= 2;
+    const nameOk = validatePersonNameParts({
+      firstName: form.firstName,
+      otherNames: form.otherNames,
+      lastName: form.lastName,
+    }).valid;
     const pwOk = form.password.length >= 8;
     const matchOk = form.password === form.confirmPassword;
     const phoneOk = form.phone.trim().length >= 7;
@@ -1069,8 +1073,12 @@ function getValidationMessage(step: number, form: FormState): string {
 
   if (step === 4) {
     const missing: string[] = [];
-    if (form.firstName.trim().length < 2) missing.push('first name');
-    if (form.lastName.trim().length < 2) missing.push('last name');
+    const nameCheck = validatePersonNameParts({
+      firstName: form.firstName,
+      otherNames: form.otherNames,
+      lastName: form.lastName,
+    });
+    if (!nameCheck.valid) missing.push(nameCheck.error ? nameCheck.error.toLowerCase() : 'your full name');
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) missing.push('a valid email address');
     if (form.phone.trim().length < 7) missing.push('phone number');
     if (form.address.trim().length < 2) missing.push('address');
