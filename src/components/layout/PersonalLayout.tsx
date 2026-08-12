@@ -1,10 +1,11 @@
 import { ReactNode, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { X } from 'lucide-react';
+import { X, ArrowLeft } from 'lucide-react';
 import workInProgressIllustration from '@/assets/work-in-progress.svg.asset.json';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+
 
 const getInitials = (name: string) => {
   if (!name) return 'Me';
@@ -27,7 +28,9 @@ interface PersonalLayoutProps {
 const PersonalLayout = ({ children, title }: PersonalLayoutProps) => {
   const { user, roles, switchRole } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [displayName, setDisplayName] = useState('');
+
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -57,6 +60,16 @@ const PersonalLayout = ({ children, title }: PersonalLayoutProps) => {
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card/60 backdrop-blur sticky top-0 z-30">
         <div className="max-w-3xl mx-auto px-4 py-3 relative">
+          {location.pathname !== '/me' && (
+            <button
+              type="button"
+              onClick={() => navigate('/me')}
+              className="absolute -top-2 left-2 p-2 rounded-full bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Back to My space"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </button>
+          )}
           <button
             type="button"
             onClick={goToFunderDashboard}
@@ -67,6 +80,7 @@ const PersonalLayout = ({ children, title }: PersonalLayoutProps) => {
           </button>
           <div className="flex items-center gap-3 min-w-0 pt-4">
             <Avatar className="h-11 w-11 border-2 border-primary/10 shrink-0">
+
               <AvatarImage src={avatarUrl || ''} alt={displayName || 'Your profile'} />
               <AvatarFallback className="bg-primary/10 text-primary font-semibold text-sm">
                 {getInitials(displayName)}
