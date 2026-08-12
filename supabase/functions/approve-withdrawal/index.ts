@@ -3456,6 +3456,9 @@ Deno.serve(async (req) => {
         merchant_reimbursed: merchantFloatConsumed,
         merchant_float_consumed: merchantFloatConsumed,
         merchant_telecom_charge: merchantTelecomCharge,
+        merchant_own_money_fronted: Math.round(
+          merchantPrincipalShortfall + merchantTelecomShortfall,
+        ),
         merchant_float_total_debit: merchantFloatConsumed + merchantTelecomCharge,
         settled_available: settledAvailable,
       }),
