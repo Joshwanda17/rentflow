@@ -2974,9 +2974,10 @@ export function LandlordOpsDashboard() {
             </tbody>
           </table>
         </div>
+        )}
 
         {/* Pagination controls */}
-        {totalMatched > perPage && (
+        {categoryFilter !== 'funded' && totalMatched > perPage && (
           <div className="flex items-center justify-between pt-2">
             <span className="text-xs text-muted-foreground">
               Showing {(safePage - 1) * perPage + 1}–{Math.min(safePage * perPage, totalMatched)} of {totalMatched}
