@@ -17,7 +17,7 @@ const setNameParts = vi.fn((next: any) => { state.nameParts = next; });
 
 vi.mock('@/hooks/useAuthForm', () => ({
   useAuthForm: () => ({
-    referralId: null, becomeRole: null, preSelectedRole: null,
+    referralId: null, becomeRole: null, preSelectedRole: 'tenant',
     isSignUp: true, setIsSignUp: vi.fn(),
     isForgotPassword: false, setIsForgotPassword: vi.fn(),
     isForgotPhone: false, setIsForgotPhone: vi.fn(),
