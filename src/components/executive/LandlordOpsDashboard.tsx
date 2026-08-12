@@ -70,6 +70,14 @@ import {
   generateLandlordVerificationReportPdf,
   type LandlordReportScope,
 } from '@/lib/generateLandlordVerificationReportPdf';
+import {
+  generateLandlordFundedReportPdf,
+  landlordFundedFileName,
+} from '@/lib/generateLandlordFundedReportPdf';
+import {
+  useLandlordFundedStats,
+  fetchLandlordFundedStats,
+} from '@/hooks/useLandlordFundedStats';
 import { generateLc1VerificationReportPdf, lc1ReportFileName, type Lc1ReportRow } from '@/lib/generateLc1VerificationReportPdf';
 import { FileDown } from 'lucide-react';
 import { RentAdjustmentDialog } from './RentAdjustmentDialog';
@@ -574,6 +582,8 @@ export function LandlordOpsDashboard() {
   const [landlordDateFrom, setLandlordDateFrom] = useState<string>('');
   const [landlordDateTo, setLandlordDateTo] = useState<string>('');
   const [exportingLandlordReport, setExportingLandlordReport] = useState(false);
+  // "Landlords Funded" statistics + its own comprehensive export.
+  const [exportingFundedReport, setExportingFundedReport] = useState(false);
 
   // ─── LC1 Verification Filter ───
   // Keys on the canonical `verification_status` (verified / rejected / pending)
@@ -645,6 +655,60 @@ export function LandlordOpsDashboard() {
     enabled: view === 'landlords',
   });
   const landlordScopedCounts = landlordScopedCountsData?.counts;
+  // ─── Landlords Funded statistics (same search + date range as the tab) ───
+  // A landlord is FUNDED when company money was committed to their property
+  // inside the window. The RPC also returns the previous equal-length window so
+  // the tile and the export can show a like-for-like comparison.
+  const {
+    data: landlordFundedStats,
+    isFetching: landlordFundedFetching,
+  } = useLandlordFundedStats({
+    dateFrom: landlordDateFrom,
+    dateTo: landlordDateTo,
+    search: debouncedLandlordSearch,
+    enabled: view === 'landlords',
+  });
+
+  /**
+   * Export the full "Landlords Funded" management pack for the period on
+   * screen: KPI comparisons, daily trend chart, district bar chart, and the
+   * per-district / per-agent / per-service-centre tables plus the register.
+   */
+  const exportFundedReportPdf = async () => {
+    setExportingFundedReport(true);
+    try {
+      const stats = await fetchLandlordFundedStats({
+        dateFrom: landlordDateFrom,
+        dateTo: landlordDateTo,
+        search: debouncedLandlordSearch,
+      });
+      if (!stats?.summary?.landlords_funded) {
+        sonnerToast.error('No landlords were funded in this period — nothing to export');
+        return;
+      }
+      const blob = generateLandlordFundedReportPdf(stats, {
+        dateFrom: landlordDateFrom || null,
+        dateTo: landlordDateTo || null,
+        search: debouncedLandlordSearch || null,
+        generatedBy: user?.email ?? null,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = landlordFundedFileName({ dateFrom: landlordDateFrom, dateTo: landlordDateTo });
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      sonnerToast.success(
+        `Landlords funded report downloaded (${stats.summary.landlords_funded.toLocaleString()} landlords)`,
+      );
+    } catch (err: any) {
+      sonnerToast.error(err?.message || 'Failed to generate the landlords funded report');
+    } finally {
+      setExportingFundedReport(false);
+    }
+  };
   // Reset to page 1 when the user changes any filter/search/sort.
   useEffect(() => {
     setLandlordPage(1);
@@ -2489,6 +2553,13 @@ export function LandlordOpsDashboard() {
         value: `UGX ${fmt(scoped?.occupied_monthly_revenue ?? 0)}`,
         hint: `UGX ${fmt(scoped?.empty_monthly_revenue ?? 0)} empty`,
       },
+      {
+        label: 'LANDLORDS FUNDED',
+        value: (landlordFundedStats?.summary.landlords_funded ?? 0).toLocaleString(),
+        hint: landlordFundedStats
+          ? `UGX ${fmt(landlordFundedStats.summary.total_funded)} · prev ${landlordFundedStats.previous.landlords_funded.toLocaleString()}`
+          : 'money committed in this period',
+      },
     ];
 
     const landlordFiltersDirty = !!(
@@ -2519,6 +2590,19 @@ export function LandlordOpsDashboard() {
                 : <FileDown className="h-4 w-4" />}
               Export PDF
             </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-9 gap-1.5"
+              disabled={exportingFundedReport}
+              onClick={exportFundedReportPdf}
+              title="Export the Landlords Funded pack (stats, charts, per district / agent / service centre) for the period selected below"
+            >
+              {exportingFundedReport
+                ? <Loader2 className="h-4 w-4 animate-spin" />
+                : <Banknote className="h-4 w-4" />}
+              Funded Report
+            </Button>
             <Button size="sm" onClick={() => setBulkImportLandlordsOpen(true)} className="h-9">
               <Upload className="h-4 w-4 mr-1.5" /> Bulk Import
             </Button>
@@ -2529,7 +2613,7 @@ export function LandlordOpsDashboard() {
         </div>
 
         {/* Verification statistics for the active scope (read-only) */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-2">
           {landlordStatCards.map(card => (
             <div key={card.label} className="rounded-xl border border-border bg-card p-2.5">
               <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wide">{card.label}</p>
