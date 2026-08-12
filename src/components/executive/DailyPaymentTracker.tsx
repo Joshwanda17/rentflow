@@ -31,6 +31,13 @@ import { format, formatDistanceToNow } from 'date-fns';
 type Filter = 'all' | 'paid' | 'unpaid';
 type DeviceFilter = 'all' | 'smartphone' | 'no-smartphone';
 
+/** Batches id lists so large tenant sets are never silently truncated. */
+const chunkIds = (list: string[], size = 300): string[][] => {
+  const out: string[][] = [];
+  for (let i = 0; i < list.length; i += size) out.push(list.slice(i, i + size));
+  return out;
+};
+
 interface ActiveTenant {
   tenant_id: string;
   tenant_name: string;
