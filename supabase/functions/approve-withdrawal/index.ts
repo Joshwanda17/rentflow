@@ -2278,8 +2278,8 @@ Deno.serve(async (req) => {
         // scope on `assigned_cashout_agent_id = me`. Idempotent — safe when
         // the assignment is still in place. Only stamps for merchant-settled
         // payouts (FinOps / system paths leave it as-is).
-        ...(actingAsMerchant && agentRow?.id
-          ? { assigned_cashout_agent_id: agentRow.id }
+        ...(actingAsMerchant && merchantAgentIdResolved
+          ? { assigned_cashout_agent_id: merchantAgentIdResolved }
           : {}),
         // Persist the pool/bulk-funded nature of this settlement at the DB
         // layer. One SKYBUBBLES bulk-bank transfer legitimately covers many
