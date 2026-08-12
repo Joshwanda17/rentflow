@@ -87,6 +87,11 @@ export function RegisterSubAgentDialog({ open, onOpenChange, onSuccess }: Regist
 
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
+    const nameCheck = validatePersonNameParts(nameParts);
+    if (!nameCheck.valid) {
+      toast({ title: 'Error', description: nameCheck.error || 'Enter first and last name', variant: 'destructive' });
+      return;
+    }
     setIsLoading(true);
     setLastError(null);
 
@@ -173,6 +178,7 @@ Password: ${createdInvite?.password}`;
 
   const handleClose = () => {
     setFormData({ fullName: '', phone: '', password: '' });
+    setNameParts({ firstName: '', otherNames: '', lastName: '' });
     setCreatedInvite(null);
     setCopied(false);
     setLastError(null);
