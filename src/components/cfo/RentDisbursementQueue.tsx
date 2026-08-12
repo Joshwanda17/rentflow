@@ -769,8 +769,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent align="end" className="w-72 space-y-3 p-3">
-                  {!hideDistrictCityFilters && (
-                    <div className="space-y-1.5">
+                  <div className="space-y-1.5">
                       <p className="text-xs font-semibold text-muted-foreground">District</p>
                       <Select
                         value={districtFilter}
@@ -788,17 +787,15 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
                           ))}
                         </SelectContent>
                       </Select>
-                    </div>
-                  )}
-                  {!hideDistrictCityFilters && (
-                    <div className="space-y-1.5">
-                      <p className="text-xs font-semibold text-muted-foreground">Town / City</p>
+                  </div>
+                  <div className="space-y-1.5">
+                      <p className="text-xs font-semibold text-muted-foreground">Municipality / Town</p>
                       <Select value={cityFilter} onValueChange={(v) => { setCityFilter(v); setSelected(new Set()); }}>
                         <SelectTrigger className="h-9 rounded-lg text-sm">
-                          <SelectValue placeholder="All towns/cities" />
+                          <SelectValue placeholder="All municipalities/towns" />
                         </SelectTrigger>
                         <SelectContent className="max-h-[280px]">
-                          <SelectItem value="all">All towns/cities</SelectItem>
+                          <SelectItem value="all">All municipalities/towns</SelectItem>
                           {cityOptions.map(o => (
                             <SelectItem key={o.name} value={o.name}>
                               <span className="truncate">{o.name} · {o.count}</span>
@@ -806,8 +803,8 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
                           ))}
                         </SelectContent>
                       </Select>
-                    </div>
-                  )}
+                  </div>
+                  {!locationProvisionsOnly && (
                   <div className="space-y-1.5">
                     <p className="text-xs font-semibold text-muted-foreground">Category type</p>
                     <Select value={catField} onValueChange={(v) => { setCatField(v as CatFieldKey); setCatValue('all'); setSelected(new Set()); }}>
