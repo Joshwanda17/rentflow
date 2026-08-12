@@ -9,9 +9,9 @@ import { HelmetProvider } from 'react-helmet-async';
 const updateSpy = vi.fn();
 const stored = { full_name: '', phone: '+256771234567' };
 
-vi.mock('@/hooks/useAuth', () => ({
-  useAuth: () => ({ user: { id: 'u1', email: 'a@b.com' }, roles: ['tenant'], loading: false, role: 'tenant' }),
-}));
+// Stable identities — a fresh object per render would re-fire the profile effect forever.
+const AUTH = { user: { id: 'u1', email: 'a@b.com' }, roles: ['tenant'], loading: false, role: 'tenant' };
+vi.mock('@/hooks/useAuth', () => ({ useAuth: () => AUTH }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
