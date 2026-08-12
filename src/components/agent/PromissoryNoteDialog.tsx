@@ -128,9 +128,9 @@ export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialo
         activationLink = await createShortLink(u.id, '/activate', { token: createdNote.activation_token });
       }
     } catch {}
-    const shareText = `🤝 Hi ${partnerName}, activate your Welile investment account and start earning 15% ROI! ${activationLink}`;
+    const shareText = `🤝 Hi ${partnerName}, activate your Welile funding account and start earning 15% ROI! ${activationLink}`;
     if (navigator.share) {
-      navigator.share({ title: 'Welile Investment', text: shareText, url: activationLink }).catch(() => {});
+      navigator.share({ title: 'Welile Funding', text: shareText, url: activationLink }).catch(() => {});
     } else {
       await navigator.clipboard.writeText(activationLink);
       toast.success('Activation link copied!');

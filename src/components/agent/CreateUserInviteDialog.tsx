@@ -196,7 +196,7 @@ export function CreateUserInviteDialog({ open, onOpenChange, onSuccess, defaultR
       if (isSupporterRole) {
         const amt = parseFloat(investmentData.investmentAmount);
         if (isNaN(amt) || amt < 50000) {
-          toast({ title: 'Investment amount must be at least UGX 50,000', variant: 'destructive' });
+          toast({ title: 'Funding amount must be at least UGX 50,000', variant: 'destructive' });
           return;
         }
         if (!/^\d{4}$/.test(investmentData.portfolioPin)) {
@@ -326,7 +326,7 @@ You've been invited to join as a ${config.label}!
       message += `
 
 📊 Portfolio: ${createdInvite.portfolioCode}
-💰 Investment: UGX ${createdInvite.investmentAmount?.toLocaleString()}
+💰 Funding: UGX ${createdInvite.investmentAmount?.toLocaleString()}
 📅 Duration: ${createdInvite.durationMonths} months
 📈 ROI: ${createdInvite.roiPercentage}%`;
     }
@@ -457,12 +457,12 @@ Just click the link and enter your password to get started!`;
         </div>
       )}
 
-      {/* Section 4: Investment Details */}
-      <SectionHeader id="investment" title="Investment Details" emoji="💰" />
+      {/* Section 4: Funding Details */}
+      <SectionHeader id="investment" title="Funding Details" emoji="💰" />
       {expandedSection === 'investment' && (
         <div className="space-y-3 px-1">
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Investment Amount (UGX) *</Label>
+            <Label className="text-xs font-medium">Funding Amount (UGX) *</Label>
             <Input type="number" min={1000} placeholder="e.g. 5000000" value={investmentData.investmentAmount} onChange={(e) => setInvestmentData(prev => ({ ...prev, investmentAmount: e.target.value }))} className="h-12 text-base rounded-xl" inputMode="numeric" />
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -700,7 +700,7 @@ Just click the link and enter your password to get started!`;
             <SheetDescription>
               {createdInvite
                 ? `Share this link with the ${roleConfig[createdInvite.role].label.toLowerCase()}`
-                : isSupporterRole ? 'Register a new supporter with investment details' : 'Create a new account'}
+                : isSupporterRole ? 'Register a new supporter with funding details' : 'Create a new account'}
             </SheetDescription>
           </SheetHeader>
           {!createdInvite ? formContent : successContent}
@@ -720,7 +720,7 @@ Just click the link and enter your password to get started!`;
           <DialogDescription>
             {createdInvite
               ? `Share this link with the ${roleConfig[createdInvite.role].label.toLowerCase()} to activate their account`
-              : isSupporterRole ? 'Register a new supporter with investment details' : 'Create a new account and share the activation link'}
+              : isSupporterRole ? 'Register a new supporter with funding details' : 'Create a new account and share the activation link'}
           </DialogDescription>
         </DialogHeader>
         {!createdInvite ? formContent : successContent}

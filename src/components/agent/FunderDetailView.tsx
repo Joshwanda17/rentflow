@@ -242,7 +242,7 @@ export function FunderDetailView({
             {stats && (
               <div className="grid grid-cols-4 gap-1.5">
                 <div className="rounded-lg bg-background/80 p-2 text-center">
-                  <p className="text-[9px] text-muted-foreground">Invested</p>
+                  <p className="text-[9px] text-muted-foreground">Funded</p>
                   <p className="text-xs font-bold truncate">{formatUGX(stats.totalInvested)}</p>
                 </div>
                 <div className="rounded-lg bg-background/80 p-2 text-center">
@@ -421,7 +421,7 @@ export function FunderDetailView({
                 <CardContent className="p-4 text-center">
                   <CircleDot className="h-6 w-6 mx-auto text-muted-foreground/40 mb-2" />
                   <p className="text-xs text-muted-foreground">No portfolios yet</p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">Invest on their behalf to create one</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Fund on their behalf to create one</p>
                 </CardContent>
               </Card>
             ) : (
@@ -446,7 +446,7 @@ export function FunderDetailView({
                       </div>
                       <div className="grid grid-cols-3 gap-2 text-center">
                         <div className="rounded-lg bg-muted/40 p-2">
-                          <p className="text-[10px] text-muted-foreground">Invested</p>
+                          <p className="text-[10px] text-muted-foreground">Funded</p>
                           <p className="text-xs font-bold">{formatUGX(p.investment_amount)}</p>
                         </div>
                         <div className="rounded-lg bg-muted/40 p-2">

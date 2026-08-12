@@ -132,7 +132,7 @@ export function AgentPromissoryNotesList({ open, onOpenChange }: Props) {
                       <div className="rounded-lg bg-primary/5 p-2.5 space-y-1">
                         <div className="font-semibold text-primary text-xs">🤑 Your Commission Breakdown</div>
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Investment promised</span>
+                          <span className="text-muted-foreground">Funding promised</span>
                           <span className="font-medium">{formatUGX(note.amount)}</span>
                         </div>
                         <div className="flex justify-between">

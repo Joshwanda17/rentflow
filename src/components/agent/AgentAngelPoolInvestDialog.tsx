@@ -168,7 +168,7 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
           full_name: regName.trim(),
           phone: regPhone.trim(),
           agent_id: user.id,
-          notes: regNotes.trim() || 'Registered during Angel Pool investment',
+          notes: regNotes.trim() || 'Registered during Angel Pool funding',
         },
       });
 
@@ -219,21 +219,21 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
           funding_source: fundingSource,
           investment_date: investmentDate,
         },
-        errorTitle: 'Investment failed',
+        errorTitle: 'Funding failed',
       },
     );
     setSubmitting(false);
     if (error || !data) return;
     setResult(data);
     setStep('success');
-    toast.success('Angel Pool investment completed!');
+    toast.success('Angel Pool funding completed!');
     onSuccess?.();
   };
 
   const handleWhatsAppShare = () => {
     if (!result || !selectedInvestor) return;
     const msg = encodeURIComponent(
-      `✅ Angel Pool Investment Confirmed!\n\n` +
+      `✅ Angel Pool Funding Confirmed!\n\n` +
       `Investor: ${selectedInvestor.full_name}\n` +
       `Amount: UGX ${result.actual_amount.toLocaleString()}\n` +
       `Shares: ${Number(result.shares).toLocaleString(undefined, { maximumFractionDigits: 4 })}\n` +
@@ -255,9 +255,9 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
           <DialogTitle className="flex items-center gap-2">
             <PiggyBank className="h-5 w-5 text-emerald-500" />
             {step === 'search' && (showRegister ? 'Register New Investor' : 'Select Investor')}
-            {step === 'amount' && 'Investment Details'}
-            {step === 'preview' && 'Confirm Investment'}
-            {step === 'success' && 'Investment Complete'}
+            {step === 'amount' && 'Funding Details'}
+            {step === 'preview' && 'Confirm Funding'}
+            {step === 'success' && 'Funding Complete'}
           </DialogTitle>
         </DialogHeader>
 
@@ -397,7 +397,7 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
             </div>
 
             <div className="space-y-2">
-              <Label>Investment Amount (UGX)</Label>
+              <Label>Funding Amount (UGX)</Label>
               <Input
                 type="number"
                 placeholder={`Min ${PRICE_PER_SHARE.toLocaleString()}`}
@@ -418,7 +418,7 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
             </div>
 
             <div className="space-y-2">
-              <Label>Investment Date <span className="text-destructive">*</span></Label>
+              <Label>Funding Date <span className="text-destructive">*</span></Label>
               <Input
                 type="date"
                 value={investmentDate}
@@ -498,7 +498,7 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
                 <span className="font-medium">{selectedInvestor.full_name}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Investment Date</span>
+                <span className="text-muted-foreground">Funding Date</span>
                 <span className="font-medium">{investmentDate}</span>
               </div>
               <div className="flex justify-between text-sm">
@@ -551,7 +551,7 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
               <CheckCircle className="h-8 w-8 text-emerald-500" />
             </div>
             <div>
-              <p className="font-bold text-lg">Investment Confirmed!</p>
+              <p className="font-bold text-lg">Funding Confirmed!</p>
               <p className="text-sm text-muted-foreground mt-1">
                 {Number(result.shares).toLocaleString(undefined, { maximumFractionDigits: 4 })} shares allocated to {selectedInvestor.full_name}
               </p>

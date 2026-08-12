@@ -1676,9 +1676,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             toast.info('Generating short link...');
             const { createShortLink } = await import('@/lib/createShortLink');
             const investorLink = await createShortLink(user.id, '/funder-onboarding', { ref: user.id, role: 'supporter' });
-            const shareText = `🦄 Join the Welile Angel Pool — invest in Africa's rent-tech revolution! Own equity in a high-growth platform. Sign up here: ${investorLink}`;
+            const shareText = `🦄 Join the Welile Angel Pool — back Africa's rent-tech revolution! Own equity in a high-growth platform. Sign up here: ${investorLink}`;
             if (navigator.share) {
-              navigator.share({ title: 'Invest in Welile Angel Pool', text: shareText, url: investorLink }).catch(() => {});
+              navigator.share({ title: 'Back the Welile Angel Pool', text: shareText, url: investorLink }).catch(() => {});
             } else {
               await navigator.clipboard.writeText(investorLink);
               toast.success('Angel investor signup link copied!');
@@ -1720,7 +1720,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             if (error || data?.error) throw new Error(data?.error || error?.message || 'Failed to generate link');
             const { createShortLink } = await import('@/lib/createShortLink');
             const partnerFormLink = await createShortLink(user.id, '/register-partner', { agent: user.id, token: data.token });
-            const shareText = `🤝 Invest with Welile and earn 15% monthly ROI! Register here: ${partnerFormLink}`;
+            const shareText = `🤝 Partner with Welile and earn 15% monthly ROI! Register here: ${partnerFormLink}`;
             if (navigator.share) {
               navigator.share({ title: 'Partner Registration', text: shareText, url: partnerFormLink }).catch(() => {});
             } else {
