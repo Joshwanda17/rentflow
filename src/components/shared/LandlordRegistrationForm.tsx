@@ -120,10 +120,19 @@ export default function LandlordRegistrationForm({
     const trimmed = value.trim();
     let msg = '';
     if (name === 'landlordName') {
+      // Pragmatic gate for field capture: two name parts, letters only.
+      // Ugandan surnames trip the stricter gibberish heuristics, which made
+      // valid names read as "enter a full name" even after being typed.
       if (!trimmed) msg = 'Landlord name is required';
       else {
-        const r = validateFullName(trimmed);
-        if (!r.valid) msg = r.error || 'Enter the landlord\u2019s real full name.';
+        const parts = trimmed.split(/\s+/).filter((p) => p.replace(/[^a-zA-Z]/g, '').length > 0);
+        if (/[0-9@#$%^&*_=+<>{}\[\]\\\/|~`"]/.test(trimmed)) {
+          msg = 'Use letters only — no digits or symbols.';
+        } else if (parts.length < 2) {
+          msg = 'Add a surname too, e.g. John Ssentamu.';
+        } else if (parts.some((p) => p.replace(/[^a-zA-Z]/g, '').length < 2)) {
+          msg = 'Each name needs at least 2 letters.';
+        }
       }
     }
     if (name === 'landlordPhone') {
@@ -962,6 +971,7 @@ export default function LandlordRegistrationForm({
             </Label>
             <LandlordAutocompleteInput
               field="name"
+              mode="status"
               value={landlordName}
               onChange={(v) => { setLandlordName(v); clearError('landlordName'); clearSubmitError(); setPhoneVerified(false); }}
               onBlur={(e) => validateField('landlordName', e.target.value)}
@@ -984,6 +994,7 @@ export default function LandlordRegistrationForm({
             </Label>
             <LandlordAutocompleteInput
               field="phone"
+              mode="status"
               type="tel"
               inputMode="tel"
               value={landlordPhone}
