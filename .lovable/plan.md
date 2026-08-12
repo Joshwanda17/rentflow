@@ -14,6 +14,8 @@ The chain (Claim → Approve → Float debit → Telecom charge → Out-of-pocke
 
 Total: **38 payouts, UGX 35.4M** settled with **no float debit, no telecom charge, no out-of-pocket receivable, no commission and no Welile SMS**.
 
+**No backfill on these historical rows.** They are already paid out and the merchants are actively processing withdrawals right now — posting retro float debits, receivables or commissions would disorganise their live float position. They will simply be **settled out**: marked closed/reconciled-as-is with a note, and excluded from the merchant float and out-of-pocket calculations. Only payouts settled **after** the fix goes live get the full chain.
+
 ## Root cause (confirmed)
 
 Merchant compensation is gated on a single client-sent flag `acting_as_merchant`. Only the merchant queue UIs send it (`AgentCashPayoutsTab`, `MerchantReconcilePaymentCard`). The FinOps/staff desk UIs (`WithdrawalPayoutCard`, `ApprovalQueue`, `FinOpsWithdrawalVerification`, `ReceiptCodeEntry`, proxy partner tools) never send it.
