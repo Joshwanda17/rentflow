@@ -2553,6 +2553,13 @@ export function LandlordOpsDashboard() {
         value: `UGX ${fmt(scoped?.occupied_monthly_revenue ?? 0)}`,
         hint: `UGX ${fmt(scoped?.empty_monthly_revenue ?? 0)} empty`,
       },
+      {
+        label: 'LANDLORDS FUNDED',
+        value: (landlordFundedStats?.summary.landlords_funded ?? 0).toLocaleString(),
+        hint: landlordFundedStats
+          ? `UGX ${fmt(landlordFundedStats.summary.total_funded)} · prev ${landlordFundedStats.previous.landlords_funded.toLocaleString()}`
+          : 'money committed in this period',
+      },
     ];
 
     const landlordFiltersDirty = !!(
@@ -2582,6 +2589,19 @@ export function LandlordOpsDashboard() {
                 ? <Loader2 className="h-4 w-4 animate-spin" />
                 : <FileDown className="h-4 w-4" />}
               Export PDF
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-9 gap-1.5"
+              disabled={exportingFundedReport}
+              onClick={exportFundedReportPdf}
+              title="Export the Landlords Funded pack (stats, charts, per district / agent / service centre) for the period selected below"
+            >
+              {exportingFundedReport
+                ? <Loader2 className="h-4 w-4 animate-spin" />
+                : <Banknote className="h-4 w-4" />}
+              Funded Report
             </Button>
             <Button size="sm" onClick={() => setBulkImportLandlordsOpen(true)} className="h-9">
               <Upload className="h-4 w-4 mr-1.5" /> Bulk Import
