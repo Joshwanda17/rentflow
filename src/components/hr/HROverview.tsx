@@ -35,7 +35,7 @@ export default function HROverview({ onNavigate }: HROverviewProps) {
       const { count } = await supabase
         .from('user_roles')
         .select('*', { count: 'exact', head: true })
-        .in('role', INTERNAL_ROLES as any)
+        .eq('role', 'employee')
         .eq('enabled', true);
       return count || 0;
     },
