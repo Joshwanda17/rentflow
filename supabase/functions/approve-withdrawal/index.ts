@@ -1685,25 +1685,21 @@ Deno.serve(async (req) => {
       );
     }
 
-    // ── Merchant-agent FLOAT pre-check (Float model, 2026) ────────────────
+    // ── Merchant-agent FLOAT position (Float model, 2026-08) ──────────────
     // Merchant agents settle customer cash-outs from COMPANY FLOAT that the
-    // CFO/treasury pre-loaded into their float bucket — they no longer front
-    // their own cash for a withdrawable reimbursement. Block the claim up-front
-    // (before any debit) if the merchant does not hold enough float, so we
-    // never process a payout the merchant can't cover. This also applies when
-    // the merchant is cashing out their own wallet: the user's withdrawable
-    // balance is reduced by the normal withdrawal leg, and the physical company
-    // cash/float they dispensed must still leave the merchant float bucket.
-    //
-    // PROXY PAYOUTS (2026-07): a merchant who delivers a proxy partner payout
-    // physically dispenses company cash from THEIR OWN float too, so the payout
-    // must drain BOTH the proxy agent's wallet (funding debit below) AND the
-    // merchant's float (consume block further down). We therefore require and
-    // check the merchant's float here for proxy payouts as well — if they don't
-    // hold enough float the CFO/treasury must top them up before settling.
-    // (pool-funded settlements already debit float in the main block, so they
-    // stay excluded to avoid a double debit.)
+    // CFO/treasury pre-loaded into their float bucket. A merchant is NO LONGER
+    // blocked when the payout is bigger than the float they hold: in the field
+    // they front the difference from their own MoMo line, so we let the payout
+    // through, consume whatever float exists, and record the shortfall as an
+    // out-of-pocket advance the company owes them
+    // (`merchant_out_of_pocket_advances`). Nothing is ever hidden: the float
+    // legs stay exact and the fronted portion becomes a visible receivable.
     let merchantFloatAvailable = 0;
+    let merchantTelecomExpected = 0;
+    let merchantFloatForPrincipal = 0;
+    let merchantFloatForTelecom = 0;
+    let merchantPrincipalShortfall = 0;
+    let merchantTelecomShortfall = 0;
     if (
       actingAsMerchant &&
       !poolFunded &&
@@ -1714,30 +1710,13 @@ Deno.serve(async (req) => {
         .select("float_balance")
         .eq("user_id", user.id)
         .maybeSingle();
-      merchantFloatAvailable = Number((merchantWallet as any)?.float_balance ?? 0);
-      const telecomCheck = getTelecomSendingCharge(amount);
-      const requiredFloat = amount + telecomCheck;
-      if (merchantFloatAvailable < requiredFloat) {
-        const floatMsg =
-          `Insufficient merchant float. You hold UGX ${Math.round(merchantFloatAvailable).toLocaleString()} ` +
-          `but this payout needs UGX ${requiredFloat.toLocaleString()} ` +
-          `(UGX ${amount.toLocaleString()} payout + UGX ${telecomCheck.toLocaleString()} telecom charge). ` +
-          `Ask the CFO/treasury to top up your float before claiming.`;
-        await auditFailedWithdrawalAttempt(floatMsg, "INSUFFICIENT_MERCHANT_FLOAT");
-        await releaseClaim();
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: floatMsg,
-            code: "INSUFFICIENT_MERCHANT_FLOAT",
-            float_available: Math.round(merchantFloatAvailable),
-            requested: requiredFloat,
-            payout_amount: amount,
-            telecom_charge: telecomCheck,
-          }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
+      merchantFloatAvailable = Math.max(0, Number((merchantWallet as any)?.float_balance ?? 0));
+      merchantTelecomExpected = getTelecomSendingCharge(amount);
+      merchantFloatForPrincipal = Math.min(merchantFloatAvailable, amount);
+      merchantPrincipalShortfall = Math.max(0, amount - merchantFloatForPrincipal);
+      const floatLeft = Math.max(0, merchantFloatAvailable - merchantFloatForPrincipal);
+      merchantFloatForTelecom = Math.min(floatLeft, merchantTelecomExpected);
+      merchantTelecomShortfall = Math.max(0, merchantTelecomExpected - merchantFloatForTelecom);
     }
 
     // Get beneficiary profile for audit / notifications
