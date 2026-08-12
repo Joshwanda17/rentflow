@@ -280,10 +280,11 @@ export default function HouseDetail() {
   const houseJsonLd = listing
     ? {
         '@context': 'https://schema.org',
-        '@type': 'Accommodation',
+        '@type': 'RealEstateListing',
         name: listing.title,
         description: ogDescription,
         url: shareUrl,
+        datePosted: listing.created_at ? new Date(listing.created_at).toISOString().slice(0, 10) : undefined,
         numberOfRooms: listing.number_of_rooms,
         ...(listing.image_urls?.length ? { image: listing.image_urls } : {}),
         address: {
@@ -307,7 +308,7 @@ export default function HouseDetail() {
           '@type': 'Offer',
           price: listing.daily_rate,
           priceCurrency: 'UGX',
-          availability: 'https://schema.org/InStock',
+          availability: listing.tenant_id ? 'https://schema.org/OutOfStock' : 'https://schema.org/InStock',
           priceValidUntil: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
           url: shareUrl,
         },
