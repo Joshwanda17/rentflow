@@ -185,11 +185,13 @@ export function DailyPaymentTracker() {
     queryKey: ['daily-tracker-profiles', allUserIds],
     queryFn: async () => {
       if (!allUserIds.length) return [];
-      const { data } = await supabase
-        .from('profiles')
-        .select('id, full_name, phone')
-        .in('id', allUserIds.slice(0, 200));
-      return data || [];
+      // Batched — a hard slice(0, 200) left most tenants nameless.
+      const batches = await Promise.all(
+        chunkIds(allUserIds).map(ids =>
+          supabase.from('profiles').select('id, full_name, phone').in('id', ids),
+        ),
+      );
+      return batches.flatMap(b => b.data || []);
     },
     enabled: allUserIds.length > 0,
     staleTime: 300000,
@@ -201,11 +203,12 @@ export function DailyPaymentTracker() {
     queryKey: ['daily-tracker-landlords', landlordIds],
     queryFn: async () => {
       if (!landlordIds.length) return [];
-      const { data } = await supabase
-        .from('landlords')
-        .select('id, name, phone')
-        .in('id', landlordIds.slice(0, 500));
-      return data || [];
+      const batches = await Promise.all(
+        chunkIds(landlordIds).map(ids =>
+          supabase.from('landlords').select('id, name, phone').in('id', ids),
+        ),
+      );
+      return batches.flatMap(b => b.data || []);
     },
     enabled: landlordIds.length > 0,
     staleTime: 300000,
@@ -216,11 +219,12 @@ export function DailyPaymentTracker() {
     queryKey: ['daily-tracker-wallets', allUserIds],
     queryFn: async () => {
       if (!allUserIds.length) return [];
-      const { data } = await supabase
-        .from('wallets')
-        .select('user_id, balance')
-        .in('user_id', allUserIds.slice(0, 200));
-      return data || [];
+      const batches = await Promise.all(
+        chunkIds(allUserIds).map(ids =>
+          supabase.from('wallets').select('user_id, balance').in('user_id', ids),
+        ),
+      );
+      return batches.flatMap(b => b.data || []);
     },
     enabled: allUserIds.length > 0,
     staleTime: 120000,
@@ -230,13 +234,11 @@ export function DailyPaymentTracker() {
   const { data: todayCollections, isLoading: colLoading } = useQuery({
     queryKey: ['daily-tracker-collections', todayStr],
     queryFn: async () => {
-      const startOfDay = `${todayStr}T00:00:00`;
-      const endOfDay = `${todayStr}T23:59:59`;
       const { data, error } = await supabase
         .from('agent_collections')
         .select('tenant_id, amount')
-        .gte('created_at', startOfDay)
-        .lte('created_at', endOfDay);
+        .gte('created_at', dayStartIso)
+        .lte('created_at', dayEndIso);
       if (error) throw error;
       // Aggregate by tenant
       const map = new Map<string, number>();
@@ -252,13 +254,11 @@ export function DailyPaymentTracker() {
   const { data: latestAllocations } = useQuery({
     queryKey: ['daily-tracker-latest-allocations', todayStr],
     queryFn: async () => {
-      const startOfDay = `${todayStr}T00:00:00`;
-      const endOfDay = `${todayStr}T23:59:59`;
       const { data, error } = await supabase
         .from('agent_collections')
         .select('id, tenant_id, agent_id, amount, created_at, payment_method, location_name')
-        .gte('created_at', startOfDay)
-        .lte('created_at', endOfDay)
+        .gte('created_at', dayStartIso)
+        .lte('created_at', dayEndIso)
         .order('created_at', { ascending: false })
         .limit(30);
       if (error) throw error;
