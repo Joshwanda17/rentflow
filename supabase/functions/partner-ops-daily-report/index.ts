@@ -227,17 +227,16 @@ function buildPdf(r: Report, win: { title: string; pretty: string }, logo: Uint8
   const headerH = 34;
   doc.setFillColor(...BRIEF_PURPLE);
   doc.roundedRect(margin, y, contentW, headerH, 3.5, 3.5, "F");
-  let textX = margin + 8;
-  if (logo) {
-    try {
-      doc.addImage(`data:image/png;base64,${bytesToBase64(logo)}`, "PNG", margin + 8, y + 5.5, 26, 8);
-      textX = margin + 40;
-    } catch (_e) { textX = margin + 8; }
-  }
+  const textX = margin + 8;
+  // Wordmark drawn as type: the PNG logo is dark purple and disappears on the
+  // purple header band. `logo` stays in the signature for callers.
+  void logo;
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.text("WELILE", textX, y + 6.6);
   doc.setFontSize(13.5);
-  doc.text(`Partner Operations - ${ascii(win.title)}`, textX, y + 13);
+  doc.text(`Partner Operations - ${ascii(win.title)}`, textX, y + 15);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(232, 220, 250);
@@ -245,7 +244,7 @@ function buildPdf(r: Report, win: { title: string; pretty: string }, logo: Uint8
     `${ascii(win.pretty)} (EAT) - aggregate only, no partner names - source: Partner Ops book (portfolios, parked top-ups, compounding, returns ledger)`,
     contentW - (textX - margin) - 10,
   );
-  doc.text(sub, textX, y + 19.5);
+  doc.text(sub, textX, y + 21);
   doc.setFontSize(7.4);
   doc.text(
     `Generated ${generatedAt.toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Africa/Nairobi" })} EAT`,
