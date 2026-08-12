@@ -4,6 +4,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useOtpVerification } from '@/hooks/useOtpVerification';
 import { cleanPhoneNumber } from '@/lib/phoneUtils';
+import PersonNameFields from '@/components/shared/PersonNameFields';
+import { joinPersonName, validatePersonNameParts, type PersonNameParts } from '@/lib/authValidation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
