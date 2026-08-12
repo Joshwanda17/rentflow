@@ -63,13 +63,21 @@ export function MissedDaysTracker() {
   const { data: activeRequests, isLoading: reqLoading, refetch } = useQuery({
     queryKey: ['missed-days-active'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('rent_requests')
-        .select('id, tenant_id, agent_id, daily_repayment, rent_amount, amount_repaid, total_repayment, disbursed_at, status')
-        .in('status', ['disbursed', 'repaying', 'funded'])
-        .not('disbursed_at', 'is', null);
-      if (error) throw error;
-      return data || [];
+      // Paginated so the 1000-row Data API cap can never silently truncate the fleet.
+      const all: any[] = [];
+      const page = 1000;
+      for (let from = 0; ; from += page) {
+        const { data, error } = await supabase
+          .from('rent_requests')
+          .select('id, tenant_id, agent_id, daily_repayment, rent_amount, amount_repaid, total_repayment, disbursed_at, funded_at, created_at, status')
+          .in('status', ['disbursed', 'repaying', 'funded'])
+          .order('created_at', { ascending: false })
+          .range(from, from + page - 1);
+        if (error) throw error;
+        all.push(...(data || []));
+        if (!data || data.length < page) break;
+      }
+      return all;
     },
     staleTime: 120000,
   });
