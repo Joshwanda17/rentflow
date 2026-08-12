@@ -165,7 +165,7 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
       if (data?.error) throw new Error(data.error);
       toast({ title: '✅ Funder registered!', description: `${data.full_name} has been added to your funders` });
       setRegisterOpen(false);
-      setRegName('');
+      setNameParts({ firstName: '', otherNames: '', lastName: '' });
       setRegPhone('');
       setRegNotes('');
       fetchFunders();
