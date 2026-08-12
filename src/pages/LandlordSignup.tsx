@@ -8,7 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
-import { validateFullName } from '@/lib/authValidation';
+import { joinPersonName, validatePersonNameParts, type PersonNameParts } from '@/lib/authValidation';
+import PersonNameFields from '@/components/shared/PersonNameFields';
 import { toast } from 'sonner';
 
 const formatUGX = (n: number) =>
@@ -50,13 +51,16 @@ export default function LandlordSignup() {
 
   const set = useCallback((k: keyof typeof form, v: string) => setForm(p => ({ ...p, [k]: v })), []);
 
-  const nameOk = validateFullName(form.fullName).valid;
+  // Name is captured in parts but stored as the same single `full_name` string.
+  const [nameParts, setNameParts] = useState<PersonNameParts>({ firstName: '', otherNames: '', lastName: '' });
+  const nameCheckLive = validatePersonNameParts(nameParts);
+  const nameOk = nameCheckLive.valid;
   const canSubmit = nameOk && form.phone && form.location && form.units && form.rentPerUnit && agreed && !submitting;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit) return;
-    const nameCheck = validateFullName(form.fullName);
+    const nameCheck = validatePersonNameParts(nameParts);
     if (!nameCheck.valid) {
       toast.error(nameCheck.error || 'Please enter your full name (first and last)');
       return;
@@ -64,7 +68,7 @@ export default function LandlordSignup() {
     setSubmitting(true);
     try {
       const { error } = await supabase.from('landlord_leads').insert({
-        full_name: nameCheck.trimmed,
+        full_name: nameCheck.fullName,
         phone: form.phone.trim(),
         property_location: form.location.trim(),
         number_of_units: Number(form.units),
@@ -214,15 +218,7 @@ export default function LandlordSignup() {
           Activate Your Rent Guarantee
         </h2>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label>Full Name</Label>
-            <Input
-              placeholder="Enter your full name"
-              value={form.fullName}
-              onChange={e => set('fullName', e.target.value)}
-              required
-            />
-          </div>
+          <PersonNameFields idPrefix="landlord-signup" value={nameParts} onChange={setNameParts} />
           <div className="space-y-1.5">
             <Label>Phone Number</Label>
             <Input
