@@ -168,10 +168,16 @@ export function AgentCollectionsCommandCenter() {
       expected: num(a.expected),
       pct: num(a.expected) > 0 ? Math.round((num(a.collected) / num(a.expected)) * 100) : null,
     }));
+    return list.sort((a, b) => b.collected - a.collected);
+  }, [data]);
+
+  /** Agents visible in the "collections vs expected" list — search only affects this list. */
+  const filteredAgents = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const filtered = q ? list.filter(a => (a.name || '').toLowerCase().includes(q) || (a.phone || '').includes(q)) : list;
-    return filtered.sort((a, b) => b.collected - a.collected);
-  }, [data, search]);
+    return q
+      ? agents.filter(a => (a.name || '').toLowerCase().includes(q) || (a.phone || '').includes(q))
+      : agents;
+  }, [agents, search]);
 
   // Reset pagination when the range or search changes
   useEffect(() => { setVisibleAgents(10); }, [search, preset, custom, bucket]);
