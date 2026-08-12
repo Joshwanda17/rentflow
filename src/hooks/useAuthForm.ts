@@ -7,7 +7,14 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { getLocationData } from '@/hooks/useGeolocation';
 import { generatePhoneEmailVariants, cleanPhoneNumber, isValidPhoneNumber, getTriedPhoneFormats } from '@/lib/phoneUtils';
-import { validateSignUp, validateFullName } from '@/lib/authValidation';
+import {
+  validateSignUp,
+  validateFullName,
+  joinPersonName,
+  splitPersonName,
+  validatePersonNameParts,
+  type PersonNameParts,
+} from '@/lib/authValidation';
 import { roleToSlug } from '@/lib/roleRoutes';
 import { getStoredAttributionToken } from '@/lib/campaignAttribution';
 import { captureReferralAttribution, getStoredReferrerId } from '@/lib/referralAttribution';
@@ -54,7 +61,18 @@ export function useAuthForm() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [fullName, setFullName] = useState('');
+  // Person-name capture is split into parts in the UI, but `fullName` (and the
+  // submitted payload) stays the exact same single string it has always been.
+  const [nameParts, setNameParts] = useState<PersonNameParts>({
+    firstName: '',
+    otherNames: '',
+    lastName: '',
+  });
+  const [namePartsError, setNamePartsError] = useState<string | null>(null);
+  const fullName = joinPersonName(nameParts);
+  // Kept for backwards compatibility with any consumer that sets a whole name
+  // string (e.g. the `?name=` URL param) — it hydrates the parts.
+  const setFullName = (value: string) => setNameParts(splitPersonName(value));
   const [phone, setPhone] = useState('');
   const [countryCode, setCountryCode] = useState('256');
   const [isLoading, setIsLoading] = useState(false);
@@ -399,6 +417,13 @@ export function useAuthForm() {
       toast({ title: 'Phone Already Registered', description: duplicateMessage || 'This phone number is already in use.', variant: 'destructive' });
       return;
     }
+    const partsCheck = validatePersonNameParts(nameParts);
+    if (!partsCheck.valid) {
+      setNamePartsError(partsCheck.error);
+      toast({ title: 'Error', description: partsCheck.error || 'Please enter your first and last name', variant: 'destructive' });
+      return;
+    }
+    setNamePartsError(null);
     const nameCheck = validateFullName(fullName);
     const trimmedFullName = nameCheck.trimmed;
     const validationError = validateSignUp({ password, confirmPassword, fullName: trimmedFullName, phone });
@@ -1114,6 +1139,8 @@ export function useAuthForm() {
     confirmPassword, setConfirmPassword,
     showConfirmPassword, setShowConfirmPassword,
     fullName, setFullName,
+    nameParts, setNameParts,
+    namePartsError, setNamePartsError,
     phone, setPhone,
     countryCode, setCountryCode,
     isLoading,
