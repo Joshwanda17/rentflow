@@ -116,6 +116,18 @@ export default function UserManagement() {
   const sentinelRef = useRef<HTMLDivElement>(null);
   const loadingMoreRef = useRef(false);
 
+  // Growth tab — % change of total users over a rolling window
+  const GROWTH_WINDOWS = [
+    { days: 1, label: '1D' },
+    { days: 7, label: '7D' },
+    { days: 30, label: '30D' },
+    { days: 365, label: '365D' },
+  ] as const;
+  const [growthWindowIdx, setGrowthWindowIdx] = useState(1);
+  const [growthPct, setGrowthPct] = useState<number | null>(null);
+  const [growthNew, setGrowthNew] = useState(0);
+  const [growthLoading, setGrowthLoading] = useState(false);
+
   // Pending invites state
   interface PendingInvite {
     id: string;
