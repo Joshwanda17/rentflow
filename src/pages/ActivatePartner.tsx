@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import PersonNameFields from '@/components/shared/PersonNameFields';
-import { joinPersonName, type PersonNameParts } from '@/lib/authValidation';
+import { joinPersonName, splitPersonName, type PersonNameParts } from '@/lib/authValidation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Shield, TrendingUp, Loader2, CheckCircle, ArrowRight } from 'lucide-react';
 import ScreenLoader from '@/components/common/ScreenLoader';
@@ -55,7 +55,7 @@ export default function ActivatePartner() {
 
       setNote(data.note);
       if (data.note.email) setEmail(data.note.email);
-      setFullName(data.note.partner_name);
+      setNameParts(splitPersonName(data.note.partner_name || ''));
       setPhone(data.note.whatsapp_number);
 
       // Check if user is already logged in
