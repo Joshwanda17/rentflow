@@ -1863,17 +1863,45 @@ Deno.serve(async (req) => {
     let merchantFloatForTelecom = 0;
     let merchantPrincipalShortfall = 0;
     let merchantTelecomShortfall = 0;
+    let merchantFloatReserved = 0;
+    let merchantFloatBefore = 0;
     if (
       actingAsMerchant &&
       !poolFunded &&
       amount > 0
     ) {
-      const { data: merchantWallet } = await admin
-        .from("wallets")
-        .select("float_balance")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      merchantFloatAvailable = Math.max(0, Number((merchantWallet as any)?.float_balance ?? 0));
+      // PHASE 4 — float RESERVATION model. The float usable for THIS payout is
+      // the amount reserved for it (held float minus float already committed to
+      // the merchant's other open claims), never the raw float bucket. This
+      // stops two concurrent claims from each consuming the same shillings.
+      let reservedForThis: number | null = null;
+      try {
+        await admin.rpc("reserve_merchant_float", {
+          p_withdrawal_id: withdrawal_id,
+          p_agent_id: user.id,
+        });
+        const { data: resRow } = await admin
+          .from("merchant_float_reservations")
+          .select("reserved_amount, float_before, state")
+          .eq("withdrawal_id", withdrawal_id)
+          .maybeSingle();
+        if (resRow && (resRow as any).state !== "released") {
+          reservedForThis = Math.max(0, Number((resRow as any).reserved_amount ?? 0));
+          merchantFloatBefore = Math.max(0, Number((resRow as any).float_before ?? 0));
+        }
+      } catch (e) {
+        console.error("[approve-withdrawal] float reservation lookup failed:", e);
+      }
+      if (reservedForThis === null) {
+        // Fallback: server-side position (float minus open reservations).
+        const { data: pos } = await admin.rpc("get_merchant_float_position", {
+          p_agent_id: user.id,
+        });
+        merchantFloatBefore = Math.max(0, Number((pos as any)?.float_balance ?? 0));
+        reservedForThis = Math.max(0, Number((pos as any)?.available_float ?? 0));
+      }
+      merchantFloatReserved = reservedForThis;
+      merchantFloatAvailable = reservedForThis;
       merchantTelecomExpected = getTelecomSendingCharge(amount);
       merchantFloatForPrincipal = Math.min(merchantFloatAvailable, amount);
       merchantPrincipalShortfall = Math.max(0, amount - merchantFloatForPrincipal);
