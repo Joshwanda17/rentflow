@@ -25,6 +25,33 @@ vi.mock('@/integrations/supabase/client', () => ({
   },
 }));
 
+
+vi.mock('@/hooks/useLanguage', () => ({
+  useLanguage: () => ({ language: 'en', setLanguage: vi.fn(), t: (k: string) => k }),
+}));
+vi.mock('@/hooks/useCurrency', () => ({
+  useCurrency: () => ({ currency: { code: 'UGX', symbol: 'UGX', name: 'Ugandan Shilling' }, setCurrency: vi.fn() }),
+  currencies: [{ code: 'UGX', symbol: 'UGX', name: 'Ugandan Shilling' }],
+}));
+vi.mock('@/hooks/useFontSize', () => ({
+  useFontSize: () => ({ fontSize: 'md', setFontSize: vi.fn() }),
+  fontSizeOptions: [],
+}));
+vi.mock('@/hooks/useHapticSettings', () => ({
+  useHapticSettings: () => ({ intensity: 'medium', setIntensity: vi.fn() }),
+  hapticIntensityOptions: [],
+}));
+vi.mock('@/hooks/useCombinedSettings', () => ({
+  useReducedMotion: () => ({ reducedMotion: 'off', setReducedMotion: vi.fn() }),
+  reducedMotionOptions: [],
+}));
+vi.mock('@/hooks/useAppPreferences', () => ({
+  useAppPreferences: () => ({ preferences: {}, updatePreference: vi.fn(), resetPreferences: vi.fn() }),
+}));
+vi.mock('@/hooks/useOtpVerification', () => ({
+  useOtpVerification: () => ({ otpVerified: false, otpSent: false, otpLoading: false, otpError: null, sendOtp: vi.fn(), verifyOtp: vi.fn(), resetOtp: vi.fn(), otpCode: '', setOtpCode: vi.fn(), cooldownSeconds: 0 }),
+}));
+
 async function renderSettings(full_name: string) {
   stored.full_name = full_name;
   const Settings = (await import('@/pages/Settings')).default;
