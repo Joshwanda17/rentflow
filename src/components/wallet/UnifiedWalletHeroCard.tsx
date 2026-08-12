@@ -299,7 +299,7 @@ export function UnifiedWalletHeroCard({
               <span className="text-[10px] uppercase tracking-[0.12em] font-semibold text-primary-foreground/40">Total Balance</span>
               <span className="text-sm font-black text-primary-foreground">{formatAmount(balance)}</span>
             </div>
-            <p className="mt-2 px-1 text-[10px] text-primary-foreground/40 font-medium">
+            <p className="mt-2 px-1 text-[10px] text-white font-medium">
               Tap to see how your money moves in and out
             </p>
           </button>
