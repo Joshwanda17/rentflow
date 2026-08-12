@@ -5,16 +5,16 @@ import { useMerchantFloatPositions, MerchantFloatPosition } from '@/hooks/useMer
 import { MerchantReconcileDialog } from './MerchantReconcileDialog';
 
 /**
- * Money With Agents — the truth board that sits directly below ACTUAL MONEY.
+ * Money With Agents — shows how much company money is still sitting with each
+ * agent, and how much the company still owes each agent.
  *
- * Left column of every row is what the merchant genuinely paid out of their own
- * phone (claimed + settled cash-outs). Right column is the real money Finance
- * actually sent them, recognised only from the extracted MTN/Airtel email feed.
- * The difference is either money the company owes the merchant, or company cash
- * still sitting in the merchant's hands.
+ * Left side: what the agent actually paid out from their own phone (mobile money
+ * cash-outs we can see). Right side: the real money Finance sent them, confirmed
+ * from MTN/Airtel payment emails. If the agent paid out more than we sent them,
+ * we owe them. If we sent them more than they paid out, they are holding our
+ * cash.
  *
- * Read-only. Reimbursement itself still runs through the existing float /
- * requisition path.
+ * Read-only. Paying back still runs through the existing float path.
  */
 export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () => void }) {
   const { data, isLoading, error } = useMerchantFloatPositions();
