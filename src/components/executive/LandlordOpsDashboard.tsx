@@ -2777,7 +2777,71 @@ export function LandlordOpsDashboard() {
           </div>
         </div>
 
-        {/* Landlord list table */}
+        {/* Funded register — read-only view of money committed in the period */}
+        {categoryFilter === 'funded' ? (
+          <div className="space-y-2">
+            <div className="rounded-xl border border-border bg-card overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-muted/50">
+                    <th className="text-left px-3 py-2 font-medium text-muted-foreground text-xs">Landlord</th>
+                    <th className="text-left px-3 py-2 font-medium text-muted-foreground text-xs hidden md:table-cell">District</th>
+                    <th className="text-left px-3 py-2 font-medium text-muted-foreground text-xs hidden lg:table-cell">Tenant</th>
+                    <th className="text-left px-3 py-2 font-medium text-muted-foreground text-xs hidden lg:table-cell">Agent</th>
+                    <th className="text-left px-3 py-2 font-medium text-muted-foreground text-xs hidden sm:table-cell">Funded</th>
+                    <th className="text-right px-3 py-2 font-medium text-muted-foreground text-xs">Amount</th>
+                    <th className="text-left px-3 py-2 font-medium text-muted-foreground text-xs hidden md:table-cell">Payout</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {landlordFundedFetching && fundedPaginated.length === 0 ? (
+                    <tr><td colSpan={7} className="text-center py-6 text-muted-foreground">Loading funded landlords…</td></tr>
+                  ) : fundedPaginated.length === 0 ? (
+                    <tr><td colSpan={7} className="text-center py-6 text-muted-foreground">No landlords were funded in this period</td></tr>
+                  ) : (
+                    fundedPaginated.map((r, i) => (
+                      <tr key={`${r.landlord_id}-${r.funded_at}-${i}`} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
+                        <td className="px-3 py-2.5">
+                          <div className="space-y-0.5">
+                            <p className="font-bold text-sm">{r.landlord_name}</p>
+                            {r.landlord_phone && <PhoneLinks phone={r.landlord_phone} name={r.landlord_name} />}
+                            <div className="flex flex-wrap gap-1">
+                              {r.verified
+                                ? <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-emerald-100 text-emerald-700 border-0">Verified</Badge>
+                                : <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-red-100 text-red-700 border-0 font-semibold">Not Verified</Badge>}
+                              {r.first_time && <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-sky-100 text-sky-700 border-0">First time</Badge>}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-3 py-2.5 text-muted-foreground hidden md:table-cell">{r.district}</td>
+                        <td className="px-3 py-2.5 text-muted-foreground hidden lg:table-cell">{r.tenant_name || '—'}</td>
+                        <td className="px-3 py-2.5 text-muted-foreground hidden lg:table-cell">{r.agent_name}</td>
+                        <td className="px-3 py-2.5 text-muted-foreground hidden sm:table-cell text-xs">
+                          {new Date(r.funded_at).toLocaleDateString()}
+                        </td>
+                        <td className="px-3 py-2.5 text-right font-semibold">UGX {fmt(r.rent_amount || 0)}</td>
+                        <td className="px-3 py-2.5 text-muted-foreground hidden md:table-cell text-xs">{r.payout_channel}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+            {fundedTotalPages > 1 && (
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-muted-foreground">
+                  Page {fundedSafePage} of {fundedTotalPages} · {fundedRows.length.toLocaleString()} funded records
+                </span>
+                <div className="flex gap-1.5">
+                  <Button size="sm" variant="outline" className="h-8" disabled={fundedSafePage <= 1}
+                    onClick={() => setLandlordPage(p => Math.max(1, p - 1))}>Previous</Button>
+                  <Button size="sm" variant="outline" className="h-8" disabled={fundedSafePage >= fundedTotalPages}
+                    onClick={() => setLandlordPage(p => Math.min(fundedTotalPages, p + 1))}>Next</Button>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
         <div className="rounded-xl border border-border bg-card overflow-hidden">
           <table className="w-full text-sm">
             <thead>
