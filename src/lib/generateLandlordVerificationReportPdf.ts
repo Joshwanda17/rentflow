@@ -567,6 +567,7 @@ export function generateLandlordVerificationReportPdf(
     drawDistrictBreakdown(sectionRows, sectionAccent, 20, `${SECTION_TITLE[sec]} — breakdown by district`);
     drawDetailTable(sectionRows, [...baseCols, ...stateCols(sec)], sectionAccent, `${SECTION_TITLE[sec]} — landlord-by-landlord detail`);
     if (sec === 'rejected') drawRejectionAppendix(sectionRows, 'Rejected landlords — full rejection reasons');
+    if (sec !== 'rejected') drawReviewCommentsAppendix(sectionRows, `${SECTION_TITLE[sec]} — review comments`);
     if (sec === 'verified') { drawAttribution(sectionRows); drawPayoutAppendix(sectionRows, 'Verified landlords — payout readiness'); }
     y += 8;
   };
@@ -617,6 +618,7 @@ export function generateLandlordVerificationReportPdf(
     drawDistrictBreakdown(rows, accent, 40, 'Breakdown by district');
     drawDetailTable(rows, [...baseCols, ...stateCols(sec)], accent, 'Landlord-by-landlord detail');
     if (sec === 'rejected') drawRejectionAppendix(rows, 'Appendix — full rejection reasons');
+    if (sec !== 'rejected') drawReviewCommentsAppendix(rows, 'Appendix — review comments');
     if (sec === 'verified') { drawAttribution(rows); drawPayoutAppendix(rows, 'Appendix — payout readiness'); }
   }
 
