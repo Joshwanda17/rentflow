@@ -1,4 +1,11 @@
 import { useState } from 'react';
+import PersonNameFields from '@/components/shared/PersonNameFields';
+import {
+  joinPersonName,
+  splitPersonName,
+  validatePersonNameParts,
+  type PersonNameParts,
+} from '@/lib/authValidation';
 import { Lc1VillagePicker } from '@/components/location/Lc1VillagePicker';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GuarantorConsentCheckbox } from '@/components/agent/GuarantorConsentCheckbox';
