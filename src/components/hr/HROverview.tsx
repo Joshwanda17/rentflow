@@ -214,7 +214,9 @@ export default function HROverview({ onNavigate }: HROverviewProps) {
       </div>
 
       {/* Role Breakdown */}
-      {roleCounts.length > 0 && (
+      {roleCounts.length > 0 && (() => {
+        const totalAssigned = roleCounts.reduce((sum: number, rc: any) => sum + rc.count, 0);
+        return (
         <Card className="border-border/40">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
@@ -223,14 +225,14 @@ export default function HROverview({ onNavigate }: HROverviewProps) {
             </div>
             <div className="space-y-2">
               {roleCounts.map((rc) => {
-                const pct = staffCount > 0 ? Math.round((rc.count / staffCount) * 100) : 0;
+                const pct = totalAssigned > 0 ? (rc.count / totalAssigned) * 100 : 0;
                 return (
                   <div key={rc.role} className="flex items-center gap-2">
                     <span className="text-xs text-muted-foreground w-20 capitalize truncate">{rc.role.replace('_', ' ')}</span>
                     <div className="flex-1 h-2 bg-muted/50 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-primary/60 rounded-full transition-all duration-500"
-                        style={{ width: `${Math.max(pct, 4)}%` }}
+                        style={{ width: `${pct}%` }}
                       />
                     </div>
                     <span className="text-xs font-semibold text-foreground w-6 text-right">{rc.count}</span>
@@ -240,7 +242,8 @@ export default function HROverview({ onNavigate }: HROverviewProps) {
             </div>
           </CardContent>
         </Card>
-      )}
+        );
+      })()}
 
       {/* Recent Activity */}
       <Card className="border-border/40">
