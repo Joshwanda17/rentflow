@@ -258,6 +258,49 @@ Deno.serve(async (req) => {
       }),
     }).catch(() => {});
 
+    // ── Gated SMS notification ───────────────────────────────────────────
+    // Only field-active agents get a text for a float → withdrawable reclass.
+    // Gate (both must be true):
+    //   1. the user carries at least one tenant (a rent request they own), and
+    //   2. at least one repayment has been recorded for their tenant(s).
+    // Partners/funders hold float without tenants, so they are excluded — no
+    // financial logic is touched here, only who receives the message.
+    let smsGate = { has_tenant: false, has_repayment: false, sent: false as boolean | null };
+    try {
+      const { count: tenantCount } = await adminClient
+        .from("rent_requests")
+        .select("id", { count: "exact", head: true })
+        .eq("agent_id", targetUserId)
+        .not("tenant_id", "is", null);
+      smsGate.has_tenant = (tenantCount ?? 0) > 0;
+
+      if (smsGate.has_tenant) {
+        const { count: repaymentCount } = await adminClient
+          .from("agent_collections")
+          .select("id", { count: "exact", head: true })
+          .eq("agent_id", targetUserId);
+        smsGate.has_repayment = (repaymentCount ?? 0) > 0;
+      }
+
+      if (smsGate.has_tenant && smsGate.has_repayment && targetProfile?.phone) {
+        const smsMsg =
+          `WELILE: UGX ${amount.toLocaleString()} of your float is now withdrawable. ` +
+          `Withdrawable balance: UGX ${withdrawableAfter.toLocaleString()}. Ref: ${refId}.`;
+        // Awaited on purpose: a fire-and-forget promise dies with the isolate.
+        smsGate.sent = await sendSMS(targetProfile.phone, smsMsg, {
+          recipientUserId: targetUserId,
+          recipientName: targetProfile.full_name ?? null,
+          referenceId: refId,
+          source: "admin-float-to-withdrawable",
+        });
+      } else {
+        smsGate.sent = false;
+      }
+    } catch (e) {
+      console.error("[admin-float-to-withdrawable] SMS gate failed:", (e as Error).message);
+      smsGate.sent = false;
+    }
+
     return json({
       success: true,
       reference_id: refId,
@@ -267,6 +310,7 @@ Deno.serve(async (req) => {
       withdrawable_before: withdrawableBefore,
       float_after: floatAfter,
       withdrawable_after: withdrawableAfter,
+      sms: smsGate,
       message: `Moved UGX ${amount.toLocaleString()} from Float to Withdrawable for ${targetName}.`,
     });
   } catch (err) {
