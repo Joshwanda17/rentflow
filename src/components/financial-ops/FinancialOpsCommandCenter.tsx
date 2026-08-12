@@ -124,6 +124,7 @@ const ApprovalQueue = lz(() => import('./ApprovalQueue'), 'ApprovalQueue');
 const TransactionSearch = lz(() => import('./TransactionSearch'), 'TransactionSearch');
 const ReconciliationDashboard = lz(() => import('./ReconciliationDashboard'), 'ReconciliationDashboard');
 const PayoutReconciliationQueue = lz(() => import('./PayoutReconciliationQueue'), 'PayoutReconciliationQueue');
+const MerchantFloatTruthPanel = lz(() => import('./MerchantFloatTruthPanel'), 'MerchantFloatTruthPanel');
 const AuditFeed = lz(() => import('./AuditFeed'), 'AuditFeed');
 const ScaleDashboard = lz(() => import('./ScaleDashboard'), 'ScaleDashboard');
 const FinOpsWithdrawalVerification = lz(() => import('./FinOpsWithdrawalVerification'), 'FinOpsWithdrawalVerification');
@@ -420,6 +421,9 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
             {/* PHASE 8: incomplete/unsafe payouts stay visible to FinOps/CFO
                 instead of being pushed back into the merchant desk queue. */}
             <PayoutReconciliationQueue />
+            {/* PHASE 10: stored merchant float vs ledger-derived float. A
+                display-only reconciliation note can never hide a real gap. */}
+            <MerchantFloatTruthPanel />
             <EmailPayoutAutoMatchPanel />
             <BulkBankPayoutPanel />
             <FinOpsWithdrawalVerification />

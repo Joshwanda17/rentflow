@@ -12,6 +12,7 @@ import {
   MerchantAdjustmentType,
   MerchantFloatPosition,
   useMerchantFloatAdjustments,
+  useMerchantFloatLedgerVariance,
   usePostMerchantAdjustment,
 } from '@/hooks/useMerchantFloat';
 
@@ -35,10 +36,12 @@ export function MerchantReconcileDialog({
   const [reason, setReason] = useState('');
   const [evidence, setEvidence] = useState('');
   const { data: history } = useMerchantFloatAdjustments(position?.deskId);
+  const { data: variances } = useMerchantFloatLedgerVariance(open);
   const post = usePostMerchantAdjustment();
 
   if (!position) return null;
 
+  const truth = variances?.find((v) => v.deskId === position.deskId);
   const numericAmount = Number(amount.replace(/[^\d.-]/g, ''));
   const valid = Number.isFinite(numericAmount) && numericAmount !== 0 && reason.trim().length >= 10;
 
@@ -71,9 +74,33 @@ export function MerchantReconcileDialog({
           </DialogTitle>
           <DialogDescription className="text-xs">
             This only fixes what the board shows for this agent. It does not move any real money or
-            change their wallet.
+            change their wallet. The books stay the truth.
           </DialogDescription>
         </DialogHeader>
+
+        {truth && (
+          <div
+            className={`rounded-lg border px-3 py-2 ${
+              truth.varianceState === 'aligned'
+                ? 'border-border bg-muted/20'
+                : 'border-destructive/40 bg-destructive/5'
+            }`}
+          >
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              Float held: board vs books
+            </p>
+            <div className="mt-1 grid grid-cols-3 gap-2 text-[11px]">
+              <Stat label="Board" value={truth.storedFloat} />
+              <Stat label="Books" value={truth.ledgerFloat} />
+              <Stat label="Gap" value={truth.variance} muted={truth.varianceState === 'aligned'} />
+            </div>
+            <p className="mt-1 text-[10px] text-muted-foreground">
+              {truth.varianceState === 'aligned'
+                ? 'The board matches the books for this agent.'
+                : 'The board does not match the books. A fix here will NOT close this gap — the books have to be corrected.'}
+            </p>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-2 text-[11px]">
           <Stat label="Money they paid out" value={position.paidOut} />
