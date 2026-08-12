@@ -1685,25 +1685,21 @@ Deno.serve(async (req) => {
       );
     }
 
-    // ── Merchant-agent FLOAT pre-check (Float model, 2026) ────────────────
+    // ── Merchant-agent FLOAT position (Float model, 2026-08) ──────────────
     // Merchant agents settle customer cash-outs from COMPANY FLOAT that the
-    // CFO/treasury pre-loaded into their float bucket — they no longer front
-    // their own cash for a withdrawable reimbursement. Block the claim up-front
-    // (before any debit) if the merchant does not hold enough float, so we
-    // never process a payout the merchant can't cover. This also applies when
-    // the merchant is cashing out their own wallet: the user's withdrawable
-    // balance is reduced by the normal withdrawal leg, and the physical company
-    // cash/float they dispensed must still leave the merchant float bucket.
-    //
-    // PROXY PAYOUTS (2026-07): a merchant who delivers a proxy partner payout
-    // physically dispenses company cash from THEIR OWN float too, so the payout
-    // must drain BOTH the proxy agent's wallet (funding debit below) AND the
-    // merchant's float (consume block further down). We therefore require and
-    // check the merchant's float here for proxy payouts as well — if they don't
-    // hold enough float the CFO/treasury must top them up before settling.
-    // (pool-funded settlements already debit float in the main block, so they
-    // stay excluded to avoid a double debit.)
+    // CFO/treasury pre-loaded into their float bucket. A merchant is NO LONGER
+    // blocked when the payout is bigger than the float they hold: in the field
+    // they front the difference from their own MoMo line, so we let the payout
+    // through, consume whatever float exists, and record the shortfall as an
+    // out-of-pocket advance the company owes them
+    // (`merchant_out_of_pocket_advances`). Nothing is ever hidden: the float
+    // legs stay exact and the fronted portion becomes a visible receivable.
     let merchantFloatAvailable = 0;
+    let merchantTelecomExpected = 0;
+    let merchantFloatForPrincipal = 0;
+    let merchantFloatForTelecom = 0;
+    let merchantPrincipalShortfall = 0;
+    let merchantTelecomShortfall = 0;
     if (
       actingAsMerchant &&
       !poolFunded &&
@@ -1714,30 +1710,13 @@ Deno.serve(async (req) => {
         .select("float_balance")
         .eq("user_id", user.id)
         .maybeSingle();
-      merchantFloatAvailable = Number((merchantWallet as any)?.float_balance ?? 0);
-      const telecomCheck = getTelecomSendingCharge(amount);
-      const requiredFloat = amount + telecomCheck;
-      if (merchantFloatAvailable < requiredFloat) {
-        const floatMsg =
-          `Insufficient merchant float. You hold UGX ${Math.round(merchantFloatAvailable).toLocaleString()} ` +
-          `but this payout needs UGX ${requiredFloat.toLocaleString()} ` +
-          `(UGX ${amount.toLocaleString()} payout + UGX ${telecomCheck.toLocaleString()} telecom charge). ` +
-          `Ask the CFO/treasury to top up your float before claiming.`;
-        await auditFailedWithdrawalAttempt(floatMsg, "INSUFFICIENT_MERCHANT_FLOAT");
-        await releaseClaim();
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: floatMsg,
-            code: "INSUFFICIENT_MERCHANT_FLOAT",
-            float_available: Math.round(merchantFloatAvailable),
-            requested: requiredFloat,
-            payout_amount: amount,
-            telecom_charge: telecomCheck,
-          }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
+      merchantFloatAvailable = Math.max(0, Number((merchantWallet as any)?.float_balance ?? 0));
+      merchantTelecomExpected = getTelecomSendingCharge(amount);
+      merchantFloatForPrincipal = Math.min(merchantFloatAvailable, amount);
+      merchantPrincipalShortfall = Math.max(0, amount - merchantFloatForPrincipal);
+      const floatLeft = Math.max(0, merchantFloatAvailable - merchantFloatForPrincipal);
+      merchantFloatForTelecom = Math.min(floatLeft, merchantTelecomExpected);
+      merchantTelecomShortfall = Math.max(0, merchantTelecomExpected - merchantFloatForTelecom);
     }
 
     // Get beneficiary profile for audit / notifications
@@ -2535,7 +2514,8 @@ Deno.serve(async (req) => {
     if (
       actingAsMerchant &&
       !poolFunded &&
-      amount > 0
+      amount > 0 &&
+      merchantFloatForPrincipal > 0
     ) {
       try {
         const txDate = new Date().toISOString();
@@ -2543,7 +2523,7 @@ Deno.serve(async (req) => {
           entries: [
             {
               user_id: user.id, ledger_scope: "wallet", direction: "cash_out",
-              amount, category: "agent_float_settlement",
+              amount: merchantFloatForPrincipal, category: "agent_float_settlement",
               recipient_type: "operational_wallet", wallet_bucket: "float",
               source_table: "withdrawal_requests", source_id: withdrawal_id,
               description: `Company float used to settle customer cash-out ${withdrawal_id}`,
@@ -2551,7 +2531,7 @@ Deno.serve(async (req) => {
             },
             {
               user_id: user.id, ledger_scope: "platform", direction: "cash_in",
-              amount, category: "agent_float_settlement",
+              amount: merchantFloatForPrincipal, category: "agent_float_settlement",
               source_table: "withdrawal_requests", source_id: withdrawal_id,
               description: `Merchant float settled to customer for withdrawal ${withdrawal_id}`,
               currency: "UGX", reference_id: `${withdrawal_id}-merchant-float-consume`, transaction_date: txDate,
@@ -2563,17 +2543,17 @@ Deno.serve(async (req) => {
           console.error("[approve-withdrawal] Merchant float consume RPC error:", floatErr);
           await logSettlementGap(
             "merchant_float_consume",
-            amount,
+            merchantFloatForPrincipal,
             `float debit failed: ${String((floatErr as any)?.message ?? floatErr)}`,
           );
         } else {
-          merchantFloatConsumed = amount;
+          merchantFloatConsumed = merchantFloatForPrincipal;
         }
       } catch (e) {
         console.error("[approve-withdrawal] Merchant float consume exception:", e);
         await logSettlementGap(
           "merchant_float_consume",
-          amount,
+          merchantFloatForPrincipal,
           `float debit exception: ${String((e as any)?.message ?? e)}`,
         );
       }
@@ -2593,9 +2573,9 @@ Deno.serve(async (req) => {
     if (
       actingAsMerchant &&
       !poolFunded &&
-      merchantFloatConsumed > 0 // only post if the principal consume succeeded
+      amount > 0
     ) {
-      const telecomCharge = getTelecomSendingCharge(amount);
+      const telecomCharge = merchantFloatForTelecom;
       if (telecomCharge > 0) {
         try {
           const txDate = new Date().toISOString();
@@ -2637,6 +2617,85 @@ Deno.serve(async (req) => {
             `telecom charge exception: ${String((e as any)?.message ?? e)}`,
           );
         }
+      }
+    }
+
+    // ── Merchant OUT-OF-POCKET record (2026-08) ───────────────────────────
+    // Whatever the merchant funded beyond their float (payout principal and/or
+    // the telecom sending charge) is money the company owes them. Recorded
+    // clearly here and surfaced on their dashboard + to Finance for repayment.
+    if (
+      actingAsMerchant &&
+      !poolFunded &&
+      (merchantPrincipalShortfall > 0 || merchantTelecomShortfall > 0)
+    ) {
+      const rows: Record<string, unknown>[] = [];
+      if (merchantPrincipalShortfall > 0) {
+        rows.push({
+          agent_id: user.id,
+          withdrawal_id,
+          kind: "payout",
+          payout_amount: amount,
+          telecom_charge: merchantTelecomExpected,
+          float_used: merchantFloatConsumed,
+          shortfall_amount: Math.round(merchantPrincipalShortfall),
+          status: "pending_reimbursement",
+          note:
+            `Merchant paid UGX ${amount.toLocaleString()} while holding only ` +
+            `UGX ${Math.round(merchantFloatAvailable).toLocaleString()} float. ` +
+            `Own money fronted: UGX ${Math.round(merchantPrincipalShortfall).toLocaleString()}.`,
+        });
+      }
+      if (merchantTelecomShortfall > 0) {
+        rows.push({
+          agent_id: user.id,
+          withdrawal_id,
+          kind: "telecom",
+          payout_amount: amount,
+          telecom_charge: merchantTelecomExpected,
+          float_used: merchantTelecomCharge,
+          shortfall_amount: Math.round(merchantTelecomShortfall),
+          status: "pending_reimbursement",
+          note:
+            `Telecom sending charge of UGX ${merchantTelecomExpected.toLocaleString()} paid from the ` +
+            `merchant's own line (float could not cover UGX ` +
+            `${Math.round(merchantTelecomShortfall).toLocaleString()}).`,
+        });
+      }
+      try {
+        const { error: oopErr } = await admin
+          .from("merchant_out_of_pocket_advances")
+          .upsert(rows, { onConflict: "withdrawal_id,kind", ignoreDuplicates: true });
+        if (oopErr) {
+          console.error("[approve-withdrawal] out-of-pocket insert error:", oopErr);
+          await logSettlementGap(
+            "merchant_out_of_pocket",
+            Math.round(merchantPrincipalShortfall + merchantTelecomShortfall),
+            `out-of-pocket record failed: ${String((oopErr as any)?.message ?? oopErr)}`,
+          );
+        } else {
+          try {
+            await admin.from("system_events").insert({
+              event_type: "wallet_transfer",
+              user_id: user.id,
+              description:
+                `Merchant agent fronted UGX ` +
+                `${Math.round(merchantPrincipalShortfall + merchantTelecomShortfall).toLocaleString()} ` +
+                `of their own money on withdrawal ${withdrawal_id} (float short). Company owes them.`,
+              metadata: {
+                withdrawal_id,
+                payout_amount: amount,
+                float_available: Math.round(merchantFloatAvailable),
+                float_used: merchantFloatConsumed,
+                telecom_charge: merchantTelecomExpected,
+                principal_shortfall: Math.round(merchantPrincipalShortfall),
+                telecom_shortfall: Math.round(merchantTelecomShortfall),
+              },
+            });
+          } catch (_e) { /* non-blocking */ }
+        }
+      } catch (e) {
+        console.error("[approve-withdrawal] out-of-pocket exception:", e);
       }
     }
 
@@ -3397,6 +3456,9 @@ Deno.serve(async (req) => {
         merchant_reimbursed: merchantFloatConsumed,
         merchant_float_consumed: merchantFloatConsumed,
         merchant_telecom_charge: merchantTelecomCharge,
+        merchant_own_money_fronted: Math.round(
+          merchantPrincipalShortfall + merchantTelecomShortfall,
+        ),
         merchant_float_total_debit: merchantFloatConsumed + merchantTelecomCharge,
         settled_available: settledAvailable,
       }),
