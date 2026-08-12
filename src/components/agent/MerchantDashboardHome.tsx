@@ -66,34 +66,38 @@ export function MerchantDashboardHome({
   const total = withdrawableBalance + floatBalance;
   const navigate = useNavigate();
 
-  // 7-day merchant activity — read-only, cached 60s.
+  // 7-day merchant activity — derived from the payouts this merchant actually
+  // settled (withdrawal_requests), not from push-notification logs. Push logs
+  // only exist for push-dispatched offers, so merchants who claimed from the
+  // queue saw zero volume even after paying real money out.
   const { data: insights } = useQuery({
-    queryKey: ['merchant-home-insights', agentId],
+    queryKey: ['merchant-home-insights', agentId, cashoutAgentId],
     staleTime: 60_000,
+    refetchOnMount: 'always',
     queryFn: async () => {
       const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const mine = cashoutAgentId
+        ? `processed_by.eq.${agentId},assigned_cashout_agent_id.eq.${cashoutAgentId}`
+        : `processed_by.eq.${agentId}`;
       const { data } = await supabase
-        .from('withdrawal_notification_log')
-        .select('amount, response')
-        .eq('recipient_id', agentId)
-        .eq('channel', 'push')
-        .gte('created_at', since)
+        .from('withdrawal_requests')
+        .select('amount, status, processed_at, payout_proof_path')
+        .eq('status', 'completed')
+        .or(mine)
+        .gte('processed_at', since)
         .limit(1000);
-      const rows = data ?? [];
-      const accepted = rows.filter((r: any) => r.response === 'accepted');
-      const decided = rows.filter((r: any) =>
-        ['accepted', 'ignored', 'expired', 'superseded'].includes(r.response),
-      );
-      const volume = accepted.reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
-      const successRate = decided.length
-        ? Math.round((accepted.length / decided.length) * 100)
+      const settled = (data ?? []) as any[];
+      const volume = settled.reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+      const withProof = settled.filter((r: any) => !!r.payout_proof_path).length;
+      const successRate = settled.length
+        ? Math.round((withProof / settled.length) * 100)
         : null;
-      const avg = accepted.length ? Math.round(volume / accepted.length) : 0;
+      const avg = settled.length ? Math.round(volume / settled.length) : 0;
       return {
         volume,
         successRate,
         avg,
-        acceptedCount: accepted.length,
+        acceptedCount: settled.length,
       };
     },
   });
@@ -200,7 +204,7 @@ export function MerchantDashboardHome({
             progress={insights?.avg ? Math.min(100, Math.round((insights.avg / 200_000) * 100)) : 0}
           />
           <InsightTile
-            label="Success Rate"
+            label="Proof Uploaded"
             value={successPct === null ? '—' : `${successPct}%`}
             icon={<CheckCircle2 className="h-3.5 w-3.5" />}
             accent={successPct !== null && successPct >= 80 ? 'bg-emerald-500' : 'bg-amber-500'}
