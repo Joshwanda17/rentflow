@@ -105,10 +105,15 @@ interface RentDisbursementQueueProps {
   /** Optional: tick these rows on mount (same checkboxes as usual). */
   autoSelectIds?: string[];
   /** When true, the district and town/city filter controls are hidden. */
-  hideDistrictCityFilters?: boolean;
+  /**
+   * UI-only: show just the three location provisions
+   * (Districts, Municipality/Town, All Agents) and hide the
+   * category / country pickers. No filtering logic changes.
+   */
+  locationProvisionsOnly?: boolean;
 }
 
-export function RentDisbursementQueue({ restrictToIds, autoSelectIds, hideDistrictCityFilters = false }: RentDisbursementQueueProps = {}) {
+export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationProvisionsOnly = false }: RentDisbursementQueueProps = {}) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [agentFilter, setAgentFilter] = useState<string>('all');
   const [countryFilter, setCountryFilter] = useState<string>('all');
@@ -507,8 +512,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, hideDistri
                 className="h-11 rounded-xl text-sm pl-9 bg-background border-border/70"
               />
             </div>
-            {!hideDistrictCityFilters && (
-              <Select
+            <Select
                 value={districtFilter}
                 onValueChange={(v) => { setDistrictFilter(v); setCityFilter('all'); setSelected(new Set()); }}
               >
@@ -524,23 +528,20 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, hideDistri
                     </SelectItem>
                   ))}
                 </SelectContent>
-              </Select>
-            )}
-            {!hideDistrictCityFilters && (
-              <Select value={cityFilter} onValueChange={(v) => { setCityFilter(v); setSelected(new Set()); }}>
+            </Select>
+            <Select value={cityFilter} onValueChange={(v) => { setCityFilter(v); setSelected(new Set()); }}>
                 <SelectTrigger className="h-11 rounded-xl text-sm w-full bg-background border-border/70">
-                  <SelectValue placeholder="All towns/cities" />
+                  <SelectValue placeholder="All municipalities/towns" />
                 </SelectTrigger>
                 <SelectContent className="max-h-[320px]">
-                  <SelectItem value="all">All towns/cities</SelectItem>
+                  <SelectItem value="all">All municipalities/towns</SelectItem>
                   {cityOptions.map(o => (
                     <SelectItem key={o.name} value={o.name}>
                       <span className="truncate">{o.name} · {o.count}</span>
                     </SelectItem>
                   ))}
                 </SelectContent>
-              </Select>
-            )}
+            </Select>
             <Select value={agentFilter} onValueChange={setAgentFilter}>
               <SelectTrigger className="h-11 rounded-xl text-sm w-full bg-background border-border/70">
                 <Users className="h-4 w-4 mr-2 text-muted-foreground" />
@@ -560,6 +561,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, hideDistri
                 })}
               </SelectContent>
             </Select>
+            {!locationProvisionsOnly && (
             <Select value={catField} onValueChange={(v) => { setCatField(v as CatFieldKey); setCatValue('all'); setSelected(new Set()); }}>
               <SelectTrigger className="h-11 rounded-xl text-sm w-full bg-background border-border/70">
                 <MapPin className="h-4 w-4 mr-2 text-muted-foreground" />
@@ -571,6 +573,8 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, hideDistri
                 ))}
               </SelectContent>
             </Select>
+            )}
+            {!locationProvisionsOnly && (
             <Select value={catValue} onValueChange={(v) => { setCatValue(v); setSelected(new Set()); }}>
               <SelectTrigger className="h-11 rounded-xl text-sm w-full bg-background border-border/70">
                 <SelectValue placeholder={CAT_FIELD_LABELS[catField]} />
@@ -584,6 +588,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, hideDistri
                 ))}
               </SelectContent>
             </Select>
+            )}
             {(agentFilter !== 'all' || locationScoped) && (
               <button
                 type="button"
@@ -673,7 +678,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, hideDistri
             )}
 
             {/* Country breakdown — click a chip to filter the queue by country */}
-            {countryStats.length > 0 && (
+            {!locationProvisionsOnly && countryStats.length > 0 && (
               <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
                 <div className="flex items-center justify-between mb-1.5 px-1">
                   <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
@@ -764,8 +769,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, hideDistri
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent align="end" className="w-72 space-y-3 p-3">
-                  {!hideDistrictCityFilters && (
-                    <div className="space-y-1.5">
+                  <div className="space-y-1.5">
                       <p className="text-xs font-semibold text-muted-foreground">District</p>
                       <Select
                         value={districtFilter}
@@ -783,17 +787,15 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, hideDistri
                           ))}
                         </SelectContent>
                       </Select>
-                    </div>
-                  )}
-                  {!hideDistrictCityFilters && (
-                    <div className="space-y-1.5">
-                      <p className="text-xs font-semibold text-muted-foreground">Town / City</p>
+                  </div>
+                  <div className="space-y-1.5">
+                      <p className="text-xs font-semibold text-muted-foreground">Municipality / Town</p>
                       <Select value={cityFilter} onValueChange={(v) => { setCityFilter(v); setSelected(new Set()); }}>
                         <SelectTrigger className="h-9 rounded-lg text-sm">
-                          <SelectValue placeholder="All towns/cities" />
+                          <SelectValue placeholder="All municipalities/towns" />
                         </SelectTrigger>
                         <SelectContent className="max-h-[280px]">
-                          <SelectItem value="all">All towns/cities</SelectItem>
+                          <SelectItem value="all">All municipalities/towns</SelectItem>
                           {cityOptions.map(o => (
                             <SelectItem key={o.name} value={o.name}>
                               <span className="truncate">{o.name} · {o.count}</span>
@@ -801,8 +803,8 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, hideDistri
                           ))}
                         </SelectContent>
                       </Select>
-                    </div>
-                  )}
+                  </div>
+                  {!locationProvisionsOnly && (
                   <div className="space-y-1.5">
                     <p className="text-xs font-semibold text-muted-foreground">Category type</p>
                     <Select value={catField} onValueChange={(v) => { setCatField(v as CatFieldKey); setCatValue('all'); setSelected(new Set()); }}>
@@ -816,6 +818,8 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, hideDistri
                       </SelectContent>
                     </Select>
                   </div>
+                  )}
+                  {!locationProvisionsOnly && (
                   <div className="space-y-1.5">
                     <p className="text-xs font-semibold text-muted-foreground">{CAT_FIELD_LABELS[catField]}</p>
                     <Select value={catValue} onValueChange={(v) => { setCatValue(v); setSelected(new Set()); }}>
@@ -832,6 +836,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, hideDistri
                       </SelectContent>
                     </Select>
                   </div>
+                  )}
                   <div className="space-y-1.5">
                     <p className="text-xs font-semibold text-muted-foreground">Agent</p>
                     <Select value={agentFilter} onValueChange={setAgentFilter}>
@@ -848,6 +853,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, hideDistri
                       </SelectContent>
                     </Select>
                   </div>
+                  {!locationProvisionsOnly && (
                   <div className="space-y-1.5">
                     <p className="text-xs font-semibold text-muted-foreground">Country</p>
                     <Select value={countryFilter} onValueChange={setCountryFilter}>
@@ -864,6 +870,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, hideDistri
                       </SelectContent>
                     </Select>
                   </div>
+                  )}
                   <button
                     type="button"
                     className="text-xs font-medium text-primary hover:underline"
