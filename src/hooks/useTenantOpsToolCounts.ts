@@ -6,12 +6,19 @@ export interface TenantOpsToolCounts {
   new_requests: number;
   service_center_review: number;
   active_plans: number;
+  repaying_plans: number;
+  tenant_count: number;
+  active_tenants: number;
   payments_today: number;
   collected_today: number;
   expected_today: number;
   tenants_paid_today: number;
+  paid_today_tenants: number;
+  unpaid_today_tenants: number;
   missed_days_tenants: number;
   critical_tenants: number;
+  behavior_critical: number;
+  behavior_warning: number;
   transfers_30d: number;
   approvals_today: number;
   rejected_30d: number;
@@ -22,12 +29,19 @@ const EMPTY: TenantOpsToolCounts = {
   new_requests: 0,
   service_center_review: 0,
   active_plans: 0,
+  repaying_plans: 0,
+  tenant_count: 0,
+  active_tenants: 0,
   payments_today: 0,
   collected_today: 0,
   expected_today: 0,
   tenants_paid_today: 0,
+  paid_today_tenants: 0,
+  unpaid_today_tenants: 0,
   missed_days_tenants: 0,
   critical_tenants: 0,
+  behavior_critical: 0,
+  behavior_warning: 0,
   transfers_30d: 0,
   approvals_today: 0,
   rejected_30d: 0,
