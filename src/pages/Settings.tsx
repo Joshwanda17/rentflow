@@ -268,14 +268,15 @@ export default function Settings() {
 
   const handleSave = async () => {
     if (!user || !profile) return;
-    if (!fullName.trim()) { toast.error('Full name is required'); return; }
+    const nameCheck = validatePersonNameParts(nameParts);
+    if (!nameCheck.valid) { toast.error(nameCheck.error || 'Full name is required'); return; }
     if (!phone.trim()) { toast.error('Phone number is required'); return; }
     if (normalizeE164OrNull(phone) === null) {
       toast.error('Please enter a valid phone number (e.g. 0771234567 or +256771234567)');
       return;
     }
     setSaving(true);
-    const trimmedName = fullName.trim();
+    const trimmedName = nameCheck.fullName;
     const trimmedPhone = phone.trim();
     const phoneChanged = trimmedPhone !== (profile.phone ?? '').trim();
     if (phoneChanged && !otp.otpVerified) {
