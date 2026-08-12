@@ -11,7 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import {
-  ResponsiveContainer, AreaChart, Area, BarChart, Bar, LineChart, Line,
+  ResponsiveContainer, AreaChart, Area, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell,
 } from 'recharts';
 import {
