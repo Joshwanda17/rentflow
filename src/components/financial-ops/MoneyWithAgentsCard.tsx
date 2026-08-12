@@ -68,7 +68,7 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
           <p className="mt-1 font-mono text-xl font-bold tabular-nums text-foreground break-all">
             {isLoading ? '—' : formatUGX(owedTotal)}
           </p>
-          <p className="text-[10px] text-muted-foreground mt-1">Claimed &amp; paid out, not yet reimbursed</p>
+          <p className="text-[10px] text-muted-foreground mt-1">They paid it out; we haven't sent it back yet</p>
         </div>
       </div>
 
