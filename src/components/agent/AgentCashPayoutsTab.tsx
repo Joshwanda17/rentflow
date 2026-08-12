@@ -161,12 +161,12 @@ interface QueueFilterOpts {
  * the semantics we want for combining independent filters.
  */
 function applyQueueFilters(q: any, o: QueueFilterOpts) {
-  q = q.in('status', CASHOUT_QUEUE_STATUSES);
-  // Hard settlement fence: a payout that carries a FinOps reference or a
-  // processed timestamp has already been confirmed. Such a row must NEVER be
+  // Hard settlement fence (shared with the DB view `v_merchant_payout_queue`):
+  // queue statuses only, and a payout that carries a FinOps reference or a
+  // processed timestamp has already been confirmed — such a row must NEVER be
   // returned by the merchant queue, even if its status column were somehow
   // left in a queue state by a failed follow-up write.
-  q = q.is('processed_at', null).is('fin_ops_reference', null);
+  q = applyMerchantQueueFence(q);
   // Available = unclaimed OR a claim the server cron would already have released
   // (>45 min, no settlement progress). Excludes rows
   // currently claimed by anyone (including me — those live in "Claimed by you").
@@ -891,10 +891,7 @@ export function AgentCashPayoutsTab() {
       .channel('cashout-agent-withdrawals')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'withdrawal_requests' }, (payload) => {
         const newRow = payload.new as any;
-        const isSettled =
-          !CASHOUT_QUEUE_STATUSES.includes(String(newRow?.status || '')) ||
-          newRow?.processed_at != null ||
-          newRow?.fin_ops_reference != null;
+        const isSettled = isMerchantQueueSettled(newRow);
 
         // Never keep a paid row visible while the fresh database query is in
         // flight (or if that refetch fails). The database status remains the
@@ -1160,11 +1157,7 @@ export function AgentCashPayoutsTab() {
 
   // Server-driven queue values. The active tab's page comes from `queuePage`,
   // counts come from `queueCounts`, and the unfiltered total from `availableTotal`.
-  const pageRows: any[] = (queuePage?.rows ?? []).filter((row: any) =>
-    CASHOUT_QUEUE_STATUSES.includes(String(row?.status || '')) &&
-    row?.processed_at == null &&
-    row?.fin_ops_reference == null,
-  );
+  const pageRows: any[] = (queuePage?.rows ?? []).filter((row: any) => isMerchantQueueActionable(row));
   const pageCount = queuePage?.count ?? 0;
   const channelCounts = queueCounts ?? { all: 0, momo: 0, cash: 0, bank: 0 };
   const totalPending = availableTotal;
