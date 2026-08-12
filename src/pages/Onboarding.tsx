@@ -16,6 +16,8 @@ import { numberToWords } from '@/lib/numberToWords';
 import { buildAgreementHtml } from '@/components/partner/agreementTemplate';
 import { renderAgreementPdfBase64 } from '@/components/partner/renderAgreementPdf';
 import { SignaturePad } from '@/components/shared/SignaturePad';
+import PersonNameFields from '@/components/shared/PersonNameFields';
+import { joinPersonName, validatePersonNameParts, type PersonNameParts } from '@/lib/authValidation';
 import { preflightSignup, attachSignupUser } from '@/lib/signupGuard';
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
@@ -26,11 +28,16 @@ const registerUser = async (payload: {
   password: string;
   firstName: string;
   lastName: string;
+  otherNames?: string;
   phone: string;
   role: string;
   referrerId?: string;
 }): Promise<{ status: string; data: { user: any; userId: string; hasSession: boolean } }> => {
-  const fullName = `${payload.firstName} ${payload.lastName}`.trim();
+  const fullName = joinPersonName({
+    firstName: payload.firstName,
+    otherNames: payload.otherNames ?? '',
+    lastName: payload.lastName,
+  });
   const guard = await preflightSignup({ email: payload.email, phone: payload.phone, path: '/funder-onboarding' });
   if (!guard.allowed) {
     throw new Error(guard.reason || 'Sign-up is temporarily unavailable from this device or network. Please try again tomorrow.');
@@ -90,6 +97,7 @@ interface FormState {
   supportAmount: string;
   firstName: string;
   lastName: string;
+  otherNames: string;
   email: string;
   password: string;
   confirmPassword: string;
@@ -789,28 +797,13 @@ function _Step3Impl({
         variants={fadeUp}
         className="bg-white border border-gray-100 rounded-2xl p-4 space-y-3"
       >
-        <div className="flex gap-3">
-          <div className="space-y-1 flex-1 min-w-0">
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">First Name</label>
-            <input
-              type="text"
-              placeholder="First Name"
-              value={form.firstName}
-              onChange={e => setForm(p => ({ ...p, firstName: e.target.value }))}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder:text-gray-300 outline-none focus:bg-white focus:border-[#6c11d4] transition-all"
-            />
-          </div>
-          <div className="space-y-1 flex-1 min-w-0">
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Last Name</label>
-            <input
-              type="text"
-              placeholder="Last Name"
-              value={form.lastName}
-              onChange={e => setForm(p => ({ ...p, lastName: e.target.value }))}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder:text-gray-300 outline-none focus:bg-white focus:border-[#6c11d4] transition-all"
-            />
-          </div>
-        </div>
+        <PersonNameFields
+          idPrefix="funder-onboarding"
+          value={{ firstName: form.firstName, otherNames: form.otherNames, lastName: form.lastName }}
+          onChange={(next: PersonNameParts) =>
+            setForm(p => ({ ...p, firstName: next.firstName, otherNames: next.otherNames, lastName: next.lastName }))
+          }
+        />
 
         <div className="space-y-1">
           <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Email</label>
@@ -1034,7 +1027,11 @@ function isValid(step: number, form: FormState): boolean {
   }
   if (step === 4) {
     const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email);
-    const nameOk = form.firstName.length >= 2 && form.lastName.length >= 2;
+    const nameOk = validatePersonNameParts({
+      firstName: form.firstName,
+      otherNames: form.otherNames,
+      lastName: form.lastName,
+    }).valid;
     const pwOk = form.password.length >= 8;
     const matchOk = form.password === form.confirmPassword;
     const phoneOk = form.phone.trim().length >= 7;
@@ -1076,8 +1073,12 @@ function getValidationMessage(step: number, form: FormState): string {
 
   if (step === 4) {
     const missing: string[] = [];
-    if (form.firstName.trim().length < 2) missing.push('first name');
-    if (form.lastName.trim().length < 2) missing.push('last name');
+    const nameCheck = validatePersonNameParts({
+      firstName: form.firstName,
+      otherNames: form.otherNames,
+      lastName: form.lastName,
+    });
+    if (!nameCheck.valid) missing.push(nameCheck.error ? nameCheck.error.toLowerCase() : 'your full name');
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) missing.push('a valid email address');
     if (form.phone.trim().length < 7) missing.push('phone number');
     if (form.address.trim().length < 2) missing.push('address');
@@ -1182,6 +1183,7 @@ export default function FunderOnboarding() {
     supportAmount: '',
     firstName: '',
     lastName: '',
+    otherNames: '',
     email: '',
     password: '',
     confirmPassword: '',
@@ -1246,6 +1248,12 @@ export default function FunderOnboarding() {
         const cleanEmail = sanitizeInput(form.email).trim().toLowerCase();
         const cleanFirst = sanitizeInput(form.firstName).trim();
         const cleanLast = sanitizeInput(form.lastName).trim();
+        const cleanOther = sanitizeInput(form.otherNames).trim();
+        const cleanFullName = joinPersonName({
+          firstName: cleanFirst,
+          otherNames: cleanOther,
+          lastName: cleanLast,
+        });
         const cleanPhone = sanitizeInput(form.phone).trim();
         const cleanAddress = sanitizeInput(form.address).trim();
         const cleanBankName = sanitizeInput(form.bankName).trim();
@@ -1263,6 +1271,7 @@ export default function FunderOnboarding() {
           password: form.password,
           firstName: cleanFirst,
           lastName: cleanLast,
+          otherNames: cleanOther,
           phone: cleanPhone,
           role: definedRole || 'FUNDER',
           referrerId: referrerId || undefined,
@@ -1333,7 +1342,7 @@ export default function FunderOnboarding() {
                 .from('partner_agreements')
                 .upsert({
                   partner_id: newUserId,
-                  full_name: `${cleanFirst} ${cleanLast}`.trim(),
+                  full_name: cleanFullName,
                   phone: cleanPhone,
                   email: cleanEmail,
                   national_id: cleanNationalId,
@@ -1369,7 +1378,7 @@ export default function FunderOnboarding() {
               pdfBase64 = await Promise.race<string | null>([
                 renderAgreementPdfBase64(
                 buildAgreementHtml({
-                  partnerName: `${cleanFirst} ${cleanLast}`.trim(),
+                  partnerName: cleanFullName,
                   partnerId: cleanNationalId,
                   partnerAddress: cleanAddress,
                   partnerPhone: cleanPhone,
