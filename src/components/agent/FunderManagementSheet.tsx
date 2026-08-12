@@ -10,6 +10,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import PersonNameFields from '@/components/shared/PersonNameFields';
+import { joinPersonName, validatePersonNameParts, type PersonNameParts } from '@/lib/authValidation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { FunderDetailView } from './FunderDetailView';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -54,7 +56,9 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
 
   // Register dialog state
   const [registerOpen, setRegisterOpen] = useState(false);
-  const [regName, setRegName] = useState('');
+  // Captured in parts; `full_name` stays one concatenated string.
+  const [nameParts, setNameParts] = useState<PersonNameParts>({ firstName: '', otherNames: '', lastName: '' });
+  const regName = joinPersonName(nameParts);
   const [regPhone, setRegPhone] = useState('');
   const [regNotes, setRegNotes] = useState('');
   const [registering, setRegistering] = useState(false);
@@ -144,7 +148,7 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
   };
 
   const handleRegister = async () => {
-    if (!user || !regName.trim() || !regPhone.trim()) return;
+    if (!user || !validatePersonNameParts(nameParts).valid || !regPhone.trim()) return;
     if (isDuplicate) {
       toast({ title: 'Duplicate phone', description: duplicateMessage || 'This number is already registered', variant: 'destructive' });
       return;
@@ -161,7 +165,7 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
       if (data?.error) throw new Error(data.error);
       toast({ title: '✅ Funder registered!', description: `${data.full_name} has been added to your funders` });
       setRegisterOpen(false);
-      setRegName('');
+      setNameParts({ firstName: '', otherNames: '', lastName: '' });
       setRegPhone('');
       setRegNotes('');
       fetchFunders();
@@ -312,12 +316,7 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
           <div className="space-y-3">
             <div>
               <Label>Full Name *</Label>
-              <Input
-                placeholder="e.g. John Mukasa"
-                value={regName}
-                onChange={e => setRegName(e.target.value)}
-                maxLength={100}
-              />
+              <PersonNameFields idPrefix="funder-reg" value={nameParts} onChange={setNameParts} />
             </div>
             <div>
               <Label>Phone Number *</Label>
@@ -354,7 +353,7 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
             <Button
               className="w-full"
               onClick={handleRegister}
-              disabled={registering || !regName.trim() || !regPhone.trim() || isDuplicate || isChecking}
+              disabled={registering || !validatePersonNameParts(nameParts).valid || !regPhone.trim() || isDuplicate || isChecking}
             >
               {registering ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Register Funder

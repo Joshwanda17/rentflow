@@ -10,6 +10,8 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, MessageSquare, ShieldCheck, Smartphone } from 'lucide-react';
+import PersonNameFields from '@/components/shared/PersonNameFields';
+import { joinPersonName, validatePersonNameParts, type PersonNameParts } from '@/lib/authValidation';
 
 interface StartCashDepositDialogProps {
   open: boolean;
@@ -27,7 +29,9 @@ interface StartCashDepositDialogProps {
 export function StartCashDepositDialog({ open, onOpenChange, onIssued }: StartCashDepositDialogProps) {
   const { toast } = useToast();
   const [phone, setPhone] = useState('');
-  const [ownerName, setOwnerName] = useState('');
+  // Captured in parts; the RPC/edge payload keeps one `cash_owner_name` string.
+  const [nameParts, setNameParts] = useState<PersonNameParts>({ firstName: '', otherNames: '', lastName: '' });
+  const ownerName = joinPersonName(nameParts);
   const [amount, setAmount] = useState('');
   const [purpose, setPurpose] = useState('personal_deposit');
   const [cashLocation, setCashLocation] = useState<'bank' | 'cash_at_hand'>('cash_at_hand');
@@ -40,6 +44,7 @@ export function StartCashDepositDialog({ open, onOpenChange, onIssued }: StartCa
   const ownerNameClean = ownerName.trim().replace(/\s+/g, ' ');
   const canSubmit =
     digits.length >= 9 &&
+    validatePersonNameParts(nameParts).valid &&
     ownerNameClean.length >= 3 &&
     Number.isFinite(amountNum) &&
     amountNum >= 500 &&
@@ -47,7 +52,7 @@ export function StartCashDepositDialog({ open, onOpenChange, onIssued }: StartCa
 
   const reset = () => {
     setPhone('');
-    setOwnerName('');
+    setNameParts({ firstName: '', otherNames: '', lastName: '' });
     setAmount('');
     setPurpose('personal_deposit');
     setCashLocation('cash_at_hand');
@@ -116,12 +121,7 @@ export function StartCashDepositDialog({ open, onOpenChange, onIssued }: StartCa
             <Label htmlFor="fin-cash-owner">
               Depositor's full name <span className="text-destructive">*</span>
             </Label>
-            <Input
-              id="fin-cash-owner"
-              placeholder="e.g. Nankambo Sharimah"
-              value={ownerName}
-              onChange={(e) => setOwnerName(e.target.value)}
-            />
+            <PersonNameFields idPrefix="fin-cash-owner" value={nameParts} onChange={setNameParts} />
             <p className="text-[11px] text-muted-foreground">
               The person whose cash this actually is — even when the money lands in the operator's
               wallet for later transfer. This is the name that appears in the cash deposits list.

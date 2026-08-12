@@ -3,6 +3,8 @@ import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import PersonNameFields from '@/components/shared/PersonNameFields';
+import { joinPersonName, type PersonNameParts } from '@/lib/authValidation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -52,7 +54,9 @@ export default function ActivateSupporter() {
   const [inviteDetails, setInviteDetails] = useState<{ full_name: string; role?: string; phone?: string } | null>(null);
 
   // Profile completion fields
-  const [fullName, setFullName] = useState('');
+  // Captured in parts; the activation payload keeps one `fullName` string.
+  const [nameParts, setNameParts] = useState<PersonNameParts>({ firstName: '', otherNames: '', lastName: '' });
+  const fullName = joinPersonName(nameParts);
   const [email, setEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [locationStatus, setLocationStatus] = useState<'idle' | 'requesting' | 'granted' | 'denied'>('idle');
@@ -673,17 +677,8 @@ export default function ActivateSupporter() {
             </div>
             <form onSubmit={handleReview} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="fullName" className="text-base font-semibold">👤 Full Name (as on your ID) *</Label>
-                <Input
-                  id="fullName"
-                  placeholder="e.g., John Doe"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  required
-                  className="h-14 text-base"
-                  style={{ fontSize: '16px' }}
-                  autoComplete="name"
-                />
+                <Label className="text-base font-semibold">👤 Full Name (as on your ID) *</Label>
+                <PersonNameFields idPrefix="activate-supporter" value={nameParts} onChange={setNameParts} />
               </div>
 
               <div className="space-y-2">

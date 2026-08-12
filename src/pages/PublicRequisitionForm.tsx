@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
+import PersonNameFields from '@/components/shared/PersonNameFields';
+import { joinPersonName, validatePersonNameParts, type PersonNameParts } from '@/lib/authValidation';
 import { Loader2, Upload, CheckCircle2, AlertCircle } from 'lucide-react';
 import ScreenLoader from '@/components/common/ScreenLoader';
 
@@ -38,6 +40,12 @@ export default function PublicRequisitionForm() {
   const [done, setDone] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [attachments, setAttachments] = useState<Array<{ path: string; name: string }>>([]);
+  // Captured in parts; `form.employee_name` stays the single submitted string.
+  const [nameParts, setNameParts] = useState<PersonNameParts>({ firstName: '', otherNames: '', lastName: '' });
+  const applyNameParts = (next: PersonNameParts) => {
+    setNameParts(next);
+    setForm(f => ({ ...f, employee_name: joinPersonName(next) }));
+  };
 
   const [form, setForm] = useState({
     employee_name: '',
@@ -89,14 +97,14 @@ export default function PublicRequisitionForm() {
 
   const canSubmit = useMemo(() => {
     return (
-      form.employee_name.trim().length >= 2 &&
+      validatePersonNameParts(nameParts).valid &&
       form.employee_email.includes('@') &&
       form.purpose.trim().length >= 3 &&
       form.category &&
       Number(form.amount) > 0 &&
       !submitting
     );
-  }, [form, submitting]);
+  }, [form, nameParts, submitting]);
 
   const onFile = async (file: File) => {
     setUploading(true);
@@ -203,7 +211,7 @@ export default function PublicRequisitionForm() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label>Full Name *</Label>
-              <Input value={form.employee_name} onChange={e => setForm(f => ({ ...f, employee_name: e.target.value }))} />
+              <PersonNameFields idPrefix="requisition" value={nameParts} onChange={applyNameParts} />
             </div>
             <div>
               <Label>Department</Label>
