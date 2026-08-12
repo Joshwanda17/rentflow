@@ -104,9 +104,11 @@ interface RentDisbursementQueueProps {
   restrictToIds?: string[];
   /** Optional: tick these rows on mount (same checkboxes as usual). */
   autoSelectIds?: string[];
+  /** When true, the district and town/city filter controls are hidden. */
+  hideDistrictCityFilters?: boolean;
 }
 
-export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisbursementQueueProps = {}) {
+export function RentDisbursementQueue({ restrictToIds, autoSelectIds, hideDistrictCityFilters = false }: RentDisbursementQueueProps = {}) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [agentFilter, setAgentFilter] = useState<string>('all');
   const [countryFilter, setCountryFilter] = useState<string>('all');
