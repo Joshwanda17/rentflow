@@ -45,8 +45,17 @@ import {
 import { useWithdrawalsPaused } from '@/hooks/useWithdrawalsPaused';
 import { AlertTriangle } from 'lucide-react';
 
-// Aligned with FinOps dashboard (FinOpsWithdrawalVerification) so pending counts match across dashboards.
-const CASHOUT_QUEUE_STATUSES = ['pending', 'requested', 'manager_approved', 'cfo_approved', 'fin_ops_approved'];
+import {
+  MERCHANT_QUEUE_STATUSES,
+  isMerchantQueueActionable,
+  isMerchantQueueSettled,
+  applyMerchantQueueFence,
+} from '@/lib/merchantPayoutQueue';
+
+// Aligned with FinOps dashboard (FinOpsWithdrawalVerification) so pending counts
+// match across dashboards. Sourced from the shared fence module, which mirrors the
+// database view `public.v_merchant_payout_queue` exactly.
+const CASHOUT_QUEUE_STATUSES = MERCHANT_QUEUE_STATUSES as unknown as string[];
 const CLAIM_WINDOW_MINUTES = 15;
 const CLAIM_WINDOW_MS = CLAIM_WINDOW_MINUTES * 60 * 1000;
 // A merchant's own claim is NEVER force-released by the browser: they may already
