@@ -495,10 +495,28 @@ Deno.serve(async (req) => {
     // compensation. Backward-compatible: if a legacy merchant client omits the
     // flag but the caller is a cashout agent AND no staff settlement desk is in
     // play, we still credit them.
+    //
+    // 2026-08-12 FIX — the flag is now an OPT-OUT signal, never the sole
+    // enabler. Several merchant agents ALSO hold staff roles (manager, coo,
+    // financial_ops, *_ops) and close the very same customer payout from a
+    // staff desk UI that never sent `acting_as_merchant`. In those cases the
+    // merchant fronted real MoMo cash but the entire compensation chain
+    // (float debit -> telecom charge -> out-of-pocket receivable -> 0.5%
+    // commission -> Welile SMS) was silently skipped: their float never
+    // reduced, no commission was credited and no message was sent.
+    // Authoritative rule: an ACTIVE cashout agent settling a payout by hand IS
+    // the merchant, whichever desk they clicked from. Only an explicit
+    // `acting_as_merchant: false` / `staff_desk: true` (a non-merchant desk
+    // paying on someone else's behalf) or a system/bulk call opts out.
     const bodyActingFlag =
       (body as any)?.acting_as_merchant === true ||
       (body as any)?.actingAsMerchant === true;
-    actingAsMerchant = isCashoutAgent && !isSystemCall && bodyActingFlag;
+    const merchantOptOut =
+      (body as any)?.acting_as_merchant === false ||
+      (body as any)?.actingAsMerchant === false ||
+      (body as any)?.staff_desk === true;
+    actingAsMerchant =
+      isCashoutAgent && !isSystemCall && (bodyActingFlag || !merchantOptOut);
 
     // ── PROOF-OF-PAYMENT GATE (merchant settlements) ────────────────────
     // No proof image => no wallet debit. A merchant agent can only close a
@@ -506,12 +524,19 @@ Deno.serve(async (req) => {
     // MoMo confirmation screenshot). This runs BEFORE the claim flip and
     // before any ledger write, so a proofless attempt leaves both the
     // request and the customer's wallet untouched.
+    // Since staff-desk settlements by an active cashout agent now qualify as
+    // merchant settlements (2026-08-12), the gate also accepts a proof that is
+    // ALREADY lodged on the request row by those desks — otherwise the fix
+    // would lock FinOps/ops merchants out of settling entirely.
     if (actingAsMerchant) {
       const proofUrlIn = (body as any)?.payout_proof;
       const proofPathIn = (body as any)?.payout_proof_path;
+      const existingProof =
+        (wr as any)?.payout_proof_path ?? (wr as any)?.payout_proof ?? null;
       const hasProof =
         (typeof proofUrlIn === "string" && proofUrlIn.trim().length > 0) ||
-        (typeof proofPathIn === "string" && proofPathIn.trim().length > 0);
+        (typeof proofPathIn === "string" && proofPathIn.trim().length > 0) ||
+        (typeof existingProof === "string" && existingProof.trim().length > 0);
       if (!hasProof) {
         console.warn("[approve-withdrawal] PROOF_REQUIRED", { withdrawal_id, user: user.id });
         return new Response(
