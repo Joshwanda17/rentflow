@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, FileDown, Printer, RefreshCw, AlertTriangle, CheckCircle2, FileText, CalendarDays, Clock, ShieldCheck } from 'lucide-react';
+import { Loader2, FileDown, Printer, RefreshCw, AlertTriangle, CheckCircle2, FileText, CalendarDays, Clock, ShieldCheck, Search } from 'lucide-react';
 import { downloadCsv } from '@/lib/csvExport';
 import { toast } from 'sonner';
 
@@ -263,18 +263,7 @@ export default function RoiDisbursementReportPanel() {
                   <Kpi label="Compounded to principal" value={fmtUGX(data.summary.compounded_total)} hint={`${data.summary.compounded_portfolios} portfolios`} />
                   <Kpi label="Partners affected" value={String(data.summary.partners_affected)} hint={`Principal base ${fmtUGX(data.summary.principal_total)}`} />
                 </div>
-                <div className="mt-4 no-print">
-                  <label className="text-xs font-medium text-muted-foreground" htmlFor="roi-name-search">
-                    Search name
-                  </label>
-                  <Input
-                    id="roi-name-search"
-                    value={nameSearch}
-                    onChange={(e) => setNameSearch(e.target.value)}
-                    placeholder="Type a name to filter the report"
-                    className="mt-1 h-9 max-w-xs"
-                  />
-                </div>
+
               </div>
 
               {/* Section 1 */}
@@ -282,7 +271,22 @@ export default function RoiDisbursementReportPanel() {
                 <SectionTitle
                   index={1}
                   title="Cash Returns disbursed to wallets"
-                  right={<Button variant="ghost" size="sm" className="no-print" onClick={exportCash} disabled={!data.cash.length}><FileDown className="h-4 w-4 mr-1" />CSV</Button>}
+                  right={
+                    <div className="flex items-center gap-2">
+                      <div className="relative w-full sm:w-64">
+                        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                          type="text"
+                          value={nameSearch}
+                          onChange={(e) => setNameSearch(e.target.value)}
+                          placeholder="Filter by partner name…"
+                          className="h-9 rounded-lg pl-8 text-sm"
+                          aria-label="Filter by partner name"
+                        />
+                      </div>
+                      <Button variant="ghost" size="sm" className="no-print" onClick={exportCash} disabled={!data.cash.length}><FileDown className="h-4 w-4 mr-1" />CSV</Button>
+                    </div>
+                  }
                 />
                 {data.cash.length === 0 ? (
                   <Empty text="No cash Returns were disbursed in this window." />
