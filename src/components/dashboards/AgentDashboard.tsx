@@ -516,7 +516,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   // if they claimed and processed them all. Drives the notification badge that
   // sits on top of the "Merchant Payouts" button. 0.5% commission per payout,
   // matching approve-withdrawal.
-  const CASHOUT_QUEUE_STATUSES = ['pending', 'requested', 'manager_approved', 'cfo_approved', 'fin_ops_approved'];
+  const CASHOUT_QUEUE_STATUSES = MERCHANT_QUEUE_STATUSES as unknown as string[];
   const CLAIM_WINDOW_MS = 15 * 60 * 1000;
   const COMMISSION_RATE = 0.005;
   // Mirror the exact filters the Merchant Payouts sheet uses so the badge
