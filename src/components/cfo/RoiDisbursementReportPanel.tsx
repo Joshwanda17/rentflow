@@ -263,18 +263,8 @@ export default function RoiDisbursementReportPanel() {
                   <Kpi label="Compounded to principal" value={fmtUGX(data.summary.compounded_total)} hint={`${data.summary.compounded_portfolios} portfolios`} />
                   <Kpi label="Partners affected" value={String(data.summary.partners_affected)} hint={`Principal base ${fmtUGX(data.summary.principal_total)}`} />
                 </div>
-                <div className="mt-4 no-print">
-                  <label className="text-xs font-medium text-muted-foreground" htmlFor="roi-name-search">
-                    Search name
-                  </label>
-                  <Input
-                    id="roi-name-search"
-                    value={nameSearch}
-                    onChange={(e) => setNameSearch(e.target.value)}
-                    placeholder="Type a name to filter the report"
-                    className="mt-1 h-9 max-w-xs"
-                  />
-                </div>
+                <div className="mt-4 no-print" />
+
               </div>
 
               {/* Section 1 */}
