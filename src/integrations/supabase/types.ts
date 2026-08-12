@@ -31085,7 +31085,7 @@ export type Database = {
       withdrawal_payment_evidence: {
         Row: {
           amount_confirmed: number | null
-          attached_by: string
+          attached_by: string | null
           created_at: string
           evidence_note: string
           evidence_source: string
@@ -31097,7 +31097,7 @@ export type Database = {
         }
         Insert: {
           amount_confirmed?: number | null
-          attached_by: string
+          attached_by?: string | null
           created_at?: string
           evidence_note: string
           evidence_source: string
@@ -31109,7 +31109,7 @@ export type Database = {
         }
         Update: {
           amount_confirmed?: number | null
-          attached_by?: string
+          attached_by?: string | null
           created_at?: string
           evidence_note?: string
           evidence_source?: string
@@ -38360,6 +38360,7 @@ export type Database = {
         }[]
       }
       reconcile_credited_deposit_profiles: { Args: never; Returns: number }
+      reconcile_evidenced_withdrawal_settlements: { Args: never; Returns: Json }
       reconcile_negative_wallets: {
         Args: { p_dry_run?: boolean; p_max_users?: number }
         Returns: Json
@@ -39558,6 +39559,10 @@ export type Database = {
       welile_telecom_sending_charge: {
         Args: { p_amount: number }
         Returns: number
+      }
+      withdrawal_settlement_status: {
+        Args: { p_withdrawal_id: string }
+        Returns: Json
       }
       writedown_historical_drift: {
         Args: { p_amount: number; p_reason: string; p_review_id: string }
