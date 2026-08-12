@@ -272,7 +272,22 @@ export default function RoiDisbursementReportPanel() {
                 <SectionTitle
                   index={1}
                   title="Cash Returns disbursed to wallets"
-                  right={<Button variant="ghost" size="sm" className="no-print" onClick={exportCash} disabled={!data.cash.length}><FileDown className="h-4 w-4 mr-1" />CSV</Button>}
+                  right={
+                    <div className="flex items-center gap-2">
+                      <div className="relative w-full sm:w-64">
+                        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                          type="text"
+                          value={nameSearch}
+                          onChange={(e) => setNameSearch(e.target.value)}
+                          placeholder="Filter by partner name…"
+                          className="h-9 rounded-lg pl-8 text-sm"
+                          aria-label="Filter by partner name"
+                        />
+                      </div>
+                      <Button variant="ghost" size="sm" className="no-print" onClick={exportCash} disabled={!data.cash.length}><FileDown className="h-4 w-4 mr-1" />CSV</Button>
+                    </div>
+                  }
                 />
                 {data.cash.length === 0 ? (
                   <Empty text="No cash Returns were disbursed in this window." />
