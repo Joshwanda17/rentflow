@@ -254,7 +254,7 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <PiggyBank className="h-5 w-5 text-emerald-500" />
-            {step === 'search' && (showRegister ? 'Register New Investor' : 'Select Investor')}
+            {step === 'search' && (showRegister ? 'Register New Partner' : 'Select Partner')}
             {step === 'amount' && 'Funding Details'}
             {step === 'preview' && 'Confirm Funding'}
             {step === 'success' && 'Funding Complete'}
