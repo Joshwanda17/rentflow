@@ -88,7 +88,7 @@ export function QuickRegisterTenantDialog({
     try {
       const { data, error } = await supabase.functions.invoke('register-tenant', {
         body: {
-          full_name: nameCheck.trimmed,
+          full_name: nameCheck.fullName,
           phone: phone.trim(),
           national_id: nationalId.trim().toUpperCase(),
         },
