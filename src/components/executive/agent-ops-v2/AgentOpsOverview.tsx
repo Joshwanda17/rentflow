@@ -194,7 +194,7 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
           title="Total Agents"
           value={fmtNum(k.total_agents || 0)}
           delta={pctDelta(k.total_agents || 0, k.total_agents_prev || 0)}
-          subtitle={`+${fmtNum(k.new_agents_curr || 0)} new this period`}
+          subtitle={`+${fmtNum(k.new_agents_curr || 0)} new today`}
           icon={Users}
           accent="bg-primary"
           onClick={() => onOpenSection('directory')}
@@ -215,7 +215,7 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
           title="Total Sub-Agents"
           value={fmtNum(k.total_subagents || 0)}
           delta={pctDelta(k.total_subagents || 0, k.total_subagents_prev || 0)}
-          subtitle={`+${fmtNum(k.new_subagents_curr || 0)} new this period`}
+          subtitle={`+${fmtNum(k.new_subagents_curr || 0)} new today`}
           icon={UsersRound}
           accent="bg-sky-600"
           onClick={() => onOpenSection('sub-agents')}
@@ -283,7 +283,7 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
         <div className="flex items-start justify-between mb-2">
           <div>
             <h3 className="text-sm font-semibold">Rent Collections</h3>
-            <p className="text-[11px] text-muted-foreground">Collected (green) vs still pending (red), UGX</p>
+            <p className="text-[11px] text-muted-foreground">Daily collected (green) vs still pending (red), UGX — last 30 days</p>
           </div>
         </div>
         <div className="h-64 w-full">
@@ -326,7 +326,7 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
           <div className="flex items-start justify-between mb-2">
             <div>
               <h3 className="text-sm font-semibold">Agent Activity</h3>
-              <p className="text-[11px] text-muted-foreground">New / Active agents & rent requests</p>
+              <p className="text-[11px] text-muted-foreground">Daily new / active agents & rent requests — last 30 days</p>
             </div>
           </div>
           <div className="h-56">
@@ -538,13 +538,13 @@ function TopPerformers({
         <Trophy className="h-4 w-4 text-amber-500" />
         <div>
           <h3 className="text-sm font-semibold">Top Performers</h3>
-          <p className="text-[11px] text-muted-foreground">Agents and sub-agents by rent collected this period</p>
+          <p className="text-[11px] text-muted-foreground">Agents and sub-agents by rent collected today</p>
         </div>
       </div>
       {loading ? (
         <Skeleton className="h-32 w-full" />
       ) : rows.length === 0 ? (
-        <p className="text-xs text-muted-foreground p-4 text-center">No collections recorded in this period.</p>
+        <p className="text-xs text-muted-foreground p-4 text-center">No collections recorded today.</p>
       ) : (
         <div className="overflow-x-auto">
           <Table>
