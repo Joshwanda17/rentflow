@@ -1979,9 +1979,11 @@ export function AgentCashPayoutsTab() {
         })}
         </Tabs>
       </section>
+      </>
+      )}
 
       {/* Complete audit trail of every withdrawal this agent was alerted to. */}
-      <MerchantDispatchHistory />
+      {view === 'history' && <MerchantDispatchHistory />}
     </div>
     </MerchantAgreementGate>
   );
