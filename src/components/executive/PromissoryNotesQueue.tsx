@@ -18,7 +18,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Search, User, Phone, Calendar, TrendingUp, CheckCircle, Clock, AlertTriangle, XCircle, Mail, MessageCircle, FileText, Trash2, BadgeCheck, MapPin, RefreshCw } from 'lucide-react';
+import { Search, User, Phone, Calendar, TrendingUp, CheckCircle, Clock, AlertTriangle, XCircle, Mail, MessageCircle, FileText, Trash2, BadgeCheck, MapPin, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useEffect } from 'react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { CompactAmount } from '@/components/ui/CompactAmount';
@@ -37,6 +38,7 @@ export function PromissoryNotesQueue() {
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const [deleteReason, setDeleteReason] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [page, setPage] = useState(1);
   const [approveTarget, setApproveTarget] = useState<any>(null);
   const [approveReason, setApproveReason] = useState('');
   const [approving, setApproving] = useState(false);
@@ -220,6 +222,12 @@ export function PromissoryNotesQueue() {
     acc[n.status] = (acc[n.status] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
+
+  const NOTES_PER_PAGE = 10;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / NOTES_PER_PAGE));
+  const safePage = Math.min(page, totalPages);
+  const pagedNotes = filtered.slice((safePage - 1) * NOTES_PER_PAGE, safePage * NOTES_PER_PAGE);
+  useEffect(() => { setPage(1); }, [search, statusFilter, range]);
 
   const statusConfig: Record<string, { icon: any; color: string; label: string }> = {
     pending: { icon: Clock, color: 'bg-amber-100 text-amber-700 border-amber-200', label: 'Pending' },
