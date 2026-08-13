@@ -85,24 +85,6 @@ export function MerchantFloatAvailableCard() {
         below, and once you confirm you used your own money, Finance pays it back to you.
       </p>
 
-      <div className="mt-3 grid grid-cols-2 gap-3">
-        <div className="rounded-2xl border border-border/60 bg-muted/30 p-3">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Withdrawable wallets
-          </p>
-          <p className="mt-1 font-mono text-base font-bold tabular-nums text-foreground break-all">
-            {formatUGX(pool?.withdrawableTotal ?? 0)}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-border/60 bg-muted/30 p-3">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Landlord payout float
-          </p>
-          <p className="mt-1 font-mono text-base font-bold tabular-nums text-foreground break-all">
-            {formatUGX(pool?.landlordFloatTotal ?? 0)}
-          </p>
-        </div>
-      </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3">
         <div className="rounded-2xl border border-border/60 bg-muted/30 p-3">
