@@ -296,7 +296,7 @@ export function MerchantFloatAvailableCard() {
           company_cash_with_agent: holding,
           paid_out: mine?.paidOut ?? 0,
           out_of_pocket: oop?.owedToAgent ?? 0,
-          float_available: pool?.availableFloat ?? 0,
+          float_available: spendable,
         }}
       />
     </section>
