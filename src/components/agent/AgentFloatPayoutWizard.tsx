@@ -138,15 +138,35 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
         .order('created_at', { ascending: false });
 
       const enriched = await Promise.all((data || []).map(async (r: any) => {
-        const [{ data: landlord }, { data: tenant }, { data: existing }] = await Promise.all([
+        const [{ data: landlord }, { data: tenant }, { data: existing }, { data: livePayout }] = await Promise.all([
           supabase.from('landlords').select('id, name, phone, mobile_money_number, latitude, longitude, verification_status, verified').eq('id', r.landlord_id).single(),
           supabase.from('profiles').select('id, full_name, phone').eq('id', r.tenant_id).single(),
           supabase.from('agent_float_withdrawals').select('id').eq('rent_request_id', r.id).eq('agent_id', user.id).maybeSingle(),
+          // A landlord payout already in flight (or completed) for this rent
+          // cycle means the landlord has been paid — never list it again, or the
+          // same landlord shows twice and can be double-paid.
+          supabase
+            .from('landlord_payouts')
+            .select('id')
+            .eq('rent_request_id', r.id)
+            .in('status', ['otp_verified', 'pending_merchant_payout', 'pending_finops_disbursement', 'disbursing', 'awaiting_agent_receipt', 'completed'])
+            .limit(1)
+            .maybeSingle(),
         ]);
-        return { ...r, landlord, tenant, hasPaid: !!existing?.id };
+        return { ...r, landlord, tenant, hasPaid: !!existing?.id || !!livePayout?.id };
       }));
 
-      return enriched.filter((r: any) => !r.hasPaid);
+      // Collapse duplicate cycles: one payable line per landlord + tenant pair,
+      // keeping the newest rent request (list is already newest-first).
+      const seen = new Set<string>();
+      return enriched
+        .filter((r: any) => !r.hasPaid)
+        .filter((r: any) => {
+          const key = `${r.landlord_id}:${r.tenant_id}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
     },
     enabled: !!user && open,
   });
