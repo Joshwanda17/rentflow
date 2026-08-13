@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useMyProxyAgentStatus } from '@/hooks/useProxyAgentApproval';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -24,6 +25,8 @@ export default function ProxyAgentInvite() {
   const { code = '' } = useParams<{ code: string }>();
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
+  const myAccessQ = useMyProxyAgentStatus(user?.id ?? null);
+  const myAccess = myAccessQ.data?.status ?? 'none';
 
   const [agreement, setAgreement] = useState<Agreement | null>(null);
   const [loading, setLoading] = useState(true);
@@ -305,6 +308,27 @@ export default function ProxyAgentInvite() {
             ) : agreement?.already_accepted ? (
               <div className="space-y-3">
                 <p className="text-sm">You have already accepted this month's agreement</p>
+                {myAccess === 'approved' ? (
+                  <>
+                    <div className="flex items-start gap-2 rounded-md border border-primary/30 bg-primary/10 p-3 text-sm">
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                      <span>Your proxy agent access is approved.</span>
+                    </div>
+                    <Button className="w-full" onClick={() => navigate('/agent/proxy-agents')}>
+                      Open Proxy Agent Command Center
+                    </Button>
+                  </>
+                ) : (
+                  <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                    <Clock className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span className="break-words">
+                      {myAccess === 'rejected'
+                        ? 'Your proxy agent application was not approved.'
+                        : 'Your application is pending Partner Ops approval. You will get proxy agent access once approved.'}
+                      {myAccessQ.data?.review_notes ? ` Note: ${myAccessQ.data.review_notes}` : ''}
+                    </span>
+                  </div>
+                )}
                 <Link to="/pa/record" className="text-sm text-primary underline">
                   Go to record a promissory note
                 </Link>
