@@ -67,7 +67,8 @@ export function UgDistrictSelect({
           </Button>
         </PopoverTrigger>
         <PopoverContent
-          className="p-0 w-[--radix-popover-trigger-width] max-w-none z-[100] bg-popover"
+          /* Above DialogContent (z-150) so the list is never hidden behind a dialog. */
+          className="p-0 w-[--radix-popover-trigger-width] max-w-none z-[200] bg-popover shadow-xl"
           align="start"
         >
           <Command>
