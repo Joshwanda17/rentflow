@@ -17,6 +17,16 @@ export interface SupportedTenant {
   funded_at: string | null;
   created_at: string | null;
   funding_mode: 'self_managed' | 'managed';
+  house_image_urls: string[] | null;
+  landlord_name: string | null;
+  landlord_phone: string | null;
+  daily_repayment: number | null;
+  total_repayment: number | null;
+  amount_repaid: number | null;
+  village: string | null;
+  district: string | null;
+  listing_address: string | null;
+  agent_name: string | null;
 }
 
 export function useSupportedTenants() {

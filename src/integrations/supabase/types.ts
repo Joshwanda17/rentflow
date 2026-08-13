@@ -35867,12 +35867,20 @@ export type Database = {
       funder_supported_tenants: {
         Args: never
         Returns: {
+          agent_name: string
+          amount_repaid: number
           city: string
           created_at: string
+          daily_repayment: number
+          district: string
           duration_days: number
           funded_at: string
           funding_mode: string
           house_category: string
+          house_image_urls: string[]
+          landlord_name: string
+          landlord_phone: string
+          listing_address: string
           rent_amount: number
           rent_request_id: string
           status: string
@@ -35881,6 +35889,8 @@ export type Database = {
           tenant_id: string
           tenant_name: string
           tenant_phone: string
+          total_repayment: number
+          village: string
         }[]
       }
       generate_campaign_short_code: { Args: never; Returns: string }
