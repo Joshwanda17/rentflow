@@ -267,6 +267,9 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
 
   const [payoutMode, setPayoutMode] = useState<PayoutMode | null>(null);
   const [momoNumber, setMomoNumber] = useState('');
+  // Locked destination: only when the caller both asked for the lock AND
+  // supplied the resolved details, so we never lock an empty form.
+  const payoutLocked = lockPayoutDetails && !!prefillPayout;
   const [momoName, setMomoName] = useState('');
   const [bankName, setBankName] = useState('');
   const [bankAccountName, setBankAccountName] = useState('');
