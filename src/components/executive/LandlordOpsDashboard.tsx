@@ -3723,7 +3723,7 @@ export function LandlordOpsDashboard() {
               variant="outline"
               className="h-9 gap-1.5"
               disabled={exportingHouseReport}
-              onClick={exportHouseReportPdf}
+              onClick={() => void exportHouseReportPdf()}
               title="Export a full PDF report for the filters currently applied"
             >
               {exportingHouseReport
