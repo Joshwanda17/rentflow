@@ -297,9 +297,11 @@ export default function MyWork({ embedded = false }: MyWorkProps) {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [logOpen, setLogOpen] = useState(false);
   const [unstarted, setUnstarted] = useState<{ task: Task; assignedBy: string }[]>([]);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [live, setLive] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setLoading(true);
     try {
       const me = await getMyStaff();
       setStaff(me);
@@ -399,15 +401,56 @@ export default function MyWork({ embedded = false }: MyWorkProps) {
       }
       setThresholds(map);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not load your work');
+      if (!opts?.silent) toast.error(e instanceof Error ? e.message : 'Could not load your work');
     } finally {
       setLoading(false);
+      setLastUpdated(new Date());
     }
   }, []);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  /**
+   * Keeps the completion trend current without the person touching anything:
+   * a realtime subscription on their own task rows and task events, a slow
+   * safety poll, and a refresh whenever the tab comes back into view.
+   */
+  useEffect(() => {
+    if (!staff?.id) return;
+
+    let timer: number | undefined;
+    const refresh = () => void load({ silent: true });
+
+    const channel = supabase
+      .channel(`my-work-live-${staff.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'hr_tasks', filter: `assignee_employee_id=eq.${staff.id}` },
+        refresh,
+      )
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'hr_task_events' }, refresh)
+      .subscribe((status) => setLive(status === 'SUBSCRIBED'));
+
+    timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') refresh();
+    }, 60_000);
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+
+    return () => {
+      if (timer) window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+      setLive(false);
+      void supabase.removeChannel(channel);
+    };
+  }, [staff?.id, load]);
 
   const tiles = useMemo(() => {
     const active = definitions.filter((d) => d.active);
