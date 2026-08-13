@@ -50,9 +50,6 @@ export function SupportedTenantDrawer({ tenant, open, onOpenChange }: Props) {
 
   const fundedOn = tenant.funded_at || tenant.created_at;
   const photos = (tenant.house_image_urls ?? []).filter(Boolean);
-  const total = Number(tenant.total_repayment || 0);
-  const repaid = Number(tenant.amount_repaid || 0);
-  const pct = total > 0 ? Math.min(100, Math.round((repaid / total) * 100)) : 0;
   const location =
     [tenant.listing_address, tenant.village, tenant.district, tenant.city]
       .filter(Boolean)
