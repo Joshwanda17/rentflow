@@ -28690,30 +28690,63 @@ export type Database = {
       }
       system_events: {
         Row: {
+          actor_id: string | null
+          aggregate_id: string | null
+          aggregate_type: string | null
           created_at: string
+          description: string | null
+          entity_id: string | null
+          entity_type: string | null
+          event_name: string | null
           event_type: string
           id: string
           metadata: Json
+          payload: Json | null
           related_entity_id: string | null
           related_entity_type: string | null
+          source: string | null
+          subject_id: string | null
+          triggered_by: string | null
           user_id: string | null
         }
         Insert: {
+          actor_id?: string | null
+          aggregate_id?: string | null
+          aggregate_type?: string | null
           created_at?: string
+          description?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          event_name?: string | null
           event_type: string
           id?: string
           metadata?: Json
+          payload?: Json | null
           related_entity_id?: string | null
           related_entity_type?: string | null
+          source?: string | null
+          subject_id?: string | null
+          triggered_by?: string | null
           user_id?: string | null
         }
         Update: {
+          actor_id?: string | null
+          aggregate_id?: string | null
+          aggregate_type?: string | null
           created_at?: string
+          description?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          event_name?: string | null
           event_type?: string
           id?: string
           metadata?: Json
+          payload?: Json | null
           related_entity_id?: string | null
           related_entity_type?: string | null
+          source?: string | null
+          subject_id?: string | null
+          triggered_by?: string | null
           user_id?: string | null
         }
         Relationships: []
