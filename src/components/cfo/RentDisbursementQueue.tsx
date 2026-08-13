@@ -998,13 +998,15 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
                         <tbody>
                       {group.rows.map(item => {
                         const isSel = selected.has(item.id);
+                        const payable = item.is_disbursable;
                         const locationLabel = [item.request_city, item.request_country].filter(Boolean).join(', ');
                         return (
                         <Fragment key={item.id}>
                         <tr
-                          onClick={() => toggle(item.id)}
+                          onClick={() => payable && toggle(item.id)}
                           className={cn(
-                            'border-b border-border/70 last:border-0 cursor-pointer transition-colors',
+                            'border-b border-border/70 last:border-0 transition-colors',
+                            payable ? 'cursor-pointer' : 'cursor-default bg-muted/20',
                             isSel
                               ? 'bg-primary/[0.07] shadow-[inset_3px_0_0_0_hsl(var(--primary))]'
                               : 'hover:bg-muted/40'
@@ -1013,12 +1015,18 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
                           <td className="px-2 py-2.5 align-middle" onClick={e => e.stopPropagation()}>
                             <Checkbox
                               checked={selected.has(item.id)}
+                              disabled={!payable}
                               onCheckedChange={() => toggle(item.id)}
                             />
                           </td>
                           <td className="px-2 py-2.5 align-middle">
                             <div className="flex items-center gap-1.5 min-w-0">
                               <span className={cn('truncate', isSel ? 'font-bold' : 'font-semibold')}>{item.tenant_name}</span>
+                              {!payable && (
+                                <Badge variant="outline" className="text-[9px] px-1.5 py-0 shrink-0 text-amber-700 border-amber-300 bg-amber-50">
+                                  {STATUS_LABELS[item.status] ?? item.status}
+                                </Badge>
+                              )}
                               {isSel && (
                                 <Badge className="text-[9px] px-1.5 py-0 shrink-0 bg-primary text-primary-foreground border-0">
                                   SELECTED
@@ -1059,6 +1067,8 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
                           </td>
                           <td className="px-2 py-2.5 align-middle text-right whitespace-nowrap" onClick={e => e.stopPropagation()}>
                             <div className="flex items-center justify-end gap-1">
+                          {payable ? (
+                            <>
                           <Button
                             size="sm"
                             variant="outline"
@@ -1080,6 +1090,10 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
                             <XCircle className="h-3 w-3 mr-1" />
                             Reject
                           </Button>
+                            </>
+                          ) : (
+                            <span className="text-[11px] text-muted-foreground">Awaiting approval</span>
+                          )}
                             </div>
                           </td>
                         </tr>
