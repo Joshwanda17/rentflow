@@ -1190,15 +1190,28 @@ export function LandlordOpsDashboard() {
    * location, GPS, payout details) from `ops_house_listing_report` instead of
    * reusing the paginated queue rows, so the export is never a partial page.
    */
-  const exportHouseReportPdf = async () => {
+  const exportHouseReportPdf = async (
+    overrides?: {
+      status?: HouseStatusFilter;
+      quick?: VerifyFilter;
+      search?: string | null;
+      dateFrom?: string | null;
+      dateTo?: string | null;
+    },
+  ) => {
+    const scope = overrides?.status ?? houseStatusFilter;
+    const quick = overrides?.quick ?? verifyFilter;
+    const searchTerm = overrides ? (overrides.search ?? null) : serverSearchTerm;
+    const fromIso = overrides ? (overrides.dateFrom ?? null) : verifyDateFromIso;
+    const toIso = overrides ? (overrides.dateTo ?? null) : verifyDateToIso;
     setExportingHouseReport(true);
     try {
       const { data, error } = await (supabase.rpc as any)('ops_house_listing_report', {
-        p_status: houseStatusFilter,
-        p_search: serverSearchTerm,
-        p_date_from: verifyDateFromIso,
-        p_date_to: verifyDateToIso,
-        p_quick: verifyFilter,
+        p_status: scope,
+        p_search: searchTerm,
+        p_date_from: fromIso,
+        p_date_to: toIso,
+        p_quick: quick,
         p_limit: 10000,
       });
       if (error) throw error;
@@ -1210,23 +1223,23 @@ export function LandlordOpsDashboard() {
         return;
       }
       const blob = generateHouseVerificationReportPdf(reportRows, {
-        scope: houseStatusFilter,
-        quickFilter: verifyFilter,
-        search: serverSearchTerm,
-        dateFrom: verifyDateFromIso,
-        dateTo: verifyDateToIso,
+        scope,
+        quickFilter: quick,
+        search: searchTerm,
+        dateFrom: fromIso,
+        dateTo: toIso,
         totalMatches: trueTotal,
         generatedBy: user?.email ?? null,
       });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `welile-houses-${houseStatusFilter}-${format(new Date(), 'yyyy-MM-dd-HHmm')}.pdf`;
+      a.download = `welile-houses-${scope}-${format(new Date(), 'yyyy-MM-dd-HHmm')}.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      sonnerToast.success(`${houseStatusFilter} houses report downloaded (${reportRows.length.toLocaleString()} houses)`);
+      sonnerToast.success(`${scope} houses report downloaded (${reportRows.length.toLocaleString()} houses)`);
     } catch (err: any) {
       sonnerToast.error(err?.message || 'Failed to generate the house report');
     } finally {
