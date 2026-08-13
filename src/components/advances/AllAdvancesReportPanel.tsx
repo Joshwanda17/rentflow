@@ -193,7 +193,16 @@ export function AllAdvancesReportPanel() {
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
     const a = document.createElement('a');
     a.href = url;
-    const scope = period === 'custom' || period === 'all' ? (from || to ? `${from || 'start'}_to_${to || 'today'}` : 'all-time') : period;
+    const scope =
+      period === 'calendar'
+        ? from || to
+          ? `calendar-${from || to}`
+          : 'calendar'
+        : period === 'custom' || period === 'all'
+          ? from || to
+            ? `${from || 'start'}_to_${to || 'today'}`
+            : 'all-time'
+          : period;
     a.download = `advances-report-${scope}-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
