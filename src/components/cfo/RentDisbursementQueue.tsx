@@ -497,10 +497,12 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
     onError: (e: any) => toast.error(e.message || 'Failed to reject'),
   });
 
-  // Summary totals for the currently filtered queue.
-  const queueTotalRent = useMemo(() => filteredItems.reduce((s, i) => s + i.rent_amount, 0), [filteredItems]);
-  const queueTotalRevenue = useMemo(() => filteredItems.reduce((s, i) => s + i.access_fee + i.request_fee, 0), [filteredItems]);
-  const queueTotalRepaymentExpected = useMemo(() => filteredItems.reduce((s, i) => s + i.total_repayment, 0), [filteredItems]);
+  // Summary totals for the currently filtered queue — money figures stay based
+  // on payable (COO-approved) rows only, exactly as before.
+  const payableFilteredItems = useMemo(() => filteredItems.filter(i => i.is_disbursable), [filteredItems]);
+  const queueTotalRent = useMemo(() => payableFilteredItems.reduce((s, i) => s + i.rent_amount, 0), [payableFilteredItems]);
+  const queueTotalRevenue = useMemo(() => payableFilteredItems.reduce((s, i) => s + i.access_fee + i.request_fee, 0), [payableFilteredItems]);
+  const queueTotalRepaymentExpected = useMemo(() => payableFilteredItems.reduce((s, i) => s + i.total_repayment, 0), [payableFilteredItems]);
 
   const dateFilterLabel: Record<string, string> = { all: 'All time', '7d': 'Last 7 days', '30d': 'Last 30 days' };
 
