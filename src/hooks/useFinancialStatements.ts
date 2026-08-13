@@ -600,14 +600,20 @@ async function generateStatementsRaw(activeFilters: StatementFilters): Promise<F
       const openingBalance = prevPlatform.reduce(
         (s, r) => r.direction === 'cash_in' ? s + Number(r.amount) : s - Number(r.amount), 0
       );
-      const closingBalance = openingBalance + netCashMovement;
+      // Ledger-true cash movement for the period: every platform-scope leg,
+      // nothing classified or excluded. This is what makes the closing cash on
+      // the cash flow statement tie exactly to the balance sheet.
+      const periodCashIn = platformIn.reduce((s, r) => s + Number(r.amount), 0);
+      const periodCashOut = platformOut.reduce((s, r) => s + Number(r.amount), 0);
+      const periodCashNet = periodCashIn - periodCashOut;
+      const closingBalance = openingBalance + periodCashNet;
 
       // ══════════════════════════════════════════════════════════════
       // BALANCE SHEET
       // ══════════════════════════════════════════════════════════════
-      const allTimeRevenue = Number(allTimePlatformSummary?.total_revenue ?? 0);
-      const allTimeCosts = Number(allTimePlatformSummary?.total_costs ?? 0);
-      const platformCash = Math.max(0, allTimeRevenue - allTimeCosts);
+      // Balance-sheet cash IS the cash flow closing balance (same ledger legs),
+      // so `Closing cash == Balance sheet cash` holds for every period.
+      const platformCash = closingBalance;
 
       const userFundsHeld = (wallets || []).reduce((s, w) => s + (w.balance || 0), 0);
 
