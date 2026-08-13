@@ -2410,23 +2410,29 @@ Deno.serve(async (req) => {
             p_payout_id: landlordPayoutId,
           });
           if (deductErr) {
-            console.error("[approve-withdrawal] LP float debit failed:", deductErr);
-            await admin
-              .from("landlord_payouts")
-              .update({
-                status: "failed",
-                last_error: `FinOps debit failed: ${deductErr.message}`,
-              } as any)
-              .eq("id", landlordPayoutId);
+            // Benign race: a DB trigger may already have advanced the payout and
+            // the allocation trigger already debited the float. Marking the
+            // payout `failed` in that case hides a payout the landlord WAS paid,
+            // so it resurfaces as payable and gets paid twice.
+            const benign = /not in deductible status|already_accounted/i.test(deductErr.message || "");
+            console.error("[approve-withdrawal] LP float debit result:", deductErr.message, { benign });
+            if (!benign) {
+              await admin
+                .from("landlord_payouts")
+                .update({
+                  status: "failed",
+                  last_error: `FinOps debit failed: ${deductErr.message}`,
+                } as any)
+                .eq("id", landlordPayoutId);
+            }
             // best-effort audit
             try {
               await admin.from("audit_logs").insert({
                 user_id: user.id,
-                action_type: "landlord_float_debit_failed",
+                action_type: benign ? "landlord_float_debit_already_accounted" : "landlord_float_debit_failed",
                 table_name: "landlord_payouts",
                 record_id: landlordPayoutId,
-                reason: "finops_dbt",
-                metadata: { withdrawal_id, error: deductErr.message },
+                metadata: { withdrawal_id, error: deductErr.message, reason: "finops_dbt" },
               });
             } catch { /* non-blocking */ }
           }
@@ -2441,7 +2447,7 @@ Deno.serve(async (req) => {
               disbursed_at: new Date().toISOString(),
             } as any)
             .eq("id", landlordPayoutId)
-            .eq("status", "pending_merchant_payout")
+            .in("status", ["pending_merchant_payout", "disbursing", "otp_verified", "awaiting_agent_receipt"])
             .select("id, agent_id, landlord_name, landlord_phone, mobile_money_provider, amount")
             .maybeSingle();
 
