@@ -34,6 +34,15 @@ interface WithdrawRequestDialogProps {
   } | null;
   linkedParty?: string;
   lockAmount?: boolean;
+  /**
+   * Proxy payouts: the destination is dictated by the payment details saved on
+   * the partner's portfolio, so the agent may READ but never RE-KEY it — same
+   * treatment as `lockAmount`. Prevents a proxy agent substituting their own
+   * (or any third party's) phone number for the partner's.
+   */
+  lockPayoutDetails?: boolean;
+  /** Where the locked details came from, shown to the agent for confidence. */
+  payoutSourceLabel?: string;
 }
 
 type PayoutMode = 'mtn' | 'airtel' | 'bank' | 'cash';
