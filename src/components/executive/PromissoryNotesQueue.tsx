@@ -347,7 +347,7 @@ export function PromissoryNotesQueue() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filtered.map(note => {
+                    {pagedNotes.map(note => {
                       const config = statusConfig[note.status] || statusConfig.pending;
                       const StatusIcon = config.icon;
                       return (
@@ -382,7 +382,7 @@ export function PromissoryNotesQueue() {
 
               {/* Mobile cards */}
               <div className="md:hidden space-y-2">
-                {filtered.map(note => {
+                {pagedNotes.map(note => {
                   const config = statusConfig[note.status] || statusConfig.pending;
                   const StatusIcon = config.icon;
                   return (
@@ -420,6 +420,22 @@ export function PromissoryNotesQueue() {
                     </button>
                   );
                 })}
+              </div>
+
+              {/* Pagination */}
+              <div className="flex items-center justify-between gap-2 pt-3 mt-1 border-t">
+                <span className="text-[11px] text-muted-foreground">
+                  {(safePage - 1) * NOTES_PER_PAGE + 1}–{Math.min(safePage * NOTES_PER_PAGE, filtered.length)} of {filtered.length}
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" className="h-7 px-2" disabled={safePage <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                  </Button>
+                  <span className="text-[11px] text-muted-foreground">Page {safePage} of {totalPages}</span>
+                  <Button variant="outline" size="sm" className="h-7 px-2" disabled={safePage >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </div>
             </>
           )}
