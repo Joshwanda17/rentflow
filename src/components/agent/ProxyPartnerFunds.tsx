@@ -158,6 +158,9 @@ export function ProxyPartnerFunds() {
   const [prefillAmount, setPrefillAmount] = useState<number>(0);
   const [prefillReason, setPrefillReason] = useState('');
   const [prefillPayout, setPrefillPayout] = useState<any>(null);
+  // Where the locked payout destination came from, shown to the agent so it is
+  // obvious the number is the partner's saved one and not something typed here.
+  const [payoutSourceLabel, setPayoutSourceLabel] = useState<string | undefined>(undefined);
   const [selectedPartnerId, setSelectedPartnerId] = useState<string>('');
   const [selectedPortfolioId, setSelectedPortfolioId] = useState<string | null>(null);
   const [partnerWithdrawalStatus, setPartnerWithdrawalStatus] = useState<Record<string, string>>({});
