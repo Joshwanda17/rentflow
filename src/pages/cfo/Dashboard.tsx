@@ -343,12 +343,23 @@ export default function CFODashboardPage() {
                 Track what&apos;s been disbursed under <strong>Disbursed &amp; Repayments</strong>.
               </p>
             </div>
-            <AllAdvancesReportPanel />
             <CFOAdvanceRequestPayments onViewDisbursed={() => setActiveTab('advances-disbursed')} />
             <div className="pt-4 border-t">
               <h2 className="text-base font-semibold mb-2">🏪 Business Advance Requests</h2>
               <BusinessAdvanceQueue stage="cfo" />
             </div>
+          </div>
+        );
+      case 'advances-report':
+        return (
+          <div className="space-y-4">
+            <div>
+              <h1 className="text-xl font-bold">📋 All Advances Report</h1>
+              <p className="text-sm text-muted-foreground">
+                Unified read-only view of every advance requested, approved, rejected, or disbursed across the platform.
+              </p>
+            </div>
+            <AllAdvancesReportPanel />
           </div>
         );
       case 'advances-disbursed':
