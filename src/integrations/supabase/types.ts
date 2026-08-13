@@ -18254,6 +18254,69 @@ export type Database = {
         }
         Relationships: []
       }
+      merchant_balance_disputes: {
+        Row: {
+          agent_id: string
+          claimed_amount: number | null
+          created_at: string
+          desk_id: string | null
+          disputed_field: string
+          id: string
+          reason: string
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          system_amount: number
+          updated_at: string
+        }
+        Insert: {
+          agent_id?: string
+          claimed_amount?: number | null
+          created_at?: string
+          desk_id?: string | null
+          disputed_field?: string
+          id?: string
+          reason: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          system_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          claimed_amount?: number | null
+          created_at?: string
+          desk_id?: string | null
+          disputed_field?: string
+          id?: string
+          reason?: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          system_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "merchant_balance_disputes_desk_id_fkey"
+            columns: ["desk_id"]
+            isOneToOne: false
+            referencedRelation: "cashout_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "merchant_balance_disputes_desk_id_fkey"
+            columns: ["desk_id"]
+            isOneToOne: false
+            referencedRelation: "v_merchant_float_ledger_variance"
+            referencedColumns: ["desk_id"]
+          },
+        ]
+      }
       merchant_commission_awards: {
         Row: {
           agent_id: string
