@@ -106,6 +106,8 @@ import { AgentVerificationRequestsPanel } from './landlord-ops/AgentVerification
 import { Lc1VerificationInboxPanel } from './landlord-ops/Lc1VerificationInboxPanel';
 import { Lc1DuplicatesPanel } from './landlord-ops/Lc1DuplicatesPanel';
 import { ResidenceVerificationPanel } from './landlord-ops/ResidenceVerificationPanel';
+import { HubEntryCard } from '@/components/ops/HubEntryCard';
+import { HubHeader } from '@/components/ops/HubHeader';
 
 /**
  * Thin wrapper that fetches active listing blocks + recent rejection counts
@@ -342,7 +344,18 @@ function ImagePreviewDialog({ images, open, onClose, title, startIndex = 0 }: { 
   );
 }
 
-type View = 'home' | 'landlords' | 'locations' | 'lc1' | 'lc1-requests' | 'residence-verify' | 'lc1-duplicates' | 'empty' | 'occupied' | 'verify' | 'pipeline' | 'chain' | 'matching' | 'agents' | 'analytics' | 'cities' | 'no-landlord' | 'advance-requests' | 'landlords-paid' | 'landlords-tenants' | 'all-requests' | 'houses-by-landlord';
+type View = 'home' | 'landlords' | 'locations' | 'lc1' | 'lc1-requests' | 'residence-verify' | 'lc1-duplicates' | 'empty' | 'occupied' | 'verify' | 'pipeline' | 'chain' | 'matching' | 'agents' | 'analytics' | 'cities' | 'no-landlord' | 'advance-requests' | 'landlords-paid' | 'landlords-tenants' | 'all-requests' | 'houses-by-landlord' | 'agent-verify-requests' | 'lc1-inbox' | 'rent-pipeline-queue' | 'rejected-queue' | 'payout-review' | 'agent-capacity' | 'reports';
+
+// ─── Hub section titles (dedicated workspaces reached from the dashboard) ───
+const hubTitles: Partial<Record<View, string>> = {
+  'agent-verify-requests': 'Agent Verification Requests',
+  'lc1-inbox': 'LC1 Verification Inbox',
+  'rent-pipeline-queue': 'Rent Pipeline',
+  'rejected-queue': 'Rejected at Landlord Ops',
+  'payout-review': 'Landlord Payout Review',
+  'agent-capacity': 'Agent Rent Capacity',
+  reports: 'Reports & Exports',
+};
 
 // ─── Navigation Items ───
 const navItems: { id: View; label: string; icon: typeof Building2; color: string; description: string; priority?: boolean }[] = [
@@ -2284,16 +2297,12 @@ export function LandlordOpsDashboard() {
   );
 
   // ─── Back Button (sticky nav row: back to overview + section switcher) ───
-  const BackButton = () => (
-    <div className="flex items-center justify-between gap-2 mb-3 sticky top-0 z-30 -mx-4 px-4 py-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-border/60">
-      <button
-        onClick={() => goToView('home')}
-        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors min-h-[44px] touch-manipulation"
-      >
-        <ArrowLeft className="h-4 w-4" /> Overview
-      </button>
-      <SectionSwitcher />
-    </div>
+  const BackButton = ({ title }: { title?: string } = {}) => (
+    <HubHeader
+      title={title ?? hubTitles[view]}
+      onBack={() => goToView('home')}
+      trailing={<SectionSwitcher />}
+    />
   );
 
   const refetchAll = () => {
@@ -4501,6 +4510,146 @@ export function LandlordOpsDashboard() {
     );
   }
 
+  // ─── HUB: Agent-initiated landlord verification requests ───
+  if (view === 'agent-verify-requests') {
+    return (
+      <>
+        <div className="space-y-4">
+          <BackButton />
+          <AgentVerificationRequestsPanel onResolved={refetchAll} />
+        </div>
+        {renderDialogs()}
+      </>
+    );
+  }
+
+  // ─── HUB: LC1 chairperson verification inbox ───
+  if (view === 'lc1-inbox') {
+    return (
+      <>
+        <div className="space-y-4">
+          <BackButton />
+          <Lc1VerificationInboxPanel onResolved={() => { refetchLC1(); refetchAll(); }} />
+        </div>
+        {renderDialogs()}
+      </>
+    );
+  }
+
+  // ─── HUB: Rent pipeline (landlord stage) ───
+  if (view === 'rent-pipeline-queue') {
+    return (
+      <>
+        <div className="space-y-4">
+          <BackButton />
+          <RentPipelineQueue stage="tenant_ops_approved" />
+        </div>
+        {renderDialogs()}
+      </>
+    );
+  }
+
+  // ─── HUB: Rejected at Landlord Ops ───
+  if (view === 'rejected-queue') {
+    return (
+      <>
+        <div className="space-y-4">
+          <BackButton />
+          <RejectedRequestsQueue stageFilter="tenant_ops_approved" title="Rejected at Landlord Ops" />
+        </div>
+        {renderDialogs()}
+      </>
+    );
+  }
+
+  // ─── HUB: Landlord payout review ───
+  if (view === 'payout-review') {
+    return (
+      <>
+        <div className="space-y-4">
+          <BackButton />
+          <LandlordOpsPayoutReview reviewRole="landlord_ops" />
+        </div>
+        {renderDialogs()}
+      </>
+    );
+  }
+
+  // ─── HUB: Agent rent-request capacity (fleet-wide) ───
+  if (view === 'agent-capacity') {
+    return (
+      <>
+        <div className="space-y-4">
+          <BackButton />
+          <AgentRentCapacityPanel />
+        </div>
+        {renderDialogs()}
+      </>
+    );
+  }
+
+  // ─── HUB: Reports & Exports ───
+  if (view === 'reports') {
+    return (
+      <>
+        <div className="space-y-4">
+          <BackButton />
+          <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
+            <div>
+              <p className="font-semibold text-sm leading-tight">Landlord payouts report</p>
+              <p className="text-[11px] text-muted-foreground leading-snug">
+                Pick a date range (optional), then print the branded PDF.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className={cn("gap-1.5 font-normal", !reportFrom && "text-muted-foreground")}>
+                    <CalendarIcon className="h-3.5 w-3.5" />
+                    {reportFrom ? format(reportFrom, 'dd MMM yyyy') : 'From'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={reportFrom} onSelect={setReportFrom} initialFocus className={cn("p-3 pointer-events-auto")} />
+                </PopoverContent>
+              </Popover>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className={cn("gap-1.5 font-normal", !reportTo && "text-muted-foreground")}>
+                    <CalendarIcon className="h-3.5 w-3.5" />
+                    {reportTo ? format(reportTo, 'dd MMM yyyy') : 'To'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={reportTo} onSelect={setReportTo} initialFocus className={cn("p-3 pointer-events-auto")} />
+                </PopoverContent>
+              </Popover>
+              {(reportFrom || reportTo) && (
+                <Button variant="ghost" size="sm" onClick={() => { setReportFrom(undefined); setReportTo(undefined); }}>
+                  Clear
+                </Button>
+              )}
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={handlePrintReport} disabled={printingPdf}>
+                {printingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
+                Print Report
+              </Button>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-4">
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              Other exports live inside the section they belong to: landlord verification export in
+              <span className="font-medium text-foreground"> All Landlords</span>, house verification export in
+              <span className="font-medium text-foreground"> Verify Houses</span>, funded-landlord export in
+              <span className="font-medium text-foreground"> Landlords Paid</span>, and the LC1 export in
+              <span className="font-medium text-foreground"> LC1 Chairpersons</span>.
+            </p>
+          </div>
+        </div>
+        {renderDialogs()}
+      </>
+    );
+  }
+
   // ─── HOME: Mobile-first card navigation ───
   return (
     <div className="space-y-6">
@@ -4512,10 +4661,6 @@ export function LandlordOpsDashboard() {
         </h2>
         <SectionSwitcher />
       </div>
-      {/* PROMINENT: Agent-initiated landlord verification requests — top priority */}
-      <AgentVerificationRequestsPanel onResolved={refetchAll} />
-      {/* PROMINENT: the single LC1 chairperson verification inbox */}
-      <Lc1VerificationInboxPanel onResolved={() => { refetchLC1(); refetchAll(); }} />
       {/* PROMINENT: Awaiting verification (houses + landlords) — always first */}
       {(pendingHousesCount > 0 || pendingVerificationCount > 0) && (
         <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
@@ -4594,13 +4739,58 @@ export function LandlordOpsDashboard() {
         </button>
       </div>
 
-      {/* Priority actions */}
-      <RentPipelineQueue stage="tenant_ops_approved" />
-      <RejectedRequestsQueue stageFilter="tenant_ops_approved" title="Rejected at Landlord Ops" collapsible />
-      <LandlordOpsPayoutReview reviewRole="landlord_ops" />
-
-      {/* Agent Rent-Request Capacity (fleet-wide) */}
-      <AgentRentCapacityPanel />
+      {/* Priority work hubs — each opens a dedicated workspace */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <div className="h-px flex-1 bg-border" />
+          <span className="text-[10px] text-muted-foreground font-medium tracking-wider">WORK HUBS</span>
+          <div className="h-px flex-1 bg-border" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <HubEntryCard
+            title="Agent Verification Requests"
+            description="Landlord verifications submitted by agents from the field"
+            icon={UserCheck}
+            onClick={() => goToView('agent-verify-requests')}
+          />
+          <HubEntryCard
+            title="LC1 Verification Inbox"
+            description="Verify LC1 chairpersons submitted for review"
+            icon={ShieldCheck}
+            onClick={() => goToView('lc1-inbox')}
+          />
+          <HubEntryCard
+            title="Rent Pipeline"
+            description="Requests awaiting the Landlord Ops stage"
+            icon={GitBranch}
+            onClick={() => goToView('rent-pipeline-queue')}
+          />
+          <HubEntryCard
+            title="Rejected at Landlord Ops"
+            description="Requests you returned — review and reopen"
+            icon={XCircle}
+            onClick={() => goToView('rejected-queue')}
+          />
+          <HubEntryCard
+            title="Landlord Payout Review"
+            description="Review landlord payouts before they are sent"
+            icon={Banknote}
+            onClick={() => goToView('payout-review')}
+          />
+          <HubEntryCard
+            title="Agent Rent Capacity"
+            description="Fleet-wide capacity for new rent requests"
+            icon={Users}
+            onClick={() => goToView('agent-capacity')}
+          />
+          <HubEntryCard
+            title="Reports & Exports"
+            description="Print the landlord payouts report for any date range"
+            icon={Printer}
+            onClick={() => goToView('reports')}
+          />
+        </div>
+      </div>
 
       {/* KPIs — responsive card grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -4631,40 +4821,6 @@ export function LandlordOpsDashboard() {
 
       {/* Navigation Cards */}
       <div className="space-y-4">
-        {/* Print Landlord Payouts Report */}
-        <div className="flex flex-wrap justify-end items-center gap-2 pb-1">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className={cn("gap-1.5 font-normal", !reportFrom && "text-muted-foreground")}>
-                <CalendarIcon className="h-3.5 w-3.5" />
-                {reportFrom ? format(reportFrom, 'dd MMM yyyy') : 'From'}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar mode="single" selected={reportFrom} onSelect={setReportFrom} initialFocus className={cn("p-3 pointer-events-auto")} />
-            </PopoverContent>
-          </Popover>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className={cn("gap-1.5 font-normal", !reportTo && "text-muted-foreground")}>
-                <CalendarIcon className="h-3.5 w-3.5" />
-                {reportTo ? format(reportTo, 'dd MMM yyyy') : 'To'}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar mode="single" selected={reportTo} onSelect={setReportTo} initialFocus className={cn("p-3 pointer-events-auto")} />
-            </PopoverContent>
-          </Popover>
-          {(reportFrom || reportTo) && (
-            <Button variant="ghost" size="sm" onClick={() => { setReportFrom(undefined); setReportTo(undefined); }}>
-              Clear
-            </Button>
-          )}
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={handlePrintReport} disabled={printingPdf}>
-            {printingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
-            Print Report
-          </Button>
-        </div>
         {/* Priority items first */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {navItems.filter(n => n.priority).map(item => (

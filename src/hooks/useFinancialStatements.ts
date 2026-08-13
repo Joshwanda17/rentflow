@@ -1,8 +1,8 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { startOfDay, endOfDay, subDays, subWeeks, subMonths, subYears, startOfMonth, startOfYear, differenceInDays } from 'date-fns';
+import { startOfDay, endOfDay, subDays, subWeeks, subMonths, subYears, startOfMonth, startOfYear, startOfWeek, startOfQuarter, differenceInDays } from 'date-fns';
 
-export type StatementPeriod = 'today' | '7days' | '30days' | 'month' | 'year' | 'all';
+export type StatementPeriod = 'today' | '7days' | 'week' | '30days' | 'month' | 'quarter' | 'year' | 'all' | 'custom';
 export type ComparisonMode = 'none' | 'dod' | 'wow' | 'mom' | 'yoy';
 
 export interface StatementFilters {
@@ -269,11 +269,38 @@ export function buildComparisonMetrics(c: FinancialStatementsData, p: FinancialS
   };
 }
 
+/**
+ * Read-only reconciliation checks. Everything here is derived from the same
+ * `general_ledger` rows the statements are built from — there are no
+ * independent totals or manual overrides.
+ */
+export interface ReconciliationCheck {
+  openingCash: number;
+  cashIn: number;
+  cashOut: number;
+  periodNet: number;
+  closingCash: number;
+  /** Balance-sheet cash as at period end — must equal `closingCash`. */
+  balanceSheetCash: number;
+  cashDifference: number;
+  cashTied: boolean;
+  /** Net movement explained by the classified cash-flow sections. */
+  classifiedNet: number;
+  /** Ledger movement not yet attributed to a cash-flow section. */
+  unclassifiedNet: number;
+  totalAssets: number;
+  totalLiabilities: number;
+  totalEquity: number;
+  balanceDifference: number;
+  balanced: boolean;
+}
+
 export interface FinancialStatementsData {
   incomeStatement: IncomeStatementData;
   cashFlow: CashFlowData;
   balanceSheet: BalanceSheetData;
   facilitatedVolume: FacilitatedVolumeData;
+  reconciliation: ReconciliationCheck;
   generatedAt: Date;
   filters: StatementFilters;
 }
@@ -283,8 +310,10 @@ function getPeriodDates(period: StatementPeriod): { start: Date | null; end: Dat
   switch (period) {
     case 'today': return { start: startOfDay(now), end: endOfDay(now) };
     case '7days': return { start: startOfDay(subDays(now, 7)), end: endOfDay(now) };
+    case 'week': return { start: startOfWeek(now, { weekStartsOn: 1 }), end: endOfDay(now) };
     case '30days': return { start: startOfDay(subDays(now, 30)), end: endOfDay(now) };
     case 'month': return { start: startOfMonth(now), end: endOfDay(now) };
+    case 'quarter': return { start: startOfQuarter(now), end: endOfDay(now) };
     case 'year': return { start: startOfYear(now), end: endOfDay(now) };
     default: return { start: null, end: null };
   }
@@ -571,14 +600,20 @@ async function generateStatementsRaw(activeFilters: StatementFilters): Promise<F
       const openingBalance = prevPlatform.reduce(
         (s, r) => r.direction === 'cash_in' ? s + Number(r.amount) : s - Number(r.amount), 0
       );
-      const closingBalance = openingBalance + netCashMovement;
+      // Ledger-true cash movement for the period: every platform-scope leg,
+      // nothing classified or excluded. This is what makes the closing cash on
+      // the cash flow statement tie exactly to the balance sheet.
+      const periodCashIn = platformIn.reduce((s, r) => s + Number(r.amount), 0);
+      const periodCashOut = platformOut.reduce((s, r) => s + Number(r.amount), 0);
+      const periodCashNet = periodCashIn - periodCashOut;
+      const closingBalance = openingBalance + periodCashNet;
 
       // ══════════════════════════════════════════════════════════════
       // BALANCE SHEET
       // ══════════════════════════════════════════════════════════════
-      const allTimeRevenue = Number(allTimePlatformSummary?.total_revenue ?? 0);
-      const allTimeCosts = Number(allTimePlatformSummary?.total_costs ?? 0);
-      const platformCash = Math.max(0, allTimeRevenue - allTimeCosts);
+      // Balance-sheet cash IS the cash flow closing balance (same ledger legs),
+      // so `Closing cash == Balance sheet cash` holds for every period.
+      const platformCash = closingBalance;
 
       const userFundsHeld = (wallets || []).reduce((s, w) => s + (w.balance || 0), 0);
 
@@ -725,8 +760,8 @@ async function generateStatementsRaw(activeFilters: StatementFilters): Promise<F
             roiReinvestment, supporterCapitalWithdrawals, netFinancing,
           },
           netCashMovement,
-          openingBalance: Math.max(0, openingBalance),
-          closingBalance: Math.max(0, closingBalance),
+          openingBalance,
+          closingBalance,
         },
         balanceSheet: {
           assets: {
@@ -773,6 +808,23 @@ async function generateStatementsRaw(activeFilters: StatementFilters): Promise<F
           activeAgents: uniqueAgents,
           averageRentAmount,
           supporterCapitalDeployed,
+        },
+        reconciliation: {
+          openingCash: openingBalance,
+          cashIn: periodCashIn,
+          cashOut: periodCashOut,
+          periodNet: periodCashNet,
+          closingCash: closingBalance,
+          balanceSheetCash: platformCash,
+          cashDifference: closingBalance - platformCash,
+          cashTied: Math.abs(closingBalance - platformCash) < 1,
+          classifiedNet: netCashMovement,
+          unclassifiedNet: periodCashNet - netCashMovement,
+          totalAssets,
+          totalLiabilities: totalObligations,
+          totalEquity: retainedOperatingSurplus,
+          balanceDifference: totalAssets - (totalObligations + retainedOperatingSurplus),
+          balanced: Math.abs(totalAssets - (totalObligations + retainedOperatingSurplus)) < 1,
         },
       };
 

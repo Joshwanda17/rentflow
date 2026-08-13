@@ -221,17 +221,73 @@ export function PromissoryNotesQueue() {
         p?.landmark, p?.village, p?.parish, p?.sub_county, p?.city || p?.town, p?.district, p?.region,
       ]);
 
+      // ---- Detect partners who have actually come in (registered) ----
+      const last9 = (v?: string | null) => (v || '').replace(/\D/g, '').slice(-9);
+      const phoneKeys = new Set<string>();
+      const emailKeys = new Set<string>();
+      data.forEach(n => {
+        [n.whatsapp_number, n.phone_number].forEach(p => {
+          const k = last9(p);
+          if (k.length === 9) phoneKeys.add(k);
+        });
+        if (n.email) emailKeys.add(n.email.trim().toLowerCase());
+      });
+      const phoneVariants = [...phoneKeys].flatMap(k => [`+256${k}`, `256${k}`, `0${k}`, k]);
+
+      const [{ data: byPhone }, { data: byEmail }] = await Promise.all([
+        phoneVariants.length
+          ? supabase.from('profiles').select('id, full_name, phone, email, created_at').in('phone', phoneVariants)
+          : Promise.resolve({ data: [] as any[] } as any),
+        emailKeys.size
+          ? supabase.from('profiles').select('id, full_name, phone, email, created_at').in('email', [...emailKeys])
+          : Promise.resolve({ data: [] as any[] } as any),
+      ]);
+
+      const phoneIndex = new Map<string, any>();
+      (byPhone || []).forEach((p: any) => {
+        const k = last9(p.phone);
+        if (k.length === 9 && !phoneIndex.has(k)) phoneIndex.set(k, p);
+      });
+      const emailIndex = new Map<string, any>();
+      (byEmail || []).forEach((p: any) => {
+        const k = (p.email || '').trim().toLowerCase();
+        if (k && !emailIndex.has(k)) emailIndex.set(k, p);
+      });
+
       return data.map(note => {
         const agent = agentMap.get(note.agent_id) as any;
         const partner = note.partner_user_id ? (agentMap.get(note.partner_user_id) as any) : null;
         const agentAddress = addressOf(agent);
         const partnerAddress = addressOf(partner);
+
+        const noteEmail = (note.email || '').trim().toLowerCase();
+        const matched =
+          partner ||
+          phoneIndex.get(last9(note.whatsapp_number)) ||
+          phoneIndex.get(last9(note.phone_number)) ||
+          (noteEmail ? emailIndex.get(noteEmail) : null) ||
+          null;
+        const matchedBy = partner
+          ? 'linked account'
+          : phoneIndex.get(last9(note.whatsapp_number)) || phoneIndex.get(last9(note.phone_number))
+          ? 'phone'
+          : matched
+          ? 'email'
+          : null;
+
         return {
           ...note,
           agent_name: agent?.full_name || 'Unknown Agent',
           agent_phone: agent?.phone || '',
           agent_address: agentAddress,
           partner_address: partnerAddress,
+          came_in: !!matched,
+          came_in_user_id: matched?.id || null,
+          came_in_name: matched?.full_name || null,
+          came_in_phone: matched?.phone || null,
+          came_in_email: matched?.email || null,
+          came_in_matched_by: matchedBy,
+          came_in_at: matched?.created_at || null,
           search_text: locationHaystack([
             note.partner_name,
             note.whatsapp_number,
@@ -239,6 +295,10 @@ export function PromissoryNotesQueue() {
             agent?.full_name,
             agentAddress,
             partnerAddress,
+            matched?.full_name,
+            matched?.phone,
+            matched?.email,
+            matched ? 'came in registered' : 'not registered',
           ]),
         };
       });
@@ -247,7 +307,14 @@ export function PromissoryNotesQueue() {
 
   const filtered = notes.filter(n => {
     const matchesSearch = !search || (n.search_text || '').includes(search.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || n.status === statusFilter;
+    const matchesStatus =
+      statusFilter === 'all'
+        ? true
+        : statusFilter === 'came_in'
+        ? !!n.came_in
+        : statusFilter === 'not_registered'
+        ? !n.came_in
+        : n.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
@@ -269,6 +336,8 @@ export function PromissoryNotesQueue() {
   };
 
   const statuses = ['all', 'pending', 'activated', 'fulfilled', 'defaulted', 'cancelled'];
+  const cameInCount = notes.filter((n: any) => n.came_in).length;
+  const notRegisteredCount = notes.length - cameInCount;
 
   return (
     <div className="space-y-4">
@@ -315,6 +384,24 @@ export function PromissoryNotesQueue() {
             {s === 'all' ? `All (${notes.length})` : `${s.charAt(0).toUpperCase() + s.slice(1)} (${statusCounts[s] || 0})`}
           </button>
         ))}
+        <button
+          onClick={() => setStatusFilter('came_in')}
+          className={cn(
+            'px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all',
+            statusFilter === 'came_in' ? 'bg-primary text-primary-foreground' : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+          )}
+        >
+          Came in ({cameInCount})
+        </button>
+        <button
+          onClick={() => setStatusFilter('not_registered')}
+          className={cn(
+            'px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all',
+            statusFilter === 'not_registered' ? 'bg-primary text-primary-foreground' : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+          )}
+        >
+          Not registered ({notRegisteredCount})
+        </button>
       </div>
 
       {/* Notes list */}
@@ -348,6 +435,28 @@ export function PromissoryNotesQueue() {
                       {config.label}
                     </Badge>
                   </div>
+
+                  {note.came_in ? (
+                    <div className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <BadgeCheck className="h-3.5 w-3.5 text-emerald-700 shrink-0" />
+                        <span className="text-[11px] font-semibold text-emerald-800">
+                          Came in — partner registered
+                        </span>
+                        <span className="text-[10px] text-emerald-700/80 ml-auto">via {note.came_in_matched_by}</span>
+                      </div>
+                      <p className="text-[11px] text-emerald-800/90 mt-0.5 truncate">
+                        {note.came_in_name || 'Account'}
+                        {note.came_in_phone ? ` · ${note.came_in_phone}` : ''}
+                        {note.came_in_email ? ` · ${note.came_in_email}` : ''}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5 rounded-md border border-dashed border-border px-2 py-1">
+                      <Clock className="h-3 w-3 text-muted-foreground shrink-0" />
+                      <span className="text-[11px] text-muted-foreground">Not yet registered in the system</span>
+                    </div>
+                  )}
 
                   <div className="flex items-center justify-between text-xs">
                     <div>

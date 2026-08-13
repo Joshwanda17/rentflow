@@ -44,7 +44,7 @@ export default function AngelPool() {
   const monthlyReturn = myInvestment * 0.15;
 
   const menuItems = [
-    { icon: CreditCard, label: 'Add Investment', onClick: scrollToCalc },
+    { icon: CreditCard, label: 'Add Funding\n\n', onClick: scrollToCalc },
   ];
 
   return (

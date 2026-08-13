@@ -13819,70 +13819,106 @@ export type Database = {
       }
       internship_applications: {
         Row: {
+          availability_days_per_week: number | null
+          availability_start: string | null
+          availability_weeks: number | null
+          cohort: string | null
           consent_text_version: string | null
           consented_at: string | null
           contacted_at: string | null
           contacted_by: string | null
+          course: string | null
           created_at: string
           decided_at: string | null
           decided_by: string | null
           decision_reason: string | null
           email: string | null
+          enrolled_at: string | null
+          enrolled_staff_id: string | null
+          expected_completion: string | null
           full_name: string
           future_roles_consent: boolean
           id: string
+          institution: string | null
+          linked_user_id: string | null
           motivation: string | null
           phone: string
+          preferred_contact_channel: string | null
           purged_at: string | null
           ready_to_learn: boolean | null
           referral_code: string | null
           skills: string | null
           status: string
           updated_at: string
+          year_of_study: number | null
         }
         Insert: {
+          availability_days_per_week?: number | null
+          availability_start?: string | null
+          availability_weeks?: number | null
+          cohort?: string | null
           consent_text_version?: string | null
           consented_at?: string | null
           contacted_at?: string | null
           contacted_by?: string | null
+          course?: string | null
           created_at?: string
           decided_at?: string | null
           decided_by?: string | null
           decision_reason?: string | null
           email?: string | null
+          enrolled_at?: string | null
+          enrolled_staff_id?: string | null
+          expected_completion?: string | null
           full_name: string
           future_roles_consent?: boolean
           id?: string
+          institution?: string | null
+          linked_user_id?: string | null
           motivation?: string | null
           phone: string
+          preferred_contact_channel?: string | null
           purged_at?: string | null
           ready_to_learn?: boolean | null
           referral_code?: string | null
           skills?: string | null
           status?: string
           updated_at?: string
+          year_of_study?: number | null
         }
         Update: {
+          availability_days_per_week?: number | null
+          availability_start?: string | null
+          availability_weeks?: number | null
+          cohort?: string | null
           consent_text_version?: string | null
           consented_at?: string | null
           contacted_at?: string | null
           contacted_by?: string | null
+          course?: string | null
           created_at?: string
           decided_at?: string | null
           decided_by?: string | null
           decision_reason?: string | null
           email?: string | null
+          enrolled_at?: string | null
+          enrolled_staff_id?: string | null
+          expected_completion?: string | null
           full_name?: string
           future_roles_consent?: boolean
           id?: string
+          institution?: string | null
+          linked_user_id?: string | null
           motivation?: string | null
           phone?: string
+          preferred_contact_channel?: string | null
           purged_at?: string | null
           ready_to_learn?: boolean | null
           referral_code?: string | null
           skills?: string | null
           status?: string
           updated_at?: string
+          year_of_study?: number | null
         }
         Relationships: []
       }
@@ -18680,7 +18716,10 @@ export type Database = {
       merchant_out_of_pocket_advances: {
         Row: {
           agent_id: string
+          attested_at: string | null
+          attested_by: string | null
           created_at: string
+          evidence: Json
           float_used: number
           id: string
           kind: string
@@ -18688,6 +18727,9 @@ export type Database = {
           payout_amount: number
           reimbursed_at: string | null
           reimbursed_by: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
           shortfall_amount: number
           status: string
           telecom_charge: number
@@ -18696,7 +18738,10 @@ export type Database = {
         }
         Insert: {
           agent_id: string
+          attested_at?: string | null
+          attested_by?: string | null
           created_at?: string
+          evidence?: Json
           float_used?: number
           id?: string
           kind?: string
@@ -18704,6 +18749,9 @@ export type Database = {
           payout_amount?: number
           reimbursed_at?: string | null
           reimbursed_by?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           shortfall_amount?: number
           status?: string
           telecom_charge?: number
@@ -18712,7 +18760,10 @@ export type Database = {
         }
         Update: {
           agent_id?: string
+          attested_at?: string | null
+          attested_by?: string | null
           created_at?: string
+          evidence?: Json
           float_used?: number
           id?: string
           kind?: string
@@ -18720,6 +18771,9 @@ export type Database = {
           payout_amount?: number
           reimbursed_at?: string | null
           reimbursed_by?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           shortfall_amount?: number
           status?: string
           telecom_charge?: number
@@ -36515,6 +36569,7 @@ export type Database = {
         }[]
       }
       get_coo_command_center: { Args: never; Returns: Json }
+      get_coo_overview_snapshot: { Args: { p_days?: number }; Returns: Json }
       get_crm_directory: {
         Args: {
           _limit?: number
@@ -36794,6 +36849,14 @@ export type Database = {
           id: string
           metadata: Json
           reason: string
+        }[]
+      }
+      get_house_listing_filter_options: {
+        Args: { p_district?: string; p_region?: string; p_subcounty?: string }
+        Returns: {
+          kind: string
+          n: number
+          value: string
         }[]
       }
       get_kyc_effective_limits: {
@@ -37077,8 +37140,11 @@ export type Database = {
           label: string
           last_payout_at: string
           last_reimbursed_at: string
+          ledger_float_held: number
+          offledger_adjustments: number
           owed_to_agent: number
           paid_out_total: number
+          payouts_without_float_evidence: number
           reimbursed_total: number
         }[]
       }
@@ -39799,6 +39865,7 @@ export type Database = {
           released_count: number
         }[]
       }
+      release_stale_merchant_float_reservations: { Args: never; Returns: Json }
       release_sub_agent: { Args: { p_sub_agent_id: string }; Returns: Json }
       relink_stuck_pending_deposits: {
         Args: { p_max_age_days?: number; p_min_age_minutes?: number }
@@ -39815,7 +39882,11 @@ export type Database = {
         Returns: undefined
       }
       renew_rent_request: {
-        Args: { p_prev_request_id: string }
+        Args: {
+          p_latitude?: number
+          p_longitude?: number
+          p_prev_request_id: string
+        }
         Returns: string
       }
       reopen_deposit_for_repair: {
@@ -39825,6 +39896,10 @@ export type Database = {
       reopen_rent_request: {
         Args: { p_reason: string; p_request_id: string }
         Returns: string
+      }
+      repair_merchant_float_reservations: {
+        Args: { p_agent_id?: string }
+        Returns: Json
       }
       repair_wallet_cache_drift: { Args: { p_limit?: number }; Returns: Json }
       repair_wallet_cache_for_user: {
@@ -39982,6 +40057,10 @@ export type Database = {
       }
       reverse_promissory_note_bonus: {
         Args: { p_note_id: string; p_reason: string }
+        Returns: Json
+      }
+      review_merchant_out_of_pocket: {
+        Args: { p_decision: string; p_id: string; p_note?: string }
         Returns: Json
       }
       revoke_nonconforming_merchant_claims: {

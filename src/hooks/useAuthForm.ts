@@ -749,11 +749,41 @@ export function useAuthForm() {
       }
     };
 
+    type SignInAttempt = { ok: boolean; email: string; error: Error | null };
     const placeholderCandidates = [
       `0${last9}@welile.user`,
       `256${last9}@welile.user`,
       `${last9}@welile.user`,
     ];
+
+    // Resolve as soon as ONE candidate authenticates instead of waiting for
+    // every parallel attempt to settle. Losing candidates keep running in the
+    // background and are harmless — previously a single slow/queued attempt
+    // (database under load) held the whole submit open even though the user
+    // was already signed in, which is what left the button on "Signing in...".
+    const raceForSuccess = async (
+      emails: string[],
+    ): Promise<{ winner: SignInAttempt | null; results: SignInAttempt[] }> => {
+      const running = emails.map(tryOne);
+      let winner: SignInAttempt | null = null;
+      await new Promise<void>((resolve) => {
+        let pending = running.length;
+        if (!pending) return resolve();
+        running.forEach((p) => {
+          p.then((r) => {
+            if (r.ok && !winner) {
+              winner = r;
+              resolve();
+            }
+          }).finally(() => {
+            pending -= 1;
+            if (pending === 0) resolve();
+          });
+        });
+      });
+      if (winner) return { winner, results: [] };
+      return { winner: null, results: await Promise.all(running) };
+    };
 
     const rpcLookup = (async (): Promise<string[]> => {
       const rpcStart = performance.now();
@@ -820,7 +850,7 @@ export function useAuthForm() {
       : placeholderCandidates;
     if (earlyRpcEmails?.length) accountExists = true;
 
-    const tryOne = async (emailToTry: string): Promise<{ ok: boolean; email: string; error: Error | null }> => {
+    const tryOne = async (emailToTry: string): Promise<SignInAttempt> => {
       const tStart = performance.now();
       try {
         // Retry only on transient failures. signIn returns { error } rather
@@ -850,9 +880,9 @@ export function useAuthForm() {
     // Phase 1 — race the most likely auth identifiers in parallel.
     setLoginStage('trying-fast');
     const p1Start = performance.now();
-    const phase1 = await Promise.all(phase1Candidates.map(tryOne));
+    const { winner: p1Winner, results: phase1 } = await raceForSuccess(phase1Candidates);
     metrics.phase1Ms = Math.round(performance.now() - p1Start);
-    const phase1Winner = phase1.find(r => r.ok);
+    const phase1Winner = p1Winner;
     if (phase1Winner) {
       loginSuccess = true;
       metrics.winnerEmail = phase1Winner.email;
@@ -881,8 +911,7 @@ export function useAuthForm() {
       if (remaining.length) {
         if (rpcEmails.length) accountExists = true;
         setLoginStage('trying-extended');
-        const phase2 = await Promise.all(remaining.map(tryOne));
-        const phase2Winner = phase2.find(r => r.ok);
+        const { winner: phase2Winner, results: phase2 } = await raceForSuccess(remaining);
         if (phase2Winner) {
           loginSuccess = true;
           metrics.winnerEmail = phase2Winner.email;
@@ -940,7 +969,11 @@ export function useAuthForm() {
         } catch { /* non-critical */ }
       // Save user name for returning-user greeting
       try {
-        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        // Cosmetic greeting only — never let it hold the spinner open.
+        const currentUser = await Promise.race([
+          supabase.auth.getUser().then(({ data }) => data.user),
+          sleep(1500).then(() => null),
+        ]);
         if (currentUser) {
           const name = currentUser.user_metadata?.full_name;
           if (name) localStorage.setItem('welile_last_user_name', name);

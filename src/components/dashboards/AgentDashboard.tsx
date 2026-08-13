@@ -8,6 +8,7 @@ import { normalizeCashoutAgentConfig, buildQueueCategoryOrClause } from '@/lib/c
 
 import AiIdButton from '@/components/ai-id/AiIdButton';
 import { UnifiedWalletHeroCard } from '@/components/wallet/UnifiedWalletHeroCard';
+import { useMerchantPayoutFloat } from '@/hooks/useMerchantFloat';
 import { AgentRiskExposureCard } from '@/components/agent/AgentRiskExposureCard';
 import { AgentCompanyDebtCard } from '@/components/agent/AgentCompanyDebtCard';
 import { AgentMyAdvancesCard } from '@/components/agent/AgentMyAdvancesCard';
@@ -596,6 +597,12 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   // any action that still gets triggered and shows a friendly explanation.
   const isMerchant = !!isCashoutAgent;
   const visibleAgentFloatBalance = walletFloatBalance;
+  // Authoritative merchant payout float — the SAME figure `reserve_merchant_float`
+  // enforces (wallet float bucket minus live claim reservations). Read-only RPC.
+  const { data: merchantFloat } = useMerchantPayoutFloat(isMerchant);
+  const merchantReservedFloat = isMerchant
+    ? Math.max(0, Number(merchantFloat?.ownReservedFloat ?? 0))
+    : 0;
   const guardMerchant = () => {
     if (!isMerchant) return false;
     import('sonner').then(({ toast }) => toast.error(MERCHANT_RESTRICTION_MESSAGE));
@@ -885,9 +892,14 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         {/* Wallet Hero Card — always visible */}
         {wallet ? (
           <UnifiedWalletHeroCard
-          balance={visibleAgentFloatBalance + realWithdrawableBalance}
+          balance={
+            Math.max(0, visibleAgentFloatBalance - merchantReservedFloat) +
+            realWithdrawableBalance
+          }
           role="agent"
           floatBalance={visibleAgentFloatBalance}
+          floatReserved={merchantReservedFloat}
+          floatCaption={isMerchant ? 'Company float · available for payouts' : undefined}
           commissionBalance={commissionBalance}
           withdrawableBalance={realWithdrawableBalance}
           otherBalance={otherBalance}

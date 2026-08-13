@@ -158,6 +158,9 @@ export function ProxyPartnerFunds() {
   const [prefillAmount, setPrefillAmount] = useState<number>(0);
   const [prefillReason, setPrefillReason] = useState('');
   const [prefillPayout, setPrefillPayout] = useState<any>(null);
+  // Where the locked payout destination came from, shown to the agent so it is
+  // obvious the number is the partner's saved one and not something typed here.
+  const [payoutSourceLabel, setPayoutSourceLabel] = useState<string | undefined>(undefined);
   const [selectedPartnerId, setSelectedPartnerId] = useState<string>('');
   const [selectedPortfolioId, setSelectedPortfolioId] = useState<string | null>(null);
   const [partnerWithdrawalStatus, setPartnerWithdrawalStatus] = useState<Record<string, string>>({});
@@ -1061,12 +1064,14 @@ export function ProxyPartnerFunds() {
     // empty fields for manual entry (audited).
     const pInfo = partner.portfolioId ? portfolioMap[partner.portfolioId] : null;
     let resolved: any = null;
+    let sourceLabel: string | undefined;
     if (pInfo?.payment_method === 'mobile_money') {
       resolved = {
         payoutMode: pInfo.mobile_network === 'Airtel' ? 'airtel' : 'mtn',
         momoNumber: pInfo.mobile_money_number || '',
         momoName: pInfo.account_name || partner.partnerName || '',
       };
+      sourceLabel = `the payment details saved on portfolio ${partner.portfolioCode || pInfo.portfolio_code || ''}`.trim();
     } else if (pInfo?.payment_method === 'bank_transfer') {
       resolved = {
         payoutMode: 'bank',
@@ -1074,8 +1079,10 @@ export function ProxyPartnerFunds() {
         bankAccountName: pInfo.bank_account_name || partner.partnerName || '',
         bankAccountNumber: pInfo.account_number || '',
       };
+      sourceLabel = `the payment details saved on portfolio ${partner.portfolioCode || pInfo.portfolio_code || ''}`.trim();
     } else if (pInfo?.payment_method === 'cash') {
       resolved = { payoutMode: 'cash' };
+      sourceLabel = `the payment details saved on portfolio ${partner.portfolioCode || pInfo.portfolio_code || ''}`.trim();
     }
 
     if (!resolved) {
@@ -1095,6 +1102,7 @@ export function ProxyPartnerFunds() {
             momoNumber: s.momo_number || '',
             momoName: s.momo_name || partner.partnerName || '',
           };
+          sourceLabel = "the partner's saved payout method";
         } else if (s?.payout_mode === 'bank_transfer') {
           resolved = {
             payoutMode: 'bank',
@@ -1102,8 +1110,10 @@ export function ProxyPartnerFunds() {
             bankAccountName: s.bank_account_name || partner.partnerName || '',
             bankAccountNumber: s.bank_account_number || '',
           };
+          sourceLabel = "the partner's saved payout method";
         } else if (s?.payout_mode === 'cash') {
           resolved = { payoutMode: 'cash' };
+          sourceLabel = "the partner's saved payout method";
         }
       } catch { /* non-fatal: fall through to profile lookup */ }
     }
@@ -1122,11 +1132,24 @@ export function ProxyPartnerFunds() {
             momoNumber: prof.mobile_money_number,
             momoName: prof.full_name || partner.partnerName || '',
           };
+          sourceLabel = "the partner's registered mobile money number";
         }
       } catch { /* non-fatal */ }
     }
 
     setPrefillPayout(resolved);
+    setPayoutSourceLabel(sourceLabel);
+
+    // AIM: a portfolio payout MUST use the portfolio's own payment details.
+    // If the portfolio carries none and no fallback exists, stop here rather
+    // than letting the agent type a destination by hand.
+    if (!resolved) {
+      toast.error('No payment details on file for this partner', {
+        description: 'Ask Partner Ops to save the MoMo or bank details on the portfolio before requesting this payout.',
+        duration: 9000,
+      });
+      return;
+    }
 
     setWithdrawOpen(true);
 
@@ -1835,6 +1858,10 @@ export function ProxyPartnerFunds() {
         prefillPayout={prefillPayout}
         linkedParty={selectedPartnerId}
         lockAmount
+        // Destination is dictated by the portfolio's saved payment details —
+        // read-only for the proxy agent, exactly like the amount.
+        lockPayoutDetails
+        payoutSourceLabel={payoutSourceLabel}
       />
 
       <AlertDialog open={cancelConfirmOpen} onOpenChange={(open) => {

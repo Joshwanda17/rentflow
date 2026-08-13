@@ -100,9 +100,19 @@ export async function signUpWithoutRole(email: string, password: string, fullNam
 
 export async function signIn(email: string, password: string) {
   try {
-    const { data: fraudRows } = await (supabase as any).rpc('check_fraud_account_by_email', {
-      p_email: email.trim().toLowerCase(),
-    });
+    // Pre-auth fraud probe is advisory ONLY and must never gate the spinner.
+    // Under database load this PostgREST call has been observed taking many
+    // seconds (single-row lookups peaking at ~8s), and because the sign-in
+    // flow fires several candidate emails, every slow probe stacked up and
+    // left the button stuck on "Signing in...". Hard-cap it and move on —
+    // the post-session guard (enforceAccountAccess) still blocks fraud/frozen
+    // accounts immediately after authentication.
+    const fraudRows = await Promise.race([
+      (supabase as any)
+        .rpc('check_fraud_account_by_email', { p_email: email.trim().toLowerCase() })
+        .then((res: { data: unknown }) => res.data),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 1200)),
+    ]);
     const fraudRow = Array.isArray(fraudRows) ? fraudRows[0] : null;
     if (fraudRow?.is_blocked) {
       return {

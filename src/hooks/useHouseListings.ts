@@ -490,6 +490,7 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
           query = query.or(
             [
               `title.ilike.%${search}%`,
+              `description.ilike.%${search}%`,
               `region.ilike.%${search}%`,
               `district.ilike.%${search}%`,
               `sub_county.ilike.%${search}%`,
@@ -832,8 +833,11 @@ export function useHouseListingCount(options: HouseListingCountOptions): HouseLi
         q = q.or(
           [
             `title.ilike.%${s}%`,
+            `description.ilike.%${s}%`,
             `region.ilike.%${s}%`,
             `district.ilike.%${s}%`,
+            `sub_county.ilike.%${s}%`,
+            `village.ilike.%${s}%`,
             `address.ilike.%${s}%`,
           ].join(','),
         );

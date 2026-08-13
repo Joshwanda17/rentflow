@@ -297,9 +297,11 @@ export default function MyWork({ embedded = false }: MyWorkProps) {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [logOpen, setLogOpen] = useState(false);
   const [unstarted, setUnstarted] = useState<{ task: Task; assignedBy: string }[]>([]);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [live, setLive] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setLoading(true);
     try {
       const me = await getMyStaff();
       setStaff(me);
@@ -399,15 +401,56 @@ export default function MyWork({ embedded = false }: MyWorkProps) {
       }
       setThresholds(map);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not load your work');
+      if (!opts?.silent) toast.error(e instanceof Error ? e.message : 'Could not load your work');
     } finally {
       setLoading(false);
+      setLastUpdated(new Date());
     }
   }, []);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  /**
+   * Keeps the completion trend current without the person touching anything:
+   * a realtime subscription on their own task rows and task events, a slow
+   * safety poll, and a refresh whenever the tab comes back into view.
+   */
+  useEffect(() => {
+    if (!staff?.id) return;
+
+    let timer: number | undefined;
+    const refresh = () => void load({ silent: true });
+
+    const channel = supabase
+      .channel(`my-work-live-${staff.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'hr_tasks', filter: `assignee_employee_id=eq.${staff.id}` },
+        refresh,
+      )
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'hr_task_events' }, refresh)
+      .subscribe((status) => setLive(status === 'SUBSCRIBED'));
+
+    timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') refresh();
+    }, 60_000);
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+
+    return () => {
+      if (timer) window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+      setLive(false);
+      void supabase.removeChannel(channel);
+    };
+  }, [staff?.id, load]);
 
   const tiles = useMemo(() => {
     const active = definitions.filter((d) => d.active);
@@ -738,7 +781,30 @@ export default function MyWork({ embedded = false }: MyWorkProps) {
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm">Completion trend</CardTitle>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="text-sm">Completion trend · last 8 weeks</CardTitle>
+            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5">
+                <span
+                  className={
+                    live
+                      ? 'h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse'
+                      : 'h-1.5 w-1.5 rounded-full bg-muted-foreground/50'
+                  }
+                />
+                {live ? 'Live' : 'Auto-refresh'}
+              </span>
+              {lastUpdated && <span>· updated {lastUpdated.toLocaleTimeString('en-GB')}</span>}
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 px-2 text-[11px]"
+                onClick={() => void load({ silent: true })}
+              >
+                Refresh
+              </Button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="h-56">
           <ResponsiveContainer width="100%" height="100%">
@@ -748,8 +814,12 @@ export default function MyWork({ embedded = false }: MyWorkProps) {
               <YAxis domain={[0, 100]} tick={{ fontSize: 10 }} unit="%" />
               <Tooltip
                 formatter={(v: number, _n, item: any) =>
-                  [`${v}% (${item?.payload?.completed}/${item?.payload?.created})`, 'Completed']
+                  [
+                    `${v}% — ${item?.payload?.completed ?? 0} of ${item?.payload?.created ?? 0} completed`,
+                    'Completion rate',
+                  ]
                 }
+                labelFormatter={(l) => `Week of ${l}`}
               />
               <Line
                 type="monotone"

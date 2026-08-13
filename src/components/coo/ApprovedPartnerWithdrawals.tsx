@@ -21,6 +21,10 @@ interface WithdrawalRow {
   fin_ops_reference: string | null;
   payout_method: string | null;
   mobile_money_name: string | null;
+  mobile_money_number: string | null;
+  mobile_money_provider: string | null;
+  bank_name: string | null;
+  bank_account_number: string | null;
   bank_account_name: string | null;
   linked_party: string | null;
   proxy_partner_id: string | null;
@@ -54,7 +58,7 @@ export function ApprovedPartnerWithdrawals({ onBack }: Props) {
       for (let page = 0; page < 30; page++) {
         const { data, error } = await supabase
           .from('withdrawal_requests')
-          .select('id, user_id, amount, status, reason, created_at, fin_ops_verified_at, fin_ops_reference, payout_method, mobile_money_name, bank_account_name, linked_party, proxy_partner_id, fin_ops_payment_method')
+          .select('id, user_id, amount, status, reason, created_at, fin_ops_verified_at, fin_ops_reference, payout_method, mobile_money_name, mobile_money_number, mobile_money_provider, bank_name, bank_account_number, bank_account_name, linked_party, proxy_partner_id, fin_ops_payment_method')
           .in('status', ['completed', 'fin_ops_approved', 'approved', 'cfo_approved', 'coo_approved', 'manager_approved', 'processing'])
           .or('linked_party.not.is.null,proxy_partner_id.not.is.null')
           .order('created_at', { ascending: false })
@@ -338,6 +342,13 @@ export function ApprovedPartnerWithdrawals({ onBack }: Props) {
             const partnerName = partnerNameOf(w);
             const method = (w.fin_ops_payment_method || w.payout_method || '—').replace(/_/g, ' ');
             const portfolioName = portfolioOf(w).name;
+            // The exact destination the money was actually sent to, so the card
+            // can be reconciled against the telecom / bank record.
+            const destination = w.mobile_money_number
+              ? `${(w.mobile_money_provider || 'Mobile money')} ${w.mobile_money_number}`
+              : w.bank_account_number
+                ? `${w.bank_name ? `${w.bank_name} · ` : ''}A/C ${w.bank_account_number}`
+                : null;
 
             return (
               <Card key={w.id} className="border-border/50">
@@ -367,6 +378,11 @@ export function ApprovedPartnerWithdrawals({ onBack }: Props) {
                   {payeeName !== '—' && (
                     <p className="text-[10px] text-muted-foreground">
                       Payee: <span className="font-medium">{payeeName}</span>
+                    </p>
+                  )}
+                  {destination && (
+                    <p className="text-[10px] text-muted-foreground">
+                      Sent to: <span className="font-medium font-mono text-foreground">{destination}</span>
                     </p>
                   )}
                   {w.reason && (

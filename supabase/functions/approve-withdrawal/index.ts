@@ -2410,40 +2410,63 @@ Deno.serve(async (req) => {
             p_payout_id: landlordPayoutId,
           });
           if (deductErr) {
-            console.error("[approve-withdrawal] LP float debit failed:", deductErr);
-            await admin
-              .from("landlord_payouts")
-              .update({
-                status: "failed",
-                last_error: `FinOps debit failed: ${deductErr.message}`,
-              } as any)
-              .eq("id", landlordPayoutId);
+            // Benign race: a DB trigger may already have advanced the payout and
+            // the allocation trigger already debited the float. Marking the
+            // payout `failed` in that case hides a payout the landlord WAS paid,
+            // so it resurfaces as payable and gets paid twice.
+            const benign = /not in deductible status|already_accounted/i.test(deductErr.message || "");
+            console.error("[approve-withdrawal] LP float debit result:", deductErr.message, { benign });
+            if (!benign) {
+              await admin
+                .from("landlord_payouts")
+                .update({
+                  status: "failed",
+                  last_error: `FinOps debit failed: ${deductErr.message}`,
+                } as any)
+                .eq("id", landlordPayoutId);
+            }
             // best-effort audit
             try {
               await admin.from("audit_logs").insert({
                 user_id: user.id,
-                action_type: "landlord_float_debit_failed",
+                action_type: benign ? "landlord_float_debit_already_accounted" : "landlord_float_debit_failed",
                 table_name: "landlord_payouts",
                 record_id: landlordPayoutId,
-                reason: "finops_dbt",
-                metadata: { withdrawal_id, error: deductErr.message },
+                metadata: { withdrawal_id, error: deductErr.message, reason: "finops_dbt" },
               });
             } catch { /* non-blocking */ }
           }
 
-          const { data: lp } = await admin
+          const { data: lp, error: lpUpdErr } = await admin
             .from("landlord_payouts")
             .update({
               status: "awaiting_agent_receipt",
               finops_disbursed_by: user.id,
               finops_disbursed_at: new Date().toISOString(),
-              momo_reference: momoRef,
+              finops_momo_reference: momoRef,
               disbursed_at: new Date().toISOString(),
             } as any)
             .eq("id", landlordPayoutId)
-            .eq("status", "pending_merchant_payout")
+            .in("status", ["pending_merchant_payout", "disbursing", "otp_verified", "awaiting_agent_receipt"])
             .select("id, agent_id, landlord_name, landlord_phone, mobile_money_provider, amount")
             .maybeSingle();
+
+          if (lpUpdErr) {
+            // Fail loudly: a silent failure here leaves the payout stuck at
+            // pending_merchant_payout forever, freezing the agent's float.
+            console.error("[approve-withdrawal] landlord payout settlement UPDATE failed:", lpUpdErr);
+            try {
+              await admin.from("audit_logs").insert({
+                user_id: user.id,
+                action_type: "landlord_payout_settlement_failed",
+                table_name: "landlord_payouts",
+                record_id: landlordPayoutId,
+                reason: "settle_err",
+                metadata: { withdrawal_id, error: lpUpdErr.message },
+              });
+            } catch { /* non-blocking */ }
+            throw new Error(`Landlord payout settlement failed: ${lpUpdErr.message}`);
+          }
 
           if (lp) {
             // SMS the landlord that they have been paid (best-effort).
@@ -2916,16 +2939,39 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── Merchant OUT-OF-POCKET record (2026-08) ───────────────────────────
-    // Whatever the merchant funded beyond their float (payout principal and/or
-    // the telecom sending charge) is money the company owes them. Recorded
-    // clearly here and surfaced on their dashboard + to Finance for repayment.
+    // ── Merchant OUT-OF-POCKET record (2026-08, evidence-gated 2026-08-13) ──
+    // A float shortfall on its own is NOT proof that the merchant spent their
+    // own money — own cash never touches the wallet ledger, so the books can
+    // neither confirm nor deny it. Recording a debt straight off a shortfall
+    // produced thousands of unverified receivables. Shortfalls are now filed as
+    // `needs_review` ("Awaiting finance review") and only become money owed
+    // once the merchant confirms it, or Finance confirms on their behalf, via
+    // `review_merchant_out_of_pocket`. Nothing is hidden: the amount, the float
+    // position and the payment proof are all captured on the row.
     let merchantOutOfPocketRecorded = false;
     if (
       actingAsMerchant &&
       !poolFunded &&
       (merchantPrincipalShortfall > 0 || merchantTelecomShortfall > 0)
     ) {
+      const shortfallProofPath =
+        (typeof (body as any)?.payout_proof_path === "string" &&
+          (body as any).payout_proof_path.trim().length > 0
+          ? String((body as any).payout_proof_path).trim()
+          : null) ??
+        (typeof (wr as any)?.payout_proof_path === "string"
+          ? String((wr as any).payout_proof_path)
+          : null);
+      const shortfallEvidence = {
+        recorded_by: "approve-withdrawal",
+        recorded_at: new Date().toISOString(),
+        payout_proof_path: shortfallProofPath,
+        proof_attached: Boolean(shortfallProofPath),
+        float_before: Math.round(merchantFloatBefore),
+        float_reserved_for_payout: Math.round(merchantFloatReserved),
+        float_used: merchantFloatConsumed,
+        awaiting: "merchant confirmation that own money was used",
+      };
       const rows: Record<string, unknown>[] = [];
       if (merchantPrincipalShortfall > 0) {
         rows.push({
@@ -2936,11 +2982,14 @@ Deno.serve(async (req) => {
           telecom_charge: merchantTelecomExpected,
           float_used: merchantFloatConsumed,
           shortfall_amount: Math.round(merchantPrincipalShortfall),
-          status: "pending_reimbursement",
+          status: "needs_review",
+          evidence: shortfallEvidence,
           note:
             `Merchant paid UGX ${amount.toLocaleString()} while holding only ` +
             `UGX ${Math.round(merchantFloatAvailable).toLocaleString()} float. ` +
-            `Own money fronted: UGX ${Math.round(merchantPrincipalShortfall).toLocaleString()}.`,
+            `Company float was short by UGX ` +
+            `${Math.round(merchantPrincipalShortfall).toLocaleString()} — awaiting the ` +
+            `merchant's confirmation that this came from their own money.`,
         });
       }
       if (merchantTelecomShortfall > 0) {
@@ -2952,11 +3001,13 @@ Deno.serve(async (req) => {
           telecom_charge: merchantTelecomExpected,
           float_used: merchantTelecomCharge,
           shortfall_amount: Math.round(merchantTelecomShortfall),
-          status: "pending_reimbursement",
+          status: "needs_review",
+          evidence: shortfallEvidence,
           note:
             `Telecom sending charge of UGX ${merchantTelecomExpected.toLocaleString()} paid from the ` +
             `merchant's own line (float could not cover UGX ` +
-            `${Math.round(merchantTelecomShortfall).toLocaleString()}).`,
+            `${Math.round(merchantTelecomShortfall).toLocaleString()}) — awaiting the ` +
+            `merchant's confirmation.`,
         });
       }
       try {
@@ -2977,9 +3028,10 @@ Deno.serve(async (req) => {
               event_type: "wallet_transfer",
               user_id: user.id,
               description:
-                `Merchant agent fronted UGX ` +
+                `Company float was short by UGX ` +
                 `${Math.round(merchantPrincipalShortfall + merchantTelecomShortfall).toLocaleString()} ` +
-                `of their own money on withdrawal ${withdrawal_id} (float short). Company owes them.`,
+                `on withdrawal ${withdrawal_id}. Filed for finance review — becomes money owed ` +
+                `only once the merchant confirms they used their own money.`,
               metadata: {
                 withdrawal_id,
                 payout_amount: amount,
@@ -2988,6 +3040,7 @@ Deno.serve(async (req) => {
                 telecom_charge: merchantTelecomExpected,
                 principal_shortfall: Math.round(merchantPrincipalShortfall),
                 telecom_shortfall: Math.round(merchantTelecomShortfall),
+                status: "needs_review",
               },
             });
           } catch (_e) { /* non-blocking */ }

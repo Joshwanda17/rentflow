@@ -431,7 +431,7 @@ export default function SupporterDashboard({
   };
 
   const menuItems = [
-    { icon: CreditCard, label: 'Add Investment', onClick: () => setShowPaymentPartners(true) },
+    { icon: CreditCard, label: 'Add Funding', onClick: () => setShowPaymentPartners(true) },
   ];
 
   return (

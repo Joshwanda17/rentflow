@@ -68,13 +68,23 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (!toAgentRole) throw new Error("Target user is not an agent");
 
-    // 1. Update active rent_requests
+    // 1. Hand every non-terminal plan (and completed ones, which are what renewals
+    //    are filed from) to the new agent, and stamp assigned_agent_id so the new
+    //    agent is the effective manager everywhere.
     const { data: updatedRR } = await serviceClient
       .from("rent_requests")
-      .update({ agent_id: to_agent_id })
+      .update({ agent_id: to_agent_id, assigned_agent_id: to_agent_id })
       .eq("tenant_id", tenant_id)
       .eq("agent_id", from_agent_id)
-      .in("status", ["pending", "approved", "funded", "active"])
+      .in("status", [
+        "pending",
+        "approved",
+        "coo_approved",
+        "funded",
+        "repaying",
+        "active",
+        "completed",
+      ])
       .select("id");
 
     const rrCount = updatedRR?.length || 0;
