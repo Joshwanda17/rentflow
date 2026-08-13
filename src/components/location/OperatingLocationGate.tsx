@@ -51,7 +51,8 @@ export function OperatingLocationGate() {
 
   const hasLocation = !!(profile?.district?.trim() && profile?.village?.trim());
   if (loading || !profile || done) return null;
-  if (hasLocation && !saved) return null;
+  const force = new URLSearchParams(window.location.search).has('locgate');
+  if (hasLocation && !saved && !force) return null;
 
   const canSave = !!district && !!picked && !saving;
 
