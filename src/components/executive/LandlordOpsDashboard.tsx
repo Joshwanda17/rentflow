@@ -9,6 +9,7 @@ import { RentPipelineQueue } from './RentPipelineQueue';
 import { RejectedRequestsQueue } from './RejectedRequestsQueue';
 import { BusinessAdvanceQueue } from '@/components/ops/BusinessAdvanceQueue';
 import { RentHistoryVerificationQueue } from '@/components/ops/RentHistoryVerificationQueue';
+import { ServiceCentreNoteLoader } from '@/components/ops/ServiceCentreNoteLoader';
 import { LandlordOpsPayoutReview } from '@/components/cfo/LandlordOpsPayoutReview';
 import { AgentRentCapacityPanel } from './AgentRentCapacityPanel';
 import { KPICard } from './KPICard';
@@ -2958,6 +2959,8 @@ export function LandlordOpsDashboard() {
                               {landlord.agent_phone && <PhoneLinks phone={landlord.agent_phone} name={landlord.agent_name || 'Agent'} />}
                             </div>
                           )}
+                          {/* Service Centre manager's vetting note for this landlord */}
+                          <ServiceCentreNoteLoader table="landlords" id={landlord.id} />
                           <InlineModerationActions
                             approveLabel="Review & Approve"
                             rejectLabel="Reject"
@@ -3227,6 +3230,8 @@ export function LandlordOpsDashboard() {
                   <span className="font-semibold">Decision reason:</span> {lc1.verification_reason}
                 </p>
               )}
+              {/* Service Centre manager's vetting note for this LC1 chairperson */}
+              <ServiceCentreNoteLoader table="lc1_chairpersons" id={lc1.id} />
               {/* Landlords under this LC1 */}
               {lc1.landlords.length > 0 && (
                 <div className="mt-2 pl-3 border-l-2 border-primary/20 space-y-1.5">
@@ -4168,6 +4173,10 @@ export function LandlordOpsDashboard() {
                         ? 'Show on tenant dashboard'
                         : 'Hide from tenant dashboard'}
                   </Button>
+                </div>
+                {/* Service Centre manager's vetting note for this listing */}
+                <div className="mb-2">
+                  <ServiceCentreNoteLoader table="house_listings" id={house.id} />
                 </div>
                 <InlineModerationActions
                   approveHidden={!!house.verified}

@@ -59,7 +59,7 @@ interface AgentMenuDrawerProps {
   onViewMyRentRequests?: () => void;
   onTopUpTenant?: () => void;
   onViewTenants?: () => void;
-  onInvestForPartner?: () => void;
+  onFundPartner?: () => void;
   onViewProxyHistory?: () => void;
   onIssueReceipt?: () => void;
   onViewLandlordMap?: () => void;
@@ -72,9 +72,9 @@ interface AgentMenuDrawerProps {
   onManageFunders?: () => void;
   onOpenPartnerDashboard?: () => void;
   onInviteFunder?: () => void;
-  onInviteAngelInvestor?: () => void;
+  onInviteAngelPartner?: () => void;
   onOpenRequisition?: () => void;
-  onAngelPoolInvest?: () => void;
+  onAngelPoolFunding?: () => void;
   onShareTenantForm?: () => void;
   onSharePartnerForm?: () => void;
   onShareLandlordSignup?: () => void;
@@ -123,7 +123,7 @@ export function AgentMenuDrawer({
   onViewMyRentRequests,
   onTopUpTenant,
   onViewTenants,
-  onInvestForPartner,
+  onFundPartner,
   onViewProxyHistory,
   onIssueReceipt,
   onViewLandlordMap,
@@ -136,9 +136,9 @@ export function AgentMenuDrawer({
   onManageFunders,
   onOpenPartnerDashboard,
   onInviteFunder,
-  onInviteAngelInvestor,
+  onInviteAngelPartner,
   onOpenRequisition,
-  onAngelPoolInvest,
+  onAngelPoolFunding,
   onShareTenantForm,
   onSharePartnerForm,
   onShareLandlordSignup,
@@ -183,8 +183,8 @@ export function AgentMenuDrawer({
         { icon: Banknote, label: 'Pay Rent', description: 'Pay rent for your tenant', onClick: onTopUpTenant, accent: 'primary', badge: '★' },
         { icon: ArrowDownCircle, label: 'Deposit', description: 'Add funds to wallet', onClick: onDeposit, accent: 'success' },
         { icon: Wallet, label: 'Top Up Wallet', description: 'Deposit to tenant wallet', onClick: onTopUpTenant, accent: 'emerald-500' },
-        { icon: HandCoins, label: 'Fund Partner', description: 'Proxy funding', onClick: onInvestForPartner, accent: 'emerald-600', badge: 'Proxy' },
-        { icon: PiggyBank, label: 'Angel Pool', description: 'Buy shares in the equity pool', onClick: onAngelPoolInvest, accent: 'emerald-500', badge: 'Angel' },
+        { icon: HandCoins, label: 'Fund Partner', description: 'Proxy funding', onClick: onFundPartner, accent: 'emerald-600', badge: 'Proxy' },
+        { icon: PiggyBank, label: 'Angel Pool', description: 'Buy shares in the equity pool', onClick: onAngelPoolFunding, accent: 'emerald-500', badge: 'Angel' },
         { icon: Receipt, label: 'Issue Receipt', description: 'Record cash payment', onClick: onIssueReceipt, accent: 'amber-500' },
         { icon: Banknote, label: 'Cash, Mobile Money & Bank Payouts', description: 'Verify & pay cash-outs', path: '/agent/cash-payouts', accent: 'orange-500', badge: '💵' },
         { icon: Wallet, label: 'Request Advance', description: 'Get funds to your wallet', onClick: onRequestAdvance, accent: 'purple-500', badge: '💰' },
@@ -199,7 +199,7 @@ export function AgentMenuDrawer({
         { icon: Building2, label: 'Share Landlord Signup', description: 'Invite landlords', onClick: onShareLandlordSignup, accent: 'purple-600', badge: '🏠' },
         { icon: UserPlus, label: 'Share Partner Form', description: 'Partner signup link', onClick: onSharePartnerForm, accent: 'emerald-600', badge: '🤝' },
         { icon: Heart, label: 'Invite Funder', description: 'Share signup for funders', onClick: onInviteFunder, accent: 'primary', badge: '💜' },
-        { icon: Briefcase, label: 'Invite Investor', description: 'Angel Pool signup link', onClick: onInviteAngelInvestor, accent: 'purple-500', badge: '🦄' },
+        { icon: Briefcase, label: 'Invite Partner', description: 'Angel Pool signup link', onClick: onInviteAngelPartner, accent: 'purple-500', badge: '🦄' },
         { icon: Share2, label: 'Recruit Sub-Agent', description: 'WhatsApp / Copy link', onClick: onShareSubAgentLink, accent: 'green-500', badge: '🔗' },
         { icon: Share2, label: 'Campaign Links', description: 'Field recruitment & QR codes', path: '/agent/campaigns', accent: 'orange-500', badge: '📣' },
         { icon: Share2, label: 'Invite & Refer', description: 'Grow your network', path: '/referrals', accent: 'pink-500' },

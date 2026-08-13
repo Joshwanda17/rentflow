@@ -9956,6 +9956,36 @@ export type Database = {
         }
         Relationships: []
       }
+      evidence_2026_08_13_field_audit: {
+        Row: {
+          changed_by: string | null
+          created_at: string | null
+          field_name: string | null
+          id: string | null
+          new_value: string | null
+          old_value: string | null
+          user_id: string | null
+        }
+        Insert: {
+          changed_by?: string | null
+          created_at?: string | null
+          field_name?: string | null
+          id?: string | null
+          new_value?: string | null
+          old_value?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          changed_by?: string | null
+          created_at?: string | null
+          field_name?: string | null
+          id?: string | null
+          new_value?: string | null
+          old_value?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       fee_revenue_ledger: {
         Row: {
           created_at: string
@@ -10687,43 +10717,117 @@ export type Database = {
           },
         ]
       }
+      float_promise_alerts: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          agent_id: string
+          agent_name: string | null
+          approved_amount: number
+          approved_at: string | null
+          created_at: string
+          expected_recipient_phone: string | null
+          float_request_id: string
+          hours_outstanding: number | null
+          id: string
+          severity: string
+          updated_at: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          agent_id: string
+          agent_name?: string | null
+          approved_amount: number
+          approved_at?: string | null
+          created_at?: string
+          expected_recipient_phone?: string | null
+          float_request_id: string
+          hours_outstanding?: number | null
+          id?: string
+          severity?: string
+          updated_at?: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          agent_id?: string
+          agent_name?: string | null
+          approved_amount?: number
+          approved_at?: string | null
+          created_at?: string
+          expected_recipient_phone?: string | null
+          float_request_id?: string
+          hours_outstanding?: number | null
+          id?: string
+          severity?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "float_promise_alerts_float_request_id_fkey"
+            columns: ["float_request_id"]
+            isOneToOne: false
+            referencedRelation: "float_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       float_requests: {
         Row: {
           agent_id: string
+          approved_amount: number | null
           approved_at: string | null
           approved_by: string | null
           created_at: string
+          expected_recipient_phone: string | null
           float_delivery_tid: string | null
           id: string
           reason: string | null
           rejection_reason: string | null
           requested_amount: number
+          settled_at: string | null
+          settled_gmail_transaction_id: string | null
+          settlement_reference: string | null
+          settlement_tid: string | null
           status: string
           updated_at: string
         }
         Insert: {
           agent_id: string
+          approved_amount?: number | null
           approved_at?: string | null
           approved_by?: string | null
           created_at?: string
+          expected_recipient_phone?: string | null
           float_delivery_tid?: string | null
           id?: string
           reason?: string | null
           rejection_reason?: string | null
           requested_amount: number
+          settled_at?: string | null
+          settled_gmail_transaction_id?: string | null
+          settlement_reference?: string | null
+          settlement_tid?: string | null
           status?: string
           updated_at?: string
         }
         Update: {
           agent_id?: string
+          approved_amount?: number | null
           approved_at?: string | null
           approved_by?: string | null
           created_at?: string
+          expected_recipient_phone?: string | null
           float_delivery_tid?: string | null
           id?: string
           reason?: string | null
           rejection_reason?: string | null
           requested_amount?: number
+          settled_at?: string | null
+          settled_gmail_transaction_id?: string | null
+          settlement_reference?: string | null
+          settlement_tid?: string | null
           status?: string
           updated_at?: string
         }
@@ -18180,6 +18284,69 @@ export type Database = {
         }
         Relationships: []
       }
+      merchant_balance_disputes: {
+        Row: {
+          agent_id: string
+          claimed_amount: number | null
+          created_at: string
+          desk_id: string | null
+          disputed_field: string
+          id: string
+          reason: string
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          system_amount: number
+          updated_at: string
+        }
+        Insert: {
+          agent_id?: string
+          claimed_amount?: number | null
+          created_at?: string
+          desk_id?: string | null
+          disputed_field?: string
+          id?: string
+          reason: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          system_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          claimed_amount?: number | null
+          created_at?: string
+          desk_id?: string | null
+          disputed_field?: string
+          id?: string
+          reason?: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          system_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "merchant_balance_disputes_desk_id_fkey"
+            columns: ["desk_id"]
+            isOneToOne: false
+            referencedRelation: "cashout_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "merchant_balance_disputes_desk_id_fkey"
+            columns: ["desk_id"]
+            isOneToOne: false
+            referencedRelation: "v_merchant_float_ledger_variance"
+            referencedColumns: ["desk_id"]
+          },
+        ]
+      }
       merchant_commission_awards: {
         Row: {
           agent_id: string
@@ -22369,6 +22536,7 @@ export type Database = {
           landmark: string | null
           last_active_at: string | null
           last_continuous_location_at: string | null
+          location_source: string | null
           managed_by_agent: boolean
           managing_agent_id: string | null
           merchant_agent_referrer_id: string | null
@@ -22458,6 +22626,7 @@ export type Database = {
           landmark?: string | null
           last_active_at?: string | null
           last_continuous_location_at?: string | null
+          location_source?: string | null
           managed_by_agent?: boolean
           managing_agent_id?: string | null
           merchant_agent_referrer_id?: string | null
@@ -22547,6 +22716,7 @@ export type Database = {
           landmark?: string | null
           last_active_at?: string | null
           last_continuous_location_at?: string | null
+          location_source?: string | null
           managed_by_agent?: boolean
           managing_agent_id?: string | null
           merchant_agent_referrer_id?: string | null
@@ -34711,6 +34881,10 @@ export type Database = {
         }
         Returns: Json
       }
+      cfo_approve_float_request: {
+        Args: { p_amount: number; p_reason: string; p_request_id: string }
+        Returns: Json
+      }
       cfo_correct_trail_entry: {
         Args: {
           p_audit_id: string
@@ -34842,6 +35016,16 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      claim_float_request_for_email: {
+        Args: {
+          p_agent_id: string
+          p_amount: number
+          p_gmail_transaction_id: string
+          p_phone_last9: string
+          p_tid: string
+        }
+        Returns: string
       }
       claim_next_agent_capability_batch: {
         Args: { _job_id?: string }
@@ -35298,6 +35482,7 @@ export type Database = {
       detect_sms_verification_failures: { Args: never; Returns: Json }
       detect_stale_withdrawal_holds: { Args: never; Returns: Json }
       detect_tenant_phone_near_duplicates: { Args: never; Returns: number }
+      detect_unpaid_float_promises: { Args: never; Returns: number }
       detect_velocity_abuse: {
         Args: { p_threshold?: number; p_window_minutes?: number }
         Returns: {
@@ -36329,6 +36514,7 @@ export type Database = {
           period_number: number
         }[]
       }
+      get_coo_command_center: { Args: never; Returns: Json }
       get_crm_directory: {
         Args: {
           _limit?: number
@@ -37018,6 +37204,10 @@ export type Database = {
           transaction_date: string
           user_id: string
         }[]
+      }
+      get_partner_ops_brief_report: {
+        Args: { p_end: string; p_start: string }
+        Returns: Json
       }
       get_partner_ops_daily_report: { Args: { p_date?: string }; Returns: Json }
       get_partner_ops_range_report: {
@@ -38952,6 +39142,47 @@ export type Database = {
           total_count: number
         }[]
       }
+      ops_tenant_products_services_report: {
+        Args: { p_from?: string; p_to?: string }
+        Returns: Json
+      }
+      ops_tenant_products_services_rows: {
+        Args: {
+          p_agent?: string
+          p_district?: string
+          p_from?: string
+          p_limit?: number
+          p_offset?: number
+          p_payment?: string
+          p_search?: string
+          p_status?: string
+          p_to?: string
+        }
+        Returns: {
+          accepted_in_period: boolean
+          agent_id: string
+          agent_name: string
+          application_status: string
+          applied_in_period: boolean
+          daily_repayment: number
+          district: string
+          is_new_in_period: boolean
+          last_payment_at: string
+          outstanding: number
+          paid_in_period: number
+          payables_in_period: number
+          payments_in_period: number
+          region: string
+          rejected_in_period: boolean
+          rent_amount: number
+          tenant_created_at: string
+          tenant_id: string
+          tenant_name: string
+          tenant_phone: string
+          total_count: number
+        }[]
+      }
+      ops_tps_report_authorized: { Args: never; Returns: boolean }
       ops_transfer_pipeline_request_agent: {
         Args: { p_reason: string; p_request_id: string; p_to_agent_id: string }
         Returns: Json
@@ -39546,6 +39777,10 @@ export type Database = {
         Args: { p_agent_id: string; p_reason: string }
         Returns: Json
       }
+      release_float_request_claim: {
+        Args: { p_note: string; p_request_id: string }
+        Returns: undefined
+      }
       release_historical_drift: {
         Args: { p_amount: number; p_reason: string; p_review_id: string }
         Returns: string
@@ -39979,6 +40214,16 @@ export type Database = {
         Args: { p_lc1_id: string; p_reason: string; p_status: string }
         Returns: Json
       }
+      set_my_operating_location: {
+        Args: {
+          p_district: string
+          p_district_id: number
+          p_source?: string
+          p_village: string
+          p_village_id?: number
+        }
+        Returns: Json
+      }
       set_proxy_agent_target: {
         Args: { p_agent_id?: string; p_target: number }
         Returns: Json
@@ -40011,6 +40256,10 @@ export type Database = {
         Returns: {
           snapshotted_count: number
         }[]
+      }
+      stamp_float_request_settlement: {
+        Args: { p_reference: string; p_request_id: string }
+        Returns: undefined
       }
       subagent_listing_count: {
         Args: { p_sub_agent_id: string }

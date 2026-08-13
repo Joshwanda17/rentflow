@@ -1,5 +1,9 @@
-import { Wallet, AlertTriangle, Hand, Smartphone, BadgeCheck, HandCoins, Signal } from 'lucide-react';
+import { useState } from 'react';
+import { Wallet, AlertTriangle, Hand, Smartphone, BadgeCheck, HandCoins, Signal, Flag } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
+import { Button } from '@/components/ui/button';
+import { MerchantBalanceDisputeDialog } from './MerchantBalanceDisputeDialog';
+import { useMyBalanceDisputes } from '@/hooks/useMerchantBalanceDisputes';
 import {
   useMerchantPayoutFloat,
   useMerchantFloatPositions,
@@ -19,10 +23,14 @@ export function MerchantFloatAvailableCard() {
   const { data: positions } = useMerchantFloatPositions();
   const { data: oop } = useMerchantOutOfPocket();
   const { data: oopRows } = useMerchantOutOfPocketRows();
+  const { data: myDisputes } = useMyBalanceDisputes();
+  const [disputeOpen, setDisputeOpen] = useState(false);
 
   const mine = positions?.[0];
   const owed = mine?.owedToAgent ?? 0;
   const holding = mine?.companyCashWithAgent ?? 0;
+  const pending = (myDisputes ?? []).filter((d) => d.status === 'open' || d.status === 'reviewing');
+  const lastAnswered = (myDisputes ?? []).find((d) => d.status === 'resolved' || d.status === 'rejected');
 
   return (
     <section className="rounded-3xl border border-border/60 bg-card p-5">
@@ -160,6 +168,45 @@ export function MerchantFloatAvailableCard() {
         You may only demand money you have already claimed and paid out. Real money sent to your MTN or
         Airtel line is recognised automatically from the provider messages.
       </p>
+
+      {/* Report a wrong figure to Financial Ops. */}
+      <div className="mt-4 rounded-2xl border border-border/60 bg-muted/20 p-3">
+        <p className="text-[11px] leading-relaxed text-foreground">
+          <span className="font-semibold">Do these figures not match what you really have?</span> Tell
+          Finance in your own words and they will check and correct it.
+        </p>
+        <Button
+          variant="outline"
+          className="mt-2 w-full gap-2"
+          onClick={() => setDisputeOpen(true)}
+        >
+          <Flag className="h-4 w-4" /> This is not what I have — ask Finance to fix it
+        </Button>
+        {pending.length > 0 && (
+          <p className="mt-2 text-[10px] font-medium text-warning">
+            {pending.length} request{pending.length === 1 ? '' : 's'} with Finance right now.
+          </p>
+        )}
+        {pending.length === 0 && lastAnswered && (
+          <p className="mt-2 text-[10px] text-muted-foreground">
+            Last request {lastAnswered.status === 'resolved' ? 'was fixed' : 'was not accepted'}
+            {lastAnswered.resolutionNote ? ` — ${lastAnswered.resolutionNote}` : ''}.
+          </p>
+        )}
+      </div>
+
+      <MerchantBalanceDisputeDialog
+        open={disputeOpen}
+        onOpenChange={setDisputeOpen}
+        deskId={mine?.deskId ?? null}
+        amounts={{
+          owed_to_agent: owed,
+          company_cash_with_agent: holding,
+          paid_out: mine?.paidOut ?? 0,
+          out_of_pocket: oop?.owedToAgent ?? 0,
+          float_available: pool?.availableFloat ?? 0,
+        }}
+      />
     </section>
   );
 }
