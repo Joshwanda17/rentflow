@@ -901,15 +901,22 @@ export function FinOpsWithdrawalVerification() {
               <XCircle className="h-3 w-3 mr-1" />
               Reject
             </Button>
-            <Button
-              size="sm"
-              className="h-8 text-xs bg-primary hover:bg-primary/90 text-primary-foreground"
-              onClick={() => { setSelected(req); setApproveOpen(true); }}
-              disabled={!!processing}
-            >
-              <CheckCircle className="h-3 w-3 mr-1" />
-              Approve & Complete
-            </Button>
+            {isMerchantOnlyPayout(req) ? (
+              <span className="inline-flex items-center gap-1 h-8 px-2.5 rounded-lg bg-muted/60 border border-border text-[11px] font-medium text-muted-foreground">
+                <Hand className="h-3 w-3" />
+                A merchant agent pays this
+              </span>
+            ) : (
+              <Button
+                size="sm"
+                className="h-8 text-xs bg-primary hover:bg-primary/90 text-primary-foreground"
+                onClick={() => { setSelected(req); setApproveOpen(true); }}
+                disabled={!!processing}
+              >
+                <CheckCircle className="h-3 w-3 mr-1" />
+                Approve & Complete
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -985,15 +992,22 @@ export function FinOpsWithdrawalVerification() {
             {ageBadge}
           </div>
           <div className="flex gap-2">
-            <Button
-              size="sm"
-              className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
-              onClick={() => { setSelected(req); setApproveOpen(true); }}
-              disabled={!!processing}
-            >
-              <CheckCircle className="h-3 w-3 mr-1" />
-              Re-Approve & Pay
-            </Button>
+            {isMerchantOnlyPayout(req) ? (
+              <span className="inline-flex items-center gap-1 h-8 px-2.5 rounded-lg bg-muted/60 border border-border text-[11px] font-medium text-muted-foreground">
+                <Hand className="h-3 w-3" />
+                A merchant agent pays this
+              </span>
+            ) : (
+              <Button
+                size="sm"
+                className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                onClick={() => { setSelected(req); setApproveOpen(true); }}
+                disabled={!!processing}
+              >
+                <CheckCircle className="h-3 w-3 mr-1" />
+                Re-Approve & Pay
+              </Button>
+            )}
           </div>
         </div>
       </div>
