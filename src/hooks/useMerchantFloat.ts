@@ -298,3 +298,57 @@ export function useMerchantFloatLedgerVariance(enabled = true) {
     },
   });
 }
+
+/**
+ * Float movement statement for ONE merchant agent — read-only.
+ *
+ * Reads the agent's `general_ledger` float-bucket legs (money we sent them in,
+ * payouts + telecom charges going out) so finance can see exactly how the
+ * float they hold moved over time. No writes anywhere.
+ */
+export interface MerchantFloatStatementRow {
+  id: string;
+  date: string;
+  description: string | null;
+  category: string;
+  direction: 'cash_in' | 'cash_out';
+  amount: number;
+  referenceId: string | null;
+  runningBalance: number;
+}
+
+export function useMerchantFloatStatement(agentId?: string | null, enabled = true) {
+  return useQuery({
+    queryKey: ['merchant-float-statement', agentId],
+    enabled: !!agentId && enabled,
+    retry: false,
+    staleTime: 20_000,
+    queryFn: async (): Promise<MerchantFloatStatementRow[]> => {
+      const { data, error } = await supabase
+        .from('general_ledger')
+        .select('id, transaction_date, created_at, description, category, direction, amount, reference_id')
+        .eq('user_id', agentId!)
+        .eq('wallet_bucket', 'float')
+        .neq('classification', 'admin_correction')
+        .order('transaction_date', { ascending: true })
+        .limit(500);
+      if (error) throw error;
+      let bal = 0;
+      const rows = ((data ?? []) as any[]).map((r) => {
+        const amount = Number(r.amount ?? 0);
+        bal += r.direction === 'cash_in' ? amount : -amount;
+        return {
+          id: String(r.id),
+          date: String(r.transaction_date ?? r.created_at),
+          description: r.description ?? null,
+          category: String(r.category ?? ''),
+          direction: r.direction as 'cash_in' | 'cash_out',
+          amount,
+          referenceId: r.reference_id ?? null,
+          runningBalance: bal,
+        };
+      });
+      return rows.reverse();
+    },
+  });
+}
