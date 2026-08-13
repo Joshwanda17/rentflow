@@ -870,6 +870,9 @@ export function LandlordOpsDashboard() {
   const [reportFrom, setReportFrom] = useState<Date | undefined>(undefined);
   const [reportTo, setReportTo] = useState<Date | undefined>(undefined);
   const [printingPdf, setPrintingPdf] = useState(false);
+  // Which centralized extract is running (null when idle) — mirrors the Tenant
+  // Ops Extract card's single busy key.
+  const [extractingKind, setExtractingKind] = useState<LandlordExtractKind | null>(null);
 
   const handlePrintReport = async () => {
     setPrintingPdf(true);
