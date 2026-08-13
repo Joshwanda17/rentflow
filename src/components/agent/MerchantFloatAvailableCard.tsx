@@ -32,6 +32,11 @@ export function MerchantFloatAvailableCard() {
   const mine = positions?.[0];
   const owed = mine?.owedToAgent ?? 0;
   const holding = mine?.ledgerFloatHeld ?? mine?.companyCashWithAgent ?? 0;
+  // The float a merchant spends when they claim IS the company money already
+  // sent to their MTN/Airtel line and not yet paid out, less what they have
+  // already committed to payouts they claimed but have not settled.
+  const reserved = pool?.ownReservedFloat ?? 0;
+  const spendable = Math.max(holding - reserved, 0);
   const offledger = mine?.offledgerAdjustments ?? 0;
   const unbacked = mine?.payoutsWithoutFloatEvidence ?? 0;
   const pending = (myDisputes ?? []).filter((d) => d.status === 'open' || d.status === 'reviewing');
@@ -56,12 +61,14 @@ export function MerchantFloatAvailableCard() {
       </div>
 
       <p className="mt-3 font-mono text-2xl font-bold tabular-nums text-foreground break-all">
-        {isLoading ? '—' : formatUGX(pool?.availableFloat ?? 0)}
+        {isLoading ? '—' : formatUGX(spendable)}
       </p>
       <p className="mt-1 text-[11px] text-muted-foreground">
-        Shared company pool. Claim a request, pay it out, and it reduces here. If a payout is bigger
-        than the float you hold, you can still pay it — the extra is flagged below, and once you
-        confirm you used your own money, Finance pays it back to you.
+        This is the company money already sent to your MTN or Airtel line and not yet paid out — the
+        float you owe the company. Claim a request, pay it out, and it reduces here.
+        {reserved > 0 && ` ${formatUGX(reserved)} is already committed to payouts you claimed but have not settled.`}
+        {' '}If a payout is bigger than the float you hold, you can still pay it — the extra is flagged
+        below, and once you confirm you used your own money, Finance pays it back to you.
       </p>
 
       <div className="mt-4 grid grid-cols-2 gap-3">
