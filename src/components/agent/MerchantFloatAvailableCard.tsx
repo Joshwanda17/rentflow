@@ -106,8 +106,8 @@ export function MerchantFloatAvailableCard() {
       </div>
 
       {holding > 0 && (
-        <div className="mt-3 rounded-2xl border-2 border-warning/50 bg-warning/10 p-4">
-          <div className="flex items-center gap-2">
+        <div className="mt-3 rounded-2xl border-2 border-warning/50 bg-warning/10 p-4 text-center">
+          <div className="flex items-center justify-center gap-2">
             <AlertTriangle className="h-4 w-4 text-warning shrink-0" />
             <p className="text-[11px] font-bold uppercase tracking-wider text-warning">
               Company cash in your hands
