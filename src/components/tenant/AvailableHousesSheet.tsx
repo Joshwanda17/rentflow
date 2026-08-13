@@ -304,16 +304,14 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
     enabled: open,
   });
 
-  // Dataset-backed area options (ug_districts → ug_subcounties). Cached
-  // forever by the shared hooks, so opening the sheet costs at most one
-  // request per level and never a per-row lookup.
-  const isOfficialRegion = (UG_REGIONS as readonly string[]).includes(selectedRegion);
-  const { data: ugDistricts = [] } = useUgDistricts(isOfficialRegion ? selectedRegion : null);
-  const selectedDistrictId = useMemo(
-    () => ugDistricts.find(d => normalizeAreaName(d.name) === normalizeAreaName(selectedDistrict))?.id ?? null,
-    [ugDistricts, selectedDistrict],
+  // Inventory-backed options: only areas / types that actually have browsable
+  // houses right now, each already validated against the official ug_* dataset
+  // and carrying a live count. One cached request per (region, district,
+  // sub-county) scope — never a per-row lookup.
+  const { options: filterOptions } = useHouseFilterOptions(
+    { region: selectedRegion !== 'All Regions' ? selectedRegion : null, district: selectedDistrict, subCounty: selectedSubCounty },
+    open,
   );
-  const { data: ugSubcounties = [] } = useUgSubcountiesByDistrict(selectedDistrictId);
 
   // Selecting a broader area resets the narrower ones so we never keep a stale
   // district/sub-county/village that no longer belongs to the new selection.
@@ -333,27 +331,28 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
     setSelectedVillage('all');
   };
 
-  // District / sub-county options come from the official ug_* dataset (not from
-  // whatever text the loaded rows happen to carry). Village stays derived from
-  // the loaded listings, compared case-insensitively so legacy rows still match.
-  const districtOptions = useMemo(() => ugDistricts.map(d => d.name), [ugDistricts]);
-  const subCountyOptions = useMemo(
-    // Two counties in a district can carry the same sub-county name; dedupe by
-    // name since matching is name/id based, not county based.
-    () => Array.from(new Set(ugSubcounties.map(s => s.name))).sort((a, b) => a.localeCompare(b)),
-    [ugSubcounties],
-  );
+  const districtOptions = filterOptions.districts;
+  const subCountyOptions = filterOptions.subCounties;
+  const villageOptions = filterOptions.villages;
 
-  const villageOptions = useMemo(() => {
-    const set = new Set<string>();
-    listings.forEach(l => {
-      if (selectedDistrict !== 'all' && normalizeAreaName(l.district) !== normalizeAreaName(selectedDistrict)) return;
-      if (selectedSubCounty !== 'all' && normalizeAreaName(l.sub_county) !== normalizeAreaName(selectedSubCounty)) return;
-      const v = (l.village || '').trim();
-      if (v) set.add(v);
-    });
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [listings, selectedDistrict, selectedSubCounty]);
+  // Region choices keep the official four, annotated with what is listed there.
+  const regionCount = useMemo(() => {
+    const m = new Map<string, number>();
+    filterOptions.regions.forEach(r => m.set(normalizeAreaName(r.value), r.count));
+    return m;
+  }, [filterOptions.regions]);
+
+  // Only offer property types that exist in the current area scope.
+  const categoryOptions = useMemo(() => {
+    if (filterOptions.categories.length === 0) return CATEGORIES;
+    const counts = new Map(filterOptions.categories.map(c => [c.value, c.count]));
+    return [
+      CATEGORIES[0],
+      ...CATEGORIES.slice(1)
+        .filter(c => counts.has(c.value))
+        .map(c => ({ ...c, label: `${c.label} (${counts.get(c.value)})` })),
+    ];
+  }, [filterOptions.categories]);
 
   const filtered = listings;
 
