@@ -885,17 +885,31 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
               >
                 <div className="flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-primary" />
-                  <Label className="text-sm font-bold text-foreground">Where should we send your money?</Label>
+                  <Label className="text-sm font-bold text-foreground">
+                    {payoutLocked ? 'Where this money goes' : 'Where should we send your money?'}
+                  </Label>
                 </div>
+                {payoutLocked && (
+                  <div className="flex items-start gap-2 p-3 rounded-xl bg-primary/5 border border-primary/20">
+                    <Lock className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                    <p className="text-[11px] text-muted-foreground leading-snug">
+                      These payment details come from {payoutSourceLabel || 'the saved payment details'} and cannot be
+                      changed here — just like the amount. To correct them, ask Partner Ops to update the saved
+                      payment details first.
+                    </p>
+                  </div>
+                )}
                 <div className="grid grid-cols-4 gap-2.5">
                   {PAYOUT_OPTIONS.map((opt, i) => {
                     const selected = payoutMode === opt.value;
+                    if (payoutLocked && !selected) return null;
                     return (
                       <button
                         key={opt.value}
                         type="button"
-                        onClick={() => setPayoutMode(prev => prev === opt.value ? null : opt.value)}
-                        className={`relative flex flex-col items-center justify-center rounded-2xl border-2 p-3 min-h-[80px] transition-all active:scale-95 touch-manipulation ${
+                        disabled={payoutLocked}
+                        onClick={() => { if (payoutLocked) return; setPayoutMode(prev => prev === opt.value ? null : opt.value); }}
+                        className={`relative flex flex-col items-center justify-center rounded-2xl border-2 p-3 min-h-[80px] transition-all touch-manipulation ${payoutLocked ? 'cursor-default' : 'active:scale-95'} ${
                           selected
                             ? `bg-gradient-to-b ${opt.accent} ${opt.ring} ring-2 shadow-lg`
                             : 'border-border bg-card hover:border-muted-foreground/30 hover:shadow-sm'
