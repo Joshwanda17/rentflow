@@ -2622,7 +2622,7 @@ export function LandlordOpsDashboard() {
               variant="outline"
               className="h-9 gap-1.5"
               disabled={exportingLandlordReport}
-              onClick={exportLandlordReportPdf}
+              onClick={() => void exportLandlordReportPdf()}
               title="Export a full PDF report for the filters currently applied"
             >
               {exportingLandlordReport
