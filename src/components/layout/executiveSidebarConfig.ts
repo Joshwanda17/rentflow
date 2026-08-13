@@ -151,6 +151,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'Returns Disbursement Report', icon: FileText, id: 'roi-disbursement-report' },
         { label: 'Rent Disbursement Report', icon: FileText, id: 'rent-disbursement-report' },
         { label: 'Payout Reports', icon: Banknote, id: 'payout-reports' },
+        { label: 'All Advances Report', icon: HandCoins, id: 'advances-report' },
         { label: 'House Listing Commission', icon: Home, id: 'house-listing-commission' },
         { label: 'Safety Buffer', icon: Shield, id: 'solvency' },
         { label: 'Reconciliation', icon: Scale, id: 'reconciliation' },
