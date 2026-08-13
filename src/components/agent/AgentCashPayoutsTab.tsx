@@ -306,6 +306,12 @@ export function AgentCashPayoutsTab() {
   const [verifiedPayout, setVerifiedPayout] = useState<any>(null);
   const [consoleOpen, setConsoleOpen] = useState(false);
   const [auditOpen, setAuditOpen] = useState(false);
+  // Top-level view for the merchant desk. Splits the page into three plain
+  // sections so a non-accountant lands directly on the requests to claim.
+  const [view, setView] = useState<'requests' | 'money' | 'history'>('requests');
+  // The queue filter panel stays folded away by default — most merchants just
+  // claim the top request and never need it.
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   // Date range filter for the commission breakdown. Defaults to "today" so the
   // card shows the volume processed and payout count for the current day.
