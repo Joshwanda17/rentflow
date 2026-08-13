@@ -98,7 +98,7 @@ export function useVerificationStatus(userId: string | undefined) {
             label: 'Verified Funder',
             verified: deployedTotal >= 50000,
             reason: deployedTotal >= 50000 ? `UGX ${deployedTotal.toLocaleString()} deployed` : `Deploy at least UGX 50,000 (${Math.round((deployedTotal / 50000) * 100)}% done)`,
-            action: 'Add Investment',
+            action: 'Add Funding',
           },
         ];
 
