@@ -39,10 +39,6 @@ interface ApprovedRentItem {
   request_fee: number;
   total_repayment: number;
   created_at: string;
-  /** Raw pipeline status of the rent request. */
-  status: string;
-  /** Only COO-approved requests may be funded — approval workflow unchanged. */
-  is_disbursable: boolean;
   tenant_name: string;
   landlord_name: string;
   agent_name: string;
@@ -84,27 +80,6 @@ const CAT_FIELD_LABELS: Record<CatFieldKey, string> = {
 };
 
 const CAT_FIELD_KEYS = Object.keys(CAT_FIELD_LABELS) as CatFieldKey[];
-
-/**
- * Every status that is still awaiting disbursement (i.e. "not yet approved"
- * for payout, plus the COO-approved rows that are payable now). Terminal or
- * already-funded states are excluded.
- */
-const AWAITING_STATUSES = [
-  'pending',
-  'service_center_review',
-  'agent_ops_approved',
-  'landlord_ops_approved',
-  'coo_approved',
-];
-
-const STATUS_LABELS: Record<string, string> = {
-  pending: 'Pending',
-  service_center_review: 'Service centre review',
-  agent_ops_approved: 'Agent Ops approved',
-  landlord_ops_approved: 'Landlord Ops approved',
-  coo_approved: 'COO approved',
-};
 
 const catValueOf = (it: ApprovedRentItem, field: CatFieldKey): string => {
   const raw =
@@ -159,15 +134,12 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['rent-disbursement-queue'],
     queryFn: async () => {
-      // Every rent request still awaiting disbursement — COO-approved rows are
-      // payable, earlier-stage rows are shown read-only so their districts are
-      // never missing from the location provisions.
+      // Get COO-approved rent requests
       const { data: requests, error } = await supabase
         .from('rent_requests')
-        .select('id, status, rent_amount, tenant_id, landlord_id, agent_id, assigned_agent_id, access_fee, request_fee, total_repayment, created_at, request_country, request_city, house_listing_id')
-        .in('status', AWAITING_STATUSES)
-        .order('created_at', { ascending: true })
-        .limit(5000);
+        .select('id, rent_amount, tenant_id, landlord_id, agent_id, assigned_agent_id, access_fee, request_fee, total_repayment, created_at, request_country, request_city, house_listing_id')
+        .eq('status', 'coo_approved')
+        .order('created_at', { ascending: true });
       if (error) throw error;
       if (!requests?.length) return [];
 
@@ -184,7 +156,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
         const { data: profiles } = await supabase
           .from('profiles')
           .select('id, full_name, town, city, sub_county, parish, village, region, district, tenant_house_category')
-          .in('id', allUserIds).limit(5000);
+          .in('id', allUserIds);
         for (const p of profiles || []) {
           profileMap.set(p.id, (p as any).full_name || 'Unknown');
           tenantLocMap.set(p.id, p);
@@ -194,7 +166,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
       // Fetch landlord names
       const landlordMap = new Map<string, string>();
       if (landlordIds.length) {
-        const { data: landlords } = await supabase.from('landlords').select('id, name').in('id', landlordIds).limit(5000);
+        const { data: landlords } = await supabase.from('landlords').select('id, name').in('id', landlordIds);
         for (const l of landlords || []) landlordMap.set(l.id, l.name || 'Unknown');
       }
 
@@ -205,7 +177,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
         const { data: wallets } = await supabase
           .from('wallets')
           .select('user_id')
-          .in('user_id', landlordIds).limit(5000);
+          .in('user_id', landlordIds);
         for (const w of wallets || []) walletSet.add(w.user_id);
       }
 
@@ -216,7 +188,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
         const { data: listings } = await supabase
           .from('house_listings')
           .select('id, district')
-          .in('id', listingIds).limit(5000);
+          .in('id', listingIds);
         for (const l of listings || []) if (l.district) districtMap.set(l.id, l.district);
       }
 
@@ -226,8 +198,6 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
         const loc: any = tenantLocMap.get(r.tenant_id) || {};
         return {
           ...r,
-          status: (r as any).status,
-          is_disbursable: (r as any).status === 'coo_approved',
           access_fee: r.access_fee ?? 0,
           request_fee: r.request_fee ?? 0,
           total_repayment: r.total_repayment ?? 0,
@@ -273,8 +243,6 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
   const totalRepaymentExpected = useMemo(() => selectedItems.reduce((s, i) => s + i.total_repayment, 0), [selectedItems]);
 
   const toggle = (id: string) => {
-    const row = items.find(i => i.id === id);
-    if (row && !row.is_disbursable) return; // not COO-approved yet — view only
     const next = new Set(selected);
     next.has(id) ? next.delete(id) : next.add(id);
     setSelected(next);
@@ -394,12 +362,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
     [countryFilteredGroups, agentFilter],
   );
   const visibleItems = useMemo(() => visibleGroups.flatMap(g => g.rows), [visibleGroups]);
-  const selectableVisibleItems = useMemo(
-    () => visibleItems.filter(i => i.is_disbursable),
-    [visibleItems],
-  );
-  const allSelected =
-    selectableVisibleItems.length > 0 && selectableVisibleItems.every(i => selected.has(i.id));
+  const allSelected = visibleItems.length > 0 && visibleItems.every(i => selected.has(i.id));
   // Presentation only: which visible row should host the inline Step 2 panel.
   const firstSelectedId = useMemo(
     () => visibleItems.find(i => selected.has(i.id))?.id ?? null,
@@ -407,14 +370,13 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
   );
   const toggleAll = () => {
     const next = new Set(selected);
-    if (allSelected) selectableVisibleItems.forEach(i => next.delete(i.id));
-    else selectableVisibleItems.forEach(i => next.add(i.id));
+    if (allSelected) visibleItems.forEach(i => next.delete(i.id));
+    else visibleItems.forEach(i => next.add(i.id));
     setSelected(next);
   };
 
   const toggleAgentGroup = (rows: ApprovedRentItem[]) => {
-    const ids = rows.filter(r => r.is_disbursable).map(r => r.id);
-    if (!ids.length) return;
+    const ids = rows.map(r => r.id);
     const allOn = ids.every(id => selected.has(id));
     const next = new Set(selected);
     if (allOn) ids.forEach(id => next.delete(id));
@@ -497,12 +459,10 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
     onError: (e: any) => toast.error(e.message || 'Failed to reject'),
   });
 
-  // Summary totals for the currently filtered queue — money figures stay based
-  // on payable (COO-approved) rows only, exactly as before.
-  const payableFilteredItems = useMemo(() => filteredItems.filter(i => i.is_disbursable), [filteredItems]);
-  const queueTotalRent = useMemo(() => payableFilteredItems.reduce((s, i) => s + i.rent_amount, 0), [payableFilteredItems]);
-  const queueTotalRevenue = useMemo(() => payableFilteredItems.reduce((s, i) => s + i.access_fee + i.request_fee, 0), [payableFilteredItems]);
-  const queueTotalRepaymentExpected = useMemo(() => payableFilteredItems.reduce((s, i) => s + i.total_repayment, 0), [payableFilteredItems]);
+  // Summary totals for the currently filtered queue.
+  const queueTotalRent = useMemo(() => filteredItems.reduce((s, i) => s + i.rent_amount, 0), [filteredItems]);
+  const queueTotalRevenue = useMemo(() => filteredItems.reduce((s, i) => s + i.access_fee + i.request_fee, 0), [filteredItems]);
+  const queueTotalRepaymentExpected = useMemo(() => filteredItems.reduce((s, i) => s + i.total_repayment, 0), [filteredItems]);
 
   const dateFilterLabel: Record<string, string> = { all: 'All time', '7d': 'Last 7 days', '30d': 'Last 30 days' };
 
@@ -534,12 +494,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
             <div className="flex items-center gap-3">
               <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-sm font-semibold text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-400">
                 <CheckCircle2 className="h-4 w-4" />
-                {payableFilteredItems.length} approved · {fmt(queueTotalRent)}
-                {filteredItems.length > payableFilteredItems.length && (
-                  <span className="font-normal opacity-80">
-                    {' '}· {filteredItems.length - payableFilteredItems.length} awaiting approval
-                  </span>
-                )}
+                {filteredItems.length} approved · {fmt(queueTotalRent)}
               </span>
             </div>
           )}
@@ -776,7 +731,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
             <div className="flex items-center justify-between gap-2 flex-wrap rounded-xl border border-border/70 bg-muted/20 px-4 py-3">
               <label className="flex items-center gap-2.5 text-sm cursor-pointer font-semibold">
                 <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
-                Select all ({selectableVisibleItems.length}
+                Select all ({visibleItems.length}
                 {agentFilter !== 'all' && items.length !== visibleItems.length
                   ? ` of ${items.length}`
                   : ''}
@@ -940,11 +895,11 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
                 </div>
               )}
               {visibleGroups.map(group => {
-                const groupIds = group.rows.filter(r => r.is_disbursable).map(r => r.id);
+                const groupIds = group.rows.map(r => r.id);
                 const groupSelectedCount = groupIds.filter(id => selected.has(id)).length;
-                const allGroupOn = groupIds.length > 0 && groupSelectedCount === groupIds.length;
+                const allGroupOn = groupSelectedCount === groupIds.length;
                 const someGroupOn = groupSelectedCount > 0 && !allGroupOn;
-                const groupTotal = group.rows.filter(r => r.is_disbursable).reduce((s, r) => s + r.rent_amount, 0);
+                const groupTotal = group.rows.reduce((s, r) => s + r.rent_amount, 0);
                 const isNew = Date.now() - group.latest < 24 * 60 * 60 * 1000;
                 const isRealAgent = group.agent_id && group.agent_id !== 'unassigned';
                 return (
@@ -974,7 +929,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
                           </Badge>
                         )}
                         <Badge variant="outline" className="text-[9px] px-1.5 py-0 shrink-0">
-                          {groupSelectedCount}/{groupIds.length}
+                          {groupSelectedCount}/{group.rows.length}
                         </Badge>
                       </div>
                       <span className="text-xs font-bold text-orange-600 shrink-0">{fmt(groupTotal)}</span>
@@ -998,15 +953,13 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
                         <tbody>
                       {group.rows.map(item => {
                         const isSel = selected.has(item.id);
-                        const payable = item.is_disbursable;
                         const locationLabel = [item.request_city, item.request_country].filter(Boolean).join(', ');
                         return (
                         <Fragment key={item.id}>
                         <tr
-                          onClick={() => payable && toggle(item.id)}
+                          onClick={() => toggle(item.id)}
                           className={cn(
-                            'border-b border-border/70 last:border-0 transition-colors',
-                            payable ? 'cursor-pointer' : 'cursor-default bg-muted/20',
+                            'border-b border-border/70 last:border-0 cursor-pointer transition-colors',
                             isSel
                               ? 'bg-primary/[0.07] shadow-[inset_3px_0_0_0_hsl(var(--primary))]'
                               : 'hover:bg-muted/40'
@@ -1015,18 +968,12 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
                           <td className="px-2 py-2.5 align-middle" onClick={e => e.stopPropagation()}>
                             <Checkbox
                               checked={selected.has(item.id)}
-                              disabled={!payable}
                               onCheckedChange={() => toggle(item.id)}
                             />
                           </td>
                           <td className="px-2 py-2.5 align-middle">
                             <div className="flex items-center gap-1.5 min-w-0">
                               <span className={cn('truncate', isSel ? 'font-bold' : 'font-semibold')}>{item.tenant_name}</span>
-                              {!payable && (
-                                <Badge variant="outline" className="text-[9px] px-1.5 py-0 shrink-0 text-amber-700 border-amber-300 bg-amber-50">
-                                  {STATUS_LABELS[item.status] ?? item.status}
-                                </Badge>
-                              )}
                               {isSel && (
                                 <Badge className="text-[9px] px-1.5 py-0 shrink-0 bg-primary text-primary-foreground border-0">
                                   SELECTED
@@ -1067,8 +1014,6 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
                           </td>
                           <td className="px-2 py-2.5 align-middle text-right whitespace-nowrap" onClick={e => e.stopPropagation()}>
                             <div className="flex items-center justify-end gap-1">
-                          {payable ? (
-                            <>
                           <Button
                             size="sm"
                             variant="outline"
@@ -1090,10 +1035,6 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
                             <XCircle className="h-3 w-3 mr-1" />
                             Reject
                           </Button>
-                            </>
-                          ) : (
-                            <span className="text-[11px] text-muted-foreground">Awaiting approval</span>
-                          )}
                             </div>
                           </td>
                         </tr>
