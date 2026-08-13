@@ -132,7 +132,6 @@ export function SupportedTenantDrawer({ tenant, open, onOpenChange }: Props) {
           <div className="min-w-0">
             <p className="text-lg font-black text-foreground truncate">{tenant.tenant_name}</p>
             <div className="flex items-center gap-2 mt-1">
-              <Badge variant="secondary" className="text-[10px] capitalize">{tenant.status.replace(/_/g, ' ')}</Badge>
               <Badge variant="outline" className="text-[10px]">
                 {tenant.funding_mode === 'self_managed' ? 'Self managed' : 'Managed'}
               </Badge>
