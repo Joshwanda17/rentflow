@@ -297,9 +297,6 @@ export default function Internship() {
             )}
           </Button>
 
-          <p className="text-center text-[11px] text-muted-foreground">
-            🚀 You'll be redirected to create your agent account
-          </p>
         </form>
       </div>
     </div>
