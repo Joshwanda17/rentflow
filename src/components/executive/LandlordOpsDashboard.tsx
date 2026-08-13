@@ -2959,10 +2959,11 @@ export function LandlordOpsDashboard() {
                               {landlord.agent_phone && <PhoneLinks phone={landlord.agent_phone} name={landlord.agent_name || 'Agent'} />}
                             </div>
                           )}
+                          {/* Service Centre manager's vetting note for this landlord */}
+                          <ServiceCentreNoteLoader table="landlords" id={landlord.id} />
                           <InlineModerationActions
                             approveLabel="Review & Approve"
                             rejectLabel="Reject"
-                          {/* Service Centre manager's vetting note for this landlord */}
                             onApprove={(note) => handleApproveLandlord(landlord, note)}
                             onReject={(note) => handleRejectLandlord(landlord, note)}
                           />
