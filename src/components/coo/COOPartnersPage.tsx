@@ -2719,7 +2719,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-1.5 flex-wrap">
-                                    <p className="text-sm font-bold tabular-nums">{formatUGX(c.committed_amount)}</p>
+                                    <p className="text-sm font-bold truncate">Self-managed portfolio</p>
                                     <span className={cn('px-1.5 py-0.5 rounded text-[9px] font-bold uppercase whitespace-nowrap shrink-0', statusColor)}>
                                       {String(c.status).replace(/_/g, ' ')}
                                     </span>
@@ -2727,29 +2727,65 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                       Self-managed
                                     </span>
                                   </div>
-                                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                                    {c.term_months} month term · {c.monthly_rate}% monthly
-                                  </p>
+                                  <p className="text-[10px] text-muted-foreground">{timeSince(c.created_at)} · {c.term_months}mo term</p>
                                 </div>
                               </div>
 
-                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+                              {/* Committed amount — full width */}
+                              <p className="text-lg font-black tabular-nums mb-1.5">{formatUGX(c.committed_amount)}</p>
+
+                              {/* Details grid — same shell as investment portfolio cards */}
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1.5 text-xs bg-muted/30 rounded-lg p-2.5">
                                 <div>
-                                  <p className="text-muted-foreground">Earned</p>
-                                  <p className="font-semibold tabular-nums">{formatUGX(c.total_earned)}</p>
+                                  <span className="text-muted-foreground">Returns Rate</span>
+                                  <p className="font-bold text-primary">{c.monthly_rate}%</p>
                                 </div>
                                 <div>
-                                  <p className="text-muted-foreground">Paid out</p>
-                                  <p className="font-semibold tabular-nums">{formatUGX(c.total_paid)}</p>
+                                  <span className="text-muted-foreground">Monthly Returns</span>
+                                  <p className="font-bold">{formatUGX(Math.round(c.committed_amount * (c.monthly_rate / 100)))}</p>
                                 </div>
                                 <div>
-                                  <p className="text-muted-foreground">Next payout</p>
+                                  <span className="text-muted-foreground">Mode</span>
+                                  <p className="font-semibold">💰 Payout</p>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Total Earned</span>
+                                  <p className="font-bold text-primary">{formatUGX(c.total_earned)}</p>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Paid Out</span>
+                                  <p className="font-semibold">{formatUGX(c.total_paid)}</p>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Duration</span>
+                                  <p className="font-semibold">{c.term_months} months</p>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Next Payout</span>
                                   <p className="font-semibold">{c.next_payout_at ? formatDate(c.next_payout_at) : '—'}</p>
                                 </div>
                                 <div>
-                                  <p className="text-muted-foreground">Term ends</p>
+                                  <span className="text-muted-foreground">Term Ends</span>
                                   <p className="font-semibold">{c.term_end_at ? formatDate(c.term_end_at) : '—'}</p>
                                 </div>
+                              </div>
+
+                              {/* Payout day row */}
+                              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 mt-2.5 pt-2.5 border-t border-border/50">
+                                <div className="flex items-center gap-2 text-xs flex-wrap">
+                                  <CalendarDays className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                  <span className="text-muted-foreground">Payout Day:</span>
+                                  <span className="font-bold">
+                                    {c.payout_day
+                                      ? `${c.payout_day}${getOrdinalSuffix(c.payout_day)} of month`
+                                      : 'Not set'}
+                                  </span>
+                                </div>
+                                {c.next_payout_at && (
+                                  <span className="text-[10px] text-muted-foreground flex items-center gap-1 pl-5 sm:pl-0">
+                                    <Clock className="h-3 w-3" /> Next: {formatDate(c.next_payout_at)}
+                                  </span>
+                                )}
                               </div>
 
                               {/* Tenants supported — count only, expandable */}
