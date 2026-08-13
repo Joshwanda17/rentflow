@@ -1817,6 +1817,13 @@ export type Database = {
             foreignKeyName: "agent_collections_rent_request_id_fkey"
             columns: ["rent_request_id"]
             isOneToOne: false
+            referencedRelation: "v_tenant_daily_eligibility"
+            referencedColumns: ["rent_request_id"]
+          },
+          {
+            foreignKeyName: "agent_collections_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
             referencedRelation: "v_tenant_location_pivot"
             referencedColumns: ["rent_request_id"]
           },
@@ -3000,6 +3007,13 @@ export type Database = {
             foreignKeyName: "agent_float_withdrawals_rent_request_id_fkey"
             columns: ["rent_request_id"]
             isOneToOne: false
+            referencedRelation: "v_tenant_daily_eligibility"
+            referencedColumns: ["rent_request_id"]
+          },
+          {
+            foreignKeyName: "agent_float_withdrawals_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
             referencedRelation: "v_tenant_location_pivot"
             referencedColumns: ["rent_request_id"]
           },
@@ -3385,6 +3399,13 @@ export type Database = {
             columns: ["rent_request_id"]
             isOneToOne: false
             referencedRelation: "v_partner_self_fundable_plans"
+            referencedColumns: ["rent_request_id"]
+          },
+          {
+            foreignKeyName: "agent_landlord_assignments_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_daily_eligibility"
             referencedColumns: ["rent_request_id"]
           },
           {
@@ -6512,16 +6533,20 @@ export type Database = {
           config: Json
           created_at: string
           current_queue_count: number | null
-          handles_airtel: boolean | null
+          float_phone: string | null
+          handles_airtel: boolean
           handles_bank: boolean
           handles_cash: boolean
-          handles_mtn: boolean | null
+          handles_mtn: boolean
           id: string
           is_active: boolean
           is_online: boolean
           label: string | null
           max_daily_payouts: number | null
           online_changed_at: string | null
+          payout_numbers_set_at: string | null
+          payout_numbers_set_by: string | null
+          personal_phone: string | null
           priority_threshold: number | null
           updated_at: string
         }
@@ -6531,16 +6556,20 @@ export type Database = {
           config?: Json
           created_at?: string
           current_queue_count?: number | null
-          handles_airtel?: boolean | null
+          float_phone?: string | null
+          handles_airtel?: boolean
           handles_bank?: boolean
           handles_cash?: boolean
-          handles_mtn?: boolean | null
+          handles_mtn?: boolean
           id?: string
           is_active?: boolean
           is_online?: boolean
           label?: string | null
           max_daily_payouts?: number | null
           online_changed_at?: string | null
+          payout_numbers_set_at?: string | null
+          payout_numbers_set_by?: string | null
+          personal_phone?: string | null
           priority_threshold?: number | null
           updated_at?: string
         }
@@ -6550,16 +6579,20 @@ export type Database = {
           config?: Json
           created_at?: string
           current_queue_count?: number | null
-          handles_airtel?: boolean | null
+          float_phone?: string | null
+          handles_airtel?: boolean
           handles_bank?: boolean
           handles_cash?: boolean
-          handles_mtn?: boolean | null
+          handles_mtn?: boolean
           id?: string
           is_active?: boolean
           is_online?: boolean
           label?: string | null
           max_daily_payouts?: number | null
           online_changed_at?: string | null
+          payout_numbers_set_at?: string | null
+          payout_numbers_set_by?: string | null
+          personal_phone?: string | null
           priority_threshold?: number | null
           updated_at?: string
         }
@@ -7113,6 +7146,13 @@ export type Database = {
             columns: ["rent_request_id"]
             isOneToOne: false
             referencedRelation: "v_partner_self_fundable_plans"
+            referencedColumns: ["rent_request_id"]
+          },
+          {
+            foreignKeyName: "commission_accrual_ledger_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_daily_eligibility"
             referencedColumns: ["rent_request_id"]
           },
           {
@@ -7916,6 +7956,13 @@ export type Database = {
             columns: ["rent_request_id"]
             isOneToOne: false
             referencedRelation: "v_partner_self_fundable_plans"
+            referencedColumns: ["rent_request_id"]
+          },
+          {
+            foreignKeyName: "default_recovery_ledger_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_daily_eligibility"
             referencedColumns: ["rent_request_id"]
           },
           {
@@ -9972,6 +10019,13 @@ export type Database = {
             columns: ["rent_request_id"]
             isOneToOne: false
             referencedRelation: "v_partner_self_fundable_plans"
+            referencedColumns: ["rent_request_id"]
+          },
+          {
+            foreignKeyName: "fee_revenue_ledger_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_daily_eligibility"
             referencedColumns: ["rent_request_id"]
           },
           {
@@ -17233,6 +17287,13 @@ export type Database = {
             foreignKeyName: "location_requests_rent_request_id_fkey"
             columns: ["rent_request_id"]
             isOneToOne: false
+            referencedRelation: "v_tenant_daily_eligibility"
+            referencedColumns: ["rent_request_id"]
+          },
+          {
+            foreignKeyName: "location_requests_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
             referencedRelation: "v_tenant_location_pivot"
             referencedColumns: ["rent_request_id"]
           },
@@ -17971,6 +18032,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "merchant_agent_referrals_cashout_agent_id_fkey"
+            columns: ["cashout_agent_id"]
+            isOneToOne: false
+            referencedRelation: "v_merchant_float_ledger_variance"
+            referencedColumns: ["desk_id"]
+          },
+          {
             foreignKeyName: "merchant_agent_referrals_invitee_id_fkey"
             columns: ["invitee_id"]
             isOneToOne: true
@@ -18203,8 +18271,12 @@ export type Database = {
           desk_id: string
           evidence_note: string | null
           id: string
+          ledger_effect: string
+          ledger_float_at_post: number | null
           reason: string
+          stored_float_at_post: number | null
           updated_at: string
+          variance_at_post: number | null
         }
         Insert: {
           adjustment_type: string
@@ -18215,8 +18287,12 @@ export type Database = {
           desk_id: string
           evidence_note?: string | null
           id?: string
+          ledger_effect?: string
+          ledger_float_at_post?: number | null
           reason: string
+          stored_float_at_post?: number | null
           updated_at?: string
+          variance_at_post?: number | null
         }
         Update: {
           adjustment_type?: string
@@ -18227,8 +18303,12 @@ export type Database = {
           desk_id?: string
           evidence_note?: string | null
           id?: string
+          ledger_effect?: string
+          ledger_float_at_post?: number | null
           reason?: string
+          stored_float_at_post?: number | null
           updated_at?: string
+          variance_at_post?: number | null
         }
         Relationships: [
           {
@@ -18237,6 +18317,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "cashout_agents"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "merchant_float_reconciliations_desk_id_fkey"
+            columns: ["desk_id"]
+            isOneToOne: false
+            referencedRelation: "v_merchant_float_ledger_variance"
+            referencedColumns: ["desk_id"]
           },
         ]
       }
@@ -18369,6 +18456,57 @@ export type Database = {
           telecom_expected?: number
           updated_at?: string
           withdrawal_id?: string
+        }
+        Relationships: []
+      }
+      merchant_float_variance_alerts: {
+        Row: {
+          agent_id: string | null
+          agent_name: string | null
+          created_at: string
+          desk_id: string
+          detected_at: string
+          display_only_adjustments: number
+          id: string
+          ledger_float: number
+          resolved_at: string | null
+          severity: string
+          stored_float: number
+          updated_at: string
+          variance: number
+          variance_state: string
+        }
+        Insert: {
+          agent_id?: string | null
+          agent_name?: string | null
+          created_at?: string
+          desk_id: string
+          detected_at?: string
+          display_only_adjustments?: number
+          id?: string
+          ledger_float?: number
+          resolved_at?: string | null
+          severity?: string
+          stored_float?: number
+          updated_at?: string
+          variance?: number
+          variance_state: string
+        }
+        Update: {
+          agent_id?: string | null
+          agent_name?: string | null
+          created_at?: string
+          desk_id?: string
+          detected_at?: string
+          display_only_adjustments?: number
+          id?: string
+          ledger_float?: number
+          resolved_at?: string | null
+          severity?: string
+          stored_float?: number
+          updated_at?: string
+          variance?: number
+          variance_state?: string
         }
         Relationships: []
       }
@@ -18515,6 +18653,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      merchant_payout_success_runs: {
+        Row: {
+          created_at: string
+          id: string
+          per_merchant: Json
+          summary: Json
+          updated_at: string
+          window_days: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          per_merchant: Json
+          summary: Json
+          updated_at?: string
+          window_days: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          per_merchant?: Json
+          summary?: Json
+          updated_at?: string
+          window_days?: number
+        }
+        Relationships: []
       }
       messages: {
         Row: {
@@ -18926,6 +19091,13 @@ export type Database = {
             columns: ["rent_request_id"]
             isOneToOne: false
             referencedRelation: "v_partner_self_fundable_plans"
+            referencedColumns: ["rent_request_id"]
+          },
+          {
+            foreignKeyName: "offline_collection_submissions_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_daily_eligibility"
             referencedColumns: ["rent_request_id"]
           },
           {
@@ -20373,6 +20545,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      payout_acceptance_check_runs: {
+        Row: {
+          check_key: string
+          created_at: string
+          detail: string | null
+          expected: number
+          id: string
+          observed: number
+          run_id: string
+          status: string
+          title: string
+        }
+        Insert: {
+          check_key: string
+          created_at?: string
+          detail?: string | null
+          expected?: number
+          id?: string
+          observed?: number
+          run_id: string
+          status: string
+          title: string
+        }
+        Update: {
+          check_key?: string
+          created_at?: string
+          detail?: string | null
+          expected?: number
+          id?: string
+          observed?: number
+          run_id?: string
+          status?: string
+          title?: string
+        }
+        Relationships: []
       }
       payout_claim_sms_audit_log: {
         Row: {
@@ -24586,6 +24794,13 @@ export type Database = {
             foreignKeyName: "rent_repayment_pauses_rent_request_id_fkey"
             columns: ["rent_request_id"]
             isOneToOne: false
+            referencedRelation: "v_tenant_daily_eligibility"
+            referencedColumns: ["rent_request_id"]
+          },
+          {
+            foreignKeyName: "rent_repayment_pauses_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
             referencedRelation: "v_tenant_location_pivot"
             referencedColumns: ["rent_request_id"]
           },
@@ -25295,6 +25510,13 @@ export type Database = {
             columns: ["rent_request_id"]
             isOneToOne: false
             referencedRelation: "v_partner_self_fundable_plans"
+            referencedColumns: ["rent_request_id"]
+          },
+          {
+            foreignKeyName: "repayments_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_daily_eligibility"
             referencedColumns: ["rent_request_id"]
           },
           {
@@ -27553,6 +27775,13 @@ export type Database = {
             foreignKeyName: "subscription_charges_rent_request_id_fkey"
             columns: ["rent_request_id"]
             isOneToOne: false
+            referencedRelation: "v_tenant_daily_eligibility"
+            referencedColumns: ["rent_request_id"]
+          },
+          {
+            foreignKeyName: "subscription_charges_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
             referencedRelation: "v_tenant_location_pivot"
             referencedColumns: ["rent_request_id"]
           },
@@ -27685,6 +27914,13 @@ export type Database = {
             columns: ["rent_request_id"]
             isOneToOne: false
             referencedRelation: "v_partner_self_fundable_plans"
+            referencedColumns: ["rent_request_id"]
+          },
+          {
+            foreignKeyName: "supporter_capital_ledger_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_daily_eligibility"
             referencedColumns: ["rent_request_id"]
           },
           {
@@ -27956,6 +28192,13 @@ export type Database = {
             columns: ["rent_request_id"]
             isOneToOne: false
             referencedRelation: "v_partner_self_fundable_plans"
+            referencedColumns: ["rent_request_id"]
+          },
+          {
+            foreignKeyName: "supporter_roi_payments_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_daily_eligibility"
             referencedColumns: ["rent_request_id"]
           },
           {
@@ -28476,6 +28719,13 @@ export type Database = {
             foreignKeyName: "tenant_idle_states_rent_request_id_fkey"
             columns: ["rent_request_id"]
             isOneToOne: true
+            referencedRelation: "v_tenant_daily_eligibility"
+            referencedColumns: ["rent_request_id"]
+          },
+          {
+            foreignKeyName: "tenant_idle_states_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: true
             referencedRelation: "v_tenant_location_pivot"
             referencedColumns: ["rent_request_id"]
           },
@@ -28767,6 +29017,13 @@ export type Database = {
             columns: ["rent_request_id"]
             isOneToOne: false
             referencedRelation: "v_partner_self_fundable_plans"
+            referencedColumns: ["rent_request_id"]
+          },
+          {
+            foreignKeyName: "tenant_reassignment_audit_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_daily_eligibility"
             referencedColumns: ["rent_request_id"]
           },
           {
@@ -31700,11 +31957,25 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "withdrawal_requests_assigned_cashout_agent_id_fkey"
+            columns: ["assigned_cashout_agent_id"]
+            isOneToOne: false
+            referencedRelation: "v_merchant_float_ledger_variance"
+            referencedColumns: ["desk_id"]
+          },
+          {
             foreignKeyName: "withdrawal_requests_preferred_cashout_agent_id_fkey"
             columns: ["preferred_cashout_agent_id"]
             isOneToOne: false
             referencedRelation: "cashout_agents"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "withdrawal_requests_preferred_cashout_agent_id_fkey"
+            columns: ["preferred_cashout_agent_id"]
+            isOneToOne: false
+            referencedRelation: "v_merchant_float_ledger_variance"
+            referencedColumns: ["desk_id"]
           },
         ]
       }
@@ -32845,6 +33116,75 @@ export type Database = {
         }
         Relationships: []
       }
+      v_merchant_float_ledger_variance: {
+        Row: {
+          adjustment_count: number | null
+          agent_id: string | null
+          agent_name: string | null
+          agent_phone: string | null
+          computed_at: string | null
+          desk_id: string | null
+          display_only_adjustments: number | null
+          is_active: boolean | null
+          label: string | null
+          last_adjustment_at: string | null
+          ledger_float: number | null
+          stored_float: number | null
+          variance: number | null
+          variance_state: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cashout_agents_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "cashout_agents_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cashout_agents_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "cashout_agents_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "v_accounts_no_verified_phone"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cashout_agents_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "cashout_agents_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "v_tenant_ops_tenant_base"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "cashout_agents_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+        ]
+      }
       v_merchant_payout_float_trace: {
         Row: {
           agent_id: string | null
@@ -33148,11 +33488,25 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "withdrawal_requests_assigned_cashout_agent_id_fkey"
+            columns: ["assigned_cashout_agent_id"]
+            isOneToOne: false
+            referencedRelation: "v_merchant_float_ledger_variance"
+            referencedColumns: ["desk_id"]
+          },
+          {
             foreignKeyName: "withdrawal_requests_preferred_cashout_agent_id_fkey"
             columns: ["preferred_cashout_agent_id"]
             isOneToOne: false
             referencedRelation: "cashout_agents"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "withdrawal_requests_preferred_cashout_agent_id_fkey"
+            columns: ["preferred_cashout_agent_id"]
+            isOneToOne: false
+            referencedRelation: "v_merchant_float_ledger_variance"
+            referencedColumns: ["desk_id"]
           },
         ]
       }
@@ -33226,6 +33580,51 @@ export type Database = {
           profile_ids: string[] | null
         }
         Relationships: []
+      }
+      v_tenant_daily_eligibility: {
+        Row: {
+          agent_id: string | null
+          amount_repaid: number | null
+          daily_repayment: number | null
+          landlord_id: string | null
+          rent_amount: number | null
+          rent_request_id: string | null
+          start_at: string | null
+          status: string | null
+          tenant_id: string | null
+          tenant_no_smartphone: boolean | null
+          total_repayment: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rent_requests_landlord_id_fkey"
+            columns: ["landlord_id"]
+            isOneToOne: false
+            referencedRelation: "landlords"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rent_requests_landlord_id_fkey"
+            columns: ["landlord_id"]
+            isOneToOne: false
+            referencedRelation: "landlords_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rent_requests_landlord_id_fkey"
+            columns: ["landlord_id"]
+            isOneToOne: false
+            referencedRelation: "v_landlord_ops_status"
+            referencedColumns: ["landlord_id"]
+          },
+          {
+            foreignKeyName: "rent_requests_landlord_id_fkey"
+            columns: ["landlord_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_ops_landlord_base"
+            referencedColumns: ["landlord_id"]
+          },
+        ]
       }
       v_tenant_location_pivot: {
         Row: {
@@ -34893,6 +35292,7 @@ export type Database = {
         Args: { p_since_hours?: number }
         Returns: number
       }
+      detect_merchant_float_variances: { Args: never; Returns: Json }
       detect_payout_proof_integrity: { Args: never; Returns: Json }
       detect_sms_failure_alerts: { Args: never; Returns: Json }
       detect_sms_verification_failures: { Args: never; Returns: Json }
@@ -35769,6 +36169,28 @@ export type Database = {
               wallet_balance: number
             }[]
           }
+      get_all_advances_report: {
+        Args: never
+        Returns: {
+          advance_id: string
+          advance_type: string
+          amount_approved: number
+          amount_paid: number
+          amount_requested: number
+          approved_at: string
+          notes: string
+          outstanding_balance: number
+          paid_at: string
+          recipient_id: string
+          recipient_name: string
+          recipient_phone: string
+          reference: string
+          rejected_at: string
+          requested_at: string
+          status: string
+          transaction_reference: string
+        }[]
+      }
       get_approximate_user_count: { Args: never; Returns: number }
       get_authoritative_wallet: { Args: { p_user_id: string }; Returns: Json }
       get_buffer_metrics: { Args: never; Returns: Json }
@@ -36430,6 +36852,24 @@ export type Database = {
       get_merchandise_share_code: {
         Args: { p_catalog_id: string }
         Returns: string
+      }
+      get_merchant_float_ledger_variance: {
+        Args: never
+        Returns: {
+          adjustment_count: number
+          agent_id: string
+          agent_name: string
+          agent_phone: string
+          desk_id: string
+          display_only_adjustments: number
+          is_active: boolean
+          label: string
+          last_adjustment_at: string
+          ledger_float: number
+          stored_float: number
+          variance: number
+          variance_state: string
+        }[]
       }
       get_merchant_float_network_status: { Args: never; Returns: Json }
       get_merchant_float_position: {
@@ -37887,8 +38327,32 @@ export type Database = {
         }
         Returns: boolean
       }
+      merchant_ledger_float: { Args: { p_agent_id: string }; Returns: number }
+      merchant_payout_success_matrix: {
+        Args: { p_days?: number }
+        Returns: {
+          actioned: number
+          attempts: number
+          grade: string
+          merchant_id: string
+          merchant_name: string
+          paid: number
+          pct_customer_debited: number
+          pct_fully_recorded: number
+          pct_paid: number
+          stranded_processing: number
+        }[]
+      }
+      merchant_payout_success_summary: {
+        Args: { p_days?: number }
+        Returns: Json
+      }
       merchant_reserved_float: { Args: { p_agent_id: string }; Returns: number }
       merchant_set_online: { Args: { p_online: boolean }; Returns: boolean }
+      merchant_set_payout_numbers: {
+        Args: { p_float_phone: string; p_personal_phone: string }
+        Returns: Json
+      }
       merchant_telecom_sending_charge: {
         Args: { p_amount: number }
         Returns: number
@@ -38947,6 +39411,14 @@ export type Database = {
         }
         Returns: string
       }
+      record_merchant_payout_success_run: {
+        Args: { p_days?: number }
+        Returns: string
+      }
+      record_payout_acceptance_run: {
+        Args: { p_window_days?: number }
+        Returns: string
+      }
       record_rent_payment: {
         Args: { p_amount: number; p_landlord_id: string }
         Returns: undefined
@@ -39292,6 +39764,17 @@ export type Database = {
         Returns: Json
       }
       run_layer_a_bulk: { Args: { p_dry_run?: boolean }; Returns: Json }
+      run_payout_acceptance_checks: {
+        Args: { p_window_days?: number }
+        Returns: {
+          check_key: string
+          detail: string
+          expected: number
+          observed: number
+          status: string
+          title: string
+        }[]
+      }
       run_phantom_clamp_pass: {
         Args: { p_dry_run?: boolean }
         Returns: {
@@ -39594,6 +40077,10 @@ export type Database = {
         Returns: number
       }
       sweep_agent_advance_recovery: { Args: never; Returns: Json }
+      sweep_withdrawal_settlement_states: {
+        Args: { p_days?: number; p_limit?: number }
+        Returns: Json
+      }
       sync_house_listing_image_urls: {
         Args: { p_listing: string }
         Returns: undefined

@@ -108,6 +108,11 @@ interface DetailRow {
   float_consumed?: number;
   payout_method: string | null;
   withdrawal_id: string;
+  settlement_status?: string;
+  request_status?: string | null;
+  settlement_state?: string | null;
+  missing_legs?: string[] | null;
+  has_customer_debit?: boolean;
 }
 
 function buildHtml(report: any, prettyDate: string): string {
@@ -126,6 +131,38 @@ function buildHtml(report: any, prettyDate: string): string {
   const roi = report.roi || { total_paid: 0, total_reinvested: 0, payout_count: 0, recipient_count: 0, recipients: [] };
   const roiRecipients: Array<{ recipient_name: string; recipient_phone: string | null; payouts: number; total_paid: number }> =
     roi.recipients || [];
+  const byStatus: Array<{
+    settlement_status: string;
+    status_label: string;
+    payouts: number;
+    total_amount: number;
+    total_commission: number;
+    total_telecom: number;
+  }> = report.by_settlement_status || [];
+  const exceptions: Array<any> = report.exceptions || [];
+  const statusTone = (s: string): { bg: string; fg: string } => {
+    switch (s) {
+      case "fully_settled": return { bg: "#ecfdf5", fg: "#0f766e" };
+      case "reconciled": return { bg: "#eff6ff", fg: "#1d4ed8" };
+      case "partially_settled": return { bg: "#fff7ed", fg: "#b45309" };
+      case "unsettled": return { bg: "#fef2f2", fg: "#b91c1c" };
+      case "failed": return { bg: "#fef2f2", fg: "#7f1d1d" };
+      default: return { bg: "#f5f3ff", fg: "#6c21c4" };
+    }
+  };
+  const statusLabel = (s?: string) =>
+    ({
+      fully_settled: "Fully settled",
+      partially_settled: "Partially settled",
+      unsettled: "Unsettled",
+      failed: "Failed",
+      reconciled: "Reconciled",
+      exception: "Exception",
+    } as Record<string, string>)[s || ""] || "Exception";
+  const statusPill = (s?: string) => {
+    const t = statusTone(s || "exception");
+    return `<span style="display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;background:${t.bg};color:${t.fg};">${esc(statusLabel(s))}</span>`;
+  };
 
   // Summary metric tile — half-width on mobile via inline-block, still stacks
   // gracefully in email clients that ignore media queries.
@@ -178,15 +215,62 @@ function buildHtml(report: any, prettyDate: string): string {
         <div style="display:block;font-size:12px;color:#666;">${esc(r.time)} · ${esc(r.payout_method || "—")}</div>
         <div style="font-size:14px;font-weight:600;color:#1a1a2e;margin-top:2px;line-height:1.3;">${esc(r.merchant_name)}</div>
         <div style="font-size:12px;color:#555;margin-top:1px;">→ ${esc(r.customer_name || "—")}</div>
+        <div style="margin-top:6px;">${statusPill(r.settlement_status)}</div>
         <table role="presentation" width="100%" style="width:100%;border-collapse:collapse;margin-top:8px;font-size:12px;">
           <tr><td style="padding:2px 0;color:#666;">Amount</td><td style="padding:2px 0;text-align:right;font-weight:600;">${fmtUGX(r.amount)}</td></tr>
           <tr><td style="padding:2px 0;color:#666;">Telecom</td><td style="padding:2px 0;text-align:right;color:#b45309;">${fmtUGX(r.telecom_charge || 0)}</td></tr>
           <tr><td style="padding:2px 0;color:#666;">Float consumed</td><td style="padding:2px 0;text-align:right;">${fmtUGX(r.float_consumed || ((r.amount || 0) + (r.telecom_charge || 0)))}</td></tr>
           <tr><td style="padding:2px 0;color:#666;">Commission</td><td style="padding:2px 0;text-align:right;color:#6c21c4;font-weight:600;">${fmtUGX(r.commission)}</td></tr>
+          ${
+            r.settlement_status && r.settlement_status !== "fully_settled" && r.settlement_status !== "reconciled"
+              ? `<tr><td style="padding:2px 0;color:#666;">Missing</td><td style="padding:2px 0;text-align:right;color:#b91c1c;">${esc(((r.missing_legs || []) as string[]).join(", ") || (r.has_customer_debit ? "—" : "customer wallet debit"))}</td></tr>`
+              : ""
+          }
         </table>
       </div>`,
     )
     .join("");
+
+  const settlementSection = byStatus.length
+    ? `
+      <h2 style="font-size:15px;margin:22px 0 10px;color:#1a1a2e;">Settlement Status</h2>
+      ${byStatus
+        .map((s) => {
+          const t = statusTone(s.settlement_status);
+          return `
+      <div style="border:1px solid ${t.fg}22;border-radius:12px;padding:12px 14px;margin:0 0 8px;background:${t.bg};">
+        <div style="font-size:14px;font-weight:700;color:${t.fg};">${esc(s.status_label)}</div>
+        <table role="presentation" width="100%" style="width:100%;border-collapse:collapse;margin-top:8px;font-size:13px;">
+          <tr><td style="padding:2px 0;color:#666;">Payouts</td><td style="padding:2px 0;text-align:right;font-weight:600;">${s.payouts}</td></tr>
+          <tr><td style="padding:2px 0;color:#666;">Amount</td><td style="padding:2px 0;text-align:right;font-weight:600;">${fmtUGX(s.total_amount || 0)}</td></tr>
+        </table>
+      </div>`;
+        })
+        .join("")}
+      ${
+        exceptions.length
+          ? `<h2 style="font-size:15px;margin:22px 0 10px;color:#b91c1c;">Needs Reconciliation (${exceptions.length})</h2>
+      ${exceptions
+        .slice(0, 50)
+        .map(
+          (e) => `
+      <div style="border:1px solid #fecaca;border-radius:10px;padding:10px 12px;margin:0 0 8px;background:#fffafa;">
+        <div style="font-size:13px;font-weight:600;color:#1a1a2e;">${esc(e.merchant_name || "Unknown agent")} → ${esc(e.customer_name || "—")}</div>
+        <div style="margin-top:4px;">${statusPill(e.settlement_status)}</div>
+        <table role="presentation" width="100%" style="width:100%;border-collapse:collapse;margin-top:8px;font-size:12px;">
+          <tr><td style="padding:2px 0;color:#666;">Amount</td><td style="padding:2px 0;text-align:right;font-weight:700;">${fmtUGX(e.amount || 0)}</td></tr>
+          <tr><td style="padding:2px 0;color:#666;">Request status</td><td style="padding:2px 0;text-align:right;">${esc(e.request_status || "—")}</td></tr>
+          <tr><td style="padding:2px 0;color:#666;">Customer wallet debited</td><td style="padding:2px 0;text-align:right;color:${e.has_customer_debit ? "#0f766e" : "#b91c1c"};font-weight:600;">${e.has_customer_debit ? "Yes" : "No"}</td></tr>
+          <tr><td style="padding:2px 0;color:#666;">Missing</td><td style="padding:2px 0;text-align:right;color:#b91c1c;">${esc(((e.missing_legs || []) as string[]).join(", ") || "—")}</td></tr>
+          <tr><td style="padding:2px 0;color:#666;">Payout ref</td><td style="padding:2px 0;text-align:right;color:#888;">${esc(String(e.withdrawal_id || "").slice(0, 8))}</td></tr>
+        </table>
+      </div>`,
+        )
+        .join("")}
+      ${exceptions.length > 50 ? `<p style="font-size:12px;color:#888;">+ ${exceptions.length - 50} more — see the FinOps payout reconciliation queue.</p>` : ""}`
+          : ""
+      }`
+    : "";
 
   const roiSection = `
       <h2 style="font-size:15px;margin:22px 0 10px;color:#1a1a2e;">ROI Payouts — ${esc(prettyDate)}</h2>
@@ -246,6 +330,7 @@ function buildHtml(report: any, prettyDate: string): string {
         ${metric("Telecom Charges", fmtUGX(report.total_telecom || 0), "#b45309", "#fff7ed")}
         ${metric("Float Consumed", fmtUGX(report.total_float_consumed || ((report.total_paid || 0) + (report.total_telecom || 0))))}
         ${metric("Commission", fmtUGX(report.total_commission || 0), "#6c21c4")}
+        ${metric("Needs Reconciliation", `${report.unresolved_payouts || 0} · ${fmtUGX(report.unresolved_amount || 0)}`, "#b91c1c", "#fef2f2")}
       </div>
 
       <p style="margin:0 0 18px;font-size:12px;line-height:1.5;color:#555;background:#f7f3ff;padding:12px;border-radius:10px;">
@@ -255,6 +340,8 @@ function buildHtml(report: any, prettyDate: string): string {
 
       <h2 style="font-size:15px;margin:0 0 10px;color:#1a1a2e;">Per Merchant Agent</h2>
       ${summaryCards}
+
+      ${settlementSection}
 
       ${
         byCategory.length
@@ -292,6 +379,17 @@ function buildText(report: any, prettyDate: string): string {
   lines.push(`Float consumed:  ${fmtUGX(report.total_float_consumed || ((report.total_paid || 0) + (report.total_telecom || 0)))}`);
   lines.push(`Total commission: ${fmtUGX(report.total_commission || 0)}`);
   lines.push("");
+  const byStatus: Array<any> = report.by_settlement_status || [];
+  if (byStatus.length) {
+    lines.push("Settlement status:");
+    for (const s of byStatus) {
+      lines.push(`- ${s.status_label}: ${s.payouts} payouts, ${fmtUGX(s.total_amount || 0)}`);
+    }
+    lines.push(
+      `Needs reconciliation: ${report.unresolved_payouts || 0} payouts, ${fmtUGX(report.unresolved_amount || 0)}`,
+    );
+    lines.push("");
+  }
   const byCategory: Array<any> = report.by_category || [];
   if (byCategory.length) {
     lines.push("Breakdown by cash-out category:");

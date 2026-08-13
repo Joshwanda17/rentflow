@@ -163,6 +163,19 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
     queryKey: ['daily-collection-rent-requests'],
     queryFn: async () => {
       const PAGE = 1000;
+      // Authoritative population: the platform's daily-eligibility rule (funded /
+      // repaying, still owing, not paused, not "not paying"). Same source as the
+      // agent daily targets and the Tenant Ops counters.
+      const eligible = new Set<string>();
+      for (let from = 0; ; from += PAGE) {
+        const { data, error } = await supabase
+          .from('v_tenant_daily_eligibility')
+          .select('rent_request_id')
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        (data || []).forEach((r: any) => eligible.add(r.rent_request_id));
+        if (!data || data.length < PAGE) break;
+      }
       const all: RentRequestRow[] = [];
       for (let from = 0; ; from += PAGE) {
         const { data, error } = await supabase
@@ -172,7 +185,7 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
           .range(from, from + PAGE - 1);
         if (error) throw error;
         const rows = (data || []) as RentRequestRow[];
-        all.push(...rows);
+        all.push(...rows.filter(r => eligible.has(r.id)));
         if (rows.length < PAGE) break;
       }
       return all;
@@ -207,13 +220,20 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
   const { data: prevCollections } = useQuery({
     queryKey: ['daily-collection-prev', prevFrom.toISOString()],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('agent_collections')
-        .select('amount, tenant_id')
-        .gte('created_at', prevFrom.toISOString())
-        .lte('created_at', prevTo.toISOString())
-        .limit(1000);
-      return (data || []) as { amount: number; tenant_id: string }[];
+      const PAGE = 1000;
+      const all: { amount: number; tenant_id: string }[] = [];
+      for (let from = 0; ; from += PAGE) {
+        const { data, error } = await supabase
+          .from('agent_collections')
+          .select('amount, tenant_id')
+          .gte('created_at', prevFrom.toISOString())
+          .lte('created_at', prevTo.toISOString())
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        all.push(...((data || []) as any[]));
+        if (!data || data.length < PAGE) break;
+      }
+      return all;
     },
     staleTime: 60_000,
   });
@@ -222,13 +242,20 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
   const { data: monthCollections } = useQuery({
     queryKey: ['daily-collection-month', monthFrom.toISOString()],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('agent_collections')
-        .select('amount, created_at')
-        .gte('created_at', monthFrom.toISOString())
-        .lte('created_at', monthTo.toISOString())
-        .limit(2000);
-      return (data || []) as { amount: number; created_at: string }[];
+      const PAGE = 1000;
+      const all: { amount: number; created_at: string }[] = [];
+      for (let from = 0; ; from += PAGE) {
+        const { data, error } = await supabase
+          .from('agent_collections')
+          .select('amount, created_at')
+          .gte('created_at', monthFrom.toISOString())
+          .lte('created_at', monthTo.toISOString())
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        all.push(...((data || []) as any[]));
+        if (!data || data.length < PAGE) break;
+      }
+      return all;
     },
     staleTime: 60_000,
   });
@@ -237,12 +264,18 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
   const { data: allTimeStats } = useQuery({
     queryKey: ['daily-collection-alltime'],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('rent_requests')
-        .select('amount_repaid, total_repayment, rent_amount, status')
-        .in('status', ['funded', 'disbursed', 'repaying', 'fully_repaid'])
-        .limit(5000);
-      const rows = (data || []) as any[];
+      const PAGE = 1000;
+      const rows: any[] = [];
+      for (let from = 0; ; from += PAGE) {
+        const { data, error } = await supabase
+          .from('rent_requests')
+          .select('amount_repaid, total_repayment, rent_amount, status')
+          .in('status', ['funded', 'disbursed', 'repaying', 'fully_repaid'])
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        rows.push(...((data || []) as any[]));
+        if (!data || data.length < PAGE) break;
+      }
       const totalPaid = rows.reduce((s, r) => s + Number(r.amount_repaid || 0), 0);
       // Outstanding = sum of (total_repayment - amount_repaid) across still-active plans
       const totalOutstanding = rows

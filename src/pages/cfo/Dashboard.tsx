@@ -57,6 +57,7 @@ import { WalletRetractionsFeed } from '@/components/cfo/WalletRetractionsFeed';
 import { CFOAdvancesManager } from '@/components/cfo/CFOAdvancesManager';
 import { CFOAdvanceRequestPayments } from '@/components/cfo/CFOAdvanceRequestPayments';
 import { AdvancesAnalyticsView } from '@/components/advances/AdvancesAnalyticsView';
+import { AllAdvancesReportPanel } from '@/components/advances/AllAdvancesReportPanel';
 import { DisbursedAdvancesRegister } from '@/components/cfo/DisbursedAdvancesRegister';
 import { BusinessAdvanceQueue } from '@/components/ops/BusinessAdvanceQueue';
 import { ManagerApprovalAudit } from '@/components/cfo/ManagerApprovalAudit';
@@ -347,6 +348,18 @@ export default function CFODashboardPage() {
               <h2 className="text-base font-semibold mb-2">🏪 Business Advance Requests</h2>
               <BusinessAdvanceQueue stage="cfo" />
             </div>
+          </div>
+        );
+      case 'advances-report':
+        return (
+          <div className="space-y-4">
+            <div>
+              <h1 className="text-xl font-bold">📋 All Advances Report</h1>
+              <p className="text-sm text-muted-foreground">
+                Unified read-only view of every advance requested, approved, rejected, or disbursed across the platform.
+              </p>
+            </div>
+            <AllAdvancesReportPanel />
           </div>
         );
       case 'advances-disbursed':

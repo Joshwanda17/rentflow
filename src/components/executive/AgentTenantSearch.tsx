@@ -157,29 +157,48 @@ export function AgentTenantSearch() {
     queryKey: ['agent-tenants', selectedAgent?.id],
     enabled: !!selectedAgent,
     queryFn: async () => {
-      const { data: rrs } = await supabase
-        .from('rent_requests')
-        .select('id, tenant_id, landlord_id, status, rent_amount, daily_repayment, amount_repaid, total_repayment, agent_id')
-        .eq('agent_id', selectedAgent!.id)
-        .in('status', ['funded', 'disbursed', 'repaying', 'approved', 'tenant_ops_approved', 'agent_verified', 'landlord_ops_approved', 'coo_approved'])
-        .order('created_at', { ascending: false })
-        .limit(200);
+      // Paginated: a hard limit(200) hid tenants of high-volume agents.
+      const rrs: any[] = [];
+      const page = 1000;
+      for (let from = 0; ; from += page) {
+        const { data, error } = await supabase
+          .from('rent_requests')
+          .select('id, tenant_id, landlord_id, status, rent_amount, daily_repayment, amount_repaid, total_repayment, agent_id')
+          .eq('agent_id', selectedAgent!.id)
+          .in('status', ['funded', 'disbursed', 'repaying', 'approved', 'tenant_ops_approved', 'agent_verified', 'landlord_ops_approved', 'coo_approved'])
+          .order('created_at', { ascending: false })
+          .range(from, from + page - 1);
+        if (error) throw error;
+        rrs.push(...(data || []));
+        if (!data || data.length < page) break;
+      }
 
       if (!rrs || rrs.length === 0) return [];
 
       const tenantIds = [...new Set(rrs.map(r => r.tenant_id))];
       const landlordIds = Array.from(new Set(rrs.map(r => r.landlord_id).filter(Boolean)));
 
+      // Batched: a hard slice(0, 100) left later tenants nameless, wallet-less
+      // and with a UGX 0 due balance.
+      const chunkIds = (list: string[], size = 300): string[][] => {
+        const out: string[][] = [];
+        for (let i = 0; i < list.length; i += size) out.push(list.slice(i, i + size));
+        return out;
+      };
+      const batches = chunkIds(tenantIds);
       const [profilesRes, walletsRes, landlordsRes, ledgerRes] = await Promise.all([
-        supabase.from('profiles').select('id, full_name, phone').in('id', tenantIds.slice(0, 100)),
-        supabase.from('wallets').select('user_id, balance').in('user_id', tenantIds.slice(0, 100)),
+        Promise.all(batches.map(ids => supabase.from('profiles').select('id, full_name, phone').in('id', ids)))
+          .then(res => ({ data: res.flatMap(r => r.data || []) })),
+        Promise.all(batches.map(ids => supabase.from('wallets').select('user_id, balance').in('user_id', ids)))
+          .then(res => ({ data: res.flatMap(r => r.data || []) })),
         landlordIds.length
           ? supabase.from('landlords').select('id, name, phone').in('id', landlordIds as any)
           : Promise.resolve({ data: [] as any[] }),
-        supabase.from('general_ledger')
+        Promise.all(batches.map(ids => supabase.from('general_ledger')
           .select('user_id, category, direction, amount')
-          .in('user_id', tenantIds.slice(0, 100))
-          .in('category', ['rent_obligation', 'tenant_repayment', 'rent_repayment']),
+          .in('user_id', ids)
+          .in('category', ['rent_obligation', 'tenant_repayment', 'rent_repayment'])))
+          .then(res => ({ data: res.flatMap(r => r.data || []) })),
       ]);
 
       const profileMap = new Map((profilesRes.data || []).map(p => [p.id, p]));

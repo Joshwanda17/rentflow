@@ -242,6 +242,113 @@ export function usePostMerchantAdjustment() {
     onSuccess: (_d, v) => {
       qc.invalidateQueries({ queryKey: ['merchant-float-positions'] });
       qc.invalidateQueries({ queryKey: ['merchant-float-adjustments', v.deskId] });
+      qc.invalidateQueries({ queryKey: ['merchant-float-ledger-variance'] });
+    },
+  });
+}
+
+/**
+ * PHASE 10 — the general ledger is the source of truth for merchant float.
+ * `merchant_float_reconciliations` records are display-only narrative fixes,
+ * so this comparison exists to prove the stored (cached) float still agrees
+ * with the ledger-derived float. A non-zero variance means the books are the
+ * thing to fix — not the board.
+ */
+export interface MerchantFloatLedgerVariance {
+  deskId: string;
+  agentId: string | null;
+  agentName: string | null;
+  agentPhone: string | null;
+  label: string | null;
+  isActive: boolean;
+  storedFloat: number;
+  ledgerFloat: number;
+  variance: number;
+  varianceState: 'aligned' | 'stored_above_ledger' | 'stored_below_ledger';
+  displayOnlyAdjustments: number;
+  adjustmentCount: number;
+  lastAdjustmentAt: string | null;
+}
+
+export function useMerchantFloatLedgerVariance(enabled = true) {
+  return useQuery({
+    queryKey: ['merchant-float-ledger-variance'],
+    enabled,
+    retry: false,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+    queryFn: async (): Promise<MerchantFloatLedgerVariance[]> => {
+      const { data, error } = await supabase.rpc('get_merchant_float_ledger_variance' as any);
+      if (error) throw error;
+      return ((data ?? []) as any[]).map((r) => ({
+        deskId: String(r.desk_id),
+        agentId: r.agent_id ?? null,
+        agentName: r.agent_name ?? null,
+        agentPhone: r.agent_phone ?? null,
+        label: r.label ?? null,
+        isActive: !!r.is_active,
+        storedFloat: Number(r.stored_float ?? 0),
+        ledgerFloat: Number(r.ledger_float ?? 0),
+        variance: Number(r.variance ?? 0),
+        varianceState: (r.variance_state ?? 'aligned') as MerchantFloatLedgerVariance['varianceState'],
+        displayOnlyAdjustments: Number(r.display_only_adjustments ?? 0),
+        adjustmentCount: Number(r.adjustment_count ?? 0),
+        lastAdjustmentAt: r.last_adjustment_at ?? null,
+      }));
+    },
+  });
+}
+
+/**
+ * Float movement statement for ONE merchant agent — read-only.
+ *
+ * Reads the agent's `general_ledger` float-bucket legs (money we sent them in,
+ * payouts + telecom charges going out) so finance can see exactly how the
+ * float they hold moved over time. No writes anywhere.
+ */
+export interface MerchantFloatStatementRow {
+  id: string;
+  date: string;
+  description: string | null;
+  category: string;
+  direction: 'cash_in' | 'cash_out';
+  amount: number;
+  referenceId: string | null;
+  runningBalance: number;
+}
+
+export function useMerchantFloatStatement(agentId?: string | null, enabled = true) {
+  return useQuery({
+    queryKey: ['merchant-float-statement', agentId],
+    enabled: !!agentId && enabled,
+    retry: false,
+    staleTime: 20_000,
+    queryFn: async (): Promise<MerchantFloatStatementRow[]> => {
+      const { data, error } = await supabase
+        .from('general_ledger')
+        .select('id, transaction_date, created_at, description, category, direction, amount, reference_id')
+        .eq('user_id', agentId!)
+        .eq('wallet_bucket', 'float')
+        .neq('classification', 'admin_correction')
+        .order('transaction_date', { ascending: true })
+        .limit(500);
+      if (error) throw error;
+      let bal = 0;
+      const rows = ((data ?? []) as any[]).map((r) => {
+        const amount = Number(r.amount ?? 0);
+        bal += r.direction === 'cash_in' ? amount : -amount;
+        return {
+          id: String(r.id),
+          date: String(r.transaction_date ?? r.created_at),
+          description: r.description ?? null,
+          category: String(r.category ?? ''),
+          direction: r.direction as 'cash_in' | 'cash_out',
+          amount,
+          referenceId: r.reference_id ?? null,
+          runningBalance: bal,
+        };
+      });
+      return rows.reverse();
     },
   });
 }
