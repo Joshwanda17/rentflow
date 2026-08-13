@@ -18,13 +18,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Search, User, Phone, Calendar, TrendingUp, CheckCircle, Clock, AlertTriangle, XCircle, Mail, MessageCircle, FileText, Trash2, BadgeCheck, MapPin } from 'lucide-react';
+import { Search, User, Phone, Calendar, TrendingUp, CheckCircle, Clock, AlertTriangle, XCircle, Mail, MessageCircle, FileText, Trash2, BadgeCheck, MapPin, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { formatLocation, locationHaystack } from '@/lib/locationText';
 import { CompactAmount } from '@/components/ui/CompactAmount';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
+import { usePromissoryOpsReport, PROMISSORY_RANGES } from '@/hooks/usePromissoryOpsReport';
+import { ProxyAgentPerformanceList } from './ProxyAgentPerformanceList';
 
 export function PromissoryNotesQueue() {
   const queryClient = useQueryClient();
@@ -87,7 +88,7 @@ export function PromissoryNotesQueue() {
       setRejectTarget(null);
       setRejectReason('');
       setSelectedNote(null);
-      queryClient.invalidateQueries({ queryKey: ['promissory-notes-queue'] });
+      queryClient.invalidateQueries({ queryKey: ['promissory-ops-report'] });
     } catch (err: any) {
       toast.error(err?.message || 'Failed to reverse promissory note bonus.');
     } finally {
@@ -134,7 +135,7 @@ export function PromissoryNotesQueue() {
       setSelectedLead(null);
       setLeadSearch('');
       setSelectedNote(null);
-      queryClient.invalidateQueries({ queryKey: ['promissory-notes-queue'] });
+      queryClient.invalidateQueries({ queryKey: ['promissory-ops-report'] });
     } catch (err: any) {
       toast.error(err?.message || 'Failed to approve promissory note.');
     } finally {
@@ -185,7 +186,7 @@ export function PromissoryNotesQueue() {
       setDeleteTarget(null);
       setDeleteReason('');
       setSelectedNote(null);
-      queryClient.invalidateQueries({ queryKey: ['promissory-notes-queue'] });
+      queryClient.invalidateQueries({ queryKey: ['promissory-ops-report'] });
     } catch (err: any) {
       toast.error(err?.message || 'Failed to delete promissory note.');
     } finally {
