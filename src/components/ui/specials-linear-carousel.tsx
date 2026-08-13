@@ -2,8 +2,9 @@
 
 import React, { createContext, useEffect, useRef, useState } from "react";
 import type { ImgHTMLAttributes } from "react";
-import { motion } from "motion/react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { createPortal } from "react-dom";
+import { motion, AnimatePresence } from "motion/react";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface CarouselProps {
@@ -150,29 +151,43 @@ export const Card = ({
   index?: number;
   onClick?: () => void;
 }) => {
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={card.title}
-      className="relative block h-56 w-[220px] shrink-0 overflow-hidden rounded-2xl border border-border bg-muted/40 text-left shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:h-64 sm:w-[260px]"
-    >
-      <BlurImage
+    <>
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label={card.title}
+        className="relative block h-56 w-[220px] shrink-0 overflow-hidden rounded-2xl border border-border bg-muted/40 text-left shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:h-64 sm:w-[260px]"
+      >
+        <BlurImage
+          src={card.src}
+          alt={card.title}
+          className="h-full w-full object-contain"
+          onClick={(e) => {
+            e.stopPropagation();
+            setLightboxOpen(true);
+          }}
+        />
+        {(card.category || card.content) && (
+          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-3 pb-2 pt-6">
+            {card.category && (
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-white/80">
+                {card.category}
+              </p>
+            )}
+            {card.content}
+          </div>
+        )}
+      </button>
+      <Lightbox
         src={card.src}
         alt={card.title}
-        className="h-full w-full object-contain"
+        isOpen={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
       />
-      {(card.category || card.content) && (
-        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-3 pb-2 pt-6">
-          {card.category && (
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-white/80">
-              {card.category}
-            </p>
-          )}
-          {card.content}
-        </div>
-      )}
-    </button>
+    </>
   );
 };
 
@@ -198,6 +213,78 @@ export const BlurImage = ({
       {...rest}
     />
   );
+};
+
+const Lightbox = ({
+  src,
+  alt,
+  isOpen,
+  onClose,
+}: {
+  src: string;
+  alt: string;
+  isOpen: boolean;
+  onClose: () => void;
+}) => {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = "";
+    };
+  }, [isOpen, onClose]);
+
+  if (!mounted) return null;
+
+  const content = (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4"
+          onClick={onClose}
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Expanded view of ${alt}`}
+        >
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur transition hover:bg-white/20"
+          >
+            <X className="h-5 w-5" />
+          </button>
+          <motion.img
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            src={src}
+            alt={alt}
+            className="max-h-full max-w-full rounded-lg object-contain shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+
+  return createPortal(content, document.body);
 };
 
 export default Carousel;
