@@ -92,14 +92,23 @@ export function AgentLandlordPayoutFlow({ open, onOpenChange }: AgentLandlordPay
         .order('created_at', { ascending: false });
       if (error) throw error;
 
-      // Fetch landlord + tenant info
+      // Fetch landlord + tenant info. A tenant is "already funded" when a payout
+      // exists in `landlord_payouts` (the live flow) — the legacy
+      // `agent_landlord_payouts` table is only checked for old records.
       const enriched = await Promise.all((data || []).map(async (r: any) => {
-        const [{ data: landlord }, { data: tenant }, { data: existingPayout }] = await Promise.all([
+        const [{ data: landlord }, { data: tenant }, { data: livePayouts }, { data: legacyPayout }] = await Promise.all([
           supabase.from('landlords').select('id, name, phone, mobile_money_number').eq('id', r.landlord_id).single(),
           supabase.from('profiles').select('id, full_name, phone').eq('id', r.tenant_id).single(),
+          supabase
+            .from('landlord_payouts')
+            .select('id, status')
+            .eq('rent_request_id', r.id)
+            .not('status', 'in', '(failed,rejected,cancelled)')
+            .limit(1),
           supabase.from('agent_landlord_payouts').select('id').eq('rent_request_id', r.id).eq('agent_id', user.id).maybeSingle(),
         ]);
-        return { ...r, landlord, tenant, hasPayout: !!existingPayout?.id };
+        const hasPayout = ((livePayouts || []).length > 0) || !!legacyPayout?.id;
+        return { ...r, landlord, tenant, hasPayout };
       }));
 
       return enriched.filter((r: any) => !r.hasPayout);
