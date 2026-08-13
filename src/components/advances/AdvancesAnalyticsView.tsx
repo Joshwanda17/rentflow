@@ -6,6 +6,7 @@ import { StaffRepayAdvanceDialog } from '@/components/advances/StaffRepayAdvance
 import { AdvanceAnalyticsPanel } from '@/components/executive/agent-ops-v2/AdvanceAnalyticsPanel';
 import { AgentAdvancesStatsCard } from '@/components/cfo/AgentAdvancesStatsCard';
 import { AgentAdvancesOutstandingPanel } from '@/components/cfo/AgentAdvancesOutstandingPanel';
+import { AllAdvancesReportPanel } from '@/components/advances/AllAdvancesReportPanel';
 
 interface Props {
   /** Who is looking — only affects the copy shown in the header. */
@@ -49,6 +50,7 @@ export function AdvancesAnalyticsView({ context = 'cfo' }: Props) {
         <AgentAdvancesStatsCard />
         <AdvanceAnalyticsPanel />
         <AgentAdvancesOutstandingPanel />
+        <AllAdvancesReportPanel />
       </div>
 
       <CFOInitiateAdvanceDialog
