@@ -755,6 +755,35 @@ export function useAuthForm() {
       `${last9}@welile.user`,
     ];
 
+    // Resolve as soon as ONE candidate authenticates instead of waiting for
+    // every parallel attempt to settle. Losing candidates keep running in the
+    // background and are harmless — previously a single slow/queued attempt
+    // (database under load) held the whole submit open even though the user
+    // was already signed in, which is what left the button on "Signing in...".
+    const raceForSuccess = async (
+      emails: string[],
+    ): Promise<{ winner: SignInAttempt | null; results: SignInAttempt[] }> => {
+      const running = emails.map(tryOne);
+      let winner: SignInAttempt | null = null;
+      await new Promise<void>((resolve) => {
+        let pending = running.length;
+        if (!pending) return resolve();
+        running.forEach((p) => {
+          p.then((r) => {
+            if (r.ok && !winner) {
+              winner = r;
+              resolve();
+            }
+          }).finally(() => {
+            pending -= 1;
+            if (pending === 0) resolve();
+          });
+        });
+      });
+      if (winner) return { winner, results: [] };
+      return { winner: null, results: await Promise.all(running) };
+    };
+
     const rpcLookup = (async (): Promise<string[]> => {
       const rpcStart = performance.now();
       // Short-TTL cache: repeated logins on the same device should not
