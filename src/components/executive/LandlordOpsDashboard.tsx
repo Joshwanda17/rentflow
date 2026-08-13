@@ -80,6 +80,11 @@ import {
   fetchLandlordFundedStats,
 } from '@/hooks/useLandlordFundedStats';
 import { generateLc1VerificationReportPdf, lc1ReportFileName, type Lc1ReportRow } from '@/lib/generateLc1VerificationReportPdf';
+import {
+  LandlordOpsExtractCenter,
+  type LandlordExtractKind,
+  type LandlordExtractTargetView,
+} from './landlord-ops/LandlordOpsExtractCenter';
 import { FileDown } from 'lucide-react';
 import { RentAdjustmentDialog } from './RentAdjustmentDialog';
 import { VacancyAnalytics } from './VacancyAnalytics';
@@ -688,28 +693,33 @@ export function LandlordOpsDashboard() {
    * screen: KPI comparisons, daily trend chart, district bar chart, and the
    * per-district / per-agent / per-service-centre tables plus the register.
    */
-  const exportFundedReportPdf = async () => {
+  const exportFundedReportPdf = async (
+    overrides?: { dateFrom?: string; dateTo?: string; search?: string },
+  ) => {
+    const fundedFrom = overrides?.dateFrom ?? landlordDateFrom;
+    const fundedTo = overrides?.dateTo ?? landlordDateTo;
+    const fundedSearch = overrides?.search ?? debouncedLandlordSearch;
     setExportingFundedReport(true);
     try {
       const stats = await fetchLandlordFundedStats({
-        dateFrom: landlordDateFrom,
-        dateTo: landlordDateTo,
-        search: debouncedLandlordSearch,
+        dateFrom: fundedFrom,
+        dateTo: fundedTo,
+        search: fundedSearch,
       });
       if (!stats?.summary?.landlords_funded) {
         sonnerToast.error('No landlords were funded in this period — nothing to export');
         return;
       }
       const blob = generateLandlordFundedReportPdf(stats, {
-        dateFrom: landlordDateFrom || null,
-        dateTo: landlordDateTo || null,
-        search: debouncedLandlordSearch || null,
+        dateFrom: fundedFrom || null,
+        dateTo: fundedTo || null,
+        search: fundedSearch || null,
         generatedBy: user?.email ?? null,
       });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = landlordFundedFileName({ dateFrom: landlordDateFrom, dateTo: landlordDateTo });
+      a.download = landlordFundedFileName({ dateFrom: fundedFrom, dateTo: fundedTo });
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -734,16 +744,28 @@ export function LandlordOpsDashboard() {
    * details, tenants, agent) via the `report` action instead of reusing the
    * paginated list rows, so the export is never a partial page.
    */
-  const exportLandlordReportPdf = async () => {
+  const exportLandlordReportPdf = async (
+    overrides?: {
+      scope?: LandlordOpsCategory;
+      pendingFilter?: LandlordOpsPendingFilter;
+      search?: string;
+      dateFrom?: string | null;
+      dateTo?: string | null;
+    },
+  ) => {
     setExportingLandlordReport(true);
     try {
-      const scope = (landlordCategory || 'all') as LandlordOpsCategory;
+      const scope = (overrides?.scope ?? (landlordCategory || 'all')) as LandlordOpsCategory;
+      const quick = (overrides?.pendingFilter ?? pendingFilter) as LandlordOpsPendingFilter;
+      const searchTerm = overrides?.search ?? debouncedLandlordSearch;
+      const fromIso = overrides ? (overrides.dateFrom ?? null) : landlordDateFromIso;
+      const toIso = overrides ? (overrides.dateTo ?? null) : landlordDateToIso;
       const { rows, totalMatched } = await fetchLandlordReport({
         category: scope,
-        pendingFilter: pendingFilter as LandlordOpsPendingFilter,
-        search: debouncedLandlordSearch,
-        dateFrom: landlordDateFromIso,
-        dateTo: landlordDateToIso,
+        pendingFilter: quick,
+        search: searchTerm,
+        dateFrom: fromIso,
+        dateTo: toIso,
       });
       if (!rows.length) {
         sonnerToast.error('No landlords match these filters — nothing to export');
@@ -751,10 +773,10 @@ export function LandlordOpsDashboard() {
       }
       const blob = generateLandlordVerificationReportPdf(rows, {
         scope: scope as LandlordReportScope,
-        quickFilter: scope === 'pending' ? pendingFilter : 'all',
-        search: debouncedLandlordSearch || null,
-        dateFrom: landlordDateFromIso,
-        dateTo: landlordDateToIso,
+        quickFilter: scope === 'pending' ? quick : 'all',
+        search: searchTerm || null,
+        dateFrom: fromIso,
+        dateTo: toIso,
         totalMatches: totalMatched,
         generatedBy: user?.email ?? null,
       });
@@ -848,6 +870,9 @@ export function LandlordOpsDashboard() {
   const [reportFrom, setReportFrom] = useState<Date | undefined>(undefined);
   const [reportTo, setReportTo] = useState<Date | undefined>(undefined);
   const [printingPdf, setPrintingPdf] = useState(false);
+  // Which centralized extract is running (null when idle) — mirrors the Tenant
+  // Ops Extract card's single busy key.
+  const [extractingKind, setExtractingKind] = useState<LandlordExtractKind | null>(null);
 
   const handlePrintReport = async () => {
     setPrintingPdf(true);
@@ -1168,15 +1193,28 @@ export function LandlordOpsDashboard() {
    * location, GPS, payout details) from `ops_house_listing_report` instead of
    * reusing the paginated queue rows, so the export is never a partial page.
    */
-  const exportHouseReportPdf = async () => {
+  const exportHouseReportPdf = async (
+    overrides?: {
+      status?: HouseStatusFilter;
+      quick?: VerifyFilter;
+      search?: string | null;
+      dateFrom?: string | null;
+      dateTo?: string | null;
+    },
+  ) => {
+    const scope = overrides?.status ?? houseStatusFilter;
+    const quick = overrides?.quick ?? verifyFilter;
+    const searchTerm = overrides ? (overrides.search ?? null) : serverSearchTerm;
+    const fromIso = overrides ? (overrides.dateFrom ?? null) : verifyDateFromIso;
+    const toIso = overrides ? (overrides.dateTo ?? null) : verifyDateToIso;
     setExportingHouseReport(true);
     try {
       const { data, error } = await (supabase.rpc as any)('ops_house_listing_report', {
-        p_status: houseStatusFilter,
-        p_search: serverSearchTerm,
-        p_date_from: verifyDateFromIso,
-        p_date_to: verifyDateToIso,
-        p_quick: verifyFilter,
+        p_status: scope,
+        p_search: searchTerm,
+        p_date_from: fromIso,
+        p_date_to: toIso,
+        p_quick: quick,
         p_limit: 10000,
       });
       if (error) throw error;
@@ -1188,23 +1226,23 @@ export function LandlordOpsDashboard() {
         return;
       }
       const blob = generateHouseVerificationReportPdf(reportRows, {
-        scope: houseStatusFilter,
-        quickFilter: verifyFilter,
-        search: serverSearchTerm,
-        dateFrom: verifyDateFromIso,
-        dateTo: verifyDateToIso,
+        scope,
+        quickFilter: quick,
+        search: searchTerm,
+        dateFrom: fromIso,
+        dateTo: toIso,
         totalMatches: trueTotal,
         generatedBy: user?.email ?? null,
       });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `welile-houses-${houseStatusFilter}-${format(new Date(), 'yyyy-MM-dd-HHmm')}.pdf`;
+      a.download = `welile-houses-${scope}-${format(new Date(), 'yyyy-MM-dd-HHmm')}.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      sonnerToast.success(`${houseStatusFilter} houses report downloaded (${reportRows.length.toLocaleString()} houses)`);
+      sonnerToast.success(`${scope} houses report downloaded (${reportRows.length.toLocaleString()} houses)`);
     } catch (err: any) {
       sonnerToast.error(err?.message || 'Failed to generate the house report');
     } finally {
@@ -1707,6 +1745,46 @@ export function LandlordOpsDashboard() {
   });
 
   const lc1Groups = fullLC1Data || [];
+
+  /**
+   * The LC1 verification export, hoisted to component scope so both the LC1
+   * register and the centralized Reports & Exports → Extract card call exactly
+   * the same logic (same RPC, same generator, same file name).
+   */
+  const exportLc1ReportPdf = async (scope: 'verified' | 'rejected' | 'pending' | 'all') => {
+    setLc1Exporting(true);
+    try {
+      const { data, error } = await supabase.rpc('ops_lc1_verification_report' as any, {
+        p_status: scope,
+        p_search: search.trim().length >= 2 ? search.trim() : null,
+        p_limit: 3000,
+      } as any);
+      if (error) throw error;
+      const reportRows = (data ?? []) as Lc1ReportRow[];
+      const state = (g: { verified: boolean | null; verification_status?: string | null }) =>
+        (g.verification_status as string | null) || (g.verified ? 'verified' : 'pending');
+      const scopedCount = scope === 'all'
+        ? lc1Groups.length
+        : lc1Groups.filter(g => state(g) === scope).length;
+      const blob = generateLc1VerificationReportPdf(reportRows, {
+        scope,
+        search: search.trim().length >= 2 ? search.trim() : null,
+        totalMatches: scopedCount,
+        generatedBy: (user as any)?.email ?? null,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = lc1ReportFileName(scope);
+      a.click();
+      URL.revokeObjectURL(url);
+      sonnerToast.success(`${reportRows.length.toLocaleString()} LC1 chairpersons exported`);
+    } catch (e: any) {
+      sonnerToast.error(e?.message || 'Could not build the LC1 report');
+    } finally {
+      setLc1Exporting(false);
+    }
+  };
 
   const verifiedLandlords = landlordsList.filter(l => l.verified);
   const unverifiedLandlords = landlordsList.filter(l => !l.verified);
@@ -2600,7 +2678,7 @@ export function LandlordOpsDashboard() {
               variant="outline"
               className="h-9 gap-1.5"
               disabled={exportingLandlordReport}
-              onClick={exportLandlordReportPdf}
+              onClick={() => void exportLandlordReportPdf()}
               title="Export a full PDF report for the filters currently applied"
             >
               {exportingLandlordReport
@@ -2613,7 +2691,7 @@ export function LandlordOpsDashboard() {
               variant="outline"
               className="h-9 gap-1.5"
               disabled={exportingFundedReport}
-              onClick={exportFundedReportPdf}
+              onClick={() => void exportFundedReportPdf()}
               title="Export the Landlords Funded pack (stats, charts, per district / agent / service centre) for the period selected below"
             >
               {exportingFundedReport
@@ -3098,35 +3176,9 @@ export function LandlordOpsDashboard() {
     const rejectedCount = lc1Groups.filter(g => lc1State(g) === 'rejected').length;
     const pendingCount = lc1Groups.filter(g => lc1State(g) === 'pending').length;
 
-    const exportLc1Report = async (scope: 'verified' | 'rejected' | 'pending' | 'all') => {
-      setLc1Exporting(true);
-      try {
-        const { data, error } = await supabase.rpc('ops_lc1_verification_report' as any, {
-          p_status: scope,
-          p_search: search.trim().length >= 2 ? search.trim() : null,
-          p_limit: 3000,
-        } as any);
-        if (error) throw error;
-        const reportRows = (data ?? []) as Lc1ReportRow[];
-        const blob = generateLc1VerificationReportPdf(reportRows, {
-          scope,
-          search: search.trim().length >= 2 ? search.trim() : null,
-          totalMatches: scope === 'verified' ? verifiedCount : scope === 'rejected' ? rejectedCount : scope === 'pending' ? pendingCount : lc1Groups.length,
-          generatedBy: (user as any)?.email ?? null,
-        });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = lc1ReportFileName(scope);
-        a.click();
-        URL.revokeObjectURL(url);
-        sonnerToast.success(`${reportRows.length.toLocaleString()} LC1 chairpersons exported`);
-      } catch (e: any) {
-        sonnerToast.error(e?.message || 'Could not build the LC1 report');
-      } finally {
-        setLc1Exporting(false);
-      }
-    };
+    // Single source of truth: the hoisted export, shared with the centralized
+    // Reports & Exports → Extract card.
+    const exportLc1Report = exportLc1ReportPdf;
 
     return (
       <>
@@ -3688,7 +3740,7 @@ export function LandlordOpsDashboard() {
               variant="outline"
               className="h-9 gap-1.5"
               disabled={exportingHouseReport}
-              onClick={exportHouseReportPdf}
+              onClick={() => void exportHouseReportPdf()}
               title="Export a full PDF report for the filters currently applied"
             >
               {exportingHouseReport
@@ -4590,6 +4642,52 @@ export function LandlordOpsDashboard() {
 
   // ─── HUB: Reports & Exports ───
   if (view === 'reports') {
+    // The From / To pickers below drive every centralized extract, exactly like
+    // the Tenant Ops hub. Each entry calls the dashboard's existing export
+    // handler — no report logic is duplicated here.
+    const hubFromIso = reportFrom ? reportFrom.toISOString() : null;
+    const hubToIso = reportTo
+      ? new Date(new Date(reportTo).getTime() + 24 * 60 * 60 * 1000 - 1).toISOString()
+      : null;
+    const hubRangeLabel = reportFrom || reportTo
+      ? `${reportFrom ? format(reportFrom, 'dd MMM yyyy') : 'any date'} — ${reportTo ? format(reportTo, 'dd MMM yyyy') : 'today'}`
+      : 'no date filter — all time';
+
+    const runLandlordExtract = async (kind: LandlordExtractKind) => {
+      setExtractingKind(kind);
+      try {
+        if (kind === 'payouts-print') {
+          await handlePrintReport();
+        } else if (kind === 'landlords-funded') {
+          await exportFundedReportPdf({
+            dateFrom: reportFrom ? format(reportFrom, 'yyyy-MM-dd') : '',
+            dateTo: reportTo ? format(reportTo, 'yyyy-MM-dd') : '',
+            search: '',
+          });
+        } else if (kind.startsWith('landlords-')) {
+          await exportLandlordReportPdf({
+            scope: kind.replace('landlords-', '') as LandlordOpsCategory,
+            pendingFilter: 'all' as LandlordOpsPendingFilter,
+            search: '',
+            dateFrom: hubFromIso,
+            dateTo: hubToIso,
+          });
+        } else if (kind.startsWith('houses-')) {
+          await exportHouseReportPdf({
+            status: kind.replace('houses-', '') as HouseStatusFilter,
+            quick: 'all',
+            search: null,
+            dateFrom: hubFromIso,
+            dateTo: hubToIso,
+          });
+        } else if (kind.startsWith('lc1-')) {
+          await exportLc1ReportPdf(kind.replace('lc1-', '') as 'verified' | 'pending' | 'rejected' | 'all');
+        }
+      } finally {
+        setExtractingKind(null);
+      }
+    };
+
     return (
       <>
         <div className="space-y-4">
@@ -4635,6 +4733,12 @@ export function LandlordOpsDashboard() {
               </Button>
             </div>
           </div>
+          <LandlordOpsExtractCenter
+            rangeLabel={hubRangeLabel}
+            extracting={extractingKind}
+            onExtract={(kind) => void runLandlordExtract(kind)}
+            onOpenView={(target: LandlordExtractTargetView) => goToView(target as View)}
+          />
           <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-4">
             <p className="text-[11px] text-muted-foreground leading-relaxed">
               Other exports live inside the section they belong to: landlord verification export in
