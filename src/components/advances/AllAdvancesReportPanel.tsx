@@ -210,15 +210,16 @@ export function AllAdvancesReportPanel() {
   };
 
   const clearAll = () => {
-    setSearch(''); setType('all'); setStatus('all'); setFrom(''); setTo(''); setPeriod('all'); setCalendarDate(undefined);
+    setSearch(''); setType('all'); setStatus('all'); setFrom(''); setTo(''); setPeriod('all'); setDateRange(undefined);
   };
 
   const applyPeriod = (p: Period) => {
     setPeriod(p);
     if (p === 'calendar') {
-      const d = calendarDate ? isoDay(calendarDate) : isoDay(new Date());
-      setFrom(d);
-      setTo(d);
+      if (dateRange?.from) {
+        setFrom(isoDay(dateRange.from));
+        setTo(dateRange.to ? isoDay(dateRange.to) : isoDay(dateRange.from));
+      }
       return;
     }
     const r = periodRange(p);
@@ -226,12 +227,11 @@ export function AllAdvancesReportPanel() {
     setTo(r.to);
   };
 
-  const applyCalendarDate = (d: Date | undefined) => {
-    setCalendarDate(d);
-    if (d) {
-      const day = isoDay(d);
-      setFrom(day);
-      setTo(day);
+  const applyDateRange = (range: DateRange | undefined) => {
+    setDateRange(range);
+    if (range?.from) {
+      setFrom(isoDay(range.from));
+      setTo(range.to ? isoDay(range.to) : isoDay(range.from));
       setPeriod('calendar');
     }
   };
