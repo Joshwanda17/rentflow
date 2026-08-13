@@ -275,6 +275,32 @@ export function AllAdvancesReportPanel() {
             {p.label}
           </Button>
         ))}
+        {period === 'calendar' && (
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn(
+                  'h-7 px-2.5 text-[11px] justify-start text-left font-normal',
+                  !calendarDate && 'text-muted-foreground',
+                )}
+              >
+                <CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
+                {calendarDate ? format(calendarDate, 'PPP') : 'Pick a date'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={calendarDate}
+                onSelect={applyCalendarDate}
+                initialFocus
+                className={cn('p-3 pointer-events-auto')}
+              />
+            </PopoverContent>
+          </Popover>
+        )}
         {period === 'custom' && (
           <Badge variant="secondary" className="text-[10px]">Custom range</Badge>
         )}
