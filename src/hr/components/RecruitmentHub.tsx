@@ -42,6 +42,7 @@ import type {
   HiringRequisition,
   JobPosting,
 } from '@/hr/types';
+import ApplicationsPanel from '@/hr/components/applications/ApplicationsPanel';
 
 const ALL = '__all__';
 
