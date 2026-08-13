@@ -50,6 +50,54 @@ const STATUS_TONE: Record<string, string> = {
 };
 
 const prettyStatus = (s: string) => (s || '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+
+/** Local (EAT) yyyy-mm-dd for a Date */
+const isoDay = (d: Date) => {
+  const z = new Date(d.getTime() - d.getTimezoneOffset() * 60_000);
+  return z.toISOString().slice(0, 10);
+};
+
+type Period = 'all' | 'today' | 'yesterday' | 'week' | 'month' | 'last_month' | 'custom';
+
+const PERIOD_LABELS: { key: Period; label: string }[] = [
+  { key: 'today', label: 'Daily' },
+  { key: 'week', label: 'Weekly' },
+  { key: 'month', label: 'Monthly' },
+  { key: 'yesterday', label: 'Yesterday' },
+  { key: 'last_month', label: 'Last month' },
+  { key: 'all', label: 'All time' },
+];
+
+const periodRange = (p: Period): { from: string; to: string } => {
+  const now = new Date();
+  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  switch (p) {
+    case 'today': {
+      const d = startOfDay(now);
+      return { from: isoDay(d), to: isoDay(d) };
+    }
+    case 'yesterday': {
+      const d = startOfDay(new Date(now.getTime() - 86_400_000));
+      return { from: isoDay(d), to: isoDay(d) };
+    }
+    case 'week': {
+      const day = now.getDay(); // 0 = Sun
+      const diff = day === 0 ? 6 : day - 1; // week starts Monday
+      const start = startOfDay(new Date(now.getTime() - diff * 86_400_000));
+      return { from: isoDay(start), to: isoDay(now) };
+    }
+    case 'month':
+      return { from: isoDay(new Date(now.getFullYear(), now.getMonth(), 1)), to: isoDay(now) };
+    case 'last_month': {
+      const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const end = new Date(now.getFullYear(), now.getMonth(), 0);
+      return { from: isoDay(start), to: isoDay(end) };
+    }
+    default:
+      return { from: '', to: '' };
+  }
+};
+
 const fmtDate = (v: string | null) =>
   v ? new Date(v).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 const money = (v: number | null) => (v == null ? '—' : formatUGX(Number(v)));
@@ -66,6 +114,7 @@ export function AllAdvancesReportPanel() {
   const [status, setStatus] = useState('all');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  const [period, setPeriod] = useState<Period>('all');
   const PAGE_SIZE = 50;
   const [page, setPage] = useState(1);
   const q = useDebouncedValue(search, 250);
@@ -149,13 +198,21 @@ export function AllAdvancesReportPanel() {
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
     const a = document.createElement('a');
     a.href = url;
-    a.download = `advances-report-${new Date().toISOString().slice(0, 10)}.csv`;
+    const scope = period === 'custom' || period === 'all' ? (from || to ? `${from || 'start'}_to_${to || 'today'}` : 'all-time') : period;
+    a.download = `advances-report-${scope}-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
 
   const clearAll = () => {
-    setSearch(''); setType('all'); setStatus('all'); setFrom(''); setTo('');
+    setSearch(''); setType('all'); setStatus('all'); setFrom(''); setTo(''); setPeriod('all');
+  };
+
+  const applyPeriod = (p: Period) => {
+    setPeriod(p);
+    const r = periodRange(p);
+    setFrom(r.from);
+    setTo(r.to);
   };
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
@@ -195,6 +252,23 @@ export function AllAdvancesReportPanel() {
         </Button>
       </div>
 
+      <div className="flex flex-wrap items-center gap-1.5">
+        {PERIOD_LABELS.map((p) => (
+          <Button
+            key={p.key}
+            size="sm"
+            variant={period === p.key ? 'default' : 'outline'}
+            className="h-7 px-2.5 text-[11px]"
+            onClick={() => applyPeriod(p.key)}
+          >
+            {p.label}
+          </Button>
+        ))}
+        {period === 'custom' && (
+          <Badge variant="secondary" className="text-[10px]">Custom range</Badge>
+        )}
+      </div>
+
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
         <div className="relative sm:col-span-2 lg:col-span-1">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -219,8 +293,20 @@ export function AllAdvancesReportPanel() {
             {statuses.map((s) => <SelectItem key={s} value={s}>{prettyStatus(s)}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-9" aria-label="From date" />
-        <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="h-9" aria-label="To date" />
+        <Input
+          type="date"
+          value={from}
+          onChange={(e) => { setFrom(e.target.value); setPeriod('custom'); }}
+          className="h-9"
+          aria-label="From date"
+        />
+        <Input
+          type="date"
+          value={to}
+          onChange={(e) => { setTo(e.target.value); setPeriod('custom'); }}
+          className="h-9"
+          aria-label="To date"
+        />
       </div>
 
       <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
