@@ -345,9 +345,26 @@ export function FinOpsWithdrawalVerification() {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
+  /**
+   * Customer mobile-money withdrawals are settled by merchant agents from their
+   * own MTN/Airtel float (they claim, they pay, we refund them). Financial Ops
+   * only pays merchant agents and bank/cash payouts, so mobile money is
+   * monitor-only on this desk.
+   */
+  const isMerchantOnlyPayout = (req: WithdrawalRequest) =>
+    (req.payout_method || 'mobile_money').toLowerCase() === 'mobile_money';
+
   // Approve with TID/Receipt/Bank Ref → approved (final) via ledger-first edge function
   const handleApprove = async () => {
     if (!user || !selected || reference.trim().length < 3 || !paymentMethod) return;
+    // Financial Ops pays merchant agents and banks only — never a customer's
+    // mobile money. Customer mobile-money withdrawals are claimed and paid out
+    // by merchant agents from their own MTN/Airtel float. FinOps monitors them.
+    if (isMerchantOnlyPayout(selected)) {
+      toast.error('Mobile money payouts are handled by merchant agents. Financial Ops can only monitor these.');
+      setApproveOpen(false);
+      return;
+    }
     // Cash payouts are gated by the one-time WPO-XXXXX pickup code and MUST be
     // approved through ReceiptCodeEntry (which sends `payout_code`). If the
     // operator switched the dropdown away from "cash", block here so we never
@@ -884,15 +901,22 @@ export function FinOpsWithdrawalVerification() {
               <XCircle className="h-3 w-3 mr-1" />
               Reject
             </Button>
-            <Button
-              size="sm"
-              className="h-8 text-xs bg-primary hover:bg-primary/90 text-primary-foreground"
-              onClick={() => { setSelected(req); setApproveOpen(true); }}
-              disabled={!!processing}
-            >
-              <CheckCircle className="h-3 w-3 mr-1" />
-              Approve & Complete
-            </Button>
+            {isMerchantOnlyPayout(req) ? (
+              <span className="inline-flex items-center gap-1 h-8 px-2.5 rounded-lg bg-muted/60 border border-border text-[11px] font-medium text-muted-foreground">
+                <Hand className="h-3 w-3" />
+                A merchant agent pays this
+              </span>
+            ) : (
+              <Button
+                size="sm"
+                className="h-8 text-xs bg-primary hover:bg-primary/90 text-primary-foreground"
+                onClick={() => { setSelected(req); setApproveOpen(true); }}
+                disabled={!!processing}
+              >
+                <CheckCircle className="h-3 w-3 mr-1" />
+                Approve & Complete
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -968,15 +992,22 @@ export function FinOpsWithdrawalVerification() {
             {ageBadge}
           </div>
           <div className="flex gap-2">
-            <Button
-              size="sm"
-              className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
-              onClick={() => { setSelected(req); setApproveOpen(true); }}
-              disabled={!!processing}
-            >
-              <CheckCircle className="h-3 w-3 mr-1" />
-              Re-Approve & Pay
-            </Button>
+            {isMerchantOnlyPayout(req) ? (
+              <span className="inline-flex items-center gap-1 h-8 px-2.5 rounded-lg bg-muted/60 border border-border text-[11px] font-medium text-muted-foreground">
+                <Hand className="h-3 w-3" />
+                A merchant agent pays this
+              </span>
+            ) : (
+              <Button
+                size="sm"
+                className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                onClick={() => { setSelected(req); setApproveOpen(true); }}
+                disabled={!!processing}
+              >
+                <CheckCircle className="h-3 w-3 mr-1" />
+                Re-Approve & Pay
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -1035,6 +1066,15 @@ export function FinOpsWithdrawalVerification() {
                 <Badge variant="destructive" size="sm" className="text-[10px] px-1.5">{rejectedRequests.length}</Badge>
               )}
             </button>
+          </div>
+
+          <div className="mt-2 rounded-lg border border-primary/20 bg-primary/5 px-2.5 py-2">
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              <span className="font-semibold text-foreground">Your role here is to watch, not to pay.</span>{' '}
+              Customer mobile money withdrawals are claimed and paid out by merchant agents from
+              their own MTN/Airtel money — you only refund the merchant agent afterwards. You still
+              pay bank transfers and cash pickups yourself.
+            </p>
           </div>
         </CardHeader>
         <CardContent>
