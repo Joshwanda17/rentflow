@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent } from '@/components/ui/card';
 import { Zap, BookOpen, Banknote, ArrowRight, Loader2, GraduationCap, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -22,10 +23,11 @@ const benefits = [
 ];
 
 export default function Internship() {
-  const navigate = useNavigate();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [reference, setReference] = useState<string | null>(null);
+  const [consent, setConsent] = useState(false);
   const [form, setForm] = useState({
     fullName: '',
     phone: '',
@@ -34,6 +36,15 @@ export default function Internship() {
     skills: '',
     readyToLearn: 'yes',
     referralCode: '',
+    institution: '',
+    course: '',
+    yearOfStudy: '',
+    expectedCompletion: '',
+    availabilityStart: '',
+    availabilityWeeks: '',
+    availabilityDaysPerWeek: '',
+    preferredContactChannel: '',
+    futureRolesConsent: false,
   });
   // Name captured in parts; `form.fullName` stays the single submitted string.
   const [nameParts, setNameParts] = useState<PersonNameParts>({ firstName: '', otherNames: '', lastName: '' });
@@ -55,9 +66,18 @@ export default function Internship() {
       toast({ title: 'Tell us why', description: 'Please share why you want to join Welile', variant: 'destructive' });
       return;
     }
+    if (!form.preferredContactChannel) {
+      toast({ title: 'Contact preference required', description: 'Please choose how we should contact you', variant: 'destructive' });
+      return;
+    }
+    if (!consent) {
+      toast({ title: 'Consent required', description: 'Please tick the consent checkbox to continue', variant: 'destructive' });
+      return;
+    }
 
     setIsSubmitting(true);
     try {
+      const submitReference = crypto.randomUUID().slice(0, 8);
       const { error } = await supabase.from('internship_applications').insert({
         full_name: form.fullName.trim(),
         phone: form.phone.trim(),
@@ -66,27 +86,24 @@ export default function Internship() {
         skills: form.skills.trim() || null,
         ready_to_learn: form.readyToLearn === 'yes',
         referral_code: form.referralCode.trim() || null,
+        institution: form.institution.trim() || null,
+        course: form.course.trim() || null,
+        year_of_study: form.yearOfStudy ? Number(form.yearOfStudy) : null,
+        expected_completion: form.expectedCompletion || null,
+        availability_start: form.availabilityStart || null,
+        availability_weeks: form.availabilityWeeks ? Number(form.availabilityWeeks) : null,
+        availability_days_per_week: form.availabilityDaysPerWeek ? Number(form.availabilityDaysPerWeek) : null,
+        preferred_contact_channel: form.preferredContactChannel,
+        future_roles_consent: form.futureRolesConsent,
+        consent_text_version: 'internship-v1-2026-08-13',
+        consented_at: new Date().toISOString(),
       });
 
       if (error) throw error;
 
+      setReference(submitReference);
       setSubmitted(true);
-      toast({ title: '🚀 Application submitted!', description: 'Redirecting to create your account...' });
-
-      // Redirect after brief success screen
-      setTimeout(() => {
-        const params = new URLSearchParams({
-          source: 'internship',
-          intent: 'earn',
-          role: 'agent',
-          signup: '1',
-          name: form.fullName.trim(),
-          phone: form.phone.trim(),
-          ...(form.email.trim() ? { email: form.email.trim() } : {}),
-          ...(form.referralCode.trim() ? { ref: form.referralCode.trim() } : {}),
-        });
-        navigate(`/auth?${params.toString()}`);
-      }, 2000);
+      toast({ title: 'Application submitted', description: `Reference: ${submitReference}` });
     } catch (err: any) {
       toast({ title: 'Error', description: err.message || 'Failed to submit. Please try again.', variant: 'destructive' });
     } finally {
@@ -101,9 +118,13 @@ export default function Internship() {
           <div className="w-16 h-16 rounded-full bg-success/20 flex items-center justify-center mx-auto">
             <CheckCircle2 className="w-8 h-8 text-success" />
           </div>
-          <h2 className="text-xl font-bold">You're One Step Away!</h2>
-          <p className="text-muted-foreground">Creating your Welile Agent account now...</p>
-          <Loader2 className="w-6 h-6 animate-spin mx-auto text-primary" />
+          <h2 className="text-xl font-bold">Application Received</h2>
+          <p className="text-muted-foreground">
+            Your reference: <span className="font-mono font-semibold">{reference}</span>
+          </p>
+          <p className="text-sm text-muted-foreground">
+            To ask what we hold about you, or to have it deleted, contact us and quote this reference.
+          </p>
         </div>
       </div>
     );
@@ -206,8 +227,69 @@ export default function Internship() {
             <Input id="referralCode" placeholder="If someone invited you" value={form.referralCode} onChange={e => updateField('referralCode', e.target.value)} />
           </div>
 
+          {/* Education & Availability */}
+          <div className="space-y-3 pt-2">
+            <div>
+              <Label htmlFor="institution">Institution</Label>
+              <Input id="institution" placeholder="School or university" value={form.institution} onChange={e => updateField('institution', e.target.value)} />
+            </div>
+            <div>
+              <Label htmlFor="course">Course or programme</Label>
+              <Input id="course" placeholder="e.g. Business Administration" value={form.course} onChange={e => updateField('course', e.target.value)} />
+            </div>
+            <div>
+              <Label htmlFor="yearOfStudy">Year of study</Label>
+              <Input id="yearOfStudy" type="number" min={1} max={8} placeholder="1-8" value={form.yearOfStudy} onChange={e => updateField('yearOfStudy', e.target.value)} />
+            </div>
+            <div>
+              <Label htmlFor="expectedCompletion">Expected completion</Label>
+              <Input id="expectedCompletion" type="date" value={form.expectedCompletion} onChange={e => updateField('expectedCompletion', e.target.value)} />
+            </div>
+            <div>
+              <Label htmlFor="availabilityStart">Earliest start date</Label>
+              <Input id="availabilityStart" type="date" value={form.availabilityStart} onChange={e => updateField('availabilityStart', e.target.value)} />
+            </div>
+            <div>
+              <Label htmlFor="availabilityWeeks">How many weeks are you available?</Label>
+              <Input id="availabilityWeeks" type="number" min={1} max={52} placeholder="1-52" value={form.availabilityWeeks} onChange={e => updateField('availabilityWeeks', e.target.value)} />
+            </div>
+            <div>
+              <Label htmlFor="availabilityDaysPerWeek">Days per week</Label>
+              <Input id="availabilityDaysPerWeek" type="number" min={1} max={7} placeholder="1-7" value={form.availabilityDaysPerWeek} onChange={e => updateField('availabilityDaysPerWeek', e.target.value)} />
+            </div>
+            <div>
+              <Label htmlFor="preferredContactChannel">How should we contact you? *</Label>
+              <Select value={form.preferredContactChannel} onValueChange={v => updateField('preferredContactChannel', v)} required>
+                <SelectTrigger id="preferredContactChannel">
+                  <SelectValue placeholder="Select a contact method" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="phone">Phone</SelectItem>
+                  <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                  <SelectItem value="email">Email</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Consent */}
+          <div className="space-y-3 pt-2">
+            <div className="flex items-start gap-3">
+              <Checkbox id="consent" checked={consent} onCheckedChange={c => setConsent(c === true)} required />
+              <Label htmlFor="consent" className="font-normal cursor-pointer leading-tight">
+                I consent to Welile Technologies (U) Ltd holding these details to consider my application. *
+              </Label>
+            </div>
+            <div className="flex items-start gap-3">
+              <Checkbox id="futureRoles" checked={form.futureRolesConsent} onCheckedChange={c => setForm(prev => ({ ...prev, futureRolesConsent: c === true }))} />
+              <Label htmlFor="futureRoles" className="font-normal cursor-pointer leading-tight">
+                Keep my details for future opportunities for up to 24 months.
+              </Label>
+            </div>
+          </div>
+
           {/* CTA */}
-          <Button type="submit" size="xl" className="w-full bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white" disabled={isSubmitting}>
+          <Button type="submit" size="xl" className="w-full bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white" disabled={isSubmitting || !consent}>
             {isSubmitting ? (
               <><Loader2 className="w-5 h-5 animate-spin" /> Submitting...</>
             ) : (
