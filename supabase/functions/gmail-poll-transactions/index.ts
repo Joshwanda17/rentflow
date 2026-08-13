@@ -1068,6 +1068,36 @@ async function tryAutoDebitPayout(
   const cp = (parsed.counterparty ?? '').toString().trim();
   if (!cp) return;
 
+  // ── Merchant float delivery: company money sent to a registered
+  // `cashout_agents.float_phone` is a FLOAT CREDIT to that agent, never a
+  // debit. Handle it here and stop — this email must never reach Rule 2,
+  // Rule 4 or the generic debit path below.
+  {
+    const cpDigits = cp.replace(/[^0-9]/g, '');
+    if (cpDigits.length >= 9) {
+      const cpLast9 = cpDigits.slice(-9);
+      const { data: floatAgent } = await supabase
+        .from('cashout_agents')
+        .select('agent_id, float_phone')
+        .eq('is_active', true)
+        .ilike('float_phone', `%${cpLast9}`)
+        .limit(1)
+        .maybeSingle();
+      if (floatAgent?.agent_id) {
+        console.log(
+          `[gmail-poll] outbound SMS to merchant float_phone ${cp} → crediting float for agent=${floatAgent.agent_id}`,
+        );
+        await creditMerchantFloatFromOutboundSms(supabase, {
+          agentId: String(floatAgent.agent_id),
+          parsed,
+          gmailMessageId,
+          internalMs,
+        });
+        return;
+      }
+    }
+  }
+
   let profile: { id: string; full_name: string | null; phone: string | null } | null = null;
   let matchMethod: 'phone' | 'name' = 'phone';
 
@@ -1389,6 +1419,220 @@ async function tryAutoDebitPayout(
 }
 
 // ── Helper: auto-credit operational float for matched user (impl) ─────
+// ── Helper: credit a merchant agent's float from an outbound company SMS ──
+// The company physically sends MoMo/Airtel money to the agent's registered
+// `cashout_agents.float_phone`. The forwarded "You have sent ..." email is
+// therefore a float DELIVERY to that agent. Mirrors the inbound auto-credit
+// path (insert deposit → link gmail row → approve-deposit → notify), minus
+// identity resolution: the agent is already known.
+async function creditMerchantFloatFromOutboundSms(
+  supabase: ReturnType<typeof createClient>,
+  args: {
+    agentId: string;
+    parsed: ReturnType<typeof parseTransaction>;
+    gmailMessageId: string;
+    internalMs: number;
+  },
+): Promise<void> {
+  const { agentId, parsed, gmailMessageId, internalMs } = args;
+  if (!parsed.amount || parsed.amount <= 0) return;
+
+  // 1. Locate the gmail row + idempotency guard.
+  const { data: gmailRow } = await supabase
+    .from('gmail_transactions')
+    .select('id, linked_deposit_request_id')
+    .eq('gmail_message_id', gmailMessageId)
+    .maybeSingle();
+  if (!gmailRow?.id) return;
+  if (gmailRow.linked_deposit_request_id) {
+    console.log(`[gmail-poll] merchant float credit skip: email ${gmailMessageId} already linked to a deposit`);
+    return;
+  }
+
+  // 2. Agent profile.
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id, phone, full_name, email')
+    .eq('id', agentId)
+    .maybeSingle();
+  if (!profile?.id) {
+    console.warn(`[gmail-poll] merchant float credit: no profile for agent ${agentId}`);
+    return;
+  }
+
+  const provider = parsed.channel === 'mtn_momo' ? 'mtn' : 'airtel';
+  const auditMeta = {
+    source: 'gmail_merchant_float_delivery',
+    gmail_message_id: gmailMessageId,
+    match_method: 'cashout_agents.float_phone',
+    direction: 'out',
+    provider,
+    parsed_amount: parsed.amount,
+    parsed_tid: parsed.transaction_id,
+    internal_date: internalMs ? new Date(internalMs).toISOString() : null,
+    confidence: 'high',
+    confidence_score: 1,
+    created_at: new Date().toISOString(),
+  };
+
+  // 3. Create the deposit as pending — approve-deposit flips it and credits float.
+  const { data: newDep, error: depErr } = await supabase
+    .from('deposit_requests')
+    .insert({
+      user_id: profile.id,
+      agent_id: profile.id,
+      amount: parsed.amount,
+      status: 'pending',
+      provider,
+      transaction_id: parsed.transaction_id,
+      transaction_date: internalMs ? new Date(internalMs).toISOString() : new Date().toISOString(),
+      deposit_purpose: 'operational_float',
+      auto_approved: true,
+      auto_match_audit: auditMeta,
+      notes:
+        '[auto] Company float delivery: OUTBOUND company "sent to" SMS whose recipient number matched this ' +
+        'merchant agent\'s registered float phone (cashout_agents.float_phone). Credited to Operational Float. ' +
+        'This is NOT an incoming customer deposit.',
+    })
+    .select('id')
+    .single();
+  if (depErr || !newDep?.id) {
+    console.warn('[gmail-poll] merchant float credit: could not insert deposit_request', depErr);
+    await logDepositDecision(supabase, {
+      source: 'matcher',
+      decision: 'failed',
+      reason: 'merchant_float_deposit_insert_failed',
+      amount: parsed.amount ?? null,
+      actor_id: profile.id,
+      metadata: { gmail_message_id: gmailMessageId, error: depErr?.message ?? null },
+    });
+    return;
+  }
+
+  // 4. Link gmail row → deposit so approve-deposit re-verification succeeds.
+  await supabase
+    .from('gmail_transactions')
+    .update({ linked_deposit_request_id: newDep.id })
+    .eq('id', gmailRow.id);
+
+  // 5. Approve via the system auto-credit path.
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  try {
+    const res = await fetch(`${supabaseUrl}/functions/v1/approve-deposit`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${serviceKey}`,
+        'apikey': serviceKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        deposit_request_id: newDep.id,
+        action: 'approve',
+        auto_approved: true,
+        auto_match_method: 'gmail_merchant_float_phone+tid+amount',
+        system_auto_credit: true,
+      }),
+    });
+    if (!res.ok) {
+      const txt = await res.text();
+      console.warn('[gmail-poll] merchant float approve-deposit non-200:', res.status, txt.slice(0, 300));
+      await logDepositDecision(supabase, {
+        source: 'matcher',
+        decision: 'failed',
+        reason: 'merchant_float_approve_non_200',
+        deposit_request_id: newDep.id,
+        amount: parsed.amount ?? null,
+        actor_id: profile.id,
+        metadata: { gmail_message_id: gmailMessageId, status: res.status, body: txt.slice(0, 300) },
+      });
+      return;
+    }
+    console.log(
+      `[gmail-poll] merchant float credited agent=${profile.id} dep=${newDep.id} amt=${parsed.amount}`,
+    );
+    await logDepositDecision(supabase, {
+      source: 'matcher',
+      decision: 'auto_credited',
+      reason: 'gmail_merchant_float_phone+tid+amount',
+      deposit_request_id: newDep.id,
+      amount: parsed.amount ?? null,
+      actor_id: profile.id,
+      metadata: {
+        gmail_message_id: gmailMessageId,
+        provider,
+        match_method: 'cashout_agents.float_phone',
+        flow: 'company_float_delivery_outbound_sms',
+      },
+    });
+  } catch (e) {
+    console.warn('[gmail-poll] merchant float approve-deposit invoke failed:', e);
+    await logDepositDecision(supabase, {
+      source: 'matcher',
+      decision: 'failed',
+      reason: 'merchant_float_approve_invoke_error',
+      deposit_request_id: newDep.id,
+      amount: parsed.amount ?? null,
+      actor_id: profile.id,
+      metadata: { gmail_message_id: gmailMessageId, error: String(e) },
+    });
+    return;
+  }
+
+  // 6. Notify the agent (same SMS + email receipt as the inbound path).
+  try {
+    const { data: walletRow } = await supabase
+      .from('wallets')
+      .select('float_balance')
+      .eq('user_id', profile.id)
+      .maybeSingle();
+    const newFloat = Number(walletRow?.float_balance ?? 0);
+    const firstName = (profile.full_name ?? '').split(' ')[0] || 'there';
+    const fmt = (n: number) => `UGX ${Math.round(n).toLocaleString('en-UG')}`;
+    if (profile.phone) {
+      const msg =
+        `Welile: Hi ${firstName}, ${fmt(parsed.amount!)} from ${provider.toUpperCase()} ` +
+        `(TID ${parsed.transaction_id}) was auto-credited to your Operational Float. ` +
+        `New float balance: ${fmt(newFloat)}.`;
+      await sendSmsViaAfricasTalking(profile.phone, msg);
+    }
+    const recipientEmail = (profile as any).email ? String((profile as any).email).trim() : '';
+    if (recipientEmail) {
+      const fnUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/send-transactional-email`;
+      const sk = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      const providerLabel = provider === 'mtn' ? 'MTN MoMo' : 'Airtel Money';
+      const nowDate = new Date(internalMs || Date.now()).toLocaleString('en-GB', {
+        day: '2-digit', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Kampala',
+      });
+      await fetch(fnUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${sk}`,
+          'apikey': sk,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          templateName: 'operational-float-credit',
+          recipientEmail,
+          idempotencyKey: `op-float-credit-${gmailMessageId}`,
+          templateData: {
+            partner_name: profile.full_name || firstName,
+            transaction_id: parsed.transaction_id,
+            amount: parsed.amount,
+            currency: 'UGX',
+            date: nowDate,
+            source: providerLabel,
+            new_float_balance: newFloat,
+          },
+        }),
+      });
+    }
+  } catch (e) {
+    console.warn('[gmail-poll] merchant float notification failed (non-fatal):', e);
+  }
+}
+
 async function _tryAutoCreditOperationalFloat(
   supabase: ReturnType<typeof createClient>,
   args: {
