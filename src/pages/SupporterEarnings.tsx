@@ -177,7 +177,7 @@ export default function SupporterEarnings() {
               <TrendingUp className="h-5 w-5 text-success" />
               ROI Earnings
             </h1>
-            <p className="text-xs text-muted-foreground">Track your investment returns</p>
+            <p className="text-xs text-muted-foreground">Track your support returns</p>
           </div>
         </div>
       </header>
@@ -210,7 +210,7 @@ export default function SupporterEarnings() {
             <div className="bg-white/10 rounded-xl p-3 text-center">
               <Wallet className="h-4 w-4 mx-auto mb-1 opacity-80" />
               <p className="text-lg font-bold">{formatUGX(totalInvested)}</p>
-              <p className="text-xs opacity-70">Invested</p>
+              <p className="text-xs opacity-70">Funded</p>
             </div>
             <div className="bg-white/10 rounded-xl p-3 text-center">
               <Calendar className="h-4 w-4 mx-auto mb-1 opacity-80" />
@@ -436,7 +436,7 @@ export default function SupporterEarnings() {
                   <div className="h-[200px] flex items-center justify-center">
                     <div className="text-center">
                       <Target className="h-12 w-12 mx-auto text-muted-foreground/30 mb-2" />
-                      <p className="text-muted-foreground">No active investments</p>
+                      <p className="text-muted-foreground">No active funding packages</p>
                       <p className="text-xs text-muted-foreground mt-1">
                         Fund tenant rent to start earning 15% monthly ROI
                       </p>
@@ -445,7 +445,7 @@ export default function SupporterEarnings() {
                         className="mt-4"
                         onClick={() => navigate(roleToSlug(role))}
                       >
-                        Start Investing
+                        Start Funding
                       </Button>
                     </div>
                   </div>
