@@ -1828,6 +1828,8 @@ export function AgentCashPayoutsTab() {
               Showing <span className="font-semibold text-foreground">{filteredPending}</span> of {totalPending} pending
             </p>
           )}
+          </>
+          )}
         </div>
 
         <Tabs value={channelTab} onValueChange={(v) => setChannelTab(v as 'all' | 'momo' | 'cash' | 'bank')}>
