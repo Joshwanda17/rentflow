@@ -22369,6 +22369,7 @@ export type Database = {
           landmark: string | null
           last_active_at: string | null
           last_continuous_location_at: string | null
+          location_source: string | null
           managed_by_agent: boolean
           managing_agent_id: string | null
           merchant_agent_referrer_id: string | null
@@ -22458,6 +22459,7 @@ export type Database = {
           landmark?: string | null
           last_active_at?: string | null
           last_continuous_location_at?: string | null
+          location_source?: string | null
           managed_by_agent?: boolean
           managing_agent_id?: string | null
           merchant_agent_referrer_id?: string | null
@@ -22547,6 +22549,7 @@ export type Database = {
           landmark?: string | null
           last_active_at?: string | null
           last_continuous_location_at?: string | null
+          location_source?: string | null
           managed_by_agent?: boolean
           managing_agent_id?: string | null
           merchant_agent_referrer_id?: string | null
@@ -39977,6 +39980,16 @@ export type Database = {
       }
       set_lc1_verification: {
         Args: { p_lc1_id: string; p_reason: string; p_status: string }
+        Returns: Json
+      }
+      set_my_operating_location: {
+        Args: {
+          p_district: string
+          p_district_id: number
+          p_source?: string
+          p_village: string
+          p_village_id?: number
+        }
         Returns: Json
       }
       set_proxy_agent_target: {
