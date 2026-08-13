@@ -744,16 +744,28 @@ export function LandlordOpsDashboard() {
    * details, tenants, agent) via the `report` action instead of reusing the
    * paginated list rows, so the export is never a partial page.
    */
-  const exportLandlordReportPdf = async () => {
+  const exportLandlordReportPdf = async (
+    overrides?: {
+      scope?: LandlordOpsCategory;
+      pendingFilter?: LandlordOpsPendingFilter;
+      search?: string;
+      dateFrom?: string | null;
+      dateTo?: string | null;
+    },
+  ) => {
     setExportingLandlordReport(true);
     try {
-      const scope = (landlordCategory || 'all') as LandlordOpsCategory;
+      const scope = (overrides?.scope ?? (landlordCategory || 'all')) as LandlordOpsCategory;
+      const quick = (overrides?.pendingFilter ?? pendingFilter) as LandlordOpsPendingFilter;
+      const searchTerm = overrides?.search ?? debouncedLandlordSearch;
+      const fromIso = overrides ? (overrides.dateFrom ?? null) : landlordDateFromIso;
+      const toIso = overrides ? (overrides.dateTo ?? null) : landlordDateToIso;
       const { rows, totalMatched } = await fetchLandlordReport({
         category: scope,
-        pendingFilter: pendingFilter as LandlordOpsPendingFilter,
-        search: debouncedLandlordSearch,
-        dateFrom: landlordDateFromIso,
-        dateTo: landlordDateToIso,
+        pendingFilter: quick,
+        search: searchTerm,
+        dateFrom: fromIso,
+        dateTo: toIso,
       });
       if (!rows.length) {
         sonnerToast.error('No landlords match these filters — nothing to export');
@@ -761,10 +773,10 @@ export function LandlordOpsDashboard() {
       }
       const blob = generateLandlordVerificationReportPdf(rows, {
         scope: scope as LandlordReportScope,
-        quickFilter: scope === 'pending' ? pendingFilter : 'all',
-        search: debouncedLandlordSearch || null,
-        dateFrom: landlordDateFromIso,
-        dateTo: landlordDateToIso,
+        quickFilter: scope === 'pending' ? quick : 'all',
+        search: searchTerm || null,
+        dateFrom: fromIso,
+        dateTo: toIso,
         totalMatches: totalMatched,
         generatedBy: user?.email ?? null,
       });
