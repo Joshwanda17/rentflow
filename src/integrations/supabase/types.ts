@@ -37488,6 +37488,10 @@ export type Database = {
           verified: boolean
         }[]
       }
+      get_promissory_ops_report: {
+        Args: { p_from?: string; p_to?: string }
+        Returns: Json
+      }
       get_property_clusters: {
         Args: {
           max_lat: number
