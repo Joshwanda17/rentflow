@@ -5,7 +5,6 @@ import { COOWithdrawalApprovals } from '@/components/coo/COOWithdrawalApprovals'
 import { COOPartnerWithdrawalApprovals } from '@/components/coo/COOPartnerWithdrawalApprovals';
 import { COOROIApprovals } from '@/components/coo/COOROIApprovals';
 import { CancelledProxyWithdrawals } from '@/components/coo/CancelledProxyWithdrawals';
-import FinancialMetricsCards from '@/components/coo/FinancialMetricsCards';
 import FinancialTransactionsTable from '@/components/coo/FinancialTransactionsTable';
 import AgentCollectionsOverview from '@/components/coo/AgentCollectionsOverview';
 import PaymentModeAnalytics from '@/components/coo/PaymentModeAnalytics';
@@ -30,6 +29,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useNavigate } from 'react-router-dom';
 import { COOScaleVisionView } from '@/components/coo/COOScaleVisionView';
 import { WelileOperationsHub } from '@/components/executive/WelileOperationsHub';
+import COOOverviewSnapshot from '@/components/coo/COOOverviewSnapshot';
 import { AgentNetworkBadge } from '@/components/executive/tenant-ops/AgentNetworkBadge';
 import {
   Activity, ClipboardList, Users, Wallet, BarChart3,
@@ -304,12 +304,8 @@ export default function COODashboardPage() {
               </span>
             </button>
 
-            {/* Priority: Rent Approval Queue */}
-            <RentPipelineQueue stage="landlord_ops_approved" />
-            <RejectedRequestsQueue stageFilter="landlord_ops_approved" title="Rejected at COO" />
-
-            {/* Financial Metrics */}
-            <FinancialMetricsCards />
+            {/* Operations snapshot: KPIs, trends, review queue & partner returns */}
+            <COOOverviewSnapshot />
 
             {/* Quick Navigation Grid */}
             <div>
