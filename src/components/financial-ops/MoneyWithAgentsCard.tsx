@@ -35,10 +35,10 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
           </div>
           <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-              MONEY WITH AGENTS
+              MONEY WITH MERCHANT AGENTS
             </p>
             <p className="text-[11px] text-muted-foreground mt-0.5">
-              Our money still held by agents vs what we still owe them
+              Our cash sitting on their phones vs money they already spent for us
             </p>
           </div>
         </div>
@@ -56,21 +56,25 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
       <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="rounded-xl border border-warning/30 bg-warning/5 p-3">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Our cash held by agents
+            Our cash still on their phones
           </p>
           <p className="mt-1 font-mono text-xl font-bold tabular-nums text-warning break-all">
             {isLoading ? '—' : formatUGX(heldTotal)}
           </p>
-          <p className="text-[10px] text-muted-foreground mt-1">We sent this, they haven't paid it out yet</p>
+          <p className="text-[10px] text-muted-foreground mt-1">
+            We already sent them this money and they have not used it yet
+          </p>
         </div>
         <div className="rounded-xl border border-border bg-muted/30 p-3">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            We still owe agents
+            Money we must send back to them
           </p>
           <p className="mt-1 font-mono text-xl font-bold tabular-nums text-foreground break-all">
             {isLoading ? '—' : formatUGX(owedTotal)}
           </p>
-          <p className="text-[10px] text-muted-foreground mt-1">They paid it out; we haven't sent it back yet</p>
+          <p className="text-[10px] text-muted-foreground mt-1">
+            They used their own phone money to pay our customers. We have not refunded them yet.
+          </p>
         </div>
       </div>
 
@@ -117,7 +121,7 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
                     {formatUGX(holding ? r.companyCashWithAgent : r.owedToAgent)}
                   </p>
                   <p className="text-[10px] text-muted-foreground">
-                    {holding ? "they're holding our money" : 'we owe them'}
+                    {holding ? 'our money still on their phone' : 'we must send this back to them'}
                   </p>
                   <button
                     type="button"
@@ -136,7 +140,20 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
       <div className="mt-4 rounded-xl bg-primary/5 border border-primary/10 p-3 flex gap-2">
         <Wallet className="h-4 w-4 text-primary shrink-0 mt-0.5" />
         <p className="text-[11px] leading-relaxed text-muted-foreground">
-          An agent can only ask to be paid back for money they have already sent out from their own phone. We only send money back after we see the MTN/Airtel payment message showing what they paid. If the numbers don't match, the difference must be fixed with a written reason.
+          A merchant agent can only ask for a refund of money they have already sent out from their
+          own phone. We refund it only after we see the MTN or Airtel message proving what they
+          paid. If the two figures do not match, the gap must be corrected with a written reason.
+        </p>
+      </div>
+
+      <div className="mt-2 rounded-xl bg-warning/5 border border-warning/20 p-3 flex gap-2">
+        <ArrowRightLeft className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+        <p className="text-[11px] leading-relaxed text-muted-foreground">
+          <span className="font-semibold text-foreground">How to pay them:</span> send the money to
+          the merchant agent's float number using MTN or Airtel only. The MTN/Airtel confirmation
+          message is read automatically and the real money on our side goes down on its own — never
+          adjust these figures by hand. Financial Ops pays merchant agents only, never customers:
+          customer withdrawal requests are claimed and paid out by merchant agents.
         </p>
       </div>
 
