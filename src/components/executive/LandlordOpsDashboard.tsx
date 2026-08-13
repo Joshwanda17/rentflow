@@ -3230,6 +3230,8 @@ export function LandlordOpsDashboard() {
                   <span className="font-semibold">Decision reason:</span> {lc1.verification_reason}
                 </p>
               )}
+              {/* Service Centre manager's vetting note for this LC1 chairperson */}
+              <ServiceCentreNoteLoader table="lc1_chairpersons" id={lc1.id} />
               {/* Landlords under this LC1 */}
               {lc1.landlords.length > 0 && (
                 <div className="mt-2 pl-3 border-l-2 border-primary/20 space-y-1.5">
