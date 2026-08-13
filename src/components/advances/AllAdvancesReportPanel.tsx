@@ -307,9 +307,14 @@ export function AllAdvancesReportPanel() {
             Every advance recorded in the system — agent, business, credit access, staff salary and merchant out-of-pocket.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={exportCsv} disabled={!filtered.length} className="gap-2">
-          <Download className="h-4 w-4" /> Export CSV
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" size="sm" onClick={exportCsv} disabled={!filtered.length} className="gap-2">
+            <Download className="h-4 w-4" /> Export CSV
+          </Button>
+          <Button size="sm" onClick={exportPdf} disabled={!filtered.length || pdfBusy} className="gap-2">
+            <FileText className="h-4 w-4" /> {pdfBusy ? 'Preparing…' : 'Download PDF'}
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5">
