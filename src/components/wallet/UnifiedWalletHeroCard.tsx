@@ -21,6 +21,15 @@ interface UnifiedWalletHeroCardProps {
   deployed?: string;
   /** Agent-specific: float (locked) and commission (earned) */
   floatBalance?: number;
+  /**
+   * Merchant-agent only. Float already committed to payouts the agent has
+   * claimed but not settled. When present the Float cell shows the SAME
+   * authoritative available float the Merchant payout screen enforces
+   * (float balance − reservations), so the two screens can never disagree.
+   */
+  floatReserved?: number;
+  /** Overrides the small caption under the Float amount. */
+  floatCaption?: string;
   commissionBalance?: number;
   withdrawableBalance?: number;
   /** Agent-specific: withdrawable funds NOT classified as commission (CFO admin credits etc.) */
@@ -73,6 +82,8 @@ export function UnifiedWalletHeroCard({
   returnPerMonth,
   deployed,
   floatBalance,
+  floatReserved,
+  floatCaption,
   commissionBalance,
   withdrawableBalance,
   otherBalance,
@@ -258,9 +269,18 @@ export function UnifiedWalletHeroCard({
                   <p className="text-[9px] uppercase tracking-[0.15em] font-semibold text-primary-foreground/50">Wallet Float</p>
                 </div>
                 <p className="text-lg font-black tracking-tight leading-none text-primary-foreground whitespace-nowrap">
-                  {formatAmount(floatBalance ?? 0)}
+                  {formatAmount(
+                    Math.max(0, (floatBalance ?? 0) - Math.max(0, floatReserved ?? 0)),
+                  )}
                 </p>
-                <p className="text-[9px] text-primary-foreground/40 mt-1 font-medium">Tenant collections · Pay Rent</p>
+                <p className="text-[9px] text-primary-foreground/40 mt-1 font-medium">
+                  {floatCaption ?? 'Tenant collections · Pay Rent'}
+                </p>
+                {!!floatReserved && floatReserved > 0 && (
+                  <p className="text-[9px] text-amber-200/80 mt-0.5 font-medium">
+                    {formatAmount(floatReserved)} held by payouts you claimed
+                  </p>
+                )}
               </div>
 
               {/* Withdrawable section — STRICT ledger-backed value only.
