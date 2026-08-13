@@ -1045,7 +1045,7 @@ export function AgentCashPayoutsTab() {
       const parts: string[] = [];
       if (floatUsed > 0) parts.push(`${formatUGX(floatUsed)} drawn from your float`);
       const fronted = Number(data?.merchant_own_money_fronted ?? 0);
-      if (fronted > 0) parts.push(`${formatUGX(fronted)} of your own money recorded — we pay it back`);
+      if (fronted > 0) parts.push(`${formatUGX(fronted)} float shortfall flagged — confirm on your wallet card if you used your own money`);
       if (commission > 0) parts.push(`${formatUGX(commission)} commission added to your withdrawable`);
       toast.success(parts.length > 0 ? `${baseMsg} · ${parts.join(' · ')}` : baseMsg);
       invalidateQueue();
@@ -1137,7 +1137,7 @@ export function AgentCashPayoutsTab() {
       const parts: string[] = [];
       if (floatUsed > 0) parts.push(`${formatUGX(floatUsed)} drawn from your float`);
       const fronted = Number(data?.merchant_own_money_fronted ?? 0);
-      if (fronted > 0) parts.push(`${formatUGX(fronted)} of your own money recorded — we pay it back`);
+      if (fronted > 0) parts.push(`${formatUGX(fronted)} float shortfall flagged — confirm on your wallet card if you used your own money`);
       if (commission > 0) parts.push(`${formatUGX(commission)} commission added to your withdrawable`);
       toast.success(parts.length > 0 ? `${base} · ${parts.join(' · ')}` : base);
       setVerifiedPayout(null); setPayoutCode('');
