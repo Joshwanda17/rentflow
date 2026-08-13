@@ -252,6 +252,23 @@ export function AllAdvancesReportPanel() {
         </Button>
       </div>
 
+      <div className="flex flex-wrap items-center gap-1.5">
+        {PERIOD_LABELS.map((p) => (
+          <Button
+            key={p.key}
+            size="sm"
+            variant={period === p.key ? 'default' : 'outline'}
+            className="h-7 px-2.5 text-[11px]"
+            onClick={() => applyPeriod(p.key)}
+          >
+            {p.label}
+          </Button>
+        ))}
+        {period === 'custom' && (
+          <Badge variant="secondary" className="text-[10px]">Custom range</Badge>
+        )}
+      </div>
+
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
         <div className="relative sm:col-span-2 lg:col-span-1">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -276,8 +293,20 @@ export function AllAdvancesReportPanel() {
             {statuses.map((s) => <SelectItem key={s} value={s}>{prettyStatus(s)}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-9" aria-label="From date" />
-        <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="h-9" aria-label="To date" />
+        <Input
+          type="date"
+          value={from}
+          onChange={(e) => { setFrom(e.target.value); setPeriod('custom'); }}
+          className="h-9"
+          aria-label="From date"
+        />
+        <Input
+          type="date"
+          value={to}
+          onChange={(e) => { setTo(e.target.value); setPeriod('custom'); }}
+          className="h-9"
+          aria-label="To date"
+        />
       </div>
 
       <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
