@@ -9956,6 +9956,36 @@ export type Database = {
         }
         Relationships: []
       }
+      evidence_2026_08_13_field_audit: {
+        Row: {
+          changed_by: string | null
+          created_at: string | null
+          field_name: string | null
+          id: string | null
+          new_value: string | null
+          old_value: string | null
+          user_id: string | null
+        }
+        Insert: {
+          changed_by?: string | null
+          created_at?: string | null
+          field_name?: string | null
+          id?: string | null
+          new_value?: string | null
+          old_value?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          changed_by?: string | null
+          created_at?: string | null
+          field_name?: string | null
+          id?: string | null
+          new_value?: string | null
+          old_value?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       fee_revenue_ledger: {
         Row: {
           created_at: string
@@ -39111,6 +39141,47 @@ export type Database = {
           total_count: number
         }[]
       }
+      ops_tenant_products_services_report: {
+        Args: { p_from?: string; p_to?: string }
+        Returns: Json
+      }
+      ops_tenant_products_services_rows: {
+        Args: {
+          p_agent?: string
+          p_district?: string
+          p_from?: string
+          p_limit?: number
+          p_offset?: number
+          p_payment?: string
+          p_search?: string
+          p_status?: string
+          p_to?: string
+        }
+        Returns: {
+          accepted_in_period: boolean
+          agent_id: string
+          agent_name: string
+          application_status: string
+          applied_in_period: boolean
+          daily_repayment: number
+          district: string
+          is_new_in_period: boolean
+          last_payment_at: string
+          outstanding: number
+          paid_in_period: number
+          payables_in_period: number
+          payments_in_period: number
+          region: string
+          rejected_in_period: boolean
+          rent_amount: number
+          tenant_created_at: string
+          tenant_id: string
+          tenant_name: string
+          tenant_phone: string
+          total_count: number
+        }[]
+      }
+      ops_tps_report_authorized: { Args: never; Returns: boolean }
       ops_transfer_pipeline_request_agent: {
         Args: { p_reason: string; p_request_id: string; p_to_agent_id: string }
         Returns: Json
