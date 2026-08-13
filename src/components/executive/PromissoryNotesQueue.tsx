@@ -336,6 +336,8 @@ export function PromissoryNotesQueue() {
   };
 
   const statuses = ['all', 'pending', 'activated', 'fulfilled', 'defaulted', 'cancelled'];
+  const cameInCount = notes.filter((n: any) => n.came_in).length;
+  const notRegisteredCount = notes.length - cameInCount;
 
   return (
     <div className="space-y-4">
@@ -382,6 +384,24 @@ export function PromissoryNotesQueue() {
             {s === 'all' ? `All (${notes.length})` : `${s.charAt(0).toUpperCase() + s.slice(1)} (${statusCounts[s] || 0})`}
           </button>
         ))}
+        <button
+          onClick={() => setStatusFilter('came_in')}
+          className={cn(
+            'px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all',
+            statusFilter === 'came_in' ? 'bg-primary text-primary-foreground' : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+          )}
+        >
+          Came in ({cameInCount})
+        </button>
+        <button
+          onClick={() => setStatusFilter('not_registered')}
+          className={cn(
+            'px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all',
+            statusFilter === 'not_registered' ? 'bg-primary text-primary-foreground' : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+          )}
+        >
+          Not registered ({notRegisteredCount})
+        </button>
       </div>
 
       {/* Notes list */}
