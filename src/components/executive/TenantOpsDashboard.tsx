@@ -29,6 +29,7 @@ import { GlobalVerificationHub } from './GlobalVerificationHub';
 import { WelileOperationsHub } from './WelileOperationsHub';
 import { AgentNetworkBadge } from './tenant-ops/AgentNetworkBadge';
 import { PipelineStatusHub } from './tenant-ops/PipelineStatusHub';
+import { TenantOpsExtractCenter, type ExtractKind, type ExtractTargetView } from './tenant-ops/TenantOpsExtractCenter';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -1400,7 +1401,22 @@ export function TenantOpsDashboard() {
           />
         );
       case 'reports-hub':
-        return <div className="space-y-3">{reportsToolbar}</div>;
+        return (
+          <div className="space-y-3">
+            {reportsToolbar}
+            <TenantOpsExtractCenter
+              rangeLabel={reportRangeLabel}
+              extracting={extracting}
+              onExtract={runExtract}
+              printing={printingPdf}
+              onPrintReport={() => void handlePrintReport()}
+              onOpenView={(view: ExtractTargetView) => {
+                setActiveView(view as ActiveView);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            />
+          </div>
+        );
       default:
         return null;
     }
@@ -1427,6 +1443,20 @@ export function TenantOpsDashboard() {
 
   // Reports & Exports toolbar — shared by the inline Classic section and
   // its dedicated "Open hub" full view.
+  // Label + dispatcher so the centralized Extract card can reuse the very same
+  // date window and extract handlers this toolbar already uses.
+  const reportRangeLabel = reportFrom || reportTo
+    ? `${reportFrom ? format(reportFrom, 'dd MMM yyyy') : 'any date'} — ${reportTo ? format(reportTo, 'dd MMM yyyy') : 'today'}`
+    : 'no date filter — all time';
+
+  const runExtract = (kind: ExtractKind) => {
+    if (kind === 'applied') return void handleExtractApplied();
+    if (kind === 'approved') return void handleExtractApproved();
+    if (kind === 'funded') return void handleExtractFunded();
+    if (kind === 'collected') return void handleExtractCollected();
+    return void handleExtractExpected();
+  };
+
   const reportsToolbar = (
                 <div className="flex flex-wrap sm:justify-end items-center gap-2">
                 <Popover>
