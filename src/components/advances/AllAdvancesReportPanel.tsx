@@ -327,7 +327,7 @@ export function AllAdvancesReportPanel() {
         )}
       </div>
 
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         <div className="relative sm:col-span-2 lg:col-span-1">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
@@ -351,20 +351,40 @@ export function AllAdvancesReportPanel() {
             {statuses.map((s) => <SelectItem key={s} value={s}>{prettyStatus(s)}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Input
-          type="date"
-          value={from}
-          onChange={(e) => { setFrom(e.target.value); setPeriod('custom'); }}
-          className="h-9"
-          aria-label="From date"
-        />
-        <Input
-          type="date"
-          value={to}
-          onChange={(e) => { setTo(e.target.value); setPeriod('custom'); }}
-          className="h-9"
-          aria-label="To date"
-        />
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              className={cn(
+                'h-9 justify-start text-left font-normal',
+                !dateRange?.from && 'text-muted-foreground',
+              )}
+            >
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {dateRange?.from ? (
+                dateRange.to ? (
+                  <>
+                    {format(dateRange.from, 'LLL dd')} - {format(dateRange.to, 'LLL dd, yyyy')}
+                  </>
+                ) : (
+                  format(dateRange.from, 'PPP')
+                )
+              ) : (
+                'Pick a date range'
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="range"
+              selected={dateRange}
+              onSelect={applyDateRange}
+              numberOfMonths={2}
+              initialFocus
+              className={cn('p-3 pointer-events-auto')}
+            />
+          </PopoverContent>
+        </Popover>
       </div>
 
       <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
