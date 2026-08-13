@@ -144,22 +144,10 @@ export function SupportedTenantDrawer({ tenant, open, onOpenChange }: Props) {
         </div>
 
         {/* Money snapshot */}
-        <div className="mx-4 mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div className="mx-4 mb-4 grid grid-cols-2 gap-2">
           <Stat label="Amount funded" value={formatUGX(Number(tenant.rent_amount || 0))} />
           <Stat label="Daily repayment" value={tenant.daily_repayment ? formatUGX(Number(tenant.daily_repayment)) : '—'} />
-          <Stat label="Total repayable" value={total ? formatUGX(total) : '—'} />
-          <Stat label="Repaid so far" value={formatUGX(repaid)} />
         </div>
-
-        {total > 0 && (
-          <div className="mx-4 mb-5">
-            <div className="mb-1.5 flex items-center justify-between text-[11px] font-semibold">
-              <span className="text-muted-foreground">Repayment progress</span>
-              <span className="tabular-nums">{pct}%</span>
-            </div>
-            <Progress value={pct} className="h-2" />
-          </div>
-        )}
 
         {/* Property & plan */}
         <p className="px-4 pb-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Property</p>
