@@ -1443,6 +1443,20 @@ export function TenantOpsDashboard() {
 
   // Reports & Exports toolbar — shared by the inline Classic section and
   // its dedicated "Open hub" full view.
+  // Label + dispatcher so the centralized Extract card can reuse the very same
+  // date window and extract handlers this toolbar already uses.
+  const reportRangeLabel = reportFrom || reportTo
+    ? `${reportFrom ? format(reportFrom, 'dd MMM yyyy') : 'any date'} — ${reportTo ? format(reportTo, 'dd MMM yyyy') : 'today'}`
+    : 'no date filter — all time';
+
+  const runExtract = (kind: ExtractKind) => {
+    if (kind === 'applied') return void handleExtractApplied();
+    if (kind === 'approved') return void handleExtractApproved();
+    if (kind === 'funded') return void handleExtractFunded();
+    if (kind === 'collected') return void handleExtractCollected();
+    return void handleExtractExpected();
+  };
+
   const reportsToolbar = (
                 <div className="flex flex-wrap sm:justify-end items-center gap-2">
                 <Popover>
