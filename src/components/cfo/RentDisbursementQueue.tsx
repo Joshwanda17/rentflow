@@ -184,7 +184,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
         const { data: profiles } = await supabase
           .from('profiles')
           .select('id, full_name, town, city, sub_county, parish, village, region, district, tenant_house_category')
-          .in('id', allUserIds);
+          .in('id', allUserIds).limit(5000);
         for (const p of profiles || []) {
           profileMap.set(p.id, (p as any).full_name || 'Unknown');
           tenantLocMap.set(p.id, p);
@@ -194,7 +194,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
       // Fetch landlord names
       const landlordMap = new Map<string, string>();
       if (landlordIds.length) {
-        const { data: landlords } = await supabase.from('landlords').select('id, name').in('id', landlordIds);
+        const { data: landlords } = await supabase.from('landlords').select('id, name').in('id', landlordIds).limit(5000);
         for (const l of landlords || []) landlordMap.set(l.id, l.name || 'Unknown');
       }
 
@@ -205,7 +205,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
         const { data: wallets } = await supabase
           .from('wallets')
           .select('user_id')
-          .in('user_id', landlordIds);
+          .in('user_id', landlordIds).limit(5000);
         for (const w of wallets || []) walletSet.add(w.user_id);
       }
 
@@ -216,7 +216,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
         const { data: listings } = await supabase
           .from('house_listings')
           .select('id, district')
-          .in('id', listingIds);
+          .in('id', listingIds).limit(5000);
         for (const l of listings || []) if (l.district) districtMap.set(l.id, l.district);
       }
 
