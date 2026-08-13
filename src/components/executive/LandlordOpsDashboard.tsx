@@ -344,7 +344,18 @@ function ImagePreviewDialog({ images, open, onClose, title, startIndex = 0 }: { 
   );
 }
 
-type View = 'home' | 'landlords' | 'locations' | 'lc1' | 'lc1-requests' | 'residence-verify' | 'lc1-duplicates' | 'empty' | 'occupied' | 'verify' | 'pipeline' | 'chain' | 'matching' | 'agents' | 'analytics' | 'cities' | 'no-landlord' | 'advance-requests' | 'landlords-paid' | 'landlords-tenants' | 'all-requests' | 'houses-by-landlord';
+type View = 'home' | 'landlords' | 'locations' | 'lc1' | 'lc1-requests' | 'residence-verify' | 'lc1-duplicates' | 'empty' | 'occupied' | 'verify' | 'pipeline' | 'chain' | 'matching' | 'agents' | 'analytics' | 'cities' | 'no-landlord' | 'advance-requests' | 'landlords-paid' | 'landlords-tenants' | 'all-requests' | 'houses-by-landlord' | 'agent-verify-requests' | 'lc1-inbox' | 'rent-pipeline-queue' | 'rejected-queue' | 'payout-review' | 'agent-capacity' | 'reports';
+
+// ─── Hub section titles (dedicated workspaces reached from the dashboard) ───
+const hubTitles: Partial<Record<View, string>> = {
+  'agent-verify-requests': 'Agent Verification Requests',
+  'lc1-inbox': 'LC1 Verification Inbox',
+  'rent-pipeline-queue': 'Rent Pipeline',
+  'rejected-queue': 'Rejected at Landlord Ops',
+  'payout-review': 'Landlord Payout Review',
+  'agent-capacity': 'Agent Rent Capacity',
+  reports: 'Reports & Exports',
+};
 
 // ─── Navigation Items ───
 const navItems: { id: View; label: string; icon: typeof Building2; color: string; description: string; priority?: boolean }[] = [
