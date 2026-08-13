@@ -760,8 +760,8 @@ async function generateStatementsRaw(activeFilters: StatementFilters): Promise<F
             roiReinvestment, supporterCapitalWithdrawals, netFinancing,
           },
           netCashMovement,
-          openingBalance: Math.max(0, openingBalance),
-          closingBalance: Math.max(0, closingBalance),
+          openingBalance,
+          closingBalance,
         },
         balanceSheet: {
           assets: {
@@ -808,6 +808,23 @@ async function generateStatementsRaw(activeFilters: StatementFilters): Promise<F
           activeAgents: uniqueAgents,
           averageRentAmount,
           supporterCapitalDeployed,
+        },
+        reconciliation: {
+          openingCash: openingBalance,
+          cashIn: periodCashIn,
+          cashOut: periodCashOut,
+          periodNet: periodCashNet,
+          closingCash: closingBalance,
+          balanceSheetCash: platformCash,
+          cashDifference: closingBalance - platformCash,
+          cashTied: Math.abs(closingBalance - platformCash) < 1,
+          classifiedNet: netCashMovement,
+          unclassifiedNet: periodCashNet - netCashMovement,
+          totalAssets,
+          totalLiabilities: totalObligations,
+          totalEquity: retainedOperatingSurplus,
+          balanceDifference: totalAssets - (totalObligations + retainedOperatingSurplus),
+          balanced: Math.abs(totalAssets - (totalObligations + retainedOperatingSurplus)) < 1,
         },
       };
 
