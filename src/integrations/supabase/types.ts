@@ -23435,7 +23435,7 @@ export type Database = {
           full_name: string | null
           id: string
           invite_code: string | null
-          nin: string
+          nin: string | null
           phone: string | null
           review_notes: string | null
           reviewed_at: string | null
@@ -23449,7 +23449,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           invite_code?: string | null
-          nin: string
+          nin?: string | null
           phone?: string | null
           review_notes?: string | null
           reviewed_at?: string | null
@@ -23463,7 +23463,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           invite_code?: string | null
-          nin?: string
+          nin?: string | null
           phone?: string | null
           review_notes?: string | null
           reviewed_at?: string | null
