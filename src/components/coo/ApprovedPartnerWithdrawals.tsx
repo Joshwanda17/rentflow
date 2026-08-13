@@ -21,6 +21,10 @@ interface WithdrawalRow {
   fin_ops_reference: string | null;
   payout_method: string | null;
   mobile_money_name: string | null;
+  mobile_money_number: string | null;
+  mobile_money_provider: string | null;
+  bank_name: string | null;
+  bank_account_number: string | null;
   bank_account_name: string | null;
   linked_party: string | null;
   proxy_partner_id: string | null;
