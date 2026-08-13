@@ -15,6 +15,10 @@ export interface AgentDailyOverviewRow {
 
 export interface AgentDailyOverviewInput {
   reportDate: Date;
+  /** Optional range end — when set (and different from reportDate) the report covers a period. */
+  rangeEnd?: Date;
+  /** Human label for the covered period, e.g. "Last 7 days". */
+  periodLabel?: string;
   generatedAt: Date;
   rows: AgentDailyOverviewRow[];
 }
@@ -64,6 +68,14 @@ export function generateAgentDailyOverviewPdf(input: AgentDailyOverviewInput): B
   );
   const overallRate = totals.expected > 0 ? Math.round((totals.collected / totals.expected) * 100) : 0;
 
+  const rangeEnd = input.rangeEnd || input.reportDate;
+  const isRange =
+    format(rangeEnd, 'yyyy-MM-dd') !== format(input.reportDate, 'yyyy-MM-dd');
+  const dateHeading = isRange
+    ? `${format(input.reportDate, 'dd MMM')} - ${format(rangeEnd, 'dd MMM yyyy')}`
+    : format(input.reportDate, 'EEE, dd MMM yyyy');
+  const periodSuffix = isRange ? ' (period)' : ' today';
+
   // ===== Header bar =====
   doc.setFillColor(...COL.ink);
   doc.rect(margin, y, contentW, 20, 'F');
@@ -74,11 +86,15 @@ export function generateAgentDailyOverviewPdf(input: AgentDailyOverviewInput): B
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(200, 208, 225);
-  doc.text('One row per agent: expected vs collected, principal & outstanding', margin + 4, y + 14);
+  doc.text(
+    `One row per agent: expected vs collected, principal & outstanding${input.periodLabel ? ` - ${input.periodLabel}` : ''}`,
+    margin + 4,
+    y + 14,
+  );
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
   doc.setTextColor(255, 255, 255);
-  doc.text(format(input.reportDate, 'EEE, dd MMM yyyy'), pageW - margin - 4, y + 10, { align: 'right' });
+  doc.text(dateHeading, pageW - margin - 4, y + 10, { align: 'right' });
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(200, 208, 225);
@@ -89,8 +105,8 @@ export function generateAgentDailyOverviewPdf(input: AgentDailyOverviewInput): B
   const chips: { label: string; value: string; color: [number, number, number] }[] = [
     { label: 'Agents', value: String(input.rows.length), color: COL.ink },
     { label: 'Active tenants', value: String(totals.tenants), color: COL.ink },
-    { label: 'Expected today (UGX)', value: num(totals.expected), color: COL.ink },
-    { label: 'Collected today (UGX)', value: num(totals.collected), color: COL.blue },
+    { label: `Expected${periodSuffix} (UGX)`, value: num(totals.expected), color: COL.ink },
+    { label: `Collected${periodSuffix} (UGX)`, value: num(totals.collected), color: COL.blue },
     { label: 'Collection rate', value: `${overallRate}%`, color: overallRate >= 75 ? COL.green : overallRate >= 50 ? COL.blue : COL.red },
     { label: 'Principal paid (UGX)', value: num(totals.principal), color: COL.ink },
     { label: 'Outstanding (UGX)', value: num(totals.outstanding), color: COL.red },

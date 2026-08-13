@@ -2,7 +2,17 @@ import { useState } from 'react';
 import { FileBarChart, Loader2, ChevronDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { format, startOfDay, endOfDay, subDays } from 'date-fns';
+import {
+  format,
+  startOfDay,
+  endOfDay,
+  subDays,
+  startOfMonth,
+  endOfMonth,
+  subMonths,
+  differenceInCalendarDays,
+  min as minDate,
+} from 'date-fns';
 import {
   generateAgentDailyOverviewPdf,
   type AgentDailyOverviewRow,
@@ -16,12 +26,43 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-const PRESETS: { label: string; offset: number }[] = [
-  { label: 'Today', offset: 0 },
-  { label: 'Yesterday', offset: 1 },
-  { label: '2 days ago', offset: 2 },
-  { label: '3 days ago', offset: 3 },
-  { label: '7 days ago', offset: 7 },
+type Preset = {
+  id: string;
+  label: string;
+  /** Resolves the inclusive [start, end] range the report covers. */
+  range: () => { start: Date; end: Date };
+};
+
+const PRESETS: Preset[] = [
+  { id: 'today', label: 'Today', range: () => ({ start: new Date(), end: new Date() }) },
+  {
+    id: 'yesterday',
+    label: 'Yesterday',
+    range: () => ({ start: subDays(new Date(), 1), end: subDays(new Date(), 1) }),
+  },
+  {
+    id: 'last7',
+    label: 'Last 7 days',
+    range: () => ({ start: subDays(new Date(), 6), end: new Date() }),
+  },
+  {
+    id: 'last30',
+    label: 'Last 30 days',
+    range: () => ({ start: subDays(new Date(), 29), end: new Date() }),
+  },
+  {
+    id: 'this-month',
+    label: 'This month',
+    range: () => ({ start: startOfMonth(new Date()), end: new Date() }),
+  },
+  {
+    id: 'last-month',
+    label: 'Last month',
+    range: () => {
+      const ref = subMonths(new Date(), 1);
+      return { start: startOfMonth(ref), end: endOfMonth(ref) };
+    },
+  },
 ];
 
 // Unified active-book definition shared with activeTenantsReportPdf.ts.
@@ -52,15 +93,20 @@ async function fetchAll<T>(
 }
 
 export function AgentDailyOverviewReportButton() {
-  const [busy, setBusy] = useState<number | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
 
-  const run = async (offset: number) => {
+  const run = async (preset: Preset) => {
     if (busy !== null) return;
-    setBusy(offset);
+    setBusy(preset.id);
     try {
-      const reportDate = subDays(new Date(), offset);
-      const dayStart = startOfDay(reportDate).toISOString();
-      const dayEnd = endOfDay(reportDate).toISOString();
+      const { start, end } = preset.range();
+      const rangeStart = startOfDay(start);
+      // Never look past "now" — future days have no collections and would dilute expectations.
+      const rangeEnd = endOfDay(minDate([end, new Date()]));
+      // Inclusive day count drives the expected (daily_repayment × days) figure.
+      const dayCount = Math.max(1, differenceInCalendarDays(rangeEnd, rangeStart) + 1);
+      const dayStart = rangeStart.toISOString();
+      const dayEnd = rangeEnd.toISOString();
 
       // 1. All active rent plans (paged)
       const requests = await fetchAll<any>((from, to) =>
@@ -71,7 +117,7 @@ export function AgentDailyOverviewReportButton() {
           .range(from, to),
       );
 
-      // 2. Collections logged on the report date (paged)
+      // 2. Collections logged inside the selected range (paged)
       const collections = await fetchAll<any>((from, to) =>
         supabase
           .from('agent_collections')
@@ -140,7 +186,7 @@ export function AgentDailyOverviewReportButton() {
         const expected = isOB
           ? Number(r.initial_outstanding_balance || 0)
           : Number(r.total_repayment || 0);
-        a.expectedToday += Number(r.daily_repayment || 0);
+        a.expectedToday += Number(r.daily_repayment || 0) * dayCount;
         a.principalPaid += principal;
         a.outstanding += Math.max(0, expected - Number(r.amount_repaid || 0));
         if (r.tenant_id) a.tenantSet.add(r.tenant_id);
@@ -174,7 +220,9 @@ export function AgentDailyOverviewReportButton() {
         });
 
       const blob = generateAgentDailyOverviewPdf({
-        reportDate,
+        reportDate: rangeStart,
+        rangeEnd,
+        periodLabel: preset.label,
         generatedAt: new Date(),
         rows,
       });
@@ -182,13 +230,20 @@ export function AgentDailyOverviewReportButton() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `agent-daily-performance-${format(reportDate, 'yyyy-MM-dd')}.pdf`;
+      a.download =
+        dayCount > 1
+          ? `agent-performance-${format(rangeStart, 'yyyy-MM-dd')}_to_${format(rangeEnd, 'yyyy-MM-dd')}.pdf`
+          : `agent-daily-performance-${format(rangeStart, 'yyyy-MM-dd')}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
 
-      toast.success(`Daily performance report for ${format(reportDate, 'dd MMM yyyy')} downloaded`);
+      toast.success(
+        dayCount > 1
+          ? `${preset.label} report (${format(rangeStart, 'dd MMM')} – ${format(rangeEnd, 'dd MMM yyyy')}) downloaded`
+          : `Performance report for ${format(rangeStart, 'dd MMM yyyy')} downloaded`,
+      );
     } catch (err: any) {
       console.error('[AgentDailyOverviewReportButton]', err);
       toast.error(err?.message || 'Failed to generate report');
@@ -213,33 +268,39 @@ export function AgentDailyOverviewReportButton() {
           ) : (
             <FileBarChart className="h-4 w-4 text-primary" />
           )}
-          <span className="hidden xs:inline">Daily PDF</span>
+        <span className="hidden xs:inline">Performance PDF</span>
           <ChevronDown className="h-3.5 w-3.5 opacity-70" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
-          Agent daily performance
+          Agent performance period
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {PRESETS.map((p) => (
-          <DropdownMenuItem
-            key={p.offset}
-            disabled={isBusy}
-            onClick={() => run(p.offset)}
-            className="gap-2 cursor-pointer"
-          >
-            {busy === p.offset ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
-            ) : (
-              <FileBarChart className="h-3.5 w-3.5 text-primary" />
-            )}
-            <span className="text-sm font-medium">{p.label}</span>
-            <span className="ml-auto text-[10px] text-muted-foreground">
-              {format(subDays(new Date(), p.offset), 'dd MMM')}
-            </span>
-          </DropdownMenuItem>
-        ))}
+        {PRESETS.map((p) => {
+          const { start, end } = p.range();
+          const sameDay = format(start, 'yyyy-MM-dd') === format(end, 'yyyy-MM-dd');
+          return (
+            <DropdownMenuItem
+              key={p.id}
+              disabled={isBusy}
+              onClick={() => run(p)}
+              className="gap-2 cursor-pointer"
+            >
+              {busy === p.id ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+              ) : (
+                <FileBarChart className="h-3.5 w-3.5 text-primary" />
+              )}
+              <span className="text-sm font-medium">{p.label}</span>
+              <span className="ml-auto text-[10px] text-muted-foreground">
+                {sameDay
+                  ? format(start, 'dd MMM')
+                  : `${format(start, 'dd MMM')}–${format(end, 'dd MMM')}`}
+              </span>
+            </DropdownMenuItem>
+          );
+        })}
       </DropdownMenuContent>
     </DropdownMenu>
   );
