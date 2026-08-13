@@ -4642,6 +4642,52 @@ export function LandlordOpsDashboard() {
 
   // ─── HUB: Reports & Exports ───
   if (view === 'reports') {
+    // The From / To pickers below drive every centralized extract, exactly like
+    // the Tenant Ops hub. Each entry calls the dashboard's existing export
+    // handler — no report logic is duplicated here.
+    const hubFromIso = reportFrom ? reportFrom.toISOString() : null;
+    const hubToIso = reportTo
+      ? new Date(new Date(reportTo).getTime() + 24 * 60 * 60 * 1000 - 1).toISOString()
+      : null;
+    const hubRangeLabel = reportFrom || reportTo
+      ? `${reportFrom ? format(reportFrom, 'dd MMM yyyy') : 'any date'} — ${reportTo ? format(reportTo, 'dd MMM yyyy') : 'today'}`
+      : 'no date filter — all time';
+
+    const runLandlordExtract = async (kind: LandlordExtractKind) => {
+      setExtractingKind(kind);
+      try {
+        if (kind === 'payouts-print') {
+          await handlePrintReport();
+        } else if (kind === 'landlords-funded') {
+          await exportFundedReportPdf({
+            dateFrom: reportFrom ? format(reportFrom, 'yyyy-MM-dd') : '',
+            dateTo: reportTo ? format(reportTo, 'yyyy-MM-dd') : '',
+            search: '',
+          });
+        } else if (kind.startsWith('landlords-')) {
+          await exportLandlordReportPdf({
+            scope: kind.replace('landlords-', '') as LandlordOpsCategory,
+            pendingFilter: 'all' as LandlordOpsPendingFilter,
+            search: '',
+            dateFrom: hubFromIso,
+            dateTo: hubToIso,
+          });
+        } else if (kind.startsWith('houses-')) {
+          await exportHouseReportPdf({
+            status: kind.replace('houses-', '') as HouseStatusFilter,
+            quick: 'all',
+            search: null,
+            dateFrom: hubFromIso,
+            dateTo: hubToIso,
+          });
+        } else if (kind.startsWith('lc1-')) {
+          await exportLc1ReportPdf(kind.replace('lc1-', '') as 'verified' | 'pending' | 'rejected' | 'all');
+        }
+      } finally {
+        setExtractingKind(null);
+      }
+    };
+
     return (
       <>
         <div className="space-y-4">
@@ -4687,6 +4733,12 @@ export function LandlordOpsDashboard() {
               </Button>
             </div>
           </div>
+          <LandlordOpsExtractCenter
+            rangeLabel={hubRangeLabel}
+            extracting={extractingKind}
+            onExtract={(kind) => void runLandlordExtract(kind)}
+            onOpenView={(target: LandlordExtractTargetView) => goToView(target as View)}
+          />
           <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-4">
             <p className="text-[11px] text-muted-foreground leading-relaxed">
               Other exports live inside the section they belong to: landlord verification export in
