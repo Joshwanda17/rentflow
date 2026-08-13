@@ -2962,6 +2962,7 @@ export function LandlordOpsDashboard() {
                           <InlineModerationActions
                             approveLabel="Review & Approve"
                             rejectLabel="Reject"
+                          {/* Service Centre manager's vetting note for this landlord */}
                             onApprove={(note) => handleApproveLandlord(landlord, note)}
                             onReject={(note) => handleRejectLandlord(landlord, note)}
                           />
