@@ -36157,6 +36157,28 @@ export type Database = {
               wallet_balance: number
             }[]
           }
+      get_all_advances_report: {
+        Args: never
+        Returns: {
+          advance_id: string
+          advance_type: string
+          amount_approved: number
+          amount_paid: number
+          amount_requested: number
+          approved_at: string
+          notes: string
+          outstanding_balance: number
+          paid_at: string
+          recipient_id: string
+          recipient_name: string
+          recipient_phone: string
+          reference: string
+          rejected_at: string
+          requested_at: string
+          status: string
+          transaction_reference: string
+        }[]
+      }
       get_approximate_user_count: { Args: never; Returns: number }
       get_authoritative_wallet: { Args: { p_user_id: string }; Returns: Json }
       get_buffer_metrics: { Args: never; Returns: Json }
