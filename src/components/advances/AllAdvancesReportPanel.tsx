@@ -61,14 +61,13 @@ const isoDay = (d: Date) => {
   return z.toISOString().slice(0, 10);
 };
 
-type Period = 'all' | 'today' | 'yesterday' | 'week' | 'month' | 'last_month' | 'custom';
+type Period = 'all' | 'today' | 'week' | 'month' | 'calendar' | 'custom';
 
 const PERIOD_LABELS: { key: Period; label: string }[] = [
   { key: 'today', label: 'Daily' },
   { key: 'week', label: 'Weekly' },
   { key: 'month', label: 'Monthly' },
-  { key: 'yesterday', label: 'Yesterday' },
-  { key: 'last_month', label: 'Last month' },
+  { key: 'calendar', label: 'Calendar' },
   { key: 'all', label: 'All time' },
 ];
 
@@ -80,10 +79,6 @@ const periodRange = (p: Period): { from: string; to: string } => {
       const d = startOfDay(now);
       return { from: isoDay(d), to: isoDay(d) };
     }
-    case 'yesterday': {
-      const d = startOfDay(new Date(now.getTime() - 86_400_000));
-      return { from: isoDay(d), to: isoDay(d) };
-    }
     case 'week': {
       const day = now.getDay(); // 0 = Sun
       const diff = day === 0 ? 6 : day - 1; // week starts Monday
@@ -92,11 +87,6 @@ const periodRange = (p: Period): { from: string; to: string } => {
     }
     case 'month':
       return { from: isoDay(new Date(now.getFullYear(), now.getMonth(), 1)), to: isoDay(now) };
-    case 'last_month': {
-      const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const end = new Date(now.getFullYear(), now.getMonth(), 0);
-      return { from: isoDay(start), to: isoDay(end) };
-    }
     default:
       return { from: '', to: '' };
   }
