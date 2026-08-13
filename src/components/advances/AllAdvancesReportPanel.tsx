@@ -200,14 +200,30 @@ export function AllAdvancesReportPanel() {
   };
 
   const clearAll = () => {
-    setSearch(''); setType('all'); setStatus('all'); setFrom(''); setTo(''); setPeriod('all');
+    setSearch(''); setType('all'); setStatus('all'); setFrom(''); setTo(''); setPeriod('all'); setCalendarDate(undefined);
   };
 
   const applyPeriod = (p: Period) => {
     setPeriod(p);
+    if (p === 'calendar') {
+      const d = calendarDate ? isoDay(calendarDate) : isoDay(new Date());
+      setFrom(d);
+      setTo(d);
+      return;
+    }
     const r = periodRange(p);
     setFrom(r.from);
     setTo(r.to);
+  };
+
+  const applyCalendarDate = (d: Date | undefined) => {
+    setCalendarDate(d);
+    if (d) {
+      const day = isoDay(d);
+      setFrom(day);
+      setTo(day);
+      setPeriod('calendar');
+    }
   };
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
