@@ -109,6 +109,7 @@ export function AllAdvancesReportPanel() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [period, setPeriod] = useState<Period>('all');
+  const [calendarDate, setCalendarDate] = useState<Date | undefined>(undefined);
   const PAGE_SIZE = 50;
   const [page, setPage] = useState(1);
   const q = useDebouncedValue(search, 250);
