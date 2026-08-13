@@ -80,6 +80,11 @@ import {
   fetchLandlordFundedStats,
 } from '@/hooks/useLandlordFundedStats';
 import { generateLc1VerificationReportPdf, lc1ReportFileName, type Lc1ReportRow } from '@/lib/generateLc1VerificationReportPdf';
+import {
+  LandlordOpsExtractCenter,
+  type LandlordExtractKind,
+  type LandlordExtractTargetView,
+} from './landlord-ops/LandlordOpsExtractCenter';
 import { FileDown } from 'lucide-react';
 import { RentAdjustmentDialog } from './RentAdjustmentDialog';
 import { VacancyAnalytics } from './VacancyAnalytics';
