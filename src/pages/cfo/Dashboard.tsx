@@ -57,6 +57,7 @@ import { WalletRetractionsFeed } from '@/components/cfo/WalletRetractionsFeed';
 import { CFOAdvancesManager } from '@/components/cfo/CFOAdvancesManager';
 import { CFOAdvanceRequestPayments } from '@/components/cfo/CFOAdvanceRequestPayments';
 import { AdvancesAnalyticsView } from '@/components/advances/AdvancesAnalyticsView';
+import { AllAdvancesReportPanel } from '@/components/advances/AllAdvancesReportPanel';
 import { DisbursedAdvancesRegister } from '@/components/cfo/DisbursedAdvancesRegister';
 import { BusinessAdvanceQueue } from '@/components/ops/BusinessAdvanceQueue';
 import { ManagerApprovalAudit } from '@/components/cfo/ManagerApprovalAudit';
@@ -342,6 +343,7 @@ export default function CFODashboardPage() {
                 Track what&apos;s been disbursed under <strong>Disbursed &amp; Repayments</strong>.
               </p>
             </div>
+            <AllAdvancesReportPanel />
             <CFOAdvanceRequestPayments onViewDisbursed={() => setActiveTab('advances-disbursed')} />
             <div className="pt-4 border-t">
               <h2 className="text-base font-semibold mb-2">🏪 Business Advance Requests</h2>
