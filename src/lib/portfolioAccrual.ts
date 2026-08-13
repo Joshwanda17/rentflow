@@ -69,6 +69,9 @@ export function computeAccrual(p: AccrualInput): AccrualResult {
   // clamped to the portfolio start date for the very first cycle.
   let cycleStart: Date | null = nextPayoutDate ? addMonths(nextPayoutDate, -1) : null;
   if (cycleStart && startDate && startDate > cycleStart) cycleStart = startDate;
+  // Guard against bad/forward-dated records where the start lands after the
+  // payout date — the cycle then has no meaningful span.
+  if (cycleStart && nextPayoutDate && cycleStart > nextPayoutDate) cycleStart = nextPayoutDate;
 
   let cycleDays = 30;
   if (cycleStart && nextPayoutDate) {
@@ -78,15 +81,19 @@ export function computeAccrual(p: AccrualInput): AccrualResult {
 
   const isActive = state === 'active';
   const dailyAccrual = isActive && cycleDays > 0 ? expectedMonthlyReturn / cycleDays : 0;
+  const daysToPayoutRaw = nextPayoutDate ? differenceInCalendarDays(nextPayoutDate, today) : null;
 
   let cycleElapsedDays = 0;
-  if (isActive && cycleStart) {
+  if (isActive && daysToPayoutRaw !== null && daysToPayoutRaw <= 0) {
+    // Payout date reached or passed: the cycle has fully earned out.
+    cycleElapsedDays = cycleDays;
+  } else if (isActive && cycleStart) {
     cycleElapsedDays = Math.max(0, Math.min(cycleDays, differenceInCalendarDays(today, cycleStart)));
   }
 
   const cycleAccrued = isActive ? dailyAccrual * cycleElapsedDays : 0;
   const cycleProgress = cycleDays > 0 ? Math.max(0, Math.min(1, cycleElapsedDays / cycleDays)) : 0;
-  const daysToPayout = nextPayoutDate ? differenceInCalendarDays(nextPayoutDate, today) : null;
+  const daysToPayout = daysToPayoutRaw;
 
   return {
     state,
