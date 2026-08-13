@@ -35863,6 +35863,7 @@ export type Database = {
         Returns: boolean
       }
       funder_pending_committed: { Args: { p_user_id: string }; Returns: number }
+      funder_pending_hold: { Args: { p_user_id: string }; Returns: number }
       funder_supported_tenants: {
         Args: never
         Returns: {
