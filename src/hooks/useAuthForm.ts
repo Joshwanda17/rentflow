@@ -749,6 +749,7 @@ export function useAuthForm() {
       }
     };
 
+    type SignInAttempt = { ok: boolean; email: string; error: Error | null };
     const placeholderCandidates = [
       `0${last9}@welile.user`,
       `256${last9}@welile.user`,
@@ -849,7 +850,7 @@ export function useAuthForm() {
       : placeholderCandidates;
     if (earlyRpcEmails?.length) accountExists = true;
 
-    const tryOne = async (emailToTry: string): Promise<{ ok: boolean; email: string; error: Error | null }> => {
+    const tryOne = async (emailToTry: string): Promise<SignInAttempt> => {
       const tStart = performance.now();
       try {
         // Retry only on transient failures. signIn returns { error } rather
