@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { captureGps, isGpsRequiredError } from '@/lib/captureGps';
 import { generateWelileAiId, getRiskTierLabel } from '@/lib/welileAiId';
 import { formatUGX, calculateRequestFee } from '@/lib/rentCalculations';
 import { getEffectiveRentRequestAmounts } from '@/lib/rentRequestAmounts';
