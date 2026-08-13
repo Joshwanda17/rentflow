@@ -358,7 +358,11 @@ export function PromissoryNotesQueue() {
                                 <StatusIcon className="h-3 w-3 mr-1" />
                                 {config.label}
                               </Badge>
-                              {note.came_in && <BadgeCheck className="h-3.5 w-3.5 text-emerald-600" title="Partner came in" />}
+                              {note.came_in && (
+                                <span title="Partner came in" className="inline-flex">
+                                  <BadgeCheck className="h-3.5 w-3.5 text-emerald-600" />
+                                </span>
+                              )}
                             </div>
                           </td>
                         </tr>
