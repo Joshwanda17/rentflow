@@ -29,6 +29,7 @@ import { GlobalVerificationHub } from './GlobalVerificationHub';
 import { WelileOperationsHub } from './WelileOperationsHub';
 import { AgentNetworkBadge } from './tenant-ops/AgentNetworkBadge';
 import { PipelineStatusHub } from './tenant-ops/PipelineStatusHub';
+import { TenantOpsExtractCenter, type ExtractKind, type ExtractTargetView } from './tenant-ops/TenantOpsExtractCenter';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -1400,7 +1401,22 @@ export function TenantOpsDashboard() {
           />
         );
       case 'reports-hub':
-        return <div className="space-y-3">{reportsToolbar}</div>;
+        return (
+          <div className="space-y-3">
+            {reportsToolbar}
+            <TenantOpsExtractCenter
+              rangeLabel={reportRangeLabel}
+              extracting={extracting}
+              onExtract={runExtract}
+              printing={printingPdf}
+              onPrintReport={() => void handlePrintReport()}
+              onOpenView={(view: ExtractTargetView) => {
+                setActiveView(view as ActiveView);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            />
+          </div>
+        );
       default:
         return null;
     }
