@@ -13819,70 +13819,106 @@ export type Database = {
       }
       internship_applications: {
         Row: {
+          availability_days_per_week: number | null
+          availability_start: string | null
+          availability_weeks: number | null
+          cohort: string | null
           consent_text_version: string | null
           consented_at: string | null
           contacted_at: string | null
           contacted_by: string | null
+          course: string | null
           created_at: string
           decided_at: string | null
           decided_by: string | null
           decision_reason: string | null
           email: string | null
+          enrolled_at: string | null
+          enrolled_staff_id: string | null
+          expected_completion: string | null
           full_name: string
           future_roles_consent: boolean
           id: string
+          institution: string | null
+          linked_user_id: string | null
           motivation: string | null
           phone: string
+          preferred_contact_channel: string | null
           purged_at: string | null
           ready_to_learn: boolean | null
           referral_code: string | null
           skills: string | null
           status: string
           updated_at: string
+          year_of_study: number | null
         }
         Insert: {
+          availability_days_per_week?: number | null
+          availability_start?: string | null
+          availability_weeks?: number | null
+          cohort?: string | null
           consent_text_version?: string | null
           consented_at?: string | null
           contacted_at?: string | null
           contacted_by?: string | null
+          course?: string | null
           created_at?: string
           decided_at?: string | null
           decided_by?: string | null
           decision_reason?: string | null
           email?: string | null
+          enrolled_at?: string | null
+          enrolled_staff_id?: string | null
+          expected_completion?: string | null
           full_name: string
           future_roles_consent?: boolean
           id?: string
+          institution?: string | null
+          linked_user_id?: string | null
           motivation?: string | null
           phone: string
+          preferred_contact_channel?: string | null
           purged_at?: string | null
           ready_to_learn?: boolean | null
           referral_code?: string | null
           skills?: string | null
           status?: string
           updated_at?: string
+          year_of_study?: number | null
         }
         Update: {
+          availability_days_per_week?: number | null
+          availability_start?: string | null
+          availability_weeks?: number | null
+          cohort?: string | null
           consent_text_version?: string | null
           consented_at?: string | null
           contacted_at?: string | null
           contacted_by?: string | null
+          course?: string | null
           created_at?: string
           decided_at?: string | null
           decided_by?: string | null
           decision_reason?: string | null
           email?: string | null
+          enrolled_at?: string | null
+          enrolled_staff_id?: string | null
+          expected_completion?: string | null
           full_name?: string
           future_roles_consent?: boolean
           id?: string
+          institution?: string | null
+          linked_user_id?: string | null
           motivation?: string | null
           phone?: string
+          preferred_contact_channel?: string | null
           purged_at?: string | null
           ready_to_learn?: boolean | null
           referral_code?: string | null
           skills?: string | null
           status?: string
           updated_at?: string
+          year_of_study?: number | null
         }
         Relationships: []
       }
