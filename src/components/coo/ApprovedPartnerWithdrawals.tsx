@@ -342,6 +342,13 @@ export function ApprovedPartnerWithdrawals({ onBack }: Props) {
             const partnerName = partnerNameOf(w);
             const method = (w.fin_ops_payment_method || w.payout_method || '—').replace(/_/g, ' ');
             const portfolioName = portfolioOf(w).name;
+            // The exact destination the money was actually sent to, so the card
+            // can be reconciled against the telecom / bank record.
+            const destination = w.mobile_money_number
+              ? `${(w.mobile_money_provider || 'Mobile money')} ${w.mobile_money_number}`
+              : w.bank_account_number
+                ? `${w.bank_name ? `${w.bank_name} · ` : ''}A/C ${w.bank_account_number}`
+                : null;
 
             return (
               <Card key={w.id} className="border-border/50">
@@ -371,6 +378,11 @@ export function ApprovedPartnerWithdrawals({ onBack }: Props) {
                   {payeeName !== '—' && (
                     <p className="text-[10px] text-muted-foreground">
                       Payee: <span className="font-medium">{payeeName}</span>
+                    </p>
+                  )}
+                  {destination && (
+                    <p className="text-[10px] text-muted-foreground">
+                      Sent to: <span className="font-medium font-mono text-foreground">{destination}</span>
                     </p>
                   )}
                   {w.reason && (
