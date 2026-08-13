@@ -284,44 +284,7 @@ export function AllAdvancesReportPanel() {
             {p.label}
           </Button>
         ))}
-        {period === 'calendar' && (
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className={cn(
-                  'h-7 px-2.5 text-[11px] justify-start text-left font-normal',
-                  !dateRange?.from && 'text-muted-foreground',
-                )}
-              >
-                <CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
-                {dateRange?.from ? (
-                  dateRange.to ? (
-                    <>
-                      {format(dateRange.from, 'LLL dd')} - {format(dateRange.to, 'LLL dd, yyyy')}
-                    </>
-                  ) : (
-                    format(dateRange.from, 'PPP')
-                  )
-                ) : (
-                  'Pick dates'
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="range"
-                selected={dateRange}
-                onSelect={applyDateRange}
-                numberOfMonths={2}
-                initialFocus
-                className={cn('p-3 pointer-events-auto')}
-              />
-            </PopoverContent>
-          </Popover>
-        )}
-        {period === 'custom' && (
+        {(period === 'calendar' || period === 'custom') && (
           <Badge variant="secondary" className="text-[10px]">Custom range</Badge>
         )}
       </div>
