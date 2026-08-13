@@ -67,6 +67,12 @@ export interface MerchantFloatPosition {
   adjustments: number;
   owedToAgent: number;
   companyCashWithAgent: number;
+  /** Ledger-backed company cash the payout engine can actually spend. */
+  ledgerFloatHeld: number;
+  /** Finance adjustments recorded off-ledger — NOT spendable float. */
+  offledgerAdjustments: number;
+  /** Completed payouts with no float evidence (agent's own line). */
+  payoutsWithoutFloatEvidence: number;
   lastPayoutAt: string | null;
   lastReimbursedAt: string | null;
 }
@@ -95,6 +101,9 @@ export function useMerchantFloatPositions(enabled = true) {
         adjustments: Number(r.adjustments_total ?? 0),
         owedToAgent: Number(r.owed_to_agent ?? 0),
         companyCashWithAgent: Number(r.company_cash_with_agent ?? 0),
+        ledgerFloatHeld: Number(r.ledger_float_held ?? 0),
+        offledgerAdjustments: Number(r.offledger_adjustments ?? 0),
+        payoutsWithoutFloatEvidence: Number(r.payouts_without_float_evidence ?? 0),
         lastPayoutAt: r.last_payout_at ?? null,
         lastReimbursedAt: r.last_reimbursed_at ?? null,
       }));
