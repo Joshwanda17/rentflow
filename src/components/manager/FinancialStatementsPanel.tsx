@@ -996,6 +996,37 @@ export function FinancialStatementsPanel() {
         ))}
       </div>
 
+      {/* Custom Range Pickers */}
+      {filters.period === 'custom' && (
+        <div className="flex flex-wrap items-center gap-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button size="sm" variant="outline" className="h-7 text-xs gap-1">
+                <Calendar className="h-3.5 w-3.5" />
+                {customStart ? format(customStart, 'dd MMM yyyy') : 'Start date'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0 z-[200]" align="start">
+              <CalendarPicker mode="single" selected={customStart} onSelect={setCustomStart} initialFocus className="p-3 pointer-events-auto" />
+            </PopoverContent>
+          </Popover>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button size="sm" variant="outline" className="h-7 text-xs gap-1">
+                <Calendar className="h-3.5 w-3.5" />
+                {customEnd ? format(customEnd, 'dd MMM yyyy') : 'End date'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0 z-[200]" align="start">
+              <CalendarPicker mode="single" selected={customEnd} onSelect={setCustomEnd} initialFocus className="p-3 pointer-events-auto" />
+            </PopoverContent>
+          </Popover>
+          <Button size="sm" className="h-7 text-xs" onClick={applyCustomRange} disabled={loading}>
+            Apply range
+          </Button>
+        </div>
+      )}
+
       {/* Comparison Mode Selector */}
       <div className="flex flex-wrap gap-2 items-center">
         <GitCompareArrows className="h-4 w-4 text-muted-foreground shrink-0" />
