@@ -4172,6 +4172,10 @@ export function LandlordOpsDashboard() {
                         : 'Hide from tenant dashboard'}
                   </Button>
                 </div>
+                {/* Service Centre manager's vetting note for this listing */}
+                <div className="mb-2">
+                  <ServiceCentreNoteLoader table="house_listings" id={house.id} />
+                </div>
                 <InlineModerationActions
                   approveHidden={!!house.verified}
                   approveLabel="Verify → UGX 2K"
