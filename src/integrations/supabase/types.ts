@@ -36796,6 +36796,14 @@ export type Database = {
           reason: string
         }[]
       }
+      get_house_listing_filter_options: {
+        Args: { p_district?: string; p_region?: string; p_subcounty?: string }
+        Returns: {
+          kind: string
+          n: number
+          value: string
+        }[]
+      }
       get_kyc_effective_limits: {
         Args: { p_user_id: string }
         Returns: {
