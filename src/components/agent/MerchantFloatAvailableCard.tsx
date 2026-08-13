@@ -31,7 +31,9 @@ export function MerchantFloatAvailableCard() {
 
   const mine = positions?.[0];
   const owed = mine?.owedToAgent ?? 0;
-  const holding = mine?.companyCashWithAgent ?? 0;
+  const holding = mine?.ledgerFloatHeld ?? mine?.companyCashWithAgent ?? 0;
+  const offledger = mine?.offledgerAdjustments ?? 0;
+  const unbacked = mine?.payoutsWithoutFloatEvidence ?? 0;
   const pending = (myDisputes ?? []).filter((d) => d.status === 'open' || d.status === 'reviewing');
   const lastAnswered = (myDisputes ?? []).find((d) => d.status === 'resolved' || d.status === 'rejected');
   const reviewRows = (oopRows ?? []).filter((r) => r.status === 'needs_review');
@@ -85,9 +87,34 @@ export function MerchantFloatAvailableCard() {
         <div className="mt-3 flex items-start gap-2 rounded-2xl border border-warning/40 bg-warning/10 p-3">
           <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
           <p className="text-[11px] leading-relaxed text-foreground">
-            <span className="font-bold">{formatUGX(holding)}</span> of company cash is in your hands —
-            money sent to you before you claimed payouts. Work it off by claiming and paying requests.
+            <span className="font-bold">{formatUGX(holding)}</span> of company cash is in your hands
+            — company money sent to you and not yet paid out. Payouts you claim are taken from this
+            first, and it drops each time you pay a request.
           </p>
+        </div>
+      )}
+
+      {(offledger !== 0 || unbacked > 0) && (
+        <div className="mt-3 rounded-2xl border border-border/60 bg-muted/20 p-3">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+            Kept separate on purpose
+          </p>
+          <div className="mt-2 space-y-1.5 text-[10px] leading-relaxed text-muted-foreground">
+            {offledger !== 0 && (
+              <p>
+                <span className="font-mono font-semibold text-foreground">{formatUGX(offledger)}</span>{' '}
+                of Finance corrections (starting balances, write-offs) are recorded on your desk but are
+                not company cash you can pay out. They never add to the cash in your hands.
+              </p>
+            )}
+            {unbacked > 0 && (
+              <p>
+                <span className="font-mono font-semibold text-foreground">{formatUGX(unbacked)}</span>{' '}
+                of payouts you completed had no company cash behind them — that is your own money, tracked
+                below, not company cash.
+              </p>
+            )}
+          </div>
         </div>
       )}
 
