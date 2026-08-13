@@ -18680,7 +18680,10 @@ export type Database = {
       merchant_out_of_pocket_advances: {
         Row: {
           agent_id: string
+          attested_at: string | null
+          attested_by: string | null
           created_at: string
+          evidence: Json
           float_used: number
           id: string
           kind: string
@@ -18688,6 +18691,9 @@ export type Database = {
           payout_amount: number
           reimbursed_at: string | null
           reimbursed_by: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
           shortfall_amount: number
           status: string
           telecom_charge: number
@@ -18696,7 +18702,10 @@ export type Database = {
         }
         Insert: {
           agent_id: string
+          attested_at?: string | null
+          attested_by?: string | null
           created_at?: string
+          evidence?: Json
           float_used?: number
           id?: string
           kind?: string
@@ -18704,6 +18713,9 @@ export type Database = {
           payout_amount?: number
           reimbursed_at?: string | null
           reimbursed_by?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           shortfall_amount?: number
           status?: string
           telecom_charge?: number
@@ -18712,7 +18724,10 @@ export type Database = {
         }
         Update: {
           agent_id?: string
+          attested_at?: string | null
+          attested_by?: string | null
           created_at?: string
+          evidence?: Json
           float_used?: number
           id?: string
           kind?: string
@@ -18720,6 +18735,9 @@ export type Database = {
           payout_amount?: number
           reimbursed_at?: string | null
           reimbursed_by?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           shortfall_amount?: number
           status?: string
           telecom_charge?: number
@@ -39807,6 +39825,7 @@ export type Database = {
           released_count: number
         }[]
       }
+      release_stale_merchant_float_reservations: { Args: never; Returns: Json }
       release_sub_agent: { Args: { p_sub_agent_id: string }; Returns: Json }
       relink_stuck_pending_deposits: {
         Args: { p_max_age_days?: number; p_min_age_minutes?: number }
@@ -39837,6 +39856,10 @@ export type Database = {
       reopen_rent_request: {
         Args: { p_reason: string; p_request_id: string }
         Returns: string
+      }
+      repair_merchant_float_reservations: {
+        Args: { p_agent_id?: string }
+        Returns: Json
       }
       repair_wallet_cache_drift: { Args: { p_limit?: number }; Returns: Json }
       repair_wallet_cache_for_user: {
@@ -39994,6 +40017,10 @@ export type Database = {
       }
       reverse_promissory_note_bonus: {
         Args: { p_note_id: string; p_reason: string }
+        Returns: Json
+      }
+      review_merchant_out_of_pocket: {
+        Args: { p_decision: string; p_id: string; p_note?: string }
         Returns: Json
       }
       revoke_nonconforming_merchant_claims: {
