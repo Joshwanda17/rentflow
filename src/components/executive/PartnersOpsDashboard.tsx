@@ -211,7 +211,6 @@ export function PartnersOpsDashboard() {
       case 'activity': return <PartnerFinancialActivity />;
       case 'promissory': return (
         <div className="space-y-6">
-          <PartnerLeadAssignments />
           <PartnerOpsScoreboard />
           <PromissoryNotesQueue />
         </div>
