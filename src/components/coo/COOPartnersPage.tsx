@@ -464,6 +464,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   // Partner Detail view
   const [detailPartner, setDetailPartner] = useState<PartnerDetail | null>(null);
   const [detailSelfCommitments, setDetailSelfCommitments] = useState<SelfCommitmentRow[]>([]);
+  const [expandedSelfTenants, setExpandedSelfTenants] = useState<Record<string, boolean>>({});
   const [detailLoading, setDetailLoading] = useState(false);
   const [editingPortfolioId, setEditingPortfolioId] = useState<string | null>(null);
   const [editingPayoutDay, setEditingPayoutDay] = useState('');
@@ -2701,49 +2702,94 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                       <Badge variant="outline" className="text-[10px] tabular-nums">{detailSelfCommitments.length} total</Badge>
                     </div>
                     <div className="space-y-2.5">
-                      {detailSelfCommitments.map(c => (
-                        <div key={c.id} className="rounded-xl border border-border bg-card p-3.5">
-                          <div className="flex flex-wrap items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <p className="text-sm font-bold tabular-nums">{formatUGX(c.committed_amount)}</p>
-                              <p className="text-[11px] text-muted-foreground mt-0.5">
-                                {c.term_months} month term · {c.monthly_rate}% monthly · {c.lines_count} tenant{c.lines_count === 1 ? '' : 's'}
-                              </p>
-                            </div>
-                            <Badge variant="outline" className="text-[10px] capitalize">{String(c.status).replace(/_/g, ' ')}</Badge>
-                          </div>
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3 text-[11px]">
-                            <div>
-                              <p className="text-muted-foreground">Earned</p>
-                              <p className="font-semibold tabular-nums">{formatUGX(c.total_earned)}</p>
-                            </div>
-                            <div>
-                              <p className="text-muted-foreground">Paid out</p>
-                              <p className="font-semibold tabular-nums">{formatUGX(c.total_paid)}</p>
-                            </div>
-                            <div>
-                              <p className="text-muted-foreground">Next payout</p>
-                              <p className="font-semibold">{c.next_payout_at ? formatDate(c.next_payout_at) : '—'}</p>
-                            </div>
-                            <div>
-                              <p className="text-muted-foreground">Term ends</p>
-                              <p className="font-semibold">{c.term_end_at ? formatDate(c.term_end_at) : '—'}</p>
-                            </div>
-                          </div>
-                          {c.lines.length > 0 && (
-                            <div className="mt-3 space-y-1.5">
-                              {c.lines.map(l => (
-                                <div key={l.id} className="flex items-center justify-between gap-2 rounded-lg bg-muted/40 px-2.5 py-1.5">
-                                  <span className="text-[11px] font-medium truncate">{l.tenant_name || 'Tenant'}</span>
-                                  <span className="text-[11px] tabular-nums text-muted-foreground">
-                                    {formatUGX(l.principal)} · <span className="capitalize">{String(l.status).replace(/_/g, ' ')}</span>
-                                  </span>
+                      {detailSelfCommitments.map((c, idx) => {
+                        const expanded = !!expandedSelfTenants[c.id];
+                        const statusColor = c.status === 'active'
+                          ? 'bg-primary/10 text-primary'
+                          : c.status === 'matured'
+                            ? 'bg-amber-500/10 text-amber-600'
+                            : 'bg-muted text-muted-foreground';
+                        return (
+                          <Card key={c.id} className="overflow-hidden transition-all">
+                            <div className="p-3.5">
+                              {/* Header row — mirrors investment portfolio cards */}
+                              <div className="flex items-start gap-2 mb-2.5">
+                                <div className="w-8 h-8 rounded-lg bg-violet-500/10 flex items-center justify-center text-xs font-black text-violet-600 dark:text-violet-300 shrink-0">
+                                  #{idx + 1}
                                 </div>
-                              ))}
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <p className="text-sm font-bold tabular-nums">{formatUGX(c.committed_amount)}</p>
+                                    <span className={cn('px-1.5 py-0.5 rounded text-[9px] font-bold uppercase whitespace-nowrap shrink-0', statusColor)}>
+                                      {String(c.status).replace(/_/g, ' ')}
+                                    </span>
+                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide bg-violet-500/15 text-violet-600 dark:text-violet-300 border border-violet-500/30 whitespace-nowrap shrink-0">
+                                      Self-managed
+                                    </span>
+                                  </div>
+                                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                                    {c.term_months} month term · {c.monthly_rate}% monthly
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+                                <div>
+                                  <p className="text-muted-foreground">Earned</p>
+                                  <p className="font-semibold tabular-nums">{formatUGX(c.total_earned)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground">Paid out</p>
+                                  <p className="font-semibold tabular-nums">{formatUGX(c.total_paid)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground">Next payout</p>
+                                  <p className="font-semibold">{c.next_payout_at ? formatDate(c.next_payout_at) : '—'}</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground">Term ends</p>
+                                  <p className="font-semibold">{c.term_end_at ? formatDate(c.term_end_at) : '—'}</p>
+                                </div>
+                              </div>
+
+                              {/* Tenants supported — count only, expandable */}
+                              <button
+                                type="button"
+                                onClick={() => setExpandedSelfTenants(prev => ({ ...prev, [c.id]: !prev[c.id] }))}
+                                className="mt-3 w-full flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/30 px-2.5 py-2 text-left hover:bg-muted/60 transition-colors"
+                                aria-expanded={expanded}
+                              >
+                                <span className="text-[11px] font-semibold">
+                                  Tenants supported
+                                  <span className="ml-1.5 tabular-nums text-muted-foreground font-bold">{c.lines_count}</span>
+                                </span>
+                                <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+                                  {expanded ? 'Hide' : 'View'}
+                                  {expanded
+                                    ? <ChevronUp className="h-3 w-3" />
+                                    : <ChevronDown className="h-3 w-3" />}
+                                </span>
+                              </button>
+                              {expanded && (
+                                c.lines.length > 0 ? (
+                                  <div className="mt-2 space-y-1.5">
+                                    {c.lines.map(l => (
+                                      <div key={l.id} className="flex items-center justify-between gap-2 rounded-lg bg-muted/40 px-2.5 py-1.5">
+                                        <span className="text-[11px] font-medium truncate">{l.tenant_name || 'Tenant'}</span>
+                                        <span className="text-[11px] tabular-nums text-muted-foreground">
+                                          {formatUGX(l.principal)} · <span className="capitalize">{String(l.status).replace(/_/g, ' ')}</span>
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p className="mt-2 text-[11px] text-muted-foreground px-2.5">No tenants linked yet.</p>
+                                )
+                              )}
                             </div>
-                          )}
-                        </div>
-                      ))}
+                          </Card>
+                        );
+                      })}
                     </div>
                     <Separator className="mt-5" />
                   </div>
