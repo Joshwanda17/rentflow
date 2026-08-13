@@ -269,6 +269,32 @@ export function buildComparisonMetrics(c: FinancialStatementsData, p: FinancialS
   };
 }
 
+/**
+ * Read-only reconciliation checks. Everything here is derived from the same
+ * `general_ledger` rows the statements are built from — there are no
+ * independent totals or manual overrides.
+ */
+export interface ReconciliationCheck {
+  openingCash: number;
+  cashIn: number;
+  cashOut: number;
+  periodNet: number;
+  closingCash: number;
+  /** Balance-sheet cash as at period end — must equal `closingCash`. */
+  balanceSheetCash: number;
+  cashDifference: number;
+  cashTied: boolean;
+  /** Net movement explained by the classified cash-flow sections. */
+  classifiedNet: number;
+  /** Ledger movement not yet attributed to a cash-flow section. */
+  unclassifiedNet: number;
+  totalAssets: number;
+  totalLiabilities: number;
+  totalEquity: number;
+  balanceDifference: number;
+  balanced: boolean;
+}
+
 export interface FinancialStatementsData {
   incomeStatement: IncomeStatementData;
   cashFlow: CashFlowData;
