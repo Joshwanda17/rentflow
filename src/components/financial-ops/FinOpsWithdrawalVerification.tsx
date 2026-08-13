@@ -348,6 +348,14 @@ export function FinOpsWithdrawalVerification() {
   // Approve with TID/Receipt/Bank Ref → approved (final) via ledger-first edge function
   const handleApprove = async () => {
     if (!user || !selected || reference.trim().length < 3 || !paymentMethod) return;
+    // Financial Ops pays merchant agents and banks only — never a customer's
+    // mobile money. Customer mobile-money withdrawals are claimed and paid out
+    // by merchant agents from their own MTN/Airtel float. FinOps monitors them.
+    if (isMerchantOnlyPayout(selected)) {
+      toast.error('Mobile money payouts are handled by merchant agents. Financial Ops can only monitor these.');
+      setApproveOpen(false);
+      return;
+    }
     // Cash payouts are gated by the one-time WPO-XXXXX pickup code and MUST be
     // approved through ReceiptCodeEntry (which sends `payout_code`). If the
     // operator switched the dropdown away from "cash", block here so we never
