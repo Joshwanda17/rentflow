@@ -66,7 +66,8 @@ export function AllAdvancesReportPanel() {
   const [status, setStatus] = useState('all');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
-  const [limit, setLimit] = useState(100);
+  const PAGE_SIZE = 50;
+  const [page, setPage] = useState(1);
   const q = useDebouncedValue(search, 250);
 
   const { data, isLoading, error } = useQuery({
@@ -157,6 +158,27 @@ export function AllAdvancesReportPanel() {
     setSearch(''); setType('all'); setStatus('all'); setFrom(''); setTo('');
   };
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const paged = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+  useEffect(() => { setPage(1); }, [q, type, status, from, to]);
+
+  const pageNumbers = useMemo(() => {
+    const out: (number | 'gap')[] = [];
+    const push = (n: number) => { if (!out.includes(n)) out.push(n); };
+    push(1);
+    for (let n = safePage - 2; n <= safePage + 2; n++) if (n > 1 && n < totalPages) push(n);
+    if (totalPages > 1) push(totalPages);
+    const sorted = (out.filter((v) => typeof v === 'number') as number[]).sort((a, b) => a - b);
+    const withGaps: (number | 'gap')[] = [];
+    sorted.forEach((n, i) => {
+      if (i > 0 && n - sorted[i - 1] > 1) withGaps.push('gap');
+      withGaps.push(n);
+    });
+    return withGaps;
+  }, [safePage, totalPages]);
+
   return (
     <Card className="rounded-2xl border-border/50 p-3 sm:p-4 space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -230,7 +252,7 @@ export function AllAdvancesReportPanel() {
               </tr>
             </thead>
             <tbody>
-              {filtered.slice(0, limit).map((r) => (
+              {paged.map((r) => (
                 <tr key={`${r.advance_type}-${r.advance_id}`} className="border-b border-border/30">
                   <td className="px-2 py-2 font-mono whitespace-nowrap">{r.reference}</td>
                   <td className="px-2 py-2 whitespace-nowrap">{r.advance_type}</td>
@@ -256,11 +278,44 @@ export function AllAdvancesReportPanel() {
               ))}
             </tbody>
           </table>
-          {filtered.length > limit && (
-            <div className="pt-3 text-center">
-              <Button variant="outline" size="sm" onClick={() => setLimit((l) => l + 200)}>
-                Show more ({(filtered.length - limit).toLocaleString()} remaining)
-              </Button>
+          {totalPages > 1 && (
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-3">
+              <span className="text-[11px] text-muted-foreground">
+                {((safePage - 1) * PAGE_SIZE + 1).toLocaleString()}–
+                {Math.min(safePage * PAGE_SIZE, filtered.length).toLocaleString()} of {filtered.length.toLocaleString()}
+              </span>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline" size="sm" className="h-7 w-7 p-0"
+                  onClick={() => setPage(safePage - 1)} disabled={safePage === 1}
+                  aria-label="Previous page"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                {pageNumbers.map((n, i) =>
+                  n === 'gap' ? (
+                    <span key={`gap-${i}`} className="px-1 text-[11px] text-muted-foreground">…</span>
+                  ) : (
+                    <Button
+                      key={n}
+                      variant={n === safePage ? 'default' : 'outline'}
+                      size="sm"
+                      className="h-7 min-w-7 px-2 text-[11px]"
+                      onClick={() => setPage(n)}
+                      aria-current={n === safePage ? 'page' : undefined}
+                    >
+                      {n}
+                    </Button>
+                  ),
+                )}
+                <Button
+                  variant="outline" size="sm" className="h-7 w-7 p-0"
+                  onClick={() => setPage(safePage + 1)} disabled={safePage >= totalPages}
+                  aria-label="Next page"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           )}
         </div>
