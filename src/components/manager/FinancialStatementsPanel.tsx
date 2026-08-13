@@ -542,6 +542,67 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
 ];
 
 export function FinancialStatementsPanel() {
+  return <FinancialStatementsPanelInner />;
+}
+
+/**
+ * Reconciliation strip — proves the three statements tie back to the ledger.
+ * Read-only: every figure comes from the same `general_ledger` rows.
+ */
+function ReconciliationCard({ r }: { r: import('@/hooks/useFinancialStatements').ReconciliationCheck }) {
+  const ok = r.balanced && r.cashTied;
+  return (
+    <Card className={cn('border', ok ? 'border-success/40' : 'border-destructive/40')}>
+      <CardContent className="py-3 space-y-2">
+        <div className="flex items-center gap-2">
+          {ok ? <CheckCircle2 className="h-4 w-4 text-success" /> : <AlertTriangle className="h-4 w-4 text-destructive" />}
+          <p className={cn('text-xs font-semibold', ok ? 'text-success' : 'text-destructive')}>
+            {ok ? 'Reconciled to the general ledger' : 'Reconciliation gap — review below'}
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-2 text-[11px]">
+          <div className="rounded-md border border-border/60 p-2">
+            <p className="uppercase tracking-wider text-muted-foreground">Assets = Liabilities + Equity</p>
+            <p className="font-mono text-foreground">{formatUGX(r.totalAssets)} = {formatUGX(r.totalLiabilities)} + {formatUGX(r.totalEquity)}</p>
+            <p className={cn('font-mono', r.balanced ? 'text-muted-foreground' : 'text-destructive')}>
+              Difference {formatUGX(r.balanceDifference)}
+            </p>
+          </div>
+          <div className="rounded-md border border-border/60 p-2">
+            <p className="uppercase tracking-wider text-muted-foreground">Closing cash vs balance sheet cash</p>
+            <p className="font-mono text-foreground">{formatUGX(r.closingCash)} vs {formatUGX(r.balanceSheetCash)}</p>
+            <p className={cn('font-mono', r.cashTied ? 'text-muted-foreground' : 'text-destructive')}>
+              Difference {formatUGX(r.cashDifference)}
+            </p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2 text-[11px] sm:grid-cols-4">
+          <Figure label="Opening cash" value={r.openingCash} />
+          <Figure label="Cash in" value={r.cashIn} />
+          <Figure label="Cash out" value={r.cashOut} />
+          <Figure label="Closing cash" value={r.closingCash} />
+        </div>
+        {Math.abs(r.unclassifiedNet) >= 1 && (
+          <p className="text-[10px] text-muted-foreground">
+            {formatUGX(Math.abs(r.unclassifiedNet))} of ledger movement is not attributed to a cash-flow
+            section yet — closing cash still ties to the ledger and the balance sheet.
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function Figure({ label, value }: { label: string; value: number }) {
+  return (
+    <div>
+      <p className="uppercase tracking-wider text-muted-foreground">{label}</p>
+      <p className="font-mono text-foreground">{formatUGX(value)}</p>
+    </div>
+  );
+}
+
+function FinancialStatementsPanelInner() {
   const { data, loading, filters, generate, updatePeriod, setFilters, comparisonMode, updateComparisonMode, comparisonMetrics, loadingComparison } = useFinancialStatements();
   const [customStart, setCustomStart] = useState<Date | undefined>();
   const [customEnd, setCustomEnd] = useState<Date | undefined>();
