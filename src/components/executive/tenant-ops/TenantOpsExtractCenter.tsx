@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import {
   ClipboardList, CheckCircle2, Wallet, Banknote, CalendarCheck, Users, Printer,
   Loader2, Download, ArrowRight, Activity, Gauge, MapPin, Landmark, HandCoins, FileText,
+  History, CalendarX2, Link2, FileCheck,
 } from 'lucide-react';
 import { generateAndDownloadActiveTenantsPdf } from '@/lib/activeTenantsReportPdf';
 
@@ -30,7 +31,12 @@ export type ExtractTargetView =
   | 'agent-capacity-hub'
   | 'agent-allocations'
   | 'landlord-float-timeline'
-  | 'tenant-location-browser';
+  | 'tenant-location-browser'
+  | 'pipeline'
+  | 'history'
+  | 'missed'
+  | 'behavior'
+  | 'transfer-audit';
 
 interface Props {
   /** Human label for the currently selected date window, e.g. "01 Aug — 13 Aug". */
@@ -95,11 +101,11 @@ export function TenantOpsExtractCenter({
       entries: [
         {
           mode: 'download', id: 'applied', label: 'How many applied', detail: 'Applications received in the selected window',
-          format: 'CSV', icon: ClipboardList, busy: extracting === 'applied', run: () => onExtract('applied'),
+          format: 'PDF', icon: ClipboardList, busy: extracting === 'applied', run: () => onExtract('applied'),
         },
         {
           mode: 'download', id: 'approved', label: 'How many approved', detail: 'Approvals recorded in the selected window',
-          format: 'CSV', icon: CheckCircle2, busy: extracting === 'approved', run: () => onExtract('approved'),
+          format: 'PDF', icon: CheckCircle2, busy: extracting === 'approved', run: () => onExtract('approved'),
         },
         {
           mode: 'download', id: 'funded', label: 'How many funded', detail: 'Rent plans funded in the selected window',
@@ -125,11 +131,11 @@ export function TenantOpsExtractCenter({
       entries: [
         {
           mode: 'download', id: 'collected', label: 'How much collected', detail: 'Repayments collected in the selected window',
-          format: 'CSV', icon: Banknote, busy: extracting === 'collected', run: () => onExtract('collected'),
+          format: 'PDF', icon: Banknote, busy: extracting === 'collected', run: () => onExtract('collected'),
         },
         {
           mode: 'download', id: 'expected', label: 'How much expected', detail: 'Repayments expected in the selected window',
-          format: 'CSV', icon: CalendarCheck, busy: extracting === 'expected', run: () => onExtract('expected'),
+          format: 'PDF', icon: CalendarCheck, busy: extracting === 'expected', run: () => onExtract('expected'),
         },
         {
           mode: 'download', id: 'print', label: 'Tenant rent report', detail: 'The printed rent report for the selected window',
@@ -180,6 +186,32 @@ export function TenantOpsExtractCenter({
         {
           mode: 'open', id: 'agent-allocations', label: 'Agent allocation report', detail: 'Allocation blocks per agent for the selected period',
           format: 'PDF', icon: ClipboardList, view: 'agent-allocations',
+        },
+      ],
+    },
+    {
+      title: 'Tenant Ops Tools',
+      hint: 'Each tool keeps its own Export PDF with its own status, search and date filters',
+      entries: [
+        {
+          mode: 'open', id: 'review-requests', label: 'Review Requests report', detail: 'Rent requests in review, as filtered in the queue',
+          format: 'PDF', icon: FileCheck, view: 'pipeline',
+        },
+        {
+          mode: 'open', id: 'approval-history', label: 'Approval History report', detail: 'Approval and rejection trail',
+          format: 'PDF', icon: History, view: 'history',
+        },
+        {
+          mode: 'open', id: 'missed-days', label: 'Missed Days report', detail: 'Tenants with missed repayment days',
+          format: 'PDF', icon: CalendarX2, view: 'missed',
+        },
+        {
+          mode: 'open', id: 'tenant-behavior', label: 'Tenant Behaviour report', detail: 'Behaviour and reliability view per tenant',
+          format: 'PDF', icon: Activity, view: 'behavior',
+        },
+        {
+          mode: 'open', id: 'transfer-audit', label: 'Transfer Audit report', detail: 'Tenant transfers between agents',
+          format: 'PDF', icon: Link2, view: 'transfer-audit',
         },
       ],
     },
