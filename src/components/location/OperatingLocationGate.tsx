@@ -12,7 +12,7 @@
  *    onto the existing `profiles` row — no new tables, no follow-up writes.
  */
 import { useMemo, useState } from 'react';
-import { Loader2, MapPin, Plus, Search } from 'lucide-react';
+import { Check, CheckCircle2, Loader2, MapPin, Plus, Search } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,6 +34,7 @@ export function OperatingLocationGate() {
   const [picked, setPicked] = useState<Picked | null>(null);
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
+  const [saved, setSaved] = useState<{ district: string; village: string; region: string | null } | null>(null);
 
   const { data: hits, isFetching } = useUgVillageSearch(district ? query : '', 12, {
     districtId: district?.id ?? null,
@@ -49,7 +50,8 @@ export function OperatingLocationGate() {
   );
 
   const hasLocation = !!(profile?.district?.trim() && profile?.village?.trim());
-  if (loading || !profile || hasLocation || done) return null;
+  if (loading || !profile || done) return null;
+  if (hasLocation && !saved) return null;
 
   const canSave = !!district && !!picked && !saving;
 
@@ -68,8 +70,7 @@ export function OperatingLocationGate() {
       toast.error(error.message || 'Could not save location');
       return;
     }
-    setDone(true);
-    toast.success('Location saved');
+    setSaved({ district: district.name, village: picked.village, region: district.region });
     refreshProfile();
   };
 
@@ -81,6 +82,48 @@ export function OperatingLocationGate() {
         onInteractOutside={(e) => e.preventDefault()}
         className="sm:max-w-md p-5 gap-0 rounded-2xl [&>button]:hidden"
       >
+        {saved ? (
+          <div className="py-4 text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+              <CheckCircle2 className="h-9 w-9 text-primary" />
+            </div>
+            <h2 className="mt-4 text-lg font-semibold">Setup complete</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Your operating location has been saved.
+            </p>
+
+            <div className="mt-5 rounded-xl border bg-muted/40 p-4 text-left space-y-2">
+              <div className="flex items-start gap-2">
+                <Check className="mt-0.5 h-4 w-4 text-primary shrink-0" />
+                <div>
+                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">District</p>
+                  <p className="text-sm font-medium">{saved.district}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
+                <Check className="mt-0.5 h-4 w-4 text-primary shrink-0" />
+                <div>
+                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Village / Area</p>
+                  <p className="text-sm font-medium">{saved.village}</p>
+                </div>
+              </div>
+              {saved.region && (
+                <div className="flex items-start gap-2">
+                  <Check className="mt-0.5 h-4 w-4 text-primary shrink-0" />
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Region</p>
+                    <p className="text-sm font-medium">{saved.region}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <Button className="mt-5 w-full h-12 text-base" onClick={() => setDone(true)}>
+              Continue to dashboard
+            </Button>
+          </div>
+        ) : (
+        <>
         <h2 className="text-lg font-semibold">Where do you operate?</h2>
         <p className="mt-1 text-sm text-muted-foreground">Select your main operating location.</p>
 
@@ -153,6 +196,8 @@ export function OperatingLocationGate() {
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save location'}
           </Button>
         </div>
+        </>
+        )}
       </DialogContent>
     </Dialog>
   );
