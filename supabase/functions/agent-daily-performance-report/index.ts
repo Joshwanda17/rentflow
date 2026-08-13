@@ -25,7 +25,6 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { jsPDF } from "https://esm.sh/jspdf@2.5.1";
-import autoTable from "https://esm.sh/jspdf-autotable@3.8.2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -280,99 +279,247 @@ function ratingOf(rate: number): string {
 }
 
 // ── PDF ──
-function buildPdf(rows: Row[], t: Totals, prettyDate: string): Uint8Array {
+// Pixel-for-pixel mirror of the Agent Ops dashboard "Daily PDF" download
+// (src/lib/agentDailyOverviewPdf.ts). Keep the two in sync.
+const ZEBRA: RGB = [248, 249, 252];
+const AMBER: RGB = [245, 158, 11];
+const BLUE: RGB = [37, 99, 235];
+
+function statusOf(rate: number): { label: string; color: RGB } {
+  if (rate >= 95) return { label: "Excellent", color: GREEN };
+  if (rate >= 75) return { label: "Good", color: [34, 139, 87] };
+  if (rate >= 50) return { label: "Moderate", color: AMBER };
+  if (rate >= 25) return { label: "Low", color: [234, 88, 12] };
+  return { label: "Critical", color: RED };
+}
+
+// "Thu, 13 Aug 2026" for the given EAT date string.
+function shortDate(dateStr: string): string {
+  return new Date(`${dateStr}T00:00:00Z`).toLocaleDateString("en-GB", {
+    weekday: "short", day: "2-digit", month: "short", year: "numeric", timeZone: "UTC",
+  }).replace(/,?\s+/g, " ").replace(/^(\w{3}) /, "$1, ");
+}
+// "13 Aug 2026 09:06" in EAT.
+function generatedStamp(): string {
+  const eat = new Date(Date.now() + 3 * 60 * 60 * 1000);
+  const d = eat.toLocaleDateString("en-GB", {
+    day: "2-digit", month: "short", year: "numeric", timeZone: "UTC",
+  });
+  const hh = String(eat.getUTCHours()).padStart(2, "0");
+  const mm = String(eat.getUTCMinutes()).padStart(2, "0");
+  return `${d} ${hh}:${mm}`;
+}
+
+function buildPdf(rows: Row[], t: Totals, dateStr: string): Uint8Array {
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const margin = 10;
+  const contentW = pageW - margin * 2;
+  let y = 10;
 
-  doc.setFillColor(...HEAD);
-  doc.rect(0, 0, pageW, 20, "F");
-  doc.setTextColor(255, 255, 255);
+  const overallRate = t.expected > 0 ? Math.round((t.collected / t.expected) * 100) : 0;
+
+  // ===== Header bar =====
+  doc.setFillColor(...INK);
+  doc.rect(margin, y, contentW, 20, "F");
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(13);
-  doc.text("Agent daily performance", margin, 9);
+  doc.setFontSize(14);
+  doc.setTextColor(255, 255, 255);
+  doc.text("WELILE - AGENT DAILY PERFORMANCE", margin + 4, y + 8);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  doc.text(`${prettyDate} (EAT) - today's collections vs expected`, margin, 15);
-  doc.text(`Generated ${new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString().slice(0, 16).replace("T", " ")} EAT`, pageW - margin, 15, { align: "right" });
+  doc.setTextColor(200, 208, 225);
+  doc.text("One row per agent: expected vs collected, principal & outstanding", margin + 4, y + 14);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(255, 255, 255);
+  doc.text(shortDate(dateStr), pageW - margin - 4, y + 10, { align: "right" });
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
+  doc.setTextColor(200, 208, 225);
+  doc.text(`Generated ${generatedStamp()}`, pageW - margin - 4, y + 15, { align: "right" });
+  y += 24;
 
-  // KPI strip
-  const tiles: { label: string; value: string; color: RGB }[] = [
-    { label: "Agents on book", value: num(t.agents), color: INK },
-    { label: "Active tenants", value: num(t.tenants), color: INK },
-    { label: "Expected today", value: compactUGX(t.expected), color: INK },
-    { label: "Collected today", value: compactUGX(t.collected), color: GREEN },
-    { label: "Coverage", value: `${t.rate.toFixed(1)}% - ${ratingOf(t.rate)}`, color: t.rate >= 75 ? GREEN : RED },
-    { label: "Tenants paid", value: `${num(t.paid)} / ${num(t.payments)} pmts`, color: INK },
+  // ===== Summary chips =====
+  const chips: { label: string; value: string; color: RGB }[] = [
+    { label: "Agents", value: String(rows.length), color: INK },
+    { label: "Active tenants", value: String(t.tenants), color: INK },
+    { label: "Expected today (UGX)", value: num(t.expected), color: INK },
+    { label: "Collected today (UGX)", value: num(t.collected), color: BLUE },
+    { label: "Collection rate", value: `${overallRate}%`, color: overallRate >= 75 ? GREEN : overallRate >= 50 ? BLUE : RED },
+    { label: "Principal paid (UGX)", value: num(t.principal), color: INK },
+    { label: "Outstanding (UGX)", value: num(t.outstanding), color: RED },
   ];
-  const tileW = (pageW - margin * 2 - 5 * 3) / 6;
-  tiles.forEach((tile, i) => {
-    const x = margin + i * (tileW + 3);
+  const gap = 3;
+  const chipW = (contentW - gap * (chips.length - 1)) / chips.length;
+  const chipH = 18;
+  chips.forEach((c, i) => {
+    const x = margin + i * (chipW + gap);
+    doc.setFillColor(255, 255, 255);
     doc.setDrawColor(...BORDER);
-    doc.setFillColor(250, 249, 253);
-    doc.roundedRect(x, 24, tileW, 17, 2, 2, "FD");
+    doc.setLineWidth(0.25);
+    doc.roundedRect(x, y, chipW, chipH, 2, 2, "FD");
+    doc.setFont("helvetica", "bold");
     doc.setFontSize(6.5);
     doc.setTextColor(...MUTED);
+    doc.text(c.label.toUpperCase(), x + 3, y + 5);
     doc.setFont("helvetica", "bold");
-    doc.text(tile.label.toUpperCase(), x + 3, 30);
-    doc.setFontSize(10);
-    doc.setTextColor(...tile.color);
-    doc.text(tile.value, x + 3, 37);
+    doc.setFontSize(11);
+    doc.setTextColor(...c.color);
+    doc.text(c.value, x + 3, y + 13);
+  });
+  y += chipH + 5;
+
+  // ===== Per-agent table =====
+  doc.setFillColor(...HEAD);
+  doc.rect(margin, y, contentW, 7, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(255, 255, 255);
+  doc.text("PER-AGENT BREAKDOWN", margin + 3, y + 4.8);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7);
+  doc.text("All amounts in UGX", pageW - margin - 3, y + 4.8, { align: "right" });
+  y += 7;
+
+  const fixed = 8 + 46 + 26 + 16 + 26 + 26 + 14 + 14 + 14 + 28 + 28;
+  const cols: { label: string; w: number; align: "left" | "right" | "center" }[] = [
+    { label: "#", w: 8, align: "left" },
+    { label: "Agent", w: 46, align: "left" },
+    { label: "Phone", w: 26, align: "left" },
+    { label: "Tenants", w: 16, align: "right" },
+    { label: "Expected", w: 26, align: "right" },
+    { label: "Collected", w: 26, align: "right" },
+    { label: "Rate", w: 14, align: "right" },
+    { label: "Paid", w: 14, align: "right" },
+    { label: "Pmts", w: 14, align: "right" },
+    { label: "Principal paid", w: 28, align: "right" },
+    { label: "Outstanding", w: 28, align: "right" },
+    { label: "Status", w: contentW - fixed, align: "center" },
+  ];
+  const colX = (i: number) => margin + cols.slice(0, i).reduce((s, c) => s + c.w, 0);
+
+  const drawHeader = () => {
+    doc.setFillColor(241, 245, 249);
+    doc.rect(margin, y, contentW, 6.5, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.setTextColor(...INK);
+    cols.forEach((c, i) => {
+      const tx = c.align === "right"
+        ? colX(i) + c.w - 1.5
+        : c.align === "center" ? colX(i) + c.w / 2 : colX(i) + 1.5;
+      doc.text(c.label, tx, y + 4.3, { align: c.align });
+    });
+    y += 6.5;
+  };
+  drawHeader();
+
+  const rowH = 5.8;
+  const bottomLimit = pageH - 14;
+  const trunc = (s: string, n: number) => {
+    const v = ascii(s);
+    if (!v || v === "-") return "-";
+    return v.length > n ? `${v.slice(0, n - 1)}...` : v;
+  };
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7);
+  rows.forEach((r, i) => {
+    if (y + rowH > bottomLimit) {
+      doc.addPage();
+      y = 10;
+      drawHeader();
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7);
+    }
+    if (i % 2 === 1) {
+      doc.setFillColor(...ZEBRA);
+      doc.rect(margin, y, contentW, rowH, "F");
+    }
+    doc.setDrawColor(...BORDER);
+    doc.setLineWidth(0.1);
+    doc.line(margin, y + rowH, margin + contentW, y + rowH);
+    const b = y + rowH - 1.9;
+    const rate = r.expectedToday > 0 ? Math.round((r.collectedToday / r.expectedToday) * 100) : 0;
+    const st = statusOf(rate);
+    doc.setTextColor(...INK);
+    doc.text(String(i + 1), colX(0) + 1.5, b);
+    doc.setFont("helvetica", "bold");
+    doc.text(trunc(r.agentName, 28), colX(1) + 1.5, b);
+    doc.setFont("helvetica", "normal");
+    doc.text(trunc(r.agentPhone, 16), colX(2) + 1.5, b);
+    doc.text(String(r.activeTenants), colX(3) + cols[3].w - 1.5, b, { align: "right" });
+    doc.text(num(r.expectedToday), colX(4) + cols[4].w - 1.5, b, { align: "right" });
+    if (r.collectedToday > 0) doc.setTextColor(...GREEN);
+    doc.text(num(r.collectedToday), colX(5) + cols[5].w - 1.5, b, { align: "right" });
+    doc.setTextColor(...st.color);
+    doc.setFont("helvetica", "bold");
+    doc.text(`${rate}%`, colX(6) + cols[6].w - 1.5, b, { align: "right" });
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...INK);
+    doc.text(String(r.tenantsPaidToday), colX(7) + cols[7].w - 1.5, b, { align: "right" });
+    doc.text(String(r.paymentsToday), colX(8) + cols[8].w - 1.5, b, { align: "right" });
+    doc.text(num(r.principalPaid), colX(9) + cols[9].w - 1.5, b, { align: "right" });
+    if (r.outstanding > 0) doc.setTextColor(...RED);
+    doc.text(num(r.outstanding), colX(10) + cols[10].w - 1.5, b, { align: "right" });
+    doc.setTextColor(...INK);
+    // Status pill
+    doc.setFillColor(...st.color);
+    doc.roundedRect(colX(11) + 2, y + 1.4, cols[11].w - 4, rowH - 2.8, 0.8, 0.8, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(6.5);
+    doc.setTextColor(255, 255, 255);
+    doc.text(st.label, colX(11) + cols[11].w / 2, b - 0.3, { align: "center" });
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.setTextColor(...INK);
+    y += rowH;
   });
 
-  autoTable(doc, {
-    startY: 46,
-    head: [[
-      "#", "Agent", "Phone", "Active tenants", "Expected today", "Collected today",
-      "Coverage", "Tenants paid", "Payments", "Principal", "Outstanding", "Rating",
-    ]],
-    body: rows.map((r, i) => {
-      const rate = r.expectedToday > 0 ? (r.collectedToday / r.expectedToday) * 100 : 0;
-      return [
-        String(i + 1),
-        ascii(r.agentName),
-        ascii(r.agentPhone),
-        num(r.activeTenants),
-        num(r.expectedToday),
-        num(r.collectedToday),
-        `${rate.toFixed(0)}%`,
-        num(r.tenantsPaidToday),
-        num(r.paymentsToday),
-        num(r.principalPaid),
-        num(r.outstanding),
-        ratingOf(rate),
-      ];
-    }),
-    foot: [[
-      "", "TOTAL", "", num(t.tenants), num(t.expected), num(t.collected),
-      `${t.rate.toFixed(0)}%`, num(t.paid), num(t.payments), num(t.principal), num(t.outstanding),
-      ratingOf(t.rate),
-    ]],
-    styles: { font: "helvetica", fontSize: 7.5, cellPadding: 1.6, textColor: INK, lineColor: BORDER, lineWidth: 0.1 },
-    headStyles: { fillColor: HEAD, textColor: [255, 255, 255], fontSize: 7.5, fontStyle: "bold" },
-    footStyles: { fillColor: [240, 236, 250], textColor: INK, fontStyle: "bold", fontSize: 7.5 },
-    alternateRowStyles: { fillColor: [248, 249, 252] },
-    columnStyles: {
-      0: { cellWidth: 8, halign: "right" },
-      3: { halign: "right" }, 4: { halign: "right" }, 5: { halign: "right" },
-      6: { halign: "right" }, 7: { halign: "right" }, 8: { halign: "right" },
-      9: { halign: "right" }, 10: { halign: "right" },
-    },
-    margin: { left: margin, right: margin, bottom: 14 },
-  });
+  if (rows.length === 0) {
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(8);
+    doc.setTextColor(...MUTED);
+    doc.text("No agents with active tenants for this date.", margin + 3, y + 6);
+    y += 8;
+  }
 
+  // Totals row
+  if (y + rowH + 1 > bottomLimit) {
+    doc.addPage();
+    y = 10;
+    drawHeader();
+  }
+  doc.setFillColor(232, 240, 254);
+  doc.rect(margin, y, contentW, rowH + 1, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.5);
+  const tb = y + rowH - 1.4;
+  doc.setTextColor(...BLUE);
+  doc.text("TOTAL", colX(1) + 1.5, tb);
+  doc.setTextColor(...INK);
+  doc.text(String(t.tenants), colX(3) + cols[3].w - 1.5, tb, { align: "right" });
+  doc.text(num(t.expected), colX(4) + cols[4].w - 1.5, tb, { align: "right" });
+  doc.setTextColor(...GREEN);
+  doc.text(num(t.collected), colX(5) + cols[5].w - 1.5, tb, { align: "right" });
+  doc.setTextColor(...INK);
+  doc.text(`${overallRate}%`, colX(6) + cols[6].w - 1.5, tb, { align: "right" });
+  doc.text(String(t.paid), colX(7) + cols[7].w - 1.5, tb, { align: "right" });
+  doc.text(String(t.payments), colX(8) + cols[8].w - 1.5, tb, { align: "right" });
+  doc.text(num(t.principal), colX(9) + cols[9].w - 1.5, tb, { align: "right" });
+  doc.setTextColor(...RED);
+  doc.text(num(t.outstanding), colX(10) + cols[10].w - 1.5, tb, { align: "right" });
+
+  // Footer page numbers
   const pageCount = doc.getNumberOfPages();
   for (let p = 1; p <= pageCount; p++) {
     doc.setPage(p);
-    doc.setDrawColor(...BORDER);
-    doc.setLineWidth(0.2);
-    doc.line(margin, pageH - 9, pageW - margin, pageH - 9);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
     doc.setTextColor(...MUTED);
-    doc.text("Powered by Welile - confidential agent daily performance brief (all amounts UGX)", margin, pageH - 5);
-    doc.text(`Page ${p} / ${pageCount}`, pageW - margin, pageH - 5, { align: "right" });
+    doc.text(`Page ${p} of ${pageCount}  -  Welile Receipts  -  Confidential`, pageW / 2, pageH - 5, { align: "center" });
   }
 
   return new Uint8Array(doc.output("arraybuffer") as ArrayBuffer);
@@ -563,7 +710,7 @@ async function sendForDate(
   const prettyDate = prettify(dateStr);
   const html = buildHtml(rows, t, prettyDate);
   const text = buildText(t, prettyDate);
-  const pdf = buildPdf(rows, t, prettyDate);
+  const pdf = buildPdf(rows, t, dateStr);
   const filename = `agent-daily-performance-${dateStr}.pdf`;
   const subject = `Agent daily performance - ${prettyDate}: ${fmtUGX(t.collected)} collected of ${fmtUGX(t.expected)} (${t.rate.toFixed(0)}%)`;
 
@@ -608,7 +755,7 @@ Deno.serve(async (req) => {
       const rows = await loadRows(admin, dateStr);
       const t = totalsOf(rows);
       if (body?.pdf === true) {
-        const pdf = buildPdf(rows, t, prettify(dateStr));
+        const pdf = buildPdf(rows, t, dateStr);
         return new Response(pdf, {
           headers: {
             ...corsHeaders,
