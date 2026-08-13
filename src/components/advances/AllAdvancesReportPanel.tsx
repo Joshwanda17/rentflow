@@ -9,9 +9,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Search, Download, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Search, Download, FileText, ChevronLeft, ChevronRight, CalendarIcon } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 interface AdvanceRow {
   advance_id: string;
@@ -57,14 +61,13 @@ const isoDay = (d: Date) => {
   return z.toISOString().slice(0, 10);
 };
 
-type Period = 'all' | 'today' | 'yesterday' | 'week' | 'month' | 'last_month' | 'custom';
+type Period = 'all' | 'today' | 'week' | 'month' | 'calendar' | 'custom';
 
 const PERIOD_LABELS: { key: Period; label: string }[] = [
   { key: 'today', label: 'Daily' },
   { key: 'week', label: 'Weekly' },
   { key: 'month', label: 'Monthly' },
-  { key: 'yesterday', label: 'Yesterday' },
-  { key: 'last_month', label: 'Last month' },
+  { key: 'calendar', label: 'Calendar' },
   { key: 'all', label: 'All time' },
 ];
 
@@ -76,10 +79,6 @@ const periodRange = (p: Period): { from: string; to: string } => {
       const d = startOfDay(now);
       return { from: isoDay(d), to: isoDay(d) };
     }
-    case 'yesterday': {
-      const d = startOfDay(new Date(now.getTime() - 86_400_000));
-      return { from: isoDay(d), to: isoDay(d) };
-    }
     case 'week': {
       const day = now.getDay(); // 0 = Sun
       const diff = day === 0 ? 6 : day - 1; // week starts Monday
@@ -88,11 +87,6 @@ const periodRange = (p: Period): { from: string; to: string } => {
     }
     case 'month':
       return { from: isoDay(new Date(now.getFullYear(), now.getMonth(), 1)), to: isoDay(now) };
-    case 'last_month': {
-      const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const end = new Date(now.getFullYear(), now.getMonth(), 0);
-      return { from: isoDay(start), to: isoDay(end) };
-    }
     default:
       return { from: '', to: '' };
   }
@@ -115,6 +109,7 @@ export function AllAdvancesReportPanel() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [period, setPeriod] = useState<Period>('all');
+  const [calendarDate, setCalendarDate] = useState<Date | undefined>(undefined);
   const PAGE_SIZE = 50;
   const [page, setPage] = useState(1);
   const q = useDebouncedValue(search, 250);
@@ -198,21 +193,46 @@ export function AllAdvancesReportPanel() {
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
     const a = document.createElement('a');
     a.href = url;
-    const scope = period === 'custom' || period === 'all' ? (from || to ? `${from || 'start'}_to_${to || 'today'}` : 'all-time') : period;
+    const scope =
+      period === 'calendar'
+        ? from || to
+          ? `calendar-${from || to}`
+          : 'calendar'
+        : period === 'custom' || period === 'all'
+          ? from || to
+            ? `${from || 'start'}_to_${to || 'today'}`
+            : 'all-time'
+          : period;
     a.download = `advances-report-${scope}-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
 
   const clearAll = () => {
-    setSearch(''); setType('all'); setStatus('all'); setFrom(''); setTo(''); setPeriod('all');
+    setSearch(''); setType('all'); setStatus('all'); setFrom(''); setTo(''); setPeriod('all'); setCalendarDate(undefined);
   };
 
   const applyPeriod = (p: Period) => {
     setPeriod(p);
+    if (p === 'calendar') {
+      const d = calendarDate ? isoDay(calendarDate) : isoDay(new Date());
+      setFrom(d);
+      setTo(d);
+      return;
+    }
     const r = periodRange(p);
     setFrom(r.from);
     setTo(r.to);
+  };
+
+  const applyCalendarDate = (d: Date | undefined) => {
+    setCalendarDate(d);
+    if (d) {
+      const day = isoDay(d);
+      setFrom(day);
+      setTo(day);
+      setPeriod('calendar');
+    }
   };
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
@@ -264,6 +284,32 @@ export function AllAdvancesReportPanel() {
             {p.label}
           </Button>
         ))}
+        {period === 'calendar' && (
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn(
+                  'h-7 px-2.5 text-[11px] justify-start text-left font-normal',
+                  !calendarDate && 'text-muted-foreground',
+                )}
+              >
+                <CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
+                {calendarDate ? format(calendarDate, 'PPP') : 'Pick a date'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={calendarDate}
+                onSelect={applyCalendarDate}
+                initialFocus
+                className={cn('p-3 pointer-events-auto')}
+              />
+            </PopoverContent>
+          </Popover>
+        )}
         {period === 'custom' && (
           <Badge variant="secondary" className="text-[10px]">Custom range</Badge>
         )}
