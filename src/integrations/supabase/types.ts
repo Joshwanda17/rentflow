@@ -36514,6 +36514,7 @@ export type Database = {
           period_number: number
         }[]
       }
+      get_coo_command_center: { Args: never; Returns: Json }
       get_crm_directory: {
         Args: {
           _limit?: number

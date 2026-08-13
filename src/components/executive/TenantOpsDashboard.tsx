@@ -28,7 +28,6 @@ import { GlobalVerificationHub } from './GlobalVerificationHub';
 import { WelileOperationsHub } from './WelileOperationsHub';
 import { AgentNetworkBadge } from './tenant-ops/AgentNetworkBadge';
 import { PipelineStatusHub } from './tenant-ops/PipelineStatusHub';
-import { TenantProductsServicesReport } from './tenant-ops/TenantProductsServicesReport';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -56,7 +55,7 @@ import { toast } from 'sonner';
 import {
   FileCheck, Clock, AlertTriangle, CheckCircle2, Banknote,
   ArrowRight, Activity, ClipboardList, CalendarCheck, CalendarX2,
-  ArrowLeft, History, Table2, Link2, HandCoins, Users, Trash2, Loader2, FileSearch, Printer, Network, Shield, CalendarIcon, Download, Wallet, Landmark, MapPin, FileText
+  ArrowLeft, History, Table2, Link2, HandCoins, Users, Trash2, Loader2, FileSearch, Printer, Network, Shield, CalendarIcon, Download, Wallet, Landmark, MapPin
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ResidenceAddressForm from '@/components/profile/ResidenceAddressForm';
@@ -65,7 +64,7 @@ import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Gauge } from 'lucide-react';
 
-type ActiveView = 'overview' | 'pipeline' | 'pipeline-hub' | 'daily' | 'missed' | 'behavior' | 'history' | 'all-requests' | 'link-agent' | 'transfer-audit' | 'collect-rent' | 'agent-tenants' | 'tenant-detail' | 'registration-review' | 'advance-requests' | 'agent-allocations' | 'daily-collections' | 'landlord-float' | 'landlord-float-timeline' | 'location-browser' | 'tenant-location-browser' | 'global-verification' | 'welile-operations' | 'daily-repayments-report' | 'agent-capacity-hub' | 'all-tenants-hub' | 'reports-hub' | 'tenant-products-report';
+type ActiveView = 'overview' | 'pipeline' | 'pipeline-hub' | 'daily' | 'missed' | 'behavior' | 'history' | 'all-requests' | 'link-agent' | 'transfer-audit' | 'collect-rent' | 'agent-tenants' | 'tenant-detail' | 'registration-review' | 'advance-requests' | 'agent-allocations' | 'daily-collections' | 'landlord-float' | 'landlord-float-timeline' | 'location-browser' | 'tenant-location-browser' | 'global-verification' | 'welile-operations' | 'daily-repayments-report' | 'agent-capacity-hub' | 'all-tenants-hub' | 'reports-hub';
 
 interface NavCard {
   id: ActiveView;
@@ -1116,13 +1115,6 @@ export function TenantOpsDashboard() {
       icon: HandCoins,
       color: 'bg-emerald-500/10 text-emerald-600 border-emerald-200',
     },
-    {
-      id: 'tenant-products-report' as ActiveView,
-      label: 'Products & Services Report',
-      description: 'Daily tenant products & services hub — growth, applications, rent collected, receivables & payables',
-      icon: FileText,
-      color: 'bg-blue-500/10 text-blue-600 border-blue-200',
-    },
   ];
 
   const goBack = () => {
@@ -1433,8 +1425,6 @@ export function TenantOpsDashboard() {
         );
       case 'reports-hub':
         return <div className="space-y-3">{reportsToolbar}</div>;
-      case 'tenant-products-report':
-        return <TenantProductsServicesReport />;
       default:
         return null;
     }
