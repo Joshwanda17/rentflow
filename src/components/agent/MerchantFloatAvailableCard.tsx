@@ -48,10 +48,6 @@ export function MerchantFloatAvailableCard() {
   // already claimed and not yet settled.
   const poolAvailable = pool?.availableFloat ?? 0;
   const spendable = Math.max(holding - reserved, 0);
-  // Company money actually sent to this agent's MTN/Airtel line (email-verified sends).
-  const sentToLine = mine?.emailMatched ?? 0;
-  // Finance/manager roles get every desk from the RPC; merchants get only their own.
-  const isFinanceView = (positions?.length ?? 0) > 1;
   const offledger = mine?.offledgerAdjustments ?? 0;
   const unbacked = mine?.payoutsWithoutFloatEvidence ?? 0;
   const pending = (myDisputes ?? []).filter((d) => d.status === 'open' || d.status === 'reviewing');
@@ -72,31 +68,22 @@ export function MerchantFloatAvailableCard() {
     <section className="rounded-3xl border border-border/60 bg-card p-5">
       <div className="flex items-center gap-2">
         <Wallet className="h-4 w-4 text-primary" />
-        <h3 className="text-sm font-bold">Company money on your MTN / Airtel line</h3>
+        <h3 className="text-sm font-bold">Float available to pay out</h3>
       </div>
 
       <p className="mt-3 font-mono text-2xl font-bold tabular-nums text-foreground break-all">
-        {isLoading ? '—' : formatUGX(spendable)}
+        {isLoading ? '—' : formatUGX(poolAvailable)}
       </p>
       <p className="mt-1 text-[11px] text-muted-foreground">
-        This is company money sent to your own phone line by MTN or Airtel that you still owe the
-        company — not the operational float on your wallet card. Payouts you claim are paid from this
-        money, and it drops every time you pay a request.
-        {sentToLine > 0 && (
-          <> {' '}We have sent <span className="font-semibold text-foreground">{formatUGX(sentToLine)}</span> to
-          your line so far (MTN / Airtel confirmations we matched to your number).</>
-        )}
+        This is the whole company payout pool — every withdrawable wallet balance plus agent landlord
+        payout float, less payouts already claimed and not yet settled. It matches the Financial Ops
+        figure.
+        {' '}Of this, <span className="font-semibold text-foreground">{formatUGX(spendable)}</span> is
+        company money already sent to your own MTN or Airtel line and still with you.
         {reserved > 0 && ` ${formatUGX(reserved)} is already committed to payouts you claimed but have not settled.`}
         {' '}If a payout is bigger than the float you hold, you can still pay it — the extra is flagged
         below, and once you confirm you used your own money, Finance pays it back to you.
       </p>
-
-      {isFinanceView && (
-        <p className="mt-2 text-[10px] text-muted-foreground">
-          Company-wide payout pool (Financial Ops figure):{' '}
-          <span className="font-mono font-semibold text-foreground">{formatUGX(poolAvailable)}</span>
-        </p>
-      )}
 
 
       <div className="mt-4 grid grid-cols-2 gap-3">
