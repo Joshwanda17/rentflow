@@ -22,11 +22,13 @@ export function AutoCreditSuccessRateTile({ onClick }: AutoCreditSuccessRateTile
     queryFn: async (): Promise<SuccessRateData> => {
       const { data, error } = await supabase.rpc('get_deposit_autocredit_success_rate' as any, { p_window_hours: 24 });
       if (error) throw error;
-      const d = data as any;
+      const raw = data as any;
+      const d = (Array.isArray(raw) ? raw[0] : raw) ?? {};
+      const pct = d.success_rate_pct ?? d.successRatePct;
       return {
         attempted: Number(d?.attempted ?? 0),
         successful: Number(d?.successful ?? 0),
-        successRatePct: d?.success_rate_pct == null ? null : Number(d.success_rate_pct),
+        successRatePct: pct === null || pct === undefined || !Number.isFinite(Number(pct)) ? null : Number(pct),
       };
     },
     staleTime: 60_000,

@@ -22,6 +22,7 @@ import SmartphoneOrderStatus from '@/components/merchandise/SmartphoneOrderStatu
 import { StorageImage } from '@/components/ui/StorageImage';
 import { shortMerchandiseUrl, longMerchandiseUrl } from '@/lib/merchandiseShareLink';
 import { useRestoreBodyPointerEvents } from '@/hooks/useRestoreBodyPointerEvents';
+import shoppingBagIllustration from '@/assets/Shopping_bag-amico.svg.asset.json';
 
 // Merchandise tables aren't in generated types yet.
 const db = supabase as any;
@@ -34,6 +35,7 @@ interface CatalogItem {
   image_url: string | null;
   image_urls: string[] | null;
   is_active: boolean;
+  sizes: string[] | null;
 }
 
 interface RecoveryPlan {
@@ -68,6 +70,7 @@ export default function MerchandiseStore() {
   const [selected, setSelected] = useState<CatalogItem | null>(null);
   const [quantity, setQuantity] = useState('1');
   const [payMode, setPayMode] = useState<'full' | 'installment'>('full');
+  const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [confirmStep, setConfirmStep] = useState(false);
   const [ordering, setOrdering] = useState(false);
   const [phoneOpen, setPhoneOpen] = useState(false);
@@ -139,6 +142,13 @@ export default function MerchandiseStore() {
   const totalRecovered = plans.reduce((s, p) => s + Number(p.amount_recovered), 0);
 
   const qty = Math.max(1, parseInt(quantity || '1', 10) || 1);
+  // Sizes on the catalog row are exactly what the company has in stock for the
+  // item. Empty list = one-size item, no choice needed.
+  const availableSizes: string[] = Array.isArray(selected?.sizes)
+    ? (selected!.sizes as string[]).map((s) => String(s).trim()).filter(Boolean)
+    : [];
+  const needsSize = availableSizes.length > 0;
+  const sizeMissing = needsSize && !selectedSize;
   const orderTotal = selected ? Number(selected.unit_price) * qty : 0;
   // Pay in full needs the whole price today. Installments are 25% of the item
   // price each — paid now and at every recovery run until the selling price is
@@ -227,6 +237,7 @@ export default function MerchandiseStore() {
       setSelected(match);
       setQuantity('1');
       setPayMode('full');
+      setSelectedSize(null);
       setConfirmStep(false);
     }
     // Clear the param so refreshes/back-navigation don't reopen unexpectedly.
@@ -238,6 +249,10 @@ export default function MerchandiseStore() {
 
   const placeOrder = async () => {
     if (!selected) return;
+    if (sizeMissing) {
+      toast.error('Choose a size', { description: 'Pick one of the sizes currently in stock.' });
+      return;
+    }
     if (insufficient) {
       toast.error('Insufficient balance', {
         description: `Your wallet has ${formatUGX(availableWallet)} but this order needs ${formatUGX(orderTotal)}.`,
@@ -249,6 +264,7 @@ export default function MerchandiseStore() {
       p_catalog_id: selected.id,
       p_quantity: qty,
       p_payment_mode: payMode,
+      p_size: selectedSize,
     });
     setOrdering(false);
     if (error) {
@@ -280,6 +296,7 @@ export default function MerchandiseStore() {
     setSelected(null);
     setQuantity('1');
     setPayMode('full');
+    setSelectedSize(null);
     setConfirmStep(false);
     queryClient.invalidateQueries({ queryKey: ['my-merchandise-plans', user?.id] });
     queryClient.invalidateQueries({ queryKey: ['my-merchandise-deductions', user?.id] });
@@ -342,14 +359,28 @@ export default function MerchandiseStore() {
 
   return (
     <div className="min-h-[100dvh] bg-background pb-24">
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => navigate(-1)}
+        aria-label="Back"
+        className="fixed top-2 left-2 z-50"
+      >
+        <ArrowLeft className="h-5 w-5" />
+      </Button>
+      <div className="max-w-lg mx-auto px-4 pt-4">
+        <img
+          src={shoppingBagIllustration.url}
+          alt="Welile merchandise shopping bag"
+          className="w-full max-h-40 object-contain"
+          loading="eager"
+        />
+      </div>
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border">
         <div className="max-w-lg mx-auto flex items-center gap-3 px-4 py-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Back">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
           <div>
             <h1 className="text-base font-bold flex items-center gap-2">
-              <ShoppingBag className="h-4 w-4 text-primary" /> Merchandise Store
+              <ShoppingBag className="h-4 w-4 text-primary" /> What do you want to buy?
             </h1>
             <p className="text-[11px] text-muted-foreground">Buy branded gear — paid off from your wallet</p>
           </div>
@@ -446,12 +477,13 @@ export default function MerchandiseStore() {
                   className="overflow-hidden cursor-pointer transition hover:shadow-md hover:border-primary/40 focus-within:ring-2 focus-within:ring-primary/40"
                   role="button"
                   tabIndex={0}
-                  onClick={() => { setSelected(item); setQuantity('1'); }}
+                  onClick={() => { setSelected(item); setQuantity('1'); setSelectedSize(null); }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
                       setSelected(item);
                       setQuantity('1');
+                      setSelectedSize(null);
                     }
                   }}
                   aria-label={`Buy ${item.item_name}`}
@@ -469,11 +501,16 @@ export default function MerchandiseStore() {
                       <p className="text-[11px] text-muted-foreground line-clamp-2">{item.description}</p>
                     )}
                     <p className="text-sm font-bold text-primary">{formatUGX(Number(item.unit_price))}</p>
+                    {Array.isArray(item.sizes) && item.sizes.length > 0 && (
+                      <p className="text-[10px] text-muted-foreground">
+                        Sizes in stock: {item.sizes.join(', ')}
+                      </p>
+                    )}
                     <div className="flex gap-1.5">
                       <Button
                         size="sm"
                         className="flex-1 h-8 text-xs gap-1"
-                        onClick={(e) => { e.stopPropagation(); setSelected(item); setQuantity('1'); }}
+                        onClick={(e) => { e.stopPropagation(); setSelected(item); setQuantity('1'); setSelectedSize(null); }}
                       >
                         <ShoppingBag className="h-3.5 w-3.5" /> Buy
                       </Button>
@@ -576,10 +613,43 @@ export default function MerchandiseStore() {
                 <div>
                   <p className="font-semibold text-sm">{selected.item_name}</p>
                   <p className="text-xs text-muted-foreground">{formatUGX(Number(selected.unit_price))} each</p>
+                  {needsSize && selectedSize && (
+                    <p className="text-xs font-medium text-primary">Size {selectedSize}</p>
+                  )}
                 </div>
               </div>
               {!confirmStep && (
               <>
+              {needsSize && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">Choose your size</Label>
+                    <span className="text-[10px] text-muted-foreground">In stock now</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {availableSizes.map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setSelectedSize(s)}
+                        aria-pressed={selectedSize === s}
+                        className={`min-w-[44px] rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+                          selectedSize === s
+                            ? 'border-primary bg-primary text-primary-foreground'
+                            : 'border-border hover:border-primary/50'
+                        }`}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                  {sizeMissing && (
+                    <p className="text-[11px] text-muted-foreground">
+                      Pick a size to continue — only the sizes shown are available in stock.
+                    </p>
+                  )}
+                </div>
+              )}
               <div className="space-y-1">
                 <Label className="text-xs">Quantity</Label>
                 <Input
@@ -692,15 +762,15 @@ export default function MerchandiseStore() {
             {confirmStep ? (
               <>
                 <Button variant="outline" onClick={() => setConfirmStep(false)} disabled={ordering}>Back</Button>
-                <Button onClick={placeOrder} disabled={ordering || insufficient}>
+                <Button onClick={placeOrder} disabled={ordering || insufficient || sizeMissing}>
                   {ordering ? 'Placing order…' : zeroDown ? 'Yes, place order' : `Yes, pay ${formatUGX(dueNow)}`}
                 </Button>
               </>
             ) : (
               <>
                 <Button variant="outline" onClick={() => setSelected(null)} disabled={ordering}>Cancel</Button>
-                <Button onClick={() => setConfirmStep(true)} disabled={insufficient}>
-                  {insufficient ? 'Not enough balance' : 'Review order'}
+                <Button onClick={() => setConfirmStep(true)} disabled={insufficient || sizeMissing}>
+                  {insufficient ? 'Not enough balance' : sizeMissing ? 'Choose a size' : 'Review order'}
                 </Button>
               </>
             )}

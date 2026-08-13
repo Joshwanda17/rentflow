@@ -91,6 +91,15 @@ Deno.serve(async (req) => {
       ? String(body.deposit_purpose)
       : "personal_deposit";
     const reason = typeof body?.reason === "string" ? body.reason.trim().slice(0, 300) : "";
+    const cashOwnerName = typeof body?.cash_owner_name === "string"
+      ? body.cash_owner_name.trim().replace(/\s+/g, " ").slice(0, 120)
+      : "";
+    if (cashOwnerName.length < 3) {
+      return json(400, {
+        error: "owner_name_required",
+        message: "Enter the full name of the person whose cash this is.",
+      });
+    }
     const cashLocation = String(body?.cash_location) === "bank" ? "bank" : "cash_at_hand";
     const cashLocationLabel = cashLocation === "bank" ? "Deposited on bank" : "Cash at hand";
 
@@ -131,6 +140,7 @@ Deno.serve(async (req) => {
           : "Personal Deposit";
     const notes = [
       `Purpose: ${purposeLabel}`,
+      `Cash owner: ${cashOwnerName}`,
       "Channel: Cash (code verified)",
       `Custody: ${cashLocationLabel}`,
       "Started by Financial Ops (SMS code)",
@@ -155,6 +165,7 @@ Deno.serve(async (req) => {
           chosen_by: operator.id,
           entry_point: "finops_cash_code_sms",
           cash_location: cashLocation,
+          cash_owner_name: cashOwnerName,
           agent_personal_confirmed_at: new Date().toISOString(),
         },
       } as any)
@@ -224,6 +235,7 @@ Deno.serve(async (req) => {
           max_attempts: (verRow as any)?.max_attempts ?? null,
           deposit_purpose: depositPurpose,
           cash_location: cashLocation,
+          cash_owner_name: cashOwnerName,
         },
       } as any);
     } catch (e) {
@@ -235,7 +247,8 @@ Deno.serve(async (req) => {
       deposit_request_id: depositId,
       verification_id: (verRow as any)?.id ?? null,
       sms_sent: smsSent,
-      depositor_name: (depositor as any).full_name ?? null,
+      depositor_name: cashOwnerName,
+      wallet_holder_name: (depositor as any).full_name ?? null,
       depositor_phone: smsPhone,
       expires_at: (verRow as any)?.expires_at ?? null,
     });

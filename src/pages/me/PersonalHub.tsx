@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom';
-import { FileText, Briefcase, User, Bell, Settings, FolderOpen } from 'lucide-react';
+import { FileText, Briefcase, User, Bell, FolderOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import PersonalLayout from '@/components/layout/PersonalLayout';
+import NameCompletionReminder from '@/components/notifications/NameCompletionReminder';
 
 interface HubCardProps {
   to?: string;
@@ -77,12 +78,6 @@ const CARDS = [
     description: 'Messages and alerts',
   },
   {
-    to: '/settings',
-    icon: Settings,
-    title: 'Settings',
-    description: 'Account preferences',
-  },
-  {
     icon: FolderOpen,
     title: 'My documents',
     description: 'Your contracts, letters and certificates',
@@ -93,10 +88,13 @@ const CARDS = [
 const PersonalHub = () => {
   return (
     <PersonalLayout title="My space">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {CARDS.map((card, index) => (
-          <HubCard key={index} {...card} />
-        ))}
+      <div className="space-y-4">
+        <NameCompletionReminder />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {CARDS.map((card, index) => (
+            <HubCard key={index} {...card} />
+          ))}
+        </div>
       </div>
     </PersonalLayout>
   );

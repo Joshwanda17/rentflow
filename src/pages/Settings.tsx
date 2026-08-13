@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, lazy, Suspense, Component, ReactNode, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { Helmet } from 'react-helmet-async';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -30,6 +31,9 @@ import { playNotificationSound } from '@/lib/notificationSound';
 import { cn } from '@/lib/utils';
 import { useOtpVerification } from '@/hooks/useOtpVerification';
 import { normalizeE164OrNull } from '@/lib/phoneUtils';
+import { joinPersonName, splitPersonName, validatePersonNameParts, type PersonNameParts } from '@/lib/authValidation';
+import PersonNameFields from '@/components/shared/PersonNameFields';
+import NameCompletionReminder from '@/components/notifications/NameCompletionReminder';
 import { OtpVerificationStep } from '@/components/auth/OtpVerificationStep';
 
 const WalletCard = lazy(() => import('@/components/wallet/WalletCard').then(m => ({ default: m.WalletCard })));
@@ -177,6 +181,7 @@ const ACCOUNT_TABS: { id: AccountTab; label: string; icon: typeof User }[] = [
 
 export default function Settings() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user, roles, loading: authLoading, role } = useAuth();
   const { fontSize, setFontSize } = useFontSize();
   const { intensity: hapticIntensity, setIntensity: setHapticIntensity } = useHapticSettings();
@@ -188,7 +193,9 @@ export default function Settings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const [fullName, setFullName] = useState('');
+  // Name is captured in parts but stored/submitted as the same single string.
+  const [nameParts, setNameParts] = useState<PersonNameParts>({ firstName: '', otherNames: '', lastName: '' });
+  const fullName = joinPersonName(nameParts);
   const [phone, setPhone] = useState('');
   const otp = useOtpVerification();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -236,7 +243,7 @@ export default function Settings() {
     if (!user) return;
     const { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
     if (error) { console.error('Error fetching profile:', error); setLoading(false); return; }
-    if (data) { setProfile(data as Profile); setFullName(data.full_name); setPhone(data.phone); }
+    if (data) { setProfile(data as Profile); setNameParts(splitPersonName(data.full_name)); setPhone(data.phone); }
     setLoading(false);
   };
 
@@ -264,14 +271,15 @@ export default function Settings() {
 
   const handleSave = async () => {
     if (!user || !profile) return;
-    if (!fullName.trim()) { toast.error('Full name is required'); return; }
+    const nameCheck = validatePersonNameParts(nameParts);
+    if (!nameCheck.valid) { toast.error(nameCheck.error || 'Full name is required'); return; }
     if (!phone.trim()) { toast.error('Phone number is required'); return; }
     if (normalizeE164OrNull(phone) === null) {
       toast.error('Please enter a valid phone number (e.g. 0771234567 or +256771234567)');
       return;
     }
     setSaving(true);
-    const trimmedName = fullName.trim();
+    const trimmedName = nameCheck.fullName;
     const trimmedPhone = phone.trim();
     const phoneChanged = trimmedPhone !== (profile.phone ?? '').trim();
     if (phoneChanged && !otp.otpVerified) {
@@ -299,6 +307,7 @@ export default function Settings() {
       toast.success('Profile updated successfully');
       setProfile({ ...profile, full_name: trimmedName, phone: savedPhone });
       setPhone(savedPhone);
+      queryClient.invalidateQueries({ queryKey: ['name-completion-status'] });
     } catch (e: any) {
       toast.error(e?.message || 'Failed to update profile');
     } finally {
@@ -457,9 +466,10 @@ export default function Settings() {
                       <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
                       <Card className="border-border/40 rounded-2xl">
                         <CardContent className="pt-5 space-y-3">
+                          <NameCompletionReminder />
                           <div className="space-y-1.5">
-                            <Label htmlFor="fullName" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Your Name</Label>
-                            <div className="relative"><User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Full name" className="pl-10 h-12 rounded-xl" /></div>
+                            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Your Name</Label>
+                            <PersonNameFields idPrefix="settings" value={nameParts} onChange={setNameParts} disabled={saving} />
                           </div>
                           <div className="space-y-1.5">
                             <Label htmlFor="phone" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Phone</Label>

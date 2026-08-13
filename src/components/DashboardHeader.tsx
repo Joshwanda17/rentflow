@@ -40,6 +40,7 @@ interface DashboardHeaderProps {
   opportunityCount?: number;
   onOpportunityBadgeClick?: () => void;
   headerActions?: React.ReactNode;
+  showInstallPrompt?: boolean;
 }
 
 const roleConfigMap: Record<string, { label: string; emoji: string; icon: React.ReactNode }> = {
@@ -109,7 +110,8 @@ const DashboardHeader = memo(function DashboardHeader({
 
   const showInstallButton = isInstallable && !isInstalled;
   const visibleRoles = availableRoles.filter((role) => role in roleConfigMap);
-  const showPersonalEntry = availableRoles.some((role) => !PUBLIC_ROLES.includes(role));
+  const hasNonPublicRole = availableRoles.some((role) => !PUBLIC_ROLES.includes(role));
+
 
   return (
     <>
@@ -164,25 +166,23 @@ const DashboardHeader = memo(function DashboardHeader({
                           </button>
                         );
                       })}
-                      {showPersonalEntry && (
+                      {hasNonPublicRole && (
                         <>
-                          <div className="h-px bg-border my-1.5" />
+                          <div className="my-1.5 h-px bg-border" />
                           <button
                             onClick={() => {
                               setRolePickerOpen(false);
                               navigate('/me');
                             }}
-                            className={cn(
-                              "w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl text-sm font-medium transition-all touch-manipulation min-h-[44px]",
-                              "text-foreground hover:bg-muted active:scale-[0.98]"
-                            )}
+                            className="w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl text-sm font-medium text-foreground hover:bg-muted active:scale-[0.98] transition-all touch-manipulation min-h-[44px]"
                           >
-                            <UserRound className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-base">👤</span>
                             <span>My space</span>
                           </button>
                         </>
                       )}
                     </PopoverContent>
+
                   </Popover>
                 </>
               ) : (

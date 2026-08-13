@@ -6,6 +6,8 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import PersonNameFields from '@/components/shared/PersonNameFields';
+import { joinPersonName, validatePersonNameParts, type PersonNameParts } from '@/lib/authValidation';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import {
@@ -62,7 +64,9 @@ export default function InviteMerchantAgent() {
   const ref = UUID_RX.test(rawRef) ? rawRef : '';
 
   const [slide, setSlide] = useState(0);
-  const [fullName, setFullName] = useState('');
+  // Captured in parts; `full_name` stays one concatenated string.
+  const [nameParts, setNameParts] = useState<PersonNameParts>({ firstName: '', otherNames: '', lastName: '' });
+  const fullName = joinPersonName(nameParts);
   const [phone, setPhone] = useState('');
   const [signature, setSignature] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -90,7 +94,7 @@ export default function InviteMerchantAgent() {
   }, [user?.id, loading, navigate]);
 
   const canSubmit =
-    fullName.trim().length >= 3 &&
+    validatePersonNameParts(nameParts).valid &&
     /^[+0-9 -]{7,}$/.test(phone.trim()) &&
     !!signature &&
     downloaded;
@@ -267,15 +271,9 @@ export default function InviteMerchantAgent() {
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="ma-name" className="text-xs font-semibold">Full legal name</Label>
-              <Input
-                id="ma-name"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                placeholder="e.g. Kalyango Timothy"
-                className="h-11 rounded-xl"
-              />
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label className="text-xs font-semibold">Full legal name</Label>
+              <PersonNameFields idPrefix="ma-name" value={nameParts} onChange={setNameParts} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="ma-phone" className="text-xs font-semibold">Phone number</Label>

@@ -166,6 +166,9 @@ interface PipelineRow {
   tenant_name?: string;
   tenant_phone?: string;
   landlord_name?: string;
+  /** True once a payout against this tenant's landlord float allocation has
+   *  been recorded — the tenant has moved from "Ready to pay" to collections. */
+  landlord_settled?: boolean;
   landlord_address?: string;
 }
 
@@ -199,16 +202,29 @@ function usePipelineRequests(
 
       const tenantIds = [...new Set(rows.map((r) => r.tenant_id).filter(Boolean))];
       const landlordIds = [...new Set(rows.map((r) => r.landlord_id).filter(Boolean))];
-      const [{ data: profiles }, { data: landlords }] = await Promise.all([
+      const [{ data: profiles }, { data: landlords }, { data: allocations }] = await Promise.all([
         tenantIds.length
           ? supabase.from('profiles').select('id, full_name, phone').in('id', tenantIds)
           : Promise.resolve({ data: [] as any[] }),
         landlordIds.length
           ? supabase.from('landlords').select('id, name, property_address').in('id', landlordIds)
           : Promise.resolve({ data: [] as any[] }),
+        // Landlord float payout progress per request. A recorded payout means
+        // the landlord money has physically gone out, so the tenant belongs to
+        // the owing / collections list — not "Ready to pay" — and must not
+        // appear in both places at once.
+        supabase
+          .from('agent_landlord_float_allocations')
+          .select('rent_request_id, paid_out_amount')
+          .in('rent_request_id', rows.map((r) => r.id)),
       ]);
       const pmap = new Map((profiles ?? []).map((p: any) => [p.id, p]));
       const lmap = new Map((landlords ?? []).map((l: any) => [l.id, l]));
+      const settled = new Set(
+        (allocations ?? [])
+          .filter((a: any) => Number(a.paid_out_amount || 0) > 0)
+          .map((a: any) => a.rent_request_id),
+      );
       return {
         rows: rows.map((r) => ({
           ...r,
@@ -216,6 +232,7 @@ function usePipelineRequests(
           tenant_phone: pmap.get(r.tenant_id)?.phone ?? '',
           landlord_name: lmap.get(r.landlord_id)?.name ?? '',
           landlord_address: lmap.get(r.landlord_id)?.property_address ?? '',
+          landlord_settled: settled.has(r.id),
         })),
         total: count ?? rows.length,
       };
@@ -528,7 +545,12 @@ export function AgentRequestPipelineView({
       (approved.data?.rows ?? [])
         .filter(filterBySearch)
         .filter(filterByStatus)
-        .filter(filterByDate),
+        .filter(filterByDate)
+        // "Ready to pay" = landlord money released to the agent's float but not
+        // yet paid out, and no tenant repayment recorded yet. Once the landlord
+        // payout is recorded (or the tenant starts repaying) the request lives
+        // in the owing / collections list instead, so it drops off this tab.
+        .filter((r) => !r.landlord_settled && Number(r.amount_repaid || 0) <= 0),
     [approved.data?.rows, searchQuery, statusFilter, dateFilter],
   );
 

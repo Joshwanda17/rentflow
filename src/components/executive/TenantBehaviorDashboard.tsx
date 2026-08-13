@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { TenantOpsReportToolbar } from './TenantOpsReportToolbar';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -177,6 +178,15 @@ export function TenantBehaviorDashboard() {
             {isLoading && <RefreshCw className="h-3 w-3 animate-spin text-muted-foreground" />}
           </CardTitle>
         </CardHeader>
+        <CardContent className="px-3 sm:px-4 pb-2">
+          <TenantOpsReportToolbar
+            tool="tenant_behavior"
+            status={segment}
+            search={debouncedSearch}
+            visibleCount={tenants?.length ?? 0}
+            fileSlug="tenant-payment-behaviour"
+          />
+        </CardContent>
         <CardContent className="px-0 pb-2">
           {isLoading ? (
             <div className="flex items-center justify-center py-12">

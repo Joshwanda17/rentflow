@@ -4,6 +4,8 @@ import { WalletOverviewCard } from './WalletOverviewCard';
 import { MomoFeedSilenceAlert } from './MomoFeedSilenceAlert';
 import { IftttDiagnosticsPanel } from './IftttDiagnosticsPanel';
 import { MerchantPhoneChecklist } from './MerchantPhoneChecklist';
+import { PhoneMoneyCard } from './PhoneMoneyCard';
+import { MoneyWithAgentsCard } from './MoneyWithAgentsCard';
 import { PhonePlatformReconciliationCard } from './PhonePlatformReconciliationCard';
 import { AutoCreditSuccessRateTile } from './AutoCreditSuccessRateTile';
 
@@ -13,8 +15,22 @@ const lz = (
   loader: () => Promise<Record<string, any>>,
   name: string,
 ): ComponentType<any> => lazy(async () => {
-  const m = await loader();
-  return { default: m[name] };
+  // A stale/aborted chunk fetch can resolve to an undefined module namespace
+  // (seen on mobile after a redeploy). Retry once before failing, and accept
+  // either the named export or a default export.
+  let m: Record<string, any> | undefined;
+  try {
+    m = await loader();
+  } catch {
+    m = undefined;
+  }
+  let C = m?.[name] ?? m?.default;
+  if (!C) {
+    m = await loader();
+    C = m?.[name] ?? m?.default;
+  }
+  if (!C) throw new Error(`Panel "${name}" failed to load. Please reload the app.`);
+  return { default: C };
 }) as unknown as ComponentType<any>;
 
 const PanelFallback = () => (
@@ -40,6 +56,26 @@ class ToolErrorBoundary extends Component<
 
   static getDerivedStateFromError(err: Error) {
     return { message: err?.message || 'Unknown error' };
+  }
+
+  componentDidCatch(err: Error) {
+    // A user running an outdated cached bundle sees failures like
+    // `can't access property "XPanel" of undefined` (old loader) or chunk
+    // import errors. Recover automatically once per session, then stop so we
+    // never loop.
+    const msg = err?.message || '';
+    const stale =
+      /of undefined|chunk|dynamically imported module|Importing a module script failed|failed to load/i.test(
+        msg,
+      );
+    if (!stale) return;
+    try {
+      if (sessionStorage.getItem('finops-panel-recovered') === '1') return;
+      sessionStorage.setItem('finops-panel-recovered', '1');
+    } catch {
+      return;
+    }
+    window.location.reload();
   }
 
   componentDidUpdate(prev: { toolKey: string }) {
@@ -87,6 +123,7 @@ class ToolErrorBoundary extends Component<
 const ApprovalQueue = lz(() => import('./ApprovalQueue'), 'ApprovalQueue');
 const TransactionSearch = lz(() => import('./TransactionSearch'), 'TransactionSearch');
 const ReconciliationDashboard = lz(() => import('./ReconciliationDashboard'), 'ReconciliationDashboard');
+const PayoutReconciliationQueue = lz(() => import('./PayoutReconciliationQueue'), 'PayoutReconciliationQueue');
 const AuditFeed = lz(() => import('./AuditFeed'), 'AuditFeed');
 const ScaleDashboard = lz(() => import('./ScaleDashboard'), 'ScaleDashboard');
 const FinOpsWithdrawalVerification = lz(() => import('./FinOpsWithdrawalVerification'), 'FinOpsWithdrawalVerification');
@@ -382,6 +419,9 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
               </p>
             </div>
             <LandlordPayoutsQueue />
+            {/* PHASE 8: incomplete/unsafe payouts stay visible to FinOps/CFO
+                instead of being pushed back into the merchant desk queue. */}
+            <PayoutReconciliationQueue />
             <EmailPayoutAutoMatchPanel />
             <BulkBankPayoutPanel />
             <FinOpsWithdrawalVerification />
@@ -857,21 +897,23 @@ function FinOpsHome({
       </div>
 
       {/* Hero + Phone Money */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 min-w-0">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
+        <div className="min-w-0 h-full">
           <WalletOverviewCard
             onOpenReconciliation={() => onOpenTool('recon')}
             onOpenBreakdown={() => onOpenTool('wallet_breakdown')}
             onDrillBucket={(bucket) => onFocusBucket(bucket)}
           />
         </div>
-        <PhonePlatformReconciliationCard compact />
+        <div className="min-w-0 h-full">
+          <PhoneMoneyCard />
+        </div>
       </div>
 
-      {/* Auto-Credit Success Rate */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <AutoCreditSuccessRateTile onClick={() => onOpenTool('auto_credit_review')} />
-      </div>
+      {/* Company money sitting with merchant agents — directly below ACTUAL MONEY */}
+      <MoneyWithAgentsCard onOpenTimeline={() => onOpenTool('cashout_settlement')} />
+
+      <AutoCreditSuccessRateTile onClick={() => onOpenTool('auto_credit_review')} />
 
       {/* Flagship action tiles */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

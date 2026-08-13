@@ -1,6 +1,8 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { addDays, format } from 'date-fns';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
+import PersonNameFields from '@/components/shared/PersonNameFields';
+import { joinPersonName, splitPersonName, type PersonNameParts } from '@/lib/authValidation';
 import { computeUndoSelection } from '@/lib/undoHouseSelection';
 import { motion, AnimatePresence } from '@/lib/motion-lite';
 import { supabase } from '@/integrations/supabase/client';
@@ -691,7 +693,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [incomeType, setIncomeType] = useState<IncomeType | null>(null);
   
   // Tenant info (for non-account holders)
-  const [tenantName, setTenantName] = useState('');
+  // Captured in parts; every downstream read/write still uses the single
+  // concatenated `tenantName` string.
+  const [tenantNameParts, setTenantNameParts] = useState<PersonNameParts>({ firstName: '', otherNames: '', lastName: '' });
+  const tenantName = joinPersonName(tenantNameParts);
+  const setTenantName = (next: string) => setTenantNameParts(splitPersonName(next));
   const [tenantPhone, setTenantPhone] = useState('');
   const [tenantNationalId, setTenantNationalId] = useState('');
   const [preferredLanguage, setPreferredLanguage] = useState<string>('');
@@ -736,7 +742,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   };
   
   // LC1 info
-  const [lc1Name, setLc1Name] = useState('');
+  const [lc1NameParts, setLc1NameParts] = useState<PersonNameParts>({ firstName: '', otherNames: '', lastName: '' });
+  const lc1Name = joinPersonName(lc1NameParts);
+  const setLc1Name = (next: string) => setLc1NameParts(splitPersonName(next));
   const [lc1Phone, setLc1Phone] = useState('');
   const [lc1Village, setLc1Village] = useState('');
   // LC letter — one image (JPG/PNG/JPEG, max 10 MB) stored in the private
@@ -1171,41 +1179,6 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setLc1Mode('register');
     setLc1Selected(false);
   }, [lc1Query]);
-  // ===== Landlord's existing houses overview =====
-  // When a landlord is already in the system, show the agent every house on
-  // file for that landlord: who is already living there (occupied), which are
-  // listed but still empty, and which are listed but not yet verified. This
-  // helps the agent avoid double-requesting an occupied unit and quickly pick
-  // a vacant/verified house for the new tenant.
-  type LandlordHouse = {
-    id: string;
-    title: string | null;
-    address: string | null;
-    region: string | null;
-    monthly_rent: number | null;
-    status: string | null;
-    verified: boolean | null;
-    tenant_id: string | null;
-    tenant_name: string | null;
-    landlord_phone: string | null;
-    updated_at: string | null;
-  };
-  const [landlordHouses, setLandlordHouses] = useState<LandlordHouse[]>([]);
-  const [landlordHousesLoading, setLandlordHousesLoading] = useState(false);
-  const [houseSearchQuery, setHouseSearchQuery] = useState('');
-  const [houseSort, setHouseSort] = useState<'recent' | 'occupied' | 'empty' | 'unverified'>('recent');
-  const [houseStatusFilter, setHouseStatusFilter] = useState<'all' | 'occupied' | 'empty' | 'unverified'>('all');
-  const houseStatusCounts = useMemo(() => {
-    let occupied = 0, empty = 0, unverified = 0;
-    for (const h of landlordHouses) {
-      const isOccupied = !!h.tenant_id || h.status === 'occupied';
-      const isVerified = h.verified === true && h.status !== 'rejected';
-      if (isOccupied) occupied++;
-      else if (!isVerified) unverified++;
-      else empty++;
-    }
-    return { occupied, empty, unverified };
-  }, [landlordHouses]);
   const LL_MODE_KEY = `welile:rentReq:landlordMode:${user?.id || 'anon'}`;
   const [landlordMode, setLandlordModeState] = useState<'search' | 'register'>(() => {
     try { return (sessionStorage.getItem(LL_MODE_KEY) as 'search' | 'register') || 'search'; }
@@ -1377,76 +1350,6 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     }
   }, [selectedLandlord?.id, selectedLandlord?.name, selectedLandlord?.phone, selectedHouse?.landlord_id, selectedHouse?.landlord_phone, landlordName, landlordPhone, user]);
 
-  // ===== Load the resolved landlord's existing houses =====
-  // Fetches every (non-hidden) house on file for this landlord plus the names
-  // of any tenants already living in them, so the agent can see at a glance:
-  //  • occupied — "<Tenant> already lives here"
-  //  • empty    — listed & verified but vacant (ready for the new tenant)
-  //  • unverified — listed but not yet verified (cannot be used yet)
-  useEffect(() => {
-    const landlordId = selectedLandlord?.id ?? selectedHouse?.landlord_id ?? null;
-    if (!landlordId) {
-      setLandlordHouses([]);
-      return;
-    }
-    let cancelled = false;
-    setLandlordHousesLoading(true);
-    (async () => {
-      try {
-        const { data, error } = await supabase
-          .from('house_listings')
-          .select('id, title, address, region, monthly_rent, status, verified, tenant_id, updated_at')
-          .eq('landlord_id', landlordId)
-          .eq('is_hidden', false)
-          .order('created_at', { ascending: false })
-          .limit(40);
-        if (cancelled) return;
-        if (error) {
-          setLandlordHouses([]);
-          return;
-        }
-        const rows = (data || []) as any[];
-        // Resolve tenant names for occupied houses in one batch.
-        const tenantIds = Array.from(
-          new Set(rows.map((r) => r.tenant_id).filter(Boolean)),
-        );
-        const tenantMap: Record<string, string | null> = {};
-        if (tenantIds.length) {
-          const { data: profs } = await supabase
-            .from('profiles')
-            .select('id, full_name')
-            .in('id', tenantIds);
-          for (const p of profs || []) {
-            tenantMap[(p as any).id] = (p as any).full_name ?? null;
-          }
-        }
-        if (cancelled) return;
-        const llPhone = selectedLandlord?.phone ?? selectedHouse?.landlord_phone ?? null;
-        setLandlordHouses(
-          rows.map((r) => ({
-            id: r.id,
-            title: r.title ?? null,
-            address: r.address ?? null,
-            region: r.region ?? null,
-            monthly_rent: r.monthly_rent ?? null,
-            status: r.status ?? null,
-            verified: r.verified ?? null,
-            tenant_id: r.tenant_id ?? null,
-            tenant_name: r.tenant_id ? tenantMap[r.tenant_id] ?? null : null,
-            landlord_phone: llPhone,
-            updated_at: r.updated_at ?? null,
-          })),
-        );
-      } catch {
-        if (!cancelled) setLandlordHouses([]);
-      } finally {
-        if (!cancelled) setLandlordHousesLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedLandlord?.id, selectedHouse?.landlord_id]);
 
   // ===== Live LC1 chairperson verification =====
   // The typed LC1 phone is looked up in `lc1_chairpersons`. This is informational
@@ -3742,12 +3645,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         <Label >Tenant Name *</Label>
                         <p className="text-xs text-muted-foreground leading-snug">The tenant's name as on their ID.</p>
                         <p className="text-[11px] text-muted-foreground">e.g. John Mukasa</p>
-                        <Input
-                          value={tenantName}
-                          onChange={(e) => setTenantName(formatNameInput(e.target.value))}
-                          placeholder="Full name"
-                          className={`${hasFieldError('tenantName') ? 'border-destructive border-2' : ''}`}
-                          required
+                        <PersonNameFields
+                          idPrefix="rent-req-tenant-a"
+                          value={tenantNameParts}
+                          onChange={setTenantNameParts}
                         />
                         <FieldError message={vName(tenantName) || getFieldError('tenantName')} />
                         <TenantDuplicateNotice
@@ -4243,13 +4144,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     <Label htmlFor="tenantName" >Full Name *</Label>
                     <p className="text-xs text-muted-foreground leading-snug">Write the tenant's name as it is on their ID.</p>
                     <p className="text-[11px] text-muted-foreground">e.g. Sarah Nalwoga</p>
-                    <Input
-                      id="tenantName"
-                      value={tenantName}
-                      onChange={(e) => setTenantName(formatNameInput(e.target.value))}
-                      placeholder="Tenant's name"
-                      className={`${hasFieldError('tenantName') ? 'border-destructive border-2' : ''}`}
-                      required
+                    <PersonNameFields
+                      idPrefix="rent-req-tenant"
+                      value={tenantNameParts}
+                      onChange={setTenantNameParts}
                     />
                     <FieldError message={vName(tenantName) || getFieldError('tenantName')} />
                     <TenantDuplicateNotice
@@ -4474,254 +4372,6 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   )}
                 </div>
 
-                {/* ── Landlord's existing houses (only when a landlord is resolved) ── */}
-                {(selectedLandlord?.id || selectedHouse?.landlord_id) && (
-                  landlordHousesLoading ? (
-                    <div className="rounded-2xl border border-border bg-muted/30 p-3 flex items-center gap-2 text-sm text-muted-foreground">
-                      <Loader2 className="h-4 w-4 animate-spin shrink-0" />
-                      Checking this landlord&apos;s houses…
-                    </div>
-                  ) : landlordHouses.length > 0 ? (
-                    <div className="rounded-2xl border border-border bg-card p-3 space-y-2.5">
-                      <div className="flex items-center gap-2">
-                        <Home className="h-4 w-4 text-primary shrink-0" />
-                        <p className="text-sm font-bold text-foreground">
-                          This landlord already has {landlordHouses.length}{' '}
-                          {landlordHouses.length === 1 ? 'house' : 'houses'} on file
-                        </p>
-                      </div>
-                      <p className="text-[11px] text-muted-foreground leading-snug">
-                        See who is already living in a house, which houses are empty, and which are
-                        listed but not yet verified before posting this tenant&apos;s rent request.
-                      </p>
-                      {/* Search / filter + sort houses */}
-                      <div className="flex items-center gap-2">
-                        <div className="relative flex-1">
-                          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                          <Input
-                            value={houseSearchQuery}
-                            onChange={(e) => setHouseSearchQuery(e.target.value)}
-                            placeholder="Search by house name, address, or landlord phone…"
-                            className="h-9 pl-8 pr-8 text-sm rounded-xl bg-background border-border"
-                          />
-                          {houseSearchQuery && (
-                            <button
-                              type="button"
-                              onClick={() => setHouseSearchQuery('')}
-                              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                            >
-                              <X className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                        </div>
-                        <Select value={houseSort} onValueChange={(v) => setHouseSort(v as typeof houseSort)}>
-                          <SelectTrigger className="h-9 w-auto min-w-[140px] rounded-xl text-xs px-3 border-border bg-background shrink-0">
-                            <SelectValue placeholder="Sort by" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="recent">Most recent</SelectItem>
-                            <SelectItem value="occupied">Occupied first</SelectItem>
-                            <SelectItem value="empty">Empty first</SelectItem>
-                            <SelectItem value="unverified">Not verified first</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      {/* Status counts */}
-                      <div className="flex items-center gap-2 flex-wrap" role="group" aria-label="Filter houses by status">
-                        <button
-                          type="button"
-                          aria-pressed={houseStatusFilter === 'occupied'}
-                          aria-label={houseStatusFilter === 'occupied' ? `Clear occupied filter, showing ${houseStatusCounts.occupied} houses` : `Filter by occupied houses, ${houseStatusCounts.occupied} results`}
-                          onClick={() => setHouseStatusFilter((prev) => (prev === 'occupied' ? 'all' : 'occupied'))}
-                          className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-full border transition-colors ${
-                            houseStatusFilter === 'occupied'
-                              ? 'bg-muted-foreground text-background border-muted-foreground'
-                              : 'bg-muted text-muted-foreground border-border hover:bg-muted/80'
-                          }`}
-                        >
-                          <span className={`h-1.5 w-1.5 rounded-full ${houseStatusFilter === 'occupied' ? 'bg-background' : 'bg-muted-foreground'}`} />
-                          Occupied {houseStatusCounts.occupied}
-                        </button>
-                        <button
-                          type="button"
-                          aria-pressed={houseStatusFilter === 'empty'}
-                          aria-label={houseStatusFilter === 'empty' ? `Clear empty filter, showing ${houseStatusCounts.empty} houses` : `Filter by empty houses, ${houseStatusCounts.empty} results`}
-                          onClick={() => setHouseStatusFilter((prev) => (prev === 'empty' ? 'all' : 'empty'))}
-                          className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-full border transition-colors ${
-                            houseStatusFilter === 'empty'
-                              ? 'bg-success text-background border-success'
-                              : 'bg-success/15 text-success border-success/30 hover:bg-success/25'
-                          }`}
-                        >
-                          <span className={`h-1.5 w-1.5 rounded-full ${houseStatusFilter === 'empty' ? 'bg-background' : 'bg-success'}`} />
-                          Empty {houseStatusCounts.empty}
-                        </button>
-                        <button
-                          type="button"
-                          aria-pressed={houseStatusFilter === 'unverified'}
-                          aria-label={houseStatusFilter === 'unverified' ? `Clear not verified filter, showing ${houseStatusCounts.unverified} houses` : `Filter by not verified houses, ${houseStatusCounts.unverified} results`}
-                          onClick={() => setHouseStatusFilter((prev) => (prev === 'unverified' ? 'all' : 'unverified'))}
-                          className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-full border transition-colors ${
-                            houseStatusFilter === 'unverified'
-                              ? 'bg-amber-500 text-background border-amber-500'
-                              : 'bg-amber-500/15 text-amber-600 border-amber-500/30 hover:bg-amber-500/25'
-                          }`}
-                        >
-                          <span className={`h-1.5 w-1.5 rounded-full ${houseStatusFilter === 'unverified' ? 'bg-background' : 'bg-amber-500'}`} />
-                          Not verified {houseStatusCounts.unverified}
-                        </button>
-                      </div>
-                      {(() => {
-                        const q = houseSearchQuery.trim().toLowerCase();
-                        let base = q
-                          ? landlordHouses.filter((h) => {
-                              const hay = [
-                                h.title,
-                                h.address,
-                                h.region,
-                                h.landlord_phone,
-                                h.tenant_name,
-                              ]
-                                .filter(Boolean)
-                                .join(' ')
-                                .toLowerCase();
-                              return hay.includes(q);
-                            })
-                          : [...landlordHouses];
-                        if (houseStatusFilter !== 'all') {
-                          base = base.filter((h) => {
-                            const isOccupied = !!h.tenant_id || h.status === 'occupied';
-                            const isVerified = h.verified === true && h.status !== 'rejected';
-                            if (houseStatusFilter === 'occupied') return isOccupied;
-                            if (houseStatusFilter === 'unverified') return !isVerified && !isOccupied;
-                            if (houseStatusFilter === 'empty') return isVerified && !isOccupied;
-                            return true;
-                          });
-                        }
-                        // status sort helper
-                        const statusRank = (h: LandlordHouse) => {
-                          const occupied = !!h.tenant_id || h.status === 'occupied';
-                          const verified = h.verified === true && h.status !== 'rejected';
-                          if (occupied) return 0;
-                          if (!verified) return 1;
-                          return 2;
-                        };
-                        const filtered = base.sort((a, b) => {
-                          if (houseSort === 'recent') {
-                            const ta = a.updated_at ? new Date(a.updated_at).getTime() : 0;
-                            const tb = b.updated_at ? new Date(b.updated_at).getTime() : 0;
-                            return tb - ta;
-                          }
-                          const ra = statusRank(a);
-                          const rb = statusRank(b);
-                          if (houseSort === 'occupied') {
-                            if (ra !== rb) return ra - rb;
-                          } else if (houseSort === 'empty') {
-                            // reverse: empty (2) first, then unverified (1), then occupied (0)
-                            if (ra !== rb) return rb - ra;
-                          } else if (houseSort === 'unverified') {
-                            // unverified (1) first, then empty (2), then occupied (0)
-                            const ua = ra === 1 ? 0 : ra === 2 ? 1 : 2;
-                            const ub = rb === 1 ? 0 : rb === 2 ? 1 : 2;
-                            if (ua !== ub) return ua - ub;
-                          }
-                          // tie-breaker: most recent update
-                          const ta = a.updated_at ? new Date(a.updated_at).getTime() : 0;
-                          const tb = b.updated_at ? new Date(b.updated_at).getTime() : 0;
-                          return tb - ta;
-                        });
-                        const liveText = houseStatusFilter === 'all'
-                          ? `Showing all ${filtered.length} houses`
-                          : `Showing ${filtered.length} ${houseStatusFilter.replace('unverified', 'not verified')} houses`;
-                        if (filtered.length === 0) {
-                          const reason = houseStatusFilter !== 'all'
-                            ? `No ${houseStatusFilter.replace('unverified', 'not verified')} houses${q ? ` match "${houseSearchQuery}"` : ''}`
-                            : q
-                              ? `No houses match "${houseSearchQuery}"`
-                              : '';
-                          return (
-                            <>
-                              <div className="sr-only" aria-live="polite">{liveText}</div>
-                              <div className="text-center py-4 text-sm text-muted-foreground">
-                                {reason || 'No houses found'}
-                              </div>
-                            </>
-                          );
-                        }
-                        return (
-                          <>
-                            <div className="sr-only" aria-live="polite">{liveText}</div>
-                            <ul className="space-y-2">
-                            {filtered.map((h) => {
-                              const occupied = !!h.tenant_id || h.status === 'occupied';
-                              const verified = h.verified === true && h.status !== 'rejected';
-                              let badgeText: string;
-                              let badgeClass: string;
-                              let detail: string;
-                              if (occupied) {
-                                badgeText = 'Occupied';
-                                badgeClass = 'bg-muted text-muted-foreground border border-border';
-                                detail = h.tenant_name
-                                  ? `${h.tenant_name} already lives here`
-                                  : 'A tenant already lives here';
-                              } else if (!verified) {
-                                badgeText = 'Not verified';
-                                badgeClass = 'bg-amber-500/15 text-amber-600 border border-amber-500/30';
-                                detail = 'Listed but not yet verified — cannot be used yet';
-                              } else {
-                                badgeText = 'Empty';
-                                badgeClass = 'bg-success/15 text-success border border-success/30';
-                                detail = 'Listed & verified — empty, ready for this tenant';
-                              }
-                              return (
-                                <li
-                                  key={h.id}
-                                  className="rounded-xl border border-border/70 bg-background p-2.5 flex items-start gap-2.5"
-                                >
-                                  <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                                    <Home className="h-4 w-4 text-muted-foreground" />
-                                  </div>
-                                  <div className="min-w-0 flex-1">
-                                    <div className="flex items-center justify-between gap-2">
-                                      <p className="text-sm font-semibold text-foreground truncate">
-                                        {h.title || h.address || h.region || 'House'}
-                                      </p>
-                                      <span
-                                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${badgeClass}`}
-                                      >
-                                        {badgeText}
-                                      </span>
-                                    </div>
-                                    {(h.address || h.region) && (
-                                      <p className="text-[11px] text-muted-foreground truncate">
-                                        {h.address || h.region}
-                                      </p>
-                                    )}
-                                    <p
-                                      className={`text-[11px] mt-0.5 leading-snug ${
-                                        occupied
-                                          ? 'text-muted-foreground'
-                                          : verified
-                                            ? 'text-success'
-                                            : 'text-amber-600'
-                                      }`}
-                                    >
-                                      {detail}
-                                      {h.monthly_rent
-                                        ? ` · ${formatUGX(h.monthly_rent)}/mo`
-                                        : ''}
-                                    </p>
-                                  </div>
-                                </li>
-                              );
-                            })}
-                           </ul>
-                         </>
-                       );
-                     })()}
-                    </div>
-                  ) : null
-                )}
 
                 {selectedLandlord ? null : landlordMode === 'search' ? (
                   /* ── Search existing landlord ── */
@@ -5156,12 +4806,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     <Label >Name *</Label>
                     <p className="text-xs text-muted-foreground leading-snug">The local council (LC1) chairperson for that area.</p>
                     <p className="text-[11px] text-muted-foreground">e.g. Mr. Ssemwanga</p>
-                    <Input
-                      value={lc1Name}
-                      onChange={(e) => setLc1Name(formatNameInput(e.target.value))}
-                      placeholder="LC1 name"
-                      className={`${hasFieldError('lc1Name') ? 'border-destructive border-2' : ''}`}
-                      required
+                    <PersonNameFields
+                      idPrefix="rent-req-lc1"
+                      value={lc1NameParts}
+                      onChange={setLc1NameParts}
                     />
                     <FieldError message={vName(lc1Name) || getFieldError('lc1Name')} />
                   </div>

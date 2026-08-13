@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Wallet, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
+import PersonNameFields from '@/components/shared/PersonNameFields';
+import { joinPersonName, validatePersonNameParts, type PersonNameParts } from '@/lib/authValidation';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
 import { formatUGX } from '@/lib/rentCalculations';
 
@@ -31,7 +33,9 @@ export function ManualFloatCreditPanel() {
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
     return now.toISOString().slice(0, 16);
   });
-  const [depositorName, setDepositorName] = useState('');
+  // Captured in parts; `p_depositor_name` stays one concatenated string.
+  const [nameParts, setNameParts] = useState<PersonNameParts>({ firstName: '', otherNames: '', lastName: '' });
+  const depositorName = joinPersonName(nameParts);
   const [notes, setNotes] = useState('');
   const [confirming, setConfirming] = useState(false);
 
@@ -44,7 +48,7 @@ export function ManualFloatCreditPanel() {
     Number.isFinite(amountNum) &&
     amountNum > 0 &&
     !!depositedAt &&
-    depositorName.trim().length >= 2;
+    validatePersonNameParts(nameParts).valid;
 
   const credit = useMutation({
     mutationFn: async () => {
@@ -77,7 +81,7 @@ export function ManualFloatCreditPanel() {
       toast.success(`Float credited — TID ${cleanTid} locked. Ref ${res.transaction_group_id.slice(0, 8)}`);
       setTid('');
       setAmount('');
-      setDepositorName('');
+      setNameParts({ firstName: '', otherNames: '', lastName: '' });
       setNotes('');
       setConfirming(false);
       qc.invalidateQueries({ queryKey: ['bridge-health'] });
@@ -147,13 +151,8 @@ export function ManualFloatCreditPanel() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="mfc-depositor">Depositor's name (as on SMS)</Label>
-              <Input
-                id="mfc-depositor"
-                value={depositorName}
-                onChange={(e) => setDepositorName(e.target.value)}
-                placeholder="e.g. Okwakol Micheal"
-              />
+              <Label>Depositor's name (as on SMS)</Label>
+              <PersonNameFields idPrefix="mfc-depositor" value={nameParts} onChange={setNameParts} />
             </div>
           </div>
 

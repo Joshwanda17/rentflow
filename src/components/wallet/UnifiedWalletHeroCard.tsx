@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useRef, useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Wallet, ChevronRight, ChevronDown, Shield, Home, TrendingUp, Rocket, PiggyBank, Coins, Sparkles, Clock, Users } from 'lucide-react';
 import { hapticTap } from '@/lib/haptics';
@@ -111,38 +111,24 @@ export function UnifiedWalletHeroCard({
     (onViewStatement ?? onOpenWallet)?.();
   };
 
-  const [collapsed, setCollapsed] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return defaultCollapsed;
-    const stored = window.localStorage.getItem(collapseKey(role));
-    if (stored === 'open') return false;
-    if (stored === 'closed') return true;
-    return defaultCollapsed;
-  });
+  // Always start collapsed when a dashboard loads, regardless of previous session state.
+  const [collapsed, setCollapsed] = useState<boolean>(defaultCollapsed);
   const [reduceMotion, setReduceMotion] = useState(false);
 
   useEffect(() => { setReduceMotion(prefersReducedMotion()); }, []);
 
-  // Auto re-collapse when the user scrolls down, or reaches the bottom of the page.
-  const scrollAnchor = useRef(0);
+  // Auto-collapse only when the user reaches the bottom of the page.
   useEffect(() => {
     if (collapsed || typeof window === 'undefined') return;
     const getY = () => window.scrollY || document.documentElement.scrollTop || 0;
-    scrollAnchor.current = getY();
     const atBottom = () => {
       const doc = document.documentElement;
       const scrollHeight = Math.max(doc.scrollHeight, document.body.scrollHeight);
       return getY() + window.innerHeight >= scrollHeight - 24;
     };
     const onScroll = () => {
-      const y = getY();
       if (atBottom()) {
         setCollapsed(true);
-        return;
-      }
-      if (y > scrollAnchor.current + 48) {
-        setCollapsed(true);
-      } else if (y < scrollAnchor.current) {
-        scrollAnchor.current = y;
       }
     };
     window.addEventListener('scroll', onScroll, { passive: true });
@@ -299,7 +285,7 @@ export function UnifiedWalletHeroCard({
               <span className="text-[10px] uppercase tracking-[0.12em] font-semibold text-primary-foreground/40">Total Balance</span>
               <span className="text-sm font-black text-primary-foreground">{formatAmount(balance)}</span>
             </div>
-            <p className="mt-2 px-1 text-[10px] text-primary-foreground/40 font-medium">
+            <p className="mt-2 px-1 text-[10px] text-white font-medium">
               Tap to see how your money moves in and out
             </p>
           </button>
@@ -310,11 +296,11 @@ export function UnifiedWalletHeroCard({
             className="w-full text-left active:scale-[0.98] transition-transform"
           >
             <div className="bg-primary-foreground/[0.10] rounded-2xl p-4 border border-primary-foreground/[0.06]">
-              <p className="text-[10px] uppercase tracking-[0.15em] font-bold text-primary-foreground/75 mb-2 flex items-center gap-1.5">
+              <p className="text-[10px] uppercase tracking-[0.15em] font-bold text-white mb-2 flex items-center gap-1.5">
                 <Wallet className="h-3 w-3" />
                 Withdrawable Balance
               </p>
-              <p className="text-[clamp(1.75rem,6.5vw,2.75rem)] font-black tracking-tight leading-none text-primary-foreground drop-shadow-sm">
+              <p className="text-[clamp(1.75rem,6.5vw,2.75rem)] font-black tracking-tight leading-none text-white drop-shadow-sm">
                 {formatAmount(headlineBalance)}
               </p>
               {pendingHold > 0 && (
@@ -326,11 +312,11 @@ export function UnifiedWalletHeroCard({
                 </div>
               )}
               {pendingHold > 0 && (
-                <p className="text-[10px] text-primary-foreground/50 mt-1.5">
-                  Wallet total: <span className="font-semibold text-primary-foreground/80">{formatAmount(balance)}</span>
+                <p className="text-[10px] text-white mt-1.5">
+                  Wallet total: <span className="font-semibold text-white">{formatAmount(balance)}</span>
                 </p>
               )}
-              <p className="mt-2.5 text-[10px] text-primary-foreground/40 font-medium">
+              <p className="mt-2.5 text-[10px] text-white font-medium">
                 Tap to see how your money moves in and out
               </p>
             </div>
@@ -419,8 +405,8 @@ export function UnifiedWalletHeroCard({
         {/* Footer — View Wallet link */}
         <div className="flex items-center justify-between pt-1">
           <div className="flex items-center gap-1.5">
-            <Shield className="h-3 w-3 text-primary-foreground/30" />
-            <span className="text-[9px] text-primary-foreground/30 font-medium">{ROLE_TRUST[role]}</span>
+            <Shield className="h-3 w-3 text-white" />
+            <span className="text-[9px] text-white font-medium">{ROLE_TRUST[role]}</span>
           </div>
           <button
             onClick={handleViewStatement}

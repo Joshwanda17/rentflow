@@ -28,6 +28,8 @@ interface ExecutiveDashboardLayoutProps {
   children: ReactNode;
   /** Optional badge counts keyed by sidebar item id (e.g. { advances: 3 }). */
   badges?: Record<string, number>;
+  /** Optional extra actions rendered in the top bar (e.g. a notification bell). */
+  headerActions?: ReactNode;
 }
 
 export default function ExecutiveDashboardLayout({
@@ -36,6 +38,7 @@ export default function ExecutiveDashboardLayout({
   onTabChange,
   children,
   badges,
+  headerActions,
 }: ExecutiveDashboardLayoutProps) {
   const { user, roles, signOut, switchRole, addRole } = useAuth();
   const { hasPermission } = useStaffPermissions();
@@ -420,6 +423,9 @@ export default function ExecutiveDashboardLayout({
 
         {/* Glossary — shared team vocabulary */}
         <GlossaryButton variant="header" />
+
+        {/* Role-specific header actions (notifications, etc.) */}
+        {headerActions}
 
         {/* Sign Out */}
         <button

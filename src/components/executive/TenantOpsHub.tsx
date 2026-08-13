@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Sparkles, History, MapPin, Home, BarChart3, FileText, Loader2 } from 'lucide-react';
+import { Sparkles, History, MapPin, Home, BarChart3, FileText, Loader2, ArrowLeft } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { TenantOpsDashboard } from './TenantOpsDashboard';
 import { TenantOpsDashboardV2 } from './TenantOpsDashboardV2';
@@ -23,6 +23,7 @@ export function TenantOpsHub() {
   const [behaviorTenantId, setBehaviorTenantId] = useState<string | null>(null);
   const [welileHomesOpen, setWelileHomesOpen] = useState(false);
   const [docxBusy, setDocxBusy] = useState(false);
+  const [duplicatesHubOpen, setDuplicatesHubOpen] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -61,63 +62,92 @@ export function TenantOpsHub() {
     }
   };
 
+  if (duplicatesHubOpen) {
+    return (
+      <div className="space-y-3">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => { setDuplicatesHubOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+          className="gap-1.5 -ml-1"
+        >
+          <ArrowLeft className="h-4 w-4" /> Back to Overview
+        </Button>
+        <TenantPhoneDuplicatePanel variant="full" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-3">
       <AgentInactiveAlertBanner opsUserId={opsUserId} onOpenBehavior={setBehaviorTenantId} />
 
-      <TenantPhoneDuplicatePanel />
+      <TenantPhoneDuplicatePanel
+        variant="summary"
+        onOpenHub={() => { setDuplicatesHubOpen(true); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+      />
 
-      <div className="flex items-center justify-end gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => navigate('/executive-hub?tab=locations')}
-          className="gap-1.5 mr-auto"
+      <div className="space-y-2">
+        {/* Workspace switcher — segmented, full-width on mobile, inline on desktop */}
+        <div
+          role="tablist"
+          aria-label="Tenant Operations workspace"
+          className="grid grid-cols-3 gap-1 rounded-lg border bg-muted/40 p-1 sm:flex sm:w-auto sm:justify-end sm:border-0 sm:bg-transparent sm:p-0 sm:gap-2"
         >
-          <MapPin className="h-3.5 w-3.5" /> Manage Locations
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => void generateWordReport()}
-          disabled={docxBusy}
-          className="gap-1.5"
-        >
-          {docxBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
-          Word Report
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setWelileHomesOpen(true)}
-          className="gap-1.5"
-        >
-          <Home className="h-3.5 w-3.5" /> Welile Homes
-        </Button>
-        <Button
-          variant={mode === 'v2' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setAndSave('v2')}
-          className="gap-1.5"
-        >
-          <Sparkles className="h-3.5 w-3.5" /> New
-        </Button>
-        <Button
-          variant={mode === 'intel' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setAndSave('intel')}
-          className="gap-1.5"
-        >
-          <BarChart3 className="h-3.5 w-3.5" /> Operations Intelligence
-        </Button>
-        <Button
-          variant={mode === 'classic' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setAndSave('classic')}
-          className="gap-1.5"
-        >
-          <History className="h-3.5 w-3.5" /> Classic
-        </Button>
+          {([
+            { key: 'v2' as Mode, label: 'New', icon: Sparkles },
+            { key: 'intel' as Mode, label: 'Operations Intelligence', short: 'Intelligence', icon: BarChart3 },
+            { key: 'classic' as Mode, label: 'Classic', icon: History },
+          ]).map(({ key, label, short, icon: Icon }) => (
+            <Button
+              key={key}
+              role="tab"
+              aria-selected={mode === key}
+              variant={mode === key ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setAndSave(key)}
+              className="w-full sm:w-auto flex-col gap-0.5 h-auto py-1.5 px-1 sm:flex-row sm:gap-1.5 sm:py-2 sm:px-3 sm:h-9"
+            >
+              <Icon className="h-3.5 w-3.5 shrink-0" />
+              <span className="text-[10px] leading-tight text-center sm:text-xs sm:leading-none">
+                <span className="sm:hidden">{short ?? label}</span>
+                <span className="hidden sm:inline">{label}</span>
+              </span>
+            </Button>
+          ))}
+        </div>
+
+        {/* Secondary tools */}
+        <div className="grid grid-cols-3 gap-2 sm:flex sm:items-center sm:justify-start">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate('/executive-hub?tab=locations')}
+            className="gap-1.5 w-full sm:w-auto min-w-0"
+          >
+            <MapPin className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate text-[11px] sm:text-xs">Locations</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void generateWordReport()}
+            disabled={docxBusy}
+            className="gap-1.5 w-full sm:w-auto min-w-0"
+          >
+            {docxBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" /> : <FileText className="h-3.5 w-3.5 shrink-0" />}
+            <span className="truncate text-[11px] sm:text-xs">Word Report</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setWelileHomesOpen(true)}
+            className="gap-1.5 w-full sm:w-auto min-w-0"
+          >
+            <Home className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate text-[11px] sm:text-xs">Welile Homes</span>
+          </Button>
+        </div>
       </div>
       {mode === 'v2' ? <TenantOpsDashboardV2 /> : mode === 'intel' ? <TenantOpsGeoCommandCenter /> : <TenantOpsDashboard />}
 

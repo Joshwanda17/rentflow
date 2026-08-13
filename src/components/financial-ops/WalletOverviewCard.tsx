@@ -4,6 +4,7 @@ import { Wallet, Users, ShieldCheck, Banknote, Pause, Play, MinusCircle, Chevron
 import { formatUGX } from '@/lib/rentCalculations';
 import { useFinOpsAutoRefresh, setFinOpsAutoRefresh } from '@/hooks/useFinOpsAutoRefresh';
 import { Switch } from '@/components/ui/switch';
+import { useWalletRealtime } from '@/hooks/useWalletRealtime';
 
 interface WalletOverviewCardProps {
   /**
@@ -43,6 +44,15 @@ export function WalletOverviewCard({ onOpenDeductions, onViewActiveWallets, onOp
   // Verify Deposits hub at the same time.
   const autoRefresh = useFinOpsAutoRefresh();
 
+  // Money moving anywhere on the platform (ledger insert, wallet row change,
+  // deduction) instantly invalidates these three queries so the headline
+  // figures track cash in / cash out instead of waiting for the next poll.
+  useWalletRealtime(undefined, [
+    ['finops-wallet-overview'],
+    ['finops-wallet-overview-strict'],
+    ['finops-wallet-overview-queues'],
+  ]);
+
   const { data, isLoading } = useQuery({
     queryKey: ['finops-wallet-overview'],
     queryFn: async () => {
@@ -56,10 +66,11 @@ export function WalletOverviewCard({ onOpenDeductions, onViewActiveWallets, onOp
         activeWallets: Number(d.active_wallets ?? 0),
         totalFloat: Number(d.total_float ?? 0),
         totalWithdrawable: Number(d.total_withdrawable ?? 0),
+        computedAt: d.computed_at ? new Date(d.computed_at) : null,
       };
     },
-    staleTime: 60_000,
-    refetchInterval: autoRefresh ? 60_000 : false,
+    staleTime: 15_000,
+    refetchInterval: autoRefresh ? 20_000 : false,
   });
 
   // Strict ledger companion to the cached headline above. Surfaces the
@@ -78,8 +89,8 @@ export function WalletOverviewCard({ onOpenDeductions, onViewActiveWallets, onOp
         totalDrift: Number(d?.total_drift ?? 0),
       };
     },
-    staleTime: 60_000,
-    refetchInterval: autoRefresh ? 60_000 : false,
+    staleTime: 15_000,
+    refetchInterval: autoRefresh ? 20_000 : false,
   });
 
   // Live counters that drive the two big action buttons. We only need
@@ -106,8 +117,8 @@ export function WalletOverviewCard({ onOpenDeductions, onViewActiveWallets, onOp
         payoutsPending: withdrawals.count ?? 0,
       };
     },
-    refetchInterval: autoRefresh ? 30_000 : false,
-    staleTime: 15_000,
+    refetchInterval: autoRefresh ? 20_000 : false,
+    staleTime: 10_000,
   });
 
   const interactive = !!onOpenDeductions;
@@ -140,7 +151,7 @@ export function WalletOverviewCard({ onOpenDeductions, onViewActiveWallets, onOp
         interactive
           ? 'cursor-pointer transition-all hover:border-primary/60 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background'
           : ''
-      } overflow-hidden`}
+      } overflow-hidden h-full flex flex-col`}
     >
       <div className="flex items-start justify-between gap-2 mb-3 min-w-0">
         <div className="flex items-center gap-3 min-w-0">
@@ -194,6 +205,11 @@ export function WalletOverviewCard({ onOpenDeductions, onViewActiveWallets, onOp
       <p className={`text-2xl sm:text-3xl md:text-4xl font-black tabular-nums tracking-tight break-all ${isLoading ? 'animate-pulse text-muted-foreground' : 'text-foreground'}`}>
         {isLoading ? '———' : formatUGX(data?.totalBalance ?? 0)}
       </p>
+      {data?.computedAt && (
+        <p className="mt-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+          As of {data.computedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </p>
+      )}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 text-xs text-muted-foreground">
         <span className="flex items-center gap-1">
           <Users className="h-3.5 w-3.5" />

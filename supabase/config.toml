@@ -171,3 +171,6 @@ verify_jwt = false
 
 [functions.requisition-submit]
 verify_jwt = false
+
+[functions.agent-daily-performance-report]
+verify_jwt = false

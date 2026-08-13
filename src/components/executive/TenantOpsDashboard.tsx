@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { BusinessAdvanceQueue } from '@/components/ops/BusinessAdvanceQueue';
 import { RentHistoryVerificationQueue } from '@/components/ops/RentHistoryVerificationQueue';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTenantOpsToolCounts } from '@/hooks/useTenantOpsToolCounts';
 import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from './KPICard';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
@@ -26,6 +27,7 @@ import { TenantLocationBrowser } from './tenant-ops/TenantLocationBrowser';
 import { GlobalVerificationHub } from './GlobalVerificationHub';
 import { WelileOperationsHub } from './WelileOperationsHub';
 import { AgentNetworkBadge } from './tenant-ops/AgentNetworkBadge';
+import { PipelineStatusHub } from './tenant-ops/PipelineStatusHub';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -62,7 +64,7 @@ import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Gauge } from 'lucide-react';
 
-type ActiveView = 'overview' | 'pipeline' | 'daily' | 'missed' | 'behavior' | 'history' | 'all-requests' | 'link-agent' | 'transfer-audit' | 'collect-rent' | 'agent-tenants' | 'tenant-detail' | 'registration-review' | 'advance-requests' | 'agent-allocations' | 'daily-collections' | 'landlord-float' | 'landlord-float-timeline' | 'location-browser' | 'tenant-location-browser' | 'global-verification' | 'welile-operations' | 'daily-repayments-report' | 'agent-capacity-hub' | 'all-tenants-hub' | 'reports-hub';
+type ActiveView = 'overview' | 'pipeline' | 'pipeline-hub' | 'daily' | 'missed' | 'behavior' | 'history' | 'all-requests' | 'link-agent' | 'transfer-audit' | 'collect-rent' | 'agent-tenants' | 'tenant-detail' | 'registration-review' | 'advance-requests' | 'agent-allocations' | 'daily-collections' | 'landlord-float' | 'landlord-float-timeline' | 'location-browser' | 'tenant-location-browser' | 'global-verification' | 'welile-operations' | 'daily-repayments-report' | 'agent-capacity-hub' | 'all-tenants-hub' | 'reports-hub';
 
 interface NavCard {
   id: ActiveView;
@@ -85,6 +87,9 @@ export function TenantOpsDashboard() {
   const [deleting, setDeleting] = useState(false);
   const [selectedTenant, setSelectedTenant] = useState<{ id: string; name: string } | null>(null);
   const [overviewFilter, setOverviewFilter] = useState<string | undefined>(undefined);
+  // Lifecycle group the Pipeline Status hub should open on when it is entered
+  // from one of the Classic "Pipeline status" tiles.
+  const [pipelineSeed, setPipelineSeed] = useState<string>('all');
   const [printingPdf, setPrintingPdf] = useState(false);
   const [reportFrom, setReportFrom] = useState<Date | undefined>(undefined);
   const [reportTo, setReportTo] = useState<Date | undefined>(undefined);
@@ -970,6 +975,10 @@ export function TenantOpsDashboard() {
   const defaulted = rows.filter(r => r.status === 'defaulted').length;
   const inPipeline = rows.filter(r => ['tenant_ops_approved', 'agent_verified', 'landlord_ops_approved', 'coo_approved'].includes(r.status)).length;
 
+  // Whole-system counts for the tool badges (the row set above is a capped page,
+  // so it cannot be trusted for dashboard-wide totals).
+  const { data: toolCounts } = useTenantOpsToolCounts();
+
   const navCards: NavCard[] = [
     {
       id: 'pipeline',
@@ -977,7 +986,9 @@ export function TenantOpsDashboard() {
       description: 'Approve or reject pending rent requests',
       icon: ClipboardList,
       color: 'bg-amber-500/10 text-amber-600 border-amber-200',
-      badge: pending,
+      // Only what the review queue below actually renders (agent_ops_approved /
+      // agent_verified). New `pending` requests sit at the service-centre stage.
+      badge: toolCounts?.review_requests ?? 0,
       badgeColor: 'bg-amber-500 text-white',
     },
     {
@@ -986,7 +997,8 @@ export function TenantOpsDashboard() {
       description: 'Who paid today & who hasn\'t',
       icon: CalendarCheck,
       color: 'bg-emerald-500/10 text-emerald-600 border-emerald-200',
-      badge: repaying,
+      // Tenants who paid today (>= half the daily amount) — same rule as the tool.
+      badge: toolCounts?.paid_today_tenants ?? 0,
       badgeColor: 'bg-emerald-500 text-white',
     },
     {
@@ -995,7 +1007,7 @@ export function TenantOpsDashboard() {
       description: 'Tenants behind on payments',
       icon: CalendarX2,
       color: 'bg-destructive/10 text-destructive border-destructive/20',
-      badge: defaulted,
+      badge: toolCounts?.missed_days_tenants ?? defaulted,
       badgeColor: 'bg-destructive text-white',
     },
     {
@@ -1004,6 +1016,9 @@ export function TenantOpsDashboard() {
       description: 'Risk scores & payment patterns',
       icon: Activity,
       color: 'bg-purple-500/10 text-purple-600 border-purple-200',
+      // Tenant Behavior tool's own risk model, not the missed-days model.
+      badge: toolCounts?.behavior_critical ?? 0,
+      badgeColor: 'bg-purple-500 text-white',
     },
     {
       id: 'history',
@@ -1011,6 +1026,8 @@ export function TenantOpsDashboard() {
       description: 'Past approvals & rejections log',
       icon: History,
       color: 'bg-blue-500/10 text-blue-600 border-blue-200',
+      badge: toolCounts?.approvals_today ?? 0,
+      badgeColor: 'bg-blue-500 text-white',
     },
     {
       id: 'all-requests',
@@ -1032,6 +1049,8 @@ export function TenantOpsDashboard() {
       description: 'Geo-stamped link & transfer history',
       icon: Shield,
       color: 'bg-emerald-500/10 text-emerald-600 border-emerald-200',
+      badge: toolCounts?.transfers_30d ?? 0,
+      badgeColor: 'bg-emerald-500 text-white',
     },
     {
       id: 'collect-rent',
@@ -1106,6 +1125,13 @@ export function TenantOpsDashboard() {
   const openHub = (view: ActiveView) => {
     setActiveView(view);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  /** Enter the Pipeline Status hub, optionally pre-filtered to one lifecycle
+   *  group (used by the Classic "Pipeline status" tiles). */
+  const openPipelineHub = (statusKey: string = 'all') => {
+    setPipelineSeed(statusKey);
+    openHub('pipeline-hub');
   };
 
   // Hub entry card for the Classic sections — same interaction model as the
@@ -1247,20 +1273,35 @@ export function TenantOpsDashboard() {
       case 'pipeline':
         return (
           <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border bg-card p-3">
+              <div className="min-w-0">
+                <p className="text-sm font-bold">Reviewing requests</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Approvals live here. For counts, money and reports open the Pipeline Status hub.
+                </p>
+              </div>
+              <Button size="sm" variant="outline" className="gap-1.5" onClick={() => openPipelineHub('all')}>
+                <Activity className="h-3.5 w-3.5" />
+                Pipeline Status hub
+              </Button>
+            </div>
             <RentPipelineQueue
               stage="agent_ops_approved"
               additionalStatuses={['agent_verified']}
             />
             <RejectedRequestsQueue stageFilter="agent_ops_approved" title="Rejected at Tenant Ops" />
-            <div className="grid grid-cols-2 gap-2">
-              <KPICard title="Pending" value={pending} icon={Clock} loading={isLoading} color="bg-amber-500/10 text-amber-600" />
-              <KPICard title="In Pipeline" value={inPipeline} icon={ArrowRight} loading={isLoading} color="bg-blue-500/10 text-blue-600" />
-              <KPICard title="Funded" value={funded} icon={Banknote} loading={isLoading} color="bg-green-500/10 text-green-600" />
-              <KPICard title="Repaying" value={repaying} icon={FileCheck} loading={isLoading} color="bg-purple-500/10 text-purple-600" />
-              <KPICard title="Fully Repaid" value={fullyRepaid} icon={CheckCircle2} loading={isLoading} color="bg-emerald-500/10 text-emerald-600" />
-              <KPICard title="Defaulted" value={defaulted} icon={AlertTriangle} loading={isLoading} color="bg-destructive/10 text-destructive" />
-            </div>
           </div>
+        );
+      case 'pipeline-hub':
+        return (
+          <PipelineStatusHub
+            key={pipelineSeed}
+            initialStatusKey={pipelineSeed}
+            onOpenTenant={(tenantId, tenantName) => {
+              setSelectedTenant({ id: tenantId, name: tenantName });
+              setActiveView('tenant-detail');
+            }}
+          />
         );
       case 'daily':
         return <DailyPaymentTracker />;
@@ -1390,6 +1431,7 @@ export function TenantOpsDashboard() {
   };
 
   const sectionHubLabels: Partial<Record<ActiveView, string>> = {
+    'pipeline-hub': 'Pipeline Status',
     'agent-capacity-hub': 'Agent Rent Capacity',
     'all-tenants-hub': 'All Tenants',
     'daily-collections': 'Daily Collection Monitoring',
@@ -1618,6 +1660,17 @@ export function TenantOpsDashboard() {
               <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Workspaces</p>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
                 {renderHubEntry({
+                  title: 'Pipeline Status',
+                  view: 'pipeline-hub',
+                  icon: Activity,
+                  description: 'Lifecycle counts, receivables, landlord payables, charts and auditable reports for any date range',
+                  stats: [
+                    { label: 'pending', value: pending },
+                    { label: 'in pipeline', value: inPipeline },
+                    { label: 'funded', value: funded },
+                  ],
+                })}
+                {renderHubEntry({
                   title: 'Agent Rent Capacity',
                   view: 'agent-capacity-hub',
                   icon: Gauge,
@@ -1629,9 +1682,10 @@ export function TenantOpsDashboard() {
                   icon: Users,
                   description: 'Full tenant register with search, filters, profiles and bulk actions',
                   stats: [
-                    { label: 'tenants', value: rows.length },
-                    { label: 'pending', value: pending },
-                    { label: 'repaying', value: repaying },
+                    // Unique tenants, not rent-request rows.
+                    { label: 'tenants', value: toolCounts?.tenant_count ?? new Set(rows.map(r => r.tenant_id)).size },
+                    { label: 'pending', value: toolCounts?.new_requests ?? pending },
+                    { label: 'repaying', value: toolCounts?.repaying_plans ?? repaying },
                   ],
                 })}
                 {renderHubEntry({
@@ -1651,27 +1705,37 @@ export function TenantOpsDashboard() {
 
             {/* Pipeline status strip */}
             <div className="pt-2">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Pipeline status</p>
+              <div className="flex items-center justify-between gap-2 mb-1.5">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Pipeline status</p>
+                <button
+                  type="button"
+                  onClick={() => openPipelineHub('all')}
+                  className="inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:underline"
+                >
+                  Open hub
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <Card className="border bg-amber-500/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setOverviewFilter('pending'); openHub('all-tenants-hub'); }}>
+              <Card className="border bg-amber-500/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => openPipelineHub('pending')}>
                 <CardContent className="p-2.5 text-center">
                   <p className="text-2xl font-extrabold text-amber-600">{pending}</p>
                   <p className="text-[10px] text-muted-foreground font-medium">Pending</p>
                 </CardContent>
               </Card>
-              <Card className="border bg-green-500/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setOverviewFilter('active'); openHub('all-tenants-hub'); }}>
+              <Card className="border bg-green-500/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => openPipelineHub('funded')}>
                 <CardContent className="p-2.5 text-center">
                   <p className="text-2xl font-extrabold text-green-600">{funded}</p>
                   <p className="text-[10px] text-muted-foreground font-medium">Funded</p>
                 </CardContent>
               </Card>
-              <Card className="border bg-purple-500/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setOverviewFilter('repaying'); openHub('all-tenants-hub'); }}>
+              <Card className="border bg-purple-500/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => openPipelineHub('repaying')}>
                 <CardContent className="p-2.5 text-center">
                   <p className="text-2xl font-extrabold text-purple-600">{repaying}</p>
                   <p className="text-[10px] text-muted-foreground font-medium">Repaying</p>
                 </CardContent>
               </Card>
-              <Card className="border bg-destructive/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setOverviewFilter('defaulted'); openHub('all-tenants-hub'); }}>
+              <Card className="border bg-destructive/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => openPipelineHub('defaulted')}>
                 <CardContent className="p-2.5 text-center">
                   <p className="text-2xl font-extrabold text-destructive">{defaulted}</p>
                   <p className="text-[10px] text-muted-foreground font-medium">Defaulted</p>

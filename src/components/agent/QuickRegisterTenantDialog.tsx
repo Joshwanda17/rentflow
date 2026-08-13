@@ -15,7 +15,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ExistingTenantPhoneNotice } from '@/components/agent/ExistingTenantPhoneNotice';
 import { useExistingTenantByPhone, type ExistingTenantMatch } from '@/hooks/useExistingTenantByPhone';
-import { validateFullName } from '@/lib/authValidation';
+import {
+  joinPersonName,
+  splitPersonName,
+  validatePersonNameParts,
+  type PersonNameParts,
+} from '@/lib/authValidation';
+import PersonNameFields from '@/components/shared/PersonNameFields';
 
 interface QuickRegisterTenantDialogProps {
   open: boolean;
@@ -36,7 +42,9 @@ export function QuickRegisterTenantDialog({
   prefillPhone,
   onRegistered,
 }: QuickRegisterTenantDialogProps) {
-  const [fullName, setFullName] = useState('');
+  const [nameParts, setNameParts] = useState<PersonNameParts>({ firstName: '', otherNames: '', lastName: '' });
+  const fullName = joinPersonName(nameParts);
+  const setFullName = (next: string) => setNameParts(splitPersonName(next));
   const [phone, setPhone] = useState('');
   const [nationalId, setNationalId] = useState('');
   const [loading, setLoading] = useState(false);
@@ -66,7 +74,7 @@ export function QuickRegisterTenantDialog({
       toast.error('Please fill in name, phone and national ID');
       return;
     }
-    const nameCheck = validateFullName(fullName);
+    const nameCheck = validatePersonNameParts(nameParts);
     if (!nameCheck.valid) {
       toast.error(nameCheck.error || 'Please enter a real full name');
       return;
@@ -80,7 +88,7 @@ export function QuickRegisterTenantDialog({
     try {
       const { data, error } = await supabase.functions.invoke('register-tenant', {
         body: {
-          full_name: nameCheck.trimmed,
+          full_name: nameCheck.fullName,
           phone: phone.trim(),
           national_id: nationalId.trim().toUpperCase(),
         },
@@ -138,18 +146,12 @@ export function QuickRegisterTenantDialog({
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="qr-name">Full Name</Label>
-              <Input
-                id="qr-name"
-                placeholder="e.g. Akram Kiggundu"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                disabled={loading}
-                className="h-12"
-                autoFocus
-              />
-            </div>
+            <PersonNameFields
+              idPrefix="qr"
+              value={nameParts}
+              onChange={setNameParts}
+              disabled={loading}
+            />
 
             <div className="space-y-2">
               <Label htmlFor="qr-phone">Phone Number</Label>

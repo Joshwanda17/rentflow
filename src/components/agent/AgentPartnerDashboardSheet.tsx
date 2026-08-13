@@ -167,7 +167,7 @@ export function AgentPartnerDashboardSheet({ open, onOpenChange }: Props) {
   const getEarningLabel = (type: string) => {
     const labels: Record<string, string> = {
       commission: 'Rent commission earned',
-      investment_commission: 'Investment commission (2%)',
+      investment_commission: 'Funding commission (2%)',
       approval_bonus: 'Registration bonus',
       verification_bonus: 'Verification bonus',
       rent_funded_bonus: 'Rent funded bonus',
@@ -198,7 +198,7 @@ export function AgentPartnerDashboardSheet({ open, onOpenChange }: Props) {
 
   const whatsAppMessage = `Hi, I'm onboarding partners into a passive income opportunity with Welile Technologies.
 
-Earn monthly returns based on your investment.
+Earn monthly returns based on your funding.
 
 Sign up here: ${referralLink}
 
@@ -260,7 +260,7 @@ I'll personally guide you.`;
                   {[
                     { label: 'Partners', value: totalPartners, icon: Users, color: 'text-primary', bg: 'bg-primary/10' },
                     { label: 'Active', value: activePartners, icon: UserCheck, color: 'text-success', bg: 'bg-success/10' },
-                    { label: 'Total Invested', value: formatUGX(totalDeposits), icon: PiggyBank, color: 'text-primary', bg: 'bg-primary/10' },
+                    { label: 'Total Funded', value: formatUGX(totalDeposits), icon: PiggyBank, color: 'text-primary', bg: 'bg-primary/10' },
                     { label: 'Commission', value: formatUGX(totalCommission), icon: Coins, color: 'text-success', bg: 'bg-success/10' },
                   ].map((card) => (
                     <Card key={card.label} className="border-border/50">
@@ -431,7 +431,7 @@ I'll personally guide you.`;
                           </div>
                           <div className="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-border/30">
                             <div>
-                              <p className="text-[10px] text-muted-foreground">Invested</p>
+                              <p className="text-[10px] text-muted-foreground">Funded</p>
                               <p className="text-xs font-bold">{formatUGX(p.investedAmount)}</p>
                             </div>
                             <div>

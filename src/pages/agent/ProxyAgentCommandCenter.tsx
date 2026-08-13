@@ -275,7 +275,7 @@ export default function ProxyAgentCommandCenter() {
                 </div>
                 <div className="space-y-1.5">
                   {[
-                    { label: `Investment (${s.rates.investment_commission_pct}%)`, value: s.commission.two_percent },
+                    { label: `Funding (${s.rates.investment_commission_pct}%)`, value: s.commission.two_percent },
                     { label: `Partner deposit (${s.rates.partner_deposit_commission_pct}%)`, value: s.commission.one_percent },
                     { label: `Promissory notes (${money(s.rates.note_reward)} each)`, value: s.commission.note_rewards },
                   ].map((row) => (
@@ -549,7 +549,7 @@ export default function ProxyAgentCommandCenter() {
                   ['Capital raised', money(s.partners.total_funded)],
                   ['Promissory notes', `${s.notes.total} (${s.notes.pending} pending)`],
                   ['Notes value', money(s.notes.total_amount)],
-                  ['Investment commission', money(s.commission.two_percent)],
+                  ['Funding commission', money(s.commission.two_percent)],
                   ['Partner deposit commission', money(s.commission.one_percent)],
                   ['Promissory note rewards', money(s.commission.note_rewards)],
                   ['Pending commission', money(s.pending_commission.amount)],

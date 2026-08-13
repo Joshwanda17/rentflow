@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,7 +27,7 @@ import {
 import { toast } from 'sonner';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
 import { WithdrawalPayoutCard } from '@/components/withdrawals/WithdrawalPayoutCard';
-import { MerchantFloatRequestCard } from '@/components/agent/MerchantFloatRequestCard';
+import { MerchantFloatAvailableCard } from '@/components/agent/MerchantFloatAvailableCard';
 import { MerchantAgreementGate } from '@/components/merchant/agreement/MerchantAgreementGate';
 import { MerchantOnlineToggle } from '@/components/agent/MerchantOnlineToggle';
 import { MerchantDispatchHistory } from '@/components/agent/MerchantDispatchHistory';
@@ -45,8 +45,17 @@ import {
 import { useWithdrawalsPaused } from '@/hooks/useWithdrawalsPaused';
 import { AlertTriangle } from 'lucide-react';
 
-// Aligned with FinOps dashboard (FinOpsWithdrawalVerification) so pending counts match across dashboards.
-const CASHOUT_QUEUE_STATUSES = ['pending', 'requested', 'manager_approved', 'cfo_approved', 'fin_ops_approved'];
+import {
+  MERCHANT_QUEUE_STATUSES,
+  isMerchantQueueActionable,
+  isMerchantQueueSettled,
+  applyMerchantQueueFence,
+} from '@/lib/merchantPayoutQueue';
+
+// Aligned with FinOps dashboard (FinOpsWithdrawalVerification) so pending counts
+// match across dashboards. Sourced from the shared fence module, which mirrors the
+// database view `public.v_merchant_payout_queue` exactly.
+const CASHOUT_QUEUE_STATUSES = MERCHANT_QUEUE_STATUSES as unknown as string[];
 const CLAIM_WINDOW_MINUTES = 15;
 const CLAIM_WINDOW_MS = CLAIM_WINDOW_MINUTES * 60 * 1000;
 // A merchant's own claim is NEVER force-released by the browser: they may already
@@ -152,7 +161,12 @@ interface QueueFilterOpts {
  * the semantics we want for combining independent filters.
  */
 function applyQueueFilters(q: any, o: QueueFilterOpts) {
-  q = q.in('status', CASHOUT_QUEUE_STATUSES);
+  // Hard settlement fence (shared with the DB view `v_merchant_payout_queue`):
+  // queue statuses only, and a payout that carries a FinOps reference or a
+  // processed timestamp has already been confirmed — such a row must NEVER be
+  // returned by the merchant queue, even if its status column were somehow
+  // left in a queue state by a failed follow-up write.
+  q = applyMerchantQueueFence(q);
   // Available = unclaimed OR a claim the server cron would already have released
   // (>45 min, no settlement progress). Excludes rows
   // currently claimed by anyone (including me — those live in "Claimed by you").
@@ -533,6 +547,8 @@ export function AgentCashPayoutsTab() {
         .select('*')
         .eq('assigned_cashout_agent_id', isCashoutAgent!.id)
         .in('status', CASHOUT_QUEUE_STATUSES)
+        .is('processed_at', null)
+        .is('fin_ops_reference', null)
         .order('dispatched_at', { ascending: true });
       if (error) throw error;
       return attachProfiles(data || []);
@@ -552,6 +568,8 @@ export function AgentCashPayoutsTab() {
         .from('withdrawal_requests')
         .select('id', { count: 'exact', head: true })
         .in('status', CASHOUT_QUEUE_STATUSES)
+        .is('processed_at', null)
+        .is('fin_ops_reference', null)
         .or(`assigned_cashout_agent_id.is.null,dispatched_at.lt.${cutoffIso}`);
       if (categoryOrClause) q = q.or(categoryOrClause);
       if (channelProviderOrClause) q = q.or(channelProviderOrClause);
@@ -588,7 +606,6 @@ export function AgentCashPayoutsTab() {
     },
     enabled: !!isCashoutAgent,
     staleTime: 15_000,
-    placeholderData: keepPreviousData,
   });
 
   // The current, server-paginated page of the Pending Queue for the active tab.
@@ -619,7 +636,6 @@ export function AgentCashPayoutsTab() {
     enabled: !!isCashoutAgent,
     staleTime: 15_000,
     refetchOnWindowFocus: true,
-    placeholderData: keepPreviousData,
   });
 
   // Daily stats: ONLY count actual cash payouts handled by THIS cash-out agent today.
@@ -874,8 +890,26 @@ export function AgentCashPayoutsTab() {
     const channel = supabase
       .channel('cashout-agent-withdrawals')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'withdrawal_requests' }, (payload) => {
-        invalidateQueue();
         const newRow = payload.new as any;
+        const isSettled = isMerchantQueueSettled(newRow);
+
+        // Never keep a paid row visible while the fresh database query is in
+        // flight (or if that refetch fails). The database status remains the
+        // source of truth; this only evicts the now-terminal row from an older
+        // React Query page snapshot as soon as its backend UPDATE arrives.
+        if (isSettled && newRow?.id) {
+          qc.setQueriesData({ queryKey: ['cashout-queue-page'] }, (old: any) => {
+            if (!old?.rows) return old;
+            const rows = old.rows.filter((row: any) => row.id !== newRow.id);
+            return rows.length === old.rows.length
+              ? old
+              : { ...old, rows, count: Math.max(0, Number(old.count || 0) - 1) };
+          });
+          qc.setQueriesData({ queryKey: ['cashout-my-active-claims'] }, (old: any) =>
+            Array.isArray(old) ? old.filter((row: any) => row.id !== newRow.id) : old,
+          );
+        }
+        invalidateQueue();
         // When a payout this merchant settled completes, refresh their earnings
         // views immediately so Today's Payouts, Commission and Payout Activity
         // never lag behind the actual ledger.
@@ -1010,6 +1044,8 @@ export function AgentCashPayoutsTab() {
       const baseMsg = `✅ Payout completed — ${formatUGX(data?.amount || 0)} sent`;
       const parts: string[] = [];
       if (floatUsed > 0) parts.push(`${formatUGX(floatUsed)} drawn from your float`);
+      const fronted = Number(data?.merchant_own_money_fronted ?? 0);
+      if (fronted > 0) parts.push(`${formatUGX(fronted)} of your own money recorded — we pay it back`);
       if (commission > 0) parts.push(`${formatUGX(commission)} commission added to your withdrawable`);
       toast.success(parts.length > 0 ? `${baseMsg} · ${parts.join(' · ')}` : baseMsg);
       invalidateQueue();
@@ -1100,6 +1136,8 @@ export function AgentCashPayoutsTab() {
       const base = `💰 Cash paid — ${formatUGX(amt)} debited from the customer's withdrawable balance`;
       const parts: string[] = [];
       if (floatUsed > 0) parts.push(`${formatUGX(floatUsed)} drawn from your float`);
+      const fronted = Number(data?.merchant_own_money_fronted ?? 0);
+      if (fronted > 0) parts.push(`${formatUGX(fronted)} of your own money recorded — we pay it back`);
       if (commission > 0) parts.push(`${formatUGX(commission)} commission added to your withdrawable`);
       toast.success(parts.length > 0 ? `${base} · ${parts.join(' · ')}` : base);
       setVerifiedPayout(null); setPayoutCode('');
@@ -1119,7 +1157,7 @@ export function AgentCashPayoutsTab() {
 
   // Server-driven queue values. The active tab's page comes from `queuePage`,
   // counts come from `queueCounts`, and the unfiltered total from `availableTotal`.
-  const pageRows: any[] = queuePage?.rows ?? [];
+  const pageRows: any[] = (queuePage?.rows ?? []).filter((row: any) => isMerchantQueueActionable(row));
   const pageCount = queuePage?.count ?? 0;
   const channelCounts = queueCounts ?? { all: 0, momo: 0, cash: 0, bank: 0 };
   const totalPending = availableTotal;
@@ -1220,8 +1258,8 @@ export function AgentCashPayoutsTab() {
         </Card>
       )}
 
-      {/* Available float — agent requests any amount, CFO owns the allocation. */}
-      <MerchantFloatRequestCard />
+      {/* Shared payout float — no float requests any more. Claim, pay, get reimbursed. */}
+      <MerchantFloatAvailableCard />
 
       {/* Authorized payout categories — the CFO permission matrix decides which
           categories of transactions this merchant agent may claim & process.

@@ -172,6 +172,24 @@ async function sendViaLana(
     return { ok: false, error: `LANA network error: ${(err as Error)?.message || err}`, response: null };
   }
 }
+// Infrastructure-level (retryable) database failure detector. Used to decide
+// whether a failed settlement should be returned to the payout queue (never,
+// for these) or held for CFO reconciliation.
+function isTransientDbError(msg: string): boolean {
+  const m = (msg || "").toLowerCase();
+  return (
+    m.includes("statement timeout") ||
+    m.includes("canceling statement") ||
+    m.includes("cancelling statement") ||
+    m.includes("57014") ||
+    m.includes("timeout") ||
+    m.includes("connection") ||
+    m.includes("deadlock") ||
+    m.includes("could not obtain lock") ||
+    m.includes("fetch failed")
+  );
+}
+
 // Optional delivery-status logging context. When supplied, sendSMS records a
 // full audit row (provider response, attempts, failures) to `sms_delivery_log`.
 interface SmsLogCtx {
@@ -269,6 +287,13 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
+
+  // Safety net: set once the withdrawal has been atomically claimed so the
+  // top-level catch can return an unsettled `processing` row to the shared
+  // queue instead of leaving it permanently invisible. Only ever releases
+  // rows that are still `processing` AND have no settlement legs posted.
+  // Declared OUTSIDE the try so the catch block can actually reach it.
+  let safetyRelease: (() => Promise<void>) | null = null;
 
   try {
     const authHeader = req.headers.get("Authorization");
@@ -468,19 +493,97 @@ Deno.serve(async (req) => {
       });
     }
 
-    // A genuine merchant is an active cashout agent who completes the payout
-    // FROM THE MERCHANT QUEUE (the only caller that sends `acting_as_merchant`).
-    // They fronted their own MoMo/cash, so they earn the principal reimbursement
-    // + 0.5% commission + SMS — even if they also hold staff roles. Staff
-    // settling from the Financial Ops desk never send the flag, and system/bulk
-    // auto-settlement never sends it either, so neither wrongly earns merchant
-    // compensation. Backward-compatible: if a legacy merchant client omits the
-    // flag but the caller is a cashout agent AND no staff settlement desk is in
-    // play, we still credit them.
-    const bodyActingFlag =
-      (body as any)?.acting_as_merchant === true ||
-      (body as any)?.actingAsMerchant === true;
-    actingAsMerchant = isCashoutAgent && !isSystemCall && bodyActingFlag;
+    // ── PHASE 3: AUTHORITATIVE SERVER-SIDE MERCHANT IDENTITY ────────────
+    // Merchant identity is resolved from the DATABASE (the active Merchant
+    // Agent relationship in `cashout_agents`, via
+    // `resolve_payout_merchant_identity`), never from the UI that initiated
+    // the request. Any authorized desk — merchant queue, FinOps, CFO, staff
+    // desk, withdrawal verification, receipt-code entry, proxy/partner tools —
+    // produces the SAME settlement treatment for the same merchant.
+    //
+    // The client `acting_as_merchant` / `actingAsMerchant` / `staff_desk` flags
+    // can no longer silently suppress merchant compensation. A legitimate
+    // opt-out (a staff user genuinely paying on behalf of another party) is
+    // still possible, but it must be EXPLICIT and AUDITED:
+    //   merchant_opt_out: true  +  merchant_opt_out_reason: >= 10 chars
+    // Anything else is ignored and the DB verdict wins.
+    let merchantIdentity: any = null;
+    try {
+      const { data: mi } = await admin.rpc("resolve_payout_merchant_identity", {
+        p_actor_id: user.id,
+      });
+      merchantIdentity = mi ?? null;
+    } catch (_e) {
+      merchantIdentity = null;
+    }
+    // Fall back to the row already fetched above if the RPC is unavailable.
+    const serverSideIsMerchant =
+      merchantIdentity?.is_merchant === true || isCashoutAgent;
+    const merchantAgentIdResolved =
+      merchantIdentity?.merchant_agent_id ?? agentRow?.id ?? null;
+
+    const optOutRequested =
+      (body as any)?.merchant_opt_out === true ||
+      (body as any)?.acting_as_merchant === false ||
+      (body as any)?.actingAsMerchant === false ||
+      (body as any)?.staff_desk === true;
+    const optOutReasonRaw =
+      typeof (body as any)?.merchant_opt_out_reason === "string"
+        ? (body as any).merchant_opt_out_reason.trim()
+        : "";
+    const optOutHonoured =
+      optOutRequested && optOutReasonRaw.length >= 10;
+
+    if (serverSideIsMerchant && optOutRequested && !optOutHonoured) {
+      // Silent suppression attempt: a real merchant desk tried to opt out of
+      // merchant settlement without a documented on-behalf-of reason.
+      console.warn("[approve-withdrawal] MERCHANT_OPT_OUT_REJECTED", {
+        withdrawal_id,
+        actor: user.id,
+      });
+      await admin.from("audit_logs").insert({
+        user_id: user.id,
+        action_type: "merchant_opt_out_rejected",
+        action: "merchant_opt_out_rejected",
+        table_name: "withdrawal_requests",
+        record_id: withdrawal_id,
+        metadata: {
+          reason:
+            "Client attempted to suppress merchant settlement without an on-behalf-of reason; server-side merchant identity enforced.",
+          merchant_agent_id: merchantAgentIdResolved,
+          merchant_identity: merchantIdentity,
+        },
+      }).then(() => {}, () => {});
+    }
+
+    if (serverSideIsMerchant && optOutHonoured) {
+      await admin.from("audit_logs").insert({
+        user_id: user.id,
+        action_type: "merchant_settlement_opt_out",
+        action: "merchant_settlement_opt_out",
+        table_name: "withdrawal_requests",
+        record_id: withdrawal_id,
+        metadata: {
+          reason: optOutReasonRaw,
+          merchant_agent_id: merchantAgentIdResolved,
+          merchant_identity: merchantIdentity,
+        },
+      }).then(() => {}, () => {});
+    }
+
+    actingAsMerchant =
+      serverSideIsMerchant && !isSystemCall && !optOutHonoured;
+
+    console.log("[approve-withdrawal] merchant identity resolved", {
+      withdrawal_id,
+      actor: user.id,
+      server_side_is_merchant: serverSideIsMerchant,
+      merchant_agent_id: merchantAgentIdResolved,
+      opt_out_requested: optOutRequested,
+      opt_out_honoured: optOutHonoured,
+      is_system_call: isSystemCall,
+      acting_as_merchant: actingAsMerchant,
+    });
 
     // ── PROOF-OF-PAYMENT GATE (merchant settlements) ────────────────────
     // No proof image => no wallet debit. A merchant agent can only close a
@@ -488,12 +591,19 @@ Deno.serve(async (req) => {
     // MoMo confirmation screenshot). This runs BEFORE the claim flip and
     // before any ledger write, so a proofless attempt leaves both the
     // request and the customer's wallet untouched.
+    // Since staff-desk settlements by an active cashout agent now qualify as
+    // merchant settlements (2026-08-12), the gate also accepts a proof that is
+    // ALREADY lodged on the request row by those desks — otherwise the fix
+    // would lock FinOps/ops merchants out of settling entirely.
     if (actingAsMerchant) {
       const proofUrlIn = (body as any)?.payout_proof;
       const proofPathIn = (body as any)?.payout_proof_path;
+      const existingProof =
+        (wr as any)?.payout_proof_path ?? (wr as any)?.payout_proof ?? null;
       const hasProof =
         (typeof proofUrlIn === "string" && proofUrlIn.trim().length > 0) ||
-        (typeof proofPathIn === "string" && proofPathIn.trim().length > 0);
+        (typeof proofPathIn === "string" && proofPathIn.trim().length > 0) ||
+        (typeof existingProof === "string" && existingProof.trim().length > 0);
       if (!hasProof) {
         console.warn("[approve-withdrawal] PROOF_REQUIRED", { withdrawal_id, user: user.id });
         return new Response(
@@ -532,6 +642,15 @@ Deno.serve(async (req) => {
           ? (body as any).sms_text
           : null;
     const pasteSms = pasteSmsRaw && pasteSmsRaw.trim().length > 0 ? pasteSmsRaw : null;
+    // Hoisted so the post-claim "matched" audit write below can reach the
+    // logger that is created inside the SMS-validation block. Without this the
+    // post-claim call threw `logSmsPaste is not defined`, which aborted the
+    // invocation AFTER the atomic claim had already set `processing` —
+    // stranding the withdrawal with no settlement, no float debit, no
+    // commission, no SMS and no claim release.
+    let logSmsPasteRef:
+      | ((result: string, code: string | null, message: string | null) => Promise<void>)
+      | null = null;
     if (pasteSms && actingAsMerchant && !isCashPayout) {
       const parsed = parsePayoutConfirmationSms(pasteSms);
       const requestedAmount = Math.round(Number((wr as any).amount || 0));
@@ -621,6 +740,7 @@ Deno.serve(async (req) => {
           console.warn("[approve-withdrawal] sms audit log insert failed", e);
         }
       };
+      logSmsPasteRef = logSmsPaste;
 
       // (2) Amount sent must equal the amount requested.
       if (parsed.amount == null) {
@@ -696,7 +816,6 @@ Deno.serve(async (req) => {
       }
 
       // All checks passed for this paste.
-      await logSmsPaste("matched", null, null);
     }
 
     // Hoisted so the post-completion success-burn block can also write
@@ -1106,6 +1225,24 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Persist the matched payment confirmation only after this invocation has
+    // atomically claimed the withdrawal. The database confirmation trigger
+    // immediately moves the row to the terminal `paid` state, so it disappears
+    // from every merchant queue before the heavier ledger follow-up begins.
+    // The remainder of this invocation may still advance `paid` to `completed`;
+    // retries cannot claim or return the already-paid row to pending.
+    if (pasteSms && actingAsMerchant && !isCashPayout) {
+      // Audit-only: must never abort the payout after the claim is held.
+      try {
+        await logSmsPasteRef?.("matched", null, null);
+      } catch (e) {
+        console.warn(
+          "[approve-withdrawal] matched sms audit log failed (non-blocking):",
+          (e as Error).message,
+        );
+      }
+    }
+
     // Helper used by the early-failure paths below to release the claim so
     // the operator can retry after fixing the issue (insufficient balance,
     // wallet drift, ledger write failure, etc.). The claim is held only
@@ -1132,8 +1269,42 @@ Deno.serve(async (req) => {
           } as any)
           .eq("id", withdrawal_id)
           .eq("status", "processing");
+        // PHASE 4: releasing the claim must also free the reserved float,
+        // otherwise the agent's available float stays understated forever.
+        try {
+          await admin.rpc("release_merchant_float", {
+            p_withdrawal_id: withdrawal_id,
+            p_reason: "claim_released_by_approve_withdrawal",
+          });
+        } catch (_e) { /* non-blocking */ }
       } catch (e) {
         console.error("[approve-withdrawal] releaseClaim failed:", (e as Error).message);
+      }
+    };
+
+    // Arm the top-level safety net now that the claim is held. It must never
+    // undo a payout that already posted settlement legs, so it checks the
+    // ledger for this withdrawal before reverting.
+    safetyRelease = async () => {
+      try {
+        const { data: legs } = await admin
+          .from("general_ledger")
+          .select("id")
+          .like("reference_id", `${withdrawal_id}%`)
+          .limit(1);
+        if (legs && legs.length > 0) {
+          console.error(
+            "[approve-withdrawal] settlement legs exist — NOT releasing claim",
+            withdrawal_id,
+          );
+          return;
+        }
+        await releaseClaim();
+      } catch (e) {
+        console.error(
+          "[approve-withdrawal] safetyRelease failed:",
+          (e as Error).message,
+        );
       }
     };
 
@@ -1685,59 +1856,66 @@ Deno.serve(async (req) => {
       );
     }
 
-    // ── Merchant-agent FLOAT pre-check (Float model, 2026) ────────────────
+    // ── Merchant-agent FLOAT position (Float model, 2026-08) ──────────────
     // Merchant agents settle customer cash-outs from COMPANY FLOAT that the
-    // CFO/treasury pre-loaded into their float bucket — they no longer front
-    // their own cash for a withdrawable reimbursement. Block the claim up-front
-    // (before any debit) if the merchant does not hold enough float, so we
-    // never process a payout the merchant can't cover. This also applies when
-    // the merchant is cashing out their own wallet: the user's withdrawable
-    // balance is reduced by the normal withdrawal leg, and the physical company
-    // cash/float they dispensed must still leave the merchant float bucket.
-    //
-    // PROXY PAYOUTS (2026-07): a merchant who delivers a proxy partner payout
-    // physically dispenses company cash from THEIR OWN float too, so the payout
-    // must drain BOTH the proxy agent's wallet (funding debit below) AND the
-    // merchant's float (consume block further down). We therefore require and
-    // check the merchant's float here for proxy payouts as well — if they don't
-    // hold enough float the CFO/treasury must top them up before settling.
-    // (pool-funded settlements already debit float in the main block, so they
-    // stay excluded to avoid a double debit.)
+    // CFO/treasury pre-loaded into their float bucket. A merchant is NO LONGER
+    // blocked when the payout is bigger than the float they hold: in the field
+    // they front the difference from their own MoMo line, so we let the payout
+    // through, consume whatever float exists, and record the shortfall as an
+    // out-of-pocket advance the company owes them
+    // (`merchant_out_of_pocket_advances`). Nothing is ever hidden: the float
+    // legs stay exact and the fronted portion becomes a visible receivable.
     let merchantFloatAvailable = 0;
+    let merchantTelecomExpected = 0;
+    let merchantFloatForPrincipal = 0;
+    let merchantFloatForTelecom = 0;
+    let merchantPrincipalShortfall = 0;
+    let merchantTelecomShortfall = 0;
+    let merchantFloatReserved = 0;
+    let merchantFloatBefore = 0;
     if (
       actingAsMerchant &&
       !poolFunded &&
       amount > 0
     ) {
-      const { data: merchantWallet } = await admin
-        .from("wallets")
-        .select("float_balance")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      merchantFloatAvailable = Number((merchantWallet as any)?.float_balance ?? 0);
-      const telecomCheck = getTelecomSendingCharge(amount);
-      const requiredFloat = amount + telecomCheck;
-      if (merchantFloatAvailable < requiredFloat) {
-        const floatMsg =
-          `Insufficient merchant float. You hold UGX ${Math.round(merchantFloatAvailable).toLocaleString()} ` +
-          `but this payout needs UGX ${requiredFloat.toLocaleString()} ` +
-          `(UGX ${amount.toLocaleString()} payout + UGX ${telecomCheck.toLocaleString()} telecom charge). ` +
-          `Ask the CFO/treasury to top up your float before claiming.`;
-        await auditFailedWithdrawalAttempt(floatMsg, "INSUFFICIENT_MERCHANT_FLOAT");
-        await releaseClaim();
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: floatMsg,
-            code: "INSUFFICIENT_MERCHANT_FLOAT",
-            float_available: Math.round(merchantFloatAvailable),
-            requested: requiredFloat,
-            payout_amount: amount,
-            telecom_charge: telecomCheck,
-          }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+      // PHASE 4 — float RESERVATION model. The float usable for THIS payout is
+      // the amount reserved for it (held float minus float already committed to
+      // the merchant's other open claims), never the raw float bucket. This
+      // stops two concurrent claims from each consuming the same shillings.
+      let reservedForThis: number | null = null;
+      try {
+        await admin.rpc("reserve_merchant_float", {
+          p_withdrawal_id: withdrawal_id,
+          p_agent_id: user.id,
+        });
+        const { data: resRow } = await admin
+          .from("merchant_float_reservations")
+          .select("reserved_amount, float_before, state")
+          .eq("withdrawal_id", withdrawal_id)
+          .maybeSingle();
+        if (resRow && (resRow as any).state !== "released") {
+          reservedForThis = Math.max(0, Number((resRow as any).reserved_amount ?? 0));
+          merchantFloatBefore = Math.max(0, Number((resRow as any).float_before ?? 0));
+        }
+      } catch (e) {
+        console.error("[approve-withdrawal] float reservation lookup failed:", e);
       }
+      if (reservedForThis === null) {
+        // Fallback: server-side position (float minus open reservations).
+        const { data: pos } = await admin.rpc("get_merchant_float_position", {
+          p_agent_id: user.id,
+        });
+        merchantFloatBefore = Math.max(0, Number((pos as any)?.float_balance ?? 0));
+        reservedForThis = Math.max(0, Number((pos as any)?.available_float ?? 0));
+      }
+      merchantFloatReserved = reservedForThis;
+      merchantFloatAvailable = reservedForThis;
+      merchantTelecomExpected = getTelecomSendingCharge(amount);
+      merchantFloatForPrincipal = Math.min(merchantFloatAvailable, amount);
+      merchantPrincipalShortfall = Math.max(0, amount - merchantFloatForPrincipal);
+      const floatLeft = Math.max(0, merchantFloatAvailable - merchantFloatForPrincipal);
+      merchantFloatForTelecom = Math.min(floatLeft, merchantTelecomExpected);
+      merchantTelecomShortfall = Math.max(0, merchantTelecomExpected - merchantFloatForTelecom);
     }
 
     // Get beneficiary profile for audit / notifications
@@ -1943,7 +2121,52 @@ Deno.serve(async (req) => {
       }
     }
 
-    const { data: _txnGroupId, error: ledgerErr } = await admin.rpc("create_ledger_transaction", {
+    // ── Held-for-reconciliation guard ────────────────────────────────────
+    // Once a merchant confirms a payout the cash has ALREADY left their MoMo
+    // float. If the ledger write then fails for an infrastructure reason
+    // (statement timeout, cancelled statement, dropped connection) the request
+    // must NEVER be returned to the shared queue — a second merchant would pay
+    // the same person again. Instead we keep the row parked in `processing`
+    // (invisible to the cash-out queue, which only lists pre-settlement
+    // statuses), stamp the reference/proof so CFO can reconcile it from
+    // Stale Withdrawal Holds, and audit the abort.
+    const holdForReconciliation = async (failureReason: string, code: string) => {
+      try {
+        await admin
+          .from("withdrawal_requests")
+          .update({
+            // status intentionally left at 'processing' — out of the queue.
+            fin_ops_reference: reference.trim().toUpperCase(),
+            fin_ops_payment_method: payment_method,
+            ...((body as any)?.payout_proof
+              ? {
+                  payout_proof: String((body as any).payout_proof),
+                  payout_proof_type: (body as any)?.payout_proof_type
+                    ? String((body as any).payout_proof_type)
+                    : "image",
+                  ...((body as any)?.payout_proof_path
+                    ? {
+                        payout_proof_path: String((body as any).payout_proof_path),
+                        payout_proof_bucket: (body as any)?.payout_proof_bucket
+                          ? String((body as any).payout_proof_bucket)
+                          : "payment-proofs",
+                      }
+                    : {}),
+                  payout_proof_uploaded_at: new Date().toISOString(),
+                  payout_proof_uploaded_by: user.id,
+                }
+              : {}),
+            updated_at: new Date().toISOString(),
+          } as any)
+          .eq("id", withdrawal_id)
+          .eq("status", "processing");
+      } catch (e) {
+        console.error("[approve-withdrawal] holdForReconciliation failed:", (e as Error).message);
+      }
+      await auditFailedWithdrawalAttempt(failureReason, code);
+    };
+
+    const ledgerPayload: Record<string, unknown> = {
       entries: [
         ...debitEntries,
         {
@@ -1975,7 +2198,21 @@ Deno.serve(async (req) => {
       // merchant agents. Since the authoritative check has already
       // passed, skip the redundant DB re-check for every payout.
       skip_balance_check: true,
-    });
+    };
+
+    let ledgerResult = await admin.rpc("create_ledger_transaction", ledgerPayload as any);
+    // Idempotency key makes the retry safe: a partially-applied first attempt
+    // is returned as-is instead of double-posting.
+    if (ledgerResult.error && isTransientDbError(ledgerResult.error.message || "")) {
+      console.warn(
+        "[approve-withdrawal] transient ledger failure — retrying once:",
+        ledgerResult.error.message,
+      );
+      await new Promise((r) => setTimeout(r, 1500));
+      ledgerResult = await admin.rpc("create_ledger_transaction", ledgerPayload as any);
+    }
+    const _txnGroupId = ledgerResult.data;
+    const ledgerErr = ledgerResult.error;
     txnGroupId = _txnGroupId;
 
     if (ledgerErr) {
@@ -1986,6 +2223,7 @@ Deno.serve(async (req) => {
         ledgerMessage.includes("wallets_balance_check") ||
         ledgerMessage.includes("violates check constraint") ||
         ledgerMessage.includes("Insufficient ledger balance");
+      const isTransient = !isInsufficientBalance && isTransientDbError(ledgerMessage);
       const failureReason = isInsufficientBalance
         ? isProxyPayout
           ? `Insufficient proxy agent wallet balance (ledger-checked). Available: UGX ${Math.round(totalSpendable).toLocaleString()}, requested: UGX ${amount.toLocaleString()}. This payout debits the assigned proxy agent wallet for the selected partner.`
@@ -1993,8 +2231,28 @@ Deno.serve(async (req) => {
         : "Failed to record ledger entry: " + ledgerMessage;
       if (isInsufficientBalance) {
         await auditFailedWithdrawalAttempt(failureReason, "INSUFFICIENT_WITHDRAWABLE");
+        await releaseClaim();
+      } else if (isTransient) {
+        await holdForReconciliation(
+          `Ledger settlement aborted by infrastructure error after confirmation: ${ledgerMessage}`,
+          "SETTLEMENT_HELD",
+        );
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error:
+              "The payment was recorded as sent but the ledger settlement could not finish. " +
+              "This payout is now HELD for Financial Ops / CFO reconciliation and will NOT " +
+              "return to the payout queue. Do not pay it again.",
+            code: "SETTLEMENT_HELD",
+            held: true,
+            requested: amount,
+          }),
+          { status: 202, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      } else {
+        await releaseClaim();
       }
-      await releaseClaim();
       return new Response(JSON.stringify({
         success: false,
         error: failureReason,
@@ -2012,9 +2270,7 @@ Deno.serve(async (req) => {
     } // end if (!isLandlordFloatPayout)
 
     // Update withdrawal request status
-    const { error: updateErr } = await admin
-      .from("withdrawal_requests")
-      .update({
+    const completionPayload = {
         status: "completed",
         fin_ops_reference: reference.trim().toUpperCase(),
         fin_ops_payment_method: payment_method,
@@ -2058,16 +2314,35 @@ Deno.serve(async (req) => {
         // scope on `assigned_cashout_agent_id = me`. Idempotent — safe when
         // the assignment is still in place. Only stamps for merchant-settled
         // payouts (FinOps / system paths leave it as-is).
-        ...(actingAsMerchant && agentRow?.id
-          ? { assigned_cashout_agent_id: agentRow.id }
+        ...(actingAsMerchant && merchantAgentIdResolved
+          ? { assigned_cashout_agent_id: merchantAgentIdResolved }
           : {}),
         // Persist the pool/bulk-funded nature of this settlement at the DB
         // layer. One SKYBUBBLES bulk-bank transfer legitimately covers many
         // proxy payouts that share a single bank reference, so these rows are
         // exempt from `withdrawal_requests_fin_ops_reference_uq`.
         ...(poolFunded ? { pool_funded: true } : {}),
-      } as any)
+    } as any;
+
+    let completeRes = await admin
+      .from("withdrawal_requests")
+      .update(completionPayload)
       .eq("id", withdrawal_id);
+    // The ledger is already posted at this point, so a transient DB failure here
+    // must not leave the row un-finalised (which is what made confirmed payouts
+    // reappear). Retry once before falling through to the error handling.
+    if (completeRes.error && isTransientDbError(completeRes.error.message || "")) {
+      console.warn(
+        "[approve-withdrawal] transient completion update failure — retrying once:",
+        completeRes.error.message,
+      );
+      await new Promise((r) => setTimeout(r, 1500));
+      completeRes = await admin
+        .from("withdrawal_requests")
+        .update(completionPayload)
+        .eq("id", withdrawal_id);
+    }
+    const updateErr = completeRes.error;
 
     if (updateErr) {
       console.error("[approve-withdrawal] Update error:", updateErr);
@@ -2535,7 +2810,8 @@ Deno.serve(async (req) => {
     if (
       actingAsMerchant &&
       !poolFunded &&
-      amount > 0
+      amount > 0 &&
+      merchantFloatForPrincipal > 0
     ) {
       try {
         const txDate = new Date().toISOString();
@@ -2543,7 +2819,7 @@ Deno.serve(async (req) => {
           entries: [
             {
               user_id: user.id, ledger_scope: "wallet", direction: "cash_out",
-              amount, category: "agent_float_settlement",
+              amount: merchantFloatForPrincipal, category: "agent_float_settlement",
               recipient_type: "operational_wallet", wallet_bucket: "float",
               source_table: "withdrawal_requests", source_id: withdrawal_id,
               description: `Company float used to settle customer cash-out ${withdrawal_id}`,
@@ -2551,7 +2827,7 @@ Deno.serve(async (req) => {
             },
             {
               user_id: user.id, ledger_scope: "platform", direction: "cash_in",
-              amount, category: "agent_float_settlement",
+              amount: merchantFloatForPrincipal, category: "agent_float_settlement",
               source_table: "withdrawal_requests", source_id: withdrawal_id,
               description: `Merchant float settled to customer for withdrawal ${withdrawal_id}`,
               currency: "UGX", reference_id: `${withdrawal_id}-merchant-float-consume`, transaction_date: txDate,
@@ -2563,17 +2839,17 @@ Deno.serve(async (req) => {
           console.error("[approve-withdrawal] Merchant float consume RPC error:", floatErr);
           await logSettlementGap(
             "merchant_float_consume",
-            amount,
+            merchantFloatForPrincipal,
             `float debit failed: ${String((floatErr as any)?.message ?? floatErr)}`,
           );
         } else {
-          merchantFloatConsumed = amount;
+          merchantFloatConsumed = merchantFloatForPrincipal;
         }
       } catch (e) {
         console.error("[approve-withdrawal] Merchant float consume exception:", e);
         await logSettlementGap(
           "merchant_float_consume",
-          amount,
+          merchantFloatForPrincipal,
           `float debit exception: ${String((e as any)?.message ?? e)}`,
         );
       }
@@ -2593,9 +2869,9 @@ Deno.serve(async (req) => {
     if (
       actingAsMerchant &&
       !poolFunded &&
-      merchantFloatConsumed > 0 // only post if the principal consume succeeded
+      amount > 0
     ) {
-      const telecomCharge = getTelecomSendingCharge(amount);
+      const telecomCharge = merchantFloatForTelecom;
       if (telecomCharge > 0) {
         try {
           const txDate = new Date().toISOString();
@@ -2640,8 +2916,171 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ── Merchant OUT-OF-POCKET record (2026-08) ───────────────────────────
+    // Whatever the merchant funded beyond their float (payout principal and/or
+    // the telecom sending charge) is money the company owes them. Recorded
+    // clearly here and surfaced on their dashboard + to Finance for repayment.
+    let merchantOutOfPocketRecorded = false;
+    if (
+      actingAsMerchant &&
+      !poolFunded &&
+      (merchantPrincipalShortfall > 0 || merchantTelecomShortfall > 0)
+    ) {
+      const rows: Record<string, unknown>[] = [];
+      if (merchantPrincipalShortfall > 0) {
+        rows.push({
+          agent_id: user.id,
+          withdrawal_id,
+          kind: "payout",
+          payout_amount: amount,
+          telecom_charge: merchantTelecomExpected,
+          float_used: merchantFloatConsumed,
+          shortfall_amount: Math.round(merchantPrincipalShortfall),
+          status: "pending_reimbursement",
+          note:
+            `Merchant paid UGX ${amount.toLocaleString()} while holding only ` +
+            `UGX ${Math.round(merchantFloatAvailable).toLocaleString()} float. ` +
+            `Own money fronted: UGX ${Math.round(merchantPrincipalShortfall).toLocaleString()}.`,
+        });
+      }
+      if (merchantTelecomShortfall > 0) {
+        rows.push({
+          agent_id: user.id,
+          withdrawal_id,
+          kind: "telecom",
+          payout_amount: amount,
+          telecom_charge: merchantTelecomExpected,
+          float_used: merchantTelecomCharge,
+          shortfall_amount: Math.round(merchantTelecomShortfall),
+          status: "pending_reimbursement",
+          note:
+            `Telecom sending charge of UGX ${merchantTelecomExpected.toLocaleString()} paid from the ` +
+            `merchant's own line (float could not cover UGX ` +
+            `${Math.round(merchantTelecomShortfall).toLocaleString()}).`,
+        });
+      }
+      try {
+        const { error: oopErr } = await admin
+          .from("merchant_out_of_pocket_advances")
+          .upsert(rows, { onConflict: "withdrawal_id,kind", ignoreDuplicates: true });
+        if (oopErr) {
+          console.error("[approve-withdrawal] out-of-pocket insert error:", oopErr);
+          await logSettlementGap(
+            "merchant_out_of_pocket",
+            Math.round(merchantPrincipalShortfall + merchantTelecomShortfall),
+            `out-of-pocket record failed: ${String((oopErr as any)?.message ?? oopErr)}`,
+          );
+        } else {
+          merchantOutOfPocketRecorded = true;
+          try {
+            await admin.from("system_events").insert({
+              event_type: "wallet_transfer",
+              user_id: user.id,
+              description:
+                `Merchant agent fronted UGX ` +
+                `${Math.round(merchantPrincipalShortfall + merchantTelecomShortfall).toLocaleString()} ` +
+                `of their own money on withdrawal ${withdrawal_id} (float short). Company owes them.`,
+              metadata: {
+                withdrawal_id,
+                payout_amount: amount,
+                float_available: Math.round(merchantFloatAvailable),
+                float_used: merchantFloatConsumed,
+                telecom_charge: merchantTelecomExpected,
+                principal_shortfall: Math.round(merchantPrincipalShortfall),
+                telecom_shortfall: Math.round(merchantTelecomShortfall),
+              },
+            });
+          } catch (_e) { /* non-blocking */ }
+        }
+      } catch (e) {
+        console.error("[approve-withdrawal] out-of-pocket exception:", e);
+      }
+    }
+
     // Public proof-of-payment receipt link (unguessable token). Fetched once so
     // both the customer SMS and the merchant confirmation SMS can share it.
+    // ── PHASE 4: stamp the actual float consumption / receivable position ──
+    // Turns the reservation into a complete, auditable money story:
+    //   float before -> reserved -> consumed -> fronted personally
+    //   -> resulting float -> resulting receivable
+    let merchantFloatTrace: any = null;
+    if (actingAsMerchant && !poolFunded && amount > 0) {
+      try {
+        const { data: traceRes, error: traceErr } = await admin.rpc(
+          "consume_merchant_float",
+          {
+            p_withdrawal_id: withdrawal_id,
+            p_agent_id: user.id,
+            p_consumed_float: merchantFloatConsumed,
+            p_consumed_telecom: merchantTelecomCharge,
+            p_out_of_pocket: Math.round(
+              merchantPrincipalShortfall + merchantTelecomShortfall,
+            ),
+          },
+        );
+        if (traceErr) {
+          console.error("[approve-withdrawal] consume_merchant_float error:", traceErr);
+          await logSettlementGap(
+            "merchant_float_reservation_not_closed",
+            merchantFloatConsumed + merchantTelecomCharge,
+            `float reservation could not be closed: ${String((traceErr as any)?.message ?? traceErr)}`,
+          );
+        } else {
+          merchantFloatTrace = traceRes ?? null;
+        }
+      } catch (e) {
+        console.error("[approve-withdrawal] consume_merchant_float exception:", e);
+      }
+      console.log("[approve-withdrawal] merchant float trace", {
+        withdrawal_id,
+        agent_id: user.id,
+        float_before: merchantFloatBefore,
+        reserved: merchantFloatReserved,
+        consumed_float: merchantFloatConsumed,
+        consumed_telecom: merchantTelecomCharge,
+        fronted_personally: Math.round(
+          merchantPrincipalShortfall + merchantTelecomShortfall,
+        ),
+        float_after: (merchantFloatTrace as any)?.float_after ?? null,
+        receivable_after: (merchantFloatTrace as any)?.receivable_after ?? null,
+      });
+    }
+
+    // ── PHASE 6: funding-source truth (float vs merchant's own cash) ───────
+    // Intent is not accounting. This classifier re-reads the ACTUAL ledger
+    // float legs for this payout and records whether it was funded by company
+    // float, the merchant's own external cash, or a combination — then repairs
+    // the out-of-pocket receivable rows to match. If a float leg failed to
+    // post, the amount becomes a visible receivable instead of a fake float
+    // deduction.
+    let merchantFundingVerdict: any = null;
+    if (actingAsMerchant && !poolFunded && amount > 0) {
+      try {
+        const { data: fundRes, error: fundErr } = await admin.rpc(
+          "classify_merchant_payout_funding",
+          { p_withdrawal_id: withdrawal_id, p_via: "settlement_event" },
+        );
+        if (fundErr) {
+          console.error("[approve-withdrawal] funding classification error:", fundErr);
+          await logSettlementGap(
+            "merchant_funding_classification",
+            amount,
+            `funding classification failed: ${String((fundErr as any)?.message ?? fundErr)}`,
+          );
+        } else {
+          merchantFundingVerdict = fundRes ?? null;
+          console.log("[approve-withdrawal] merchant funding source", merchantFundingVerdict);
+        }
+      } catch (e) {
+        console.error("[approve-withdrawal] funding classification exception:", e);
+        await logSettlementGap(
+          "merchant_funding_classification",
+          amount,
+          `funding classification exception: ${String((e as any)?.message ?? e)}`,
+        );
+      }
+    }
+
     let receiptToken: string | null = null;
     try {
       const { data: rtRow } = await admin
@@ -2662,50 +3101,73 @@ Deno.serve(async (req) => {
     // withdrawable wallet bucket (recipient_type: "user" guarantees withdrawable
     // routing), then we SMS the agent to confirm the earning.
     let cashoutCommission = 0;
-    // Commission may only post when its offsetting float debit actually landed.
-    // Pool-funded settlements debit float in the main block above, so they are
-    // still eligible. Otherwise the gap is logged for CFO reconciliation.
-    const floatLegSettled = poolFunded || merchantFloatConsumed > 0;
-    if (actingAsMerchant && !floatLegSettled) {
+    // PHASE 5 — commission is NO LONGER gated on a fragile local side effect
+    // (the old `floatLegSettled` flag). The authoritative writer
+    // `credit_merchant_payout_commission` decides from the payout's own
+    // settlement event: server-resolved merchant identity + a real customer
+    // wallet debit + terminal-good status. It is idempotent, so a transient
+    // float failure here can never permanently lose the agent's earning — the
+    // 15-minute reconciler pays it later.
+    let commissionVerdict: any = null;
+    // ── LOUD FAILURE (2026-08-12) ───────────────────────────────────────────
+    // A merchant settlement that closes with NO float debit AND NO
+    // out-of-pocket receivable means the compensation chain was skipped. Log it
+    // the same day instead of discovering it weeks later during reconciliation.
+    if (
+      actingAsMerchant &&
+      !poolFunded &&
+      merchantFloatConsumed === 0 &&
+      !merchantOutOfPocketRecorded
+    ) {
+      console.error("[approve-withdrawal] MERCHANT_CHAIN_SKIPPED", {
+        withdrawal_id,
+        agent_id: user.id,
+        amount,
+        float_available: Math.round(merchantFloatAvailable),
+      });
       await logSettlementGap(
-        "commission_paid_float_pending",
-        Math.round(amount * 0.005),
-        "commission withheld because the merchant float debit did not land",
+        "merchant_settlement_chain_skipped",
+        amount,
+        "merchant settlement closed with no float debit and no out-of-pocket receivable",
       );
     }
-    if (actingAsMerchant && floatLegSettled) {
-      cashoutCommission = Math.round(amount * 0.005);
-      if (cashoutCommission > 0) {
-        try {
-          const txDate = new Date().toISOString();
-          const { error: commErr } = await admin.rpc("create_ledger_transaction", {
-            entries: [
-              {
-                user_id: user.id, ledger_scope: "platform", direction: "cash_out",
-                amount: cashoutCommission, category: "agent_commission_earned",
-                source_table: "withdrawal_requests", source_id: withdrawal_id,
-                description: `Cashout payout commission expense (0.5%) for withdrawal ${withdrawal_id}`,
-                currency: "UGX", reference_id: `${withdrawal_id}-cashout-commission`, transaction_date: txDate,
-              },
-              {
-                user_id: user.id, ledger_scope: "wallet", direction: "cash_in",
-                amount: cashoutCommission, category: "agent_commission_earned",
-                recipient_type: "user", wallet_bucket: "withdrawable",
-                source_table: "withdrawal_requests", source_id: withdrawal_id,
-                description: `Cashout payout commission (0.5%) for withdrawal ${withdrawal_id}`,
-                currency: "UGX", reference_id: `${withdrawal_id}-cashout-commission`, transaction_date: txDate,
-              },
-            ],
-            idempotency_key: `approve-withdrawal-cashout-commission-${withdrawal_id}`,
-          });
-          if (commErr) {
-            console.error("[approve-withdrawal] Cashout commission RPC error:", commErr);
-            cashoutCommission = 0;
+    if (actingAsMerchant) {
+      try {
+        const { data: commRes, error: commErr } = await admin.rpc(
+          "credit_merchant_payout_commission",
+          { p_withdrawal_id: withdrawal_id, p_awarded_via: "settlement_event" },
+        );
+        if (commErr) {
+          console.error("[approve-withdrawal] commission RPC error:", commErr);
+        } else {
+          commissionVerdict = commRes ?? null;
+          if ((commRes as any)?.credited) {
+            cashoutCommission = Math.round(
+              Number((commRes as any)?.commission_amount ?? 0),
+            );
+          } else {
+            console.warn("[approve-withdrawal] commission not credited", {
+              withdrawal_id,
+              reason: (commRes as any)?.reason,
+            });
           }
-        } catch (e) {
-          console.error("[approve-withdrawal] Cashout commission exception:", e);
-          cashoutCommission = 0;
         }
+      } catch (e) {
+        console.error("[approve-withdrawal] commission exception:", e);
+      }
+      // Only a genuinely blocked commission is a gap — "already_paid" is fine.
+      if (
+        cashoutCommission === 0 &&
+        commissionVerdict &&
+        !["already_paid", "award_already_recorded", "commission_rounds_to_zero"].includes(
+          String((commissionVerdict as any)?.reason ?? ""),
+        )
+      ) {
+        await logSettlementGap(
+          "merchant_commission_pending",
+          Math.round(amount * 0.005),
+          `commission not yet payable: ${String((commissionVerdict as any)?.reason ?? "unknown")} — the reconciler will retry`,
+        );
       }
 
       // ── Cashout agent commission SMS (into withdrawable) ──
@@ -3384,6 +3846,45 @@ Deno.serve(async (req) => {
       );
     }
 
+    // ── PHASE 2: explicit settlement state (never silently "settled") ───
+    // Every required financial leg (customer wallet debit, merchant float or
+    // out-of-pocket receivable, telecom charge, commission) is verified
+    // against the ledger by the DB. If any leg failed post-commit, the
+    // payout is stamped `unsettled` and surfaced in `v_unsettled_payouts`
+    // for reconciliation instead of being treated as complete.
+    let settlementState: string | null = null;
+    let settlementMissingLegs: string[] = [];
+    try {
+      const { data: settlementRes, error: settlementErr } = await admin.rpc(
+        "record_withdrawal_settlement_state",
+        { p_withdrawal_id: withdrawal_id },
+      );
+      if (settlementErr) {
+        console.error(
+          "[approve-withdrawal] settlement state stamp failed:",
+          settlementErr.message,
+        );
+      } else {
+        settlementState = (settlementRes as any)?.settlement_state ?? null;
+        settlementMissingLegs = ((settlementRes as any)?.missing ?? []) as string[];
+        if (settlementState !== "settled") {
+          console.error(
+            "[approve-withdrawal] PARTIAL SETTLEMENT",
+            withdrawal_id,
+            "state:",
+            settlementState,
+            "missing legs:",
+            JSON.stringify(settlementMissingLegs),
+          );
+        }
+      }
+    } catch (e) {
+      console.error(
+        "[approve-withdrawal] settlement state exception:",
+        (e as Error).message,
+      );
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -3394,11 +3895,34 @@ Deno.serve(async (req) => {
         target_user: targetName,
         txn_group_id: txnGroupId,
         cashout_commission: cashoutCommission,
+        cashout_commission_reason:
+          (commissionVerdict as any)?.reason ??
+          (actingAsMerchant ? "not_evaluated" : "not_merchant"),
         merchant_reimbursed: merchantFloatConsumed,
         merchant_float_consumed: merchantFloatConsumed,
         merchant_telecom_charge: merchantTelecomCharge,
+        merchant_own_money_fronted: Math.round(
+          merchantPrincipalShortfall + merchantTelecomShortfall,
+        ),
         merchant_float_total_debit: merchantFloatConsumed + merchantTelecomCharge,
+        merchant_funding_source:
+          (merchantFundingVerdict as any)?.funding_source ??
+          (actingAsMerchant ? "unknown" : null),
+        merchant_funding: merchantFundingVerdict,
         settled_available: settledAvailable,
+        settlement_state: settlementState,
+        settlement_missing_legs: settlementMissingLegs,
+        merchant_float_trace: {
+          float_before: merchantFloatBefore,
+          reserved: merchantFloatReserved,
+          consumed_float: merchantFloatConsumed,
+          consumed_telecom: merchantTelecomCharge,
+          fronted_personally: Math.round(
+            merchantPrincipalShortfall + merchantTelecomShortfall,
+          ),
+          float_after: (merchantFloatTrace as any)?.float_after ?? null,
+          receivable_after: (merchantFloatTrace as any)?.receivable_after ?? null,
+        },
       }),
       {
         status: 200,
@@ -3407,6 +3931,12 @@ Deno.serve(async (req) => {
     );
   } catch (err) {
     console.error("[approve-withdrawal] Error:", err);
+    // Never leave an unsettled claim stranded in `processing`.
+    try {
+      await safetyRelease?.();
+    } catch (_e) {
+      /* already logged inside safetyRelease */
+    }
     return new Response(JSON.stringify({ error: "Internal server error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

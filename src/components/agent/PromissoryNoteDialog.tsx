@@ -8,6 +8,8 @@ import { FileText, Check, Share2, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
+import PersonNameFields from '@/components/shared/PersonNameFields';
+import { joinPersonName, validatePersonNameParts, type PersonNameParts } from '@/lib/authValidation';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
 
 interface PromissoryNoteDialogProps {
@@ -46,7 +48,9 @@ export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialo
       ? 'Rate unavailable'
       : `You earn: ${formatUGX(noteRate)} when this note is validated`;
 
-  const [partnerName, setPartnerName] = useState('');
+  // Captured in parts; `partner_name` stays one concatenated string.
+  const [nameParts, setNameParts] = useState<PersonNameParts>({ firstName: '', otherNames: '', lastName: '' });
+  const partnerName = joinPersonName(nameParts);
   const [whatsappNumber, setWhatsappNumber] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [email, setEmail] = useState('');
@@ -55,7 +59,7 @@ export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialo
   const [deductionDay, setDeductionDay] = useState('1');
 
   const resetForm = () => {
-    setPartnerName('');
+    setNameParts({ firstName: '', otherNames: '', lastName: '' });
     setWhatsappNumber('');
     setPhoneNumber('');
     setEmail('');
@@ -72,7 +76,7 @@ export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialo
 
   const phoneDigits = (v: string) => v.replace(/\D/g, '');
   const isValidPhone = (v: string) => { const d = phoneDigits(v); return d.length === 10; };
-  const isValid = partnerName.trim().length >= 2 && isValidPhone(whatsappNumber) && Number(amount) > 0 && (!email.trim() || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) && (!phoneNumber.trim() || isValidPhone(phoneNumber));
+  const isValid = validatePersonNameParts(nameParts).valid && isValidPhone(whatsappNumber) && Number(amount) > 0 && (!email.trim() || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) && (!phoneNumber.trim() || isValidPhone(phoneNumber));
 
   const handleSubmit = async () => {
     setSubmitting(true);
@@ -124,9 +128,9 @@ export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialo
         activationLink = await createShortLink(u.id, '/activate', { token: createdNote.activation_token });
       }
     } catch {}
-    const shareText = `🤝 Hi ${partnerName}, activate your Welile investment account and start earning 15% ROI! ${activationLink}`;
+    const shareText = `🤝 Hi ${partnerName}, activate your Welile funding account and start earning 15% ROI! ${activationLink}`;
     if (navigator.share) {
-      navigator.share({ title: 'Welile Investment', text: shareText, url: activationLink }).catch(() => {});
+      navigator.share({ title: 'Welile Funding', text: shareText, url: activationLink }).catch(() => {});
     } else {
       await navigator.clipboard.writeText(activationLink);
       toast.success('Activation link copied!');
@@ -166,7 +170,9 @@ export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialo
           <div className="space-y-3">
             <div>
               <Label className="text-xs">Partner Name *</Label>
-              <Input value={partnerName} onChange={e => setPartnerName(e.target.value.replace(/[^a-zA-Z\s'-]/g, ''))} placeholder="Full name" className="mt-0.5 h-9" maxLength={100} />
+              <div className="mt-0.5">
+                <PersonNameFields idPrefix="promissory-partner" value={nameParts} onChange={setNameParts} />
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-2">

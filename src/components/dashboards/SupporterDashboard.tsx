@@ -57,6 +57,7 @@ import { InvestmentPackageSheet } from '@/components/supporter/InvestmentPackage
 // FundingPoolCard removed from direct import
 import { FunderCapitalOpportunities } from '@/components/supporter/FunderCapitalOpportunities';
 import { SupportedTenantsSection } from '@/components/supporter/SupportedTenantsSection';
+import { PartnerPortfolioSection } from '@/components/supporter/portfolio/PartnerPortfolioSection';
 import { useSupportedTenants } from '@/hooks/useSupportedTenants';
 
 import { InvestmentAccountsDrawer } from '@/components/supporter/InvestmentAccountsDrawer';
@@ -123,6 +124,7 @@ export default function SupporterDashboard({
   const [showWallet, setShowWallet] = useState(false);
   const [showInvestments, setShowInvestments] = useState(false);
   const [investmentsTab, setInvestmentsTab] = useState<'accounts' | 'angel'>('accounts');
+  const [focusPortfolioId, setFocusPortfolioId] = useState<string | null>(null);
   const { toast } = useToast();
   const { wallet, refreshWallet } = useWallet();
   const { fireSuccess, fireFirstFunding } = useConfetti();
@@ -558,6 +560,21 @@ export default function SupporterDashboard({
 
           </div>
 
+          {/* ═══ SECTION: YOUR PORTFOLIO ═══ */}
+          <WidgetErrorBoundary label="Your portfolio">
+            <PartnerPortfolioSection
+              onViewPortfolios={(portfolioId) => {
+                setInvestmentsTab('accounts');
+                setFocusPortfolioId(portfolioId ?? null);
+                setShowInvestments(true);
+              }}
+              onExploreOpportunities={() => {
+                const el = document.getElementById('opportunities');
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+            />
+          </WidgetErrorBoundary>
+
           {/* ═══ SECTION: OPPORTUNITIES ═══ */}
           <div id="opportunities" className="relative scroll-mt-4 space-y-4">
             <div className="flex items-center gap-2 px-1">
@@ -707,7 +724,12 @@ export default function SupporterDashboard({
       />
 
       <FullScreenWalletSheet open={showWallet} onOpenChange={setShowWallet} />
-      <InvestmentAccountsDrawer open={showInvestments} onOpenChange={setShowInvestments} defaultTab={investmentsTab} />
+      <InvestmentAccountsDrawer
+        open={showInvestments}
+        onOpenChange={(o) => { setShowInvestments(o); if (!o) setFocusPortfolioId(null); }}
+        defaultTab={investmentsTab}
+        initialPortfolioId={focusPortfolioId}
+      />
 
       <FunderActivationModal
         open={showActivationModal}

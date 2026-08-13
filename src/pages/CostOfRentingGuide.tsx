@@ -54,7 +54,7 @@ export default function CostOfRentingGuide() {
 
   const canonical = `${SITE_URL}/guides/cost-of-renting-in-${guide.slug}`;
   const title = `Cost of Renting in ${guide.city} ${YEAR_LABEL} — Prices by Area | Welile`;
-  const description = `${guide.city} rent guide for ${YEAR_LABEL}: what a single room, self-contained, 1-bed and 2-bed apartment cost, plus popular neighbourhoods, utilities and commute. Pay landlord in full — repay weekly with Welile.`;
+  const description = `${guide.city} rent guide ${YEAR_LABEL}: typical prices for rooms, 1-2 bed apartments and top areas. Plan your rent with Welile.`;
 
   const jsonLd = {
     '@context': 'https://schema.org',

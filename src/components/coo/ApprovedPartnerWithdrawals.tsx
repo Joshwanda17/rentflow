@@ -4,8 +4,11 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, ArrowLeft, CheckCircle2, Users, Banknote, Search, X } from 'lucide-react';
+import { Loader2, ArrowLeft, CheckCircle2, Users, Banknote, Search, X, FileDown, FileText } from 'lucide-react';
 import { format } from 'date-fns';
+import { generatePartnerWithdrawalsPdf } from '@/lib/partnerWithdrawalsPdf';
+import { generatePartnerWithdrawalStatementPdf } from '@/lib/partnerWithdrawalStatementPdf';
+import { toast } from 'sonner';
 
 interface WithdrawalRow {
   id: string;
@@ -20,6 +23,7 @@ interface WithdrawalRow {
   mobile_money_name: string | null;
   bank_account_name: string | null;
   linked_party: string | null;
+  proxy_partner_id: string | null;
   fin_ops_payment_method: string | null;
 }
 
@@ -32,6 +36,8 @@ export function ApprovedPartnerWithdrawals({ onBack }: Props) {
   const [withdrawals, setWithdrawals] = useState<WithdrawalRow[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
   const [search, setSearch] = useState('');
+  const [exporting, setExporting] = useState(false);
+  const [statementFor, setStatementFor] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -40,16 +46,25 @@ export function ApprovedPartnerWithdrawals({ onBack }: Props) {
   const loadData = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('withdrawal_requests')
-        .select('id, user_id, amount, status, reason, created_at, fin_ops_verified_at, fin_ops_reference, payout_method, mobile_money_name, bank_account_name, linked_party, fin_ops_payment_method')
-        .in('status', ['completed', 'fin_ops_approved', 'approved', 'cfo_approved', 'coo_approved', 'manager_approved', 'processing'])
-        .not('linked_party', 'is', null)
-        .order('created_at', { ascending: false })
-        .limit(200);
+      // Partner-linked withdrawals live under two columns: `linked_party` (direct
+      // partner withdrawals) and `proxy_partner_id` (proxy payout deliveries).
+      // Fetch every page so search + export see the whole system, not a 200-row slice.
+      const PAGE = 1000;
+      const rows: WithdrawalRow[] = [];
+      for (let page = 0; page < 30; page++) {
+        const { data, error } = await supabase
+          .from('withdrawal_requests')
+          .select('id, user_id, amount, status, reason, created_at, fin_ops_verified_at, fin_ops_reference, payout_method, mobile_money_name, bank_account_name, linked_party, proxy_partner_id, fin_ops_payment_method')
+          .in('status', ['completed', 'fin_ops_approved', 'approved', 'cfo_approved', 'coo_approved', 'manager_approved', 'processing'])
+          .or('linked_party.not.is.null,proxy_partner_id.not.is.null')
+          .order('created_at', { ascending: false })
+          .range(page * PAGE, page * PAGE + PAGE - 1);
 
-      if (error) throw error;
-      const rows = (data || []) as WithdrawalRow[];
+        if (error) throw error;
+        const chunk = (data || []) as WithdrawalRow[];
+        rows.push(...chunk);
+        if (chunk.length < PAGE) break;
+      }
       setWithdrawals(rows);
 
       // Fetch profile names for user_ids and linked_parties
@@ -57,19 +72,20 @@ export function ApprovedPartnerWithdrawals({ onBack }: Props) {
       rows.forEach(r => {
         ids.add(r.user_id);
         if (r.linked_party) ids.add(r.linked_party);
+        if (r.proxy_partner_id) ids.add(r.proxy_partner_id);
       });
       const uniqueIds = [...ids].filter(Boolean);
-      if (uniqueIds.length > 0) {
+      const map: Record<string, string> = {};
+      for (let i = 0; i < uniqueIds.length; i += 500) {
         const { data: profileData } = await supabase
           .from('profiles')
           .select('id, full_name')
-          .in('id', uniqueIds);
-        const map: Record<string, string> = {};
+          .in('id', uniqueIds.slice(i, i + 500));
         // Keep empty when the name is missing so the render can fall back to the
         // payout (momo / bank) name instead of showing the literal "Unknown".
         (profileData || []).forEach(p => { map[p.id] = p.full_name || ''; });
-        setProfiles(map);
       }
+      setProfiles(map);
     } catch (err) {
       console.error('Error loading approved withdrawals:', err);
     } finally {
@@ -77,13 +93,36 @@ export function ApprovedPartnerWithdrawals({ onBack }: Props) {
     }
   };
 
+  const partnerIdOf = (w: WithdrawalRow) => w.linked_party || w.proxy_partner_id || null;
+
+  // Partners withdraw per portfolio. The portfolio identity is carried in the
+  // withdrawal narration: "(Portfolio: <name/code>)" and, when routed, a
+  // "Route: portfolio <uuid>" suffix. Parse both so the statement can be tied
+  // to exactly one portfolio.
+  const portfolioOf = (w: WithdrawalRow): { name: string | null; id: string | null } => {
+    const reason = w.reason || '';
+    const nameMatch = reason.match(/Portfolio:\s*([^)|]+)/i);
+    const idMatch = reason.match(/Route:\s*portfolio\s*([0-9a-f-]{36})/i);
+    return {
+      name: nameMatch ? nameMatch[1].trim() : null,
+      id: idMatch ? idMatch[1] : null,
+    };
+  };
+
+  const partnerNameOf = (w: WithdrawalRow) => {
+    const pid = partnerIdOf(w);
+    if (!pid) return '—';
+    return profiles[pid] || w.mobile_money_name || w.bank_account_name || 'Unknown Partner';
+  };
+
   const filtered = withdrawals.filter(w => {
     if (!search) return true;
     const q = search.toLowerCase();
     const agentName = profiles[w.user_id]?.toLowerCase() || '';
-    const partnerName = w.linked_party ? (profiles[w.linked_party]?.toLowerCase() || '') : '';
+    const partnerName = partnerNameOf(w).toLowerCase();
     const payeeName = (w.mobile_money_name || w.bank_account_name || '').toLowerCase();
-    return agentName.includes(q) || partnerName.includes(q) || payeeName.includes(q) || w.reason?.toLowerCase().includes(q);
+    const portfolioName = (portfolioOf(w).name || '').toLowerCase();
+    return agentName.includes(q) || partnerName.includes(q) || payeeName.includes(q) || portfolioName.includes(q) || w.reason?.toLowerCase().includes(q);
   });
 
   const totalAmount = filtered.reduce((sum, w) => sum + (w.amount || 0), 0);
@@ -94,6 +133,128 @@ export function ApprovedPartnerWithdrawals({ onBack }: Props) {
     if (status === 'completed') return <Badge variant="success" size="sm">Completed</Badge>;
     if (status === 'processing') return <Badge variant="warning" size="sm">Processing</Badge>;
     return <Badge variant="outline" size="sm" className="capitalize">{status.replace(/_/g, ' ')}</Badge>;
+  };
+
+  const handleExport = async () => {
+    if (filtered.length === 0) {
+      toast.error('Nothing to export');
+      return;
+    }
+    setExporting(true);
+    try {
+      const blob = await generatePartnerWithdrawalsPdf({
+        searchTerm: search.trim() || undefined,
+        rows: filtered.map(w => ({
+          partner: partnerNameOf(w),
+          portfolio: portfolioOf(w).name || '—',
+          agent: profiles[w.user_id] || 'Unknown Agent',
+          payee: w.mobile_money_name || w.bank_account_name || '—',
+          method: (w.fin_ops_payment_method || w.payout_method || '—').replace(/_/g, ' '),
+          reference: w.fin_ops_reference || '—',
+          amount: w.amount || 0,
+          status: w.status,
+          date: w.created_at,
+        })),
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const slug = search.trim() ? `-${search.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-')}` : '';
+      a.download = `partner-withdrawals${slug}-${format(new Date(), 'yyyy-MM-dd')}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(`Exported ${filtered.length} record${filtered.length === 1 ? '' : 's'}`);
+    } catch (err) {
+      console.error('Partner withdrawals export failed:', err);
+      toast.error('Could not generate the PDF');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // Single-card financial statement, scoped to the portfolio that was withdrawn for.
+  const handleStatement = async (w: WithdrawalRow) => {
+    setStatementFor(w.id);
+    try {
+      const { name: portfolioName, id: portfolioId } = portfolioOf(w);
+      const partnerId = partnerIdOf(w);
+
+      let portfolio: any = null;
+      const cols = 'id, portfolio_code, investment_amount, roi_percentage, roi_mode, duration_months, payout_day, next_roi_date, maturity_date, total_roi_earned, status';
+      if (portfolioId) {
+        const { data } = await supabase.from('investor_portfolios').select(cols).eq('id', portfolioId).maybeSingle();
+        portfolio = data;
+      }
+      if (!portfolio && portfolioName && partnerId) {
+        const { data } = await supabase
+          .from('investor_portfolios')
+          .select(cols)
+          .eq('investor_id', partnerId)
+          .eq('portfolio_code', portfolioName)
+          .maybeSingle();
+        portfolio = data;
+      }
+
+      // Payout history limited to the same partner + same portfolio narration.
+      const history = withdrawals
+        .filter(r => {
+          if (partnerIdOf(r) !== partnerId) return false;
+          const p = portfolioOf(r);
+          if (portfolioId && p.id) return p.id === portfolioId;
+          if (portfolioName && p.name) return p.name.toLowerCase() === portfolioName.toLowerCase();
+          return r.id === w.id;
+        })
+        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+        .map(r => ({
+          date: r.created_at,
+          amount: r.amount || 0,
+          status: r.status,
+          method: (r.fin_ops_payment_method || r.payout_method || '—').replace(/_/g, ' '),
+          reference: r.fin_ops_reference || '—',
+          isCurrent: r.id === w.id,
+        }));
+
+      const blob = await generatePartnerWithdrawalStatementPdf({
+        withdrawalId: w.id,
+        partner: partnerNameOf(w),
+        agent: profiles[w.user_id] || 'Unknown Agent',
+        payee: w.mobile_money_name || w.bank_account_name || '—',
+        method: (w.fin_ops_payment_method || w.payout_method || '—').replace(/_/g, ' '),
+        reference: w.fin_ops_reference || '—',
+        amount: w.amount || 0,
+        status: w.status,
+        date: w.created_at,
+        note: w.reason,
+        portfolio: {
+          portfolioName: portfolioName || portfolio?.portfolio_code || null,
+          portfolioCode: portfolio?.portfolio_code || null,
+          capitalAmount: portfolio?.investment_amount ?? null,
+          roiPercentage: portfolio?.roi_percentage ?? null,
+          roiMode: portfolio?.roi_mode ?? null,
+          durationMonths: portfolio?.duration_months ?? null,
+          payoutDay: portfolio?.payout_day ?? null,
+          nextRoiDate: portfolio?.next_roi_date ?? null,
+          maturityDate: portfolio?.maturity_date ?? null,
+          totalRoiEarned: portfolio?.total_roi_earned ?? null,
+          status: portfolio?.status ?? null,
+        },
+        history,
+      });
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const slug = (portfolioName || partnerNameOf(w) || 'portfolio').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      a.download = `portfolio-statement-${slug}-${format(new Date(w.created_at), 'yyyy-MM-dd')}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(portfolioName ? `Statement ready — ${portfolioName}` : 'Statement ready');
+    } catch (err) {
+      console.error('Portfolio statement export failed:', err);
+      toast.error('Could not generate the statement');
+    } finally {
+      setStatementFor(null);
+    }
   };
 
   if (loading) {
@@ -138,8 +299,9 @@ export function ApprovedPartnerWithdrawals({ onBack }: Props) {
         </Card>
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-xs">
+      {/* Search + export */}
+      <div className="flex flex-wrap items-center gap-2">
+      <div className="relative max-w-xs flex-1 min-w-[200px]">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
         <input
           type="text"
@@ -153,6 +315,11 @@ export function ApprovedPartnerWithdrawals({ onBack }: Props) {
             <X className="h-3 w-3 text-muted-foreground" />
           </button>
         )}
+      </div>
+        <Button size="sm" variant="outline" onClick={handleExport} disabled={exporting || filtered.length === 0} className="gap-1">
+          {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileDown className="h-3.5 w-3.5" />}
+          Export PDF ({filtered.length})
+        </Button>
       </div>
 
       {/* List */}
@@ -168,13 +335,9 @@ export function ApprovedPartnerWithdrawals({ onBack }: Props) {
           {filtered.map(w => {
             const agentName = profiles[w.user_id] || 'Unknown Agent';
             const payeeName = w.mobile_money_name || w.bank_account_name || '—';
-            const partnerName = w.linked_party
-              ? (profiles[w.linked_party]
-                  || w.mobile_money_name
-                  || w.bank_account_name
-                  || 'Unknown Partner')
-              : '—';
+            const partnerName = partnerNameOf(w);
             const method = (w.fin_ops_payment_method || w.payout_method || '—').replace(/_/g, ' ');
+            const portfolioName = portfolioOf(w).name;
 
             return (
               <Card key={w.id} className="border-border/50">
@@ -187,6 +350,9 @@ export function ApprovedPartnerWithdrawals({ onBack }: Props) {
                       </div>
                       <p className="text-xs text-muted-foreground">
                         <span className="font-medium text-foreground">Partner:</span> {partnerName}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        <span className="font-medium text-foreground">Portfolio:</span> {portfolioName || '—'}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         <span className="font-medium text-foreground">Agent:</span> {agentName}
@@ -206,6 +372,20 @@ export function ApprovedPartnerWithdrawals({ onBack }: Props) {
                   {w.reason && (
                     <p className="text-[10px] text-muted-foreground italic truncate">{w.reason}</p>
                   )}
+                  <div className="pt-1">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 gap-1 text-[11px]"
+                      onClick={() => handleStatement(w)}
+                      disabled={statementFor === w.id}
+                    >
+                      {statementFor === w.id
+                        ? <Loader2 className="h-3 w-3 animate-spin" />
+                        : <FileText className="h-3 w-3" />}
+                      Statement PDF
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             );

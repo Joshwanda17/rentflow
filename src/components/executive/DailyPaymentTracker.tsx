@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
+import { TenantOpsReportToolbar } from './TenantOpsReportToolbar';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import { supabase } from '@/integrations/supabase/client';
@@ -29,6 +30,13 @@ import { format, formatDistanceToNow } from 'date-fns';
 
 type Filter = 'all' | 'paid' | 'unpaid';
 type DeviceFilter = 'all' | 'smartphone' | 'no-smartphone';
+
+/** Batches id lists so large tenant sets are never silently truncated. */
+const chunkIds = (list: string[], size = 300): string[][] => {
+  const out: string[][] = [];
+  for (let i = 0; i < list.length; i += size) out.push(list.slice(i, i + size));
+  return out;
+};
 
 interface ActiveTenant {
   tenant_id: string;
@@ -131,19 +139,33 @@ export function DailyPaymentTracker() {
     shareDailyPerformanceWhatsApp(buildReportData());
   };
 
-  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  // Today in East Africa Time (the operating day used across the platform),
+  // with explicit UTC boundaries so the query is not shifted by the browser tz.
+  const todayStr = format(new Date(Date.now() + 3 * 60 * 60 * 1000), 'yyyy-MM-dd');
+  const dayStartIso = new Date(`${todayStr}T00:00:00+03:00`).toISOString();
+  const dayEndIso = new Date(`${todayStr}T23:59:59.999+03:00`).toISOString();
 
   // Fetch active rent requests (disbursed/repaying)
   const { data: activeRequests, isLoading: reqLoading, refetch } = useQuery({
     queryKey: ['daily-tracker-active'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('rent_requests')
-        .select('id, tenant_id, agent_id, landlord_id, daily_repayment, rent_amount, amount_repaid, total_repayment, disbursed_at, status, tenant_no_smartphone')
-        .in('status', ['disbursed', 'repaying', 'funded'])
-        .not('disbursed_at', 'is', null);
-      if (error) throw error;
-      return data || [];
+      // `disbursed_at` is missing on most repaying plans, so it must not be used
+      // as a filter — doing so hid the majority of active plans from this tool.
+      // Paginated to survive the 1000-row Data API cap.
+      const all: any[] = [];
+      const page = 1000;
+      for (let from = 0; ; from += page) {
+        const { data, error } = await supabase
+          .from('rent_requests')
+          .select('id, tenant_id, agent_id, landlord_id, daily_repayment, rent_amount, amount_repaid, total_repayment, disbursed_at, funded_at, created_at, status, tenant_no_smartphone')
+          .in('status', ['disbursed', 'repaying', 'funded'])
+          .order('created_at', { ascending: false })
+          .range(from, from + page - 1);
+        if (error) throw error;
+        all.push(...(data || []));
+        if (!data || data.length < page) break;
+      }
+      return all;
     },
     staleTime: 120000,
   });
@@ -170,11 +192,13 @@ export function DailyPaymentTracker() {
     queryKey: ['daily-tracker-profiles', allUserIds],
     queryFn: async () => {
       if (!allUserIds.length) return [];
-      const { data } = await supabase
-        .from('profiles')
-        .select('id, full_name, phone')
-        .in('id', allUserIds.slice(0, 200));
-      return data || [];
+      // Batched — a hard slice(0, 200) left most tenants nameless.
+      const batches = await Promise.all(
+        chunkIds(allUserIds).map(ids =>
+          supabase.from('profiles').select('id, full_name, phone').in('id', ids),
+        ),
+      );
+      return batches.flatMap(b => b.data || []);
     },
     enabled: allUserIds.length > 0,
     staleTime: 300000,
@@ -186,11 +210,12 @@ export function DailyPaymentTracker() {
     queryKey: ['daily-tracker-landlords', landlordIds],
     queryFn: async () => {
       if (!landlordIds.length) return [];
-      const { data } = await supabase
-        .from('landlords')
-        .select('id, name, phone')
-        .in('id', landlordIds.slice(0, 500));
-      return data || [];
+      const batches = await Promise.all(
+        chunkIds(landlordIds).map(ids =>
+          supabase.from('landlords').select('id, name, phone').in('id', ids),
+        ),
+      );
+      return batches.flatMap(b => b.data || []);
     },
     enabled: landlordIds.length > 0,
     staleTime: 300000,
@@ -201,11 +226,12 @@ export function DailyPaymentTracker() {
     queryKey: ['daily-tracker-wallets', allUserIds],
     queryFn: async () => {
       if (!allUserIds.length) return [];
-      const { data } = await supabase
-        .from('wallets')
-        .select('user_id, balance')
-        .in('user_id', allUserIds.slice(0, 200));
-      return data || [];
+      const batches = await Promise.all(
+        chunkIds(allUserIds).map(ids =>
+          supabase.from('wallets').select('user_id, balance').in('user_id', ids),
+        ),
+      );
+      return batches.flatMap(b => b.data || []);
     },
     enabled: allUserIds.length > 0,
     staleTime: 120000,
@@ -215,13 +241,11 @@ export function DailyPaymentTracker() {
   const { data: todayCollections, isLoading: colLoading } = useQuery({
     queryKey: ['daily-tracker-collections', todayStr],
     queryFn: async () => {
-      const startOfDay = `${todayStr}T00:00:00`;
-      const endOfDay = `${todayStr}T23:59:59`;
       const { data, error } = await supabase
         .from('agent_collections')
         .select('tenant_id, amount')
-        .gte('created_at', startOfDay)
-        .lte('created_at', endOfDay);
+        .gte('created_at', dayStartIso)
+        .lte('created_at', dayEndIso);
       if (error) throw error;
       // Aggregate by tenant
       const map = new Map<string, number>();
@@ -237,13 +261,11 @@ export function DailyPaymentTracker() {
   const { data: latestAllocations } = useQuery({
     queryKey: ['daily-tracker-latest-allocations', todayStr],
     queryFn: async () => {
-      const startOfDay = `${todayStr}T00:00:00`;
-      const endOfDay = `${todayStr}T23:59:59`;
       const { data, error } = await supabase
         .from('agent_collections')
         .select('id, tenant_id, agent_id, amount, created_at, payment_method, location_name')
-        .gte('created_at', startOfDay)
-        .lte('created_at', endOfDay)
+        .gte('created_at', dayStartIso)
+        .lte('created_at', dayEndIso)
         .order('created_at', { ascending: false })
         .limit(30);
       if (error) throw error;
@@ -335,7 +357,8 @@ export function DailyPaymentTracker() {
         rent_amount: Number(r.rent_amount || 0),
         amount_repaid: Number(r.amount_repaid || 0),
         total_repayment: Number(r.total_repayment || 0),
-        disbursed_at: r.disbursed_at || '',
+        // Funding date is the fallback anchor when no disbursement stamp exists.
+        disbursed_at: r.disbursed_at || r.funded_at || r.created_at || '',
         rent_request_id: r.id,
         agent_id: r.agent_id || '',
         agent_name: agentProfile?.name || '—',
@@ -404,6 +427,14 @@ export function DailyPaymentTracker() {
           color={collectionRate >= 70 ? 'bg-emerald-500/10 text-emerald-600' : collectionRate >= 40 ? 'bg-amber-500/10 text-amber-600' : 'bg-destructive/10 text-destructive'}
         />
       </div>
+
+      <TenantOpsReportToolbar
+        tool="daily_payments"
+        status="all"
+        search={search}
+        visibleCount={paidCount}
+        fileSlug="tenant-daily-payments"
+      />
 
       {/* Share Actions */}
       <div className="flex gap-2">

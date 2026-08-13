@@ -4,6 +4,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import PersonNameFields from '@/components/shared/PersonNameFields';
+import { joinPersonName, splitPersonName, type PersonNameParts } from '@/lib/authValidation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Shield, TrendingUp, Loader2, CheckCircle, ArrowRight } from 'lucide-react';
 import ScreenLoader from '@/components/common/ScreenLoader';
@@ -25,7 +27,9 @@ export default function ActivatePartner() {
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('signup');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
+  // Captured in parts; `full_name` stays one concatenated string.
+  const [nameParts, setNameParts] = useState<PersonNameParts>({ firstName: '', otherNames: '', lastName: '' });
+  const fullName = joinPersonName(nameParts);
   const [phone, setPhone] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
   const [activated, setActivated] = useState(false);
@@ -51,7 +55,7 @@ export default function ActivatePartner() {
 
       setNote(data.note);
       if (data.note.email) setEmail(data.note.email);
-      setFullName(data.note.partner_name);
+      setNameParts(splitPersonName(data.note.partner_name || ''));
       setPhone(data.note.whatsapp_number);
 
       // Check if user is already logged in
@@ -229,7 +233,9 @@ export default function ActivatePartner() {
                 <>
                   <div>
                     <Label>Full Name</Label>
-                    <Input value={fullName} onChange={e => setFullName(e.target.value)} className="mt-1" />
+                    <div className="mt-1">
+                      <PersonNameFields idPrefix="activate-partner" value={nameParts} onChange={setNameParts} />
+                    </div>
                   </div>
                   <div>
                     <Label>Phone Number</Label>

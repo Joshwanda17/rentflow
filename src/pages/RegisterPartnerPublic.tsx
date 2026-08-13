@@ -8,7 +8,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { UGANDA_BANKS } from '@/lib/ugandaBanks';
-import { validateFullName } from '@/lib/authValidation';
+import {
+  validateFullName,
+  joinPersonName,
+  validatePersonNameParts,
+  type PersonNameParts,
+} from '@/lib/authValidation';
+import PersonNameFields from '@/components/shared/PersonNameFields';
 import {
   UserPlus, CheckCircle2, AlertCircle, Phone, User, Mail, MapPin,
   Loader2, Banknote, X, TrendingUp, Wallet
@@ -48,7 +54,9 @@ export default function RegisterPartnerPublic() {
   const [error, setError] = useState<string | null>(null);
 
   // Form fields
-  const [fullName, setFullName] = useState('');
+  // Captured in parts; `full_name` submitted as one concatenated string.
+  const [nameParts, setNameParts] = useState<PersonNameParts>({ firstName: '', otherNames: '', lastName: '' });
+  const fullName = joinPersonName(nameParts);
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [residence, setResidence] = useState('');
@@ -103,7 +111,7 @@ export default function RegisterPartnerPublic() {
   }, [agentId, token]);
 
   const canSubmit = !!(
-    validateFullName(fullName).valid && phone.trim() && email.trim() && residence.trim() &&
+    validatePersonNameParts(nameParts).valid && phone.trim() && email.trim() && residence.trim() &&
     amount >= 100000 && payoutMethod &&
     (payoutMethod === 'bank_transfer'
       ? bankName && accountName.trim() && accountNumber.trim()
@@ -226,8 +234,8 @@ export default function RegisterPartnerPublic() {
             </h3>
 
             <div className="space-y-1.5">
-              <Label htmlFor="fullName">Full Name *</Label>
-              <Input id="fullName" placeholder="John Doe" value={fullName} onChange={e => setFullName(e.target.value)} />
+              <Label>Full Name *</Label>
+              <PersonNameFields idPrefix="register-partner" value={nameParts} onChange={setNameParts} />
             </div>
 
             <div className="space-y-1.5">

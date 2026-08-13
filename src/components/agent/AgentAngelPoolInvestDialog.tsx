@@ -168,7 +168,7 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
           full_name: regName.trim(),
           phone: regPhone.trim(),
           agent_id: user.id,
-          notes: regNotes.trim() || 'Registered during Angel Pool investment',
+          notes: regNotes.trim() || 'Registered during Angel Pool funding',
         },
       });
 
@@ -219,22 +219,22 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
           funding_source: fundingSource,
           investment_date: investmentDate,
         },
-        errorTitle: 'Investment failed',
+        errorTitle: 'Funding failed',
       },
     );
     setSubmitting(false);
     if (error || !data) return;
     setResult(data);
     setStep('success');
-    toast.success('Angel Pool investment completed!');
+    toast.success('Angel Pool funding completed!');
     onSuccess?.();
   };
 
   const handleWhatsAppShare = () => {
     if (!result || !selectedInvestor) return;
     const msg = encodeURIComponent(
-      `✅ Angel Pool Investment Confirmed!\n\n` +
-      `Investor: ${selectedInvestor.full_name}\n` +
+      `✅ Angel Pool Funding Confirmed!\n\n` +
+      `Partner: ${selectedInvestor.full_name}\n` +
       `Amount: UGX ${result.actual_amount.toLocaleString()}\n` +
       `Shares: ${Number(result.shares).toLocaleString(undefined, { maximumFractionDigits: 4 })}\n` +
       `Pool Ownership: ${result.pool_ownership_percent.toFixed(4)}%\n` +
@@ -254,10 +254,10 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <PiggyBank className="h-5 w-5 text-emerald-500" />
-            {step === 'search' && (showRegister ? 'Register New Investor' : 'Select Investor')}
-            {step === 'amount' && 'Investment Details'}
-            {step === 'preview' && 'Confirm Investment'}
-            {step === 'success' && 'Investment Complete'}
+            {step === 'search' && (showRegister ? 'Register New Partner' : 'Select Partner')}
+            {step === 'amount' && 'Funding Details'}
+            {step === 'preview' && 'Confirm Funding'}
+            {step === 'success' && 'Funding Complete'}
           </DialogTitle>
         </DialogHeader>
 
@@ -303,7 +303,7 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
               className="w-full flex items-center justify-center gap-2 p-3 rounded-xl border border-dashed border-[#7718D1]/40 hover:bg-[#7718D1]/5 transition-colors text-[#7718D1] text-sm font-medium"
             >
               <UserPlus className="h-4 w-4" />
-              Register New Investor
+              Register New Partner
             </button>
           </div>
         )}
@@ -397,7 +397,7 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
             </div>
 
             <div className="space-y-2">
-              <Label>Investment Amount (UGX)</Label>
+              <Label>Funding Amount (UGX)</Label>
               <Input
                 type="number"
                 placeholder={`Min ${PRICE_PER_SHARE.toLocaleString()}`}
@@ -418,7 +418,7 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
             </div>
 
             <div className="space-y-2">
-              <Label>Investment Date <span className="text-destructive">*</span></Label>
+              <Label>Funding Date <span className="text-destructive">*</span></Label>
               <Input
                 type="date"
                 value={investmentDate}
@@ -448,7 +448,7 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
                 >
                   <div className="flex items-center gap-1.5 mb-1">
                     <Wallet className="h-3.5 w-3.5 text-primary" />
-                    <span className="text-xs font-semibold">Investor Wallet</span>
+                    <span className="text-xs font-semibold">Partner Wallet</span>
                   </div>
                   <p className="text-[11px] text-muted-foreground truncate">
                     {formatUGX(selectedInvestor.walletBalance)}
@@ -494,11 +494,11 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
           <div className="space-y-4">
             <div className="rounded-xl border border-border p-4 space-y-3">
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Investor</span>
+                <span className="text-muted-foreground">Partner</span>
                 <span className="font-medium">{selectedInvestor.full_name}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Investment Date</span>
+                <span className="text-muted-foreground">Funding Date</span>
                 <span className="font-medium">{investmentDate}</span>
               </div>
               <div className="flex justify-between text-sm">
@@ -508,7 +508,7 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Funded By</span>
                 <span className="font-medium">
-                  {fundingSource === 'agent' ? "Agent's Wallet" : "Investor's Wallet"}
+                  {fundingSource === 'agent' ? "Agent's Wallet" : "Partner's Wallet"}
                 </span>
               </div>
               <div className="flex justify-between text-sm">
@@ -551,7 +551,7 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
               <CheckCircle className="h-8 w-8 text-emerald-500" />
             </div>
             <div>
-              <p className="font-bold text-lg">Investment Confirmed!</p>
+              <p className="font-bold text-lg">Funding Confirmed!</p>
               <p className="text-sm text-muted-foreground mt-1">
                 {Number(result.shares).toLocaleString(undefined, { maximumFractionDigits: 4 })} shares allocated to {selectedInvestor.full_name}
               </p>

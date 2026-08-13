@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { TenantOpsReportToolbar } from './TenantOpsReportToolbar';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -311,6 +312,14 @@ export function TenantTransferAuditTrail() {
               <div className="text-lg font-bold text-amber-700">{missing}</div>
             </div>
           </div>
+
+          <TenantOpsReportToolbar
+            tool="transfer_audit"
+            status="all"
+            search={search}
+            visibleCount={filtered.length}
+            fileSlug="tenant-transfer-audit"
+          />
 
           <div className="space-y-2">
             <div className="flex items-center gap-2">

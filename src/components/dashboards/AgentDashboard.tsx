@@ -31,9 +31,8 @@ import {
   FileText,
   Users,
   Sparkles,
-  ArrowDownToLine,
-  ArrowUpFromLine,
-  ArrowLeftRight,
+  ArrowDownLeft,
+  ArrowUpRight,
   Building2,
   Briefcase,
   UserCog,
@@ -141,6 +140,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MissionBanner } from '@/components/mission/MissionBanner';
+import { MERCHANT_QUEUE_STATUSES } from '@/lib/merchantPayoutQueue';
 
 // Lazy-loaded modals/sheets — code-split so their JS only downloads when opened.
 const FullScreenWalletSheet = lazy(() => import('@/components/wallet/FullScreenWalletSheet').then(m => ({ default: m.FullScreenWalletSheet })));
@@ -517,7 +517,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   // if they claimed and processed them all. Drives the notification badge that
   // sits on top of the "Merchant Payouts" button. 0.5% commission per payout,
   // matching approve-withdrawal.
-  const CASHOUT_QUEUE_STATUSES = ['pending', 'requested', 'manager_approved', 'cfo_approved', 'fin_ops_approved'];
+  const CASHOUT_QUEUE_STATUSES = MERCHANT_QUEUE_STATUSES as unknown as string[];
   const CLAIM_WINDOW_MS = 15 * 60 * 1000;
   const COMMISSION_RATE = 0.005;
   // Mirror the exact filters the Merchant Payouts sheet uses so the badge
@@ -554,6 +554,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         .from('withdrawal_requests')
         .select('amount')
         .in('status', CASHOUT_QUEUE_STATUSES)
+        .is('processed_at', null)
+        .is('fin_ops_reference', null)
         .or(`assigned_cashout_agent_id.is.null,dispatched_at.lt.${cutoffIso}`);
       if (merchantCategoryOrClause) q = q.or(merchantCategoryOrClause);
       if (frozenUserIds.length) {
@@ -896,8 +898,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                 className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-white/20 hover:bg-white/10 active:scale-95 transition-all min-h-[44px]"
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
-                <ArrowDownToLine className="h-4 w-4 text-white/80" />
-                <span className="text-[11px] font-bold text-white/80 uppercase tracking-wider">Deposit</span>
+                <ArrowDownLeft className="h-4 w-4 text-white" />
+                <span className="text-[11px] font-bold text-white uppercase tracking-wider">Deposit</span>
               </button>
               <button
                 onClick={() => {
@@ -911,16 +913,16 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                 className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border min-h-[44px] ${payoutsUiEnabled ? 'border-white/20 hover:bg-white/10 active:scale-95 transition-all' : 'border-white/10 bg-white/5 opacity-50 cursor-not-allowed'}`}
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
-                <ArrowUpFromLine className="h-4 w-4 text-white/80" />
-                <span className="text-[11px] font-bold text-white/80 uppercase tracking-wider">Withdraw</span>
+                <ArrowUpRight className="h-4 w-4 text-white" />
+                <span className="text-[11px] font-bold text-white uppercase tracking-wider">Withdraw</span>
               </button>
               <button
                 onClick={() => { hapticTap(); setShowQuickTransfer(true); }}
                 className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-white/20 hover:bg-white/10 active:scale-95 transition-all min-h-[44px]"
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
-                <ArrowLeftRight className="h-4 w-4 text-white/80" />
-                <span className="text-[11px] font-bold text-white/80 uppercase tracking-wider">Transfer</span>
+                <Send className="h-4 w-4 text-white" />
+                <span className="text-[11px] font-bold text-white uppercase tracking-wider">Transfer</span>
               </button>
             </div>
           }
@@ -940,7 +942,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                 className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-border bg-muted/40 hover:bg-muted active:scale-95 transition-all min-h-[44px]"
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
-                <ArrowDownToLine className="h-4 w-4 text-muted-foreground" />
+                <ArrowDownLeft className="h-4 w-4 text-muted-foreground" />
                 <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Deposit</span>
               </button>
               <button
@@ -955,7 +957,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                 className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-border min-h-[44px] ${payoutsUiEnabled ? 'bg-muted/40 hover:bg-muted active:scale-95 transition-all' : 'bg-muted/40 opacity-50 cursor-not-allowed'}`}
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
-                <ArrowUpFromLine className="h-4 w-4 text-muted-foreground" />
+                <ArrowUpRight className="h-4 w-4 text-muted-foreground" />
                 <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Withdraw</span>
               </button>
               <button
@@ -963,7 +965,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                 className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-border bg-muted/40 hover:bg-muted active:scale-95 transition-all min-h-[44px]"
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
-                <ArrowLeftRight className="h-4 w-4 text-muted-foreground" />
+                <Send className="h-4 w-4 text-muted-foreground" />
                 <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Transfer</span>
               </button>
             </div>
@@ -1677,9 +1679,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             toast.info('Generating short link...');
             const { createShortLink } = await import('@/lib/createShortLink');
             const investorLink = await createShortLink(user.id, '/funder-onboarding', { ref: user.id, role: 'supporter' });
-            const shareText = `🦄 Join the Welile Angel Pool — invest in Africa's rent-tech revolution! Own equity in a high-growth platform. Sign up here: ${investorLink}`;
+            const shareText = `🦄 Join the Welile Angel Pool — back Africa's rent-tech revolution! Own equity in a high-growth platform. Sign up here: ${investorLink}`;
             if (navigator.share) {
-              navigator.share({ title: 'Invest in Welile Angel Pool', text: shareText, url: investorLink }).catch(() => {});
+              navigator.share({ title: 'Back the Welile Angel Pool', text: shareText, url: investorLink }).catch(() => {});
             } else {
               await navigator.clipboard.writeText(investorLink);
               toast.success('Angel investor signup link copied!');
@@ -1721,7 +1723,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             if (error || data?.error) throw new Error(data?.error || error?.message || 'Failed to generate link');
             const { createShortLink } = await import('@/lib/createShortLink');
             const partnerFormLink = await createShortLink(user.id, '/register-partner', { agent: user.id, token: data.token });
-            const shareText = `🤝 Invest with Welile and earn 15% monthly ROI! Register here: ${partnerFormLink}`;
+            const shareText = `🤝 Partner with Welile and earn 15% monthly ROI! Register here: ${partnerFormLink}`;
             if (navigator.share) {
               navigator.share({ title: 'Partner Registration', text: shareText, url: partnerFormLink }).catch(() => {});
             } else {

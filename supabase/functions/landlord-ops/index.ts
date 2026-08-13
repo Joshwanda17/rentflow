@@ -50,6 +50,8 @@ Deno.serve(async (req) => {
     let pendingFilter = url.searchParams.get("pending_filter") ?? "all";
     let limit = Number(url.searchParams.get("limit") ?? 20);
     let offset = Number(url.searchParams.get("offset") ?? 0);
+    let dateFrom = url.searchParams.get("date_from") ?? "";
+    let dateTo = url.searchParams.get("date_to") ?? "";
 
     if (req.method === "POST") {
       try {
@@ -62,6 +64,8 @@ Deno.serve(async (req) => {
           if (typeof body.pending_filter === "string") pendingFilter = body.pending_filter;
           if (typeof body.limit === "number") limit = body.limit;
           if (typeof body.offset === "number") offset = body.offset;
+          if (typeof body.date_from === "string") dateFrom = body.date_from;
+          if (typeof body.date_to === "string") dateTo = body.date_to;
         }
       } catch (_) {
         /* no body */
@@ -109,10 +113,58 @@ Deno.serve(async (req) => {
       empty_monthly_revenue: Number(t.empty_monthly_revenue ?? 0),
     });
 
+    const dateFromIso = dateFrom ? new Date(dateFrom).toISOString() : null;
+    const dateToIso = dateTo ? new Date(dateTo).toISOString() : null;
+
     if (action === "totals") {
       const totalsRes = await adminClient.rpc("get_landlord_ops_totals");
       if (totalsRes.error) return json({ error: totalsRes.error.message }, 500);
       return json({ totals: mapTotals((totalsRes.data && totalsRes.data[0]) || {}) }, 200);
+    }
+
+    // Search/date-scoped counts for the landlord verification stats + chips.
+    if (action === "scoped_counts") {
+      const res = await adminClient.rpc("ops_landlord_status_counts", {
+        p_search: search || null,
+        p_date_from: dateFromIso,
+        p_date_to: dateToIso,
+      });
+      if (res.error) return json({ error: res.error.message }, 500);
+      const r = (res.data && res.data[0]) || {};
+      return json({
+        counts: {
+          all: Number(r.all_landlords ?? 0),
+          verified: Number(r.verified ?? 0),
+          pending: Number(r.pending ?? 0),
+          rejected: Number(r.rejected ?? 0),
+          resubmitted: Number(r.resubmitted ?? 0),
+          has_tenants: Number(r.has_tenants ?? 0),
+          no_tenants: Number(r.no_tenants ?? 0),
+          verified_human: Number(r.verified_human ?? 0),
+          verified_auto: Number(r.verified_auto ?? 0),
+          smartphone: Number(r.smartphone ?? 0),
+          occupied_monthly_revenue: Number(r.occupied_monthly_revenue ?? 0),
+          empty_monthly_revenue: Number(r.empty_monthly_revenue ?? 0),
+        },
+      }, 200);
+    }
+
+    // Full report payload for the landlord verification PDF export.
+    if (action === "report") {
+      const res = await adminClient.rpc("ops_landlord_report", {
+        p_status: category,
+        p_search: search || null,
+        p_quick: pendingFilter,
+        p_date_from: dateFromIso,
+        p_date_to: dateToIso,
+        p_limit: 10000,
+      });
+      if (res.error) return json({ error: res.error.message }, 500);
+      const payload = (res.data ?? []) as any[];
+      return json({
+        rows: payload.map((p) => p.row_data ?? p),
+        totalMatched: Number(payload[0]?.total_count ?? payload.length),
+      }, 200);
     }
 
     // Default: rows + totals in parallel so the UI can render KPIs and the list from one call.
@@ -125,6 +177,8 @@ Deno.serve(async (req) => {
         _pending_filter: pendingFilter,
         _limit: limit,
         _offset: offset,
+        _date_from: dateFromIso,
+        _date_to: dateToIso,
       }),
     ]);
 

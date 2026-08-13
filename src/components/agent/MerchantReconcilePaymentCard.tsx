@@ -9,13 +9,9 @@ import { normalizeMomoTid } from '@/lib/momoTid';
 import { hapticTap } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 
-const CASHOUT_QUEUE_STATUSES = [
-  'pending',
-  'requested',
-  'manager_approved',
-  'cfo_approved',
-  'fin_ops_approved',
-];
+import { MERCHANT_QUEUE_STATUSES } from '@/lib/merchantPayoutQueue';
+
+const CASHOUT_QUEUE_STATUSES = MERCHANT_QUEUE_STATUSES as unknown as string[];
 
 function last9(phone: string): string | null {
   const digits = phone.replace(/\D/g, '');
@@ -90,6 +86,8 @@ export function MerchantReconcilePaymentCard({ agentId, cashoutAgentId, onDone }
         .in('user_id', ids)
         .in('status', CASHOUT_QUEUE_STATUSES)
         .is('transaction_id', null)
+        .is('processed_at', null)
+        .is('fin_ops_reference', null)
         .order('created_at', { ascending: false })
         .limit(20);
       const map = new Map<string, any>(profs.map((p: any) => [p.id, p]));

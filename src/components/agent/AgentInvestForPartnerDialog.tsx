@@ -133,11 +133,11 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
       return false;
     }
     if (parsedAmount < 1000) {
-      toast.error('Minimum investment is UGX 1,000');
+      toast.error('Minimum funding is UGX 1,000');
       return false;
     }
     if (parsedAmount > MAX_INVEST) {
-      toast.error(`Maximum investment is ${formatUGX(MAX_INVEST)}`);
+      toast.error(`Maximum funding is ${formatUGX(MAX_INVEST)}`);
       return false;
     }
     if (parsedAmount > agentBalance) {
@@ -149,7 +149,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
       return false;
     }
     if (investmentReference.trim().length < 3) {
-      toast.error('Investment reference is required (min 3 characters)');
+      toast.error('Funding reference is required (min 3 characters)');
       return false;
     }
     if (!receiptFile) {
@@ -216,7 +216,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
             full_name: partnerName.trim(),
             phone: partnerPhone.trim(),
             agent_id: user.id,
-            notes: 'Auto-registered during field investment',
+            notes: 'Auto-registered during field funding',
           },
         });
 
@@ -242,7 +242,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
       });
 
       if (error) {
-        const msg = await extractFromErrorObject(error, 'Investment failed');
+        const msg = await extractFromErrorObject(error, 'Funding failed');
         throw new Error(msg);
       }
       if (data?.error) throw new Error(data.error);
@@ -259,10 +259,10 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
         portfolio_code: data.portfolio_code || null,
       });
       setAgentBalance(data.new_balance);
-      toast.success('Investment completed — portfolio is active!');
+      toast.success('Funding completed — portfolio is active!');
       onSuccess?.();
     } catch (err: any) {
-      toast.error(err.message || 'Investment failed');
+      toast.error(err.message || 'Funding failed');
     } finally {
       setSubmitting(false);
     }
@@ -288,7 +288,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
     const activationLink = shortActivationLink
       || (s.activation_token ? `${getPublicOrigin()}/join?t=${s.activation_token}` : null);
 
-    let msg = `🎉 Your Welile Investment is Active!\n\nHi ${s.partner_name}, ${s.agent_name} has invested ${formatUGX(s.amount)} on your behalf into the Rent Management Pool.\n\n✅ Your portfolio is now active!\n\n💰 Monthly Reward: ${formatUGX(s.monthly_reward)} (15%)\n📅 Payout Cycle: Every 30 days\n🗓️ First Payout: ${s.first_payout_date}`;
+    let msg = `🎉 Your Welile Funding is Active!\n\nHi ${s.partner_name}, ${s.agent_name} has funded ${formatUGX(s.amount)} on your behalf into the Rent Management Pool.\n\n✅ Your portfolio is now active!\n\n💰 Monthly Reward: ${formatUGX(s.monthly_reward)} (15%)\n📅 Payout Cycle: Every 30 days\n🗓️ First Payout: ${s.first_payout_date}`;
 
     if (s.portfolio_code) {
       msg += `\n📋 Portfolio: ${s.portfolio_code}`;
@@ -326,7 +326,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
     const msg = buildShareMessage(success);
     if (navigator.share) {
       try {
-        await navigator.share({ title: 'Welile Investment', text: msg });
+        await navigator.share({ title: 'Welile Funding', text: msg });
       } catch {
         // user cancelled
       }
@@ -351,7 +351,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
             </div>
             <h3 className="font-bold text-lg">Portfolio Activated!</h3>
             <div className="space-y-2 text-sm text-muted-foreground">
-              <p>Invested on behalf of <strong className="text-foreground">{success.partner_name}</strong></p>
+              <p>Funded on behalf of <strong className="text-foreground">{success.partner_name}</strong></p>
               {success.portfolio_code && (
                 <p>Portfolio: <strong className="font-mono text-foreground">{success.portfolio_code}</strong></p>
               )}
@@ -420,10 +420,10 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <HandCoins className="h-5 w-5 text-primary" />
-              Invest for Partner
+              Fund Partner
             </DialogTitle>
             <DialogDescription>
-              Enter partner details and investment amount. If the partner is new, they'll be registered automatically.
+              Enter partner details and funding amount. If the partner is new, they'll be registered automatically.
             </DialogDescription>
           </DialogHeader>
 
@@ -469,9 +469,9 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
               </div>
             </div>
 
-            {/* Investment Amount */}
+            {/* Funding Amount */}
             <div className="space-y-2">
-              <Label htmlFor="invest-amount">Investment Amount (UGX)</Label>
+              <Label htmlFor="invest-amount">Funding Amount (UGX)</Label>
               <Input
                 id="invest-amount"
                 type="number"
@@ -499,9 +499,9 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
               )}
             </div>
 
-            {/* Investment Reference */}
+            {/* Funding Reference */}
             <div className="space-y-2">
-              <Label htmlFor="invest-ref">Investment Reference</Label>
+              <Label htmlFor="invest-ref">Funding Reference</Label>
               <div className="relative">
                 <FileText className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -559,7 +559,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
 
             {/* Payout Cycle Info */}
             <div className="p-3 rounded-lg bg-muted/50 border border-border/60">
-              <p className="text-xs text-muted-foreground">📅 Payout Cycle: <strong className="text-foreground">Every 30 days</strong> from investment date</p>
+              <p className="text-xs text-muted-foreground">📅 Payout Cycle: <strong className="text-foreground">Every 30 days</strong> from funding date</p>
             </div>
 
             {/* Reward Preview */}
@@ -588,7 +588,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
               ) : (
                 <>
                   <HandCoins className="h-4 w-4 mr-2" />
-                  Invest {parsedAmount >= 1000 ? formatUGX(parsedAmount) : ''} for Partner
+                  Fund {parsedAmount >= 1000 ? formatUGX(parsedAmount) : ''} for Partner
                 </>
               )}
             </Button>
@@ -601,7 +601,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
             <AlertDialogHeader>
               <AlertDialogTitle className="flex items-center gap-2">
                 <HandCoins className="h-5 w-5 text-primary" />
-                Confirm Investment
+                Confirm Funding
               </AlertDialogTitle>
               <AlertDialogDescription asChild>
                 <div className="space-y-3 pt-2">

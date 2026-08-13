@@ -431,3 +431,40 @@ export async function changeDepartment(input: {
     }),
   ) as string;
 }
+
+/**
+ * Ends one open assignment, so the person no longer holds that position or
+ * sits in that department. History is kept: the row is closed with an
+ * `ended_on` date rather than deleted, and the primary flag is cleared so a
+ * different assignment can take over as primary afterwards.
+ */
+export async function endAssignment(input: {
+  assignmentId: string;
+  reason: string;
+  endedOn?: string;
+}): Promise<void> {
+  const endedOn = input.endedOn ?? new Date().toISOString().slice(0, 10);
+  const rows = unwrap(
+    await supabase
+      .from('hr_assignments')
+      .update({ ended_on: endedOn, is_primary: false })
+      .eq('id', input.assignmentId)
+      .is('ended_on', null)
+      .select('id'),
+  ) as unknown as { id: string }[];
+
+  if (!rows || rows.length === 0) {
+    throw new Error(
+      'Nothing was removed. The assignment may already be closed, or your role does not permit this change.',
+    );
+  }
+
+  const { data: auth } = await supabase.auth.getUser();
+  await supabase.from('audit_logs').insert({
+    action_type: 'hr_assignment_ended',
+    table_name: 'hr_assignments',
+    record_id: input.assignmentId,
+    user_id: auth?.user?.id ?? null,
+    metadata: { reason: input.reason, ended_on: endedOn },
+  });
+}

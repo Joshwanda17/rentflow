@@ -9,6 +9,8 @@ import { Loader2, RefreshCw, Send } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { LandlordSearchSelect, type LandlordOption } from '@/components/agent/LandlordSearchSelect';
+import PersonNameFields from '@/components/shared/PersonNameFields';
+import { joinPersonName, splitPersonName, type PersonNameParts } from '@/lib/authValidation';
 import { toast } from 'sonner';
 import { calculateRentRepayment, formatUGX } from '@/lib/rentCalculations';
 import type { AgentRejectedRequest } from '@/hooks/useAgentRejectedRequests';
@@ -54,7 +56,10 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
   const [landlord, setLandlord] = useState<LandlordOption | null>(null);
   const [outstandingBalance, setOutstandingBalance] = useState('');
   const [graceDays, setGraceDays] = useState('');
-  const [landlordName, setLandlordName] = useState('');
+  // Captured in parts; submission still uses the single concatenated string.
+  const [landlordNameParts, setLandlordNameParts] = useState<PersonNameParts>({ firstName: '', otherNames: '', lastName: '' });
+  const landlordName = joinPersonName(landlordNameParts);
+  const setLandlordName = (next: string) => setLandlordNameParts(splitPersonName(next));
   const [landlordPhone, setLandlordPhone] = useState('');
   const [landlordAddress, setLandlordAddress] = useState('');
   const [landlordOriginal, setLandlordOriginal] = useState<{ name: string; phone: string; address: string } | null>(null);
@@ -362,8 +367,11 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
               </p>
               <div className="space-y-1.5">
                 <Label htmlFor="ll-name">Landlord name</Label>
-                <Input id="ll-name" value={landlordName}
-                  onChange={(e) => setLandlordName(e.target.value)} />
+                <PersonNameFields
+                  idPrefix="edit-rent-req-landlord"
+                  value={landlordNameParts}
+                  onChange={setLandlordNameParts}
+                />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">

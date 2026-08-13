@@ -34,6 +34,7 @@ import { BatchPayoutProcessor } from '@/components/cfo/BatchPayoutProcessor';
 import { LandlordFloatAllocationsPanel } from '@/components/cfo/LandlordFloatAllocationsPanel';
 import { WithdrawalHistoryStatement } from '@/components/financial-ops/WithdrawalHistoryStatement';
 import { StaleWithdrawalHoldsPanel } from '@/components/cfo/StaleWithdrawalHoldsPanel';
+import { PayoutReconciliationQueue } from '@/components/financial-ops/PayoutReconciliationQueue';
 import { AutoPayoutHistory } from '@/components/cfo/AutoPayoutHistory';
 import { DailyCashPositionReport } from '@/components/cfo/DailyCashPositionReport';
 import { RentPipelineQueue } from '@/components/executive/RentPipelineQueue';
@@ -89,6 +90,7 @@ import { SwipeOnboardingHint } from '@/components/cfo/SwipeOnboardingHint';
 import { useSwipeSensitivity } from '@/hooks/useSwipeSensitivity';
 import { usePersistedActiveTab } from '@/hooks/usePersistedActiveTab';
 import { useCfoAdvanceDisbursementCount } from '@/hooks/useCfoAdvanceDisbursementCount';
+import { CFOApprovalNotificationsBell } from '@/components/cfo/CFOApprovalNotificationsBell';
 
 // Ordered, swipeable tab ids derived from the CFO sidebar (route items excluded).
 const CFO_TAB_SEQUENCE = (executiveSidebarConfig.cfo ?? [])
@@ -244,7 +246,13 @@ export default function CFODashboardPage() {
       case 'withdrawal-history':
         return <WithdrawalHistoryStatement />;
       case 'withdrawal-reconciliation':
-        return <StaleWithdrawalHoldsPanel />;
+        return (
+          <div className="space-y-6">
+            {/* PHASE 8: incomplete/unsafe payouts always visible to CFO. */}
+            <PayoutReconciliationQueue />
+            <StaleWithdrawalHoldsPanel />
+          </div>
+        );
       case 'financial-agents':
         return <FinancialAgentsPanel />;
       case 'cashout-agents':
@@ -281,7 +289,7 @@ export default function CFODashboardPage() {
               </p>
             </div>
             <CFOAllocationReturnApprovals />
-            <RentDisbursementQueue />
+            <RentDisbursementQueue locationProvisionsOnly />
             <BatchPayoutProcessor />
             <LandlordFloatAllocationsPanel />
           </div>
@@ -486,6 +494,7 @@ export default function CFODashboardPage() {
       activeTab={activeTab}
       onTabChange={setActiveTab}
       badges={{ advances: advanceDisbursementCount }}
+      headerActions={<CFOApprovalNotificationsBell onJump={setActiveTab} />}
     >
       <CFOBreadcrumbHeader
         activeTab={activeTab}

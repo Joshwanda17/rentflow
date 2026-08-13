@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, FileDown, Printer, RefreshCw, AlertTriangle, CheckCircle2, FileText, CalendarDays, Clock, ShieldCheck } from 'lucide-react';
+import { Loader2, FileDown, Printer, RefreshCw, AlertTriangle, CheckCircle2, FileText, CalendarDays, Clock, ShieldCheck, Search } from 'lucide-react';
 import { downloadCsv } from '@/lib/csvExport';
 import { toast } from 'sonner';
 
@@ -85,6 +85,7 @@ export default function RoiDisbursementReportPanel() {
   const today = new Date(Date.now() + 3 * 3600 * 1000).toISOString().slice(0, 10);
   const [period, setPeriod] = useState<Period>('daily');
   const [anchor, setAnchor] = useState<string>(today);
+  const [nameSearch, setNameSearch] = useState('');
   const range = useMemo(() => periodRange(period, anchor), [period, anchor]);
 
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
@@ -102,6 +103,18 @@ export default function RoiDisbursementReportPanel() {
 
   const periodTitle = `${PERIOD_LABEL[period]} Returns Disbursement Report`;
   const fileStem = `ROI_Disbursement_Report_${period}_${anchor}`;
+
+  const nameQuery = nameSearch.trim().toLowerCase();
+  const matchesName = (r: { partner?: string | null; paid_to?: string | null; portfolio_phone?: string | null }) =>
+    !nameQuery ||
+    (r.partner ?? '').toLowerCase().includes(nameQuery) ||
+    (r.paid_to ?? '').toLowerCase().includes(nameQuery) ||
+    (r.portfolio_phone ?? '').toLowerCase().includes(nameQuery);
+
+  const cashRows = useMemo(() => (data?.cash ?? []).filter(matchesName), [data, nameQuery]);
+  const compoundedRows = useMemo(() => (data?.compounded ?? []).filter(matchesName), [data, nameQuery]);
+  const cashFilteredTotal = cashRows.reduce((s, r) => s + Number(r.returns_paid ?? 0), 0);
+  const compoundedFilteredTotal = compoundedRows.reduce((s, r) => s + Number(r.returns_compounded ?? 0), 0);
 
   const exportCash = () => {
     if (!data) return;
@@ -250,6 +263,7 @@ export default function RoiDisbursementReportPanel() {
                   <Kpi label="Compounded to principal" value={fmtUGX(data.summary.compounded_total)} hint={`${data.summary.compounded_portfolios} portfolios`} />
                   <Kpi label="Partners affected" value={String(data.summary.partners_affected)} hint={`Principal base ${fmtUGX(data.summary.principal_total)}`} />
                 </div>
+
               </div>
 
               {/* Section 1 */}
@@ -257,10 +271,27 @@ export default function RoiDisbursementReportPanel() {
                 <SectionTitle
                   index={1}
                   title="Cash Returns disbursed to wallets"
-                  right={<Button variant="ghost" size="sm" className="no-print" onClick={exportCash} disabled={!data.cash.length}><FileDown className="h-4 w-4 mr-1" />CSV</Button>}
+                  right={
+                    <div className="flex items-center gap-2">
+                      <div className="relative w-full sm:w-64">
+                        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                          type="text"
+                          value={nameSearch}
+                          onChange={(e) => setNameSearch(e.target.value)}
+                          placeholder="Filter by partner name…"
+                          className="h-9 rounded-lg pl-8 text-sm"
+                          aria-label="Filter by partner name"
+                        />
+                      </div>
+                      <Button variant="ghost" size="sm" className="no-print" onClick={exportCash} disabled={!data.cash.length}><FileDown className="h-4 w-4 mr-1" />CSV</Button>
+                    </div>
+                  }
                 />
                 {data.cash.length === 0 ? (
                   <Empty text="No cash Returns were disbursed in this window." />
+                ) : cashRows.length === 0 ? (
+                  <Empty text="No records match this name." />
                 ) : (
                   <div className="overflow-x-auto rounded-md border">
                     <table className="w-full text-sm">
@@ -271,7 +302,7 @@ export default function RoiDisbursementReportPanel() {
                         </tr>
                       </thead>
                       <tbody>
-                        {data.cash.map((r) => (
+                        {cashRows.map((r) => (
                           <tr key={`${r.n}-${r.portfolio_code}`} className="border-t">
                             <Td>{r.n}</Td>
                             <Td className="font-mono text-xs">{r.portfolio_phone}</Td>
@@ -285,8 +316,8 @@ export default function RoiDisbursementReportPanel() {
                       </tbody>
                       <tfoot>
                         <tr className="border-t bg-muted/40 font-semibold">
-                          <Td colSpan={5}>Total cash disbursed</Td>
-                          <Td align="right">{fmtUGX(data.summary.cash_total)}</Td>
+                          <Td colSpan={5}>{nameQuery ? 'Total cash disbursed (filtered)' : 'Total cash disbursed'}</Td>
+                          <Td align="right">{fmtUGX(nameQuery ? cashFilteredTotal : data.summary.cash_total)}</Td>
                           <Td />
                         </tr>
                       </tfoot>
@@ -304,6 +335,8 @@ export default function RoiDisbursementReportPanel() {
                 />
                 {data.compounded.length === 0 ? (
                   <Empty text="No Returns were compounded in this window." />
+                ) : compoundedRows.length === 0 ? (
+                  <Empty text="No records match this name." />
                 ) : (
                   <div className="overflow-x-auto rounded-md border">
                     <table className="w-full text-sm">
@@ -314,7 +347,7 @@ export default function RoiDisbursementReportPanel() {
                         </tr>
                       </thead>
                       <tbody>
-                        {data.compounded.map((r) => (
+                        {compoundedRows.map((r) => (
                           <tr key={`${r.n}-${r.portfolio_code}`} className="border-t">
                             <Td>{r.n}</Td>
                             <Td className="font-mono text-xs">{r.portfolio_phone}</Td>
@@ -328,8 +361,8 @@ export default function RoiDisbursementReportPanel() {
                       </tbody>
                       <tfoot>
                         <tr className="border-t bg-muted/40 font-semibold">
-                          <Td colSpan={4}>Total compounded</Td>
-                          <Td align="right">{fmtUGX(data.summary.compounded_total)}</Td>
+                          <Td colSpan={4}>{nameQuery ? 'Total compounded (filtered)' : 'Total compounded'}</Td>
+                          <Td align="right">{fmtUGX(nameQuery ? compoundedFilteredTotal : data.summary.compounded_total)}</Td>
                           <Td colSpan={2} />
                         </tr>
                       </tfoot>

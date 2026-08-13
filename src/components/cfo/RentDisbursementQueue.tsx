@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef, Fragment } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,7 +16,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Loader2, CheckCircle2, Banknote, Home, TrendingUp, Users, Wallet, AlertTriangle, XCircle, CalendarDays, Search } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Loader2, CheckCircle2, Banknote, Home, TrendingUp, Users, Wallet, AlertTriangle, XCircle, Search, MapPin, Filter } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -45,7 +46,53 @@ interface ApprovedRentItem {
   payout_target: 'landlord_wallet' | 'agent_float';
   request_country: string | null;
   request_city: string | null;
+  request_district: string | null;
+  /** Read-only tenant location / category attributes (for filtering only). */
+  loc_town: string | null;
+  loc_city: string | null;
+  loc_sub_county: string | null;
+  loc_parish: string | null;
+  loc_village: string | null;
+  loc_region: string | null;
+  loc_house_category: string | null;
 }
+
+/** Same category set the previous "Pay by Location / Category" picker offered. */
+type CatFieldKey =
+  | 'district'
+  | 'town'
+  | 'city'
+  | 'sub_county'
+  | 'parish'
+  | 'village'
+  | 'region'
+  | 'house_category';
+
+const CAT_FIELD_LABELS: Record<CatFieldKey, string> = {
+  district: 'District',
+  town: 'Town Council',
+  city: 'City / Municipality',
+  sub_county: 'Sub-county',
+  parish: 'Parish',
+  village: 'Village',
+  region: 'Region',
+  house_category: 'House category',
+};
+
+const CAT_FIELD_KEYS = Object.keys(CAT_FIELD_LABELS) as CatFieldKey[];
+
+const catValueOf = (it: ApprovedRentItem, field: CatFieldKey): string => {
+  const raw =
+    field === 'district' ? it.request_district
+    : field === 'town' ? it.loc_town
+    : field === 'city' ? (it.loc_city ?? it.request_city)
+    : field === 'sub_county' ? it.loc_sub_county
+    : field === 'parish' ? it.loc_parish
+    : field === 'village' ? it.loc_village
+    : field === 'region' ? it.loc_region
+    : it.loc_house_category;
+  return (raw || '').toString().trim();
+};
 
 interface RentDisbursementQueueProps {
   /**
@@ -57,18 +104,30 @@ interface RentDisbursementQueueProps {
   restrictToIds?: string[];
   /** Optional: tick these rows on mount (same checkboxes as usual). */
   autoSelectIds?: string[];
+  /** When true, the district and town/city filter controls are hidden. */
+  /**
+   * UI-only: show just the three location provisions
+   * (Districts, Municipality/Town, All Agents) and hide the
+   * category / country pickers. No filtering logic changes.
+   */
+  locationProvisionsOnly?: boolean;
 }
 
-export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisbursementQueueProps = {}) {
+export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationProvisionsOnly = false }: RentDisbursementQueueProps = {}) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [agentFilter, setAgentFilter] = useState<string>('all');
   const [countryFilter, setCountryFilter] = useState<string>('all');
+  const [districtFilter, setDistrictFilter] = useState<string>('all');
+  const [cityFilter, setCityFilter] = useState<string>('all');
+  const [catField, setCatField] = useState<CatFieldKey>('district');
+  const [catValue, setCatValue] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<'all' | '7d' | '30d'>('all');
   const [search, setSearch] = useState('');
   const [batchRef, setBatchRef] = useState('');
   const [rejectTarget, setRejectTarget] = useState<ApprovedRentItem | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [drilldownAgentId, setDrilldownAgentId] = useState<string | null>(null);
+  const step2Ref = useRef<HTMLDivElement | null>(null);
   const qc = useQueryClient();
   const { user } = useAuth();
 
@@ -78,7 +137,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
       // Get COO-approved rent requests
       const { data: requests, error } = await supabase
         .from('rent_requests')
-        .select('id, rent_amount, tenant_id, landlord_id, agent_id, assigned_agent_id, access_fee, request_fee, total_repayment, created_at, request_country, request_city')
+        .select('id, rent_amount, tenant_id, landlord_id, agent_id, assigned_agent_id, access_fee, request_fee, total_repayment, created_at, request_country, request_city, house_listing_id')
         .eq('status', 'coo_approved')
         .order('created_at', { ascending: true });
       if (error) throw error;
@@ -92,9 +151,16 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
       // Fetch profiles for tenants and agents
       const allUserIds = [...new Set([...tenantIds, ...agentIds])];
       const profileMap = new Map<string, string>();
+      const tenantLocMap = new Map<string, any>();
       if (allUserIds.length) {
-        const { data: profiles } = await supabase.from('profiles').select('id, full_name').in('id', allUserIds);
-        for (const p of profiles || []) profileMap.set(p.id, p.full_name || 'Unknown');
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name, town, city, sub_county, parish, village, region, district, tenant_house_category')
+          .in('id', allUserIds);
+        for (const p of profiles || []) {
+          profileMap.set(p.id, (p as any).full_name || 'Unknown');
+          tenantLocMap.set(p.id, p);
+        }
       }
 
       // Fetch landlord names
@@ -115,9 +181,21 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
         for (const w of wallets || []) walletSet.add(w.user_id);
       }
 
+      // Read-only enrichment so the existing table can be filtered by district.
+      const listingIds = [...new Set(requests.map(r => (r as any).house_listing_id).filter(Boolean) as string[])];
+      const districtMap = new Map<string, string>();
+      if (listingIds.length) {
+        const { data: listings } = await supabase
+          .from('house_listings')
+          .select('id, district')
+          .in('id', listingIds);
+        for (const l of listings || []) if (l.district) districtMap.set(l.id, l.district);
+      }
+
       return requests.map(r => {
         const agentId = r.assigned_agent_id || r.agent_id;
         const hasWallet = walletSet.has(r.landlord_id);
+        const loc: any = tenantLocMap.get(r.tenant_id) || {};
         return {
           ...r,
           access_fee: r.access_fee ?? 0,
@@ -130,6 +208,14 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
           payout_target: hasWallet ? 'landlord_wallet' as const : 'agent_float' as const,
           request_country: (r as any).request_country ?? null,
           request_city: (r as any).request_city ?? null,
+          request_district: loc.district ?? districtMap.get((r as any).house_listing_id) ?? null,
+          loc_town: loc.town ?? null,
+          loc_city: loc.city ?? null,
+          loc_sub_county: loc.sub_county ?? null,
+          loc_parish: loc.parish ?? null,
+          loc_village: loc.village ?? null,
+          loc_region: loc.region ?? null,
+          loc_house_category: loc.tenant_house_category ?? null,
         };
       });
     },
@@ -144,9 +230,13 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
     setSelected(new Set(autoSelectIds));
   }, [autoSelectIds?.join(',')]);
 
-  const restrictSet = useMemo(
-    () => (restrictToIds && restrictToIds.length ? new Set(restrictToIds) : null),
+  const effectiveRestrictIds = useMemo(
+    () => (restrictToIds && restrictToIds.length ? restrictToIds : null),
     [restrictToIds?.join(',')],
+  );
+  const restrictSet = useMemo(
+    () => (effectiveRestrictIds && effectiveRestrictIds.length ? new Set(effectiveRestrictIds) : null),
+    [effectiveRestrictIds?.join(',')],
   );
   const totalRent = useMemo(() => selectedItems.reduce((s, i) => s + i.rent_amount, 0), [selectedItems]);
   const totalRevenue = useMemo(() => selectedItems.reduce((s, i) => s + i.access_fee + i.request_fee, 0), [selectedItems]);
@@ -168,13 +258,59 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
     return items.filter(it => {
       if (restrictSet && !restrictSet.has(it.id)) return false;
       if (cutoff !== null && new Date(it.created_at).getTime() < cutoff) return false;
+      if (districtFilter !== 'all' && ((it.request_district || '').trim() || 'Unknown') !== districtFilter) return false;
+      if (cityFilter !== 'all' && ((it.request_city || '').trim() || 'Unknown') !== cityFilter) return false;
+      if (catValue !== 'all' && (catValueOf(it, catField) || 'Unknown') !== catValue) return false;
       if (q) {
         const haystack = `${it.tenant_name} ${it.landlord_name} ${it.agent_name}`.toLowerCase();
         if (!haystack.includes(q)) return false;
       }
       return true;
     });
-  }, [items, dateFilter, search, restrictSet]);
+  }, [items, dateFilter, search, restrictSet, districtFilter, cityFilter, catField, catValue]);
+
+  // Category option list for the currently chosen category type.
+  const catOptions = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const it of items) {
+      const key = catValueOf(it, catField) || 'Unknown';
+      map.set(key, (map.get(key) ?? 0) + 1);
+    }
+    return [...map.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [items, catField]);
+
+  // Location option lists, derived from the same rows the table shows.
+  const districtOptions = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const it of items) {
+      const key = (it.request_district || '').trim() || 'Unknown';
+      map.set(key, (map.get(key) ?? 0) + 1);
+    }
+    return [...map.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [items]);
+
+  const cityOptions = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const it of items) {
+      if (districtFilter !== 'all' && ((it.request_district || '').trim() || 'Unknown') !== districtFilter) continue;
+      const key = (it.request_city || '').trim() || 'Unknown';
+      map.set(key, (map.get(key) ?? 0) + 1);
+    }
+    return [...map.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [items, districtFilter]);
+
+  const locationScoped = districtFilter !== 'all' || cityFilter !== 'all' || countryFilter !== 'all';
+  const locationScopeLabel = [
+    districtFilter !== 'all' ? districtFilter : null,
+    cityFilter !== 'all' ? cityFilter : null,
+    countryFilter !== 'all' ? countryFilter : null,
+  ].filter(Boolean).join(' · ');
+  const clearLocation = () => {
+    setDistrictFilter('all');
+    setCityFilter('all');
+    setCountryFilter('all');
+    setCatValue('all');
+  };
 
   // Group rows by agent so CFO can pick one tenant, a few, or all of an
   // agent's tenants at a glance.
@@ -227,6 +363,11 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
   );
   const visibleItems = useMemo(() => visibleGroups.flatMap(g => g.rows), [visibleGroups]);
   const allSelected = visibleItems.length > 0 && visibleItems.every(i => selected.has(i.id));
+  // Presentation only: which visible row should host the inline Step 2 panel.
+  const firstSelectedId = useMemo(
+    () => visibleItems.find(i => selected.has(i.id))?.id ?? null,
+    [visibleItems, selected],
+  );
   const toggleAll = () => {
     const next = new Set(selected);
     if (allSelected) visibleItems.forEach(i => next.delete(i.id));
@@ -321,35 +462,89 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
   // Summary totals for the currently filtered queue.
   const queueTotalRent = useMemo(() => filteredItems.reduce((s, i) => s + i.rent_amount, 0), [filteredItems]);
   const queueTotalRevenue = useMemo(() => filteredItems.reduce((s, i) => s + i.access_fee + i.request_fee, 0), [filteredItems]);
+  const queueTotalRepaymentExpected = useMemo(() => filteredItems.reduce((s, i) => s + i.total_repayment, 0), [filteredItems]);
 
   const dateFilterLabel: Record<string, string> = { all: 'All time', '7d': 'Last 7 days', '30d': 'Last 30 days' };
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Home className="h-4 w-4 text-primary" />
-            Fund Agent Landlord Payout Float
-            {filteredItems.length > 0 && (
-              <Badge variant="outline" className="text-[10px] ml-1 bg-primary/10 text-primary border-primary/30">
-                {filteredItems.length} approved{dateFilter !== 'all' ? ` · ${dateFilterLabel[dateFilter]}` : ''} · {fmt(queueTotalRent)}
-              </Badge>
-            )}
-          </CardTitle>
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="relative w-[230px]">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+    <Card className="overflow-hidden rounded-2xl border-border/70 shadow-sm">
+      <CardHeader className="pb-0 space-y-0 p-0">
+        {/* Title band */}
+        <div className="flex items-start justify-between gap-4 flex-wrap px-5 pt-5 pb-4">
+          <div className="flex items-start gap-3.5 min-w-0">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/25">
+              <Home className="h-6 w-6" />
+            </span>
+            <div className="min-w-0 space-y-1">
+              <CardTitle className="text-xl sm:text-2xl font-extrabold tracking-tight">
+                Fund Agent Landlord Payout Float
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                COO-approved rent, funded to the assigned agent's Landlord Payout Float.
+              </p>
+              <div className="flex items-center gap-4 flex-wrap pt-1 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <Users className="h-3.5 w-3.5" />
+                  {grouped.length} agent{grouped.length === 1 ? '' : 's'} in queue
+                </span>
+              </div>
+            </div>
+          </div>
+          {filteredItems.length > 0 && (
+            <div className="flex items-center gap-3">
+              <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-sm font-semibold text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-400">
+                <CheckCircle2 className="h-4 w-4" />
+                {filteredItems.length} approved · {fmt(queueTotalRent)}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Filter band */}
+        <div className="border-y border-border/70 bg-muted/20 px-5 py-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 items-center">
+            <div className="relative w-full">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setSelected(new Set()); }}
                 placeholder="Search tenant, landlord, agent…"
-                className="h-7 text-xs pl-8"
+                className="h-11 rounded-xl text-sm pl-9 bg-background border-border/70"
               />
             </div>
+            <Select
+                value={districtFilter}
+                onValueChange={(v) => { setDistrictFilter(v); setCityFilter('all'); setSelected(new Set()); }}
+              >
+                <SelectTrigger className="h-11 rounded-xl text-sm w-full bg-background border-border/70">
+                  <MapPin className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <SelectValue placeholder="All districts" />
+                </SelectTrigger>
+                <SelectContent className="max-h-[320px]">
+                  <SelectItem value="all">All districts ({items.length})</SelectItem>
+                  {districtOptions.map(o => (
+                    <SelectItem key={o.name} value={o.name}>
+                      <span className="truncate">{o.name} · {o.count}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+            </Select>
+            <Select value={cityFilter} onValueChange={(v) => { setCityFilter(v); setSelected(new Set()); }}>
+                <SelectTrigger className="h-11 rounded-xl text-sm w-full bg-background border-border/70">
+                  <SelectValue placeholder="All municipalities/towns" />
+                </SelectTrigger>
+                <SelectContent className="max-h-[320px]">
+                  <SelectItem value="all">All municipalities/towns</SelectItem>
+                  {cityOptions.map(o => (
+                    <SelectItem key={o.name} value={o.name}>
+                      <span className="truncate">{o.name} · {o.count}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+            </Select>
             <Select value={agentFilter} onValueChange={setAgentFilter}>
-              <SelectTrigger className="h-7 text-xs w-[220px]">
-                <Users className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
+              <SelectTrigger className="h-11 rounded-xl text-sm w-full bg-background border-border/70">
+                <Users className="h-4 w-4 mr-2 text-muted-foreground" />
                 <SelectValue placeholder="Filter by agent" />
               </SelectTrigger>
               <SelectContent className="max-h-[320px]">
@@ -366,35 +561,72 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                 })}
               </SelectContent>
             </Select>
-            <Select value={dateFilter} onValueChange={(v) => { setDateFilter(v as any); setSelected(new Set()); }}>
-              <SelectTrigger className="h-7 text-xs w-[150px]">
-                <CalendarDays className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
-                <SelectValue placeholder="Date range" />
+            {!locationProvisionsOnly && (
+            <Select value={catField} onValueChange={(v) => { setCatField(v as CatFieldKey); setCatValue('all'); setSelected(new Set()); }}>
+              <SelectTrigger className="h-11 rounded-xl text-sm w-full bg-background border-border/70">
+                <MapPin className="h-4 w-4 mr-2 text-muted-foreground" />
+                <SelectValue placeholder="Category type" />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All time</SelectItem>
-                <SelectItem value="7d">Last 7 days</SelectItem>
-                <SelectItem value="30d">Last 30 days</SelectItem>
+              <SelectContent className="max-h-[320px]">
+                {CAT_FIELD_KEYS.map(k => (
+                  <SelectItem key={k} value={k}>{CAT_FIELD_LABELS[k]}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
-            {agentFilter !== 'all' && (
+            )}
+            {!locationProvisionsOnly && (
+            <Select value={catValue} onValueChange={(v) => { setCatValue(v); setSelected(new Set()); }}>
+              <SelectTrigger className="h-11 rounded-xl text-sm w-full bg-background border-border/70">
+                <SelectValue placeholder={CAT_FIELD_LABELS[catField]} />
+              </SelectTrigger>
+              <SelectContent className="max-h-[320px]">
+                <SelectItem value="all">All {CAT_FIELD_LABELS[catField].toLowerCase()}</SelectItem>
+                {catOptions.map(o => (
+                  <SelectItem key={o.name} value={o.name}>
+                    <span className="truncate">{o.name} · {o.count}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            )}
+            {(agentFilter !== 'all' || locationScoped) && (
               <button
                 type="button"
-                className="text-[11px] text-primary hover:underline"
-                onClick={() => setAgentFilter('all')}
+                className="text-xs font-medium text-primary hover:underline justify-self-start sm:col-span-2 lg:col-span-3 xl:col-span-6"
+                onClick={() => { setAgentFilter('all'); clearLocation(); }}
               >
-                Clear agent
+                Clear agent &amp; location
               </button>
             )}
           </div>
         </div>
-        {filteredItems.length > 0 && (
-          <p className="text-xs text-muted-foreground mt-1">
-            COO-approved rent. Funding lands in the assigned agent's <b>Landlord Payout Float</b> — the agent then pays the landlord via MoMo + OTP. Revenue earned: <span className="font-bold text-emerald-600">{fmt(queueTotalRevenue)}</span>
-          </p>
-        )}
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4 p-5">
+        {filteredItems.length > 0 && (
+          <div className="flex items-start gap-3 rounded-xl bg-primary/[0.06] border border-primary/15 px-4 py-3">
+            <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary text-xs font-bold">i</span>
+            <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+              Funding lands in the assigned agent's <b className="text-foreground">Landlord Payout Float</b> — the agent then pays the landlord via MoMo + OTP.
+              Revenue earned: <span className="font-bold text-emerald-600">{fmt(queueTotalRevenue)}</span>
+            </p>
+          </div>
+        )}
+        {/* Location scope chip — the same table below is simply filtered. */}
+        {locationScoped && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge variant="outline" className="text-[11px] rounded-full px-2.5 py-0.5 bg-primary/10 text-primary border-primary/30">
+              <MapPin className="h-3 w-3 mr-1" />
+              {locationScopeLabel}
+            </Badge>
+            <button
+              type="button"
+              className="text-xs font-medium text-primary hover:underline"
+              onClick={clearLocation}
+            >
+              Show whole queue
+            </button>
+          </div>
+        )}
         {isLoading ? (
           <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
         ) : filteredItems.length === 0 ? (
@@ -414,9 +646,40 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
           </div>
         ) : (
           <div className="space-y-3">
+            {/* Revenue summary for selection or location scope */}
+            {(selected.size > 0 || locationScoped) && (
+              <div className="rounded-lg border-2 border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20 p-3 space-y-2">
+                <p className="text-xs font-bold flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
+                  <TrendingUp className="h-3.5 w-3.5" />
+                  Revenue from this disbursement
+                  {locationScoped && (
+                    <span className="ml-2 text-[10px] font-normal text-emerald-600/80">
+                      · Scoped by location
+                    </span>
+                  )}
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-center">
+                  <div className="rounded-md bg-background/60 py-2">
+                    <p className="text-[10px] text-muted-foreground">Rent Out</p>
+                    <p className="font-bold text-sm text-orange-600">{fmt(selected.size > 0 ? totalRent : queueTotalRent)}</p>
+                  </div>
+                  <div className="rounded-md bg-background/60 py-2">
+                    <p className="text-[10px] text-muted-foreground">We Earn (Fees)</p>
+                    <p className="font-bold text-sm text-emerald-600">{fmt(selected.size > 0 ? totalRevenue : queueTotalRevenue)}</p>
+                  </div>
+                  <div className="rounded-md bg-background/60 py-2">
+                    <p className="text-[10px] text-muted-foreground">Total Repayment</p>
+                    <p className="font-bold text-sm text-primary">{fmt(selected.size > 0 ? totalRepaymentExpected : queueTotalRepaymentExpected)}</p>
+                  </div>
+                </div>
+                <TreasuryImpactBanner payoutAmount={selected.size > 0 ? totalRent : queueTotalRent} />
+              </div>
+
+            )}
+
             {/* Country breakdown — click a chip to filter the queue by country */}
-            {countryStats.length > 0 && (
-              <div className="rounded-lg border border-border/60 bg-muted/30 p-2">
+            {!locationProvisionsOnly && countryStats.length > 0 && (
+              <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
                 <div className="flex items-center justify-between mb-1.5 px-1">
                   <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
                     Requests by country
@@ -436,7 +699,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                     type="button"
                     onClick={() => setCountryFilter('all')}
                     className={cn(
-                      'px-2.5 py-1 rounded-md text-xs border transition-colors',
+                      'px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
                       countryFilter === 'all'
                         ? 'bg-primary text-primary-foreground border-primary'
                         : 'bg-background hover:bg-muted border-border',
@@ -450,7 +713,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                       type="button"
                       onClick={() => setCountryFilter(c.country)}
                       className={cn(
-                        'px-2.5 py-1 rounded-md text-xs border transition-colors',
+                        'px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
                         countryFilter === c.country
                           ? 'bg-primary text-primary-foreground border-primary'
                           : 'bg-background hover:bg-muted border-border',
@@ -465,8 +728,8 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
             )}
 
             {/* Select all + agent filter */}
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <div className="flex items-center justify-between gap-2 flex-wrap rounded-xl border border-border/70 bg-muted/20 px-4 py-3">
+              <label className="flex items-center gap-2.5 text-sm cursor-pointer font-semibold">
                 <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
                 Select all ({visibleItems.length}
                 {agentFilter !== 'all' && items.length !== visibleItems.length
@@ -476,52 +739,156 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
               </label>
               <div className="flex items-center gap-2">
                 {selected.size > 0 && (
-                  <Badge className="bg-primary/10 text-primary border-primary/30">
+                  <Badge className="rounded-full px-3 py-1 bg-primary/10 text-primary border-primary/30">
                     {selected.size} selected · {fmt(totalRent)}
                   </Badge>
                 )}
               </div>
             </div>
 
-            {/* Revenue summary for selection */}
-            {selected.size > 0 && (
-              <div className="rounded-lg border-2 border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20 p-3 space-y-2">
-                <p className="text-xs font-bold flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
-                  <TrendingUp className="h-3.5 w-3.5" />
-                  Revenue from this disbursement
-                </p>
-                <div className="grid grid-cols-3 gap-2 text-center">
-                  <div>
-                    <p className="text-[10px] text-muted-foreground">Rent Out</p>
-                    <p className="font-bold text-sm text-orange-600">{fmt(totalRent)}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-muted-foreground">We Earn (Fees)</p>
-                    <p className="font-bold text-sm text-emerald-600">{fmt(totalRevenue)}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-muted-foreground">Total Repayment</p>
-                    <p className="font-bold text-sm text-primary">{fmt(totalRepaymentExpected)}</p>
-                  </div>
-                </div>
-                <TreasuryImpactBanner payoutAmount={totalRent} />
-              </div>
-            )}
-
             {/* Helper hint */}
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-[11px] text-muted-foreground px-1">
               Tip: tick one tenant, a few, or use an agent's group toggle to fund a subset. The batch button funds only what's ticked.
             </p>
 
             {/* Grouped list (by agent) */}
-            <div className="space-y-3 max-h-[420px] overflow-y-auto">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs text-muted-foreground">
+                {visibleGroups.length} agent{visibleGroups.length === 1 ? '' : 's'} shown
+              </span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-9 rounded-xl gap-2">
+                    <Filter className="h-4 w-4" />
+                    Filter
+                    {(agentFilter !== 'all' || countryFilter !== 'all' || dateFilter !== 'all' || districtFilter !== 'all' || cityFilter !== 'all' || catValue !== 'all') && (
+                      <Badge className="h-5 min-w-5 px-1.5 text-[10px] bg-primary text-primary-foreground border-0">
+                        {[agentFilter !== 'all', countryFilter !== 'all', dateFilter !== 'all', districtFilter !== 'all', cityFilter !== 'all', catValue !== 'all'].filter(Boolean).length}
+                      </Badge>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-72 space-y-3 p-3">
+                  <div className="space-y-1.5">
+                      <p className="text-xs font-semibold text-muted-foreground">District</p>
+                      <Select
+                        value={districtFilter}
+                        onValueChange={(v) => { setDistrictFilter(v); setCityFilter('all'); setSelected(new Set()); }}
+                      >
+                        <SelectTrigger className="h-9 rounded-lg text-sm">
+                          <SelectValue placeholder="All districts" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-[280px]">
+                          <SelectItem value="all">All districts</SelectItem>
+                          {districtOptions.map(o => (
+                            <SelectItem key={o.name} value={o.name}>
+                              <span className="truncate">{o.name} · {o.count}</span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                      <p className="text-xs font-semibold text-muted-foreground">Municipality / Town</p>
+                      <Select value={cityFilter} onValueChange={(v) => { setCityFilter(v); setSelected(new Set()); }}>
+                        <SelectTrigger className="h-9 rounded-lg text-sm">
+                          <SelectValue placeholder="All municipalities/towns" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-[280px]">
+                          <SelectItem value="all">All municipalities/towns</SelectItem>
+                          {cityOptions.map(o => (
+                            <SelectItem key={o.name} value={o.name}>
+                              <span className="truncate">{o.name} · {o.count}</span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                  </div>
+                  {!locationProvisionsOnly && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-semibold text-muted-foreground">Category type</p>
+                    <Select value={catField} onValueChange={(v) => { setCatField(v as CatFieldKey); setCatValue('all'); setSelected(new Set()); }}>
+                      <SelectTrigger className="h-9 rounded-lg text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[280px]">
+                        {CAT_FIELD_KEYS.map(k => (
+                          <SelectItem key={k} value={k}>{CAT_FIELD_LABELS[k]}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  )}
+                  {!locationProvisionsOnly && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-semibold text-muted-foreground">{CAT_FIELD_LABELS[catField]}</p>
+                    <Select value={catValue} onValueChange={(v) => { setCatValue(v); setSelected(new Set()); }}>
+                      <SelectTrigger className="h-9 rounded-lg text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[280px]">
+                        <SelectItem value="all">All {CAT_FIELD_LABELS[catField].toLowerCase()}</SelectItem>
+                        {catOptions.map(o => (
+                          <SelectItem key={o.name} value={o.name}>
+                            <span className="truncate">{o.name} · {o.count}</span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  )}
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-semibold text-muted-foreground">Agent</p>
+                    <Select value={agentFilter} onValueChange={setAgentFilter}>
+                      <SelectTrigger className="h-9 rounded-lg text-sm">
+                        <SelectValue placeholder="Filter by agent" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[280px]">
+                        <SelectItem value="all">All agents ({grouped.length})</SelectItem>
+                        {grouped.map(g => (
+                          <SelectItem key={g.agent_id} value={g.agent_id}>
+                            <span className="truncate">{g.agent_name} · {g.rows.length}</span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {!locationProvisionsOnly && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-semibold text-muted-foreground">Country</p>
+                    <Select value={countryFilter} onValueChange={setCountryFilter}>
+                      <SelectTrigger className="h-9 rounded-lg text-sm">
+                        <SelectValue placeholder="All countries" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[280px]">
+                        <SelectItem value="all">All countries</SelectItem>
+                        {countryStats.map(c => (
+                          <SelectItem key={c.country} value={c.country}>
+                            <span className="truncate">{c.country} · {c.count}</span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  )}
+                  <button
+                    type="button"
+                    className="text-xs font-medium text-primary hover:underline"
+                    onClick={() => { setAgentFilter('all'); setDateFilter('all'); clearLocation(); }}
+                  >
+                    Clear all filters
+                  </button>
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="space-y-3 max-h-[560px] overflow-y-auto pr-0.5">
               {visibleGroups.length === 0 && (
                 <div className="text-center py-6 text-xs text-muted-foreground">
                   No tenants match the current filters.{' '}
                   <button
                     type="button"
                     className="text-primary hover:underline"
-                    onClick={() => { setAgentFilter('all'); setCountryFilter('all'); setDateFilter('all'); }}
+                    onClick={() => { setAgentFilter('all'); setDateFilter('all'); clearLocation(); }}
                   >
                     Clear all filters
                   </button>
@@ -536,8 +903,8 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                 const isNew = Date.now() - group.latest < 24 * 60 * 60 * 1000;
                 const isRealAgent = group.agent_id && group.agent_id !== 'unassigned';
                 return (
-                  <div key={group.agent_id} className="rounded-lg border">
-                    <div className="flex items-center justify-between gap-2 px-3 py-2 bg-muted/40 rounded-t-lg">
+                  <div key={group.agent_id} className="rounded-xl border border-border/70 overflow-hidden bg-card">
+                    <div className="flex items-center justify-between gap-2 px-3.5 py-2.5 bg-muted/40 border-b border-border/70">
                       <div className="flex items-center gap-2 text-sm min-w-0 flex-1">
                         <Checkbox
                           checked={allGroupOn ? true : someGroupOn ? 'indeterminate' : false}
@@ -567,52 +934,90 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                       </div>
                       <span className="text-xs font-bold text-orange-600 shrink-0">{fmt(groupTotal)}</span>
                     </div>
-                    <div className="divide-y">
-                      {group.rows.map(item => (
-                        <div
-                          key={item.id}
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm min-w-[52rem]">
+                        <thead>
+                          <tr className="border-b border-border/70 bg-muted/20 text-[10px] uppercase tracking-wider text-muted-foreground">
+                            <th className="w-9 px-2 py-2" aria-hidden />
+                            <th className="px-2 py-2 text-left font-semibold">Tenant</th>
+                            <th className="px-2 py-2 text-left font-semibold">Landlord</th>
+                            <th className="px-2 py-2 text-left font-semibold">Location</th>
+                            <th className="px-2 py-2 text-left font-semibold">Payout to</th>
+                            <th className="px-2 py-2 text-left font-semibold">Approved</th>
+                            <th className="px-2 py-2 text-right font-semibold">Rent out</th>
+                            <th className="px-2 py-2 text-right font-semibold">Fees</th>
+                            <th className="px-2 py-2 text-right font-semibold">Repayment</th>
+                            <th className="px-2 py-2 text-right font-semibold">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                      {group.rows.map(item => {
+                        const isSel = selected.has(item.id);
+                        const locationLabel = [item.request_city, item.request_country].filter(Boolean).join(', ');
+                        return (
+                        <Fragment key={item.id}>
+                        <tr
+                          onClick={() => toggle(item.id)}
                           className={cn(
-                            'flex items-start gap-3 p-2.5 text-sm transition-colors',
-                            selected.has(item.id) && 'bg-primary/5'
+                            'border-b border-border/70 last:border-0 cursor-pointer transition-colors',
+                            isSel
+                              ? 'bg-primary/[0.07] shadow-[inset_3px_0_0_0_hsl(var(--primary))]'
+                              : 'hover:bg-muted/40'
                           )}
                         >
-                          <Checkbox
-                            checked={selected.has(item.id)}
-                            onCheckedChange={() => toggle(item.id)}
-                            className="mt-0.5"
-                          />
-                          <div className="flex-1 min-w-0 space-y-1">
-                            <div className="flex items-center gap-2">
-                              <p className="font-medium truncate">{item.tenant_name}</p>
-                              <span className="text-[10px] text-muted-foreground">→</span>
-                              <p className="font-medium truncate text-primary">{item.landlord_name}</p>
-                            </div>
-                            <div className="flex items-center gap-2 flex-wrap">
-                              {item.payout_target === 'landlord_wallet' ? (
-                                <Badge className="text-[9px] px-1.5 py-0 bg-emerald-100 text-emerald-700 border-emerald-200">
-                                  <Wallet className="h-2.5 w-2.5 mr-0.5" />
-                                  Landlord Wallet
-                                </Badge>
-                              ) : (
-                                <Badge className="text-[9px] px-1.5 py-0 bg-amber-100 text-amber-700 border-amber-200">
-                                  <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />
-                                  Agent Float
+                          <td className="px-2 py-2.5 align-middle" onClick={e => e.stopPropagation()}>
+                            <Checkbox
+                              checked={selected.has(item.id)}
+                              onCheckedChange={() => toggle(item.id)}
+                            />
+                          </td>
+                          <td className="px-2 py-2.5 align-middle">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span className={cn('truncate', isSel ? 'font-bold' : 'font-semibold')}>{item.tenant_name}</span>
+                              {isSel && (
+                                <Badge className="text-[9px] px-1.5 py-0 shrink-0 bg-primary text-primary-foreground border-0">
+                                  SELECTED
                                 </Badge>
                               )}
-                              <span className="text-[10px] text-muted-foreground">
-                                {format(new Date(item.created_at), 'dd MMM')}
-                              </span>
                             </div>
-                            <div className="flex items-center gap-3 text-[10px]">
-                              <span>Rent: <b className="text-orange-600">{fmt(item.rent_amount)}</b></span>
-                              <span>Fees: <b className="text-emerald-600">{fmt(item.access_fee + item.request_fee)}</b></span>
-                              <span>Repay: <b>{fmt(item.total_repayment)}</b></span>
-                            </div>
-                          </div>
+                          </td>
+                          <td className="px-2 py-2.5 align-middle font-semibold text-primary truncate max-w-[10rem]">
+                            {item.landlord_name}
+                          </td>
+                          <td className="px-2 py-2.5 align-middle text-[11px] text-muted-foreground whitespace-nowrap">
+                            {locationLabel || '—'}
+                          </td>
+                          <td className="px-2 py-2.5 align-middle whitespace-nowrap">
+                            {item.payout_target === 'landlord_wallet' ? (
+                              <Badge className="text-[9px] px-2 py-0 rounded-full bg-emerald-100 text-emerald-700 border-emerald-200">
+                                <Wallet className="h-2.5 w-2.5 mr-0.5" />
+                                Landlord Wallet
+                              </Badge>
+                            ) : (
+                              <Badge className="text-[9px] px-2 py-0 rounded-full bg-amber-100 text-amber-700 border-amber-200">
+                                <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />
+                                Agent Float
+                              </Badge>
+                            )}
+                          </td>
+                          <td className="px-2 py-2.5 align-middle text-[11px] text-muted-foreground whitespace-nowrap">
+                            {format(new Date(item.created_at), 'dd MMM yyyy')}
+                          </td>
+                          <td className="px-2 py-2.5 align-middle text-right font-bold text-orange-600 whitespace-nowrap">
+                            {fmt(item.rent_amount)}
+                          </td>
+                          <td className="px-2 py-2.5 align-middle text-right font-semibold text-emerald-600 whitespace-nowrap">
+                            {fmt(item.access_fee + item.request_fee)}
+                          </td>
+                          <td className="px-2 py-2.5 align-middle text-right font-semibold whitespace-nowrap">
+                            {fmt(item.total_repayment)}
+                          </td>
+                          <td className="px-2 py-2.5 align-middle text-right whitespace-nowrap" onClick={e => e.stopPropagation()}>
+                            <div className="flex items-center justify-end gap-1">
                           <Button
                             size="sm"
                             variant="outline"
-                            className="shrink-0 text-xs h-7"
+                            className="shrink-0 text-xs h-8 rounded-lg"
                             onClick={() => singleDisburse.mutate(item.id)}
                             disabled={singleDisburse.isPending}
                             title={`Fund only this tenant on ${item.agent_name}'s float`}
@@ -623,15 +1028,48 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
                           <Button
                             size="sm"
                             variant="ghost"
-                            className="shrink-0 text-xs h-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            className="shrink-0 text-xs h-8 rounded-lg text-destructive hover:text-destructive hover:bg-destructive/10"
                             onClick={() => { setRejectTarget(item); setRejectReason(''); }}
                             title="Reject and return to agent with a comment"
                           >
                             <XCircle className="h-3 w-3 mr-1" />
                             Reject
                           </Button>
-                        </div>
-                      ))}
+                            </div>
+                          </td>
+                        </tr>
+                        {/* Step 2 renders inline, directly under the selected tenant */}
+                        {item.id === firstSelectedId && (
+                          <tr key={`${item.id}-step2`}>
+                          <td colSpan={10} className="p-0">
+                          <div
+                            ref={step2Ref}
+                            className="scroll-mt-4 border-t-2 border-primary/30 bg-primary/[0.05] px-3.5 py-3 space-y-2"
+                          >
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                              <p className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-2">
+                                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/15">
+                                  <Banknote className="h-3.5 w-3.5" />
+                                </span>
+                                Step 2 · Fund the selected float payouts
+                              </p>
+                              <Badge variant="outline" className="text-[11px] rounded-full px-2.5 bg-primary/10 text-primary border-primary/30">
+                                {selected.size} ticked · {fmt(totalRent)}
+                              </Badge>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground leading-relaxed">
+                              Enter a batch reference below and use the funding button to run the unchanged
+                              Fund Agent Landlord Payout Float process on every ticked tenant.
+                            </p>
+                          </div>
+                          </td>
+                          </tr>
+                        )}
+                        </Fragment>
+                        );
+                      })}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 );
@@ -640,15 +1078,16 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds }: RentDisb
 
             {/* Batch actions */}
             {selected.size > 0 && (
-              <div className="flex items-center gap-2 pt-2 border-t">
+              <div className="sticky bottom-0 z-10 flex flex-col sm:flex-row sm:items-center gap-2 p-3 mt-1 rounded-xl border border-primary/25 bg-primary/[0.04] backdrop-blur">
                 <Input
                   placeholder="Batch ref (e.g. MoMo-2024-01)"
                   value={batchRef}
                   onChange={e => setBatchRef(e.target.value)}
-                  className="h-8 text-sm flex-1"
+                  className="h-11 rounded-xl text-sm flex-1 bg-background border-border/70"
                 />
                 <Button
                   size="sm"
+                  className="h-11 rounded-xl px-5 font-semibold w-full sm:w-auto"
                   onClick={() => batchDisburse.mutate()}
                   disabled={batchDisburse.isPending || !batchRef.trim()}
                 >
