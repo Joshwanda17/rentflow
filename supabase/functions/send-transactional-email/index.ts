@@ -35,6 +35,7 @@ const PARTNER_FUNDER_TEMPLATES = new Set<string>([
   'portfolio-maturity',
   'partnership-maturity-notice',
   'partner-self-managed-cycle-ended',
+  'partner-self-managed-deployment',
   'partner-account-created',
   'angel-pool-share-purchase',
   'proxy-managed-payout-notice',
