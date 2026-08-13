@@ -151,29 +151,43 @@ export const Card = ({
   index?: number;
   onClick?: () => void;
 }) => {
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={card.title}
-      className="relative block h-56 w-[220px] shrink-0 overflow-hidden rounded-2xl border border-border bg-muted/40 text-left shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:h-64 sm:w-[260px]"
-    >
-      <BlurImage
+    <>
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label={card.title}
+        className="relative block h-56 w-[220px] shrink-0 overflow-hidden rounded-2xl border border-border bg-muted/40 text-left shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:h-64 sm:w-[260px]"
+      >
+        <BlurImage
+          src={card.src}
+          alt={card.title}
+          className="h-full w-full object-contain"
+          onClick={(e) => {
+            e.stopPropagation();
+            setLightboxOpen(true);
+          }}
+        />
+        {(card.category || card.content) && (
+          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-3 pb-2 pt-6">
+            {card.category && (
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-white/80">
+                {card.category}
+              </p>
+            )}
+            {card.content}
+          </div>
+        )}
+      </button>
+      <Lightbox
         src={card.src}
         alt={card.title}
-        className="h-full w-full object-contain"
+        isOpen={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
       />
-      {(card.category || card.content) && (
-        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-3 pb-2 pt-6">
-          {card.category && (
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-white/80">
-              {card.category}
-            </p>
-          )}
-          {card.content}
-        </div>
-      )}
-    </button>
+    </>
   );
 };
 
