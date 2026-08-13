@@ -1,0 +1,2 @@
+ALTER FUNCTION public.ops_tenant_products_services_report(date, date) SET statement_timeout = '120s';
+ALTER FUNCTION public.ops_tenant_products_services_rows(date, date, text, text, uuid, text, text, int, int) SET statement_timeout = '120s';

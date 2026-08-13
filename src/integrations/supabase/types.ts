@@ -9956,6 +9956,36 @@ export type Database = {
         }
         Relationships: []
       }
+      evidence_2026_08_13_field_audit: {
+        Row: {
+          changed_by: string | null
+          created_at: string | null
+          field_name: string | null
+          id: string | null
+          new_value: string | null
+          old_value: string | null
+          user_id: string | null
+        }
+        Insert: {
+          changed_by?: string | null
+          created_at?: string | null
+          field_name?: string | null
+          id?: string | null
+          new_value?: string | null
+          old_value?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          changed_by?: string | null
+          created_at?: string | null
+          field_name?: string | null
+          id?: string | null
+          new_value?: string | null
+          old_value?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       fee_revenue_ledger: {
         Row: {
           created_at: string
