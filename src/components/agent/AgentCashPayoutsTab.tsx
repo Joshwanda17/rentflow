@@ -1658,7 +1658,11 @@ export function AgentCashPayoutsTab() {
           )}
         </CardContent>
       </Card>
+      </>
+      )}
 
+      {view === 'requests' && (
+      <>
       {/* Live status banner */}
       {totalPending > 0 && (
         <div className="flex items-center justify-between gap-2.5 p-3.5 rounded-2xl bg-orange-500/10 border border-orange-500/20 text-orange-700 dark:text-orange-400">
