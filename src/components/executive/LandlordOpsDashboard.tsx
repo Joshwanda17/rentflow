@@ -9,6 +9,7 @@ import { RentPipelineQueue } from './RentPipelineQueue';
 import { RejectedRequestsQueue } from './RejectedRequestsQueue';
 import { BusinessAdvanceQueue } from '@/components/ops/BusinessAdvanceQueue';
 import { RentHistoryVerificationQueue } from '@/components/ops/RentHistoryVerificationQueue';
+import { ServiceCentreNoteLoader } from '@/components/ops/ServiceCentreNoteLoader';
 import { LandlordOpsPayoutReview } from '@/components/cfo/LandlordOpsPayoutReview';
 import { AgentRentCapacityPanel } from './AgentRentCapacityPanel';
 import { KPICard } from './KPICard';
