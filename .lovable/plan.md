@@ -1,58 +1,70 @@
-# Centralize existing Tenant Ops reports under Reports Hub → Extract
+# Landlord Ops: Reports & Exports Hub (centralized Extract)
 
-## What this is
-A discovery/centralization change only. Every report keeps living exactly where it lives today; the Reports & Exports hub gains one panel that lists all of them and triggers the *same* existing export code.
+Give Landlord Ops the same one-stop "Reports & Exports" experience that Tenant Ops already has, populated only with landlord reports that already exist. Every existing report stays exactly where it is today.
 
-## Audit — reports that already exist in the Tenants Ops Dashboard (Classic)
+## What exists today (verified)
 
-| Existing report | Lives in | Behaviour today | Filters | Source logic |
-|---|---|---|---|---|
-| Tenants applied / approved / funded / repayments collected / repayments expected | Reports & Exports section (Extract dropdown) | CSV + PDF | From/To date pickers | `generateTenantOpsExtractPdf` + in-file queries |
-| Print Report (Tenant Ops summary) | Reports & Exports section | PDF print | From/To | `generateTenantOpsReportPdf` |
-| All Tenants — active tenants register | All Tenants workspace | PDF | none | `activeTenantsReportPdf` |
-| Agent Rent Capacity | Agent Rent Capacity workspace | PDF | search/eligibility on screen | `generateAgentCapacityPdf` |
-| Pipeline Status (lifecycle, receivables, landlord payables) | Pipeline Status workspace | CSV, Excel, PDF, print | date range, section, search | `generatePipelineHubReportPdf`, `downloadCsv`, `downloadXlsx` |
-| Daily Collection Monitoring | Daily Collection Monitoring workspace | PDF + CSV | day, missed-days window | `generateDailyCollectionReportPdf` |
-| Daily Payments (daily performance) | Daily Payments tool | PDF + WhatsApp share | day | `dailyPerformanceReport` |
-| Agent Allocations | Agent Allocations tool | PDF | period | `generateAgentAllocationPdf` |
-| Agent Landlord Float Timeline | Float Timeline tool | CSV + PDF of filtered view | date/agent/type filters | `exportUtils` + timeline PDF |
-| Daily Rent Repayments | Daily Rent Repayments tool | CSV + PDF | day, search | `DailyRentReport` (`mode="tenant"`), `pdfAuditReport` |
-| Tool reports: Review Requests, Approval History, Missed Days, Daily Payments, Tenant Behavior, Transfer Audit | each tool's header (`TenantOpsReportToolbar`) | landscape PDF | presets (Today/7d/30d/Month/All) + status + search | `ops_tenant_ops_tool_report` RPC + `generateTenantOpsToolReportPdf` |
-| Tenant Operations Word Report | Tenant Ops Hub header | DOCX | none | `generate-tenant-ops-docx` edge function |
+**Tenant Ops reference implementation** — `TenantOpsDashboard.tsx`, Workspaces tile "Reports & Exports" → `reports-hub` view, which renders one shared `reportsToolbar`:
+From / To single-date pickers (shadcn Popover + Calendar, no default dates, Clear button) → one "Extract" dropdown whose items are grouped by labelled headings ("Tenants", "Repayments") with a separator → a "Print Report" button. Spinner on the trigger while extracting, `toast.success`/`toast.error` for results, buttons disabled during work.
 
-No other exportable report exists in the dashboard (Missed Days, Tenant Behavior, Approval History, Transfer Audit, Landlord Float Panel have no export of their own beyond the shared toolbar).
+**Landlord Ops** already has a `reports` view labelled "Reports & Exports" (reachable from the home cards). Today it holds only the Landlord Payouts print report plus a note telling managers where the other exports live. The other landlord exports that already exist:
+
+| Existing landlord report | Lives in | Logic |
+|---|---|---|
+| Landlord verification pack (verified / pending / rejected / all) | All Landlords | `fetchLandlordReport` + `generateLandlordVerificationReportPdf` |
+| Landlords Funded pack (KPIs, trend, per district/agent/service centre) | Landlords Paid | `fetchLandlordFundedStats` + `generateLandlordFundedReportPdf` |
+| House verification pack | Verify Houses | `ops_house_listing_report` + `generateHouseVerificationReportPdf` |
+| LC1 chairperson register pack | LC1 Chairpersons | `ops_lc1_verification_report` + `generateLc1VerificationReportPdf` |
+| LC1 inbox export | LC1 Inbox panel | same RPC + generator |
+| Landlords with tenants (spreadsheet) | Landlords with tenants view | `downloadXlsx` |
+| Landlord payouts report | Reports & Exports | `generateLandlordOpsReportPdf` |
+
+No new report is created; nothing is moved, hidden or removed.
 
 ## What gets built
 
-One new component, `src/components/executive/tenant-ops/TenantOpsExtractCenter.tsx`, rendered inside the existing `reports-hub` view directly beneath today's Extract toolbar (which stays untouched).
-
-Structure — existing terminology, existing card/accordion/button components:
+Upgrade the existing landlord `reports` view into the hub, using the Tenant toolbar pattern verbatim:
 
 ```text
-Reports & Exports
-  [ existing From / To / Extract / Print Report toolbar ]   <- unchanged
-  Extract — all Tenant Ops reports
-    Tenants        · Tenants applied · Tenants approved · All Tenants register · Review Requests · Transfer Audit · Tenant Behavior
-    Payments       · Daily Payments · Daily Collection Monitoring · Daily Rent Repayments
-    Repayments     · Repayments collected · Repayments expected · Missed Days · Approval History
-    Receivables    · Pipeline Status (receivables & landlord payables) · Agent Landlord Float Timeline · Agent Allocations
-    Capacity & summaries · Agent Rent Capacity · Print Report · Word Report
+Landlord Ops → Reports & Exports
+  [From ▾] [To ▾] [Clear]   [Extract ▾]   [Print Report]
+
+  Extract ▾
+    Landlords
+      Verified landlords (PDF)
+      Pending landlords (PDF)
+      Rejected landlords (PDF)
+      All landlords (PDF)
+      Landlords with tenants (spreadsheet)
+    ── Payments
+      Landlords funded pack (PDF)
+      Landlord payouts report (PDF)
+    ── Properties
+      House verification pack (PDF)
+    ── LC1 chairpersons
+      Verified / Rejected / Pending / All LC1 (PDF)
 ```
 
-Each row is one existing report with its name, a one-line description of what it contains, and one action:
-
-- **Direct export** when the report's existing export needs no on-screen filter state — it calls the same exported helper/handler (applied, approved, funded, collected, expected, All Tenants PDF, Word Report, Print Report, the six `ops_tenant_ops_tool_report` tool PDFs, Daily Rent Repayments for the chosen day).
-- **Open report** when the export is bound to that view's own filters (Pipeline Status, Daily Collection Monitoring, Float Timeline, Agent Allocations, Agent Rent Capacity, Daily Payments) — the row navigates to the existing view via the dashboard's existing `openHub(view)`, so the manager lands on the real report with its own export controls. No logic is copied.
-
-The hub's From/To dates already in the Reports & Exports toolbar are reused as the range for the direct extracts that accept a range; the tool PDFs reuse their existing preset default.
+- The From/To pickers are the same components with the same behaviour (no defaults, optional, Clear, `dd MMM yyyy`) and feed the date-aware reports: landlord verification, landlords funded, landlord payouts. Reports whose existing logic has no date dimension (house pack, LC1 packs) keep their current scope semantics.
+- Every item calls the report's existing fetch + existing PDF/XLSX generator, so filenames, layout, totals and toasts stay identical to the originals.
+- Landlord-only data: each entry reuses the landlord RPCs/services listed above; no tenant query is reused or renamed.
+- Permissions unchanged: the hub is inside the same Landlord Ops dashboard, and the underlying RPCs keep their own authorization.
+- Responsive: the same `flex flex-wrap` toolbar and grouped dropdown as Tenant Ops, so it behaves identically on phone, tablet and desktop.
 
 ## Technical notes
-- Extraction handlers currently defined inline in `TenantOpsDashboard.tsx` are passed into the new panel as props (`onExtractApplied`, etc.) — no query or PDF logic is duplicated or re-implemented.
-- The six tool PDFs are produced by reusing `TenantOpsReportToolbar` in a compact row variant (`status='all'`, no search) rather than re-calling the RPC by hand.
-- Word Report handler currently lives in `TenantOpsHub`; it is lifted into a tiny shared hook (`useTenantOpsWordReport`) used by both the hub button and the Extract row, so behaviour stays identical in both places.
-- Permissions: the panel renders inside the existing Tenant Ops route, all exports go through the same RPCs/edge functions and RLS as today; nothing is loosened.
-- Responsive: one-column stacked rows on mobile, two columns from `sm`, `min-w-0` + truncation on names, action buttons full-width on mobile — matching the existing hub-entry cards.
-- States: existing `Loader2` spinners on the triggering button, existing `sonner` toasts for success/failure, disabled while another extract runs.
 
-## Out of scope
-No new reports, no new queries, no new formats, no scheduling, no changes to existing report pages beyond exporting their handlers.
+1. `LandlordOpsDashboard.tsx`: build a `reportsToolbar` element (mirroring the Tenant one) and render it in the `reports` view. Keep the current payouts card behaviour available through the same toolbar.
+2. Make the four dashboard-level export handlers accept optional overrides (scope, dateFrom, dateTo) that default to today's on-screen filter state, so the in-section buttons behave exactly as now while the hub can pass an explicit scope/date range.
+3. `exportLc1Report` currently lives inside the LC1 view body; lift it to component scope unchanged (counts derived from `lc1Groups`) so both the LC1 view and the hub call one implementation.
+4. For the two exports owned by child components, move only their fetch+generate bodies into a small shared helper (`src/lib/landlordOpsExports.ts`) and have both the original component and the hub call it — identical output, no visible change:
+   - LC1 inbox export (`Lc1VerificationInboxPanel`)
+   - Landlords-with-tenants spreadsheet (`LandlordsWithTenantsView`)
+5. Single `extracting` state keyed by report id drives the spinner/disabled states, matching Tenant Ops.
+6. `TenantOpsDashboard.tsx` and every tenant export are left untouched.
+
+## Verification
+
+- Each hub item downloads the same file as its original location (same rows, totals, filename shape).
+- Original buttons in All Landlords, Landlords Paid, Verify Houses, LC1 Chairpersons, LC1 Inbox and Landlords with tenants still work unchanged.
+- Date range applies to the date-aware reports and is ignored (as today) by the others.
+- Toolbar wraps cleanly with no horizontal scroll at mobile width; dropdown remains reachable.
