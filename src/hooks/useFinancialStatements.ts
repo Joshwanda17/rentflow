@@ -1,8 +1,8 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { startOfDay, endOfDay, subDays, subWeeks, subMonths, subYears, startOfMonth, startOfYear, differenceInDays } from 'date-fns';
+import { startOfDay, endOfDay, subDays, subWeeks, subMonths, subYears, startOfMonth, startOfYear, startOfWeek, startOfQuarter, differenceInDays } from 'date-fns';
 
-export type StatementPeriod = 'today' | '7days' | '30days' | 'month' | 'year' | 'all';
+export type StatementPeriod = 'today' | '7days' | 'week' | '30days' | 'month' | 'quarter' | 'year' | 'all' | 'custom';
 export type ComparisonMode = 'none' | 'dod' | 'wow' | 'mom' | 'yoy';
 
 export interface StatementFilters {
@@ -274,6 +274,7 @@ export interface FinancialStatementsData {
   cashFlow: CashFlowData;
   balanceSheet: BalanceSheetData;
   facilitatedVolume: FacilitatedVolumeData;
+  reconciliation: ReconciliationCheck;
   generatedAt: Date;
   filters: StatementFilters;
 }
@@ -283,8 +284,10 @@ function getPeriodDates(period: StatementPeriod): { start: Date | null; end: Dat
   switch (period) {
     case 'today': return { start: startOfDay(now), end: endOfDay(now) };
     case '7days': return { start: startOfDay(subDays(now, 7)), end: endOfDay(now) };
+    case 'week': return { start: startOfWeek(now, { weekStartsOn: 1 }), end: endOfDay(now) };
     case '30days': return { start: startOfDay(subDays(now, 30)), end: endOfDay(now) };
     case 'month': return { start: startOfMonth(now), end: endOfDay(now) };
+    case 'quarter': return { start: startOfQuarter(now), end: endOfDay(now) };
     case 'year': return { start: startOfYear(now), end: endOfDay(now) };
     default: return { start: null, end: null };
   }
