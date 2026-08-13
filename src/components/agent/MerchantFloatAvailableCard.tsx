@@ -43,10 +43,9 @@ export function MerchantFloatAvailableCard() {
   // sent to their MTN/Airtel line and not yet paid out, less what they have
   // already committed to payouts they claimed but have not settled.
   const reserved = pool?.ownReservedFloat ?? 0;
-  // Headline mirrors the Financial Ops hero card: the shared company payout pool
-  // (all withdrawable wallet balances + agent landlord payout float) less payouts
-  // already claimed and not yet settled.
-  const poolAvailable = pool?.availableFloat ?? 0;
+  // Headline = the float the COMPANY ALLOCATED to this merchant (money sent to
+  // their MTN/Airtel line) less what they already committed to claimed-but-unsettled
+  // payouts. This is what they may claim and process payouts from.
   const spendable = Math.max(holding - reserved, 0);
   const offledger = mine?.offledgerAdjustments ?? 0;
   const unbacked = mine?.payoutsWithoutFloatEvidence ?? 0;
@@ -72,14 +71,11 @@ export function MerchantFloatAvailableCard() {
       </div>
 
       <p className="mt-3 font-mono text-2xl font-bold tabular-nums text-foreground break-all">
-        {isLoading ? '—' : formatUGX(poolAvailable)}
+        {isLoading ? '—' : formatUGX(spendable)}
       </p>
       <p className="mt-1 text-[11px] text-muted-foreground">
-        This is the whole company payout pool — every withdrawable wallet balance plus agent landlord
-        payout float, less payouts already claimed and not yet settled. It matches the Financial Ops
-        figure.
-        {' '}Of this, <span className="font-semibold text-foreground">{formatUGX(spendable)}</span> is
-        company money already sent to your own MTN or Airtel line and still with you.
+        This is the float the company allocated to you — money sent to your own MTN or Airtel line so
+        you can claim requests and process payouts. It drops each time you claim and pay.
         {reserved > 0 && ` ${formatUGX(reserved)} is already committed to payouts you claimed but have not settled.`}
         {' '}If a payout is bigger than the float you hold, you can still pay it — the extra is flagged
         below, and once you confirm you used your own money, Finance pays it back to you.
