@@ -293,18 +293,29 @@ export function AllAdvancesReportPanel() {
                 size="sm"
                 className={cn(
                   'h-7 px-2.5 text-[11px] justify-start text-left font-normal',
-                  !calendarDate && 'text-muted-foreground',
+                  !dateRange?.from && 'text-muted-foreground',
                 )}
               >
                 <CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
-                {calendarDate ? format(calendarDate, 'PPP') : 'Pick a date'}
+                {dateRange?.from ? (
+                  dateRange.to ? (
+                    <>
+                      {format(dateRange.from, 'LLL dd')} - {format(dateRange.to, 'LLL dd, yyyy')}
+                    </>
+                  ) : (
+                    format(dateRange.from, 'PPP')
+                  )
+                ) : (
+                  'Pick dates'
+                )}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
               <Calendar
-                mode="single"
-                selected={calendarDate}
-                onSelect={applyCalendarDate}
+                mode="range"
+                selected={dateRange}
+                onSelect={applyDateRange}
+                numberOfMonths={2}
                 initialFocus
                 className={cn('p-3 pointer-events-auto')}
               />
