@@ -101,6 +101,7 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
           )}
           {rows.map((r) => {
             const holding = r.companyCashWithAgent > 0;
+            const settled = !holding && r.owedToAgent <= 0;
             return (
               <div
                 key={r.deskId}
@@ -127,7 +128,11 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
                     {formatUGX(holding ? r.companyCashWithAgent : r.owedToAgent)}
                   </p>
                   <p className="text-[10px] text-muted-foreground">
-                    {holding ? 'our money still on their phone' : 'we must send this back to them'}
+                    {holding
+                      ? 'our money still on their phone'
+                      : settled
+                        ? 'nothing outstanding either way'
+                        : 'we must send this back to them'}
                   </p>
                   <button
                     type="button"
