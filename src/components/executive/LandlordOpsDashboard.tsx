@@ -106,6 +106,8 @@ import { AgentVerificationRequestsPanel } from './landlord-ops/AgentVerification
 import { Lc1VerificationInboxPanel } from './landlord-ops/Lc1VerificationInboxPanel';
 import { Lc1DuplicatesPanel } from './landlord-ops/Lc1DuplicatesPanel';
 import { ResidenceVerificationPanel } from './landlord-ops/ResidenceVerificationPanel';
+import { HubEntryCard } from '@/components/ops/HubEntryCard';
+import { HubHeader } from '@/components/ops/HubHeader';
 
 /**
  * Thin wrapper that fetches active listing blocks + recent rejection counts
