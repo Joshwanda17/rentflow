@@ -6,6 +6,7 @@ import { IftttDiagnosticsPanel } from './IftttDiagnosticsPanel';
 import { MerchantPhoneChecklist } from './MerchantPhoneChecklist';
 import { PhoneMoneyCard } from './PhoneMoneyCard';
 import { MoneyWithAgentsCard } from './MoneyWithAgentsCard';
+import { MerchantBalanceDisputesPanel } from './MerchantBalanceDisputesPanel';
 import { PhonePlatformReconciliationCard } from './PhonePlatformReconciliationCard';
 import { AutoCreditSuccessRateTile } from './AutoCreditSuccessRateTile';
 
@@ -896,6 +897,9 @@ function FinOpsHome({
 
       {/* Company money sitting with merchant agents — directly below ACTUAL MONEY */}
       <MoneyWithAgentsCard onOpenTimeline={() => onOpenTool('cashout_settlement')} />
+
+      {/* Merchant agents reporting a wrong balance — fix it right here */}
+      <MerchantBalanceDisputesPanel />
 
       <AutoCreditSuccessRateTile onClick={() => onOpenTool('auto_credit_review')} />
 
