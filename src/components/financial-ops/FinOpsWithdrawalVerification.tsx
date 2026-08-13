@@ -345,6 +345,15 @@ export function FinOpsWithdrawalVerification() {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
+  /**
+   * Customer mobile-money withdrawals are settled by merchant agents from their
+   * own MTN/Airtel float (they claim, they pay, we refund them). Financial Ops
+   * only pays merchant agents and bank/cash payouts, so mobile money is
+   * monitor-only on this desk.
+   */
+  const isMerchantOnlyPayout = (req: WithdrawalRequest) =>
+    (req.payout_method || 'mobile_money').toLowerCase() === 'mobile_money';
+
   // Approve with TID/Receipt/Bank Ref → approved (final) via ledger-first edge function
   const handleApprove = async () => {
     if (!user || !selected || reference.trim().length < 3 || !paymentMethod) return;
