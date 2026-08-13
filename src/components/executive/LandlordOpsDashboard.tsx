@@ -693,28 +693,33 @@ export function LandlordOpsDashboard() {
    * screen: KPI comparisons, daily trend chart, district bar chart, and the
    * per-district / per-agent / per-service-centre tables plus the register.
    */
-  const exportFundedReportPdf = async () => {
+  const exportFundedReportPdf = async (
+    overrides?: { dateFrom?: string; dateTo?: string; search?: string },
+  ) => {
+    const fundedFrom = overrides?.dateFrom ?? landlordDateFrom;
+    const fundedTo = overrides?.dateTo ?? landlordDateTo;
+    const fundedSearch = overrides?.search ?? debouncedLandlordSearch;
     setExportingFundedReport(true);
     try {
       const stats = await fetchLandlordFundedStats({
-        dateFrom: landlordDateFrom,
-        dateTo: landlordDateTo,
-        search: debouncedLandlordSearch,
+        dateFrom: fundedFrom,
+        dateTo: fundedTo,
+        search: fundedSearch,
       });
       if (!stats?.summary?.landlords_funded) {
         sonnerToast.error('No landlords were funded in this period — nothing to export');
         return;
       }
       const blob = generateLandlordFundedReportPdf(stats, {
-        dateFrom: landlordDateFrom || null,
-        dateTo: landlordDateTo || null,
-        search: debouncedLandlordSearch || null,
+        dateFrom: fundedFrom || null,
+        dateTo: fundedTo || null,
+        search: fundedSearch || null,
         generatedBy: user?.email ?? null,
       });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = landlordFundedFileName({ dateFrom: landlordDateFrom, dateTo: landlordDateTo });
+      a.download = landlordFundedFileName({ dateFrom: fundedFrom, dateTo: fundedTo });
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
