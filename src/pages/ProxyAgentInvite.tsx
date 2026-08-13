@@ -3,13 +3,14 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useMyProxyAgentStatus } from '@/hooks/useProxyAgentApproval';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { AlertTriangle, CheckCircle2, FileText, Loader2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Clock, FileText, Loader2 } from 'lucide-react';
 
 const STORAGE_KEY = 'pendingProxyInvite';
 
@@ -24,11 +25,17 @@ export default function ProxyAgentInvite() {
   const { code = '' } = useParams<{ code: string }>();
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
+  const myAccessQ = useMyProxyAgentStatus(user?.id ?? null);
+  const myAccess = myAccessQ.data?.status ?? 'none';
 
   const [agreement, setAgreement] = useState<Agreement | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [nin, setNin] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
+  // 'pending' | 'approved' | ... — server-side proxy access identifier after acceptance
+  const [approvalStatus, setApprovalStatus] = useState<string | null>(null);
   const [agreed, setAgreed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [accepted, setAccepted] = useState(false);
@@ -49,13 +56,6 @@ export default function ProxyAgentInvite() {
   }, [code]);
 
 
-  // After accepting, land the proxy directly where promissory notes are submitted.
-  useEffect(() => {
-    if (!accepted) return;
-    const timer = setTimeout(() => navigate('/agent/partners', { replace: true }), 2000);
-    return () => clearTimeout(timer);
-  }, [accepted, navigate]);
-
   useEffect(() => {
     if (authLoading || !user) return;
     let cancelled = false;
@@ -75,6 +75,18 @@ export default function ProxyAgentInvite() {
           setError('Could not load the agreement. Check your connection and try again.');
         }
       }, 10000);
+
+      // Prefill identity fields from the signed-in profile so the applicant only confirms them.
+      supabase
+        .from('profiles')
+        .select('full_name, phone')
+        .eq('id', user.id)
+        .maybeSingle()
+        .then(({ data: prof }) => {
+          if (cancelled || !prof) return;
+          setFullName((prev) => prev || (prof.full_name ?? ''));
+          setPhone((prev) => prev || (prof.phone ?? ''));
+        });
 
       const { data, error: rpcError } = await supabase.rpc('current_proxy_agreement');
       if (loadTimeout) {
@@ -105,8 +117,13 @@ export default function ProxyAgentInvite() {
   }, [authLoading, user, retryCount]);
 
   const canAccept = useMemo(
-    () => agreed && nin.trim().length >= 8 && !submitting,
-    [agreed, nin, submitting],
+    () =>
+      agreed &&
+      nin.trim().length >= 8 &&
+      fullName.trim().length >= 3 &&
+      phone.replace(/\D/g, '').length >= 9 &&
+      !submitting,
+    [agreed, nin, fullName, phone, submitting],
   );
 
   const handleAccept = async () => {
@@ -125,7 +142,9 @@ export default function ProxyAgentInvite() {
     const { data, error: rpcError } = await supabase.rpc('accept_proxy_agreement', {
       p_code: code,
       p_nin: nin.trim(),
-    });
+      p_full_name: fullName.trim(),
+      p_phone: phone.trim(),
+    } as never);
 
     if (submitTimeout) {
       clearTimeout(submitTimeout);
@@ -150,6 +169,7 @@ export default function ProxyAgentInvite() {
       // An accepted agreement without a lead attachment is still a success,
       // but the proxy must be told the link did not happen.
       setLeadAttached(row?.lead_attached === true);
+      setApprovalStatus(typeof row?.approval_status === 'string' ? row.approval_status : 'pending');
       try {
         localStorage.removeItem(STORAGE_KEY);
       } catch {
@@ -247,12 +267,27 @@ export default function ProxyAgentInvite() {
 
             {accepted ? (
               <div className="space-y-3">
-                <div className="flex items-start gap-2 rounded-md border border-primary/30 bg-primary/10 p-3 text-sm">
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                  <span>
-                    You're connected. Taking you to My Partners…
-                  </span>
-                </div>
+                {approvalStatus === 'approved' ? (
+                  <div className="flex items-start gap-2 rounded-md border border-primary/30 bg-primary/10 p-3 text-sm">
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                    <span>You're approved. Open your Proxy Agent Command Center.</span>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                      <Clock className="mt-0.5 h-4 w-4 shrink-0" />
+                      <span className="break-words">
+                        Agreement accepted — your application is now <strong>pending approval</strong>. You'll appear in
+                        the Partner Ops proxy agent list. Once approved you can access the Proxy Agent Command Center.
+                      </span>
+                    </div>
+                    <div className="rounded-md border bg-muted/40 p-3 text-xs space-y-1">
+                      <p><span className="text-muted-foreground">Name:</span> {fullName.trim()}</p>
+                      <p><span className="text-muted-foreground">Phone:</span> {phone.trim()}</p>
+                      <p><span className="text-muted-foreground">National ID:</span> {nin.trim()}</p>
+                    </div>
+                  </div>
+                )}
                 {leadAttached === false && (
                   <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
                     <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -261,13 +296,39 @@ export default function ProxyAgentInvite() {
                     </span>
                   </div>
                 )}
-                <Button onClick={() => navigate('/agent/partners', { replace: true })} className="w-full">
-                  Go to My Partners now
+                <Button
+                  onClick={() =>
+                    navigate(approvalStatus === 'approved' ? '/agent/proxy-agents' : '/', { replace: true })
+                  }
+                  className="w-full"
+                >
+                  {approvalStatus === 'approved' ? 'Open Proxy Agent Command Center' : 'Back to home'}
                 </Button>
               </div>
             ) : agreement?.already_accepted ? (
               <div className="space-y-3">
                 <p className="text-sm">You have already accepted this month's agreement</p>
+                {myAccess === 'approved' ? (
+                  <>
+                    <div className="flex items-start gap-2 rounded-md border border-primary/30 bg-primary/10 p-3 text-sm">
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                      <span>Your proxy agent access is approved.</span>
+                    </div>
+                    <Button className="w-full" onClick={() => navigate('/agent/proxy-agents')}>
+                      Open Proxy Agent Command Center
+                    </Button>
+                  </>
+                ) : (
+                  <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                    <Clock className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span className="break-words">
+                      {myAccess === 'rejected'
+                        ? 'Your proxy agent application was not approved.'
+                        : 'Your application is pending Partner Ops approval. You will get proxy agent access once approved.'}
+                      {myAccessQ.data?.review_notes ? ` Note: ${myAccessQ.data.review_notes}` : ''}
+                    </span>
+                  </div>
+                )}
                 <Link to="/pa/record" className="text-sm text-primary underline">
                   Go to record a promissory note
                 </Link>
@@ -279,6 +340,30 @@ export default function ProxyAgentInvite() {
                     <ReactMarkdown>{agreement.body_md || ''}</ReactMarkdown>
                   </div>
                 </ScrollArea>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="proxy-name" className="text-sm">Full name</Label>
+                    <Input
+                      id="proxy-name"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="Your name as on your National ID"
+                      autoComplete="name"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="proxy-phone" className="text-sm">Phone number</Label>
+                    <Input
+                      id="proxy-phone"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="07XXXXXXXX"
+                      inputMode="tel"
+                      autoComplete="tel"
+                    />
+                  </div>
+                </div>
 
                 <div className="space-y-1.5">
                   <Label htmlFor="proxy-nin" className="text-sm">
@@ -302,13 +387,18 @@ export default function ProxyAgentInvite() {
                     onCheckedChange={(c) => setAgreed(c === true)}
                     className="mt-0.5"
                   />
-                  <span>I have read and accept this agreement.</span>
+                  <span>
+                    I have read and accept this agreement, and confirm the name, phone number and National ID above are mine.
+                  </span>
                 </label>
 
                 <Button onClick={handleAccept} disabled={!canAccept} className="w-full">
                   {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Accept
+                  Accept &amp; submit for approval
                 </Button>
+                <p className="text-center text-xs text-muted-foreground">
+                  Partner Ops reviews every application before proxy agent access is granted.
+                </p>
               </>
             ) : null}
           </CardContent>

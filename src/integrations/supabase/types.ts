@@ -23432,20 +23432,44 @@ export type Database = {
         Row: {
           agent_user_id: string
           captured_at: string
+          full_name: string | null
           id: string
+          invite_code: string | null
           nin: string
+          phone: string | null
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          submitted_at: string
         }
         Insert: {
           agent_user_id: string
           captured_at?: string
+          full_name?: string | null
           id?: string
+          invite_code?: string | null
           nin: string
+          phone?: string | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          submitted_at?: string
         }
         Update: {
           agent_user_id?: string
           captured_at?: string
+          full_name?: string | null
           id?: string
+          invite_code?: string | null
           nin?: string
+          phone?: string | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          submitted_at?: string
         }
         Relationships: []
       }
@@ -34221,10 +34245,17 @@ export type Database = {
           test_name: string
         }[]
       }
-      accept_proxy_agreement: {
-        Args: { p_code: string; p_nin?: string }
-        Returns: Json
-      }
+      accept_proxy_agreement:
+        | { Args: { p_code: string; p_nin?: string }; Returns: Json }
+        | {
+            Args: {
+              p_code: string
+              p_full_name?: string
+              p_nin?: string
+              p_phone?: string
+            }
+            Returns: Json
+          }
       accept_withdrawal_dispatch: {
         Args: { p_withdrawal_id: string }
         Returns: Json
@@ -38324,6 +38355,10 @@ export type Database = {
         Returns: boolean
       }
       is_agent_perf_gate_disabled: { Args: never; Returns: boolean }
+      is_approved_proxy_agent: {
+        Args: { p_user_id?: string }
+        Returns: boolean
+      }
       is_business_advance_ops: { Args: { _uid: string }; Returns: boolean }
       is_conversation_participant: {
         Args: { _conversation_id: string; _user_id: string }
@@ -38689,6 +38724,7 @@ export type Database = {
           uses_count: number
         }[]
       }
+      my_proxy_agent_status: { Args: never; Returns: Json }
       my_proxy_agreement_record: {
         Args: never
         Returns: {
@@ -39398,6 +39434,28 @@ export type Database = {
       partner_ops_approve_self_topup: {
         Args: { p_notes?: string; p_topup_id: string }
         Returns: Json
+      }
+      partner_ops_decide_proxy_agent: {
+        Args: { p_agent_user_id: string; p_decision: string; p_notes?: string }
+        Returns: Json
+      }
+      partner_ops_list_proxy_agent_applications: {
+        Args: { p_status?: string }
+        Returns: {
+          agent_user_id: string
+          full_name: string
+          invite_code: string
+          lead_name: string
+          nin: string
+          phone: string
+          profile_name: string
+          profile_phone: string
+          review_notes: string
+          reviewed_at: string
+          reviewer_name: string
+          status: string
+          submitted_at: string
+        }[]
       }
       partner_ops_list_self_topup_reviews: {
         Args: { p_limit?: number; p_status?: string }
