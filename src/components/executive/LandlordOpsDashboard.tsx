@@ -1743,6 +1743,46 @@ export function LandlordOpsDashboard() {
 
   const lc1Groups = fullLC1Data || [];
 
+  /**
+   * The LC1 verification export, hoisted to component scope so both the LC1
+   * register and the centralized Reports & Exports → Extract card call exactly
+   * the same logic (same RPC, same generator, same file name).
+   */
+  const exportLc1ReportPdf = async (scope: 'verified' | 'rejected' | 'pending' | 'all') => {
+    setLc1Exporting(true);
+    try {
+      const { data, error } = await supabase.rpc('ops_lc1_verification_report' as any, {
+        p_status: scope,
+        p_search: search.trim().length >= 2 ? search.trim() : null,
+        p_limit: 3000,
+      } as any);
+      if (error) throw error;
+      const reportRows = (data ?? []) as Lc1ReportRow[];
+      const state = (g: { verified: boolean | null; verification_status?: string | null }) =>
+        (g.verification_status as string | null) || (g.verified ? 'verified' : 'pending');
+      const scopedCount = scope === 'all'
+        ? lc1Groups.length
+        : lc1Groups.filter(g => state(g) === scope).length;
+      const blob = generateLc1VerificationReportPdf(reportRows, {
+        scope,
+        search: search.trim().length >= 2 ? search.trim() : null,
+        totalMatches: scopedCount,
+        generatedBy: (user as any)?.email ?? null,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = lc1ReportFileName(scope);
+      a.click();
+      URL.revokeObjectURL(url);
+      sonnerToast.success(`${reportRows.length.toLocaleString()} LC1 chairpersons exported`);
+    } catch (e: any) {
+      sonnerToast.error(e?.message || 'Could not build the LC1 report');
+    } finally {
+      setLc1Exporting(false);
+    }
+  };
+
   const verifiedLandlords = landlordsList.filter(l => l.verified);
   const unverifiedLandlords = landlordsList.filter(l => !l.verified);
   const smartphoneLandlords = landlordsList.filter(l => l.has_smartphone);
