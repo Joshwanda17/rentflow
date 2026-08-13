@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Search, Download, FileText } from 'lucide-react';
+import { Search, Download, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 
