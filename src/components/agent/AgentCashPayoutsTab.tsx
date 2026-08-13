@@ -1148,6 +1148,7 @@ export function AgentCashPayoutsTab() {
       qc.invalidateQueries({ queryKey: ['cashout-agent-daily-stats'] });
       qc.invalidateQueries({ queryKey: ['cashout-agent-lifetime-commission'] });
       qc.invalidateQueries({ queryKey: ['cashout-agent-payout-history'] });
+      invalidateWalletBalance(qc, user?.id);
     },
     onError: (e: any) => toast.error(e.message),
   });
