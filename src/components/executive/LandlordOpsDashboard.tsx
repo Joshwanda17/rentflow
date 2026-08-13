@@ -4510,6 +4510,146 @@ export function LandlordOpsDashboard() {
     );
   }
 
+  // ─── HUB: Agent-initiated landlord verification requests ───
+  if (view === 'agent-verify-requests') {
+    return (
+      <>
+        <div className="space-y-4">
+          <BackButton />
+          <AgentVerificationRequestsPanel onResolved={refetchAll} />
+        </div>
+        {renderDialogs()}
+      </>
+    );
+  }
+
+  // ─── HUB: LC1 chairperson verification inbox ───
+  if (view === 'lc1-inbox') {
+    return (
+      <>
+        <div className="space-y-4">
+          <BackButton />
+          <Lc1VerificationInboxPanel onResolved={() => { refetchLC1(); refetchAll(); }} />
+        </div>
+        {renderDialogs()}
+      </>
+    );
+  }
+
+  // ─── HUB: Rent pipeline (landlord stage) ───
+  if (view === 'rent-pipeline-queue') {
+    return (
+      <>
+        <div className="space-y-4">
+          <BackButton />
+          <RentPipelineQueue stage="tenant_ops_approved" />
+        </div>
+        {renderDialogs()}
+      </>
+    );
+  }
+
+  // ─── HUB: Rejected at Landlord Ops ───
+  if (view === 'rejected-queue') {
+    return (
+      <>
+        <div className="space-y-4">
+          <BackButton />
+          <RejectedRequestsQueue stageFilter="tenant_ops_approved" title="Rejected at Landlord Ops" />
+        </div>
+        {renderDialogs()}
+      </>
+    );
+  }
+
+  // ─── HUB: Landlord payout review ───
+  if (view === 'payout-review') {
+    return (
+      <>
+        <div className="space-y-4">
+          <BackButton />
+          <LandlordOpsPayoutReview reviewRole="landlord_ops" />
+        </div>
+        {renderDialogs()}
+      </>
+    );
+  }
+
+  // ─── HUB: Agent rent-request capacity (fleet-wide) ───
+  if (view === 'agent-capacity') {
+    return (
+      <>
+        <div className="space-y-4">
+          <BackButton />
+          <AgentRentCapacityPanel />
+        </div>
+        {renderDialogs()}
+      </>
+    );
+  }
+
+  // ─── HUB: Reports & Exports ───
+  if (view === 'reports') {
+    return (
+      <>
+        <div className="space-y-4">
+          <BackButton />
+          <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
+            <div>
+              <p className="font-semibold text-sm leading-tight">Landlord payouts report</p>
+              <p className="text-[11px] text-muted-foreground leading-snug">
+                Pick a date range (optional), then print the branded PDF.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className={cn("gap-1.5 font-normal", !reportFrom && "text-muted-foreground")}>
+                    <CalendarIcon className="h-3.5 w-3.5" />
+                    {reportFrom ? format(reportFrom, 'dd MMM yyyy') : 'From'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={reportFrom} onSelect={setReportFrom} initialFocus className={cn("p-3 pointer-events-auto")} />
+                </PopoverContent>
+              </Popover>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className={cn("gap-1.5 font-normal", !reportTo && "text-muted-foreground")}>
+                    <CalendarIcon className="h-3.5 w-3.5" />
+                    {reportTo ? format(reportTo, 'dd MMM yyyy') : 'To'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={reportTo} onSelect={setReportTo} initialFocus className={cn("p-3 pointer-events-auto")} />
+                </PopoverContent>
+              </Popover>
+              {(reportFrom || reportTo) && (
+                <Button variant="ghost" size="sm" onClick={() => { setReportFrom(undefined); setReportTo(undefined); }}>
+                  Clear
+                </Button>
+              )}
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={handlePrintReport} disabled={printingPdf}>
+                {printingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
+                Print Report
+              </Button>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-4">
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              Other exports live inside the section they belong to: landlord verification export in
+              <span className="font-medium text-foreground"> All Landlords</span>, house verification export in
+              <span className="font-medium text-foreground"> Verify Houses</span>, funded-landlord export in
+              <span className="font-medium text-foreground"> Landlords Paid</span>, and the LC1 export in
+              <span className="font-medium text-foreground"> LC1 Chairpersons</span>.
+            </p>
+          </div>
+        </div>
+        {renderDialogs()}
+      </>
+    );
+  }
+
   // ─── HOME: Mobile-first card navigation ───
   return (
     <div className="space-y-6">
