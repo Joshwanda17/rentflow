@@ -107,12 +107,17 @@ export function useMerchantFloatPositions(enabled = true) {
  * plus their telecom sending charges. Read-only reporting RPC.
  */
 export interface MerchantOutOfPocketSummary {
+  /** CONFIRMED money the company owes the merchant. */
   owedToAgent: number;
+  /** Float shortfalls filed for review — not yet money owed. */
+  underReview: number;
+  rejectedTotal: number;
   reimbursedTotal: number;
   telecomToday: number;
   telecomMonth: number;
   telecomTotal: number;
   pendingCount: number;
+  underReviewCount: number;
 }
 
 export function useMerchantOutOfPocket(enabled = true) {
@@ -128,11 +133,14 @@ export function useMerchantOutOfPocket(enabled = true) {
       const d = (data ?? {}) as any;
       return {
         owedToAgent: Number(d.owed_to_agent ?? 0),
+        underReview: Number(d.under_review ?? 0),
+        rejectedTotal: Number(d.rejected_total ?? 0),
         reimbursedTotal: Number(d.reimbursed_total ?? 0),
         telecomToday: Number(d.telecom_today ?? 0),
         telecomMonth: Number(d.telecom_month ?? 0),
         telecomTotal: Number(d.telecom_total ?? 0),
         pendingCount: Number(d.pending_count ?? 0),
+        underReviewCount: Number(d.under_review_count ?? 0),
       };
     },
   });
@@ -149,6 +157,9 @@ export interface MerchantOutOfPocketRow {
   status: string;
   note: string | null;
   createdAt: string;
+  attestedAt: string | null;
+  reviewedAt: string | null;
+  reviewNote: string | null;
 }
 
 export function useMerchantOutOfPocketRows(enabled = true) {
@@ -160,7 +171,7 @@ export function useMerchantOutOfPocketRows(enabled = true) {
     queryFn: async (): Promise<MerchantOutOfPocketRow[]> => {
       const { data, error } = await supabase
         .from('merchant_out_of_pocket_advances' as any)
-        .select('id, withdrawal_id, kind, payout_amount, telecom_charge, float_used, shortfall_amount, status, note, created_at')
+        .select('id, withdrawal_id, kind, payout_amount, telecom_charge, float_used, shortfall_amount, status, note, created_at, attested_at, reviewed_at, review_note')
         .order('created_at', { ascending: false })
         .limit(30);
       if (error) throw error;
@@ -175,7 +186,38 @@ export function useMerchantOutOfPocketRows(enabled = true) {
         status: String(r.status),
         note: r.note ?? null,
         createdAt: String(r.created_at),
+        attestedAt: r.attested_at ?? null,
+        reviewedAt: r.reviewed_at ?? null,
+        reviewNote: r.review_note ?? null,
       }));
+    },
+  });
+}
+
+/**
+ * A float shortfall alone is not proof the merchant spent their own money.
+ * The merchant confirms it here (or Finance confirms/rejects on review) and
+ * only then does it count as money the company owes.
+ */
+export function useReviewMerchantOutOfPocket() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id: string; decision: 'confirm' | 'reject'; note?: string }) => {
+      if (input.decision === 'reject' && (input.note ?? '').trim().length < 10) {
+        throw new Error('Give a reason of at least 10 characters.');
+      }
+      const { data, error } = await supabase.rpc('review_merchant_out_of_pocket' as any, {
+        p_id: input.id,
+        p_decision: input.decision,
+        p_note: input.note?.trim() || null,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['merchant-out-of-pocket'] });
+      qc.invalidateQueries({ queryKey: ['merchant-out-of-pocket-rows'] });
+      qc.invalidateQueries({ queryKey: ['merchant-float-positions'] });
     },
   });
 }
