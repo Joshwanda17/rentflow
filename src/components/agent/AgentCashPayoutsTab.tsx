@@ -22,7 +22,7 @@ import {
   Banknote, QrCode, Search, CheckCircle2, Loader2,
   Smartphone, Wallet, Bell, TrendingUp, Clock, Hash, Phone, UserCheck, Coins,
   CalendarIcon, X, ArrowUp, ArrowDown, SlidersHorizontal, ArrowUpDown, Landmark,
-  ChevronLeft, ChevronRight, ChevronDown,
+  ChevronLeft, ChevronRight, ChevronDown, Hand, ReceiptText,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
