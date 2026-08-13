@@ -23,6 +23,10 @@ import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 import { MerchantReconcilePaymentCard } from '@/components/agent/MerchantReconcilePaymentCard';
 import { MerchantFloatAvailableCard } from '@/components/agent/MerchantFloatAvailableCard';
+import {
+  MerchantPayoutNumbersGate,
+  useMerchantPayoutNumbers,
+} from '@/components/agent/MerchantPayoutNumbersGate';
 
 interface Props {
   agentId: string;
@@ -66,6 +70,10 @@ export function MerchantDashboardHome({
   const total = withdrawableBalance + floatBalance;
   const navigate = useNavigate();
 
+  // Hard gate: no merchant activity at all until the float number and the
+  // personal-money number are on record and different from each other.
+  const { data: payoutNumbers, isLoading: numbersLoading } = useMerchantPayoutNumbers(agentId);
+
   // 7-day merchant activity — derived from the payouts this merchant actually
   // settled (withdrawal_requests), not from push-notification logs. Push logs
   // only exist for push-dispatched offers, so merchants who claimed from the
@@ -103,6 +111,18 @@ export function MerchantDashboardHome({
   });
 
   const successPct = insights?.successRate ?? null;
+
+  if (numbersLoading) {
+    return (
+      <div className="rounded-3xl border border-border/60 bg-card p-6 text-sm text-muted-foreground">
+        Checking your payout numbers…
+      </div>
+    );
+  }
+
+  if (payoutNumbers && !payoutNumbers.complete) {
+    return <MerchantPayoutNumbersGate agentId={agentId} existing={payoutNumbers} />;
+  }
 
   return (
     <div className="space-y-5">
