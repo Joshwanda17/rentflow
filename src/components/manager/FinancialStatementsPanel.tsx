@@ -12,17 +12,23 @@ import { Progress } from '@/components/ui/progress';
 import { ComprehensiveCashMovement } from '@/components/cfo/ComprehensiveCashMovement';
 import { LedgerDrillDownDialog } from '@/components/cfo/LedgerDrillDownDialog';
 import { FS_DRILL_MAP } from '@/components/cfo/financialStatementsDrillMap';
-import { startOfDay, endOfDay, subDays, startOfMonth, startOfYear } from 'date-fns';
+import { startOfDay, endOfDay, subDays, startOfMonth, startOfYear, startOfWeek, startOfQuarter } from 'date-fns';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarPicker } from '@/components/ui/calendar';
+import { CheckCircle2, AlertTriangle } from 'lucide-react';
 
 import { formatDynamic as formatUGX } from '@/lib/currencyFormat';
 
 const PERIODS: { value: StatementPeriod; label: string }[] = [
   { value: 'today', label: 'Today' },
   { value: '7days', label: '7 Days' },
+  { value: 'week', label: 'This Week' },
   { value: '30days', label: '30 Days' },
   { value: 'month', label: 'This Month' },
+  { value: 'quarter', label: 'This Quarter' },
   { value: 'year', label: 'This Year' },
   { value: 'all', label: 'All Time' },
+  { value: 'custom', label: 'Custom Range' },
 ];
 
 const COMPARISON_MODES: { value: ComparisonMode; label: string; short: string }[] = [
@@ -104,8 +110,10 @@ function getEffectiveDates(period: StatementPeriod, startDate: Date | null, endD
   switch (period) {
     case 'today':   return { start: startOfDay(now), end: endOfDay(now) };
     case '7days':   return { start: startOfDay(subDays(now, 7)), end: endOfDay(now) };
+    case 'week':    return { start: startOfWeek(now, { weekStartsOn: 1 }), end: endOfDay(now) };
     case '30days':  return { start: startOfDay(subDays(now, 30)), end: endOfDay(now) };
     case 'month':   return { start: startOfMonth(now), end: endOfDay(now) };
+    case 'quarter': return { start: startOfQuarter(now), end: endOfDay(now) };
     case 'year':    return { start: startOfYear(now), end: endOfDay(now) };
     default:        return { start: null, end: null };
   }
@@ -534,7 +542,70 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
 ];
 
 export function FinancialStatementsPanel() {
-  const { data, loading, filters, generate, updatePeriod, comparisonMode, updateComparisonMode, comparisonMetrics, loadingComparison } = useFinancialStatements();
+  return <FinancialStatementsPanelInner />;
+}
+
+/**
+ * Reconciliation strip — proves the three statements tie back to the ledger.
+ * Read-only: every figure comes from the same `general_ledger` rows.
+ */
+function ReconciliationCard({ r }: { r: import('@/hooks/useFinancialStatements').ReconciliationCheck }) {
+  const ok = r.balanced && r.cashTied;
+  return (
+    <Card className={cn('border', ok ? 'border-success/40' : 'border-destructive/40')}>
+      <CardContent className="py-3 space-y-2">
+        <div className="flex items-center gap-2">
+          {ok ? <CheckCircle2 className="h-4 w-4 text-success" /> : <AlertTriangle className="h-4 w-4 text-destructive" />}
+          <p className={cn('text-xs font-semibold', ok ? 'text-success' : 'text-destructive')}>
+            {ok ? 'Reconciled to the general ledger' : 'Reconciliation gap — review below'}
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-2 text-[11px]">
+          <div className="rounded-md border border-border/60 p-2">
+            <p className="uppercase tracking-wider text-muted-foreground">Assets = Liabilities + Equity</p>
+            <p className="font-mono text-foreground">{formatUGX(r.totalAssets)} = {formatUGX(r.totalLiabilities)} + {formatUGX(r.totalEquity)}</p>
+            <p className={cn('font-mono', r.balanced ? 'text-muted-foreground' : 'text-destructive')}>
+              Difference {formatUGX(r.balanceDifference)}
+            </p>
+          </div>
+          <div className="rounded-md border border-border/60 p-2">
+            <p className="uppercase tracking-wider text-muted-foreground">Closing cash vs balance sheet cash</p>
+            <p className="font-mono text-foreground">{formatUGX(r.closingCash)} vs {formatUGX(r.balanceSheetCash)}</p>
+            <p className={cn('font-mono', r.cashTied ? 'text-muted-foreground' : 'text-destructive')}>
+              Difference {formatUGX(r.cashDifference)}
+            </p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2 text-[11px] sm:grid-cols-4">
+          <Figure label="Opening cash" value={r.openingCash} />
+          <Figure label="Cash in" value={r.cashIn} />
+          <Figure label="Cash out" value={r.cashOut} />
+          <Figure label="Closing cash" value={r.closingCash} />
+        </div>
+        {Math.abs(r.unclassifiedNet) >= 1 && (
+          <p className="text-[10px] text-muted-foreground">
+            {formatUGX(Math.abs(r.unclassifiedNet))} of ledger movement is not attributed to a cash-flow
+            section yet — closing cash still ties to the ledger and the balance sheet.
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function Figure({ label, value }: { label: string; value: number }) {
+  return (
+    <div>
+      <p className="uppercase tracking-wider text-muted-foreground">{label}</p>
+      <p className="font-mono text-foreground">{formatUGX(value)}</p>
+    </div>
+  );
+}
+
+function FinancialStatementsPanelInner() {
+  const { data, loading, filters, generate, updatePeriod, setFilters, comparisonMode, updateComparisonMode, comparisonMetrics, loadingComparison } = useFinancialStatements();
+  const [customStart, setCustomStart] = useState<Date | undefined>();
+  const [customEnd, setCustomEnd] = useState<Date | undefined>();
   const [activeTab, setActiveTab] = useState<Tab>('movement');
   const [sharing, setSharing] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -560,7 +631,25 @@ export function FinancialStatementsPanel() {
   };
 
   const handleChangePeriod = (period: StatementPeriod) => {
+    if (period === 'custom') {
+      setFilters({ period: 'custom', startDate: customStart ? startOfDay(customStart) : null, endDate: customEnd ? endOfDay(customEnd) : null });
+      return;
+    }
     updatePeriod(period);
+  };
+
+  const applyCustomRange = () => {
+    if (!customStart || !customEnd) {
+      toast.error('Pick both a start and an end date');
+      return;
+    }
+    if (customEnd < customStart) {
+      toast.error('End date cannot be before the start date');
+      return;
+    }
+    const next = { period: 'custom' as StatementPeriod, startDate: startOfDay(customStart), endDate: endOfDay(customEnd) };
+    setFilters(next);
+    generate(next);
   };
 
   const getTabLabel = () => {
@@ -968,6 +1057,37 @@ export function FinancialStatementsPanel() {
         ))}
       </div>
 
+      {/* Custom Range Pickers */}
+      {filters.period === 'custom' && (
+        <div className="flex flex-wrap items-center gap-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button size="sm" variant="outline" className="h-7 text-xs gap-1">
+                <Calendar className="h-3.5 w-3.5" />
+                {customStart ? format(customStart, 'dd MMM yyyy') : 'Start date'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0 z-[200]" align="start">
+              <CalendarPicker mode="single" selected={customStart} onSelect={setCustomStart} initialFocus className="p-3 pointer-events-auto" />
+            </PopoverContent>
+          </Popover>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button size="sm" variant="outline" className="h-7 text-xs gap-1">
+                <Calendar className="h-3.5 w-3.5" />
+                {customEnd ? format(customEnd, 'dd MMM yyyy') : 'End date'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0 z-[200]" align="start">
+              <CalendarPicker mode="single" selected={customEnd} onSelect={setCustomEnd} initialFocus className="p-3 pointer-events-auto" />
+            </PopoverContent>
+          </Popover>
+          <Button size="sm" className="h-7 text-xs" onClick={applyCustomRange} disabled={loading}>
+            Apply range
+          </Button>
+        </div>
+      )}
+
       {/* Comparison Mode Selector */}
       <div className="flex flex-wrap gap-2 items-center">
         <GitCompareArrows className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -1004,6 +1124,10 @@ export function FinancialStatementsPanel() {
       )}
 
       {/* Statement Tabs + Content */}
+      {data && (
+        <ReconciliationCard r={data.reconciliation} />
+      )}
+
       {data && (
         <Card ref={contentRef}>
           <CardContent className="pt-4 pb-6">
