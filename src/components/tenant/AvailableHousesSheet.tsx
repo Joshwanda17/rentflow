@@ -667,9 +667,9 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
               village from the listings themselves. Cascades Region → District →
               Sub-county → Village so tenants drill to a precise area. */}
           {(districtOptions.length > 0 || subCountyOptions.length > 0 || villageOptions.length > 0) && (
-            <div className="flex gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
               <Select value={selectedDistrict} onValueChange={handleDistrictChange}>
-                <SelectTrigger className="flex-1 h-9 text-xs">
+                <SelectTrigger className="h-9 w-full min-w-0 text-[11px] [&>span]:block [&>span]:truncate [&>span]:text-left">
                   <SelectValue placeholder="District" />
                 </SelectTrigger>
                 <SelectContent>
@@ -684,7 +684,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
                 onValueChange={handleSubCountyChange}
                 disabled={subCountyOptions.length === 0}
               >
-                <SelectTrigger className="flex-1 h-9 text-xs">
+                <SelectTrigger className="h-9 w-full min-w-0 text-[11px] [&>span]:block [&>span]:truncate [&>span]:text-left">
                   <SelectValue placeholder="Sub-county" />
                 </SelectTrigger>
                 <SelectContent>
@@ -699,7 +699,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
                 onValueChange={setSelectedVillage}
                 disabled={villageOptions.length === 0}
               >
-                <SelectTrigger className="flex-1 h-9 text-xs">
+                <SelectTrigger className="h-9 w-full min-w-0 text-[11px] [&>span]:block [&>span]:truncate [&>span]:text-left">
                   <SelectValue placeholder="Village" />
                 </SelectTrigger>
                 <SelectContent>
