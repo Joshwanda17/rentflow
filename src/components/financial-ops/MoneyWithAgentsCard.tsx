@@ -4,6 +4,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { useMerchantFloatPositions, MerchantFloatPosition } from '@/hooks/useMerchantFloat';
 import { MerchantReconcileDialog } from './MerchantReconcileDialog';
 import { MerchantFloatStatementDialog } from './MerchantFloatStatementDialog';
+import { MerchantOwnMoneyReviewPanel } from './MerchantOwnMoneyReviewPanel';
 
 /**
  * Money With Agents — shows how much company money is still sitting with each
@@ -168,6 +169,10 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
         open={!!statementFor}
         onOpenChange={(v) => !v && setStatementFor(null)}
       />
+
+      <div className="mt-4">
+        <MerchantOwnMoneyReviewPanel />
+      </div>
     </div>
   );
 }
