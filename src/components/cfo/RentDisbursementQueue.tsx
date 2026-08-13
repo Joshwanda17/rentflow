@@ -159,12 +159,15 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['rent-disbursement-queue'],
     queryFn: async () => {
-      // Get COO-approved rent requests
+      // Every rent request still awaiting disbursement — COO-approved rows are
+      // payable, earlier-stage rows are shown read-only so their districts are
+      // never missing from the location provisions.
       const { data: requests, error } = await supabase
         .from('rent_requests')
-        .select('id, rent_amount, tenant_id, landlord_id, agent_id, assigned_agent_id, access_fee, request_fee, total_repayment, created_at, request_country, request_city, house_listing_id')
-        .eq('status', 'coo_approved')
-        .order('created_at', { ascending: true });
+        .select('id, status, rent_amount, tenant_id, landlord_id, agent_id, assigned_agent_id, access_fee, request_fee, total_repayment, created_at, request_country, request_city, house_listing_id')
+        .in('status', AWAITING_STATUSES)
+        .order('created_at', { ascending: true })
+        .limit(5000);
       if (error) throw error;
       if (!requests?.length) return [];
 
@@ -223,6 +226,8 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
         const loc: any = tenantLocMap.get(r.tenant_id) || {};
         return {
           ...r,
+          status: (r as any).status,
+          is_disbursable: (r as any).status === 'coo_approved',
           access_fee: r.access_fee ?? 0,
           request_fee: r.request_fee ?? 0,
           total_repayment: r.total_repayment ?? 0,
