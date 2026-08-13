@@ -3250,7 +3250,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Plus className="h-5 w-5 text-primary" /> Add Investment Portfolio
+              <Plus className="h-5 w-5 text-primary" /> Add Funding Portfolio
             </DialogTitle>
             <DialogDescription>
               Create a new portfolio for {detailPartner?.profile.full_name}. Funds are deducted from the selected wallet immediately.
