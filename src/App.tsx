@@ -48,7 +48,6 @@ const LanguageProvider = lazyWithRetry(() => import("@/hooks/useLanguage").then(
 // Auth providers — deferred since they're not needed for first paint
 const PinAuthProvider = lazyWithRetry(() => import("@/hooks/usePinAuth").then(m => ({ default: m.PinAuthProvider })));
 const BiometricAuthProvider = lazyWithRetry(() => import("@/hooks/useBiometricAuth").then(m => ({ default: m.BiometricAuthProvider })));
-const ProfileCompletionGate = optionalLazyWithRetry(() => import("@/components/onboarding/ProfileCompletionGate"), "ProfileCompletionGate");
 const PushNotificationGate = optionalLazyWithRetry(() => import("@/components/notifications/PushNotificationGate"), "PushNotificationGate");
 const TwoFactorGate = optionalLazyWithRetry(() => import("@/components/account/TwoFactorGate"), "TwoFactorGate");
 const PhoneCollectionGate = optionalLazyWithRetry(() => import("@/components/notifications/PhoneCollectionGate"), "PhoneCollectionGate");
@@ -368,9 +367,9 @@ function GlobalFloatingWidgets() {
   );
 }
 
-// Onboarding / interruption gates (profile setup, location, push, invites).
+// Onboarding / interruption gates (push, invites, name/phone collection).
 // Hidden on the public payout-receipt view so customers opening their receipt
-// from an SMS/QR link are never blocked by the "Quick setup" onboarding screen.
+// from an SMS/QR link are never blocked by onboarding screens.
 function GlobalOnboardingGates() {
   const location = useLocation();
   const isReceiptRoute =
@@ -380,7 +379,6 @@ function GlobalOnboardingGates() {
   return (
     <>
       <TwoFactorGate />
-      <ProfileCompletionGate />
       <PushNotificationGate />
       <PhoneCollectionGate />
       <NameCompletionGate />
