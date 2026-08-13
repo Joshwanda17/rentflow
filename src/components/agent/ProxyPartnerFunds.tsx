@@ -1858,6 +1858,10 @@ export function ProxyPartnerFunds() {
         prefillPayout={prefillPayout}
         linkedParty={selectedPartnerId}
         lockAmount
+        // Destination is dictated by the portfolio's saved payment details —
+        // read-only for the proxy agent, exactly like the amount.
+        lockPayoutDetails
+        payoutSourceLabel={payoutSourceLabel}
       />
 
       <AlertDialog open={cancelConfirmOpen} onOpenChange={(open) => {
