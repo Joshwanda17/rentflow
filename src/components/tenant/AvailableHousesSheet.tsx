@@ -21,6 +21,7 @@ import { motion } from 'framer-motion';
 import { ImageLightbox } from '@/components/marketplace/ImageLightbox';
 import { regionLabel } from '@/lib/ugandaDistricts';
 import { UG_REGIONS, useUgDistricts, useUgSubcountiesByDistrict } from '@/hooks/useUgLocations';
+import { useHouseFilterOptions } from '@/hooks/useHouseFilterOptions';
 import { normalizeAreaName } from '@/lib/listingAreaFilter';
 import { HousesMapView } from '@/components/tenant/HousesMapView';
 import { LoadMoreProgress } from '@/components/tenant/LoadMoreProgress';
@@ -32,17 +33,9 @@ interface AvailableHousesSheetProps {
 }
 
 // Region control is dataset-backed: Uganda's four official regions only.
-// District and sub-county come from the ug_* reference tables (see below).
+// Districts / sub-counties / villages come from the live listing inventory
+// (see useHouseFilterOptions) so every option returns at least one house.
 const REGIONS = ['All Regions', ...UG_REGIONS];
-
-/** Popular city/district shortcuts (broad location OR filter), kept for parity
- *  with the Find a House page and shared links. */
-const POPULAR_AREAS = [
-  'Kampala', 'Wakiso', 'Mukono', 'Jinja', 'Mbale',
-  'Mbarara', 'Gulu', 'Lira', 'Fort Portal', 'Masaka',
-  'Entebbe', 'Nansana', 'Kira', 'Bweyogerere',
-];
-const REGION_OPTIONS = [...REGIONS, ...POPULAR_AREAS];
 
 const CATEGORIES = [
   { value: 'all', label: 'All Types' },
