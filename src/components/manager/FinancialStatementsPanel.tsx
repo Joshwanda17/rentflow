@@ -1064,6 +1064,10 @@ export function FinancialStatementsPanel() {
 
       {/* Statement Tabs + Content */}
       {data && (
+        <ReconciliationCard r={data.reconciliation} />
+      )}
+
+      {data && (
         <Card ref={contentRef}>
           <CardContent className="pt-4 pb-6">
             {/* Tab Switcher */}
