@@ -78,6 +78,7 @@ import { WalletHeroSkeleton, MetricRowSkeleton, ListSectionSkeleton } from '@/co
 import { hapticTap } from '@/lib/haptics';
 import { useListingDaytimeGuard } from '@/hooks/useListingDaytimeGuard';
 import AgentFrozenGate from '@/components/agent/AgentFrozenGate';
+import { OperatingLocationGate } from '@/components/location/OperatingLocationGate';
 import { AgentAgreementBanner } from '@/components/agent/agreement';
 import { AgentPaymentEditAlert } from '@/components/agent/AgentPaymentEditAlert';
 import { AgentInactivityWarningBanner } from '@/components/agent/AgentInactivityWarningBanner';
@@ -783,6 +784,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
   return (
     <AgentFrozenGate>
+    <OperatingLocationGate />
     <div className="agent-dashboard-shell h-[100dvh] bg-background flex flex-col overflow-hidden">
       <OfflineBanner />
       <PendingDraftsBanner />
