@@ -7,6 +7,7 @@ import type { TemplateEntry } from './types.ts'
 interface TenantLine {
   tenant_name?: string
   tenant_location?: string
+  tenant_photo_url?: string
   principal?: string | number
   monthly_rent?: string | number
 }
@@ -185,7 +186,17 @@ export function PartnerSelfManagedDeployment({
                                       <table border={0} cellPadding={0} cellSpacing={0} role="presentation">
                                         <tbody><tr>
                                           <td align="center" valign="middle" style={avatarCell}>
-                                            <span style={avatarText}>{initials}</span>
+                                            {t.tenant_photo_url
+                                              ? (
+                                                <Img
+                                                  src={t.tenant_photo_url}
+                                                  alt={t.tenant_name || 'Tenant'}
+                                                  width="40"
+                                                  height="40"
+                                                  style={avatarImg}
+                                                />
+                                              )
+                                              : <span style={avatarText}>{initials}</span>}
                                           </td>
                                         </tr></tbody>
                                       </table>
@@ -323,6 +334,7 @@ const tenantCard: React.CSSProperties = { border: `1px solid ${BORDER}`, borderR
 const tenantRow: React.CSSProperties = { padding: '16px 20px', borderBottom: `1px solid ${HAIRLINE}` }
 const avatarCell: React.CSSProperties = { width: '40px', height: '40px', backgroundColor: '#f3e8ff', borderRadius: '50%' }
 const avatarText: React.CSSProperties = { color: BRAND, fontSize: '13px', fontWeight: 700, lineHeight: '40px', display: 'block', width: '40px', textAlign: 'center' as const }
+const avatarImg: React.CSSProperties = { width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover', display: 'block' }
 const tenantName: React.CSSProperties = { margin: '0 0 2px 0', color: INK, fontSize: '15px', fontWeight: 700 }
 const tenantLocation: React.CSSProperties = { margin: 0, color: MUTED, fontSize: '13px' }
 const tenantAmount: React.CSSProperties = { margin: '0 0 4px 0', color: INK, fontSize: '15px', fontWeight: 700 }
