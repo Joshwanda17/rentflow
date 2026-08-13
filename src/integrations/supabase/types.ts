@@ -37140,8 +37140,11 @@ export type Database = {
           label: string
           last_payout_at: string
           last_reimbursed_at: string
+          ledger_float_held: number
+          offledger_adjustments: number
           owed_to_agent: number
           paid_out_total: number
+          payouts_without_float_evidence: number
           reimbursed_total: number
         }[]
       }
