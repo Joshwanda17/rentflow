@@ -16,6 +16,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import type { DateRange } from 'react-day-picker';
 
 interface AdvanceRow {
   advance_id: string;
@@ -67,7 +68,6 @@ const PERIOD_LABELS: { key: Period; label: string }[] = [
   { key: 'today', label: 'Daily' },
   { key: 'week', label: 'Weekly' },
   { key: 'month', label: 'Monthly' },
-  { key: 'calendar', label: 'Calendar' },
   { key: 'all', label: 'All time' },
 ];
 
@@ -109,7 +109,7 @@ export function AllAdvancesReportPanel() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [period, setPeriod] = useState<Period>('all');
-  const [calendarDate, setCalendarDate] = useState<Date | undefined>(undefined);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const PAGE_SIZE = 50;
   const [page, setPage] = useState(1);
   const q = useDebouncedValue(search, 250);
@@ -209,15 +209,16 @@ export function AllAdvancesReportPanel() {
   };
 
   const clearAll = () => {
-    setSearch(''); setType('all'); setStatus('all'); setFrom(''); setTo(''); setPeriod('all'); setCalendarDate(undefined);
+    setSearch(''); setType('all'); setStatus('all'); setFrom(''); setTo(''); setPeriod('all'); setDateRange(undefined);
   };
 
   const applyPeriod = (p: Period) => {
     setPeriod(p);
     if (p === 'calendar') {
-      const d = calendarDate ? isoDay(calendarDate) : isoDay(new Date());
-      setFrom(d);
-      setTo(d);
+      if (dateRange?.from) {
+        setFrom(isoDay(dateRange.from));
+        setTo(dateRange.to ? isoDay(dateRange.to) : isoDay(dateRange.from));
+      }
       return;
     }
     const r = periodRange(p);
@@ -225,12 +226,11 @@ export function AllAdvancesReportPanel() {
     setTo(r.to);
   };
 
-  const applyCalendarDate = (d: Date | undefined) => {
-    setCalendarDate(d);
-    if (d) {
-      const day = isoDay(d);
-      setFrom(day);
-      setTo(day);
+  const applyDateRange = (range: DateRange | undefined) => {
+    setDateRange(range);
+    if (range?.from) {
+      setFrom(isoDay(range.from));
+      setTo(range.to ? isoDay(range.to) : isoDay(range.from));
       setPeriod('calendar');
     }
   };
@@ -284,38 +284,12 @@ export function AllAdvancesReportPanel() {
             {p.label}
           </Button>
         ))}
-        {period === 'calendar' && (
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className={cn(
-                  'h-7 px-2.5 text-[11px] justify-start text-left font-normal',
-                  !calendarDate && 'text-muted-foreground',
-                )}
-              >
-                <CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
-                {calendarDate ? format(calendarDate, 'PPP') : 'Pick a date'}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={calendarDate}
-                onSelect={applyCalendarDate}
-                initialFocus
-                className={cn('p-3 pointer-events-auto')}
-              />
-            </PopoverContent>
-          </Popover>
-        )}
-        {period === 'custom' && (
+        {(period === 'calendar' || period === 'custom') && (
           <Badge variant="secondary" className="text-[10px]">Custom range</Badge>
         )}
       </div>
 
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         <div className="relative sm:col-span-2 lg:col-span-1">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
@@ -339,20 +313,40 @@ export function AllAdvancesReportPanel() {
             {statuses.map((s) => <SelectItem key={s} value={s}>{prettyStatus(s)}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Input
-          type="date"
-          value={from}
-          onChange={(e) => { setFrom(e.target.value); setPeriod('custom'); }}
-          className="h-9"
-          aria-label="From date"
-        />
-        <Input
-          type="date"
-          value={to}
-          onChange={(e) => { setTo(e.target.value); setPeriod('custom'); }}
-          className="h-9"
-          aria-label="To date"
-        />
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              className={cn(
+                'h-9 justify-start text-left font-normal',
+                !dateRange?.from && 'text-muted-foreground',
+              )}
+            >
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {dateRange?.from ? (
+                dateRange.to ? (
+                  <>
+                    {format(dateRange.from, 'LLL dd')} - {format(dateRange.to, 'LLL dd, yyyy')}
+                  </>
+                ) : (
+                  format(dateRange.from, 'PPP')
+                )
+              ) : (
+                'Pick a date range'
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="range"
+              selected={dateRange}
+              onSelect={applyDateRange}
+              numberOfMonths={2}
+              initialFocus
+              className={cn('p-3 pointer-events-auto')}
+            />
+          </PopoverContent>
+        </Popover>
       </div>
 
       <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
