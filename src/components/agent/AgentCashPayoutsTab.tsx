@@ -1687,10 +1687,10 @@ export function AgentCashPayoutsTab() {
       {/* Withdrawal Requests by channel — UNCLAIMED only */}
       <section className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-bold uppercase tracking-wide text-foreground">Pending Queue</h2>
+          <h2 className="text-sm font-bold text-foreground">Requests waiting to be paid</h2>
           {totalPending > 0 && (
-            <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">
-              {totalPending} action required
+            <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-bold text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">
+              {totalPending} to do
             </span>
           )}
         </div>
@@ -1713,12 +1713,28 @@ export function AgentCashPayoutsTab() {
           </button>
         )}
 
-        {/* Advanced filters & sorting */}
+        {/* Search is always there; the rest of the filters stay folded away. */}
         <div className="rounded-2xl border border-border bg-muted/30 p-3 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              <SlidersHorizontal className="h-3.5 w-3.5" /> Filters &amp; Sort
-            </span>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={queueSearch}
+              onChange={(e) => setQueueSearch(e.target.value)}
+              placeholder="Search a name or phone number"
+              className="h-10 pl-9"
+            />
+          </div>
+
+          <div className="flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => setFiltersOpen((o) => !o)}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground"
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              {filtersOpen ? 'Hide options' : 'More options'}
+              <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', filtersOpen && 'rotate-180')} />
+            </button>
             {queueFiltersActive && (
               <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-xs" onClick={resetQueueFilters}>
                 <X className="h-3.5 w-3.5" /> Clear
@@ -1726,17 +1742,8 @@ export function AgentCashPayoutsTab() {
             )}
           </div>
 
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={queueSearch}
-              onChange={(e) => setQueueSearch(e.target.value)}
-              placeholder="Search by name or phone"
-              className="h-10 pl-9"
-            />
-          </div>
-
+          {filtersOpen && (
+          <>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {/* Status */}
             <Select value={queueStatus} onValueChange={(v) => setQueueStatus(v as typeof queueStatus)}>
