@@ -12,6 +12,26 @@ import { ListSectionSkeleton } from '@/components/skeletons/SectionSkeletons';
 
 const PAGE_SIZE = 10;
 
+/** Pre-funding stages are all shown as "Pending approval" to partners. */
+const PENDING_STATUSES = new Set([
+  'coo_approved',
+  'pending',
+  'pending_approval',
+  'submitted',
+  'in_review',
+  'under_review',
+  'vetted',
+  'approved',
+  'ready_to_fund',
+  'pending_cfo',
+  'pending_partner_ops',
+]);
+
+function formatTenantStatus(status: string) {
+  if (PENDING_STATUSES.has(status)) return 'Pending approval';
+  return status.replace(/_/g, ' ');
+}
+
 export function SupportedTenantsSection() {
   const { tenants, isLoading, error } = useSupportedTenants();
   const [search, setSearch] = useState('');
@@ -92,7 +112,7 @@ export function SupportedTenantsSection() {
               <p className="text-sm font-black text-foreground font-mono tabular-nums">
                 {formatUGX(Number(t.rent_amount || 0))}
               </p>
-              <p className="text-[10px] text-muted-foreground capitalize">{t.status.replace(/_/g, ' ')}</p>
+              <p className="text-[10px] text-muted-foreground capitalize">{formatTenantStatus(t.status)}</p>
             </div>
             <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
           </button>
