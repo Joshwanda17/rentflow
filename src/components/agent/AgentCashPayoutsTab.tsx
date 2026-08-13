@@ -43,6 +43,7 @@ import {
   type CashoutAgentConfig,
 } from '@/lib/cashoutAgentConfig';
 import { useWithdrawalsPaused } from '@/hooks/useWithdrawalsPaused';
+import { invalidateWalletBalance } from '@/hooks/wallet/useWalletBalance';
 import { AlertTriangle } from 'lucide-react';
 
 import {
