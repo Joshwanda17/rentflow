@@ -22,7 +22,7 @@ import {
   Banknote, QrCode, Search, CheckCircle2, Loader2,
   Smartphone, Wallet, Bell, TrendingUp, Clock, Hash, Phone, UserCheck, Coins,
   CalendarIcon, X, ArrowUp, ArrowDown, SlidersHorizontal, ArrowUpDown, Landmark,
-  ChevronLeft, ChevronRight, ChevronDown,
+  ChevronLeft, ChevronRight, ChevronDown, Hand, ReceiptText,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
@@ -306,6 +306,12 @@ export function AgentCashPayoutsTab() {
   const [verifiedPayout, setVerifiedPayout] = useState<any>(null);
   const [consoleOpen, setConsoleOpen] = useState(false);
   const [auditOpen, setAuditOpen] = useState(false);
+  // Top-level view for the merchant desk. Splits the page into three plain
+  // sections so a non-accountant lands directly on the requests to claim.
+  const [view, setView] = useState<'requests' | 'money' | 'history'>('requests');
+  // The queue filter panel stays folded away by default — most merchants just
+  // claim the top request and never need it.
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   // Date range filter for the commission breakdown. Defaults to "today" so the
   // card shows the volume processed and payout count for the current day.
@@ -1211,6 +1217,42 @@ export function AgentCashPayoutsTab() {
           </div>
         </div>
       )}
+      {/* Plain three-way switch: what to do now, what money is involved, what
+          already happened. Keeps the desk navigable without accounting terms. */}
+      <nav className="sticky top-[68px] z-10 -mx-1 grid grid-cols-3 gap-1 rounded-2xl border border-border/60 bg-background/95 p-1 backdrop-blur-md">
+        {([
+          { key: 'requests', label: 'To pay', icon: Hand, count: totalPending },
+          { key: 'money', label: 'My money', icon: Wallet, count: 0 },
+          { key: 'history', label: 'History', icon: ReceiptText, count: 0 },
+        ] as const).map(({ key, label, icon: Icon, count }) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setView(key)}
+            aria-current={view === key}
+            className={cn(
+              'flex h-11 items-center justify-center gap-1.5 rounded-xl text-sm font-semibold transition-colors',
+              view === key
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'text-muted-foreground hover:bg-muted',
+            )}
+          >
+            <Icon className="h-4 w-4 shrink-0" />
+            <span className="truncate">{label}</span>
+            {count > 0 && (
+              <span className={cn(
+                'rounded-full px-1.5 text-[11px] font-bold tabular-nums',
+                view === key ? 'bg-primary-foreground/20' : 'bg-destructive text-destructive-foreground',
+              )}>
+                {count}
+              </span>
+            )}
+          </button>
+        ))}
+      </nav>
+
+      {view === 'requests' && (
+      <>
       {/* Online/Offline availability — only Online agents receive real-time
           withdrawal dispatches. */}
       <MerchantOnlineToggle />
@@ -1257,7 +1299,11 @@ export function AgentCashPayoutsTab() {
           </CardContent>
         </Card>
       )}
+      </>
+      )}
 
+      {view === 'money' && (
+      <>
       {/* Shared payout float — no float requests any more. Claim, pay, get reimbursed. */}
       <MerchantFloatAvailableCard />
 
@@ -1296,7 +1342,11 @@ export function AgentCashPayoutsTab() {
           </div>
         </div>
       </section>
+      </>
+      )}
 
+      {view === 'history' && (
+      <>
       {/* Commission history — informational only. All withdrawable commission
           lives on the Agent Wallet Card (single source of truth for cash-out). */}
       <Card className="border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 to-transparent rounded-2xl">
@@ -1608,7 +1658,11 @@ export function AgentCashPayoutsTab() {
           )}
         </CardContent>
       </Card>
+      </>
+      )}
 
+      {view === 'requests' && (
+      <>
       {/* Live status banner */}
       {totalPending > 0 && (
         <div className="flex items-center justify-between gap-2.5 p-3.5 rounded-2xl bg-orange-500/10 border border-orange-500/20 text-orange-700 dark:text-orange-400">
@@ -1633,10 +1687,10 @@ export function AgentCashPayoutsTab() {
       {/* Withdrawal Requests by channel — UNCLAIMED only */}
       <section className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-bold uppercase tracking-wide text-foreground">Pending Queue</h2>
+          <h2 className="text-sm font-bold text-foreground">Requests waiting to be paid</h2>
           {totalPending > 0 && (
-            <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">
-              {totalPending} action required
+            <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-bold text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">
+              {totalPending} to do
             </span>
           )}
         </div>
@@ -1659,12 +1713,28 @@ export function AgentCashPayoutsTab() {
           </button>
         )}
 
-        {/* Advanced filters & sorting */}
+        {/* Search is always there; the rest of the filters stay folded away. */}
         <div className="rounded-2xl border border-border bg-muted/30 p-3 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              <SlidersHorizontal className="h-3.5 w-3.5" /> Filters &amp; Sort
-            </span>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={queueSearch}
+              onChange={(e) => setQueueSearch(e.target.value)}
+              placeholder="Search a name or phone number"
+              className="h-10 pl-9"
+            />
+          </div>
+
+          <div className="flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => setFiltersOpen((o) => !o)}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground"
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              {filtersOpen ? 'Hide options' : 'More options'}
+              <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', filtersOpen && 'rotate-180')} />
+            </button>
             {queueFiltersActive && (
               <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-xs" onClick={resetQueueFilters}>
                 <X className="h-3.5 w-3.5" /> Clear
@@ -1672,17 +1742,8 @@ export function AgentCashPayoutsTab() {
             )}
           </div>
 
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={queueSearch}
-              onChange={(e) => setQueueSearch(e.target.value)}
-              placeholder="Search by name or phone"
-              className="h-10 pl-9"
-            />
-          </div>
-
+          {filtersOpen && (
+          <>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {/* Status */}
             <Select value={queueStatus} onValueChange={(v) => setQueueStatus(v as typeof queueStatus)}>
@@ -1766,6 +1827,8 @@ export function AgentCashPayoutsTab() {
             <p className="text-xs text-muted-foreground">
               Showing <span className="font-semibold text-foreground">{filteredPending}</span> of {totalPending} pending
             </p>
+          )}
+          </>
           )}
         </div>
 
@@ -1925,9 +1988,11 @@ export function AgentCashPayoutsTab() {
         })}
         </Tabs>
       </section>
+      </>
+      )}
 
       {/* Complete audit trail of every withdrawal this agent was alerted to. */}
-      <MerchantDispatchHistory />
+      {view === 'history' && <MerchantDispatchHistory />}
     </div>
     </MerchantAgreementGate>
   );
