@@ -20,7 +20,7 @@ import { MoveInOfferBadge } from '@/components/house/MoveInOfferBadge';
 import { motion } from 'framer-motion';
 import { ImageLightbox } from '@/components/marketplace/ImageLightbox';
 import { regionLabel } from '@/lib/ugandaDistricts';
-import { UG_REGIONS, useUgDistricts, useUgSubcountiesByDistrict } from '@/hooks/useUgLocations';
+import { UG_REGIONS } from '@/hooks/useUgLocations';
 import { useHouseFilterOptions } from '@/hooks/useHouseFilterOptions';
 import { normalizeAreaName } from '@/lib/listingAreaFilter';
 import { HousesMapView } from '@/components/tenant/HousesMapView';
