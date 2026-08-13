@@ -50,9 +50,16 @@ export function PendingPortfoliosQueue() {
 
   const approve = async (row: PendingRow) => {
     setBusyId(row.pending_id);
-    const { error } = await supabase.rpc('approve_pending_portfolio', { p_portfolio_id: row.portfolio_id });
+    // Route through the edge function so the confirmation email is dispatched
+    // (self-managed portfolios get the dedicated deployment template).
+    const { data: res, error } = await supabase.functions.invoke('approve-pending-portfolio', {
+      body: { portfolio_id: row.portfolio_id },
+    });
     setBusyId(null);
-    if (error) { toast.error(error.message); return; }
+    if (error || (res as any)?.error) {
+      toast.error((res as any)?.error || error?.message || 'Approval failed');
+      return;
+    }
     toast.success(`Portfolio ${row.portfolio_code} approved and funded`);
     invalidate();
   };
