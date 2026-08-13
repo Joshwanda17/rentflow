@@ -1,8 +1,10 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, FileDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { formatUGX } from '@/lib/rentCalculations';
 import { MerchantFloatPosition, useMerchantFloatStatement } from '@/hooks/useMerchantFloat';
+import { Button } from '@/components/ui/button';
+import { downloadAuditPdf } from '@/lib/pdfAuditReport';
 
 const CATEGORY_LABELS: Record<string, string> = {
   agent_float_deposit: 'Float sent to agent',
@@ -37,6 +39,32 @@ export function MerchantFloatStatementDialog({
   const outTotal = rows.filter((r) => r.direction === 'cash_out').reduce((s, r) => s + r.amount, 0);
   const balance = rows.length ? rows[0].runningBalance : 0;
 
+  const handleDownloadPdf = async () => {
+    const name = position.agentName || position.label || 'Merchant agent';
+    await downloadAuditPdf(
+      `merchant_float_statement_${(position.agentPhone || name).replace(/[^\w]+/g, '_')}`,
+      ['Date', 'Movement', 'Details', 'In (UGX)', 'Out (UGX)', 'Balance (UGX)'],
+      rows.map((r) => [
+        format(new Date(r.date), 'yyyy-MM-dd HH:mm'),
+        label(r.category),
+        r.description || r.referenceId || '—',
+        r.direction === 'cash_in' ? formatUGX(r.amount) : '',
+        r.direction === 'cash_out' ? formatUGX(r.amount) : '',
+        formatUGX(r.runningBalance),
+      ]),
+      {
+        title: `${name} — Float Statement`,
+        subtitle: `${position.agentPhone || '—'} · company float movement`,
+        footerLabel: 'Welile FinOps — Merchant float statement',
+        kpis: [
+          { label: 'Float sent in', value: formatUGX(inTotal) },
+          { label: 'Float used', value: formatUGX(outTotal) },
+          { label: 'Float left', value: formatUGX(balance) },
+        ],
+      },
+    );
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
@@ -48,6 +76,18 @@ export function MerchantFloatStatementDialog({
             {position.agentPhone || '—'} · every movement of the company float this agent holds
           </DialogDescription>
         </DialogHeader>
+
+        <div className="flex justify-end">
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 text-xs"
+            disabled={isLoading || rows.length === 0}
+            onClick={handleDownloadPdf}
+          >
+            <FileDown className="h-3.5 w-3.5 mr-1" /> Download PDF
+          </Button>
+        </div>
 
         <div className="grid grid-cols-3 gap-2">
           <div className="rounded-xl border border-border bg-muted/30 p-3">
