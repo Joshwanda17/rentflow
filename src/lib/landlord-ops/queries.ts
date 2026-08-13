@@ -11,6 +11,7 @@ export const HOUSE_LISTING_SELECT = `
   id, title, house_category, monthly_rent, daily_rate, number_of_rooms, address, district, village, region,
   latitude, longitude, image_urls, lc1_chairperson_name, lc1_chairperson_phone, lc1_chairperson_village,
   agent_id, landlord_id, tenant_id, verified, listing_bonus_paid, created_at, status, is_hidden,
+  service_center_status, service_center_comment, service_center_reviewed_at,
   landlords(
     id, name, phone, verified, mobile_money_name, mobile_money_number, has_smartphone,
     number_of_houses, bank_name, account_number, monthly_rent,
@@ -44,6 +45,10 @@ export interface RawHouseListing {
   created_at: string;
   status: string | null;
   is_hidden: boolean | null;
+  /** Service Centre manager's mandatory vetting comment — shown to Ops on the card. */
+  service_center_status?: string | null;
+  service_center_comment?: string | null;
+  service_center_reviewed_at?: string | null;
   landlords: {
     id: string;
     name: string | null;

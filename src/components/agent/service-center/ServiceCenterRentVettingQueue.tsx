@@ -25,9 +25,12 @@ export function ServiceCenterRentVettingQueue() {
   const { toast } = useToast();
 
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [rejectId, setRejectId] = useState<string | null>(null);
-  const [reason, setReason] = useState('');
+  const [comments, setComments] = useState<Record<string, string>>({});
   const [detailsReq, setDetailsReq] = useState<ServiceCenterQueueRequest | null>(null);
+
+  /** Ops reads this comment during final verification, so it is never optional. */
+  const MIN_COMMENT = 10;
+  const commentFor = (id: string) => (comments[id] ?? '').trim();
 
   const act = async (req: ServiceCenterQueueRequest, decision: 'verify' | 'reject', comment?: string) => {
     setBusyId(req.id);
@@ -40,8 +43,7 @@ export function ServiceCenterRentVettingQueue() {
             ? `${req.tenant_name ?? 'Tenant'} moved on to Agent Ops review.`
             : `${req.tenant_name ?? 'Tenant'} was returned to ${req.agent_name ?? 'the sub-agent'}.`,
       });
-      setRejectId(null);
-      setReason('');
+      setComments((prev) => { const next = { ...prev }; delete next[req.id]; return next; });
     } catch (e: any) {
       toast({ title: 'Could not save', description: e?.message ?? 'Please try again.', variant: 'destructive' });
     } finally {
@@ -138,40 +140,39 @@ export function ServiceCenterRentVettingQueue() {
                 </span>
               </button>
 
-              {rejectId === req.id ? (
-                <div className="space-y-2">
-                  <Textarea
-                    value={reason}
-                    onChange={(e) => setReason(e.target.value)}
-                    placeholder="Why are you declining this request? (required)"
-                    rows={2}
-                  />
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      disabled={busyId === req.id || reason.trim().length < 5}
-                      onClick={() => act(req, 'reject', reason.trim())}
-                    >
-                      {busyId === req.id ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
-                      Confirm decline
-                    </Button>
-                    <Button size="sm" variant="ghost" disabled={busyId === req.id} onClick={() => { setRejectId(null); setReason(''); }}>
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              ) : (
+              <div className="space-y-2">
+                <Textarea
+                  value={comments[req.id] ?? ''}
+                  onChange={(e) => setComments((prev) => ({ ...prev, [req.id]: e.target.value }))}
+                  placeholder="Your comment (required) — what you checked, or what the agent must fix. Agent Ops will read this."
+                  rows={2}
+                  className="text-sm"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  {commentFor(req.id).length < MIN_COMMENT
+                    ? `Write at least ${MIN_COMMENT} characters to verify or decline (${commentFor(req.id).length}/${MIN_COMMENT}).`
+                    : 'Comment saved with your decision for Agent Ops.'}
+                </p>
                 <div className="flex gap-2">
-                  <Button size="sm" className="flex-1" disabled={busyId === req.id} onClick={() => act(req, 'verify')}>
+                  <Button
+                    size="sm"
+                    className="flex-1"
+                    disabled={busyId === req.id || commentFor(req.id).length < MIN_COMMENT}
+                    onClick={() => act(req, 'verify', commentFor(req.id))}
+                  >
                     {busyId === req.id ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="mr-1 h-3.5 w-3.5" />}
                     Verify &amp; send to Agent Ops
                   </Button>
-                  <Button size="sm" variant="outline" disabled={busyId === req.id} onClick={() => setRejectId(req.id)}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={busyId === req.id || commentFor(req.id).length < MIN_COMMENT}
+                    onClick={() => act(req, 'reject', commentFor(req.id))}
+                  >
                     <XCircle className="mr-1 h-3.5 w-3.5" /> Decline
                   </Button>
                 </div>
-              )}
+              </div>
             </CardContent>
           </Card>
         ))

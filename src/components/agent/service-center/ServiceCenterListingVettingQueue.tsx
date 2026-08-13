@@ -24,9 +24,12 @@ export function ServiceCenterListingVettingQueue() {
   const { toast } = useToast();
 
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [returnId, setReturnId] = useState<string | null>(null);
-  const [reason, setReason] = useState('');
+  const [comments, setComments] = useState<Record<string, string>>({});
   const [detailsRow, setDetailsRow] = useState<ServiceCenterListing | null>(null);
+
+  /** Landlord Ops reads this comment during final verification, so it is required. */
+  const MIN_COMMENT = 10;
+  const commentFor = (id: string) => (comments[id] ?? '').trim();
 
   const act = async (row: ServiceCenterListing, decision: 'pass' | 'return', comment?: string) => {
     setBusyId(row.id);
@@ -39,8 +42,7 @@ export function ServiceCenterListingVettingQueue() {
             ? `${row.title ?? 'The house'} now awaits final verification.`
             : `${row.agent_name ?? 'The agent'} must fix and resubmit this listing.`,
       });
-      setReturnId(null);
-      setReason('');
+      setComments((prev) => { const next = { ...prev }; delete next[row.id]; return next; });
     } catch (e: any) {
       toast({ title: 'Could not save', description: e?.message ?? 'Please try again.', variant: 'destructive' });
     } finally {
@@ -118,43 +120,42 @@ export function ServiceCenterListingVettingQueue() {
                 {row.landlord_phone && <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{row.landlord_phone}</span>}
               </div>
 
-              {returnId === row.id ? (
-                <div className="space-y-2">
-                  <Textarea
-                    value={reason}
-                    onChange={(e) => setReason(e.target.value)}
-                    placeholder="Tell the agent exactly what to fix (required)"
-                    rows={3}
-                    className="text-sm"
-                  />
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      disabled={reason.trim().length < 5 || busyId === row.id}
-                      onClick={() => act(row, 'return', reason.trim())}
-                    >
-                      {busyId === row.id ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
-                      Confirm return
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => { setReturnId(null); setReason(''); }}>
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              ) : (
+              <div className="space-y-2">
+                <Textarea
+                  value={comments[row.id] ?? ''}
+                  onChange={(e) => setComments((prev) => ({ ...prev, [row.id]: e.target.value }))}
+                  placeholder="Your comment (required) — what you checked, or what the agent must fix. Landlord Ops will read this."
+                  rows={3}
+                  className="text-sm"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  {commentFor(row.id).length < MIN_COMMENT
+                    ? `Write at least ${MIN_COMMENT} characters to pass or return (${commentFor(row.id).length}/${MIN_COMMENT}).`
+                    : 'Comment saved with your decision for Landlord Ops.'}
+                </p>
                 <div className="flex gap-2">
-                  <Button size="sm" className="flex-1" disabled={busyId === row.id} onClick={() => act(row, 'pass')}>
+                  <Button
+                    size="sm"
+                    className="flex-1"
+                    disabled={busyId === row.id || commentFor(row.id).length < MIN_COMMENT}
+                    onClick={() => act(row, 'pass', commentFor(row.id))}
+                  >
                     {busyId === row.id
                       ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                       : <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />}
                     Pass to Landlord Ops
                   </Button>
-                  <Button size="sm" variant="outline" className="flex-1" onClick={() => setReturnId(row.id)}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1"
+                    disabled={busyId === row.id || commentFor(row.id).length < MIN_COMMENT}
+                    onClick={() => act(row, 'return', commentFor(row.id))}
+                  >
                     <XCircle className="mr-1.5 h-3.5 w-3.5" /> Return to agent
                   </Button>
                 </div>
-              )}
+              </div>
             </CardContent>
           </Card>
         ))
