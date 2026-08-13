@@ -59,9 +59,8 @@ export function ActivePortfolioCard({ portfolio, onView }: { portfolio: Portfoli
     return `${a.daysToPayout} day${a.daysToPayout === 1 ? '' : 's'} remaining`;
   })();
 
-  // Daily ROI breakdown: what has built up so far inside this cycle, out of the
-  // full return that lands at payout.
-  const earnedLabel = `${formatUGX(Math.round(a.cycleAccrued))} of ${formatUGX(Math.round(a.expectedMonthlyReturn))}`;
+  // Daily ROI breakdown: what has built up so far inside this cycle.
+  const earnedLabel = `${formatUGX(Math.round(a.cycleAccrued))}`;
 
   return (
     <div
