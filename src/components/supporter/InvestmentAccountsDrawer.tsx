@@ -63,7 +63,7 @@ function NextRoiIndicator({ nextRoiDate }: { nextRoiDate: string | null | undefi
 function PortfolioRow({ p, onTap }: { p: PortfolioRecord; onTap: () => void }) {
   const roi = (Number(p.investment_amount) * Number(p.roi_percentage)) / 100;
   const cfg = statusConfig[p.status] || { label: p.status, variant: 'outline' as const, dot: 'bg-muted-foreground/40' };
-  const name = p.account_name || p.portfolio_code || 'Investment Account';
+  const name = p.account_name || p.portfolio_code || 'Funding Account';
   const matDate = p.maturity_date ? new Date(p.maturity_date) : null;
   const isExpired = !!matDate && differenceInCalendarDays(matDate, new Date()) < 0 && p.status === 'active';
 
@@ -198,7 +198,7 @@ function PortfolioDetailSheet({ portfolio, open, onOpenChange, onRenamed, onTopU
   const totalEarned = Number(portfolio.total_roi_earned);
   const totalValue = amount + totalEarned;
   const cfg = statusConfig[portfolio.status] || { label: portfolio.status, variant: 'outline' as const, dot: 'bg-muted-foreground/40' };
-  const name = portfolio.account_name || portfolio.portfolio_code || 'Investment Account';
+  const name = portfolio.account_name || portfolio.portfolio_code || 'Funding Account';
   const isActive = portfolio.status === 'active';
 
   // Next ROI date urgency
@@ -275,7 +275,7 @@ function PortfolioDetailSheet({ portfolio, open, onOpenChange, onRenamed, onTopU
   };
 
   const handleShare = () => {
-    const displayName = portfolio.account_name || portfolio.portfolio_code || 'Investment Account';
+    const displayName = portfolio.account_name || portfolio.portfolio_code || 'Funding Account';
     const monthlyROI = Math.round(amount * (roiPct / 100));
     const message = [
       `📊 *Investment Portfolio: ${displayName}*`,
@@ -574,7 +574,7 @@ export function InvestmentAccountsDrawer({ open, onOpenChange, defaultTab = 'acc
               <div className="p-2 rounded-xl bg-primary/10">
                 <Briefcase className="h-4 w-4 text-primary" />
               </div>
-              <span className="text-base font-black">My Investments</span>
+              <span className="text-base font-black">My Funding Accounts</span>
             </SheetTitle>
           </SheetHeader>
 
@@ -603,7 +603,7 @@ export function InvestmentAccountsDrawer({ open, onOpenChange, defaultTab = 'acc
                       <div className="w-12 h-12 rounded-2xl bg-muted/60 flex items-center justify-center mx-auto">
                         <PiggyBank className="h-6 w-6 text-muted-foreground/50" />
                       </div>
-                      <p className="text-sm font-semibold">No investment accounts yet</p>
+                      <p className="text-sm font-semibold">No funding accounts yet</p>
                       <p className="text-xs text-muted-foreground">Fund an opportunity to create your first account</p>
                     </div>
                   ) : (

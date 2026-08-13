@@ -431,7 +431,7 @@ export default function SupporterDashboard({
   };
 
   const menuItems = [
-    { icon: CreditCard, label: 'Add Investment', onClick: () => setShowPaymentPartners(true) },
+    { icon: CreditCard, label: 'Add Funding', onClick: () => setShowPaymentPartners(true) },
   ];
 
   return (
@@ -494,7 +494,7 @@ export default function SupporterDashboard({
             <UnifiedWalletHeroCard
               balance={wallet?.balance ?? 0}
               role="supporter"
-              secondaryLabel="Invested"
+              secondaryLabel="Funded"
               secondaryValue={_formatUGX(totalRentContributed)}
               houses={supportedTenantCount}
               housesLabel="Tenants"
@@ -671,7 +671,7 @@ export default function SupporterDashboard({
         open={showPaymentPartners} 
         onOpenChange={setShowPaymentPartners}
         dashboardType="supporter"
-        title="Add Investment"
+        title="Add Funding"
       />
       
       <SupporterAgreementModal

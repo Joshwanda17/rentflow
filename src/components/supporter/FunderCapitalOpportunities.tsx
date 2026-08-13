@@ -328,7 +328,7 @@ export function FunderCapitalOpportunities() {
         body: { amount: angelAmount },
       });
       if (error) {
-        const msg = await extractFromErrorObject(error, 'Investment failed. Please try again.');
+        const msg = await extractFromErrorObject(error, 'Funding failed. Please try again.');
         toast.error(msg);
         return;
       }
@@ -340,7 +340,7 @@ export function FunderCapitalOpportunities() {
       window.dispatchEvent(new CustomEvent('supporter-contribution-changed'));
       window.dispatchEvent(new CustomEvent('wallet-balance-changed'));
     } catch (err: any) {
-      toast.error(err?.message || 'Investment failed');
+      toast.error(err?.message || 'Funding process failed');
     } finally {
       setInvestLoading(false);
     }
@@ -399,7 +399,7 @@ export function FunderCapitalOpportunities() {
                 light
                 featured
                 title="Angel Pool"
-                description="Buy a Welile share. Invest in the long-term Welile vision."
+                description="Buy a Welile share. Back the long-term Welile vision."
                 tooltip="Buy equity shares in Welile. Your capital supports platform growth and long-term value creation, with ownership reflected in your shareholder account."
                 onClick={() => setView('angel')}
               />

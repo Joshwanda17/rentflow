@@ -100,7 +100,7 @@ export function FundRentDialog({ open, onOpenChange, summary }: FundRentDialogPr
         {successInfo ? (
           <div className="space-y-4">
             <div className="px-4 py-4 rounded-xl bg-green-500/10 border border-green-500/30 space-y-2">
-              <p className="text-sm font-bold text-green-700 dark:text-green-400">✅ Investment Confirmed!</p>
+              <p className="text-sm font-bold text-green-700 dark:text-green-400">✅ Funding Confirmed!</p>
               <p className="text-xs text-muted-foreground">
                 You will receive <span className="font-black text-foreground">15% monthly</span> ({formatUGX(successInfo.monthlyReward)}) 
                 every <span className="font-bold">30 days</span> for <span className="font-bold">12 months</span>.
