@@ -5,9 +5,9 @@ import { COOWithdrawalApprovals } from '@/components/coo/COOWithdrawalApprovals'
 import { COOPartnerWithdrawalApprovals } from '@/components/coo/COOPartnerWithdrawalApprovals';
 import { COOROIApprovals } from '@/components/coo/COOROIApprovals';
 import { CancelledProxyWithdrawals } from '@/components/coo/CancelledProxyWithdrawals';
+import FinancialMetricsCards from '@/components/coo/FinancialMetricsCards';
 import FinancialTransactionsTable from '@/components/coo/FinancialTransactionsTable';
-import { AgentCollectionsCommandCenter } from '@/components/executive/agent-ops-v2/AgentCollectionsCommandCenter';
-import COOCommandCenter from '@/components/coo/COOCommandCenter';
+import AgentCollectionsOverview from '@/components/coo/AgentCollectionsOverview';
 import PaymentModeAnalytics from '@/components/coo/PaymentModeAnalytics';
 import FinancialReportsPanel from '@/components/coo/FinancialReportsPanel';
 import FinancialAlertsPanel from '@/components/coo/FinancialAlertsPanel';
@@ -137,10 +137,7 @@ export default function COODashboardPage() {
           <div className="space-y-3">
             {isMobile && renderBackButton('Overview')}
             {renderSectionHeader('Agent Collections', Users)}
-            <p className="text-sm text-muted-foreground -mt-2">
-              Same server-side figures as Agent Operations — every collection counted, Kampala time, no truncation.
-            </p>
-            <AgentCollectionsCommandCenter />
+            <AgentCollectionsOverview />
           </div>
         );
       case 'daily-collections':
@@ -307,12 +304,12 @@ export default function COODashboardPage() {
               </span>
             </button>
 
-            {/* Command centre: decisions, collections, tenant book, money, pipeline, capital */}
-            <COOCommandCenter onNavigate={handleNavTo} />
-
             {/* Priority: Rent Approval Queue */}
             <RentPipelineQueue stage="landlord_ops_approved" />
             <RejectedRequestsQueue stageFilter="landlord_ops_approved" title="Rejected at COO" />
+
+            {/* Financial Metrics */}
+            <FinancialMetricsCards />
 
             {/* Quick Navigation Grid */}
             <div>
