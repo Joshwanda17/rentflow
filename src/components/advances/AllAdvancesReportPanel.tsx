@@ -16,6 +16,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import type { DateRange } from 'react-day-picker';
 
 interface AdvanceRow {
   advance_id: string;
