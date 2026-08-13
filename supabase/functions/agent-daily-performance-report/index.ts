@@ -710,7 +710,7 @@ async function sendForDate(
   const prettyDate = prettify(dateStr);
   const html = buildHtml(rows, t, prettyDate);
   const text = buildText(t, prettyDate);
-  const pdf = buildPdf(rows, t, prettyDate);
+  const pdf = buildPdf(rows, t, dateStr);
   const filename = `agent-daily-performance-${dateStr}.pdf`;
   const subject = `Agent daily performance - ${prettyDate}: ${fmtUGX(t.collected)} collected of ${fmtUGX(t.expected)} (${t.rate.toFixed(0)}%)`;
 
@@ -755,7 +755,7 @@ Deno.serve(async (req) => {
       const rows = await loadRows(admin, dateStr);
       const t = totalsOf(rows);
       if (body?.pdf === true) {
-        const pdf = buildPdf(rows, t, prettify(dateStr));
+        const pdf = buildPdf(rows, t, dateStr);
         return new Response(pdf, {
           headers: {
             ...corsHeaders,
