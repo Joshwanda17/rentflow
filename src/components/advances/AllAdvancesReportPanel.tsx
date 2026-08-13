@@ -9,9 +9,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Search, Download, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Search, Download, FileText, ChevronLeft, ChevronRight, CalendarIcon } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 interface AdvanceRow {
   advance_id: string;
