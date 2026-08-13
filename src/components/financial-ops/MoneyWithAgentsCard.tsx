@@ -23,7 +23,12 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
   const [reconciling, setReconciling] = useState<MerchantFloatPosition | null>(null);
   const [statementFor, setStatementFor] = useState<MerchantFloatPosition | null>(null);
 
-  const rows = (data ?? []).filter((r) => r.paidOut > 0 || r.reimbursed > 0 || r.companyCashWithAgent > 0);
+  // Show every merchant desk that finance can act on — an agent with no
+  // activity yet (or a fully settled one) must still be visible here so this
+  // board matches the merchant agent roster.
+  const rows = (data ?? []).filter(
+    (r) => r.isActive || r.paidOut > 0 || r.reimbursed > 0 || r.companyCashWithAgent > 0,
+  );
   const heldTotal = rows.reduce((s, r) => s + r.companyCashWithAgent, 0);
   const owedTotal = rows.reduce((s, r) => s + r.owedToAgent, 0);
 
@@ -96,6 +101,7 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
           )}
           {rows.map((r) => {
             const holding = r.companyCashWithAgent > 0;
+            const settled = !holding && r.owedToAgent <= 0;
             return (
               <div
                 key={r.deskId}
@@ -122,7 +128,11 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
                     {formatUGX(holding ? r.companyCashWithAgent : r.owedToAgent)}
                   </p>
                   <p className="text-[10px] text-muted-foreground">
-                    {holding ? 'our money still on their phone' : 'we must send this back to them'}
+                    {holding
+                      ? 'our money still on their phone'
+                      : settled
+                        ? 'nothing outstanding either way'
+                        : 'we must send this back to them'}
                   </p>
                   <button
                     type="button"
