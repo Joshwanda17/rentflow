@@ -39815,7 +39815,11 @@ export type Database = {
         Returns: undefined
       }
       renew_rent_request: {
-        Args: { p_prev_request_id: string }
+        Args: {
+          p_latitude?: number
+          p_longitude?: number
+          p_prev_request_id: string
+        }
         Returns: string
       }
       reopen_deposit_for_repair: {

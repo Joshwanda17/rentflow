@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { captureGps, isGpsRequiredError } from '@/lib/captureGps';
 import { generateWelileAiId, getRiskTierLabel } from '@/lib/welileAiId';
 import { formatUGX, calculateRequestFee } from '@/lib/rentCalculations';
 import { getEffectiveRentRequestAmounts } from '@/lib/rentRequestAmounts';
@@ -687,12 +688,23 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
       // failure surfaces as a real error instead of a silent no-op.
       // Never let the request hang forever — a stuck spinner reads as a broken
       // button. Time it out and tell the user what happened.
-      const { data: newId, error } = await Promise.race([
-        supabase.rpc('renew_rent_request', { p_prev_request_id: req.id }),
+      const postRenewal = (gps?: { latitude: number; longitude: number }) => Promise.race([
+        supabase.rpc('renew_rent_request' as any, {
+          p_prev_request_id: req.id,
+          ...(gps ? { p_latitude: gps.latitude, p_longitude: gps.longitude } : {}),
+        }),
         new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error('The renewal request timed out. Check your connection and try again — the plan may still have been posted.')), 25000),
         ),
-      ]) as { data: string | null; error: any };
+      ]) as Promise<{ data: string | null; error: any }>;
+
+      let { data: newId, error } = await postRenewal();
+      // No property GPS on record anywhere — capture it here at the house and retry once.
+      if (error && isGpsRequiredError(error?.message)) {
+        sonnerToast.info('Capturing the property GPS at the house…');
+        const gps = await captureGps();
+        ({ data: newId, error } = await postRenewal(gps));
+      }
       if (error) throw error;
       if (!newId) throw new Error('The rent request could not be posted. Please try again.');
       toast({ title: 'Rent request renewed ✅', description: `Posted for ${profile.full_name}` });
