@@ -4661,10 +4661,6 @@ export function LandlordOpsDashboard() {
         </h2>
         <SectionSwitcher />
       </div>
-      {/* PROMINENT: Agent-initiated landlord verification requests — top priority */}
-      <AgentVerificationRequestsPanel onResolved={refetchAll} />
-      {/* PROMINENT: the single LC1 chairperson verification inbox */}
-      <Lc1VerificationInboxPanel onResolved={() => { refetchLC1(); refetchAll(); }} />
       {/* PROMINENT: Awaiting verification (houses + landlords) — always first */}
       {(pendingHousesCount > 0 || pendingVerificationCount > 0) && (
         <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
@@ -4743,13 +4739,58 @@ export function LandlordOpsDashboard() {
         </button>
       </div>
 
-      {/* Priority actions */}
-      <RentPipelineQueue stage="tenant_ops_approved" />
-      <RejectedRequestsQueue stageFilter="tenant_ops_approved" title="Rejected at Landlord Ops" collapsible />
-      <LandlordOpsPayoutReview reviewRole="landlord_ops" />
-
-      {/* Agent Rent-Request Capacity (fleet-wide) */}
-      <AgentRentCapacityPanel />
+      {/* Priority work hubs — each opens a dedicated workspace */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <div className="h-px flex-1 bg-border" />
+          <span className="text-[10px] text-muted-foreground font-medium tracking-wider">WORK HUBS</span>
+          <div className="h-px flex-1 bg-border" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <HubEntryCard
+            title="Agent Verification Requests"
+            description="Landlord verifications submitted by agents from the field"
+            icon={UserCheck}
+            onClick={() => goToView('agent-verify-requests')}
+          />
+          <HubEntryCard
+            title="LC1 Verification Inbox"
+            description="Verify LC1 chairpersons submitted for review"
+            icon={ShieldCheck}
+            onClick={() => goToView('lc1-inbox')}
+          />
+          <HubEntryCard
+            title="Rent Pipeline"
+            description="Requests awaiting the Landlord Ops stage"
+            icon={GitBranch}
+            onClick={() => goToView('rent-pipeline-queue')}
+          />
+          <HubEntryCard
+            title="Rejected at Landlord Ops"
+            description="Requests you returned — review and reopen"
+            icon={XCircle}
+            onClick={() => goToView('rejected-queue')}
+          />
+          <HubEntryCard
+            title="Landlord Payout Review"
+            description="Review landlord payouts before they are sent"
+            icon={Banknote}
+            onClick={() => goToView('payout-review')}
+          />
+          <HubEntryCard
+            title="Agent Rent Capacity"
+            description="Fleet-wide capacity for new rent requests"
+            icon={Users}
+            onClick={() => goToView('agent-capacity')}
+          />
+          <HubEntryCard
+            title="Reports & Exports"
+            description="Print the landlord payouts report for any date range"
+            icon={Printer}
+            onClick={() => goToView('reports')}
+          />
+        </div>
+      </div>
 
       {/* KPIs — responsive card grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -4780,40 +4821,6 @@ export function LandlordOpsDashboard() {
 
       {/* Navigation Cards */}
       <div className="space-y-4">
-        {/* Print Landlord Payouts Report */}
-        <div className="flex flex-wrap justify-end items-center gap-2 pb-1">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className={cn("gap-1.5 font-normal", !reportFrom && "text-muted-foreground")}>
-                <CalendarIcon className="h-3.5 w-3.5" />
-                {reportFrom ? format(reportFrom, 'dd MMM yyyy') : 'From'}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar mode="single" selected={reportFrom} onSelect={setReportFrom} initialFocus className={cn("p-3 pointer-events-auto")} />
-            </PopoverContent>
-          </Popover>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className={cn("gap-1.5 font-normal", !reportTo && "text-muted-foreground")}>
-                <CalendarIcon className="h-3.5 w-3.5" />
-                {reportTo ? format(reportTo, 'dd MMM yyyy') : 'To'}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar mode="single" selected={reportTo} onSelect={setReportTo} initialFocus className={cn("p-3 pointer-events-auto")} />
-            </PopoverContent>
-          </Popover>
-          {(reportFrom || reportTo) && (
-            <Button variant="ghost" size="sm" onClick={() => { setReportFrom(undefined); setReportTo(undefined); }}>
-              Clear
-            </Button>
-          )}
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={handlePrintReport} disabled={printingPdf}>
-            {printingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
-            Print Report
-          </Button>
-        </div>
         {/* Priority items first */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {navItems.filter(n => n.priority).map(item => (
