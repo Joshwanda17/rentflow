@@ -2297,16 +2297,12 @@ export function LandlordOpsDashboard() {
   );
 
   // ─── Back Button (sticky nav row: back to overview + section switcher) ───
-  const BackButton = () => (
-    <div className="flex items-center justify-between gap-2 mb-3 sticky top-0 z-30 -mx-4 px-4 py-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-border/60">
-      <button
-        onClick={() => goToView('home')}
-        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors min-h-[44px] touch-manipulation"
-      >
-        <ArrowLeft className="h-4 w-4" /> Overview
-      </button>
-      <SectionSwitcher />
-    </div>
+  const BackButton = ({ title }: { title?: string } = {}) => (
+    <HubHeader
+      title={title ?? hubTitles[view]}
+      onBack={() => goToView('home')}
+      trailing={<SectionSwitcher />}
+    />
   );
 
   const refetchAll = () => {
