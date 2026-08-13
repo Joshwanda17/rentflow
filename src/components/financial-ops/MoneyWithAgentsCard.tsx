@@ -3,6 +3,7 @@ import { Wallet, HandCoins, ArrowRightLeft, AlertTriangle, SlidersHorizontal } f
 import { formatUGX } from '@/lib/rentCalculations';
 import { useMerchantFloatPositions, MerchantFloatPosition } from '@/hooks/useMerchantFloat';
 import { MerchantReconcileDialog } from './MerchantReconcileDialog';
+import { MerchantFloatStatementDialog } from './MerchantFloatStatementDialog';
 
 /**
  * Money With Agents — shows how much company money is still sitting with each
@@ -19,6 +20,7 @@ import { MerchantReconcileDialog } from './MerchantReconcileDialog';
 export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () => void }) {
   const { data, isLoading, error } = useMerchantFloatPositions();
   const [reconciling, setReconciling] = useState<MerchantFloatPosition | null>(null);
+  const [statementFor, setStatementFor] = useState<MerchantFloatPosition | null>(null);
 
   const rows = (data ?? []).filter((r) => r.paidOut > 0 || r.reimbursed > 0 || r.companyCashWithAgent > 0);
   const heldTotal = rows.reduce((s, r) => s + r.companyCashWithAgent, 0);
@@ -95,9 +97,13 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
                 className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background px-3 py-2 min-w-0"
               >
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">
+                  <button
+                    type="button"
+                    onClick={() => setStatementFor(r)}
+                    className="text-sm font-medium text-foreground truncate hover:text-primary hover:underline text-left w-full"
+                  >
                     {r.agentName || r.label || 'Merchant agent'}
-                  </p>
+                  </button>
                   <p className="text-[11px] text-muted-foreground truncate">
                     {r.agentPhone || '—'} · they paid out {formatUGX(r.paidOut)} · we paid them back {formatUGX(r.reimbursed)}
                   </p>
@@ -138,6 +144,12 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
         position={reconciling}
         open={!!reconciling}
         onOpenChange={(v) => !v && setReconciling(null)}
+      />
+
+      <MerchantFloatStatementDialog
+        position={statementFor}
+        open={!!statementFor}
+        onOpenChange={(v) => !v && setStatementFor(null)}
       />
     </div>
   );
