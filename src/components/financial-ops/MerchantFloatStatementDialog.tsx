@@ -1,10 +1,16 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { ArrowDownLeft, ArrowUpRight, FileDown } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, FileDown, Share2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { formatUGX } from '@/lib/rentCalculations';
 import { MerchantFloatPosition, useMerchantFloatStatement } from '@/hooks/useMerchantFloat';
 import { Button } from '@/components/ui/button';
-import { downloadAuditPdf } from '@/lib/pdfAuditReport';
+import {
+  buildMerchantFloatStatementFilename,
+  generateMerchantFloatStatementPdf,
+  shareMerchantFloatStatementPdf,
+} from '@/lib/merchantFloatStatementPdf';
+import { useState } from 'react';
+import { toast } from 'sonner';
 
 const CATEGORY_LABELS: Record<string, string> = {
   agent_float_deposit: 'Float sent to agent',
@@ -31,6 +37,7 @@ export function MerchantFloatStatementDialog({
   onOpenChange: (v: boolean) => void;
 }) {
   const { data, isLoading, error } = useMerchantFloatStatement(position?.agentId, open);
+  const [busy, setBusy] = useState<'pdf' | 'share' | null>(null);
 
   if (!position) return null;
 
@@ -39,30 +46,61 @@ export function MerchantFloatStatementDialog({
   const outTotal = rows.filter((r) => r.direction === 'cash_out').reduce((s, r) => s + r.amount, 0);
   const balance = rows.length ? rows[0].runningBalance : 0;
 
+  const agentName = position.agentName || position.label || 'Merchant agent';
+
+  const buildPdf = async () =>
+    generateMerchantFloatStatementPdf({
+      agentName,
+      agentPhone: position.agentPhone,
+      totalIn: inTotal,
+      totalOut: outTotal,
+      balance,
+      rows: rows.map((r) => ({
+        date: r.date,
+        category: r.category,
+        label: label(r.category),
+        description: r.description || r.referenceId || null,
+        direction: r.direction,
+        amount: r.amount,
+        runningBalance: r.runningBalance,
+      })),
+    });
+
+  const filename = buildMerchantFloatStatementFilename(agentName, position.agentPhone);
+
   const handleDownloadPdf = async () => {
-    const name = position.agentName || position.label || 'Merchant agent';
-    await downloadAuditPdf(
-      `merchant_float_statement_${(position.agentPhone || name).replace(/[^\w]+/g, '_')}`,
-      ['Date', 'Movement', 'Details', 'In (UGX)', 'Out (UGX)', 'Balance (UGX)'],
-      rows.map((r) => [
-        format(new Date(r.date), 'yyyy-MM-dd HH:mm'),
-        label(r.category),
-        r.description || r.referenceId || '—',
-        r.direction === 'cash_in' ? formatUGX(r.amount) : '',
-        r.direction === 'cash_out' ? formatUGX(r.amount) : '',
-        formatUGX(r.runningBalance),
-      ]),
-      {
-        title: `${name} — Float Statement`,
-        subtitle: `${position.agentPhone || '—'} · company float movement`,
-        footerLabel: 'Welile FinOps — Merchant float statement',
-        kpis: [
-          { label: 'Float sent in', value: formatUGX(inTotal) },
-          { label: 'Float used', value: formatUGX(outTotal) },
-          { label: 'Float left', value: formatUGX(balance) },
-        ],
-      },
-    );
+    try {
+      setBusy('pdf');
+      const blob = await buildPdf();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+    } catch {
+      toast.error('Could not generate the statement PDF');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleShare = async () => {
+    try {
+      setBusy('share');
+      const blob = await buildPdf();
+      await shareMerchantFloatStatementPdf(
+        blob,
+        filename,
+        `Welile float statement — ${agentName}: float left ${formatUGX(balance)} (sent in ${formatUGX(inTotal)}, used ${formatUGX(outTotal)}).`,
+      );
+    } catch {
+      toast.error('Could not share the statement');
+    } finally {
+      setBusy(null);
+    }
   };
 
   return (
@@ -77,15 +115,23 @@ export function MerchantFloatStatementDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
           <Button
             size="sm"
             variant="outline"
             className="h-8 text-xs"
-            disabled={isLoading || rows.length === 0}
+            disabled={isLoading || rows.length === 0 || busy !== null}
             onClick={handleDownloadPdf}
           >
-            <FileDown className="h-3.5 w-3.5 mr-1" /> Download PDF
+            <FileDown className="h-3.5 w-3.5 mr-1" /> {busy === 'pdf' ? 'Preparing…' : 'Download PDF'}
+          </Button>
+          <Button
+            size="sm"
+            className="h-8 text-xs"
+            disabled={isLoading || rows.length === 0 || busy !== null}
+            onClick={handleShare}
+          >
+            <Share2 className="h-3.5 w-3.5 mr-1" /> {busy === 'share' ? 'Preparing…' : 'Share on WhatsApp'}
           </Button>
         </div>
 
