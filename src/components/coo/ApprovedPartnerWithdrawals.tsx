@@ -58,7 +58,7 @@ export function ApprovedPartnerWithdrawals({ onBack }: Props) {
       for (let page = 0; page < 30; page++) {
         const { data, error } = await supabase
           .from('withdrawal_requests')
-          .select('id, user_id, amount, status, reason, created_at, fin_ops_verified_at, fin_ops_reference, payout_method, mobile_money_name, bank_account_name, linked_party, proxy_partner_id, fin_ops_payment_method')
+          .select('id, user_id, amount, status, reason, created_at, fin_ops_verified_at, fin_ops_reference, payout_method, mobile_money_name, mobile_money_number, mobile_money_provider, bank_name, bank_account_number, bank_account_name, linked_party, proxy_partner_id, fin_ops_payment_method')
           .in('status', ['completed', 'fin_ops_approved', 'approved', 'cfo_approved', 'coo_approved', 'manager_approved', 'processing'])
           .or('linked_party.not.is.null,proxy_partner_id.not.is.null')
           .order('created_at', { ascending: false })
