@@ -68,7 +68,6 @@ const PERIOD_LABELS: { key: Period; label: string }[] = [
   { key: 'today', label: 'Daily' },
   { key: 'week', label: 'Weekly' },
   { key: 'month', label: 'Monthly' },
-  { key: 'calendar', label: 'Calendar' },
   { key: 'all', label: 'All time' },
 ];
 
