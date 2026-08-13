@@ -154,11 +154,11 @@ export function MerchantFloatStatementDialog({
 
         <div className="grid grid-cols-3 gap-2">
           <div className="rounded-xl border border-border bg-muted/30 p-3">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Float sent in</p>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Float in (to their phone)</p>
             <p className="mt-1 font-mono text-sm font-bold tabular-nums text-success break-all">{formatUGX(inTotal)}</p>
           </div>
           <div className="rounded-xl border border-border bg-muted/30 p-3">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Float used</p>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Float used (payouts)</p>
             <p className="mt-1 font-mono text-sm font-bold tabular-nums text-destructive break-all">{formatUGX(outTotal)}</p>
           </div>
           <div className="rounded-xl border border-border bg-muted/30 p-3">
@@ -212,6 +212,12 @@ export function MerchantFloatStatementDialog({
             </div>
           ))}
         </div>
+
+        <p className="text-[11px] leading-relaxed text-muted-foreground">
+          Float in is company money sent to this agent's phone number, confirmed by the MTN/Airtel payment email we
+          extracted. Float used is money that left their float when they claimed a withdrawal request and completed the
+          payout, plus the telecom sending charge on it.
+        </p>
       </DialogContent>
     </Dialog>
   );
