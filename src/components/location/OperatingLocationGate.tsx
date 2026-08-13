@@ -76,11 +76,10 @@ export function OperatingLocationGate() {
   return (
     <Dialog open>
       <DialogContent
-        hideClose
         onPointerDownOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
-        className="sm:max-w-md p-5 gap-0 rounded-2xl"
+        className="sm:max-w-md p-5 gap-0 rounded-2xl [&>button]:hidden"
       >
         <h2 className="text-lg font-semibold">Where do you operate?</h2>
         <p className="mt-1 text-sm text-muted-foreground">Select your main operating location.</p>
