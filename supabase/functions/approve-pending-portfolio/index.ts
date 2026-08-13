@@ -167,7 +167,86 @@ Deno.serve(async (req) => {
     const { data: partner } = await admin
       .from("profiles").select("full_name, email").eq("id", portfolio.investor_id).maybeSingle();
 
-    if (partner?.email) {
+    // Self-managed portfolios (partner picked the tenants themselves) get a
+    // dedicated deployment confirmation instead of the managed agreement email.
+    const { data: pendingRow } = await admin
+      .from("funder_pending_portfolios")
+      .select("source, commitment_id, term_months")
+      .eq("portfolio_id", portfolioId)
+      .maybeSingle();
+    const isSelfManaged = String(pendingRow?.source || "") === "self_managed";
+
+    if (partner?.email && isSelfManaged) {
+      const monthlyReward = Math.round(Number(portfolio.investment_amount) * (Number(portfolio.roi_percentage) / 100));
+      let tenants: Array<Record<string, unknown>> = [];
+      try {
+        if (pendingRow?.commitment_id) {
+          const { data: lines } = await admin
+            .from("partner_self_funding_lines")
+            .select("principal, rent_request_id")
+            .eq("commitment_id", pendingRow.commitment_id);
+          const ids = (lines || []).map((l: any) => l.rent_request_id);
+          let nameById: Record<string, { name: string; location: string }> = {};
+          if (ids.length) {
+            const { data: reqs } = await admin
+              .from("rent_requests")
+              .select("id, tenant_id, house_address, city")
+              .in("id", ids);
+            const tenantIds = (reqs || []).map((r: any) => r.tenant_id).filter(Boolean);
+            const { data: profs } = tenantIds.length
+              ? await admin.from("profiles").select("id, full_name").in("id", tenantIds)
+              : { data: [] as any[] };
+            const profName: Record<string, string> = {};
+            for (const p of (profs || []) as any[]) profName[p.id] = p.full_name || "Tenant";
+            for (const r of (reqs || []) as any[]) {
+              nameById[r.id] = {
+                name: profName[r.tenant_id] || "Tenant",
+                location: [r.house_address, r.city].filter(Boolean).join(", "),
+              };
+            }
+          }
+          tenants = (lines || []).map((l: any) => ({
+            tenant_name: nameById[l.rent_request_id]?.name || "Tenant",
+            tenant_location: nameById[l.rent_request_id]?.location || "",
+            principal: Number(l.principal),
+          }));
+        }
+      } catch (e) {
+        console.warn("[approve-pending-portfolio] tenant lines lookup failed:", (e as Error)?.message);
+      }
+
+      const fmtDate = (iso: string | null | undefined) => {
+        if (!iso) return "";
+        const d = new Date(iso);
+        return isNaN(d.getTime()) ? "" : d.toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" });
+      };
+
+      try {
+        await dispatchTransactionalEmail(supabaseUrl, serviceKey, {
+          templateName: "partner-self-managed-deployment",
+          recipientEmail: partner.email,
+          idempotencyKey: `partner-self-managed-deployment-${portfolioId}`,
+          templateData: {
+            partner_name: partner.full_name || "Partner",
+            portfolio_reference: portfolio.portfolio_code || "",
+            principal_amount: Number(portfolio.investment_amount),
+            monthly_return_amount: monthlyReward,
+            roi_percentage: Number(portfolio.roi_percentage),
+            term_months: Number(pendingRow?.term_months || portfolio.duration_months || 1),
+            deployment_date: fmtDate(portfolio.created_at),
+            first_payout_date: fmtDate(portfolio.next_roi_date),
+            tenants_count: tenants.length,
+            tenants,
+            currency: "UGX",
+            company_name: "Welile",
+            logo_url: "https://welileapp.com/welile-logo.png",
+            dashboard_url: "https://welileapp.com/dashboard/funder",
+          },
+        });
+      } catch (e) {
+        console.warn("[approve-pending-portfolio] Self-managed deployment email failed:", (e as Error)?.message);
+      }
+    } else if (partner?.email) {
       const monthlyReward = Math.round(Number(portfolio.investment_amount) * (Number(portfolio.roi_percentage) / 100));
       try {
         await dispatchTransactionalEmail(
