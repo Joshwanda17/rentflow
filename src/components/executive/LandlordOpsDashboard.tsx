@@ -3173,35 +3173,9 @@ export function LandlordOpsDashboard() {
     const rejectedCount = lc1Groups.filter(g => lc1State(g) === 'rejected').length;
     const pendingCount = lc1Groups.filter(g => lc1State(g) === 'pending').length;
 
-    const exportLc1Report = async (scope: 'verified' | 'rejected' | 'pending' | 'all') => {
-      setLc1Exporting(true);
-      try {
-        const { data, error } = await supabase.rpc('ops_lc1_verification_report' as any, {
-          p_status: scope,
-          p_search: search.trim().length >= 2 ? search.trim() : null,
-          p_limit: 3000,
-        } as any);
-        if (error) throw error;
-        const reportRows = (data ?? []) as Lc1ReportRow[];
-        const blob = generateLc1VerificationReportPdf(reportRows, {
-          scope,
-          search: search.trim().length >= 2 ? search.trim() : null,
-          totalMatches: scope === 'verified' ? verifiedCount : scope === 'rejected' ? rejectedCount : scope === 'pending' ? pendingCount : lc1Groups.length,
-          generatedBy: (user as any)?.email ?? null,
-        });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = lc1ReportFileName(scope);
-        a.click();
-        URL.revokeObjectURL(url);
-        sonnerToast.success(`${reportRows.length.toLocaleString()} LC1 chairpersons exported`);
-      } catch (e: any) {
-        sonnerToast.error(e?.message || 'Could not build the LC1 report');
-      } finally {
-        setLc1Exporting(false);
-      }
-    };
+    // Single source of truth: the hoisted export, shared with the centralized
+    // Reports & Exports → Extract card.
+    const exportLc1Report = exportLc1ReportPdf;
 
     return (
       <>
