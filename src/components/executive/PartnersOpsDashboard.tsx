@@ -30,7 +30,7 @@ import { PartnerFinancialActivity } from './PartnerFinancialActivity';
 import { PendingFunderApprovals } from './PendingFunderApprovals';
 import { PromissoryNotesQueue } from './PromissoryNotesQueue';
 import { PartnerOpsScoreboard } from './PartnerOpsScoreboard';
-import { PartnerLeadAssignments } from './PartnerLeadAssignments';
+
 import { NewPartnersPanel } from './NewPartnersPanel';
 import { PendingPartnerRequests } from './PendingPartnerRequests';
 import { ProxyAgentManager } from '@/components/cfo/ProxyAgentManager';
@@ -211,7 +211,6 @@ export function PartnersOpsDashboard() {
       case 'activity': return <PartnerFinancialActivity />;
       case 'promissory': return (
         <div className="space-y-6">
-          <PartnerLeadAssignments />
           <PartnerOpsScoreboard />
           <PromissoryNotesQueue />
         </div>
