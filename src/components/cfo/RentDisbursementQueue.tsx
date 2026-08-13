@@ -534,7 +534,12 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
             <div className="flex items-center gap-3">
               <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-sm font-semibold text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-400">
                 <CheckCircle2 className="h-4 w-4" />
-                {filteredItems.length} approved · {fmt(queueTotalRent)}
+                {payableFilteredItems.length} approved · {fmt(queueTotalRent)}
+                {filteredItems.length > payableFilteredItems.length && (
+                  <span className="font-normal opacity-80">
+                    {' '}· {filteredItems.length - payableFilteredItems.length} awaiting approval
+                  </span>
+                )}
               </span>
             </div>
           )}
@@ -771,7 +776,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
             <div className="flex items-center justify-between gap-2 flex-wrap rounded-xl border border-border/70 bg-muted/20 px-4 py-3">
               <label className="flex items-center gap-2.5 text-sm cursor-pointer font-semibold">
                 <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
-                Select all ({visibleItems.length}
+                Select all ({selectableVisibleItems.length}
                 {agentFilter !== 'all' && items.length !== visibleItems.length
                   ? ` of ${items.length}`
                   : ''}
