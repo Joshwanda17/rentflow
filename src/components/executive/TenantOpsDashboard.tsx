@@ -48,6 +48,7 @@ import { generateTenantOpsExtractPdf, downloadPdfBlob } from '@/lib/generateTena
 import DailyCollectionMonitoringDashboard from '@/components/shared/DailyCollectionMonitoringDashboard';
 import { DailyRentReport } from '@/components/reports/DailyRentReport';
 import { AgentRentCapacityPanel } from './AgentRentCapacityPanel';
+import { TenantProductsServicesReport } from './tenant-ops/TenantProductsServicesReport';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -66,7 +67,7 @@ import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Gauge } from 'lucide-react';
 
-type ActiveView = 'overview' | 'pipeline' | 'pipeline-hub' | 'daily' | 'missed' | 'behavior' | 'history' | 'all-requests' | 'link-agent' | 'transfer-audit' | 'collect-rent' | 'agent-tenants' | 'tenant-detail' | 'registration-review' | 'advance-requests' | 'agent-allocations' | 'daily-collections' | 'landlord-float' | 'landlord-float-timeline' | 'location-browser' | 'tenant-location-browser' | 'global-verification' | 'welile-operations' | 'daily-repayments-report' | 'agent-capacity-hub' | 'all-tenants-hub' | 'reports-hub';
+type ActiveView = 'overview' | 'pipeline' | 'pipeline-hub' | 'daily' | 'missed' | 'behavior' | 'history' | 'all-requests' | 'link-agent' | 'transfer-audit' | 'collect-rent' | 'agent-tenants' | 'tenant-detail' | 'registration-review' | 'advance-requests' | 'agent-allocations' | 'daily-collections' | 'landlord-float' | 'landlord-float-timeline' | 'location-browser' | 'tenant-location-browser' | 'global-verification' | 'welile-operations' | 'daily-repayments-report' | 'agent-capacity-hub' | 'all-tenants-hub' | 'reports-hub' | 'tenant-products-report';
 
 interface NavCard {
   id: ActiveView;
@@ -988,10 +989,15 @@ export function TenantOpsDashboard() {
       description: 'Approve or reject pending rent requests',
       icon: ClipboardList,
       color: 'bg-amber-500/10 text-amber-600 border-amber-200',
-      // Only what the review queue below actually renders (agent_ops_approved /
-      // agent_verified). New `pending` requests sit at the service-centre stage.
       badge: toolCounts?.review_requests ?? 0,
       badgeColor: 'bg-amber-500 text-white',
+    },
+    {
+      id: 'tenant-products-report',
+      label: 'Products & Services Report',
+      description: 'Daily tenant products, receivables & payables',
+      icon: FileSearch,
+      color: 'bg-purple-500/10 text-purple-600 border-purple-200',
     },
     {
       id: 'daily',
@@ -1400,6 +1406,8 @@ export function TenantOpsDashboard() {
             }}
           />
         );
+      case 'tenant-products-report':
+        return <TenantProductsServicesReport />;
       case 'reports-hub':
         return (
           <div className="space-y-3">
