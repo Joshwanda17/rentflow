@@ -106,11 +106,18 @@ export function MerchantFloatAvailableCard() {
       </div>
 
       {holding > 0 && (
-        <div className="mt-3 flex items-start gap-2 rounded-2xl border border-warning/40 bg-warning/10 p-3">
-          <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
-          <p className="text-[11px] leading-relaxed text-foreground">
-            <span className="font-bold">{formatUGX(holding)}</span> of company cash is in your hands
-            — company money sent to you and not yet paid out. Payouts you claim are taken from this
+        <div className="mt-3 rounded-2xl border-2 border-warning/50 bg-warning/10 p-4">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-warning shrink-0" />
+            <p className="text-[11px] font-bold uppercase tracking-wider text-warning">
+              Company cash in your hands
+            </p>
+          </div>
+          <p className="mt-2 font-mono text-3xl font-bold tabular-nums text-foreground break-all">
+            {formatUGX(holding)}
+          </p>
+          <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+            Company money sent to you and not yet paid out. Payouts you claim are taken from this
             first, and it drops each time you pay a request.
           </p>
         </div>
