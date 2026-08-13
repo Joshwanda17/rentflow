@@ -39,6 +39,10 @@ interface ApprovedRentItem {
   request_fee: number;
   total_repayment: number;
   created_at: string;
+  /** Raw pipeline status of the rent request. */
+  status: string;
+  /** Only COO-approved requests may be funded — approval workflow unchanged. */
+  is_disbursable: boolean;
   tenant_name: string;
   landlord_name: string;
   agent_name: string;
@@ -80,6 +84,27 @@ const CAT_FIELD_LABELS: Record<CatFieldKey, string> = {
 };
 
 const CAT_FIELD_KEYS = Object.keys(CAT_FIELD_LABELS) as CatFieldKey[];
+
+/**
+ * Every status that is still awaiting disbursement (i.e. "not yet approved"
+ * for payout, plus the COO-approved rows that are payable now). Terminal or
+ * already-funded states are excluded.
+ */
+const AWAITING_STATUSES = [
+  'pending',
+  'service_center_review',
+  'agent_ops_approved',
+  'landlord_ops_approved',
+  'coo_approved',
+];
+
+const STATUS_LABELS: Record<string, string> = {
+  pending: 'Pending',
+  service_center_review: 'Service centre review',
+  agent_ops_approved: 'Agent Ops approved',
+  landlord_ops_approved: 'Landlord Ops approved',
+  coo_approved: 'COO approved',
+};
 
 const catValueOf = (it: ApprovedRentItem, field: CatFieldKey): string => {
   const raw =
