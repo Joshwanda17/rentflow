@@ -7,8 +7,8 @@ import { Button } from '@/components/ui/button';
 import {
   buildMerchantFloatStatementFilename,
   generateMerchantFloatStatementPdf,
-  shareMerchantFloatStatementPdf,
 } from '@/lib/merchantFloatStatementPdf';
+import { sharePdfViaWhatsApp } from '@/lib/whatsappShare';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
@@ -91,11 +91,15 @@ export function MerchantFloatStatementDialog({
     try {
       setBusy('share');
       const blob = await buildPdf();
-      await shareMerchantFloatStatementPdf(
-        blob,
+      const caption = `Welile float statement — ${agentName}: float left ${formatUGX(balance)} (sent in ${formatUGX(inTotal)}, used ${formatUGX(outTotal)}).`;
+      const result = await sharePdfViaWhatsApp(blob, {
         filename,
-        `Welile float statement — ${agentName}: float left ${formatUGX(balance)} (sent in ${formatUGX(inTotal)}, used ${formatUGX(outTotal)}).`,
-      );
+        caption,
+        phone: position.agentPhone?.replace(/\D/g, '') || undefined,
+      });
+      if (result === 'deeplink') {
+        toast.success('Statement downloaded — attach it in WhatsApp');
+      }
     } catch {
       toast.error('Could not share the statement');
     } finally {
