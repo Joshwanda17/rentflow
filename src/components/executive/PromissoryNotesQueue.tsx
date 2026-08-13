@@ -436,6 +436,28 @@ export function PromissoryNotesQueue() {
                     </Badge>
                   </div>
 
+                  {note.came_in ? (
+                    <div className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <BadgeCheck className="h-3.5 w-3.5 text-emerald-700 shrink-0" />
+                        <span className="text-[11px] font-semibold text-emerald-800">
+                          Came in — partner registered
+                        </span>
+                        <span className="text-[10px] text-emerald-700/80 ml-auto">via {note.came_in_matched_by}</span>
+                      </div>
+                      <p className="text-[11px] text-emerald-800/90 mt-0.5 truncate">
+                        {note.came_in_name || 'Account'}
+                        {note.came_in_phone ? ` · ${note.came_in_phone}` : ''}
+                        {note.came_in_email ? ` · ${note.came_in_email}` : ''}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5 rounded-md border border-dashed border-border px-2 py-1">
+                      <Clock className="h-3 w-3 text-muted-foreground shrink-0" />
+                      <span className="text-[11px] text-muted-foreground">Not yet registered in the system</span>
+                    </div>
+                  )}
+
                   <div className="flex items-center justify-between text-xs">
                     <div>
                       <span className="text-muted-foreground">Promised: </span>
