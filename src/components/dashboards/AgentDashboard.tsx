@@ -1635,7 +1635,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         }}
         onViewTenants={() => { setMenuOpen(false); setTenantsSheetOpen(true); }}
         onViewCreditAccess={() => { setMenuOpen(false); setCreditOpen(true); }}
-        onInvestForPartner={() => { setMenuOpen(false); setInvestForPartnerOpen(true); }}
+        onFundPartner={() => { setMenuOpen(false); setInvestForPartnerOpen(true); }}
         onViewProxyHistory={() => { setMenuOpen(false); setProxyHistoryOpen(true); }}
         onIssueReceipt={() => { setMenuOpen(false); setReceiptOpen(true); }}
         onViewLandlordMap={() => { setMenuOpen(false); setLandlordMapOpen(true); }}
@@ -1653,7 +1653,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         onManageFunders={() => { setMenuOpen(false); setFunderSheetOpen(true); }}
         onOpenPartnerDashboard={() => { setMenuOpen(false); setPartnerDashboardOpen(true); }}
         onOpenRequisition={() => { setMenuOpen(false); setRequisitionOpen(true); }}
-        onAngelPoolInvest={() => { setMenuOpen(false); setAngelPoolInvestOpen(true); }}
+        onAngelPoolFunding={() => { setMenuOpen(false); setAngelPoolInvestOpen(true); }}
         isFinancialAgent={isFinancialAgent}
         onInviteFunder={async () => {
           setMenuOpen(false);
@@ -1674,7 +1674,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             toast.error(err.message || 'Failed to generate link');
           }
         }}
-        onInviteAngelInvestor={async () => {
+        onInviteAngelPartner={async () => {
           setMenuOpen(false);
           try {
             const { toast } = await import('sonner');

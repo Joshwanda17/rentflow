@@ -54,7 +54,7 @@ const roleConfig: Record<UserRole, { label: string; icon: React.ElementType; des
   supporter: {
     label: 'Tenant Supporter',
     icon: Building2,
-    description: 'Investor who funds the rent pool for returns',
+    description: 'Partner / Funder who supports the rent pool for returns',
     color: 'text-purple-500',
     bgColor: 'bg-purple-500/10 border-purple-500/30',
     emoji: '💰',
