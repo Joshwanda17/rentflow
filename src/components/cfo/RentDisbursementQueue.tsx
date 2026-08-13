@@ -273,6 +273,8 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
   const totalRepaymentExpected = useMemo(() => selectedItems.reduce((s, i) => s + i.total_repayment, 0), [selectedItems]);
 
   const toggle = (id: string) => {
+    const row = items.find(i => i.id === id);
+    if (row && !row.is_disbursable) return; // not COO-approved yet — view only
     const next = new Set(selected);
     next.has(id) ? next.delete(id) : next.add(id);
     setSelected(next);
@@ -392,7 +394,12 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
     [countryFilteredGroups, agentFilter],
   );
   const visibleItems = useMemo(() => visibleGroups.flatMap(g => g.rows), [visibleGroups]);
-  const allSelected = visibleItems.length > 0 && visibleItems.every(i => selected.has(i.id));
+  const selectableVisibleItems = useMemo(
+    () => visibleItems.filter(i => i.is_disbursable),
+    [visibleItems],
+  );
+  const allSelected =
+    selectableVisibleItems.length > 0 && selectableVisibleItems.every(i => selected.has(i.id));
   // Presentation only: which visible row should host the inline Step 2 panel.
   const firstSelectedId = useMemo(
     () => visibleItems.find(i => selected.has(i.id))?.id ?? null,
@@ -400,13 +407,14 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
   );
   const toggleAll = () => {
     const next = new Set(selected);
-    if (allSelected) visibleItems.forEach(i => next.delete(i.id));
-    else visibleItems.forEach(i => next.add(i.id));
+    if (allSelected) selectableVisibleItems.forEach(i => next.delete(i.id));
+    else selectableVisibleItems.forEach(i => next.add(i.id));
     setSelected(next);
   };
 
   const toggleAgentGroup = (rows: ApprovedRentItem[]) => {
-    const ids = rows.map(r => r.id);
+    const ids = rows.filter(r => r.is_disbursable).map(r => r.id);
+    if (!ids.length) return;
     const allOn = ids.every(id => selected.has(id));
     const next = new Set(selected);
     if (allOn) ids.forEach(id => next.delete(id));
