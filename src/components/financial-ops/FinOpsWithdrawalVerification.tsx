@@ -1067,6 +1067,15 @@ export function FinOpsWithdrawalVerification() {
               )}
             </button>
           </div>
+
+          <div className="mt-2 rounded-lg border border-primary/20 bg-primary/5 px-2.5 py-2">
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              <span className="font-semibold text-foreground">Your role here is to watch, not to pay.</span>{' '}
+              Customer mobile money withdrawals are claimed and paid out by merchant agents from
+              their own MTN/Airtel money — you only refund the merchant agent afterwards. You still
+              pay bank transfers and cash pickups yourself.
+            </p>
+          </div>
         </CardHeader>
         <CardContent>
           {activeTab === 'pending' ? (
