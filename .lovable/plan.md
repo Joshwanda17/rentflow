@@ -1,70 +1,117 @@
-# Landlord Ops: Reports & Exports Hub (centralized Extract)
+# Internship application schema extension (database only)
 
-Give Landlord Ops the same one-stop "Reports & Exports" experience that Tenant Ops already has, populated only with landlord reports that already exist. Every existing report stays exactly where it is today.
+One transaction against project `wirntoujqoyjobfhyelc`. No application files, no existing migration files, no policy changes, and no `hr_pay_*` / `hr_task*` / `job_applications` tables touched.
 
-## What exists today (verified)
+## Verified current state
 
-**Tenant Ops reference implementation** — `TenantOpsDashboard.tsx`, Workspaces tile "Reports & Exports" → `reports-hub` view, which renders one shared `reportsToolbar`:
-From / To single-date pickers (shadcn Popover + Calendar, no default dates, Clear button) → one "Extract" dropdown whose items are grouped by labelled headings ("Tenants", "Repayments") with a separator → a "Print Report" button. Spinner on the trigger while extracting, `toast.success`/`toast.error` for results, buttons disabled during work.
+- `public.internship_applications` has 20 columns today; the 12 new ones bring it to 32.
+- Its only constraint today is the primary key — none of the five named constraints exist yet.
+- All 30 rows have `status = 'retained'`, which is inside the proposed status allowlist, so the status check adds cleanly.
+- `anon` currently holds no privileges (table-level or column-level) on `internship_applications`, so the grant is issued fresh and column-scoped only.
+- `hr_departments` has 9 rows and no row with key `interns`; `hr_positions` has 18 rows and no row with key `intern`. Adding one each gives 10 and 19.
+- `hr_positions.department_id` is a nullable `uuid`, so the id can be derived by subquery with no foreign key added.
 
-**Landlord Ops** already has a `reports` view labelled "Reports & Exports" (reachable from the home cards). Today it holds only the Landlord Payouts print report plus a note telling managers where the other exports live. The other landlord exports that already exist:
+## SQL to run
 
-| Existing landlord report | Lives in | Logic |
-|---|---|---|
-| Landlord verification pack (verified / pending / rejected / all) | All Landlords | `fetchLandlordReport` + `generateLandlordVerificationReportPdf` |
-| Landlords Funded pack (KPIs, trend, per district/agent/service centre) | Landlords Paid | `fetchLandlordFundedStats` + `generateLandlordFundedReportPdf` |
-| House verification pack | Verify Houses | `ops_house_listing_report` + `generateHouseVerificationReportPdf` |
-| LC1 chairperson register pack | LC1 Chairpersons | `ops_lc1_verification_report` + `generateLc1VerificationReportPdf` |
-| LC1 inbox export | LC1 Inbox panel | same RPC + generator |
-| Landlords with tenants (spreadsheet) | Landlords with tenants view | `downloadXlsx` |
-| Landlord payouts report | Reports & Exports | `generateLandlordOpsReportPdf` |
+```sql
+BEGIN;
 
-No new report is created; nothing is moved, hidden or removed.
+SET LOCAL lock_timeout = '5s';
 
-## What gets built
+ALTER TABLE public.internship_applications
+  ADD COLUMN IF NOT EXISTS institution                text,
+  ADD COLUMN IF NOT EXISTS course                     text,
+  ADD COLUMN IF NOT EXISTS year_of_study              smallint,
+  ADD COLUMN IF NOT EXISTS expected_completion        date,
+  ADD COLUMN IF NOT EXISTS availability_start         date,
+  ADD COLUMN IF NOT EXISTS availability_weeks         smallint,
+  ADD COLUMN IF NOT EXISTS availability_days_per_week smallint,
+  ADD COLUMN IF NOT EXISTS preferred_contact_channel  text,
+  ADD COLUMN IF NOT EXISTS cohort                     text,
+  ADD COLUMN IF NOT EXISTS linked_user_id             uuid,
+  ADD COLUMN IF NOT EXISTS enrolled_staff_id          uuid,
+  ADD COLUMN IF NOT EXISTS enrolled_at                timestamptz;
 
-Upgrade the existing landlord `reports` view into the hub, using the Tenant toolbar pattern verbatim:
+ALTER TABLE public.internship_applications
+  ADD CONSTRAINT internship_applications_status_check
+  CHECK (status IS NULL OR status IN (
+    'new','screening','interviewing','offered','placed',
+    'declined','not_selected','retained','withdrawn'
+  ));
 
-```text
-Landlord Ops → Reports & Exports
-  [From ▾] [To ▾] [Clear]   [Extract ▾]   [Print Report]
+ALTER TABLE public.internship_applications
+  ADD CONSTRAINT internship_applications_contact_channel_check
+  CHECK (preferred_contact_channel IS NULL
+         OR preferred_contact_channel IN ('phone','whatsapp','email'));
 
-  Extract ▾
-    Landlords
-      Verified landlords (PDF)
-      Pending landlords (PDF)
-      Rejected landlords (PDF)
-      All landlords (PDF)
-      Landlords with tenants (spreadsheet)
-    ── Payments
-      Landlords funded pack (PDF)
-      Landlord payouts report (PDF)
-    ── Properties
-      House verification pack (PDF)
-    ── LC1 chairpersons
-      Verified / Rejected / Pending / All LC1 (PDF)
+ALTER TABLE public.internship_applications
+  ADD CONSTRAINT internship_applications_weeks_check
+  CHECK (availability_weeks IS NULL
+         OR (availability_weeks >= 1 AND availability_weeks <= 52));
+
+ALTER TABLE public.internship_applications
+  ADD CONSTRAINT internship_applications_days_check
+  CHECK (availability_days_per_week IS NULL
+         OR (availability_days_per_week >= 1 AND availability_days_per_week <= 7));
+
+ALTER TABLE public.internship_applications
+  ADD CONSTRAINT internship_applications_year_check
+  CHECK (year_of_study IS NULL
+         OR (year_of_study >= 1 AND year_of_study <= 8));
+
+INSERT INTO public.hr_departments (key, name, measurement_mode, active)
+SELECT 'interns', 'Interns', 'mixed'::hr_measurement_mode, true
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.hr_departments WHERE key = 'interns'
+);
+
+INSERT INTO public.hr_positions (key, title, department_id, active, org_wide_read)
+SELECT 'intern',
+       'Intern',
+       (SELECT id FROM public.hr_departments WHERE key = 'interns'),
+       true,
+       false
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.hr_positions WHERE key = 'intern'
+);
+
+GRANT INSERT (
+  full_name,
+  phone,
+  email,
+  motivation,
+  skills,
+  ready_to_learn,
+  referral_code,
+  consent_text_version,
+  consented_at,
+  future_roles_consent,
+  institution,
+  course,
+  year_of_study,
+  expected_completion,
+  availability_start,
+  availability_weeks,
+  availability_days_per_week,
+  preferred_contact_channel
+) ON public.internship_applications TO anon;
+
+COMMIT;
 ```
 
-- The From/To pickers are the same components with the same behaviour (no defaults, optional, Clear, `dd MMM yyyy`) and feed the date-aware reports: landlord verification, landlords funded, landlord payouts. Reports whose existing logic has no date dimension (house pack, LC1 packs) keep their current scope semantics.
-- Every item calls the report's existing fetch + existing PDF/XLSX generator, so filenames, layout, totals and toasts stay identical to the originals.
-- Landlord-only data: each entry reuses the landlord RPCs/services listed above; no tenant query is reused or renamed.
-- Permissions unchanged: the hub is inside the same Landlord Ops dashboard, and the underlying RPCs keep their own authorization.
-- Responsive: the same `flex flex-wrap` toolbar and grouped dropdown as Tenant Ops, so it behaves identically on phone, tablet and desktop.
+## Notes on specific choices
 
-## Technical notes
+- Every check is written `... IS NULL OR ...` so existing and future NULLs pass, including the status check.
+- The department insert casts `'mixed'` to `hr_measurement_mode`, which is what that column's type requires.
+- No table-level `GRANT INSERT` is issued, and none of `status`, `cohort`, `linked_user_id`, `enrolled_staff_id`, `enrolled_at`, `contacted_by`, `contacted_at`, `decided_at`, `decided_by`, `decision_reason`, `purged_at`, `updated_at`, `id`, `created_at` appears in the grant.
 
-1. `LandlordOpsDashboard.tsx`: build a `reportsToolbar` element (mirroring the Tenant one) and render it in the `reports` view. Keep the current payouts card behaviour available through the same toolbar.
-2. Make the four dashboard-level export handlers accept optional overrides (scope, dateFrom, dateTo) that default to today's on-screen filter state, so the in-section buttons behave exactly as now while the hub can pass an explicit scope/date range.
-3. `exportLc1Report` currently lives inside the LC1 view body; lift it to component scope unchanged (counts derived from `lc1Groups`) so both the LC1 view and the hub call one implementation.
-4. For the two exports owned by child components, move only their fetch+generate bodies into a small shared helper (`src/lib/landlordOpsExports.ts`) and have both the original component and the hub call it — identical output, no visible change:
-   - LC1 inbox export (`Lc1VerificationInboxPanel`)
-   - Landlords-with-tenants spreadsheet (`LandlordsWithTenantsView`)
-5. Single `extracting` state keyed by report id drives the spinner/disabled states, matching Tenant Ops.
-6. `TenantOpsDashboard.tsx` and every tenant export are left untouched.
+## Verification reported after the run
 
-## Verification
-
-- Each hub item downloads the same file as its original location (same rows, totals, filename shape).
-- Original buttons in All Landlords, Landlords Paid, Verify Houses, LC1 Chairpersons, LC1 Inbox and Landlords with tenants still work unchanged.
-- Date range applies to the date-aware reports and is ignored (as today) by the others.
-- Toolbar wraps cleanly with no horizontal scroll at mobile width; dropdown remains reachable.
+1. migration file created (filename)
+2. application files changed (expect 0)
+3. column count on `internship_applications` (expect 32)
+4. columns `anon` holds INSERT on (expect 18)
+5. `hr_departments` row count (expect 10)
+6. `hr_positions` row count (expect 19)
+7. `internship_applications` rows with `status = 'retained'` (expect 30)
+8. the five step-B constraint names, confirmed present
