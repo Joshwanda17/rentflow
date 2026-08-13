@@ -66,7 +66,10 @@ export function UgDistrictSelect({
               : <ChevronsUpDown className="h-4 w-4 opacity-50" />}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="p-0 w-[--radix-popover-trigger-width] max-w-none" align="start">
+        <PopoverContent
+          className="p-0 w-[--radix-popover-trigger-width] max-w-none z-[100] bg-popover"
+          align="start"
+        >
           <Command>
             <CommandInput placeholder="Search districts…" />
             <CommandList>
