@@ -12,17 +12,23 @@ import { Progress } from '@/components/ui/progress';
 import { ComprehensiveCashMovement } from '@/components/cfo/ComprehensiveCashMovement';
 import { LedgerDrillDownDialog } from '@/components/cfo/LedgerDrillDownDialog';
 import { FS_DRILL_MAP } from '@/components/cfo/financialStatementsDrillMap';
-import { startOfDay, endOfDay, subDays, startOfMonth, startOfYear } from 'date-fns';
+import { startOfDay, endOfDay, subDays, startOfMonth, startOfYear, startOfWeek, startOfQuarter } from 'date-fns';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarPicker } from '@/components/ui/calendar';
+import { CheckCircle2, AlertTriangle } from 'lucide-react';
 
 import { formatDynamic as formatUGX } from '@/lib/currencyFormat';
 
 const PERIODS: { value: StatementPeriod; label: string }[] = [
   { value: 'today', label: 'Today' },
   { value: '7days', label: '7 Days' },
+  { value: 'week', label: 'This Week' },
   { value: '30days', label: '30 Days' },
   { value: 'month', label: 'This Month' },
+  { value: 'quarter', label: 'This Quarter' },
   { value: 'year', label: 'This Year' },
   { value: 'all', label: 'All Time' },
+  { value: 'custom', label: 'Custom Range' },
 ];
 
 const COMPARISON_MODES: { value: ComparisonMode; label: string; short: string }[] = [
@@ -104,8 +110,10 @@ function getEffectiveDates(period: StatementPeriod, startDate: Date | null, endD
   switch (period) {
     case 'today':   return { start: startOfDay(now), end: endOfDay(now) };
     case '7days':   return { start: startOfDay(subDays(now, 7)), end: endOfDay(now) };
+    case 'week':    return { start: startOfWeek(now, { weekStartsOn: 1 }), end: endOfDay(now) };
     case '30days':  return { start: startOfDay(subDays(now, 30)), end: endOfDay(now) };
     case 'month':   return { start: startOfMonth(now), end: endOfDay(now) };
+    case 'quarter': return { start: startOfQuarter(now), end: endOfDay(now) };
     case 'year':    return { start: startOfYear(now), end: endOfDay(now) };
     default:        return { start: null, end: null };
   }
