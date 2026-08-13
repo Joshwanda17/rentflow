@@ -129,11 +129,12 @@ export function SelfPortfolioDeployDialog({
           p_rent_request_ids: selectedIds,
         });
         if (error) throw error;
-        toast.success('Top-up submitted successfully', {
+        toast.success('Submitted — pending approval', {
           description:
             prorata > 0
-              ? `Partner Ops will confirm it shortly. Your ${formatDynamic(total)} stays in your wallet until then, and earns ${formatDynamic(prorata)} for the rest of this month once confirmed.`
-              : `Partner Ops will confirm it shortly. Your ${formatDynamic(total)} stays in your wallet until then.`,
+              ? `Partner Operations will review your top-up. Your ${formatDynamic(total)} stays in your wallet until then, and earns ${formatDynamic(prorata)} for the rest of this month once approved. You will receive a confirmation email after approval.`
+              : `Partner Operations will review your top-up. Your ${formatDynamic(total)} stays in your wallet until then. You will receive a confirmation email after approval.`,
+          duration: 8000,
         });
       } else {
         const { error } = await supabase.rpc('partner_self_confirm_commitment', {
@@ -141,8 +142,9 @@ export function SelfPortfolioDeployDialog({
           p_term_months: 1,
         });
         if (error) throw error;
-        toast.success('Portfolio submitted for approval', {
-          description: `Partner Operations will review it. Your ${formatDynamic(total)} stays in your wallet until the portfolio is approved.`,
+        toast.success('Submitted — pending approval', {
+          description: `Partner Operations will review your new portfolio. Your ${formatDynamic(total)} stays in your wallet until it is approved, and your confirmation email is sent once approval goes through.`,
+          duration: 8000,
         });
       }
 
