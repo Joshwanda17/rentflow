@@ -2431,19 +2431,36 @@ Deno.serve(async (req) => {
             } catch { /* non-blocking */ }
           }
 
-          const { data: lp } = await admin
+          const { data: lp, error: lpUpdErr } = await admin
             .from("landlord_payouts")
             .update({
               status: "awaiting_agent_receipt",
               finops_disbursed_by: user.id,
               finops_disbursed_at: new Date().toISOString(),
-              momo_reference: momoRef,
+              finops_momo_reference: momoRef,
               disbursed_at: new Date().toISOString(),
             } as any)
             .eq("id", landlordPayoutId)
             .eq("status", "pending_merchant_payout")
             .select("id, agent_id, landlord_name, landlord_phone, mobile_money_provider, amount")
             .maybeSingle();
+
+          if (lpUpdErr) {
+            // Fail loudly: a silent failure here leaves the payout stuck at
+            // pending_merchant_payout forever, freezing the agent's float.
+            console.error("[approve-withdrawal] landlord payout settlement UPDATE failed:", lpUpdErr);
+            try {
+              await admin.from("audit_logs").insert({
+                user_id: user.id,
+                action_type: "landlord_payout_settlement_failed",
+                table_name: "landlord_payouts",
+                record_id: landlordPayoutId,
+                reason: "settle_err",
+                metadata: { withdrawal_id, error: lpUpdErr.message },
+              });
+            } catch { /* non-blocking */ }
+            throw new Error(`Landlord payout settlement failed: ${lpUpdErr.message}`);
+          }
 
           if (lp) {
             // SMS the landlord that they have been paid (best-effort).
