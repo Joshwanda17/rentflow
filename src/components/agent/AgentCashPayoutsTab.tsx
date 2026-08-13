@@ -1217,6 +1217,42 @@ export function AgentCashPayoutsTab() {
           </div>
         </div>
       )}
+      {/* Plain three-way switch: what to do now, what money is involved, what
+          already happened. Keeps the desk navigable without accounting terms. */}
+      <nav className="sticky top-[68px] z-10 -mx-1 grid grid-cols-3 gap-1 rounded-2xl border border-border/60 bg-background/95 p-1 backdrop-blur-md">
+        {([
+          { key: 'requests', label: 'To pay', icon: Hand, count: totalPending },
+          { key: 'money', label: 'My money', icon: Wallet, count: 0 },
+          { key: 'history', label: 'History', icon: ReceiptText, count: 0 },
+        ] as const).map(({ key, label, icon: Icon, count }) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setView(key)}
+            aria-current={view === key}
+            className={cn(
+              'flex h-11 items-center justify-center gap-1.5 rounded-xl text-sm font-semibold transition-colors',
+              view === key
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'text-muted-foreground hover:bg-muted',
+            )}
+          >
+            <Icon className="h-4 w-4 shrink-0" />
+            <span className="truncate">{label}</span>
+            {count > 0 && (
+              <span className={cn(
+                'rounded-full px-1.5 text-[11px] font-bold tabular-nums',
+                view === key ? 'bg-primary-foreground/20' : 'bg-destructive text-destructive-foreground',
+              )}>
+                {count}
+              </span>
+            )}
+          </button>
+        ))}
+      </nav>
+
+      {view === 'requests' && (
+      <>
       {/* Online/Offline availability — only Online agents receive real-time
           withdrawal dispatches. */}
       <MerchantOnlineToggle />
@@ -1263,7 +1299,11 @@ export function AgentCashPayoutsTab() {
           </CardContent>
         </Card>
       )}
+      </>
+      )}
 
+      {view === 'money' && (
+      <>
       {/* Shared payout float — no float requests any more. Claim, pay, get reimbursed. */}
       <MerchantFloatAvailableCard />
 
@@ -1302,7 +1342,11 @@ export function AgentCashPayoutsTab() {
           </div>
         </div>
       </section>
+      </>
+      )}
 
+      {view === 'history' && (
+      <>
       {/* Commission history — informational only. All withdrawable commission
           lives on the Agent Wallet Card (single source of truth for cash-out). */}
       <Card className="border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 to-transparent rounded-2xl">
