@@ -6533,6 +6533,7 @@ export type Database = {
           config: Json
           created_at: string
           current_queue_count: number | null
+          float_phone: string | null
           handles_airtel: boolean
           handles_bank: boolean
           handles_cash: boolean
@@ -6543,6 +6544,9 @@ export type Database = {
           label: string | null
           max_daily_payouts: number | null
           online_changed_at: string | null
+          payout_numbers_set_at: string | null
+          payout_numbers_set_by: string | null
+          personal_phone: string | null
           priority_threshold: number | null
           updated_at: string
         }
@@ -6552,6 +6556,7 @@ export type Database = {
           config?: Json
           created_at?: string
           current_queue_count?: number | null
+          float_phone?: string | null
           handles_airtel?: boolean
           handles_bank?: boolean
           handles_cash?: boolean
@@ -6562,6 +6567,9 @@ export type Database = {
           label?: string | null
           max_daily_payouts?: number | null
           online_changed_at?: string | null
+          payout_numbers_set_at?: string | null
+          payout_numbers_set_by?: string | null
+          personal_phone?: string | null
           priority_threshold?: number | null
           updated_at?: string
         }
@@ -6571,6 +6579,7 @@ export type Database = {
           config?: Json
           created_at?: string
           current_queue_count?: number | null
+          float_phone?: string | null
           handles_airtel?: boolean
           handles_bank?: boolean
           handles_cash?: boolean
@@ -6581,6 +6590,9 @@ export type Database = {
           label?: string | null
           max_daily_payouts?: number | null
           online_changed_at?: string | null
+          payout_numbers_set_at?: string | null
+          payout_numbers_set_by?: string | null
+          personal_phone?: string | null
           priority_threshold?: number | null
           updated_at?: string
         }
@@ -38337,6 +38349,10 @@ export type Database = {
       }
       merchant_reserved_float: { Args: { p_agent_id: string }; Returns: number }
       merchant_set_online: { Args: { p_online: boolean }; Returns: boolean }
+      merchant_set_payout_numbers: {
+        Args: { p_float_phone: string; p_personal_phone: string }
+        Returns: Json
+      }
       merchant_telecom_sending_charge: {
         Args: { p_amount: number }
         Returns: number
