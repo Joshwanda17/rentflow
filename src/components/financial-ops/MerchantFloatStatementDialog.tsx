@@ -13,13 +13,26 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 
 const CATEGORY_LABELS: Record<string, string> = {
-  agent_float_deposit: 'Float sent to agent',
-  agent_float_settlement: 'Paid out / telecom charge',
+  agent_float_deposit: 'Float in — money sent to their phone',
+  agent_float_settlement: 'Float used — customer payout',
   agent_float_return: 'Float returned to company',
 };
 
-function label(category: string) {
-  return CATEGORY_LABELS[category] ?? category.replace(/_/g, ' ');
+/**
+ * Human label for one float movement line.
+ *
+ * Float in  = company money sent to the agent's MTN/Airtel line (confirmed by
+ *             the extracted payment email).
+ * Float used = money that left their float when they claimed and completed a
+ *              withdrawal payout, plus the telecom sending charge on it.
+ */
+function label(row: { category: string; referenceId?: string | null; description?: string | null }) {
+  const ref = `${row.referenceId ?? ''} ${row.description ?? ''}`.toLowerCase();
+  if (row.category === 'agent_float_settlement') {
+    if (ref.includes('telecom')) return 'Float used — telecom sending charge';
+    return 'Float used — customer payout';
+  }
+  return CATEGORY_LABELS[row.category] ?? row.category.replace(/_/g, ' ');
 }
 
 /**
@@ -58,7 +71,7 @@ export function MerchantFloatStatementDialog({
       rows: rows.map((r) => ({
         date: r.date,
         category: r.category,
-        label: label(r.category),
+        label: label(r),
         description: r.description || r.referenceId || null,
         direction: r.direction,
         amount: r.amount,
@@ -115,7 +128,7 @@ export function MerchantFloatStatementDialog({
             {position.agentName || position.label || 'Merchant agent'} — float statement
           </DialogTitle>
           <DialogDescription className="text-xs">
-            {position.agentPhone || '—'} · every movement of the company float this agent holds
+            {position.agentPhone || '—'} · float in when we send money to their phone, float used when they complete a payout
           </DialogDescription>
         </DialogHeader>
 
@@ -178,7 +191,7 @@ export function MerchantFloatStatementDialog({
                 )}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-foreground truncate">{label(r.category)}</p>
+                <p className="text-sm font-medium text-foreground truncate">{label(r)}</p>
                 <p className="text-[11px] text-muted-foreground truncate">
                   {r.description || r.referenceId || '—'}
                 </p>
