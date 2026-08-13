@@ -210,7 +210,7 @@ Deno.serve(async (req) => {
             if (listingIds.length) {
               const { data: listings } = await admin
                 .from("house_listings")
-                .select("id, address, village, district, city")
+                .select("id, address, village, district")
                 .in("id", listingIds);
               for (const l of (listings || []) as any[]) listingById[l.id] = l;
             }
@@ -221,7 +221,7 @@ Deno.serve(async (req) => {
               const parts = [
                 listing.address || listing.village || prof.village,
                 listing.district || prof.district,
-                listing.city || r.request_city || prof.city,
+                r.request_city || prof.city,
               ]
                 .map((v: any) => (typeof v === "string" ? v.trim() : ""))
                 .filter(Boolean);
