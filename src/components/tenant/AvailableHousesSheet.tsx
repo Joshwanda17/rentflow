@@ -522,11 +522,11 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
               ref={searchInputRef}
               type="search"
               enterKeyHint="search"
-              placeholder="Search by region, district, or address..."
+              placeholder="Search by keyword — area, address, or house name..."
               value={searchText}
               onChange={e => setSearchText(e.target.value)}
               className="pl-10"
-              aria-label="Search houses by region, district, or address"
+              aria-label="Search houses by keyword"
             />
             {/* Hidden submit so pressing Enter triggers onSubmit reliably. */}
             <button type="submit" className="sr-only" tabIndex={-1} aria-hidden="true">
@@ -540,9 +540,14 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
                 <SelectValue placeholder="Region" />
               </SelectTrigger>
               <SelectContent>
-                {REGION_OPTIONS.map(r => (
-                  <SelectItem key={r} value={r}>{regionLabel(r)}</SelectItem>
-                ))}
+                {REGIONS.map(r => {
+                  const n = regionCount.get(normalizeAreaName(r));
+                  return (
+                    <SelectItem key={r} value={r}>
+                      {regionLabel(r)}{r !== 'All Regions' && n ? ` (${n})` : ''}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
             <Select value={selectedCategory} onValueChange={setSelectedCategory}>
@@ -550,7 +555,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
                 <SelectValue placeholder="Type" />
               </SelectTrigger>
               <SelectContent>
-                {CATEGORIES.map(c => (
+                {categoryOptions.map(c => (
                   <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
                 ))}
               </SelectContent>
@@ -670,7 +675,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
                 <SelectContent>
                   <SelectItem value="all">All Districts</SelectItem>
                   {districtOptions.map(d => (
-                    <SelectItem key={d} value={d}>{d}</SelectItem>
+                    <SelectItem key={d.value} value={d.value}>{d.value} ({d.count})</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -685,7 +690,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
                 <SelectContent>
                   <SelectItem value="all">All Sub-counties</SelectItem>
                   {subCountyOptions.map(s => (
-                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                    <SelectItem key={s.value} value={s.value}>{s.value} ({s.count})</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -700,7 +705,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
                 <SelectContent>
                   <SelectItem value="all">All Villages</SelectItem>
                   {villageOptions.map(v => (
-                    <SelectItem key={v} value={v}>{v}</SelectItem>
+                    <SelectItem key={v.value} value={v.value}>{v.value} ({v.count})</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
