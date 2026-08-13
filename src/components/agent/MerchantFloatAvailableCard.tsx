@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { MerchantBalanceDisputeDialog } from './MerchantBalanceDisputeDialog';
 import { useMyBalanceDisputes } from '@/hooks/useMerchantBalanceDisputes';
+import { useAuth } from '@/hooks/useAuth';
 import {
   useMerchantPayoutFloat,
   useMerchantFloatPositions,
@@ -21,6 +22,7 @@ import {
  * Read-only display. Claiming and settling behave exactly as before.
  */
 export function MerchantFloatAvailableCard() {
+  const { user } = useAuth();
   const { data: pool, isLoading } = useMerchantPayoutFloat();
   const { data: positions } = useMerchantFloatPositions();
   const { data: oop } = useMerchantOutOfPocket();
@@ -29,7 +31,12 @@ export function MerchantFloatAvailableCard() {
   const [disputeOpen, setDisputeOpen] = useState(false);
   const review = useReviewMerchantOutOfPocket();
 
-  const mine = positions?.[0];
+  // Finance/manager roles receive every desk from the RPC, ordered by float size.
+  // Always pin to the signed-in agent's own desk so the card never shows another
+  // merchant's cash position.
+  const mine =
+    (user?.id ? positions?.find((p) => p.agentId === user.id) : undefined) ??
+    (positions?.length === 1 ? positions[0] : undefined);
   const owed = mine?.owedToAgent ?? 0;
   const holding = mine?.ledgerFloatHeld ?? mine?.companyCashWithAgent ?? 0;
   // The float a merchant spends when they claim IS the company money already
