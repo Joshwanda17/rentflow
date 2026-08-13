@@ -2623,7 +2623,7 @@ export function LandlordOpsDashboard() {
               variant="outline"
               className="h-9 gap-1.5"
               disabled={exportingFundedReport}
-              onClick={exportFundedReportPdf}
+              onClick={() => void exportFundedReportPdf()}
               title="Export the Landlords Funded pack (stats, charts, per district / agent / service centre) for the period selected below"
             >
               {exportingFundedReport
