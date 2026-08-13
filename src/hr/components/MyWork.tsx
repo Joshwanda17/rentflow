@@ -781,7 +781,30 @@ export default function MyWork({ embedded = false }: MyWorkProps) {
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm">Completion trend</CardTitle>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="text-sm">Completion trend · last 8 weeks</CardTitle>
+            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5">
+                <span
+                  className={
+                    live
+                      ? 'h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse'
+                      : 'h-1.5 w-1.5 rounded-full bg-muted-foreground/50'
+                  }
+                />
+                {live ? 'Live' : 'Auto-refresh'}
+              </span>
+              {lastUpdated && <span>· updated {lastUpdated.toLocaleTimeString('en-GB')}</span>}
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 px-2 text-[11px]"
+                onClick={() => void load({ silent: true })}
+              >
+                Refresh
+              </Button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="h-56">
           <ResponsiveContainer width="100%" height="100%">
@@ -791,8 +814,12 @@ export default function MyWork({ embedded = false }: MyWorkProps) {
               <YAxis domain={[0, 100]} tick={{ fontSize: 10 }} unit="%" />
               <Tooltip
                 formatter={(v: number, _n, item: any) =>
-                  [`${v}% (${item?.payload?.completed}/${item?.payload?.created})`, 'Completed']
+                  [
+                    `${v}% — ${item?.payload?.completed ?? 0} of ${item?.payload?.created ?? 0} completed`,
+                    'Completion rate',
+                  ]
                 }
+                labelFormatter={(l) => `Week of ${l}`}
               />
               <Line
                 type="monotone"
