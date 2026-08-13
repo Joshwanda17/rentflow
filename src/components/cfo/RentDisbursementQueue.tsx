@@ -940,11 +940,11 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
                 </div>
               )}
               {visibleGroups.map(group => {
-                const groupIds = group.rows.map(r => r.id);
+                const groupIds = group.rows.filter(r => r.is_disbursable).map(r => r.id);
                 const groupSelectedCount = groupIds.filter(id => selected.has(id)).length;
-                const allGroupOn = groupSelectedCount === groupIds.length;
+                const allGroupOn = groupIds.length > 0 && groupSelectedCount === groupIds.length;
                 const someGroupOn = groupSelectedCount > 0 && !allGroupOn;
-                const groupTotal = group.rows.reduce((s, r) => s + r.rent_amount, 0);
+                const groupTotal = group.rows.filter(r => r.is_disbursable).reduce((s, r) => s + r.rent_amount, 0);
                 const isNew = Date.now() - group.latest < 24 * 60 * 60 * 1000;
                 const isRealAgent = group.agent_id && group.agent_id !== 'unassigned';
                 return (
@@ -974,7 +974,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
                           </Badge>
                         )}
                         <Badge variant="outline" className="text-[9px] px-1.5 py-0 shrink-0">
-                          {groupSelectedCount}/{group.rows.length}
+                          {groupSelectedCount}/{groupIds.length}
                         </Badge>
                       </div>
                       <span className="text-xs font-bold text-orange-600 shrink-0">{fmt(groupTotal)}</span>
