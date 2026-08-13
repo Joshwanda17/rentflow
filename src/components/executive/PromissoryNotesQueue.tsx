@@ -18,7 +18,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Search, User, Phone, Calendar, TrendingUp, CheckCircle, Clock, AlertTriangle, XCircle, Mail, MessageCircle, FileText, Trash2, BadgeCheck, MapPin, RefreshCw } from 'lucide-react';
+import { Search, User, Phone, Calendar, TrendingUp, CheckCircle, Clock, AlertTriangle, XCircle, Mail, MessageCircle, FileText, Trash2, BadgeCheck, MapPin, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useEffect } from 'react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { CompactAmount } from '@/components/ui/CompactAmount';
@@ -37,6 +38,7 @@ export function PromissoryNotesQueue() {
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const [deleteReason, setDeleteReason] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [page, setPage] = useState(1);
   const [approveTarget, setApproveTarget] = useState<any>(null);
   const [approveReason, setApproveReason] = useState('');
   const [approving, setApproving] = useState(false);
@@ -221,6 +223,12 @@ export function PromissoryNotesQueue() {
     return acc;
   }, {} as Record<string, number>);
 
+  const NOTES_PER_PAGE = 10;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / NOTES_PER_PAGE));
+  const safePage = Math.min(page, totalPages);
+  const pagedNotes = filtered.slice((safePage - 1) * NOTES_PER_PAGE, safePage * NOTES_PER_PAGE);
+  useEffect(() => { setPage(1); }, [search, statusFilter, range]);
+
   const statusConfig: Record<string, { icon: any; color: string; label: string }> = {
     pending: { icon: Clock, color: 'bg-amber-100 text-amber-700 border-amber-200', label: 'Pending' },
     activated: { icon: CheckCircle, color: 'bg-emerald-100 text-emerald-700 border-emerald-200', label: 'Activated' },
@@ -339,7 +347,7 @@ export function PromissoryNotesQueue() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filtered.map(note => {
+                    {pagedNotes.map(note => {
                       const config = statusConfig[note.status] || statusConfig.pending;
                       const StatusIcon = config.icon;
                       return (
@@ -374,7 +382,7 @@ export function PromissoryNotesQueue() {
 
               {/* Mobile cards */}
               <div className="md:hidden space-y-2">
-                {filtered.map(note => {
+                {pagedNotes.map(note => {
                   const config = statusConfig[note.status] || statusConfig.pending;
                   const StatusIcon = config.icon;
                   return (
@@ -412,6 +420,22 @@ export function PromissoryNotesQueue() {
                     </button>
                   );
                 })}
+              </div>
+
+              {/* Pagination */}
+              <div className="flex items-center justify-between gap-2 pt-3 mt-1 border-t">
+                <span className="text-[11px] text-muted-foreground">
+                  {(safePage - 1) * NOTES_PER_PAGE + 1}–{Math.min(safePage * NOTES_PER_PAGE, filtered.length)} of {filtered.length}
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" className="h-7 px-2" disabled={safePage <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                  </Button>
+                  <span className="text-[11px] text-muted-foreground">Page {safePage} of {totalPages}</span>
+                  <Button variant="outline" size="sm" className="h-7 px-2" disabled={safePage >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </div>
             </>
           )}
