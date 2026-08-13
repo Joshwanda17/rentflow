@@ -34,6 +34,15 @@ interface WithdrawRequestDialogProps {
   } | null;
   linkedParty?: string;
   lockAmount?: boolean;
+  /**
+   * Proxy payouts: the destination is dictated by the payment details saved on
+   * the partner's portfolio, so the agent may READ but never RE-KEY it — same
+   * treatment as `lockAmount`. Prevents a proxy agent substituting their own
+   * (or any third party's) phone number for the partner's.
+   */
+  lockPayoutDetails?: boolean;
+  /** Where the locked details came from, shown to the agent for confidence. */
+  payoutSourceLabel?: string;
 }
 
 type PayoutMode = 'mtn' | 'airtel' | 'bank' | 'cash';
@@ -224,7 +233,7 @@ function normalizeUgMomoNumber(raw: string): string {
   return s;
 }
 
-export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, onSuccess, prefillAmount, prefillReason, prefillPayout, linkedParty, lockAmount = false }: WithdrawRequestDialogProps) {
+export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, onSuccess, prefillAmount, prefillReason, prefillPayout, linkedParty, lockAmount = false, lockPayoutDetails = false, payoutSourceLabel }: WithdrawRequestDialogProps) {
   const { user } = useAuth();
   const [amount, setAmount] = useState<number>(0);
   const [loading, setLoading] = useState(false);
@@ -258,6 +267,9 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
 
   const [payoutMode, setPayoutMode] = useState<PayoutMode | null>(null);
   const [momoNumber, setMomoNumber] = useState('');
+  // Locked destination: only when the caller both asked for the lock AND
+  // supplied the resolved details, so we never lock an empty form.
+  const payoutLocked = lockPayoutDetails && !!prefillPayout;
   const [momoName, setMomoName] = useState('');
   const [bankName, setBankName] = useState('');
   const [bankAccountName, setBankAccountName] = useState('');
@@ -876,17 +888,31 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
               >
                 <div className="flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-primary" />
-                  <Label className="text-sm font-bold text-foreground">Where should we send your money?</Label>
+                  <Label className="text-sm font-bold text-foreground">
+                    {payoutLocked ? 'Where this money goes' : 'Where should we send your money?'}
+                  </Label>
                 </div>
+                {payoutLocked && (
+                  <div className="flex items-start gap-2 p-3 rounded-xl bg-primary/5 border border-primary/20">
+                    <Lock className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                    <p className="text-[11px] text-muted-foreground leading-snug">
+                      These payment details come from {payoutSourceLabel || 'the saved payment details'} and cannot be
+                      changed here — just like the amount. To correct them, ask Partner Ops to update the saved
+                      payment details first.
+                    </p>
+                  </div>
+                )}
                 <div className="grid grid-cols-4 gap-2.5">
                   {PAYOUT_OPTIONS.map((opt, i) => {
                     const selected = payoutMode === opt.value;
+                    if (payoutLocked && !selected) return null;
                     return (
                       <button
                         key={opt.value}
                         type="button"
-                        onClick={() => setPayoutMode(prev => prev === opt.value ? null : opt.value)}
-                        className={`relative flex flex-col items-center justify-center rounded-2xl border-2 p-3 min-h-[80px] transition-all active:scale-95 touch-manipulation ${
+                        disabled={payoutLocked}
+                        onClick={() => { if (payoutLocked) return; setPayoutMode(prev => prev === opt.value ? null : opt.value); }}
+                        className={`relative flex flex-col items-center justify-center rounded-2xl border-2 p-3 min-h-[80px] transition-all touch-manipulation ${payoutLocked ? 'cursor-default' : 'active:scale-95'} ${
                           selected
                             ? `bg-gradient-to-b ${opt.accent} ${opt.ring} ring-2 shadow-lg`
                             : 'border-border bg-card hover:border-muted-foreground/30 hover:shadow-sm'
@@ -941,19 +967,24 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
                                 inputMode="tel"
                                 placeholder="e.g. 0770 123 456"
                                 value={momoNumber}
-                                onChange={(e) => setMomoNumber(e.target.value)}
-                                className="h-12 pl-10 rounded-xl text-base font-medium"
+                                onChange={(e) => { if (payoutLocked) return; setMomoNumber(e.target.value); }}
+                                readOnly={payoutLocked}
+                                className={`h-12 pl-10 rounded-xl text-base font-medium ${payoutLocked ? 'bg-muted/60 cursor-not-allowed' : ''}`}
                                 disabled={fetchingProfile}
                               />
                             </div>
+                            {payoutLocked && (
+                              <p className="text-[10px] text-muted-foreground">Locked to the partner's saved number.</p>
+                            )}
                           </div>
                           <div className="space-y-1.5">
                             <Label className="text-xs font-semibold text-foreground">Registered Name</Label>
                             <Input
                               placeholder="As it appears on MoMo"
                               value={momoName}
-                              onChange={(e) => setMomoName(e.target.value)}
-                              className="h-12 rounded-xl text-base font-medium"
+                              onChange={(e) => { if (payoutLocked) return; setMomoName(e.target.value); }}
+                              readOnly={payoutLocked}
+                              className={`h-12 rounded-xl text-base font-medium ${payoutLocked ? 'bg-muted/60 cursor-not-allowed' : ''}`}
                             />
                           </div>
                         </>
@@ -963,8 +994,8 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
                         <>
                           <div className="space-y-1.5">
                             <Label className="text-xs font-semibold text-foreground">Bank</Label>
-                            <Select value={bankName} onValueChange={setBankName}>
-                              <SelectTrigger className="h-12 rounded-xl">
+                            <Select value={bankName} onValueChange={(v) => { if (payoutLocked) return; setBankName(v); }} disabled={payoutLocked}>
+                              <SelectTrigger className={`h-12 rounded-xl ${payoutLocked ? 'bg-muted/60' : ''}`}>
                                 <SelectValue placeholder="Select your bank…" />
                               </SelectTrigger>
                               <SelectContent className="max-h-60 z-[200]" position="popper" sideOffset={4}>
@@ -981,8 +1012,9 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
                               <Input
                                 placeholder="Full name on account"
                                 value={bankAccountName}
-                                onChange={(e) => setBankAccountName(e.target.value)}
-                                className="h-12 pl-10 rounded-xl text-base font-medium"
+                                onChange={(e) => { if (payoutLocked) return; setBankAccountName(e.target.value); }}
+                                readOnly={payoutLocked}
+                                className={`h-12 pl-10 rounded-xl text-base font-medium ${payoutLocked ? 'bg-muted/60 cursor-not-allowed' : ''}`}
                               />
                             </div>
                           </div>
@@ -993,8 +1025,9 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
                               <Input
                                 placeholder="e.g. 9030012345678"
                                 value={bankAccountNumber}
-                                onChange={(e) => setBankAccountNumber(e.target.value)}
-                                className="h-12 pl-10 rounded-xl text-base font-medium"
+                                onChange={(e) => { if (payoutLocked) return; setBankAccountNumber(e.target.value); }}
+                                readOnly={payoutLocked}
+                                className={`h-12 pl-10 rounded-xl text-base font-medium ${payoutLocked ? 'bg-muted/60 cursor-not-allowed' : ''}`}
                               />
                             </div>
                           </div>
