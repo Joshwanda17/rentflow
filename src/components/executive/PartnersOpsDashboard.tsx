@@ -34,6 +34,7 @@ import { PartnerLeadAssignments } from './PartnerLeadAssignments';
 import { NewPartnersPanel } from './NewPartnersPanel';
 import { PendingPartnerRequests } from './PendingPartnerRequests';
 import { ProxyAgentManager } from '@/components/cfo/ProxyAgentManager';
+import { ProxyAgentApplicationsQueue } from '@/components/executive/ProxyAgentApplicationsQueue';
 import { MaturityRequestsQueue } from './MaturityRequestsQueue';
 import { InvitedPortfoliosPanel } from './InvitedPortfoliosPanel';
 import { PortfolioRenewalsPanel } from './PortfolioRenewalsPanel';
@@ -223,7 +224,12 @@ export function PartnersOpsDashboard() {
           <ApprovedPartnerWithdrawals onBack={() => setTab('portfolios')} />
         </div>
       );
-      case 'proxy-agents': return <ProxyAgentManager />;
+      case 'proxy-agents': return (
+        <div className="space-y-6">
+          <ProxyAgentApplicationsQueue />
+          <ProxyAgentManager />
+        </div>
+      );
       default: return null;
     }
   };
