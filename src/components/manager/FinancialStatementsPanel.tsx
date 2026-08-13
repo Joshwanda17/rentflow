@@ -542,7 +542,9 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
 ];
 
 export function FinancialStatementsPanel() {
-  const { data, loading, filters, generate, updatePeriod, comparisonMode, updateComparisonMode, comparisonMetrics, loadingComparison } = useFinancialStatements();
+  const { data, loading, filters, generate, updatePeriod, setFilters, comparisonMode, updateComparisonMode, comparisonMetrics, loadingComparison } = useFinancialStatements();
+  const [customStart, setCustomStart] = useState<Date | undefined>();
+  const [customEnd, setCustomEnd] = useState<Date | undefined>();
   const [activeTab, setActiveTab] = useState<Tab>('movement');
   const [sharing, setSharing] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -568,7 +570,25 @@ export function FinancialStatementsPanel() {
   };
 
   const handleChangePeriod = (period: StatementPeriod) => {
+    if (period === 'custom') {
+      setFilters({ period: 'custom', startDate: customStart ? startOfDay(customStart) : null, endDate: customEnd ? endOfDay(customEnd) : null });
+      return;
+    }
     updatePeriod(period);
+  };
+
+  const applyCustomRange = () => {
+    if (!customStart || !customEnd) {
+      toast.error('Pick both a start and an end date');
+      return;
+    }
+    if (customEnd < customStart) {
+      toast.error('End date cannot be before the start date');
+      return;
+    }
+    const next = { period: 'custom' as StatementPeriod, startDate: startOfDay(customStart), endDate: endOfDay(customEnd) };
+    setFilters(next);
+    generate(next);
   };
 
   const getTabLabel = () => {
