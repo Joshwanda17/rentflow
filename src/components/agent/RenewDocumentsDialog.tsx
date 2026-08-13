@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { optimizeImage } from '@/lib/imageOptimizer';
+import { captureGps, isGpsRequiredError } from '@/lib/captureGps';
 
 export interface RenewDocsState {
   passport: boolean;
@@ -135,9 +136,19 @@ export function RenewDocumentsDialog({
       }
 
       // 2. Post the renewal.
-      const { data: newId, error: renewErr } = await supabase.rpc('renew_rent_request' as any, {
-        p_prev_request_id: prevRequestId,
-      });
+      const postRenewal = (gps?: { latitude: number; longitude: number }) =>
+        supabase.rpc('renew_rent_request' as any, {
+          p_prev_request_id: prevRequestId,
+          ...(gps ? { p_latitude: gps.latitude, p_longitude: gps.longitude } : {}),
+        });
+
+      let { data: newId, error: renewErr } = await postRenewal();
+      // No property GPS on record anywhere — capture it here at the house and retry once.
+      if (renewErr && isGpsRequiredError(renewErr?.message)) {
+        toast.info('Capturing the property GPS at the house…');
+        const gps = await captureGps();
+        ({ data: newId, error: renewErr } = await postRenewal(gps));
+      }
       if (renewErr) throw renewErr;
       if (!newId) throw new Error('The rent request could not be posted. Please try again.');
 
