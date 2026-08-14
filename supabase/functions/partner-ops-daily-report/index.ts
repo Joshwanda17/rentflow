@@ -140,6 +140,7 @@ interface Report {
   days: number;
   kpis: Record<string, number>;
   topups: Record<string, any>;
+  promissory: Record<string, any>;
   backlog: Record<string, number>;
   series: any[];
   forecast: {
@@ -156,6 +157,7 @@ async function loadReport(admin: Admin, start: string, end: string): Promise<Rep
   const r = (data || {}) as Report;
   r.kpis = r.kpis || {};
   r.topups = r.topups || {};
+  r.promissory = r.promissory || {};
   r.backlog = r.backlog || ({} as any);
   r.series = r.series || [];
   r.forecast = r.forecast || { days: [], weekdays_total: 0, weekdays_count: 0, weekend_total: 0, weekend_count: 0 };
@@ -185,10 +187,12 @@ function bytesToBase64(bytes: Uint8Array): string {
 function buildPdf(r: Report, win: { title: string; pretty: string }, logo: Uint8Array | null): Uint8Array {
   const k = r.kpis || ({} as Record<string, number>);
   const t = r.topups || {};
+  const pn = r.promissory || {};
   const b = r.backlog || ({} as Record<string, number>);
   const f = r.forecast;
   const days = Math.max(1, Number(r.days) || 1);
-  const inflow = (Number(k.new_capital) || 0) + (Number(t.applied_amount) || 0);
+  // Capital in = top-ups applied + compounded + new portfolio capital, all in the window.
+  const inflow = (Number(k.new_capital) || 0) + (Number(t.applied_amount) || 0) + (Number(k.compounded_amount) || 0);
   const outflow = Number(k.paid_out_amount) || 0;
 
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
