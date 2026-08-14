@@ -9,11 +9,13 @@ import { KPICard } from './KPICard';
 import { UserProfileSheet } from './UserProfileSheet';
 import {
   CalendarX2, Search, RefreshCw, Users, Banknote,
-  AlertTriangle, Phone, TrendingDown, Clock
+  AlertTriangle, Phone, TrendingDown, Clock, PhoneCall
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
-import { differenceInDays, parseISO } from 'date-fns';
+import { differenceInDays, parseISO, format } from 'date-fns';
 import { TenantOpsReportToolbar } from './TenantOpsReportToolbar';
+import { useTenantCallSummaries, type TenantCallSummary } from '@/hooks/useTenantCallReports';
+import { LogTenantCallDialog } from './LogTenantCallDialog';
 
 /** Fetches in batches so large tenant sets are never silently truncated. */
 const chunk = <T,>(list: T[], size = 300): T[][] => {
