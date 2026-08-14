@@ -498,10 +498,6 @@ function buildPdf(r: Report, win: { title: string; pretty: string }, logo: Uint8
     }
   }
 
-  // 6 — Watchlist
-  {
-  }
-
   // 6 — Promissory notes
   {
     let cur = drawSectionHead(
@@ -588,10 +584,11 @@ function buildPdf(r: Report, win: { title: string; pretty: string }, logo: Uint8
 function buildHtml(r: Report, win: { title: string; pretty: string }): string {
   const k = r.kpis || ({} as Record<string, number>);
   const t = r.topups || {};
+  const pn = r.promissory || {};
   const b = r.backlog || ({} as Record<string, number>);
   const f = r.forecast;
   const days = Math.max(1, Number(r.days) || 1);
-  const inflow = (Number(k.new_capital) || 0) + (Number(t.applied_amount) || 0);
+  const inflow = (Number(k.new_capital) || 0) + (Number(t.applied_amount) || 0) + (Number(k.compounded_amount) || 0);
   const outflow = Number(k.paid_out_amount) || 0;
 
   const tile = (label: string, value: string, sub: string, kind: "hero" | "good" | "bad" = "hero") => {
@@ -668,7 +665,7 @@ function buildHtml(r: Report, win: { title: string; pretty: string }): string {
   ]);
 
   const watch: string[] = [];
-  if (Number(t.backlog_amount) > 0) watch.push(`Parked top-ups awaiting merge: ${num(t.backlog_count)} - ${fmtUGX(t.backlog_amount)}`);
+  if (Number(pn.pending_amount) > 0) watch.push(`Promissory notes pending activation: ${num(pn.pending_count)} - ${fmtUGX(pn.pending_amount)} (oldest ${num(pn.pending_oldest_days)} days)`);
   if (Number(b.pending_portfolios_count) > 0) watch.push(`Portfolios awaiting ops approval: ${num(b.pending_portfolios_count)} - ${fmtUGX(b.pending_portfolios_amount)}`);
   if (Number(k.renewals_count) > 0) watch.push(`Renewals in the window: ${num(k.renewals_count)} - ${fmtUGX(k.renewals_topup_amount)}`);
   if (Number(f.weekdays_total) + Number(f.weekend_total) > outflow) watch.push(`Next 7 days of returns (${fmtUGX(Number(f.weekdays_total) + Number(f.weekend_total))}) exceed the returns paid this window (${fmtUGX(outflow)}) - cover must come from new capital`);
@@ -700,19 +697,19 @@ function buildHtml(r: Report, win: { title: string; pretty: string }): string {
       </td></tr>
     </table>
 
-    ${section("Headline - the window", `Window is ${days} day${days === 1 ? "" : "s"} of EAT calendar activity. Capital in excludes compounded returns - compounding is a non-cash movement already inside portfolio principal.`, tiles([
+    ${section("Headline - the window", `Window is ${days} day${days === 1 ? "" : "s"} of EAT calendar activity. Capital in = top-ups applied that day + returns compounded that day + new portfolios created that day.`, tiles([
       tile("Capital live (close)", compactUGX(k.total_capital), `${num(k.active_portfolios)} active portfolios`),
-      tile("Capital in (cash)", fmtUGX(inflow), `${num(k.new_portfolios)} new · ${num(t.applied_count)} top-ups applied`, "good"),
+      tile("Capital in (cash)", fmtUGX(inflow), `${num(k.new_portfolios)} new · ${num(t.applied_count)} top-ups · ${num(k.compounded_count)} compounded`, "good"),
       tile("Returns paid", fmtUGX(k.paid_out_amount), `${num(k.paid_out_count)} credits`, "good"),
       tile("Compounded", fmtUGX(k.compounded_amount), `${num(k.compounded_count)} portfolios (non-cash)`),
       tile("Net capital movement", fmtUGX(inflow - outflow), inflow - outflow >= 0 ? "net inflow" : "net outflow", inflow - outflow >= 0 ? "good" : "bad"),
-      tile("Parked top-ups", fmtUGX(t.backlog_amount), `${num(t.backlog_count)} awaiting merge`, "bad"),
+      tile("Total promissory notes receivable", fmtUGX(pn.receivable_amount), `${num(pn.total_count)} notes · ${num(pn.pending_count)} pending`, "bad"),
     ]))}
 
-    ${section("Capital in - new money and top-ups", "New portfolio capital plus top-ups merged into existing portfolios. Parked top-ups are real money held but not yet inside capital live.", tiles([
+    ${section("Capital in - new money and top-ups", "New portfolio capital, top-ups merged into existing portfolios and returns compounded back into principal.", tiles([
       tile("New portfolio capital", fmtUGX(k.new_capital), `${num(k.new_portfolios)} portfolios`, "good"),
       tile("Top-ups applied", fmtUGX(t.applied_amount), `${num(t.applied_count)} top-ups`, "good"),
-      tile("Top-ups requested", fmtUGX(t.requested_amount), `${num(t.requested_count)} requests`),
+      tile("Compounded into principal", fmtUGX(k.compounded_amount), `${num(k.compounded_count)} portfolios`),
     ]) + `<div style="font-size:12px;font-weight:700;color:#1e1b2e;margin-top:16px">Daily capital in vs returns settled</div>
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;margin-top:8px"><tr>${bars}</tr></table>
       <div style="font-size:11px;color:#787484;margin-top:8px">
@@ -721,9 +718,9 @@ function buildHtml(r: Report, win: { title: string; pretty: string }): string {
       </div>` + dataTable(["Movement", "Count", "Volume"], [
         ["New portfolio capital", num(k.new_portfolios), fmtUGX(k.new_capital)],
         ["Top-ups applied", num(t.applied_count), fmtUGX(t.applied_amount)],
+        ["Compounded into principal", num(k.compounded_count), fmtUGX(k.compounded_amount)],
         ["Renewals", num(k.renewals_count), fmtUGX(k.renewals_topup_amount)],
-        ["Parked top-ups (now)", num(t.backlog_count), fmtUGX(t.backlog_amount)],
-      ], ["Capital in (cash)", "", fmtUGX(inflow)]))}
+      ], ["Capital in", "", fmtUGX(inflow)]))}
 
     ${section("Returns - paid and compounded", "Returns settled in the window split between cash credited to partner wallets and returns reinvested into principal.", tiles([
       tile("Paid in cash to wallets", fmtUGX(k.paid_out_amount), `${num(k.paid_out_count)} credits`, "good"),
@@ -740,6 +737,26 @@ function buildHtml(r: Report, win: { title: string; pretty: string }): string {
     ${(modeRows.length || bandRows.length) ? section("Portfolio mix", "Book composition by payout mode and ticket size at window close.",
       (modeRows.length ? dataTable(["Payout mode", "Portfolios", "Volume"], modeRows) : "") +
       (bandRows.length ? dataTable(["Ticket band", "Portfolios", "Volume"], bandRows) : "")) : ""}
+
+    ${section("Promissory notes", "Signed partner commitments straight from the promissory notes book. Pending notes are commitments, not capital - they are excluded from capital live and from capital in until activated.", tiles([
+      tile(`Created (${days === 1 ? "this day" : "this window"})`, fmtUGX(pn.created_amount), `${num(pn.created_count)} notes`, "good"),
+      tile("Pending", fmtUGX(pn.pending_amount), `${num(pn.pending_count)} notes · oldest ${num(pn.pending_oldest_days)}d`, "bad"),
+      tile("Activated (all time)", fmtUGX(pn.activated_amount), `${num(pn.activated_count)} notes · oldest ${num(pn.activated_oldest_days)}d`, "good"),
+      tile("Conversion rate", `${Number(pn.conversion_rate ?? 0)}%`, "activated / all notes"),
+      tile("Total receivable", fmtUGX(pn.receivable_amount), "pending plus activated, net of collections", "bad"),
+      tile("Collected to date", fmtUGX(pn.collected_amount), `${num(pn.total_count)} notes on the book`, "good"),
+    ]) + (((pn.by_status || []) as any[]).length
+      ? dataTable(
+          ["Status", "Notes", "Committed volume", "Oldest"],
+          ((pn.by_status || []) as any[]).map((s) => [
+            ascii(String(s.status || "").replace(/^./, (c: string) => c.toUpperCase())),
+            num(s.count),
+            fmtUGX(s.amount),
+            `${num(s.oldest_days)}d`,
+          ]),
+          ["Total", num(pn.total_count), fmtUGX(pn.total_amount), ""],
+        )
+      : ""))}
 
     ${section("Watchlist", "Only items needing action are listed. Clean areas are omitted rather than printed as zeros.",
       watch.map(w => `<div style="border-left:3px solid #b45309;background:#fffdf5;border-radius:0 8px 8px 0;padding:9px 12px;margin-top:8px;font-size:12.5px;color:#1e1b2e">${esc(w)}</div>`).join(""))}
