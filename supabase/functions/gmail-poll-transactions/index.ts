@@ -907,6 +907,13 @@ Deno.serve(async (req) => {
       } catch (e) {
         console.warn('[gmail-poll] linked-pending sweep failed (non-fatal):', e);
       }
+      // Backstop #2: outbound sends to a registered merchant float phone that
+      // never got a receipt at all (silent-gap net, Rule 3 independent).
+      try {
+        await sweepUnlinkedMerchantFloatSends(supabase);
+      } catch (e) {
+        console.warn('[gmail-poll] unlinked merchant float sweep failed (non-fatal):', e);
+      }
     }
 
     return new Response(JSON.stringify({
@@ -1561,6 +1568,25 @@ async function creditMerchantFloatFromOutboundSms(
   if (!gmailRow?.id) return;
   if (gmailRow.linked_deposit_request_id) {
     console.log(`[gmail-poll] merchant float credit skip: email ${gmailMessageId} already linked to a deposit`);
+    // Withheld, not silent: if the linked deposit is still pending, the money
+    // is detected but uncredited — make that visible to FinOps.
+    const { data: linkedDep } = await supabase
+      .from('deposit_requests')
+      .select('id, status')
+      .eq('id', gmailRow.linked_deposit_request_id)
+      .maybeSingle();
+    if (linkedDep && String((linkedDep as any).status) === 'pending') {
+      await raiseMerchantFloatAlert(supabase, {
+        gmailRowId: String(gmailRow.id),
+        agentId,
+        amount: parsed.amount ?? null,
+        transactionId: parsed.transaction_id ?? null,
+        counterparty: (parsed as any).counterparty ?? null,
+        reason: 'Email already linked to a deposit that is still pending — awaiting the linked-pending retry sweep.',
+        severity: 'medium',
+        extra: { deposit_request_id: (linkedDep as any).id, stage: 'already_linked_pending' },
+      });
+    }
     return;
   }
 
@@ -1613,6 +1639,16 @@ async function creditMerchantFloatFromOutboundSms(
     .single();
   if (depErr || !newDep?.id) {
     console.warn('[gmail-poll] merchant float credit: could not insert deposit_request', depErr);
+    await raiseMerchantFloatAlert(supabase, {
+      gmailRowId: String(gmailRow.id),
+      agentId,
+      amount: parsed.amount ?? null,
+      transactionId: parsed.transaction_id ?? null,
+      counterparty: (parsed as any).counterparty ?? null,
+      reason: `Could not create the float receipt row: ${depErr?.message ?? 'unknown error'}`,
+      severity: 'critical',
+      extra: { stage: 'deposit_insert_failed' },
+    });
     await logDepositDecision(supabase, {
       source: 'matcher',
       decision: 'failed',
@@ -1652,6 +1688,16 @@ async function creditMerchantFloatFromOutboundSms(
     if (!res.ok) {
       const txt = await res.text();
       console.warn('[gmail-poll] merchant float approve-deposit non-200:', res.status, txt.slice(0, 300));
+      await raiseMerchantFloatAlert(supabase, {
+        gmailRowId: String(gmailRow.id),
+        agentId,
+        amount: parsed.amount ?? null,
+        transactionId: parsed.transaction_id ?? null,
+        counterparty: (parsed as any).counterparty ?? null,
+        reason: `approve-deposit refused the float credit (HTTP ${res.status}).`,
+        severity: 'critical',
+        extra: { stage: 'approve_non_200', deposit_request_id: newDep.id, body: txt.slice(0, 300) },
+      });
       await logDepositDecision(supabase, {
         source: 'matcher',
         decision: 'failed',
@@ -1666,6 +1712,15 @@ async function creditMerchantFloatFromOutboundSms(
     console.log(
       `[gmail-poll] merchant float credited agent=${profile.id} dep=${newDep.id} amt=${parsed.amount}`,
     );
+    // Credit landed: clear any prior "detected but not credited" alert.
+    try {
+      await supabase
+        .from('deposit_match_alerts')
+        .update({ resolved_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .eq('alert_type', 'merchant_float_uncredited')
+        .eq('subject_id', gmailRow.id)
+        .is('resolved_at', null);
+    } catch (_e) { /* non-fatal */ }
     await logDepositDecision(supabase, {
       source: 'matcher',
       decision: 'auto_credited',
@@ -1682,6 +1737,16 @@ async function creditMerchantFloatFromOutboundSms(
     });
   } catch (e) {
     console.warn('[gmail-poll] merchant float approve-deposit invoke failed:', e);
+    await raiseMerchantFloatAlert(supabase, {
+      gmailRowId: String(gmailRow.id),
+      agentId,
+      amount: parsed.amount ?? null,
+      transactionId: parsed.transaction_id ?? null,
+      counterparty: (parsed as any).counterparty ?? null,
+      reason: `Could not reach approve-deposit to post the float credit: ${String(e)}`,
+      severity: 'critical',
+      extra: { stage: 'approve_invoke_error', deposit_request_id: newDep.id },
+    });
     await logDepositDecision(supabase, {
       source: 'matcher',
       decision: 'failed',
@@ -2668,6 +2733,16 @@ async function sweepLinkedPendingDeposits(
           actor_id: (dep as any).user_id,
           metadata: { status: res.status, body: txt.slice(0, 300), auto_match_method: 'linked_pending_sweep' },
         });
+        await raiseMerchantFloatAlert(supabase, {
+          gmailRowId: String((match as any).id),
+          agentId: String((dep as any).user_id ?? '') || null,
+          amount: Number((dep as any).amount),
+          transactionId: (dep as any).transaction_id ?? null,
+          counterparty: null,
+          reason: `Linked-pending retry could not credit this receipt (approve-deposit HTTP ${res.status}).`,
+          severity: 'critical',
+          extra: { stage: 'linked_pending_sweep_failed', deposit_request_id: (dep as any).id },
+        });
       } else {
         console.log(
           `[gmail-poll] sweep auto-credited linked-pending deposit dep=${(dep as any).id} ` +
@@ -2682,6 +2757,14 @@ async function sweepLinkedPendingDeposits(
           actor_id: (dep as any).user_id,
           metadata: { auto_match_method: 'linked_pending_sweep' },
         });
+        try {
+          await supabase
+            .from('deposit_match_alerts')
+            .update({ resolved_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+            .eq('alert_type', 'merchant_float_uncredited')
+            .eq('subject_id', (match as any).id)
+            .is('resolved_at', null);
+        } catch (_e) { /* non-fatal */ }
       }
     } catch (e) {
       console.warn('[gmail-poll] sweep approve-deposit invoke failed:', e);
@@ -2693,6 +2776,114 @@ async function sweepLinkedPendingDeposits(
         amount: Number((dep as any).amount),
         actor_id: (dep as any).user_id,
         metadata: { error: String(e) },
+      });
+    }
+  }
+}
+
+// ── Recovery sweep #2: OUTBOUND company sends to a registered merchant
+// float phone that never got a linked deposit receipt at all. Self-healing
+// net for any silent gap in the credit chain; independent of Rule 3.
+async function sweepUnlinkedMerchantFloatSends(
+  supabase: ReturnType<typeof createClient>,
+): Promise<void> {
+  // Deliberately SHORT window: this is a self-healing net for fresh gaps,
+  // not a mass historical backfill. Anything older than this is a finance
+  // decision and must be credited deliberately by FinOps.
+  const windowStart = new Date(Date.now() - 36 * 3600 * 1000).toISOString();
+  const { data: rows, error } = await supabase
+    .from('gmail_transactions')
+    .select('id, gmail_message_id, amount, transaction_id, counterparty, channel, internal_date, direction')
+    .is('linked_deposit_request_id', null)
+    .eq('parsed', true)
+    .in('direction', ['out', 'debit'])
+    .gte('internal_date', windowStart)
+    .not('counterparty', 'is', null)
+    .order('internal_date', { ascending: false })
+    .limit(100);
+  if (error || !rows?.length) return;
+
+  // Idempotency: never re-credit a TID the ledger already reconciled.
+  const tids = Array.from(
+    new Set((rows as any[]).map((r) => r.transaction_id).filter(Boolean).map(String)),
+  );
+  const reconciled = new Set<string>();
+  if (tids.length) {
+    const { data: recRows } = await supabase
+      .from('ledger_reconciled_tids')
+      .select('tid_normalized')
+      .in('tid_normalized', tids);
+    for (const rr of (recRows ?? []) as any[]) reconciled.add(String(rr.tid_normalized));
+  }
+
+  const { data: agents } = await supabase
+    .from('cashout_agents')
+    .select('agent_id, float_phone')
+    .eq('is_active', true)
+    .not('float_phone', 'is', null);
+  if (!agents?.length) return;
+
+  const byLast9 = new Map<string, string>();
+  for (const a of agents as any[]) {
+    const d = String(a.float_phone ?? '').replace(/[^0-9]/g, '');
+    if (d.length >= 9) byLast9.set(d.slice(-9), String(a.agent_id));
+  }
+
+  let handled = 0;
+  for (const r of rows as any[]) {
+    if (handled >= 10) break;
+    const digits = String(r.counterparty ?? '').replace(/[^0-9]/g, '');
+    if (digits.length < 9) continue;
+    const agentId = byLast9.get(digits.slice(-9));
+    if (!agentId) continue;
+    if (!r.amount || Number(r.amount) <= 0) continue;
+    if (r.transaction_id && reconciled.has(String(r.transaction_id))) continue;
+    handled += 1;
+
+    const ageMinutes = r.internal_date
+      ? (Date.now() - new Date(r.internal_date).getTime()) / 60000
+      : 0;
+    console.log(
+      `[gmail-poll] orphan merchant float send row=${r.id} agent=${agentId} amt=${r.amount} → attempting credit`,
+    );
+    // Leave the trace first so "detected" is never invisible, even if the
+    // credit attempt below dies mid-flight. Resolved on success.
+    await raiseMerchantFloatAlert(supabase, {
+      gmailRowId: String(r.id),
+      agentId,
+      amount: Number(r.amount),
+      transactionId: r.transaction_id ?? null,
+      counterparty: r.counterparty ?? null,
+      reason: 'Outbound send to a registered merchant float phone had no linked receipt; backstop sweep is crediting it.',
+      severity: 'high',
+      ageMinutes,
+      extra: { stage: 'unlinked_backstop_sweep' },
+    });
+    try {
+      await creditMerchantFloatFromOutboundSms(supabase, {
+        agentId,
+        parsed: {
+          amount: Number(r.amount),
+          transaction_id: r.transaction_id ?? null,
+          channel: r.channel ?? null,
+          direction: 'out',
+          counterparty: r.counterparty ?? null,
+        } as any,
+        gmailMessageId: String(r.gmail_message_id),
+        internalMs: r.internal_date ? new Date(r.internal_date).getTime() : Date.now(),
+      });
+    } catch (e) {
+      console.warn('[gmail-poll] orphan merchant float credit failed:', e);
+      await raiseMerchantFloatAlert(supabase, {
+        gmailRowId: String(r.id),
+        agentId,
+        amount: Number(r.amount),
+        transactionId: r.transaction_id ?? null,
+        counterparty: r.counterparty ?? null,
+        reason: `Backstop sweep could not credit this float send: ${String(e)}`,
+        severity: 'critical',
+        ageMinutes,
+        extra: { stage: 'unlinked_backstop_sweep_failed' },
       });
     }
   }
