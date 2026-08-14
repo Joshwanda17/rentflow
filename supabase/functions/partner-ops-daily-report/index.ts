@@ -350,15 +350,15 @@ function buildPdf(r: Report, win: { title: string; pretty: string }, logo: Uint8
   {
     let cur = drawSectionHead(
       "Headline - the window",
-      `Window is ${days} day${days === 1 ? "" : "s"} of EAT calendar activity. Capital in excludes compounded returns - compounding is a non-cash movement already inside portfolio principal.`,
+      `Window is ${days} day${days === 1 ? "" : "s"} of EAT calendar activity. Capital in = top-ups applied that day + returns compounded that day + new portfolios created that day.`,
     );
     cur = drawTiles([
       { label: "Capital live (close)", value: compactUGX(k.total_capital), sub: `${num(k.active_portfolios)} active portfolios` },
-      { label: "Capital in (cash)", value: fmtUGX(inflow), sub: `${num(k.new_portfolios)} new - ${num(t.applied_count)} top-ups applied`, kind: "good" },
+      { label: "Capital in (cash)", value: fmtUGX(inflow), sub: `${num(k.new_portfolios)} new - ${num(t.applied_count)} top-ups - ${num(k.compounded_count)} compounded`, kind: "good" },
       { label: "Returns paid", value: fmtUGX(k.paid_out_amount), sub: `${num(k.paid_out_count)} credits`, kind: "good" },
       { label: "Compounded", value: fmtUGX(k.compounded_amount), sub: `${num(k.compounded_count)} portfolios (non-cash)` },
       { label: "Net capital movement", value: fmtUGX(inflow - outflow), sub: inflow - outflow >= 0 ? "net inflow" : "net outflow", kind: inflow - outflow >= 0 ? "good" : "bad" },
-      { label: "Parked top-ups", value: fmtUGX(t.backlog_amount), sub: `${num(t.backlog_count)} awaiting merge`, kind: "bad" },
+      { label: "Total promissory notes receivable", value: fmtUGX(pn.receivable_amount), sub: `${num(pn.total_count)} notes - ${num(pn.pending_count)} pending`, kind: "bad" },
     ], cur);
     finishSection(cur);
   }
@@ -367,12 +367,12 @@ function buildPdf(r: Report, win: { title: string; pretty: string }, logo: Uint8
   {
     let cur = drawSectionHead(
       "Capital in - new money and top-ups",
-      "New portfolio capital plus top-ups merged into existing portfolios. Parked top-ups are real money held but not yet inside capital live.",
+      "New portfolio capital, top-ups merged into existing portfolios and returns compounded back into principal.",
     );
     cur = drawTiles([
       { label: "New portfolio capital", value: fmtUGX(k.new_capital), sub: `${num(k.new_portfolios)} portfolios`, kind: "good" },
       { label: "Top-ups applied", value: fmtUGX(t.applied_amount), sub: `${num(t.applied_count)} top-ups`, kind: "good" },
-      { label: "Top-ups requested", value: fmtUGX(t.requested_amount), sub: `${num(t.requested_count)} requests` },
+      { label: "Compounded into principal", value: fmtUGX(k.compounded_amount), sub: `${num(k.compounded_count)} portfolios` },
     ], cur);
 
     // Daily bar chart — capital in vs returns settled
@@ -426,9 +426,9 @@ function buildPdf(r: Report, win: { title: string; pretty: string }, logo: Uint8
     cur = drawTable(["Movement", "Count", "Volume"], [
       ["New portfolio capital", num(k.new_portfolios), fmtUGX(k.new_capital)],
       ["Top-ups applied", num(t.applied_count), fmtUGX(t.applied_amount)],
+      ["Compounded into principal", num(k.compounded_count), fmtUGX(k.compounded_amount)],
       ["Renewals", num(k.renewals_count), fmtUGX(k.renewals_topup_amount)],
-      ["Parked top-ups (now)", num(t.backlog_count), fmtUGX(t.backlog_amount)],
-    ], cur, ["Capital in (cash)", "", fmtUGX(inflow)]);
+    ], cur, ["Capital in", "", fmtUGX(inflow)]);
 
     if ((r.series || []).length) {
       cur = drawTable(
