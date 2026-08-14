@@ -1,20 +1,57 @@
 import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Building2, ExternalLink, Loader2, MapPin, Phone, Search } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { useServiceCentres, SC_STATUS_META, mapsUrl, type ServiceCentreStatus } from '@/hooks/useServiceCentres';
+import { useServiceCentres, SC_STATUS_META, mapsUrl, type ServiceCentre, type ServiceCentreStatus } from '@/hooks/useServiceCentres';
+import { ServiceCentreCandidatesPanel } from './ServiceCentreCandidatesPanel';
 
 const FILTERS: ('all' | ServiceCentreStatus)[] = ['all', 'pending', 'verified', 'paid', 'rejected'];
+const PAGE = 15;
 
-/** Searchable register of every Service Centre with photo, GPS and status. */
+const initials = (name: string) =>
+  (name || '').split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join('') || '?';
+
+/** Avatars for every agent in the register, fetched in one request (never per row). */
+function useAgentAvatars(agentIds: string[]) {
+  const key = useMemo(() => Array.from(new Set(agentIds)).sort(), [agentIds]);
+  return useQuery({
+    queryKey: ['sc-agent-avatars', key.length, key[0] ?? ''],
+    enabled: key.length > 0,
+    staleTime: 300_000,
+    queryFn: async (): Promise<Record<string, string | null>> => {
+      const map: Record<string, string | null> = {};
+      const CHUNK = 500;
+      for (let i = 0; i < key.length; i += CHUNK) {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, avatar_url')
+          .in('id', key.slice(i, i + CHUNK));
+        if (error) throw error;
+        (data || []).forEach((p: any) => { map[p.id] = p.avatar_url ?? null; });
+      }
+      return map;
+    },
+  });
+}
+
+/** Searchable register of every Service Centre, plus the agents close to earning one. */
 export function ServiceCentreDirectory() {
   const { data: centres, isLoading } = useServiceCentres();
   const [q, setQ] = useState('');
   const [filter, setFilter] = useState<'all' | ServiceCentreStatus>('all');
+  const [page, setPage] = useState(0);
+  const [selected, setSelected] = useState<ServiceCentre | null>(null);
+
+  const { data: avatars } = useAgentAvatars((centres || []).map((c) => c.agent_id));
 
   const rows = useMemo(() => {
     const term = q.trim().toLowerCase();
@@ -25,59 +62,242 @@ export function ServiceCentreDirectory() {
     });
   }, [centres, q, filter]);
 
-  return (
-    <Card className="rounded-2xl">
-      <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2 text-sm">
-          <Building2 className="h-4 w-4 text-primary" />
-          Service Centre Directory
-          <span className="ml-auto text-xs font-normal text-muted-foreground">{rows.length} shown</span>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search agent, phone or location" className="pl-9" />
-        </div>
-        <div className="flex flex-wrap gap-1.5">
-          {FILTERS.map((f) => (
-            <Button key={f} size="sm" variant={filter === f ? 'default' : 'outline'} className="h-7 text-xs capitalize" onClick={() => setFilter(f)}>
-              {f === 'all' ? 'All' : SC_STATUS_META[f].label}
-            </Button>
-          ))}
-        </div>
+  const pages = Math.max(1, Math.ceil(rows.length / PAGE));
+  const pageRows = rows.slice(page * PAGE, page * PAGE + PAGE);
 
-        {isLoading ? (
-          <div className="flex justify-center py-10"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
-        ) : rows.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-8">No service centres match this view.</p>
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {rows.map((c) => (
-              <div key={c.id} className="rounded-xl border border-border overflow-hidden bg-card">
-                <img src={c.photo_url} alt={`Service centre run by ${c.agent_name}`} loading="lazy" className="h-32 w-full object-cover" />
-                <div className="p-3 space-y-1.5">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm font-semibold truncate">{c.agent_name}</p>
-                    <Badge variant="outline" className={cn('text-[10px] shrink-0 border-0', SC_STATUS_META[c.status].className)}>
-                      {SC_STATUS_META[c.status].label}
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground flex items-center gap-1"><Phone className="h-3 w-3" />{c.agent_phone || '—'}</p>
-                  <p className="text-xs text-muted-foreground line-clamp-2">{c.location_name || 'No description'}</p>
-                  <div className="flex items-center justify-between pt-1">
-                    <span className="text-[10px] text-muted-foreground">{format(new Date(c.created_at), 'dd MMM yyyy')}</span>
-                    <a href={mapsUrl(c.latitude, c.longitude)} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1">
-                      <MapPin className="h-3 w-3" />Map<ExternalLink className="h-3 w-3" />
-                    </a>
-                  </div>
-                  {c.rejection_reason && <p className="text-[11px] text-destructive">{c.rejection_reason}</p>}
-                </div>
-              </div>
+  /** Every photo submitted by the selected agent — a centre often has more than one. */
+  const selectedPhotos = useMemo(() => {
+    if (!selected) return [] as ServiceCentre[];
+    return (centres || []).filter((c) => c.agent_id === selected.agent_id && !!c.photo_url);
+  }, [centres, selected]);
+
+  return (
+    <div className="space-y-4">
+      <Card className="rounded-2xl">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <Building2 className="h-4 w-4 text-primary" />
+            Service Centre Directory
+            <span className="ml-auto text-xs font-normal text-muted-foreground">{rows.length} shown</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={q}
+              onChange={(e) => { setQ(e.target.value); setPage(0); }}
+              placeholder="Search agent, phone or location"
+              className="pl-9"
+            />
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {FILTERS.map((f) => (
+              <Button
+                key={f}
+                size="sm"
+                variant={filter === f ? 'default' : 'outline'}
+                className="h-7 text-xs capitalize"
+                onClick={() => { setFilter(f); setPage(0); }}
+              >
+                {f === 'all' ? 'All' : SC_STATUS_META[f].label}
+              </Button>
             ))}
           </div>
-        )}
-      </CardContent>
-    </Card>
+
+          {isLoading ? (
+            <div className="flex justify-center py-10"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+          ) : rows.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">No service centres match this view.</p>
+          ) : (
+            <>
+              {/* Desktop list */}
+              <div className="hidden overflow-x-auto md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Agent</TableHead>
+                      <TableHead>Phone number</TableHead>
+                      <TableHead>Service centre location</TableHead>
+                      <TableHead>Map</TableHead>
+                      <TableHead>Request date</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pageRows.map((c) => (
+                      <TableRow key={c.id} className="cursor-pointer" onClick={() => setSelected(c)}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-8 w-8">
+                              {avatars?.[c.agent_id] && <AvatarImage src={avatars[c.agent_id]!} alt={c.agent_name} />}
+                              <AvatarFallback className="text-[10px]">{initials(c.agent_name)}</AvatarFallback>
+                            </Avatar>
+                            <span className="text-sm font-medium">{c.agent_name}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-xs">{c.agent_phone || '—'}</TableCell>
+                        <TableCell className="max-w-[260px] text-xs">
+                          <span className="line-clamp-2">{c.location_name || 'No description'}</span>
+                        </TableCell>
+                        <TableCell>
+                          <a
+                            href={mapsUrl(c.latitude, c.longitude)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="flex items-center gap-1 text-xs text-primary hover:underline"
+                          >
+                            <MapPin className="h-3 w-3" />Map<ExternalLink className="h-3 w-3" />
+                          </a>
+                        </TableCell>
+                        <TableCell className="text-xs">{format(new Date(c.created_at), 'dd MMM yyyy')}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={cn('border-0 text-[10px]', SC_STATUS_META[c.status].className)}>
+                            {SC_STATUS_META[c.status].label}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Mobile list */}
+              <div className="space-y-2 md:hidden">
+                {pageRows.map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => setSelected(c)}
+                    className="w-full rounded-xl border border-border p-3 text-left"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Avatar className="h-8 w-8">
+                        {avatars?.[c.agent_id] && <AvatarImage src={avatars[c.agent_id]!} alt={c.agent_name} />}
+                        <AvatarFallback className="text-[10px]">{initials(c.agent_name)}</AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold">{c.agent_name}</p>
+                        <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Phone className="h-3 w-3" />{c.agent_phone || '—'}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className={cn('ml-auto shrink-0 border-0 text-[10px]', SC_STATUS_META[c.status].className)}>
+                        {SC_STATUS_META[c.status].label}
+                      </Badge>
+                    </div>
+                    <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">{c.location_name || 'No description'}</p>
+                    <p className="mt-1 text-[10px] text-muted-foreground">{format(new Date(c.created_at), 'dd MMM yyyy')}</p>
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center justify-between pt-1">
+                <span className="text-xs text-muted-foreground">Page {page + 1} of {pages}</span>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" className="h-7 text-xs" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>
+                    Previous
+                  </Button>
+                  <Button size="sm" variant="outline" className="h-7 text-xs" disabled={page + 1 >= pages} onClick={() => setPage((p) => p + 1)}>
+                    Next
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      <ServiceCentreCandidatesPanel />
+
+      <Dialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)}>
+        <DialogContent className="max-h-[85vh] w-full overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Avatar className="h-9 w-9">
+                {selected && avatars?.[selected.agent_id] && (
+                  <AvatarImage src={avatars[selected.agent_id]!} alt={selected.agent_name} />
+                )}
+                <AvatarFallback className="text-[10px]">{initials(selected?.agent_name || '')}</AvatarFallback>
+              </Avatar>
+              <span className="truncate">{selected?.agent_name}</span>
+            </DialogTitle>
+          </DialogHeader>
+
+          {selected && (
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline" className={cn('border-0 text-[10px]', SC_STATUS_META[selected.status].className)}>
+                  {SC_STATUS_META[selected.status].label}
+                </Badge>
+                <span className="text-xs text-muted-foreground">
+                  Requested {format(new Date(selected.created_at), 'dd MMM yyyy, HH:mm')}
+                </span>
+              </div>
+
+              <div className="grid gap-2 sm:grid-cols-2">
+                <Detail label="Phone number" value={selected.agent_phone || '—'} />
+                <Detail label="Location description" value={selected.location_name || '—'} />
+                <Detail label="GPS" value={`${selected.latitude.toFixed(5)}, ${selected.longitude.toFixed(5)}`} />
+                <Detail
+                  label="Verified"
+                  value={selected.verified_at ? format(new Date(selected.verified_at), 'dd MMM yyyy') : 'Not yet'}
+                />
+                <Detail
+                  label="Approved"
+                  value={selected.approved_at ? format(new Date(selected.approved_at), 'dd MMM yyyy') : 'Not yet'}
+                />
+                <Detail label="Submissions by this agent" value={String(selectedPhotos.length)} />
+              </div>
+
+              {selected.rejection_reason && (
+                <p className="rounded-lg bg-destructive/10 p-2 text-xs text-destructive">{selected.rejection_reason}</p>
+              )}
+
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">Service centre photo{selectedPhotos.length > 1 ? 's' : ''}</p>
+                {selectedPhotos.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No photo attached.</p>
+                ) : (
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {selectedPhotos.map((p) => (
+                      <a key={p.id} href={p.photo_url} target="_blank" rel="noopener noreferrer" className="block">
+                        <img
+                          src={p.photo_url}
+                          alt={`Service centre submitted by ${selected.agent_name} on ${format(new Date(p.created_at), 'dd MMM yyyy')}`}
+                          loading="lazy"
+                          className="h-40 w-full rounded-lg border border-border object-cover"
+                        />
+                        <span className="mt-1 block text-[10px] text-muted-foreground">
+                          {format(new Date(p.created_at), 'dd MMM yyyy')} · {p.location_name || 'No description'}
+                        </span>
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <a
+                href={mapsUrl(selected.latitude, selected.longitude)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+              >
+                <MapPin className="h-4 w-4" />Open in Google Maps<ExternalLink className="h-3 w-3" />
+              </a>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function Detail({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-border/60 p-2">
+      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="break-words text-sm">{value}</p>
+    </div>
   );
 }
