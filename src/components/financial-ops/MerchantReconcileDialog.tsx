@@ -198,9 +198,30 @@ export function MerchantReconcileDialog({
                   : type === 'write_off'
                     ? 'Closes the balance we agreed to let go with this agent.'
                     : 'Adds to the money we already count as paid back to this agent.'}{' '}
-              Use a minus amount to undo an earlier fix.
+              {ledgerMode
+                ? 'Must be a positive amount — to reduce float, use CFO Direct Debit.'
+                : 'Use a minus amount to undo an earlier fix.'}
             </p>
           </div>
+
+          {type === 'opening_balance' && (
+            <label className="flex items-start gap-2 rounded-lg border border-border bg-muted/20 px-3 py-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={postToLedger}
+                onChange={(e) => setPostToLedger(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
+              />
+              <span className="text-[11px] leading-snug">
+                <span className="font-semibold text-foreground">Record this on the books</span>
+                <span className="block text-[10px] text-muted-foreground">
+                  Posts real balanced entries (agent float in, company float out) and raises their
+                  float balance. This is the only fix that moves "They're holding our money". Leave
+                  unticked for a board-only note.
+                </span>
+              </span>
+            </label>
+          )}
 
           <div>
             <Label className="text-xs">Why (at least 10 letters)</Label>
@@ -224,11 +245,30 @@ export function MerchantReconcileDialog({
             />
           </div>
 
-          <Button onClick={submit} disabled={!valid || post.isPending} className="w-full">
-            {post.isPending ? 'Saving…' : 'Save fix'}
+          <Button onClick={submit} disabled={!valid || busy} className="w-full">
+            {busy ? 'Saving…' : ledgerMode ? 'Post to the books' : 'Save fix'}
           </Button>
 
-          {valid && (
+          {valid && ledgerMode && (
+            <div className="rounded-lg border border-primary/40 bg-primary/5 px-3 py-2 space-y-1">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                What this will change
+              </p>
+              <p className="text-[11px] text-foreground">
+                They're holding our money: {formatUGX(position.companyCashWithAgent)} →{' '}
+                <span className="font-semibold">
+                  {formatUGX(position.companyCashWithAgent + Math.round(numericAmount))}
+                </span>
+              </p>
+              <p className="text-[10px] text-muted-foreground">
+                Two balanced legs are posted (their float in, company float out) and their float
+                balance moves through the normal wallet writer. Fully audited and reversible only by
+                a further ledger entry.
+              </p>
+            </div>
+          )}
+
+          {valid && !ledgerMode && (
             <div className="rounded-lg border border-border bg-muted/20 px-3 py-2 space-y-1">
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
                 What this fix will change
