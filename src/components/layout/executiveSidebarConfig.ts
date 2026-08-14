@@ -211,6 +211,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'Agent Ops',     icon: Users,         id: 'reports-agent-ops',     route: '/coo/reports/agent-ops' },
         { label: 'Tenant Ops',    icon: Home,          id: 'reports-tenant-ops',    route: '/coo/reports/tenant-ops' },
         { label: 'Financial Ops', icon: Wallet,        id: 'reports-financial-ops', route: '/coo/reports/financial-ops' },
+        { label: 'System Overview', icon: Activity,    id: 'reports-system-overview', route: '/coo/reports/system-overview' },
       ],
     },
   ],
