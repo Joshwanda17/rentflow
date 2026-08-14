@@ -45,9 +45,17 @@ export function MerchantReconcileDialog({
   const numericAmount = Number(amount.replace(/[^\d.-]/g, ''));
   const valid = Number.isFinite(numericAmount) && numericAmount !== 0 && reason.trim().length >= 10;
 
+  // What a recorded fix can and cannot move. Every adjustment type folds into
+  // `adjustments_total` (which moves "Money we paid them back" and "We owe
+  // them"). NOTHING here can move "They're holding our money" or the board vs
+  // books gap — both read the agent's ledger-backed float bucket directly.
+  const signedAmount = type === 'payout_correction' ? -numericAmount : numericAmount;
+  const projectedReimbursed = position.reimbursed + signedAmount;
+  const projectedOwed = Math.max(position.paidOut - projectedReimbursed, 0);
+
   const submit = async () => {
     try {
-      await post.mutateAsync({
+      const row = await post.mutateAsync({
         deskId: position.deskId,
         agentId: position.agentId,
         adjustmentType: type,
@@ -55,7 +63,15 @@ export function MerchantReconcileDialog({
         reason,
         evidenceNote: evidence,
       });
-      toast.success('Correction recorded');
+      if (!row?.id) {
+        toast.error('The fix was not saved. Nothing changed.');
+        return;
+      }
+      toast.success('Fix recorded', {
+        description: `We owe them is now ${formatUGX(projectedOwed)}. "They're holding our money" (${formatUGX(
+          position.companyCashWithAgent,
+        )}) is unchanged — that figure comes from the books, not from fixes.`,
+      });
       setAmount('');
       setReason('');
       setEvidence('');
@@ -143,7 +159,11 @@ export function MerchantReconcileDialog({
             <p className="mt-1 text-[10px] text-muted-foreground">
               {type === 'payout_correction'
                 ? 'Lowers what we count as paid out by this agent.'
-                : 'Adds to the money we already count as paid back to this agent.'}{' '}
+                : type === 'opening_balance'
+                  ? 'Counts float the agent already held before the board started, so we stop showing it as owed to them.'
+                  : type === 'write_off'
+                    ? 'Closes the balance we agreed to let go with this agent.'
+                    : 'Adds to the money we already count as paid back to this agent.'}{' '}
               Use a minus amount to undo an earlier fix.
             </p>
           </div>
@@ -173,6 +193,27 @@ export function MerchantReconcileDialog({
           <Button onClick={submit} disabled={!valid || post.isPending} className="w-full">
             {post.isPending ? 'Saving…' : 'Save fix'}
           </Button>
+
+          {valid && (
+            <div className="rounded-lg border border-border bg-muted/20 px-3 py-2 space-y-1">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                What this fix will change
+              </p>
+              <p className="text-[11px] text-foreground">
+                Money we paid them back: {formatUGX(position.reimbursed)} →{' '}
+                <span className="font-semibold">{formatUGX(projectedReimbursed)}</span>
+              </p>
+              <p className="text-[11px] text-foreground">
+                We owe them: {formatUGX(Math.max(position.paidOut - position.reimbursed, 0))} →{' '}
+                <span className="font-semibold">{formatUGX(projectedOwed)}</span>
+              </p>
+              <p className="text-[10px] text-muted-foreground">
+                Will NOT change: "They're holding our money" ({formatUGX(position.companyCashWithAgent)})
+                or the board vs books gap. Those come from the agent's float in the books and can only
+                be corrected on the books.
+              </p>
+            </div>
+          )}
         </div>
 
         {!!history?.length && (
