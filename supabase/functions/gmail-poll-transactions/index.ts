@@ -2726,6 +2726,16 @@ async function sweepLinkedPendingDeposits(
           actor_id: (dep as any).user_id,
           metadata: { status: res.status, body: txt.slice(0, 300), auto_match_method: 'linked_pending_sweep' },
         });
+        await raiseMerchantFloatAlert(supabase, {
+          gmailRowId: String((match as any).id),
+          agentId: String((dep as any).user_id ?? '') || null,
+          amount: Number((dep as any).amount),
+          transactionId: (dep as any).transaction_id ?? null,
+          counterparty: null,
+          reason: `Linked-pending retry could not credit this receipt (approve-deposit HTTP ${res.status}).`,
+          severity: 'critical',
+          extra: { stage: 'linked_pending_sweep_failed', deposit_request_id: (dep as any).id },
+        });
       } else {
         console.log(
           `[gmail-poll] sweep auto-credited linked-pending deposit dep=${(dep as any).id} ` +
@@ -2740,6 +2750,14 @@ async function sweepLinkedPendingDeposits(
           actor_id: (dep as any).user_id,
           metadata: { auto_match_method: 'linked_pending_sweep' },
         });
+        try {
+          await supabase
+            .from('deposit_match_alerts')
+            .update({ resolved_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+            .eq('alert_type', 'merchant_float_uncredited')
+            .eq('subject_id', (match as any).id)
+            .is('resolved_at', null);
+        } catch (_e) { /* non-fatal */ }
       }
     } catch (e) {
       console.warn('[gmail-poll] sweep approve-deposit invoke failed:', e);
