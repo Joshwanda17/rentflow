@@ -37,6 +37,7 @@ type SortBy = 'missed_days' | 'balance' | 'name';
 interface TenantMissedData {
   tenant_id: string;
   tenant_name: string;
+  rent_request_id: string;
   phone: string;
   daily_repayment: number;
   rent_amount: number;
@@ -59,7 +60,12 @@ export function MissedDaysTracker() {
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<SortBy>('missed_days');
   const [riskFilter, setRiskFilter] = useState<'all' | 'critical' | 'warning' | 'on_track'>('all');
+  // Call tracking (additive — no existing missed-days logic is affected).
+  const [callTab, setCallTab] = useState<'to_call' | 'called'>('to_call');
+  const [callAgainDays, setCallAgainDays] = useState<3 | 7 | 14>(3);
+  const [callTarget, setCallTarget] = useState<TenantMissedData | null>(null);
   const [profileSheet, setProfileSheet] = useState<{ userId: string; userName: string; userPhone?: string; userType: 'tenant' | 'agent' } | null>(null);
+  const { data: callSummaries } = useTenantCallSummaries();
 
   // Active rent plans from the platform's authoritative daily-eligibility view —
   // identical population to the Tenant Ops counters and Daily Payments tool.
@@ -186,6 +192,7 @@ export function MissedDaysTracker() {
         tenantMap.set(r.tenant_id, {
           tenant_id: r.tenant_id,
           tenant_name: profile?.name || r.tenant_id.slice(0, 8),
+          rent_request_id: r.id,
           phone: profile?.phone || '',
           daily_repayment: dailyRepayment,
           rent_amount: Number(r.rent_amount || 0),
