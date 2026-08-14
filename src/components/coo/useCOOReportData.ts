@@ -491,3 +491,36 @@ export function useFinancialOpsReportData() {
     },
   });
 }
+// ─────────────────────────────────────────────────────────────────────────────
+// System Overview (ALL-TIME — deliberately unwindowed, unlike the four reports
+// above which are locked to the 30-day window).
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface SystemOverviewSnapshot {
+  total_tenants_ever: number;
+  active_tenants_now: number;
+  total_paid_to_landlords: number;
+  first_operation_date: string | null;
+  days_in_operation: number;
+  avg_daily_paid: number;
+}
+
+export function useSystemOverviewData() {
+  return useQuery({
+    queryKey: ['coo-report', 'system-overview'],
+    staleTime: 60_000,
+    queryFn: async (): Promise<SystemOverviewSnapshot> => {
+      const { data, error } = await (supabase.rpc as any)('get_coo_system_overview');
+      if (error) throw error;
+      const d = (data ?? {}) as Record<string, any>;
+      return {
+        total_tenants_ever: Number(d.total_tenants_ever ?? 0),
+        active_tenants_now: Number(d.active_tenants_now ?? 0),
+        total_paid_to_landlords: Number(d.total_paid_to_landlords ?? 0),
+        first_operation_date: d.first_operation_date ?? null,
+        days_in_operation: Number(d.days_in_operation ?? 0),
+        avg_daily_paid: Number(d.avg_daily_paid ?? 0),
+      };
+    },
+  });
+}
