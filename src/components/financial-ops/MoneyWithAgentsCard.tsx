@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { Wallet, HandCoins, ArrowRightLeft, AlertTriangle, SlidersHorizontal } from 'lucide-react';
+import { format } from 'date-fns';
 import { formatUGX } from '@/lib/rentCalculations';
 import {
   useMerchantFloatPositions,
   useMerchantFloatLedgerVariance,
+  useLatestMerchantFloatMovements,
   MerchantFloatPosition,
 } from '@/hooks/useMerchantFloat';
 import { MerchantReconcileDialog } from './MerchantReconcileDialog';
@@ -57,6 +59,12 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
   const heldTotal = rows.reduce((s, r) => s + spendableFloat(r), 0);
   const owedTotal = rows.reduce((s, r) => s + r.owedToAgent, 0);
   const floatTotal = rows.reduce((s, r) => s + spendableFloat(r), 0);
+
+  // Most recent movement on each agent's attached mobile money line — display
+  // only, never used to compute any balance on this board.
+  const { data: latestMovements } = useLatestMerchantFloatMovements(
+    rows.map((r) => r.agentId).filter((id): id is string => !!id),
+  );
 
 
   return (
@@ -140,6 +148,7 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
           {rows.map((r) => {
             const holding = r.companyCashWithAgent > 0;
             const settled = !holding && r.owedToAgent <= 0;
+            const latest = r.agentId ? latestMovements?.get(r.agentId) : undefined;
             return (
               <div
                 key={r.deskId}
@@ -166,20 +175,38 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
                   </p>
                 </div>
                 <div className="text-right shrink-0">
-                  <p
-                    className={`font-mono text-sm font-bold tabular-nums ${
-                      holding ? 'text-warning' : 'text-foreground'
-                    }`}
-                  >
-                    {formatUGX(holding ? spendableFloat(r) : r.owedToAgent)}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground">
-                    {holding
-                      ? 'our money still on their phone'
-                      : settled
-                        ? 'nothing outstanding either way'
-                        : 'we must send this back to them'}
-                  </p>
+                  {latest ? (
+                    <>
+                      <p
+                        className={`font-mono text-sm font-bold tabular-nums ${
+                          latest.direction === 'cash_in' ? 'text-success' : 'text-destructive'
+                        }`}
+                      >
+                        {latest.direction === 'cash_in' ? '+' : '−'}
+                        {formatUGX(latest.amount)}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {format(new Date(latest.date), 'd MMM yyyy · HH:mm')}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p
+                        className={`font-mono text-sm font-bold tabular-nums ${
+                          holding ? 'text-warning' : 'text-foreground'
+                        }`}
+                      >
+                        {formatUGX(holding ? spendableFloat(r) : r.owedToAgent)}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {holding
+                          ? 'our money still on their phone'
+                          : settled
+                            ? 'nothing outstanding either way'
+                            : 'we must send this back to them'}
+                      </p>
+                    </>
+                  )}
                   <button
                     type="button"
                     onClick={() => setReconciling(r)}
