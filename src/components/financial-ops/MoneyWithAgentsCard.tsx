@@ -151,6 +151,18 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
           {!isLoading && rows.length === 0 && (
             <p className="text-xs text-muted-foreground">No merchant activity in the current window.</p>
           )}
+          {(rows.length > 0 || isLoading) && (
+            <div className="flex items-center justify-between gap-3 px-3 py-2">
+              <p className="text-[10px] text-muted-foreground">Total float with merchant agents</p>
+              <p
+                className={`font-mono text-base font-extrabold tabular-nums text-right ${
+                  floatTotal > 0 ? 'text-warning' : floatTotal < 0 ? 'text-destructive' : 'text-foreground'
+                }`}
+              >
+                {isLoading ? '—' : formatUGX(floatTotal)}
+              </p>
+            </div>
+          )}
           {rows.map((r) => {
             const holding = r.companyCashWithAgent > 0;
             const settled = !holding && r.owedToAgent <= 0;
