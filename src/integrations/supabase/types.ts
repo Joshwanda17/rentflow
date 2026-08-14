@@ -18212,6 +18212,13 @@ export type Database = {
             referencedColumns: ["desk_id"]
           },
           {
+            foreignKeyName: "merchant_agent_referrals_cashout_agent_id_fkey"
+            columns: ["cashout_agent_id"]
+            isOneToOne: false
+            referencedRelation: "v_merchant_float_position"
+            referencedColumns: ["desk_id"]
+          },
+          {
             foreignKeyName: "merchant_agent_referrals_invitee_id_fkey"
             columns: ["invitee_id"]
             isOneToOne: true
@@ -18414,6 +18421,13 @@ export type Database = {
             referencedRelation: "v_merchant_float_ledger_variance"
             referencedColumns: ["desk_id"]
           },
+          {
+            foreignKeyName: "merchant_balance_disputes_desk_id_fkey"
+            columns: ["desk_id"]
+            isOneToOne: false
+            referencedRelation: "v_merchant_float_position"
+            referencedColumns: ["desk_id"]
+          },
         ]
       }
       merchant_commission_awards: {
@@ -18559,6 +18573,13 @@ export type Database = {
             columns: ["desk_id"]
             isOneToOne: false
             referencedRelation: "v_merchant_float_ledger_variance"
+            referencedColumns: ["desk_id"]
+          },
+          {
+            foreignKeyName: "merchant_float_reconciliations_desk_id_fkey"
+            columns: ["desk_id"]
+            isOneToOne: false
+            referencedRelation: "v_merchant_float_position"
             referencedColumns: ["desk_id"]
           },
         ]
@@ -32356,6 +32377,13 @@ export type Database = {
             referencedColumns: ["desk_id"]
           },
           {
+            foreignKeyName: "withdrawal_requests_assigned_cashout_agent_id_fkey"
+            columns: ["assigned_cashout_agent_id"]
+            isOneToOne: false
+            referencedRelation: "v_merchant_float_position"
+            referencedColumns: ["desk_id"]
+          },
+          {
             foreignKeyName: "withdrawal_requests_preferred_cashout_agent_id_fkey"
             columns: ["preferred_cashout_agent_id"]
             isOneToOne: false
@@ -32367,6 +32395,13 @@ export type Database = {
             columns: ["preferred_cashout_agent_id"]
             isOneToOne: false
             referencedRelation: "v_merchant_float_ledger_variance"
+            referencedColumns: ["desk_id"]
+          },
+          {
+            foreignKeyName: "withdrawal_requests_preferred_cashout_agent_id_fkey"
+            columns: ["preferred_cashout_agent_id"]
+            isOneToOne: false
+            referencedRelation: "v_merchant_float_position"
             referencedColumns: ["desk_id"]
           },
         ]
@@ -33577,6 +33612,75 @@ export type Database = {
           },
         ]
       }
+      v_merchant_float_position: {
+        Row: {
+          advance_count: number | null
+          agent_id: string | null
+          agent_name: string | null
+          agent_phone: string | null
+          desk: string | null
+          desk_id: string | null
+          float_signed: number | null
+          is_active: boolean | null
+          net_position: number | null
+          oldest_advance_at: string | null
+          own_cash_outstanding: number | null
+          own_cash_under_review: number | null
+          reserved: number | null
+          state: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cashout_agents_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "cashout_agents_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cashout_agents_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "cashout_agents_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "v_accounts_no_verified_phone"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cashout_agents_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "cashout_agents_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "v_tenant_ops_tenant_base"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "cashout_agents_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+        ]
+      }
       v_merchant_payout_float_trace: {
         Row: {
           agent_id: string | null
@@ -33887,6 +33991,13 @@ export type Database = {
             referencedColumns: ["desk_id"]
           },
           {
+            foreignKeyName: "withdrawal_requests_assigned_cashout_agent_id_fkey"
+            columns: ["assigned_cashout_agent_id"]
+            isOneToOne: false
+            referencedRelation: "v_merchant_float_position"
+            referencedColumns: ["desk_id"]
+          },
+          {
             foreignKeyName: "withdrawal_requests_preferred_cashout_agent_id_fkey"
             columns: ["preferred_cashout_agent_id"]
             isOneToOne: false
@@ -33898,6 +34009,13 @@ export type Database = {
             columns: ["preferred_cashout_agent_id"]
             isOneToOne: false
             referencedRelation: "v_merchant_float_ledger_variance"
+            referencedColumns: ["desk_id"]
+          },
+          {
+            foreignKeyName: "withdrawal_requests_preferred_cashout_agent_id_fkey"
+            columns: ["preferred_cashout_agent_id"]
+            isOneToOne: false
+            referencedRelation: "v_merchant_float_position"
             referencedColumns: ["desk_id"]
           },
         ]
@@ -34225,6 +34343,7 @@ export type Database = {
         Row: {
           advance_balance: number | null
           float_balance: number | null
+          float_balance_signed: number | null
           pending_holds: number | null
           restricted_held: number | null
           total_visible: number | null
@@ -37339,6 +37458,31 @@ export type Database = {
           payouts_without_float_evidence: number
           reimbursed_total: number
         }[]
+      }
+      get_merchant_float_positions_signed: {
+        Args: never
+        Returns: {
+          advance_count: number | null
+          agent_id: string | null
+          agent_name: string | null
+          agent_phone: string | null
+          desk: string | null
+          desk_id: string | null
+          float_signed: number | null
+          is_active: boolean | null
+          net_position: number | null
+          oldest_advance_at: string | null
+          own_cash_outstanding: number | null
+          own_cash_under_review: number | null
+          reserved: number | null
+          state: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "v_merchant_float_position"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       get_merchant_out_of_pocket_summary: {
         Args: { p_agent_id?: string }
