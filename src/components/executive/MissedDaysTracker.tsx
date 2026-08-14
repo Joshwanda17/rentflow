@@ -465,9 +465,9 @@ export function MissedDaysTracker() {
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
                       risk === 'critical' ? 'bg-destructive/15' : risk === 'warning' ? 'bg-amber-500/15' : 'bg-emerald-500/15'
                     }`}>
-                      <span className="text-sm font-bold ${
+                      <span className={`text-sm font-bold ${
                         risk === 'critical' ? 'text-destructive' : risk === 'warning' ? 'text-amber-600' : 'text-emerald-600'
-                      }">
+                      }`}>
                         {t.missed_days}
                       </span>
                     </div>
@@ -480,9 +480,9 @@ export function MissedDaysTracker() {
                           {riskLabel(risk)}
                         </Badge>
                       </div>
-                      <div className="flex items-center gap-3 mt-0.5 text-[11px] text-muted-foreground">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5 text-[11px] text-muted-foreground">
                         <span>Owed: <strong className="text-foreground">{formatUGX(t.outstanding_balance)}</strong></span>
-                        <span>•</span>
+                        <span className="hidden sm:inline">•</span>
                         <span>{t.repayment_pct}% repaid</span>
                       </div>
                       {(() => {
@@ -525,11 +525,39 @@ export function MissedDaysTracker() {
                 {/* Expanded details */}
                 {isExpanded && (
                   <div className="px-3 pb-3 pt-1 space-y-2 border-t border-border/50 animate-in slide-in-from-top-1 duration-150">
+                    {/* Collection status the Tenant Ops caller needs at a glance.
+                        Derived from the same figures already computed above — no
+                        new logic, no new queries. */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      <div className="rounded-lg bg-muted/50 p-2 min-w-0">
+                        <p className="text-[10px] text-muted-foreground">Days missed</p>
+                        <p className={`text-xs font-semibold ${
+                          risk === 'critical' ? 'text-destructive' : risk === 'warning' ? 'text-amber-600' : 'text-emerald-600'
+                        }`}>
+                          {t.missed_days}d
+                        </p>
+                      </div>
+                      <div className="rounded-lg bg-muted/50 p-2 min-w-0">
+                        <p className="text-[10px] text-muted-foreground">Daily payment</p>
+                        <p className="text-xs font-semibold break-all">{formatUGX(t.daily_repayment)}</p>
+                      </div>
+                      <div className="rounded-lg bg-muted/50 p-2 min-w-0">
+                        <p className="text-[10px] text-muted-foreground">Total missed</p>
+                        <p className="text-xs font-semibold break-all text-destructive">
+                          {formatUGX(t.daily_repayment * t.missed_days)}
+                        </p>
+                      </div>
+                      <div className="rounded-lg bg-muted/50 p-2 min-w-0">
+                        <p className="text-[10px] text-muted-foreground">Total owed</p>
+                        <p className="text-xs font-semibold break-all">{formatUGX(t.outstanding_balance)}</p>
+                      </div>
+                    </div>
+
                     {/* Financial details grid */}
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                       <div className="rounded-lg bg-muted/50 p-2">
                         <p className="text-[10px] text-muted-foreground">Daily Target</p>
-                        <p className="text-xs font-semibold">{formatUGX(t.daily_repayment)}</p>
+                        <p className="text-xs font-semibold break-all">{formatUGX(t.daily_repayment)}</p>
                       </div>
                       <div className="rounded-lg bg-muted/50 p-2">
                         <p className="text-[10px] text-muted-foreground">Days Active</p>
@@ -537,11 +565,11 @@ export function MissedDaysTracker() {
                       </div>
                       <div className="rounded-lg bg-muted/50 p-2">
                         <p className="text-[10px] text-muted-foreground">Tenant Wallet</p>
-                        <p className={`text-xs font-semibold ${t.tenant_wallet > 0 ? 'text-emerald-600' : 'text-destructive'}`}>{formatUGX(t.tenant_wallet)}</p>
+                        <p className={`text-xs font-semibold break-all ${t.tenant_wallet > 0 ? 'text-emerald-600' : 'text-destructive'}`}>{formatUGX(t.tenant_wallet)}</p>
                       </div>
                       <div className="rounded-lg bg-muted/50 p-2">
                         <p className="text-[10px] text-muted-foreground">Agent Wallet</p>
-                        <p className={`text-xs font-semibold ${t.agent_wallet > 0 ? 'text-emerald-600' : 'text-destructive'}`}>{formatUGX(t.agent_wallet)}</p>
+                        <p className={`text-xs font-semibold break-all ${t.agent_wallet > 0 ? 'text-emerald-600' : 'text-destructive'}`}>{formatUGX(t.agent_wallet)}</p>
                       </div>
                     </div>
 
@@ -571,11 +599,11 @@ export function MissedDaysTracker() {
                     </div>
 
                     {/* Call logging + profile */}
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <Button
                         variant="default"
                         size="sm"
-                        className="h-10 text-xs font-medium"
+                        className="h-10 text-xs font-medium w-full"
                         onClick={() => setCallTarget(t)}
                       >
                         <PhoneCall className="h-3.5 w-3.5 mr-1.5" /> Log call
@@ -583,7 +611,7 @@ export function MissedDaysTracker() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="h-10 text-xs font-medium"
+                        className="h-10 text-xs font-medium w-full"
                         onClick={() => setProfileSheet({ userId: t.tenant_id, userName: t.tenant_name, userPhone: t.phone, userType: 'tenant' })}
                       >
                         View Tenant Profile

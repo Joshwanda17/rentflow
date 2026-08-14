@@ -48,18 +48,18 @@ export function LogTenantCallDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           <div className="rounded-lg bg-muted/50 p-2">
             <p className="text-[10px] text-muted-foreground">Days missed</p>
             <p className="text-sm font-semibold">{missedDays}</p>
           </div>
           <div className="rounded-lg bg-muted/50 p-2">
             <p className="text-[10px] text-muted-foreground">Daily payment</p>
-            <p className="text-sm font-semibold">{formatUGX(dailyRepayment)}</p>
+            <p className="text-sm font-semibold break-all">{formatUGX(dailyRepayment)}</p>
           </div>
           <div className="rounded-lg bg-muted/50 p-2">
             <p className="text-[10px] text-muted-foreground">Total owed</p>
-            <p className="text-sm font-semibold">{formatUGX(outstandingBalance)}</p>
+            <p className="text-sm font-semibold break-all">{formatUGX(outstandingBalance)}</p>
           </div>
         </div>
 
