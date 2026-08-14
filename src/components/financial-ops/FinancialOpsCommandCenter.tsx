@@ -583,6 +583,20 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
   ];
   const [sidebarQuery, setSidebarQuery] = useState('');
   const q = sidebarQuery.trim().toLowerCase();
+  // Sidebar attention badges (stale withdrawal holds). Same lightweight
+  // count query FinOpsHome uses — React Query dedupes by key.
+  const { data: sidebarStaleHolds } = useQuery({
+    queryKey: ['finops-stale-withdrawal-hold-count'],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_stale_withdrawal_hold_count' as any);
+      if (error) throw error;
+      return { count: Number((data as any)?.count ?? 0) };
+    },
+    staleTime: 60_000,
+  });
+  const badgeCounts: Partial<Record<string, number>> = sidebarStaleHolds?.count
+    ? { stale_withdrawal_holds: sidebarStaleHolds.count }
+    : {};
   const filteredGroups = q
     ? sidebarGroups
         .map(g => ({ ...g, items: g.items.filter(i => i.label.toLowerCase().includes(q) || i.desc.toLowerCase().includes(q)) }))
