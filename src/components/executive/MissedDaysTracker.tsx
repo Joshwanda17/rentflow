@@ -485,6 +485,18 @@ export function MissedDaysTracker() {
                         <span>•</span>
                         <span>{t.repayment_pct}% repaid</span>
                       </div>
+                      {(() => {
+                        const s = callInfo(t.tenant_id);
+                        if (!s) return null;
+                        return (
+                          <div className="mt-1 text-[10px] text-muted-foreground">
+                            <span className="font-medium text-foreground">{s.call_count} call{s.call_count === 1 ? '' : 's'}</span>
+                            {s.last_call_at && <> · last {format(new Date(s.last_call_at), 'dd MMM HH:mm')}</>}
+                            {s.last_outcome && <> · {s.last_outcome === 'picked_up' ? 'Picked up' : 'Missed call'}</>}
+                            {s.latest_comment && <p className="italic truncate">“{s.latest_comment}”</p>}
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     {/* Quick call */}
