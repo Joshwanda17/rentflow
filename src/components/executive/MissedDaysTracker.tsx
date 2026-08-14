@@ -225,17 +225,26 @@ export function MissedDaysTracker() {
 
   const filtered = useMemo(() => {
     let list = tenantList;
+    // Call bucket: a tenant is "Called / Waiting" only while the last successful
+    // (picked up) call is still inside the selected Call Again window.
+    list = list.filter(t => (callTab === 'called' ? isCalled(t.tenant_id) : !isCalled(t.tenant_id)));
+    if (callTab === 'called') list = list.filter(t => (callSummaries?.get(t.tenant_id)?.call_count || 0) > 0);
     if (riskFilter !== 'all') list = list.filter(t => getRisk(t) === riskFilter);
     if (search) {
       const q = search.toLowerCase();
       list = list.filter(t => t.tenant_name.toLowerCase().includes(q) || t.phone.includes(q));
     }
     return list.sort((a, b) => {
+      if (callTab === 'called') {
+        const at = callSummaries?.get(a.tenant_id)?.last_call_at;
+        const bt = callSummaries?.get(b.tenant_id)?.last_call_at;
+        if (at || bt) return new Date(bt || 0).getTime() - new Date(at || 0).getTime();
+      }
       if (sortBy === 'missed_days') return b.missed_days - a.missed_days;
       if (sortBy === 'balance') return b.outstanding_balance - a.outstanding_balance;
       return a.tenant_name.localeCompare(b.tenant_name);
     });
-  }, [tenantList, riskFilter, search, sortBy]);
+  }, [tenantList, riskFilter, search, sortBy, callTab, callSummaries, callAgainDays]);
 
   const criticalCount = tenantList.filter(t => getRisk(t) === 'critical').length;
   const warningCount = tenantList.filter(t => getRisk(t) === 'warning').length;
