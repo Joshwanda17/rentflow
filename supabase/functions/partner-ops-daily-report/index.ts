@@ -771,12 +771,14 @@ function buildHtml(r: Report, win: { title: string; pretty: string }): string {
 function buildText(r: Report, win: { title: string; pretty: string }): string {
   const k = r.kpis || ({} as Record<string, number>);
   const t = r.topups || {};
+  const pn = r.promissory || {};
   return [
     `Partner Operations - ${win.title} (${win.pretty})`,
     `Capital live: ${fmtUGX(k.total_capital)} across ${num(k.active_portfolios)} active portfolios`,
     `New capital: ${fmtUGX(k.new_capital)} (${num(k.new_portfolios)} portfolios)`,
     `Returns paid: ${fmtUGX(k.paid_out_amount)} - compounded: ${fmtUGX(k.compounded_amount)}`,
-    `Top-ups requested ${fmtUGX(t.requested_amount)} / applied ${fmtUGX(t.applied_amount)} / backlog ${fmtUGX(t.backlog_amount)}`,
+    `Top-ups applied: ${fmtUGX(t.applied_amount)}`,
+    `Promissory notes receivable: ${fmtUGX(pn.receivable_amount)} (${num(pn.total_count)} notes, ${num(pn.pending_count)} pending)`,
     `Forecast Mon-Fri: ${fmtUGX(r.forecast.weekdays_total)} - weekend: ${fmtUGX(r.forecast.weekend_total)}`,
     `Full metrics report attached as PDF.`,
   ].join("\n");
