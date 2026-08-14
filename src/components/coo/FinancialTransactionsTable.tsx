@@ -8,10 +8,29 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
-import { Search, Loader2, Download, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Loader2, Download, ChevronLeft, ChevronRight, Wallet, Banknote, HandCoins, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const PAGE_SIZE = 50;
+
+function KpiCard({ icon: Icon, label, value, hint, tone }: { icon: any; label: string; value: string; hint?: string; tone: string }) {
+  return (
+    <Card className="border-l-4" style={{ borderLeftColor: 'transparent' }}>
+      <CardContent className="p-3">
+        <div className="flex items-start gap-2">
+          <div className={`p-1.5 rounded-md ${tone}`}><Icon className="h-4 w-4" /></div>
+          <div className="min-w-0">
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground truncate">{label}</p>
+            <p className="text-base sm:text-lg font-bold leading-tight break-words">{value}</p>
+            {hint && <p className="text-[11px] text-muted-foreground mt-0.5">{hint}</p>}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function FinancialTransactionsTable() {
   const [search, setSearch] = useState('');
@@ -19,6 +38,7 @@ export default function FinancialTransactionsTable() {
   const [directionFilter, setDirectionFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [page, setPage] = useState(0);
+  const [selected, setSelected] = useState<any | null>(null);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleSearch = useCallback((value: string) => {
@@ -50,6 +70,16 @@ export default function FinancialTransactionsTable() {
   const totalCount = transactions.length > 0 ? Number(transactions[0].total_count) : 0;
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
+  const { data: kpis, isLoading: kpisLoading } = useQuery({
+    queryKey: ['coo-transaction-kpis'],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_coo_transaction_kpis');
+      if (error) throw error;
+      return data as any;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
   // Fetch categories once (lightweight)
   const { data: categories = [] } = useQuery({
     queryKey: ['ledger-categories'],
@@ -80,6 +110,20 @@ export default function FinancialTransactionsTable() {
   };
 
   return (
+    <div className="space-y-4">
+      {kpisLoading ? (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {[0, 1, 2, 3].map(i => <Skeleton key={i} className="h-[74px] w-full" />)}
+        </div>
+      ) : kpis ? (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <KpiCard icon={HandCoins} label="Agent commission earned" value={formatUGX(Number(kpis.agent_commission_earned || 0))} hint="From rent collection commissions" tone="bg-emerald-500/10 text-emerald-600" />
+          <KpiCard icon={Banknote} label="Float used in rent repayments" value={formatUGX(Number(kpis.float_used_in_rent || 0))} hint="Agent float spent collecting rent" tone="bg-amber-500/10 text-amber-600" />
+          <KpiCard icon={Wallet} label="Agent float balances" value={formatUGX(Number(kpis.agent_float_balance || 0))} hint={`${Number(kpis.agent_float_agents || 0)} agents with collection history`} tone="bg-sky-500/10 text-sky-600" />
+          <KpiCard icon={Home} label="Total spent in rent collection" value={formatUGX(Number(kpis.rent_collection_spend || 0))} hint="Landlord float disbursement" tone="bg-violet-500/10 text-violet-600" />
+        </div>
+      ) : null}
+
     <Card>
       <CardHeader className="pb-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -126,25 +170,19 @@ export default function FinancialTransactionsTable() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Reference</TableHead>
+                    <TableHead>Linked Party</TableHead>
                     <TableHead>Category</TableHead>
                     <TableHead>Direction</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
-                    <TableHead>Linked Party</TableHead>
-                    <TableHead>Description</TableHead>
+                    <TableHead>Date</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {transactions.length === 0 ? (
-                    <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No transactions found</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No transactions found</TableCell></TableRow>
                   ) : transactions.map((tx: any) => (
-                    <TableRow key={tx.id}>
-                      <TableCell className="whitespace-nowrap text-xs">
-                        {format(new Date(tx.transaction_date), 'MMM d, yyyy')}<br />
-                        <span className="text-muted-foreground">{format(new Date(tx.transaction_date), 'HH:mm')}</span>
-                      </TableCell>
-                      <TableCell className="font-mono text-xs">{(tx.reference_id || '—').slice(0, 13)}</TableCell>
+                    <TableRow key={tx.id} onClick={() => setSelected(tx)} className="cursor-pointer">
+                      <TableCell className="text-xs max-w-[180px] truncate">{tx.linked_party || '—'}</TableCell>
                       <TableCell><Badge variant="outline" className="text-[10px]">{tx.category.replace(/_/g, ' ')}</Badge></TableCell>
                       <TableCell>
                         <Badge variant={tx.direction === 'cash_in' ? 'default' : 'secondary'} className="text-[10px]">
@@ -154,8 +192,10 @@ export default function FinancialTransactionsTable() {
                       <TableCell className={`text-right font-semibold whitespace-nowrap ${tx.direction === 'cash_in' ? 'text-emerald-600' : 'text-foreground'}`}>
                         {tx.direction === 'cash_in' ? '+' : '-'}{formatUGX(tx.amount)}
                       </TableCell>
-                      <TableCell className="text-xs max-w-[120px] truncate">{tx.linked_party || '—'}</TableCell>
-                      <TableCell className="text-xs max-w-[160px] truncate text-muted-foreground">{tx.description || '—'}</TableCell>
+                      <TableCell className="whitespace-nowrap text-xs">
+                        {format(new Date(tx.transaction_date), 'MMM d, yyyy')}<br />
+                        <span className="text-muted-foreground">{format(new Date(tx.transaction_date), 'HH:mm')}</span>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -181,5 +221,38 @@ export default function FinancialTransactionsTable() {
         )}
       </CardContent>
     </Card>
+
+      <Dialog open={!!selected} onOpenChange={o => !o && setSelected(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle className="text-base">Transaction details</DialogTitle></DialogHeader>
+          {selected && (
+            <div className="space-y-3 text-sm">
+              <div className={`text-2xl font-bold ${selected.direction === 'cash_in' ? 'text-emerald-600' : 'text-foreground'}`}>
+                {selected.direction === 'cash_in' ? '+' : '-'}{formatUGX(selected.amount)}
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  ['Linked party', selected.linked_party || '—'],
+                  ['Category', String(selected.category || '').replace(/_/g, ' ')],
+                  ['Direction', selected.direction === 'cash_in' ? 'Cash in' : 'Cash out'],
+                  ['Date', format(new Date(selected.transaction_date), 'MMM d, yyyy HH:mm')],
+                  ['Reference', selected.reference_id || '—'],
+                  ['Flow scope', selected.ledger_scope || '—'],
+                ].map(([k, v]) => (
+                  <div key={String(k)}>
+                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{k}</p>
+                    <p className="font-medium break-words">{v as string}</p>
+                  </div>
+                ))}
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Description</p>
+                <p className="break-words">{selected.description || '—'}</p>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
