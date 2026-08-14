@@ -13874,6 +13874,7 @@ export type Database = {
           motivation: string | null
           phone: string
           preferred_contact_channel: string | null
+          public_ref: string | null
           purged_at: string | null
           ready_to_learn: boolean | null
           referral_code: string | null
@@ -13908,6 +13909,7 @@ export type Database = {
           motivation?: string | null
           phone: string
           preferred_contact_channel?: string | null
+          public_ref?: string | null
           purged_at?: string | null
           ready_to_learn?: boolean | null
           referral_code?: string | null
@@ -13942,6 +13944,7 @@ export type Database = {
           motivation?: string | null
           phone?: string
           preferred_contact_channel?: string | null
+          public_ref?: string | null
           purged_at?: string | null
           ready_to_learn?: boolean | null
           referral_code?: string | null
@@ -22598,6 +22601,7 @@ export type Database = {
           country_code: string | null
           created_at: string
           district: string | null
+          district_id: number | null
           easy_read_size: number
           email: string
           evicted_at: string | null
@@ -22688,6 +22692,7 @@ export type Database = {
           country_code?: string | null
           created_at?: string
           district?: string | null
+          district_id?: number | null
           easy_read_size?: number
           email: string
           evicted_at?: string | null
@@ -22778,6 +22783,7 @@ export type Database = {
           country_code?: string | null
           created_at?: string
           district?: string | null
+          district_id?: number | null
           easy_read_size?: number
           email?: string
           evicted_at?: string | null
@@ -22900,6 +22906,34 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_lc1_verification_inbox"
             referencedColumns: ["lc1_id"]
+          },
+          {
+            foreignKeyName: "profiles_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "mv_ug_district_alias"
+            referencedColumns: ["district_id"]
+          },
+          {
+            foreignKeyName: "profiles_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "mv_ug_subcounty_alias"
+            referencedColumns: ["district_id"]
+          },
+          {
+            foreignKeyName: "profiles_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "mv_ug_village_geo"
+            referencedColumns: ["district_id"]
+          },
+          {
+            foreignKeyName: "profiles_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "ug_districts"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "profiles_merchant_agent_referrer_id_fkey"
@@ -29751,6 +29785,53 @@ export type Database = {
           },
           {
             foreignKeyName: "ug_counties_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "ug_districts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ug_district_aliases: {
+        Row: {
+          alias: string
+          created_at: string
+          district_id: number
+        }
+        Insert: {
+          alias: string
+          created_at?: string
+          district_id: number
+        }
+        Update: {
+          alias?: string
+          created_at?: string
+          district_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ug_district_aliases_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "mv_ug_district_alias"
+            referencedColumns: ["district_id"]
+          },
+          {
+            foreignKeyName: "ug_district_aliases_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "mv_ug_subcounty_alias"
+            referencedColumns: ["district_id"]
+          },
+          {
+            foreignKeyName: "ug_district_aliases_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "mv_ug_village_geo"
+            referencedColumns: ["district_id"]
+          },
+          {
+            foreignKeyName: "ug_district_aliases_district_id_fkey"
             columns: ["district_id"]
             isOneToOne: false
             referencedRelation: "ug_districts"
@@ -37387,6 +37468,10 @@ export type Database = {
         Returns: Json
       }
       get_partner_ops_daily_report: { Args: { p_date?: string }; Returns: Json }
+      get_partner_ops_promissory_block: {
+        Args: { p_end: string; p_start: string }
+        Returns: Json
+      }
       get_partner_ops_range_report: {
         Args: { p_end: string; p_start: string }
         Returns: Json
@@ -37606,6 +37691,10 @@ export type Database = {
         Args: { p_agent_id?: string }
         Returns: Json
       }
+      get_service_center_qualification_candidates: {
+        Args: { p_limit?: number; p_min_progress?: number; p_offset?: number }
+        Returns: Json
+      }
       get_service_center_rent_queue: {
         Args: { p_manager_id?: string }
         Returns: Json
@@ -37617,6 +37706,29 @@ export type Database = {
       get_service_center_verification_queue: {
         Args: { p_manager_id?: string }
         Returns: Json
+      }
+      get_service_centre_manager_network: {
+        Args: { p_limit?: number; p_offset?: number; p_search?: string }
+        Returns: {
+          agent_id: string
+          agent_name: string
+          agent_phone: string
+          centre_created_at: string
+          centre_location: string
+          centre_status: string
+          houses_pending: number
+          houses_total: number
+          houses_verified: number
+          landlords_pending: number
+          landlords_total: number
+          landlords_verified: number
+          lc1_pending: number
+          lc1_verified: number
+          monthly_rent_verified: number
+          sub_agents_managed: number
+          sub_agents_pending: number
+          total_count: number
+        }[]
       }
       get_shadow_match_rate: {
         Args: { p_hours?: number }
@@ -40611,7 +40723,9 @@ export type Database = {
         Args: { p_deposit_id: string }
         Returns: Json
       }
+      ug_canonical_region: { Args: { p_text: string }; Returns: string }
       ug_norm_name: { Args: { p: string }; Returns: string }
+      ug_resolve_district_id: { Args: { p_text: string }; Returns: number }
       ug_resolve_village: {
         Args: { p_village_id: number }
         Returns: {

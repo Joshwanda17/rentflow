@@ -24,10 +24,12 @@ interface ProoflessRow {
 /**
  * Full-page blocking overlay for merchant agents.
  *
- * Every wallet deduction this merchant settled WITHOUT an attached proof of
- * payment overshadows the whole payout page: the merchant cannot keep working
- * until each affected customer has proof on file. Proof is uploaded to the
- * private `payment-proofs` bucket and attached via a guarded RPC.
+ * Only payouts this user actually settled AS THE CASH-OUT MERCHANT count:
+ * the request must have been assigned to them, claimed by them, or carry them
+ * as the paying agent. Payouts they merely processed or verified in a Financial
+ * Ops / manager capacity (someone else moved the money) are NOT their proof
+ * obligation and must never block them. Proof is uploaded to the private
+ * `payment-proofs` bucket and attached via a guarded RPC.
  */
 export function ProoflessPayoutBlocker() {
   const { user } = useAuth();
@@ -58,16 +60,31 @@ export function ProoflessPayoutBlocker() {
     enabled: !!user?.id,
     refetchInterval: 60_000,
     queryFn: async (): Promise<ProoflessRow[]> => {
+      const me = user!.id;
       const { data, error } = await supabase
         .from('withdrawal_requests')
-        .select('id, user_id, amount, payout_method, mobile_money_provider, processed_at, created_at, payout_proof')
-        .eq('processed_by', user!.id)
+        .select(
+          'id, user_id, amount, payout_method, mobile_money_provider, processed_at, created_at, payout_proof, assigned_cashout_agent_id, dispatch_claimed_by, agent_id, fin_ops_verified_by, fin_ops_approved_by',
+        )
+        // Settled by this user acting as the cash-out merchant — not merely
+        // processed/approved by them on someone else's payout.
+        .or(`assigned_cashout_agent_id.eq.${me},dispatch_claimed_by.eq.${me},agent_id.eq.${me}`)
         .eq('status', 'completed')
         .is('payout_proof_path', null)
         .order('processed_at', { ascending: false })
         .limit(100);
       if (error) throw error;
-      const list = ((data as any[]) || []).filter((r) => !String(r.payout_proof ?? '').trim());
+      const list = ((data as any[]) || []).filter((r) => {
+        if (String(r.payout_proof ?? '').trim()) return false;
+        // Belt and braces: the merchant must genuinely be the payer.
+        const isPayer =
+          r.assigned_cashout_agent_id === me || r.dispatch_claimed_by === me || r.agent_id === me;
+        if (!isPayer) return false;
+        // Financial Ops / manager verification of a payout someone else paid is
+        // not a merchant settlement, so it carries no proof obligation here.
+        const verifiedAsOps = r.fin_ops_verified_by === me || r.fin_ops_approved_by === me;
+        return !verifiedAsOps;
+      });
       const ids = Array.from(new Set(list.map((r) => r.user_id).filter(Boolean))) as string[];
       let names = new Map<string, { full_name: string | null; phone: string | null }>();
       if (ids.length) {

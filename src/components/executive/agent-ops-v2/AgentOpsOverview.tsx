@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import { format, subDays, startOfDay } from 'date-fns';
+import { format, subDays, startOfDay, endOfDay, startOfMonth, startOfYear, addDays } from 'date-fns';
 import {
   ResponsiveContainer, AreaChart, Area,
   XAxis, YAxis,
@@ -15,23 +15,89 @@ import {
 import {
   Users, UserPlus, Activity, FileText, Home, Wallet, Banknote, TrendingDown,
   TrendingUp, ArrowRight, UsersRound, Network, Coins, Hourglass, Receipt, Trophy,
+  CalendarIcon, RefreshCw,
 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { AgentRentCapacityPanel } from '../AgentRentCapacityPanel';
+import type { DateRange } from 'react-day-picker';
 
 
 
 
-// The overview is daily-only: KPIs always aggregate today, and every chart is
-// built from daily buckets. There is no range selector.
+// KPIs aggregate the selected date range. The trend chart always uses the last
+// 30 days so spark lines have enough daily buckets.
 const DAILY_TREND_DAYS = 30;
+
+type PresetKey = 'today' | 'yesterday' | 'five' | 'weekend' | 'month' | 'year' | 'custom';
+
+const PRESETS: { key: PresetKey; label: string }[] = [
+  { key: 'today', label: 'Today' },
+  { key: 'yesterday', label: 'Yesterday' },
+  { key: 'five', label: 'Last 5 days' },
+  { key: 'weekend', label: 'Weekend' },
+  { key: 'month', label: 'This month' },
+  { key: 'year', label: 'This year' },
+  { key: 'custom', label: 'Custom range' },
+];
+
+/** Most recent Saturday + Sunday pair (inclusive), based on local device date. */
+function lastWeekend(now: Date): { start: Date; end: Date } {
+  let sat = startOfDay(now);
+  while (sat.getDay() !== 6) sat = subDays(sat, 1);
+  return { start: sat, end: endOfDay(addDays(sat, 1)) };
+}
+
+function resolveRange(preset: PresetKey, custom?: DateRange): { start: Date; end: Date } {
+  const now = new Date();
+  switch (preset) {
+    case 'today':
+      return { start: startOfDay(now), end: endOfDay(now) };
+    case 'yesterday': {
+      const y = subDays(now, 1);
+      return { start: startOfDay(y), end: endOfDay(y) };
+    }
+    case 'five':
+      return { start: startOfDay(subDays(now, 4)), end: endOfDay(now) };
+    case 'weekend': {
+      const w = lastWeekend(now);
+      return { start: w.start, end: w.end };
+    }
+    case 'month':
+      return { start: startOfMonth(now), end: endOfDay(now) };
+    case 'year':
+      return { start: startOfYear(now), end: endOfDay(now) };
+    case 'custom': {
+      const from = custom?.from ? startOfDay(custom.from) : startOfDay(now);
+      const to = custom?.to ? endOfDay(custom.to) : endOfDay(custom?.from ?? now);
+      return { start: from, end: to };
+    }
+  }
+}
 
 function fmtMoney(n: number): string {
   if (n >= 1e9) return `UGX ${(n / 1e9).toFixed(2)}B`;
   if (n >= 1e6) return `UGX ${(n / 1e6).toFixed(2)}M`;
   if (n >= 1e3) return `UGX ${(n / 1e3).toFixed(1)}K`;
   return `UGX ${Math.round(n).toLocaleString()}`;
+}
+
+/** Lower-case phrase describing the selected window, e.g. "in the last 5 days". */
+function rangePhrase(preset: PresetKey, start: Date, end: Date): string {
+  switch (preset) {
+    case 'today': return 'today';
+    case 'yesterday': return 'yesterday';
+    case 'five': return 'in the last 5 days';
+    case 'weekend': return 'this weekend';
+    case 'month': return 'this month';
+    case 'year': return 'this year';
+    case 'custom':
+      return format(start, 'dd MMM') === format(end, 'dd MMM')
+        ? `on ${format(start, 'dd MMM')}`
+        : `${format(start, 'dd MMM')} – ${format(end, 'dd MMM')}`;
+  }
 }
 
 function fmtNum(n: number): string {
@@ -115,16 +181,16 @@ export interface AgentOpsOverviewProps {
 
 export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
   const qc = useQueryClient();
-  // Today's window (local day start → now) drives every KPI and table.
-  const [today] = useState(() => startOfDay(new Date()).toISOString());
-  const { start, end, trendStart } = useMemo(() => {
-    const now = new Date();
-    return {
-      start: today,
-      end: now.toISOString(),
-      trendStart: startOfDay(subDays(now, DAILY_TREND_DAYS)).toISOString(),
-    };
-  }, [today]);
+  const [preset, setPreset] = useState<PresetKey>('today');
+  const [custom, setCustom] = useState<DateRange | undefined>();
+  const { start, end } = useMemo(() => resolveRange(preset, custom), [preset, custom]);
+  const startIso = start.toISOString();
+  const endIso = end.toISOString();
+  const phrase = useMemo(() => rangePhrase(preset, start, end), [preset, start, end]);
+
+  // 30-day trend window stays independent of the selected preset so the spark
+  // lines and trend chart always have enough daily buckets.
+  const trendStart = useMemo(() => startOfDay(subDays(new Date(), DAILY_TREND_DAYS)).toISOString(), []);
 
   useEffect(() => {
     const ch = supabase
@@ -138,11 +204,11 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
   }, [qc]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['agent-ops-overview', 'daily', start],
+    queryKey: ['agent-ops-overview', 'daily', startIso, endIso],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_agent_ops_overview' as any, {
-        p_range_start: start,
-        p_range_end: end,
+        p_range_start: startIso,
+        p_range_end: endIso,
       });
       if (error) throw error;
       return data as unknown as OverviewPayload;
@@ -152,11 +218,11 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
 
   // Daily series for the charts — same RPC, daily buckets over the last 30 days.
   const { data: trendPayload } = useQuery({
-    queryKey: ['agent-ops-overview', 'daily-trend', trendStart],
+    queryKey: ['agent-ops-overview', 'daily-trend', trendStart, endIso],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_agent_ops_overview' as any, {
         p_range_start: trendStart,
-        p_range_end: end,
+        p_range_end: endIso,
       });
       if (error) throw error;
       return data as unknown as OverviewPayload;
@@ -180,11 +246,50 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-base font-bold text-foreground">Agent Operations Overview</h2>
-        <p className="text-xs text-muted-foreground">
-          Today · {format(new Date(today), 'EEEE d MMM yyyy')} — daily aggregates across all agents.
-        </p>
+      {/* Header + date preset filter bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h2 className="text-base font-bold text-foreground">Agent Operations Overview</h2>
+          <p className="text-xs text-muted-foreground">
+            {format(start, 'dd MMM yyyy')} → {format(end, 'dd MMM yyyy')} · daily aggregates across all agents.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {PRESETS.map(p => (
+            <Button
+              key={p.key}
+              size="sm"
+              variant={preset === p.key ? 'default' : 'outline'}
+              className="h-8 text-xs"
+              onClick={() => setPreset(p.key)}
+            >
+              {p.label}
+            </Button>
+          ))}
+          {preset === 'custom' && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button size="sm" variant="secondary" className="h-8 text-xs">
+                  <CalendarIcon className="h-3.5 w-3.5 mr-1" />
+                  {custom?.from
+                    ? `${format(custom.from, 'dd MMM')}${custom.to ? ` – ${format(custom.to, 'dd MMM')}` : ''}`
+                    : 'Pick dates'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end">
+                <Calendar
+                  mode="range"
+                  numberOfMonths={2}
+                  selected={custom}
+                  onSelect={setCustom}
+                  disabled={{ after: new Date() }}
+                  initialFocus
+                  className="pointer-events-auto p-3"
+                />
+              </PopoverContent>
+            </Popover>
+          )}
+        </div>
       </div>
 
 
@@ -194,7 +299,7 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
           title="Total Agents"
           value={fmtNum(k.total_agents || 0)}
           delta={pctDelta(k.total_agents || 0, k.total_agents_prev || 0)}
-          subtitle={`+${fmtNum(k.new_agents_curr || 0)} new today`}
+          subtitle={`+${fmtNum(k.new_agents_curr || 0)} new ${phrase}`}
           icon={Users}
           accent="bg-primary"
           onClick={() => onOpenSection('directory')}
@@ -215,7 +320,7 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
           title="Total Sub-Agents"
           value={fmtNum(k.total_subagents || 0)}
           delta={pctDelta(k.total_subagents || 0, k.total_subagents_prev || 0)}
-          subtitle={`+${fmtNum(k.new_subagents_curr || 0)} new today`}
+          subtitle={`+${fmtNum(k.new_subagents_curr || 0)} new ${phrase}`}
           icon={UsersRound}
           accent="bg-sky-600"
           onClick={() => onOpenSection('sub-agents')}
@@ -239,7 +344,11 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
           title="Total Collected"
           value={fmtMoney(k.collections_curr || 0)}
           delta={pctDelta(k.collections_curr || 0, k.collections_prev || 0)}
-          subtitle={`${fmtMoney(k.collections_today || 0)} today`}
+          subtitle={
+            preset === 'today'
+              ? `${fmtMoney(k.collections_today || 0)} today`
+              : `Collected ${phrase}`
+          }
           icon={Wallet}
           accent="bg-emerald-700"
           spark={trendData.map((t) => t.collected)}
@@ -260,7 +369,11 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
           title="Total Collections"
           value={fmtNum(k.collections_count_curr || 0)}
           delta={pctDelta(k.collections_count_curr || 0, k.collections_count_prev || 0)}
-          subtitle={`${fmtNum(k.collections_today_count || 0)} today`}
+          subtitle={
+            preset === 'today'
+              ? `${fmtNum(k.collections_today_count || 0)} today`
+              : `${fmtNum(k.collections_count_curr || 0)} ${phrase}`
+          }
           icon={Receipt}
           accent="bg-teal-600"
           onClick={() => onOpenSection('daily-collections-report')}
@@ -273,6 +386,7 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
           icon={Coins}
           accent="bg-fuchsia-600"
           spark={trendData.map((t) => t.commission)}
+          subtitle={`Paid out ${phrase}`}
           onClick={() => onOpenSection('earnings')}
           loading={isLoading}
         />
@@ -318,7 +432,7 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
       <TopPendingAgents onViewAll={() => onOpenSection('pipeline')} />
 
       {/* Top performers */}
-      <TopPerformers rows={data?.top_performers || []} loading={isLoading} />
+      <TopPerformers rows={data?.top_performers || []} loading={isLoading} phrase={phrase} />
 
       {/* Row B — trend charts */}
       <div className="grid grid-cols-1 gap-3">
@@ -528,9 +642,11 @@ function TopPendingAgents({ onViewAll }: { onViewAll: () => void }) {
 function TopPerformers({
   rows,
   loading,
+  phrase,
 }: {
   rows: NonNullable<OverviewPayload['top_performers']>;
   loading?: boolean;
+  phrase: string;
 }) {
   return (
     <Card className="rounded-2xl border-border/50 p-3 sm:p-4 w-full">
@@ -538,13 +654,13 @@ function TopPerformers({
         <Trophy className="h-4 w-4 text-amber-500" />
         <div>
           <h3 className="text-sm font-semibold">Top Performers</h3>
-          <p className="text-[11px] text-muted-foreground">Agents and sub-agents by rent collected today</p>
+          <p className="text-[11px] text-muted-foreground">Agents and sub-agents by rent collected {phrase}</p>
         </div>
       </div>
       {loading ? (
         <Skeleton className="h-32 w-full" />
       ) : rows.length === 0 ? (
-        <p className="text-xs text-muted-foreground p-4 text-center">No collections recorded today.</p>
+        <p className="text-xs text-muted-foreground p-4 text-center">No collections recorded {phrase}.</p>
       ) : (
         <div className="overflow-x-auto">
           <Table>
