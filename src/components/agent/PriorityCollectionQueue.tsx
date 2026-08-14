@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
-import { AlertTriangle, Navigation, Phone, Ban, CheckCircle2 } from 'lucide-react';
+import { AlertTriangle, Navigation, Phone, Ban, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { differenceInDays } from 'date-fns';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
