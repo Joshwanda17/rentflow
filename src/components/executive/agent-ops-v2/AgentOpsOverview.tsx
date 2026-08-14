@@ -186,6 +186,7 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
   const { start, end } = useMemo(() => resolveRange(preset, custom), [preset, custom]);
   const startIso = start.toISOString();
   const endIso = end.toISOString();
+  const phrase = useMemo(() => rangePhrase(preset, start, end), [preset, start, end]);
 
   // 30-day trend window stays independent of the selected preset so the spark
   // lines and trend chart always have enough daily buckets.
@@ -298,7 +299,7 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
           title="Total Agents"
           value={fmtNum(k.total_agents || 0)}
           delta={pctDelta(k.total_agents || 0, k.total_agents_prev || 0)}
-          subtitle={`+${fmtNum(k.new_agents_curr || 0)} new today`}
+          subtitle={`+${fmtNum(k.new_agents_curr || 0)} new ${phrase}`}
           icon={Users}
           accent="bg-primary"
           onClick={() => onOpenSection('directory')}
@@ -319,7 +320,7 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
           title="Total Sub-Agents"
           value={fmtNum(k.total_subagents || 0)}
           delta={pctDelta(k.total_subagents || 0, k.total_subagents_prev || 0)}
-          subtitle={`+${fmtNum(k.new_subagents_curr || 0)} new today`}
+          subtitle={`+${fmtNum(k.new_subagents_curr || 0)} new ${phrase}`}
           icon={UsersRound}
           accent="bg-sky-600"
           onClick={() => onOpenSection('sub-agents')}
@@ -343,7 +344,11 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
           title="Total Collected"
           value={fmtMoney(k.collections_curr || 0)}
           delta={pctDelta(k.collections_curr || 0, k.collections_prev || 0)}
-          subtitle={`${fmtMoney(k.collections_today || 0)} today`}
+          subtitle={
+            preset === 'today'
+              ? `${fmtMoney(k.collections_today || 0)} today`
+              : `Collected ${phrase}`
+          }
           icon={Wallet}
           accent="bg-emerald-700"
           spark={trendData.map((t) => t.collected)}
@@ -364,7 +369,11 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
           title="Total Collections"
           value={fmtNum(k.collections_count_curr || 0)}
           delta={pctDelta(k.collections_count_curr || 0, k.collections_count_prev || 0)}
-          subtitle={`${fmtNum(k.collections_today_count || 0)} today`}
+          subtitle={
+            preset === 'today'
+              ? `${fmtNum(k.collections_today_count || 0)} today`
+              : `${fmtNum(k.collections_count_curr || 0)} ${phrase}`
+          }
           icon={Receipt}
           accent="bg-teal-600"
           onClick={() => onOpenSection('daily-collections-report')}
@@ -377,6 +386,7 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
           icon={Coins}
           accent="bg-fuchsia-600"
           spark={trendData.map((t) => t.commission)}
+          subtitle={`Paid out ${phrase}`}
           onClick={() => onOpenSection('earnings')}
           loading={isLoading}
         />
@@ -422,7 +432,7 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
       <TopPendingAgents onViewAll={() => onOpenSection('pipeline')} />
 
       {/* Top performers */}
-      <TopPerformers rows={data?.top_performers || []} loading={isLoading} />
+      <TopPerformers rows={data?.top_performers || []} loading={isLoading} phrase={phrase} />
 
       {/* Row B — trend charts */}
       <div className="grid grid-cols-1 gap-3">
@@ -632,9 +642,11 @@ function TopPendingAgents({ onViewAll }: { onViewAll: () => void }) {
 function TopPerformers({
   rows,
   loading,
+  phrase,
 }: {
   rows: NonNullable<OverviewPayload['top_performers']>;
   loading?: boolean;
+  phrase: string;
 }) {
   return (
     <Card className="rounded-2xl border-border/50 p-3 sm:p-4 w-full">
@@ -642,13 +654,13 @@ function TopPerformers({
         <Trophy className="h-4 w-4 text-amber-500" />
         <div>
           <h3 className="text-sm font-semibold">Top Performers</h3>
-          <p className="text-[11px] text-muted-foreground">Agents and sub-agents by rent collected today</p>
+          <p className="text-[11px] text-muted-foreground">Agents and sub-agents by rent collected {phrase}</p>
         </div>
       </div>
       {loading ? (
         <Skeleton className="h-32 w-full" />
       ) : rows.length === 0 ? (
-        <p className="text-xs text-muted-foreground p-4 text-center">No collections recorded today.</p>
+        <p className="text-xs text-muted-foreground p-4 text-center">No collections recorded {phrase}.</p>
       ) : (
         <div className="overflow-x-auto">
           <Table>
