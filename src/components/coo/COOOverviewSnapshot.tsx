@@ -272,10 +272,10 @@ export default function COOOverviewSnapshot() {
         </CardContent>
       </Card>
 
-      {/* Latest rent requests for review */}
+      {/* Latest rent requests pending COO approval */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-bold">Latest rent requests for review</CardTitle>
+          <CardTitle className="text-sm font-bold">Rent requests pending COO approval</CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
           {review_requests.length === 0 ? (
