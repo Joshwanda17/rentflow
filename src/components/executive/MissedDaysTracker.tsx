@@ -329,12 +329,42 @@ export function MissedDaysTracker() {
       </div>
 
       <TenantOpsReportToolbar
-        tool="missed_days"
+        tool={callTab === 'called' ? 'calls_made' : 'missed_days'}
         status={riskFilter}
         search={search}
         visibleCount={filtered.length}
-        fileSlug="tenants-behind-on-payments"
+        fileSlug={callTab === 'called' ? 'tenant-calls-made' : 'tenants-behind-on-payments'}
       />
+
+      {/* Call workflow: To Call vs Called / Waiting + Call Again window */}
+      <div className="flex flex-wrap items-center gap-2 px-1">
+        {([
+          { key: 'to_call' as const, label: 'To Call' },
+          { key: 'called' as const, label: 'Calls Made' },
+        ]).map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setCallTab(tab.key)}
+            className={`px-3.5 py-2 rounded-full text-xs font-medium transition-all min-h-[36px] ${
+              callTab === tab.key ? 'bg-primary/10 text-primary ring-1 ring-primary/30' : 'bg-muted/50 text-muted-foreground active:bg-muted'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+        <span className="text-[10px] text-muted-foreground ml-1">Call again after:</span>
+        {([3, 7, 14] as const).map(d => (
+          <button
+            key={d}
+            onClick={() => setCallAgainDays(d)}
+            className={`px-3 py-1.5 rounded-full text-[11px] font-medium transition-all min-h-[30px] ${
+              callAgainDays === d ? 'bg-foreground/10 text-foreground' : 'text-muted-foreground active:text-foreground'
+            }`}
+          >
+            {d}d
+          </button>
+        ))}
+      </div>
 
       {/* Sticky search + filters */}
       <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm pb-2 -mx-1 px-1 space-y-2">
