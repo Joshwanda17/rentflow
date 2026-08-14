@@ -37691,6 +37691,10 @@ export type Database = {
         Args: { p_agent_id?: string }
         Returns: Json
       }
+      get_service_center_qualification_candidates: {
+        Args: { p_limit?: number; p_min_progress?: number; p_offset?: number }
+        Returns: Json
+      }
       get_service_center_rent_queue: {
         Args: { p_manager_id?: string }
         Returns: Json
