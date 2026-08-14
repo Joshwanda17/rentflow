@@ -968,6 +968,19 @@ async function tryAutoDebitPayout(
   // Only act on recent payouts (mirror the 7-day window used elsewhere).
   if (internalMs && internalMs < Date.now() - 7 * 24 * 3600 * 1000) return;
 
+  // Locate the row we just inserted so every gate below (including the silent
+  // skips) can be recorded against the source email.
+  const { data: gmailRow } = await supabase
+    .from('gmail_transactions')
+    .select('id, from_name, from_email, subject')
+    .eq('gmail_message_id', gmailMessageId)
+    .maybeSingle();
+  if (!gmailRow?.id) return;
+
+  // The parser stores the recipient in `counterparty`: a phone for MTN/Airtel
+  // payouts, a NAME for bank payouts.
+  const cp = (parsed.counterparty ?? '').toString().trim();
+
   // ── Rule 1: reconciled-TID skip list ─────────────────────────────────
   // If this TID has already been accounted for (e.g. CFO stamped it on a
   // float delivery / withdrawal / landlord payout), never auto-debit.
@@ -983,15 +996,100 @@ async function tryAutoDebitPayout(
         console.log(
           `[gmail-poll] auto-debit skip: TID ${parsed.transaction_id} already reconciled via ${reconciled.source}`,
         );
+        await logPayoutMatchAttempt(supabase, {
+          emailId: gmailRow.id,
+          emailTid: parsed.transaction_id ?? null,
+          emailAmount: parsed.amount ?? null,
+          recipientPhoneEmail: cp || null,
+          paymentMethod: parsed.channel ?? null,
+          outcome: 'skipped_reconciled_tid',
+          metadata: {
+            gmail_message_id: gmailMessageId,
+            reconciled_source: reconciled.source ?? null,
+            reason: 'TID already stamped in ledger_reconciled_tids; nothing auto-posted for this email.',
+          },
+        });
         return;
       }
+    }
+  }
+
+  // ── Merchant float delivery (runs BEFORE Rule 3) ─────────────────────
+  // Company money sent to a registered `cashout_agents.float_phone` is a
+  // FLOAT CREDIT to that agent, never a debit. Rule 3 is an emergency stop
+  // for the generic auto-DEBIT engine, so it must not gate this credit.
+  if (cp) {
+    const cpDigits = cp.replace(/[^0-9]/g, '');
+    if (cpDigits.length >= 9) {
+      const cpLast9 = cpDigits.slice(-9);
+      const { data: floatAgent } = await supabase
+        .from('cashout_agents')
+        .select('agent_id, float_phone')
+        .eq('is_active', true)
+        .ilike('float_phone', `%${cpLast9}`)
+        .limit(1)
+        .maybeSingle();
+      if (floatAgent?.agent_id) {
+        console.log(
+          `[gmail-poll] outbound SMS to merchant float_phone ${cp} → crediting float for agent=${floatAgent.agent_id}`,
+        );
+        try {
+          await creditMerchantFloatFromOutboundSms(supabase, {
+            agentId: String(floatAgent.agent_id),
+            parsed,
+            gmailMessageId,
+            internalMs,
+          });
+          await logPayoutMatchAttempt(supabase, {
+            emailId: gmailRow.id,
+            emailTid: parsed.transaction_id ?? null,
+            emailAmount: parsed.amount ?? null,
+            recipientPhoneEmail: cp,
+            recipientPhoneTarget: String(floatAgent.float_phone ?? ''),
+            paymentMethod: parsed.channel ?? null,
+            outcome: 'merchant_float_credited',
+            metadata: {
+              gmail_message_id: gmailMessageId,
+              agent_id: floatAgent.agent_id,
+              reason: 'Outbound company send matched a registered merchant float phone; routed as a float credit.',
+            },
+          });
+        } catch (e) {
+          await logPayoutMatchAttempt(supabase, {
+            emailId: gmailRow.id,
+            emailTid: parsed.transaction_id ?? null,
+            emailAmount: parsed.amount ?? null,
+            recipientPhoneEmail: cp,
+            paymentMethod: parsed.channel ?? null,
+            outcome: 'merchant_float_credit_failed',
+            errorMessage: e instanceof Error ? e.message : String(e),
+            metadata: { gmail_message_id: gmailMessageId, agent_id: floatAgent.agent_id },
+          });
+        }
+        return;
+      }
+      console.log(`[gmail-poll] outbound SMS to ${cp}: no active merchant float_phone match`);
+      await logPayoutMatchAttempt(supabase, {
+        emailId: gmailRow.id,
+        emailTid: parsed.transaction_id ?? null,
+        emailAmount: parsed.amount ?? null,
+        recipientPhoneEmail: cp,
+        paymentMethod: parsed.channel ?? null,
+        outcome: 'float_phone_no_match',
+        metadata: {
+          gmail_message_id: gmailMessageId,
+          counterparty_last9: cpLast9,
+          reason: 'Recipient number did not match any active cashout_agents.float_phone; continued to the debit path.',
+        },
+      });
     }
   }
 
   // ── Rule 3: Welile-payout-source whitelist (emergency stop) ──────────
   // The engine only fires when the sending mailbox / provider looks like a
   // Welile-owned payout line that the CFO has explicitly whitelisted. If
-  // the whitelist is empty (default), the engine is safely off.
+  // the whitelist is empty (default), the auto-DEBIT engine is safely off.
+  // Merchant float credits are handled above and are unaffected.
   const { data: whitelistRows } = await supabase
     .from('welile_payout_source_accounts')
     .select('id')
@@ -1001,16 +1099,20 @@ async function tryAutoDebitPayout(
     console.log(
       '[gmail-poll] auto-debit disabled: no active welile_payout_source_accounts whitelisted (Rule 3 emergency stop)',
     );
+    await logPayoutMatchAttempt(supabase, {
+      emailId: gmailRow.id,
+      emailTid: parsed.transaction_id ?? null,
+      emailAmount: parsed.amount ?? null,
+      recipientPhoneEmail: cp || null,
+      paymentMethod: parsed.channel ?? null,
+      outcome: 'skipped_emergency_stop',
+      metadata: {
+        gmail_message_id: gmailMessageId,
+        reason: 'Rule 3 emergency stop: no active welile_payout_source_accounts whitelisted, so auto-debit is off.',
+      },
+    });
     return;
   }
-
-  // Locate the row we just inserted so we can link the routing record.
-  const { data: gmailRow } = await supabase
-    .from('gmail_transactions')
-    .select('id, from_name, from_email, subject')
-    .eq('gmail_message_id', gmailMessageId)
-    .maybeSingle();
-  if (!gmailRow?.id) return;
 
   // Idempotency: never debit the same email twice. A prior auto-debit (or a
   // manual route) leaves a row in email_routing_history for this gmail row.
@@ -1063,40 +1165,7 @@ async function tryAutoDebitPayout(
   }
 
   // ── Resolve the recipient ────────────────────────────────────────────
-  // The parser stores the recipient in `counterparty`: a phone for MTN/Airtel
-  // payouts, a NAME for bank payouts.
-  const cp = (parsed.counterparty ?? '').toString().trim();
   if (!cp) return;
-
-  // ── Merchant float delivery: company money sent to a registered
-  // `cashout_agents.float_phone` is a FLOAT CREDIT to that agent, never a
-  // debit. Handle it here and stop — this email must never reach Rule 2,
-  // Rule 4 or the generic debit path below.
-  {
-    const cpDigits = cp.replace(/[^0-9]/g, '');
-    if (cpDigits.length >= 9) {
-      const cpLast9 = cpDigits.slice(-9);
-      const { data: floatAgent } = await supabase
-        .from('cashout_agents')
-        .select('agent_id, float_phone')
-        .eq('is_active', true)
-        .ilike('float_phone', `%${cpLast9}`)
-        .limit(1)
-        .maybeSingle();
-      if (floatAgent?.agent_id) {
-        console.log(
-          `[gmail-poll] outbound SMS to merchant float_phone ${cp} → crediting float for agent=${floatAgent.agent_id}`,
-        );
-        await creditMerchantFloatFromOutboundSms(supabase, {
-          agentId: String(floatAgent.agent_id),
-          parsed,
-          gmailMessageId,
-          internalMs,
-        });
-        return;
-      }
-    }
-  }
 
   let profile: { id: string; full_name: string | null; phone: string | null } | null = null;
   let matchMethod: 'phone' | 'name' = 'phone';
