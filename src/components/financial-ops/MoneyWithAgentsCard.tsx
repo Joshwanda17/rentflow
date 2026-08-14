@@ -45,7 +45,7 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
   const rows = (data ?? []).filter(
     (r) => r.isActive || r.paidOut > 0 || r.reimbursed > 0 || r.companyCashWithAgent > 0,
   );
-  const heldTotal = rows.reduce((s, r) => s + r.companyCashWithAgent, 0);
+  const heldTotal = rows.reduce((s, r) => s + spendableFloat(r), 0);
   const owedTotal = rows.reduce((s, r) => s + r.owedToAgent, 0);
   const floatTotal = rows.reduce((s, r) => s + spendableFloat(r), 0);
 
@@ -161,7 +161,7 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
                       holding ? 'text-warning' : 'text-foreground'
                     }`}
                   >
-                    {formatUGX(holding ? r.companyCashWithAgent : r.owedToAgent)}
+                    {formatUGX(holding ? spendableFloat(r) : r.owedToAgent)}
                   </p>
                   <p className="text-[10px] text-muted-foreground">
                     {holding
