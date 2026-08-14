@@ -3741,6 +3741,48 @@ export function EmailTransactionsPanel() {
                   </button>
                 );
               })}
+              {/* Custom window — same from/to state the desktop date inputs use,
+                  so a hand-picked range behaves exactly like a preset. */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="shrink-0 inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-full border bg-background hover:bg-muted text-muted-foreground border-border"
+                    aria-label="Pick a custom date range"
+                  >
+                    <CalendarRange className="h-3 w-3" />
+                    Custom
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-64 p-3 space-y-2 z-[200] pointer-events-auto">
+                  <p className="text-[11px] font-medium">Custom date range</p>
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] uppercase tracking-wide text-muted-foreground">From</label>
+                    <Input
+                      type="date"
+                      value={fromDate}
+                      max={toDate || undefined}
+                      onChange={(e) => { setSearchQuery(''); setFromDate(e.target.value); }}
+                      className="h-9 text-sm"
+                      aria-label="Custom range date from"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] uppercase tracking-wide text-muted-foreground">To</label>
+                    <Input
+                      type="date"
+                      value={toDate}
+                      min={fromDate || undefined}
+                      onChange={(e) => { setSearchQuery(''); setToDate(e.target.value); }}
+                      className="h-9 text-sm"
+                      aria-label="Custom range date to"
+                    />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    Both ends are inclusive, in {tz.split('/').pop()} time.
+                  </p>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         </div>
