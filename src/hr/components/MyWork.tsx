@@ -270,14 +270,6 @@ function monthBounds(now: Date) {
   return { start: iso(start), end: iso(end) };
 }
 
-/** Monday-anchored start of the week containing `d`. */
-function weekStart(d: Date) {
-  const copy = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const day = (copy.getDay() + 6) % 7;
-  copy.setDate(copy.getDate() - day);
-  return copy;
-}
-
 interface MyWorkProps {
   /** When true, the surrounding surface already supplies the page heading
    *  and subtitle, so this component renders its body only. */
@@ -479,13 +471,18 @@ export default function MyWork({ embedded = false }: MyWorkProps) {
       }));
   }, [tasks]);
 
-  /** Eight calendar weeks of completed ÷ created, straight off this person's hr_tasks rows. */
+  /** Last 30 days of completed ÷ created, straight off this person's hr_tasks rows. */
   const trend = useMemo(() => {
     const buckets: { key: number; label: string; created: number; completed: number }[] = [];
-    const thisWeek = weekStart(new Date());
-    for (let i = 7; i >= 0; i -= 1) {
-      const start = new Date(thisWeek);
-      start.setDate(start.getDate() - i * 7);
+    const dayStart = (d: Date) => {
+      const x = new Date(d);
+      x.setHours(0, 0, 0, 0);
+      return x;
+    };
+    const today = dayStart(new Date());
+    for (let i = 29; i >= 0; i -= 1) {
+      const start = new Date(today);
+      start.setDate(start.getDate() - i);
       buckets.push({
         key: start.getTime(),
         label: start.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }),
@@ -497,7 +494,7 @@ export default function MyWork({ embedded = false }: MyWorkProps) {
       if (!iso) return -1;
       const d = new Date(iso);
       if (Number.isNaN(d.getTime())) return -1;
-      return buckets.findIndex((b) => b.key === weekStart(d).getTime());
+      return buckets.findIndex((b) => b.key === dayStart(d).getTime());
     };
     for (const t of tasks) {
       const ci = indexFor(t.created_at);
@@ -782,7 +779,7 @@ export default function MyWork({ embedded = false }: MyWorkProps) {
       <Card>
         <CardHeader className="pb-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <CardTitle className="text-sm">Completion trend · last 8 weeks</CardTitle>
+            <CardTitle className="text-sm">Completion trend · last 30 days</CardTitle>
             <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
               <span className="inline-flex items-center gap-1.5">
                 <span
@@ -810,7 +807,7 @@ export default function MyWork({ embedded = false }: MyWorkProps) {
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={trend} margin={{ top: 8, right: 12, bottom: 0, left: -18 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-              <XAxis dataKey="label" tick={{ fontSize: 10 }} />
+              <XAxis dataKey="label" tick={{ fontSize: 10 }} interval="preserveStartEnd" minTickGap={16} />
               <YAxis domain={[0, 100]} tick={{ fontSize: 10 }} unit="%" />
               <Tooltip
                 formatter={(v: number, _n, item: any) =>
@@ -819,7 +816,7 @@ export default function MyWork({ embedded = false }: MyWorkProps) {
                     'Completion rate',
                   ]
                 }
-                labelFormatter={(l) => `Week of ${l}`}
+                labelFormatter={(l) => `${l}`}
               />
               <Line
                 type="monotone"
