@@ -148,6 +148,7 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
           {rows.map((r) => {
             const holding = r.companyCashWithAgent > 0;
             const settled = !holding && r.owedToAgent <= 0;
+            const latest = r.agentId ? latestMovements?.get(r.agentId) : undefined;
             return (
               <div
                 key={r.deskId}
