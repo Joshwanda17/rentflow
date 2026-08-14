@@ -366,6 +366,18 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
       const nextPhone = landlordPhone.trim();
       const nextAddress = landlordAddress.trim();
 
+      // Upload replaced photos / LC letter FIRST so the resubmit carries the
+      // new evidence in the same patch the reviewer sees.
+      let evidencePatch: Record<string, unknown> = {};
+      if (newPhotos.some(Boolean) || newLcLetter) {
+        setUploadingEvidence(true);
+        try {
+          evidencePatch = await uploadEvidence(request.id);
+        } finally {
+          setUploadingEvidence(false);
+        }
+      }
+
       const patch: Record<string, unknown> = {
         rent_amount: rentNum,
         duration_days: durNum,
@@ -379,6 +391,7 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
         landlord_name: nextName,
         landlord_phone: nextPhone,
         landlord_address: nextAddress,
+        ...evidencePatch,
       };
       if (isOutstanding) {
         patch.initial_outstanding_balance = outstandingBalance ? Number(outstandingBalance) : null;
