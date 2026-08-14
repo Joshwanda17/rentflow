@@ -245,7 +245,7 @@ function buildPdf(r: Report, win: { title: string; pretty: string }, logo: Uint8
   doc.setFontSize(8);
   doc.setTextColor(232, 220, 250);
   const sub = doc.splitTextToSize(
-    `${ascii(win.pretty)} (EAT) - aggregate only, no partner names - source: Partner Ops book (portfolios, parked top-ups, compounding, returns ledger)`,
+    `${ascii(win.pretty)} (EAT) - aggregate only, no partner names - source: Partner Ops book (portfolios, top-ups, compounding, promissory notes, returns ledger)`,
     contentW - (textX - margin) - 10,
   );
   doc.text(sub, textX, y + 21);
@@ -692,7 +692,7 @@ function buildHtml(r: Report, win: { title: string; pretty: string }): string {
         <img src="${LOGO_URL}" alt="Welile" width="104" style="display:block;max-width:104px;height:auto;margin-bottom:10px" />
         <div style="color:#fff;font-size:19px;font-weight:800;letter-spacing:-.3px">Partner Operations - ${esc(win.title)}</div>
         <div style="color:#e8dcfa;font-size:12.5px;margin-top:6px;line-height:1.5">
-          ${esc(win.pretty)} (EAT) · aggregate only, no partner names · source: Partner Ops book (portfolios, parked top-ups, compounding, returns ledger)
+          ${esc(win.pretty)} (EAT) · aggregate only, no partner names · source: Partner Ops book (portfolios, top-ups, compounding, promissory notes, returns ledger)
         </div>
       </td></tr>
     </table>
