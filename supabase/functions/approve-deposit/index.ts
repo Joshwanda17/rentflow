@@ -438,12 +438,20 @@ Deno.serve(async (req) => {
           const normDigits = String(dep.transaction_id || '').replace(/[^0-9]/g, '');
           if (!normDigits) { allVerified = false; break; }
           const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
+          // Company→merchant FLOAT DELIVERY is proven by an OUTBOUND
+          // ("sent to") company SMS, so the linked gmail row has
+          // direction='out'/'debit'. Only the trusted service-role
+          // system_auto_credit caller may present those; interactive
+          // self-approvals still require an inbound receipt.
+          const allowedDirections = isSystemAutoCredit
+            ? ['in', 'credit', 'out', 'debit']
+            : ['in', 'credit'];
           const { data: gmailMatch } = await supabaseAdmin
             .from('gmail_transactions')
             .select('id, amount, transaction_id, direction, internal_date')
             .eq('linked_deposit_request_id', dep.id)
             .eq('parsed', true)
-            .in('direction', ['in', 'credit'])
+            .in('direction', allowedDirections)
             .gte('internal_date', sevenDaysAgo)
             .limit(1)
             .maybeSingle();
