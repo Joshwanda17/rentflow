@@ -500,8 +500,43 @@ function buildPdf(r: Report, win: { title: string; pretty: string }, logo: Uint8
 
   // 6 — Watchlist
   {
+  }
+
+  // 6 — Promissory notes
+  {
+    let cur = drawSectionHead(
+      "Promissory notes",
+      "Signed partner commitments straight from the promissory notes book. Pending notes are commitments, not capital - they are excluded from capital live and from capital in until activated.",
+    );
+    cur = drawTiles([
+      { label: `Created (${days === 1 ? "this day" : "this window"})`, value: fmtUGX(pn.created_amount), sub: `${num(pn.created_count)} notes`, kind: "good" },
+      { label: "Pending", value: fmtUGX(pn.pending_amount), sub: `${num(pn.pending_count)} notes - oldest ${num(pn.pending_oldest_days)}d`, kind: "bad" },
+      { label: "Activated (all time)", value: fmtUGX(pn.activated_amount), sub: `${num(pn.activated_count)} notes - oldest ${num(pn.activated_oldest_days)}d`, kind: "good" },
+      { label: "Conversion rate", value: `${Number(pn.conversion_rate ?? 0)}%`, sub: "activated / all notes" },
+      { label: "Total receivable", value: fmtUGX(pn.receivable_amount), sub: "pending plus activated, net of collections", kind: "bad" },
+      { label: "Collected to date", value: fmtUGX(pn.collected_amount), sub: `${num(pn.total_count)} notes on the book`, kind: "good" },
+    ], cur);
+    const statusRows = ((pn.by_status || []) as any[]).map((s) => [
+      ascii(String(s.status || "").replace(/^./, (c: string) => c.toUpperCase())),
+      num(s.count),
+      fmtUGX(s.amount),
+      `${num(s.oldest_days)}d`,
+    ]);
+    if (statusRows.length) {
+      cur = drawTable(
+        ["Status", "Notes", "Committed volume", "Oldest"],
+        statusRows,
+        cur,
+        ["Total", num(pn.total_count), fmtUGX(pn.total_amount), ""],
+      );
+    }
+    finishSection(cur);
+  }
+
+  // 7 — Watchlist
+  {
     const watch: string[] = [];
-    if (Number(t.backlog_amount) > 0) watch.push(`Parked top-ups awaiting merge: ${num(t.backlog_count)} - ${fmtUGX(t.backlog_amount)}`);
+    if (Number(pn.pending_amount) > 0) watch.push(`Promissory notes pending activation: ${num(pn.pending_count)} - ${fmtUGX(pn.pending_amount)} (oldest ${num(pn.pending_oldest_days)} days)`);
     if (Number(b.pending_portfolios_count) > 0) watch.push(`Portfolios awaiting ops approval: ${num(b.pending_portfolios_count)} - ${fmtUGX(b.pending_portfolios_amount)}`);
     if (Number(k.renewals_count) > 0) watch.push(`Renewals in the window: ${num(k.renewals_count)} - ${fmtUGX(k.renewals_topup_amount)}`);
     if (Number(f.weekdays_total) + Number(f.weekend_total) > outflow) {
