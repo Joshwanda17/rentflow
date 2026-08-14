@@ -78,14 +78,26 @@ function resolveRange(preset: PresetKey, custom?: DateRange): { start: Date; end
 }
 
 function fmtMoney(n: number): string {
-  return `UGX ${fmtMoneyShort(n)}`;
-}
-
-function fmtMoneyShort(n: number): string {
   if (n >= 1e9) return `UGX ${(n / 1e9).toFixed(2)}B`;
   if (n >= 1e6) return `UGX ${(n / 1e6).toFixed(2)}M`;
   if (n >= 1e3) return `UGX ${(n / 1e3).toFixed(1)}K`;
   return `UGX ${Math.round(n).toLocaleString()}`;
+}
+
+/** Lower-case phrase describing the selected window, e.g. "in the last 5 days". */
+function rangePhrase(preset: PresetKey, start: Date, end: Date): string {
+  switch (preset) {
+    case 'today': return 'today';
+    case 'yesterday': return 'yesterday';
+    case 'five': return 'in the last 5 days';
+    case 'weekend': return 'this weekend';
+    case 'month': return 'this month';
+    case 'year': return 'this year';
+    case 'custom':
+      return format(start, 'dd MMM') === format(end, 'dd MMM')
+        ? `on ${format(start, 'dd MMM')}`
+        : `${format(start, 'dd MMM')} – ${format(end, 'dd MMM')}`;
+  }
 }
 
 function fmtNum(n: number): string {
