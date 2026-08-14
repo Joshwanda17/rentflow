@@ -35,6 +35,8 @@ interface Props {
 
 export function PriorityCollectionQueue({ open, onOpenChange, agentId }: Props) {
   const [editTarget, setEditTarget] = useState<CollectionItem | null>(null);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 15;
 
   const { data: queue = [], isLoading } = useQuery({
     queryKey: ['priority-collection-queue', agentId],
