@@ -4641,6 +4641,19 @@ export function LandlordOpsDashboard() {
     );
   }
 
+  // ─── HUB: Service Centre managers & their sub-agent networks ───
+  if (view === 'service-centres') {
+    return (
+      <>
+        <div className="space-y-4">
+          <BackButton />
+          <ServiceCentreManagerNetworkPanel />
+        </div>
+        {renderDialogs()}
+      </>
+    );
+  }
+
   // ─── HUB: Reports & Exports ───
   if (view === 'reports') {
     // The From / To pickers below drive every centralized extract, exactly like
