@@ -14,6 +14,7 @@ import {
   useMerchantFloatAdjustments,
   useMerchantFloatLedgerVariance,
   usePostMerchantAdjustment,
+  usePostMerchantOpeningFloatLedger,
 } from '@/hooks/useMerchantFloat';
 
 /**
@@ -35,15 +36,25 @@ export function MerchantReconcileDialog({
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
   const [evidence, setEvidence] = useState('');
+  // Opening balances can optionally be recognised on the BOOKS: balanced legs
+  // (agent float cash_in + platform cash_out) plus the float bucket moved by the
+  // sole wallet writer. Display-only stays the default.
+  const [postToLedger, setPostToLedger] = useState(false);
   const { data: history } = useMerchantFloatAdjustments(position?.deskId);
   const { data: variances } = useMerchantFloatLedgerVariance(open);
   const post = usePostMerchantAdjustment();
+  const postLedger = usePostMerchantOpeningFloatLedger();
 
   if (!position) return null;
 
   const truth = variances?.find((v) => v.deskId === position.deskId);
   const numericAmount = Number(amount.replace(/[^\d.-]/g, ''));
-  const valid = Number.isFinite(numericAmount) && numericAmount !== 0 && reason.trim().length >= 10;
+  const ledgerMode = type === 'opening_balance' && postToLedger;
+  const valid =
+    Number.isFinite(numericAmount) &&
+    (ledgerMode ? numericAmount > 0 : numericAmount !== 0) &&
+    reason.trim().length >= 10;
+  const busy = post.isPending || postLedger.isPending;
 
   // What a recorded fix can and cannot move. Every adjustment type folds into
   // `adjustments_total` (which moves "Money we paid them back" and "We owe
@@ -55,6 +66,29 @@ export function MerchantReconcileDialog({
 
   const submit = async () => {
     try {
+      if (ledgerMode) {
+        const res = await postLedger.mutateAsync({
+          deskId: position.deskId,
+          agentId: position.agentId,
+          adjustmentType: 'opening_balance',
+          amount: numericAmount,
+          reason,
+          evidenceNote: evidence,
+        });
+        toast.success('Recorded on the books', {
+          description: `Balanced legs posted. "They're holding our money" is now ${formatUGX(
+            position.companyCashWithAgent + Math.round(numericAmount),
+          )} (was ${formatUGX(position.companyCashWithAgent)}). Ledger group ${String(
+            res.ledger_group_id,
+          ).slice(0, 8)}.`,
+        });
+        setAmount('');
+        setReason('');
+        setEvidence('');
+        setPostToLedger(false);
+        onOpenChange(false);
+        return;
+      }
       const row = await post.mutateAsync({
         deskId: position.deskId,
         agentId: position.agentId,
@@ -164,9 +198,30 @@ export function MerchantReconcileDialog({
                   : type === 'write_off'
                     ? 'Closes the balance we agreed to let go with this agent.'
                     : 'Adds to the money we already count as paid back to this agent.'}{' '}
-              Use a minus amount to undo an earlier fix.
+              {ledgerMode
+                ? 'Must be a positive amount — to reduce float, use CFO Direct Debit.'
+                : 'Use a minus amount to undo an earlier fix.'}
             </p>
           </div>
+
+          {type === 'opening_balance' && (
+            <label className="flex items-start gap-2 rounded-lg border border-border bg-muted/20 px-3 py-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={postToLedger}
+                onChange={(e) => setPostToLedger(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
+              />
+              <span className="text-[11px] leading-snug">
+                <span className="font-semibold text-foreground">Record this on the books</span>
+                <span className="block text-[10px] text-muted-foreground">
+                  Posts real balanced entries (agent float in, company float out) and raises their
+                  float balance. This is the only fix that moves "They're holding our money". Leave
+                  unticked for a board-only note.
+                </span>
+              </span>
+            </label>
+          )}
 
           <div>
             <Label className="text-xs">Why (at least 10 letters)</Label>
@@ -190,11 +245,30 @@ export function MerchantReconcileDialog({
             />
           </div>
 
-          <Button onClick={submit} disabled={!valid || post.isPending} className="w-full">
-            {post.isPending ? 'Saving…' : 'Save fix'}
+          <Button onClick={submit} disabled={!valid || busy} className="w-full">
+            {busy ? 'Saving…' : ledgerMode ? 'Post to the books' : 'Save fix'}
           </Button>
 
-          {valid && (
+          {valid && ledgerMode && (
+            <div className="rounded-lg border border-primary/40 bg-primary/5 px-3 py-2 space-y-1">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                What this will change
+              </p>
+              <p className="text-[11px] text-foreground">
+                They're holding our money: {formatUGX(position.companyCashWithAgent)} →{' '}
+                <span className="font-semibold">
+                  {formatUGX(position.companyCashWithAgent + Math.round(numericAmount))}
+                </span>
+              </p>
+              <p className="text-[10px] text-muted-foreground">
+                Two balanced legs are posted (their float in, company float out) and their float
+                balance moves through the normal wallet writer. Fully audited and reversible only by
+                a further ledger entry.
+              </p>
+            </div>
+          )}
+
+          {valid && !ledgerMode && (
             <div className="rounded-lg border border-border bg-muted/20 px-3 py-2 space-y-1">
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
                 What this fix will change
