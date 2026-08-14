@@ -36,6 +36,7 @@ import { LendingAgentsPanel } from './LendingAgentsPanel';
 import { UserProfileDialog } from '@/components/supporter/UserProfileDialog';
 import { TrustCaptureTab } from './TrustCaptureTab';
 import { AgentPerformanceReport } from './AgentPerformanceReport';
+import { AgentProductsServicesReport } from './agent-ops/AgentProductsServicesReport';
 import { AgentAllocationReport } from './AgentAllocationReport';
 import { AgentFeatureFlagsPanel } from './AgentFeatureFlagsPanel';
 import { AgentBulkOpsConsole } from './AgentBulkOpsConsole';
