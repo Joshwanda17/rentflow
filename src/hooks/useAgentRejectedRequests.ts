@@ -31,6 +31,10 @@ export interface AgentRejectedRequest {
   registration_type: string | null;
   initial_outstanding_balance: number | null;
   outstanding_grace_days: number | null;
+  // Evidence the agent may need to replace on resubmit
+  house_image_urls: string[] | null;
+  lc_letter_path: string | null;
+  lc_letter_bucket: string | null;
   // Reviewer columns we resolve to a name
   tenant_ops_reviewed_by: string | null;
   tenant_ops_reviewed_at: string | null;
