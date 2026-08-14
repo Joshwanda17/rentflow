@@ -491,7 +491,7 @@ function AgentOpsSideNav({
     { title: 'Service Centers', keys: ['sc-overview', 'service-centres', 'sc-directory', 'sc-payouts', 'sc-requests', 'sc-operating-model'] },
     { title: 'Financials', keys: ['balances', 'float-payouts', 'earnings', 'locked-transfers', 'allocation-report', 'lending-agents'] },
     { title: 'Advances', keys: ['advances-analytics', 'advance-requests', 'active-advances', 'advance-potential', 'advance-limits', 'advance-repayments', 'advance-activity-correlation'] },
-    { title: 'Reports', keys: ['performance-report', 'allocation-report'] },
+    { title: 'Reports', keys: ['products-services-report', 'performance-report', 'allocation-report'] },
   ];
 
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
