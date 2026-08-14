@@ -27,8 +27,8 @@ import type { DateRange } from 'react-day-picker';
 
 
 
-// The overview is daily-only: KPIs always aggregate today, and every chart is
-// built from daily buckets. There is no range selector.
+// KPIs aggregate the selected date range. The trend chart always uses the last
+// 30 days so spark lines have enough daily buckets.
 const DAILY_TREND_DAYS = 30;
 
 type PresetKey = 'today' | 'yesterday' | 'five' | 'weekend' | 'month' | 'year' | 'custom';
