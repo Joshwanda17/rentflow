@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Loader2, RefreshCw, Send } from 'lucide-react';
+import { Loader2, RefreshCw, Send, Camera, FileImage, X } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { LandlordSearchSelect, type LandlordOption } from '@/components/agent/LandlordSearchSelect';
@@ -13,6 +13,8 @@ import PersonNameFields from '@/components/shared/PersonNameFields';
 import { joinPersonName, splitPersonName, type PersonNameParts } from '@/lib/authValidation';
 import { toast } from 'sonner';
 import { calculateRentRepayment, formatUGX } from '@/lib/rentCalculations';
+import { optimizeImage } from '@/lib/imageOptimizer';
+import { useAuth } from '@/hooks/useAuth';
 import type { AgentRejectedRequest } from '@/hooks/useAgentRejectedRequests';
 
 const HOUSE_CATEGORIES = [
@@ -35,6 +37,11 @@ const HOUSE_CATEGORIES = [
 
 const PREFERRED_LANGUAGES = ['English', 'Luganda', 'Runyankole', 'Lusoga', 'Acholi', 'Lugbara', 'Other'];
 
+/** Same four angles the original rent-request form captures. */
+const HOUSE_PHOTO_SLOTS = ['Front', 'Back', 'Left', 'Right'] as const;
+const ALLOWED_PHOTO_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+const ALLOWED_LC_TYPES = ['image/jpeg', 'image/jpg', 'image/png'];
+
 interface Props {
   request: AgentRejectedRequest | null;
   open: boolean;
@@ -43,6 +50,7 @@ interface Props {
 }
 
 export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResubmitted }: Props) {
+  const { user } = useAuth();
   const [rentAmount, setRentAmount] = useState('');
   const [duration, setDuration] = useState('30');
   const [numberOfPayments, setNumberOfPayments] = useState('4');
@@ -63,6 +71,16 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
   const [landlordPhone, setLandlordPhone] = useState('');
   const [landlordAddress, setLandlordAddress] = useState('');
   const [landlordOriginal, setLandlordOriginal] = useState<{ name: string; phone: string; address: string } | null>(null);
+  // ── Evidence: house photos + LC letter ──────────────────────────────
+  // `existingPhotos` are the URLs already on the request; `newPhotos` hold
+  // freshly picked files per slot. A slot with a new file replaces that index
+  // on resubmit; untouched slots keep their existing URL.
+  const [existingPhotos, setExistingPhotos] = useState<(string | null)[]>([]);
+  const [newPhotos, setNewPhotos] = useState<({ file: File; preview: string } | null)[]>([]);
+  const [existingLcPath, setExistingLcPath] = useState<string | null>(null);
+  const [existingLcUrl, setExistingLcUrl] = useState<string | null>(null);
+  const [newLcLetter, setNewLcLetter] = useState<{ file: File; preview: string } | null>(null);
+  const [uploadingEvidence, setUploadingEvidence] = useState(false);
 
   useEffect(() => {
     if (request) {
@@ -81,6 +99,23 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
       setGraceDays(
         request.outstanding_grace_days != null ? String(request.outstanding_grace_days) : ''
       );
+      // Hydrate the evidence editors.
+      const urls = Array.isArray(request.house_image_urls) ? request.house_image_urls : [];
+      setExistingPhotos(HOUSE_PHOTO_SLOTS.map((_, i) => urls[i] ?? null));
+      setNewPhotos(HOUSE_PHOTO_SLOTS.map(() => null));
+      setNewLcLetter(null);
+      setExistingLcPath(request.lc_letter_path ?? null);
+      setExistingLcUrl(null);
+      if (request.lc_letter_path) {
+        // LC letters live in a private bucket — a short-lived signed URL is the
+        // only way to preview what is already on file.
+        (async () => {
+          const { data } = await supabase.storage
+            .from(request.lc_letter_bucket || 'lc-letters')
+            .createSignedUrl(request.lc_letter_path as string, 600);
+          setExistingLcUrl(data?.signedUrl ?? null);
+        })();
+      }
       // Hydrate the landlord picker from the request's current landlord_id.
       (async () => {
         if (!request.landlord_id) {
@@ -121,6 +156,105 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
       address: landlord.property_address ?? '',
     });
   }, [landlord?.id]);
+
+  const pickPhoto = (slot: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!ALLOWED_PHOTO_TYPES.includes(file.type.toLowerCase())) {
+      toast.error('Unsupported image', { description: 'Use a JPG, PNG, WEBP or HEIC photo.' });
+      return;
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      toast.error('Photo too large', { description: 'Each house photo must be 15 MB or smaller.' });
+      return;
+    }
+    setNewPhotos((prev) => {
+      const next = [...prev];
+      if (next[slot]) URL.revokeObjectURL(next[slot]!.preview);
+      next[slot] = { file, preview: URL.createObjectURL(file) };
+      return next;
+    });
+  };
+
+  const clearNewPhoto = (slot: number) => {
+    setNewPhotos((prev) => {
+      const next = [...prev];
+      if (next[slot]) URL.revokeObjectURL(next[slot]!.preview);
+      next[slot] = null;
+      return next;
+    });
+  };
+
+  const pickLcLetter = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!ALLOWED_LC_TYPES.includes(file.type.toLowerCase())) {
+      toast.error('Only JPG, JPEG or PNG images are allowed for the LC letter');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('The LC letter must be 10 MB or smaller');
+      return;
+    }
+    if (newLcLetter) URL.revokeObjectURL(newLcLetter.preview);
+    setNewLcLetter({ file, preview: URL.createObjectURL(file) });
+  };
+
+  /**
+   * Push any newly picked evidence to storage and return the patch fragment.
+   * Photos overwrite the same deterministic paths the original submission
+   * used, so reviewers always look at the latest capture for each angle.
+   */
+  const uploadEvidence = async (requestId: string): Promise<Record<string, unknown>> => {
+    const patch: Record<string, unknown> = {};
+    if (!user) return patch;
+
+    const touchedPhoto = newPhotos.some(Boolean);
+    if (touchedPhoto) {
+      const finalUrls: string[] = [];
+      for (let i = 0; i < HOUSE_PHOTO_SLOTS.length; i++) {
+        const picked = newPhotos[i];
+        if (!picked) {
+          if (existingPhotos[i]) finalUrls.push(existingPhotos[i] as string);
+          continue;
+        }
+        const optimized = await optimizeImage(picked.file, { maxWidth: 1200, quality: 0.8 });
+        const ext = optimized.file.name.split('.').pop() || 'webp';
+        const path = `${user.id}/${requestId}/photo_${i}.${ext}`;
+        const { error } = await supabase.storage
+          .from('house-images')
+          .upload(path, optimized.file, { cacheControl: '86400', upsert: true });
+        if (error) throw new Error(`House photo (${HOUSE_PHOTO_SLOTS[i]}) upload failed: ${error.message}`);
+        const { data } = supabase.storage.from('house-images').getPublicUrl(path);
+        // Cache-bust so reviewers never see the replaced image from cache.
+        finalUrls.push(`${data.publicUrl}?v=${Date.now()}`);
+      }
+      // Keep any extra photos beyond the four slots.
+      const extras = (Array.isArray(request?.house_image_urls) ? request!.house_image_urls : []).slice(
+        HOUSE_PHOTO_SLOTS.length,
+      );
+      patch.house_image_urls = [...finalUrls, ...extras];
+    }
+
+    if (newLcLetter) {
+      const ext = (newLcLetter.file.name.split('.').pop() || 'jpg').toLowerCase();
+      const path = `${user.id}/${requestId}/lc_letter.${ext}`;
+      const { error } = await supabase.storage
+        .from('lc-letters')
+        .upload(path, newLcLetter.file, {
+          cacheControl: '86400',
+          upsert: true,
+          contentType: newLcLetter.file.type,
+        });
+      if (error) throw new Error(`LC letter upload failed: ${error.message}`);
+      patch.lc_letter_path = path;
+      patch.lc_letter_bucket = 'lc-letters';
+    }
+
+    return patch;
+  };
 
   if (!request) return null;
 
@@ -232,6 +366,18 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
       const nextPhone = landlordPhone.trim();
       const nextAddress = landlordAddress.trim();
 
+      // Upload replaced photos / LC letter FIRST so the resubmit carries the
+      // new evidence in the same patch the reviewer sees.
+      let evidencePatch: Record<string, unknown> = {};
+      if (newPhotos.some(Boolean) || newLcLetter) {
+        setUploadingEvidence(true);
+        try {
+          evidencePatch = await uploadEvidence(request.id);
+        } finally {
+          setUploadingEvidence(false);
+        }
+      }
+
       const patch: Record<string, unknown> = {
         rent_amount: rentNum,
         duration_days: durNum,
@@ -245,6 +391,7 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
         landlord_name: nextName,
         landlord_phone: nextPhone,
         landlord_address: nextAddress,
+        ...evidencePatch,
       };
       if (isOutstanding) {
         patch.initial_outstanding_balance = outstandingBalance ? Number(outstandingBalance) : null;
@@ -495,6 +642,102 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
             <Textarea id="note" rows={3} value={note} onChange={(e) => setNote(e.target.value)}
               placeholder="Explain what you corrected so the reviewer can re-check quickly…" />
           </div>
+
+          <div className="space-y-3 rounded-md border p-3">
+            <div>
+              <p className="text-sm font-medium flex items-center gap-1.5">
+                <Camera className="h-4 w-4 text-primary" /> House photos
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Tap a slot to retake or add a photo. Untouched slots keep the photo already on file.
+              </p>
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              {HOUSE_PHOTO_SLOTS.map((angle, i) => {
+                const picked = newPhotos[i];
+                const existing = existingPhotos[i];
+                const src = picked?.preview ?? existing ?? null;
+                return (
+                  <div key={angle} className="space-y-1">
+                    <label className="relative block aspect-square cursor-pointer overflow-hidden rounded-lg border bg-muted">
+                      {src ? (
+                        <img src={src} alt={`${angle} of the house`} className="h-full w-full object-cover" />
+                      ) : (
+                        <span className="flex h-full w-full items-center justify-center">
+                          <Camera className="h-5 w-5 text-muted-foreground" />
+                        </span>
+                      )}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="sr-only"
+                        onChange={(e) => pickPhoto(i, e)}
+                      />
+                    </label>
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-[10px] text-muted-foreground">{angle}</span>
+                      {picked && (
+                        <button
+                          type="button"
+                          onClick={() => clearNewPhoto(i)}
+                          className="text-[10px] text-destructive inline-flex items-center gap-0.5"
+                        >
+                          <X className="h-3 w-3" /> undo
+                        </button>
+                      )}
+                    </div>
+                    {picked && <p className="text-[10px] font-medium text-primary">New</p>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="space-y-2 rounded-md border p-3">
+            <p className="text-sm font-medium flex items-center gap-1.5">
+              <FileImage className="h-4 w-4 text-primary" /> LC letter
+            </p>
+            <div className="flex items-center gap-3">
+              {newLcLetter ? (
+                <img src={newLcLetter.preview} alt="New LC letter" className="h-16 w-16 rounded-lg border object-cover" />
+              ) : existingLcUrl ? (
+                <img src={existingLcUrl} alt="LC letter on file" className="h-16 w-16 rounded-lg border object-cover" />
+              ) : (
+                <span className="flex h-16 w-16 items-center justify-center rounded-lg border bg-muted">
+                  <FileImage className="h-5 w-5 text-muted-foreground" />
+                </span>
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-muted-foreground">
+                  {newLcLetter
+                    ? `New letter selected — ${(newLcLetter.file.size / (1024 * 1024)).toFixed(1)} MB`
+                    : existingLcPath
+                      ? 'A letter is already on file. Pick a new image only if it must be replaced.'
+                      : 'No LC letter on file. Add one if the reviewer asked for it.'}
+                </p>
+                <div className="mt-1.5 flex items-center gap-2">
+                  <label className="cursor-pointer text-xs font-medium text-primary underline">
+                    {existingLcPath || newLcLetter ? 'Replace letter' : 'Add letter'}
+                    <input type="file" accept="image/jpeg,image/jpg,image/png" className="sr-only" onChange={pickLcLetter} />
+                  </label>
+                  {newLcLetter && (
+                    <button
+                      type="button"
+                      className="text-xs text-destructive"
+                      onClick={() => {
+                        URL.revokeObjectURL(newLcLetter.preview);
+                        setNewLcLetter(null);
+                      }}
+                    >
+                      Undo
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+            <p className="text-[10px] text-muted-foreground">JPG, JPEG or PNG · max 10 MB.</p>
+          </div>
         </div>
 
         <DialogFooter className="sticky bottom-0 -mx-6 px-6 py-4 mt-2 bg-background border-t flex-col-reverse sm:flex-row gap-2 sm:gap-2 sm:space-x-0">
@@ -512,7 +755,7 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
             className="w-full sm:w-auto gap-2"
           >
             {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            Resubmit
+            {uploadingEvidence ? 'Uploading photos…' : 'Resubmit'}
           </Button>
         </DialogFooter>
       </DialogContent>
