@@ -2787,18 +2787,34 @@ async function sweepLinkedPendingDeposits(
 async function sweepUnlinkedMerchantFloatSends(
   supabase: ReturnType<typeof createClient>,
 ): Promise<void> {
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
+  // Deliberately SHORT window: this is a self-healing net for fresh gaps,
+  // not a mass historical backfill. Anything older than this is a finance
+  // decision and must be credited deliberately by FinOps.
+  const windowStart = new Date(Date.now() - 36 * 3600 * 1000).toISOString();
   const { data: rows, error } = await supabase
     .from('gmail_transactions')
     .select('id, gmail_message_id, amount, transaction_id, counterparty, channel, internal_date, direction')
     .is('linked_deposit_request_id', null)
     .eq('parsed', true)
     .in('direction', ['out', 'debit'])
-    .gte('internal_date', sevenDaysAgo)
+    .gte('internal_date', windowStart)
     .not('counterparty', 'is', null)
     .order('internal_date', { ascending: false })
     .limit(100);
   if (error || !rows?.length) return;
+
+  // Idempotency: never re-credit a TID the ledger already reconciled.
+  const tids = Array.from(
+    new Set((rows as any[]).map((r) => r.transaction_id).filter(Boolean).map(String)),
+  );
+  const reconciled = new Set<string>();
+  if (tids.length) {
+    const { data: recRows } = await supabase
+      .from('ledger_reconciled_tids')
+      .select('tid_normalized')
+      .in('tid_normalized', tids);
+    for (const rr of (recRows ?? []) as any[]) reconciled.add(String(rr.tid_normalized));
+  }
 
   const { data: agents } = await supabase
     .from('cashout_agents')
@@ -2821,6 +2837,7 @@ async function sweepUnlinkedMerchantFloatSends(
     const agentId = byLast9.get(digits.slice(-9));
     if (!agentId) continue;
     if (!r.amount || Number(r.amount) <= 0) continue;
+    if (r.transaction_id && reconciled.has(String(r.transaction_id))) continue;
     handled += 1;
 
     const ageMinutes = r.internal_date
