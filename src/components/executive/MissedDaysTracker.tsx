@@ -9,11 +9,13 @@ import { KPICard } from './KPICard';
 import { UserProfileSheet } from './UserProfileSheet';
 import {
   CalendarX2, Search, RefreshCw, Users, Banknote,
-  AlertTriangle, Phone, TrendingDown, Clock
+  AlertTriangle, Phone, TrendingDown, Clock, PhoneCall
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
-import { differenceInDays, parseISO } from 'date-fns';
+import { differenceInDays, parseISO, format } from 'date-fns';
 import { TenantOpsReportToolbar } from './TenantOpsReportToolbar';
+import { useTenantCallSummaries, type TenantCallSummary } from '@/hooks/useTenantCallReports';
+import { LogTenantCallDialog } from './LogTenantCallDialog';
 
 /** Fetches in batches so large tenant sets are never silently truncated. */
 const chunk = <T,>(list: T[], size = 300): T[][] => {
@@ -35,6 +37,7 @@ type SortBy = 'missed_days' | 'balance' | 'name';
 interface TenantMissedData {
   tenant_id: string;
   tenant_name: string;
+  rent_request_id: string;
   phone: string;
   daily_repayment: number;
   rent_amount: number;
@@ -57,7 +60,12 @@ export function MissedDaysTracker() {
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<SortBy>('missed_days');
   const [riskFilter, setRiskFilter] = useState<'all' | 'critical' | 'warning' | 'on_track'>('all');
+  // Call tracking (additive — no existing missed-days logic is affected).
+  const [callTab, setCallTab] = useState<'to_call' | 'called'>('to_call');
+  const [callAgainDays, setCallAgainDays] = useState<3 | 7 | 14>(3);
+  const [callTarget, setCallTarget] = useState<TenantMissedData | null>(null);
   const [profileSheet, setProfileSheet] = useState<{ userId: string; userName: string; userPhone?: string; userType: 'tenant' | 'agent' } | null>(null);
+  const { data: callSummaries } = useTenantCallSummaries();
 
   // Active rent plans from the platform's authoritative daily-eligibility view —
   // identical population to the Tenant Ops counters and Daily Payments tool.
@@ -184,6 +192,7 @@ export function MissedDaysTracker() {
         tenantMap.set(r.tenant_id, {
           tenant_id: r.tenant_id,
           tenant_name: profile?.name || r.tenant_id.slice(0, 8),
+          rent_request_id: r.id,
           phone: profile?.phone || '',
           daily_repayment: dailyRepayment,
           rent_amount: Number(r.rent_amount || 0),
@@ -214,19 +223,37 @@ export function MissedDaysTracker() {
     return 'on_track';
   };
 
+  const callInfo = (tenantId: string): TenantCallSummary | undefined => callSummaries?.get(tenantId);
+
+  /** Reached and still inside the Call Again window → sits in "Called / Waiting". */
+  const isCalled = (tenantId: string) => {
+    const s = callInfo(tenantId);
+    if (!s || s.last_outcome !== 'picked_up' || !s.last_picked_up_at) return false;
+    return differenceInDays(new Date(), parseISO(s.last_picked_up_at)) < callAgainDays;
+  };
+
   const filtered = useMemo(() => {
     let list = tenantList;
+    // Call bucket: a tenant is "Called / Waiting" only while the last successful
+    // (picked up) call is still inside the selected Call Again window.
+    list = list.filter(t => (callTab === 'called' ? isCalled(t.tenant_id) : !isCalled(t.tenant_id)));
+    if (callTab === 'called') list = list.filter(t => (callSummaries?.get(t.tenant_id)?.call_count || 0) > 0);
     if (riskFilter !== 'all') list = list.filter(t => getRisk(t) === riskFilter);
     if (search) {
       const q = search.toLowerCase();
       list = list.filter(t => t.tenant_name.toLowerCase().includes(q) || t.phone.includes(q));
     }
     return list.sort((a, b) => {
+      if (callTab === 'called') {
+        const at = callSummaries?.get(a.tenant_id)?.last_call_at;
+        const bt = callSummaries?.get(b.tenant_id)?.last_call_at;
+        if (at || bt) return new Date(bt || 0).getTime() - new Date(at || 0).getTime();
+      }
       if (sortBy === 'missed_days') return b.missed_days - a.missed_days;
       if (sortBy === 'balance') return b.outstanding_balance - a.outstanding_balance;
       return a.tenant_name.localeCompare(b.tenant_name);
     });
-  }, [tenantList, riskFilter, search, sortBy]);
+  }, [tenantList, riskFilter, search, sortBy, callTab, callSummaries, callAgainDays]);
 
   const criticalCount = tenantList.filter(t => getRisk(t) === 'critical').length;
   const warningCount = tenantList.filter(t => getRisk(t) === 'warning').length;
@@ -302,12 +329,42 @@ export function MissedDaysTracker() {
       </div>
 
       <TenantOpsReportToolbar
-        tool="missed_days"
+        tool={callTab === 'called' ? 'calls_made' : 'missed_days'}
         status={riskFilter}
         search={search}
         visibleCount={filtered.length}
-        fileSlug="tenants-behind-on-payments"
+        fileSlug={callTab === 'called' ? 'tenant-calls-made' : 'tenants-behind-on-payments'}
       />
+
+      {/* Call workflow: To Call vs Called / Waiting + Call Again window */}
+      <div className="flex flex-wrap items-center gap-2 px-1">
+        {([
+          { key: 'to_call' as const, label: 'To Call' },
+          { key: 'called' as const, label: 'Calls Made' },
+        ]).map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setCallTab(tab.key)}
+            className={`px-3.5 py-2 rounded-full text-xs font-medium transition-all min-h-[36px] ${
+              callTab === tab.key ? 'bg-primary/10 text-primary ring-1 ring-primary/30' : 'bg-muted/50 text-muted-foreground active:bg-muted'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+        <span className="text-[10px] text-muted-foreground ml-1">Call again after:</span>
+        {([3, 7, 14] as const).map(d => (
+          <button
+            key={d}
+            onClick={() => setCallAgainDays(d)}
+            className={`px-3 py-1.5 rounded-full text-[11px] font-medium transition-all min-h-[30px] ${
+              callAgainDays === d ? 'bg-foreground/10 text-foreground' : 'text-muted-foreground active:text-foreground'
+            }`}
+          >
+            {d}d
+          </button>
+        ))}
+      </div>
 
       {/* Sticky search + filters */}
       <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm pb-2 -mx-1 px-1 space-y-2">
@@ -428,6 +485,18 @@ export function MissedDaysTracker() {
                         <span>•</span>
                         <span>{t.repayment_pct}% repaid</span>
                       </div>
+                      {(() => {
+                        const s = callInfo(t.tenant_id);
+                        if (!s) return null;
+                        return (
+                          <div className="mt-1 text-[10px] text-muted-foreground">
+                            <span className="font-medium text-foreground">{s.call_count} call{s.call_count === 1 ? '' : 's'}</span>
+                            {s.last_call_at && <> · last {format(new Date(s.last_call_at), 'dd MMM HH:mm')}</>}
+                            {s.last_outcome && <> · {s.last_outcome === 'picked_up' ? 'Picked up' : 'Missed call'}</>}
+                            {s.latest_comment && <p className="italic truncate">“{s.latest_comment}”</p>}
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     {/* Quick call */}
@@ -501,15 +570,25 @@ export function MissedDaysTracker() {
                       )}
                     </div>
 
-                    {/* View profile button */}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full h-10 text-xs font-medium"
-                      onClick={() => setProfileSheet({ userId: t.tenant_id, userName: t.tenant_name, userPhone: t.phone, userType: 'tenant' })}
-                    >
-                      View Tenant Profile
-                    </Button>
+                    {/* Call logging + profile */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="h-10 text-xs font-medium"
+                        onClick={() => setCallTarget(t)}
+                      >
+                        <PhoneCall className="h-3.5 w-3.5 mr-1.5" /> Log call
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-10 text-xs font-medium"
+                        onClick={() => setProfileSheet({ userId: t.tenant_id, userName: t.tenant_name, userPhone: t.phone, userType: 'tenant' })}
+                      >
+                        View Tenant Profile
+                      </Button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -526,6 +605,20 @@ export function MissedDaysTracker() {
           userName={profileSheet.userName}
           userPhone={profileSheet.userPhone}
           userType={profileSheet.userType}
+        />
+      )}
+
+      {callTarget && (
+        <LogTenantCallDialog
+          open={!!callTarget}
+          onClose={() => setCallTarget(null)}
+          tenantId={callTarget.tenant_id}
+          tenantName={callTarget.tenant_name}
+          tenantPhone={callTarget.phone}
+          rentRequestId={callTarget.rent_request_id}
+          missedDays={callTarget.missed_days}
+          dailyRepayment={callTarget.daily_repayment}
+          outstandingBalance={callTarget.outstanding_balance}
         />
       )}
     </div>

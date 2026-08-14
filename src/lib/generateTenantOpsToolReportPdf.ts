@@ -15,6 +15,7 @@ export type TenantOpsTool =
   | 'review_requests'
   | 'approval_history'
   | 'missed_days'
+  | 'calls_made'
   | 'daily_payments'
   | 'tenant_behavior'
   | 'transfer_audit';
@@ -190,6 +191,51 @@ const TOOL_CONFIG: Record<TenantOpsTool, ToolConfig> = {
       { label: 'Outstanding', w: 26, align: 'right', get: r => num(r.outstanding_balance) },
       { label: '%', w: 12, align: 'right', get: r => `${num(r.repayment_pct)}%` },
       { label: 'Last paid', w: 24, get: r => dt(r.last_payment_at) },
+      { label: 'Calls', w: 14, align: 'right', get: r => num(r.call_count) },
+      { label: 'Last call', w: 26, get: r => dt(r.last_call_at, true) },
+      { label: 'Outcome', w: 22, get: r => pretty(r.last_call_outcome) },
+      { label: 'Latest comment', w: 46, get: r => txt(r.latest_call_comment) },
+    ],
+  },
+
+  calls_made: {
+    title: 'Tenant Calls Made',
+    dateBasis: 'date the tenant rent plan was disbursed (call history is all-time)',
+    accent: [79, 70, 229],
+    statusLabel: 'Risk band',
+    kpis: rows => [
+      { label: 'TENANTS CALLED', value: num(distinct(rows, 'tenant_id')) },
+      { label: 'TOTAL CALLS', value: num(sum(rows, 'call_count')) },
+      { label: 'PICKED UP', value: num(rows.filter(r => r.last_call_outcome === 'picked_up').length) },
+      { label: 'STILL MISSED', value: num(rows.filter(r => r.last_call_outcome === 'missed').length) },
+      { label: 'MISSED DAYS', value: num(sum(rows, 'missed_days')) },
+      { label: 'OUTSTANDING', value: ugx(sum(rows, 'outstanding_balance')) },
+      { label: 'DAILY EXPECTED', value: ugx(sum(rows, 'daily_repayment')) },
+      { label: 'WITH COMMENT', value: num(rows.filter(r => txt(r.latest_call_comment, '') !== '').length) },
+    ],
+    breakdown: {
+      heading: 'Calls by agent',
+      keyLabel: 'Agent',
+      key: r => txt(r.agent_name, 'Unassigned'),
+      metrics: [
+        { label: 'Tenants', w: 22, value: rs => num(distinct(rs, 'tenant_id')) },
+        { label: 'Calls', w: 20, value: rs => num(sum(rs, 'call_count')) },
+        { label: 'Missed days', w: 28, value: rs => num(sum(rs, 'missed_days')) },
+        { label: 'Outstanding (UGX)', w: 40, value: rs => num(sum(rs, 'outstanding_balance')) },
+      ],
+    },
+    columns: [
+      { label: 'Tenant', w: 38, get: r => txt(r.tenant_name) },
+      { label: 'Phone', w: 24, get: r => txt(r.tenant_phone) },
+      { label: 'Agent', w: 32, get: r => txt(r.agent_name) },
+      { label: 'Calls', w: 14, align: 'right', get: r => num(r.call_count) },
+      { label: 'Last call', w: 26, get: r => dt(r.last_call_at, true) },
+      { label: 'Outcome', w: 22, get: r => pretty(r.last_call_outcome) },
+      { label: 'Missed', w: 16, align: 'right', get: r => num(r.missed_days) },
+      { label: 'Daily', w: 20, align: 'right', get: r => num(r.daily_repayment) },
+      { label: 'Outstanding', w: 26, align: 'right', get: r => num(r.outstanding_balance) },
+      { label: 'Last paid', w: 24, get: r => dt(r.last_payment_at) },
+      { label: 'Latest comment', w: 58, get: r => txt(r.latest_call_comment) },
     ],
   },
 
