@@ -42,12 +42,22 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
   // Show every merchant desk that finance can act on — an agent with no
   // activity yet (or a fully settled one) must still be visible here so this
   // board matches the merchant agent roster.
-  const rows = (data ?? []).filter(
-    (r) => r.isActive || r.paidOut > 0 || r.reimbursed > 0 || r.companyCashWithAgent > 0,
-  );
+  const rows = (data ?? [])
+    .filter(
+      (r) => r.isActive || r.paidOut > 0 || r.reimbursed > 0 || r.companyCashWithAgent > 0,
+    )
+    .sort((a, b) => {
+      const latest = (r: MerchantFloatPosition) =>
+        Math.max(
+          r.lastPayoutAt ? new Date(r.lastPayoutAt).getTime() : 0,
+          r.lastReimbursedAt ? new Date(r.lastReimbursedAt).getTime() : 0,
+        );
+      return latest(b) - latest(a);
+    });
   const heldTotal = rows.reduce((s, r) => s + spendableFloat(r), 0);
   const owedTotal = rows.reduce((s, r) => s + r.owedToAgent, 0);
   const floatTotal = rows.reduce((s, r) => s + spendableFloat(r), 0);
+
 
   return (
     <div className="rounded-2xl border border-border bg-card p-5 min-w-0">
