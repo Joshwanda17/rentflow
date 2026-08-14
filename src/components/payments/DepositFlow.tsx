@@ -2037,7 +2037,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
             </div>
 
             {/* ─── Reference / TID / Receipt ─── */}
-            {channel !== 'agent_cash' && channel !== 'cash' ? (
+            {/* {channel !== 'agent_cash' && channel !== 'cash' ? (
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between gap-2">
                   <Label className="text-xs flex items-center gap-1.5">
@@ -2130,7 +2130,8 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                   </div>
                 )}
               </>
-            )}
+            )} */}
+
 
             {/* ─── Bank slip upload (optional) ─── */}
             {channel === 'bank' && (
@@ -2203,7 +2204,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
             )}
 
             {/* ─── Date & Time ─── */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {/* <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div className="space-y-1.5">
                 <Label className="text-xs flex items-center gap-1"><Calendar className="h-3.5 w-3.5" /> Date</Label>
                 <Input id="deposit-date" type="date" value={transactionDate} onChange={(e) => setTransactionDate(e.target.value)} min={sevenDaysAgo} max={today} className={`h-10 text-xs ${errClass('deposit-date')}`} />
@@ -2212,7 +2213,8 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                 <Label className="text-xs flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> Time</Label>
                 <Input id="deposit-time" type="time" value={transactionTime} onChange={(e) => setTransactionTime(e.target.value)} className={`h-10 text-xs ${errClass('deposit-time')}`} />
               </div>
-            </div>
+            </div> */}
+
 
             {/* ─── Deposit Purpose ─── */}
             <div id="deposit-purpose" className={`space-y-2 scroll-mt-4 rounded-md ${errorFieldId === 'deposit-purpose' ? 'ring-2 ring-destructive/40 p-2 -m-2 border border-destructive/40' : ''}`}>
