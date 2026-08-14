@@ -2844,48 +2844,24 @@ async function sweepUnlinkedMerchantFloatSends(
       ? (Date.now() - new Date(r.internal_date).getTime()) / 60000
       : 0;
     console.log(
-      `[gmail-poll] orphan merchant float send row=${r.id} agent=${agentId} amt=${r.amount} → attempting credit`,
+      `[gmail-poll] orphan merchant float send row=${r.id} agent=${agentId} amt=${r.amount} → flagged for FinOps (no auto-credit)`,
     );
-    // Leave the trace first so "detected" is never invisible, even if the
-    // credit attempt below dies mid-flight. Resolved on success.
+    // DETECT + FLAG ONLY. This backstop deliberately does NOT credit: money
+    // moving forward is handled live by creditMerchantFloatFromOutboundSms and
+    // by the linked-pending retry sweep. Retroactive crediting of historical
+    // sends is a finance decision, not an automation decision, so the sweep
+    // only makes the gap visible and leaves the money alone.
     await raiseMerchantFloatAlert(supabase, {
       gmailRowId: String(r.id),
       agentId,
       amount: Number(r.amount),
       transactionId: r.transaction_id ?? null,
       counterparty: r.counterparty ?? null,
-      reason: 'Outbound send to a registered merchant float phone had no linked receipt; backstop sweep is crediting it.',
+      reason: 'Outbound send to a registered merchant float phone has no linked receipt and was NOT auto-credited. FinOps review required.',
       severity: 'high',
       ageMinutes,
-      extra: { stage: 'unlinked_backstop_sweep' },
+      extra: { stage: 'unlinked_backstop_detected_no_credit', auto_credited: false },
     });
-    try {
-      await creditMerchantFloatFromOutboundSms(supabase, {
-        agentId,
-        parsed: {
-          amount: Number(r.amount),
-          transaction_id: r.transaction_id ?? null,
-          channel: r.channel ?? null,
-          direction: 'out',
-          counterparty: r.counterparty ?? null,
-        } as any,
-        gmailMessageId: String(r.gmail_message_id),
-        internalMs: r.internal_date ? new Date(r.internal_date).getTime() : Date.now(),
-      });
-    } catch (e) {
-      console.warn('[gmail-poll] orphan merchant float credit failed:', e);
-      await raiseMerchantFloatAlert(supabase, {
-        gmailRowId: String(r.id),
-        agentId,
-        amount: Number(r.amount),
-        transactionId: r.transaction_id ?? null,
-        counterparty: r.counterparty ?? null,
-        reason: `Backstop sweep could not credit this float send: ${String(e)}`,
-        severity: 'critical',
-        ageMinutes,
-        extra: { stage: 'unlinked_backstop_sweep_failed' },
-      });
-    }
   }
 }
 // ── Helper: auto-approve a pending MoMo withdrawal request when an outgoing
