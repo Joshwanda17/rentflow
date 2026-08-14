@@ -31,7 +31,7 @@ import COOOverviewSnapshot from '@/components/coo/COOOverviewSnapshot';
 import { AgentNetworkBadge } from '@/components/executive/tenant-ops/AgentNetworkBadge';
 import {
   Activity, ClipboardList, Users, Wallet, BarChart3,
-  FileText, AlertTriangle, Banknote, Handshake, UserCheck, UserPlus,
+  FileText, Banknote, Handshake, UserCheck, UserPlus,
   TrendingUp, ArrowLeft, ChevronRight, Receipt, Home, CalendarCheck, Megaphone, Globe2, Landmark
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
