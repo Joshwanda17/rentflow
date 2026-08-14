@@ -13874,6 +13874,7 @@ export type Database = {
           motivation: string | null
           phone: string
           preferred_contact_channel: string | null
+          public_ref: string | null
           purged_at: string | null
           ready_to_learn: boolean | null
           referral_code: string | null
@@ -13908,6 +13909,7 @@ export type Database = {
           motivation?: string | null
           phone: string
           preferred_contact_channel?: string | null
+          public_ref?: string | null
           purged_at?: string | null
           ready_to_learn?: boolean | null
           referral_code?: string | null
@@ -13942,6 +13944,7 @@ export type Database = {
           motivation?: string | null
           phone?: string
           preferred_contact_channel?: string | null
+          public_ref?: string | null
           purged_at?: string | null
           ready_to_learn?: boolean | null
           referral_code?: string | null
