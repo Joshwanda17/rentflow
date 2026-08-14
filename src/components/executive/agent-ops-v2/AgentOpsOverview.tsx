@@ -31,6 +31,52 @@ import type { DateRange } from 'react-day-picker';
 // built from daily buckets. There is no range selector.
 const DAILY_TREND_DAYS = 30;
 
+type PresetKey = 'today' | 'yesterday' | 'five' | 'weekend' | 'month' | 'year' | 'custom';
+
+const PRESETS: { key: PresetKey; label: string }[] = [
+  { key: 'today', label: 'Today' },
+  { key: 'yesterday', label: 'Yesterday' },
+  { key: 'five', label: 'Last 5 days' },
+  { key: 'weekend', label: 'Weekend' },
+  { key: 'month', label: 'This month' },
+  { key: 'year', label: 'This year' },
+  { key: 'custom', label: 'Custom range' },
+];
+
+/** Most recent Saturday + Sunday pair (inclusive), based on local device date. */
+function lastWeekend(now: Date): { start: Date; end: Date } {
+  let sat = startOfDay(now);
+  while (sat.getDay() !== 6) sat = subDays(sat, 1);
+  return { start: sat, end: endOfDay(addDays(sat, 1)) };
+}
+
+function resolveRange(preset: PresetKey, custom?: DateRange): { start: Date; end: Date } {
+  const now = new Date();
+  switch (preset) {
+    case 'today':
+      return { start: startOfDay(now), end: endOfDay(now) };
+    case 'yesterday': {
+      const y = subDays(now, 1);
+      return { start: startOfDay(y), end: endOfDay(y) };
+    }
+    case 'five':
+      return { start: startOfDay(subDays(now, 4)), end: endOfDay(now) };
+    case 'weekend': {
+      const w = lastWeekend(now);
+      return { start: w.start, end: w.end };
+    }
+    case 'month':
+      return { start: startOfMonth(now), end: endOfDay(now) };
+    case 'year':
+      return { start: startOfYear(now), end: endOfDay(now) };
+    case 'custom': {
+      const from = custom?.from ? startOfDay(custom.from) : startOfDay(now);
+      const to = custom?.to ? endOfDay(custom.to) : endOfDay(custom?.from ?? now);
+      return { start: from, end: to };
+    }
+  }
+}
+
 function fmtMoney(n: number): string {
   if (n >= 1e9) return `UGX ${(n / 1e9).toFixed(2)}B`;
   if (n >= 1e6) return `UGX ${(n / 1e6).toFixed(2)}M`;
