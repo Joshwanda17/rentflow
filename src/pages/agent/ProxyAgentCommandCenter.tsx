@@ -24,7 +24,6 @@ import { formatDynamic } from '@/lib/currencyFormat';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
 
 import { PromissoryNoteDialog } from '@/components/agent/PromissoryNoteDialog';
-import { useMyProxyAgentStatus } from '@/hooks/useProxyAgentApproval';
 import { WithdrawRequestDialog } from '@/components/wallet/WithdrawRequestDialog';
 import {
   useProxyCommandCenterSummary,
