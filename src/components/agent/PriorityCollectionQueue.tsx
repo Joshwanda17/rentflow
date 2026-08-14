@@ -96,6 +96,17 @@ export function PriorityCollectionQueue({ open, onOpenChange, agentId }: Props) 
     staleTime: 60000,
   });
 
+  useEffect(() => {
+    if (open) setPage(1);
+  }, [open]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [queue.length]);
+
+  const totalPages = Math.max(1, Math.ceil(queue.length / PAGE_SIZE));
+  const paginatedQueue = queue.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
   const riskColors = {
     low: 'border-success/30 bg-success/5',
     medium: 'border-warning/30 bg-warning/5',
