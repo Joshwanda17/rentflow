@@ -2773,6 +2773,97 @@ async function sweepLinkedPendingDeposits(
     }
   }
 }
+
+// ── Recovery sweep #2: OUTBOUND company sends to a registered merchant
+// float phone that never got a linked deposit receipt at all. Self-healing
+// net for any silent gap in the credit chain; independent of Rule 3.
+async function sweepUnlinkedMerchantFloatSends(
+  supabase: ReturnType<typeof createClient>,
+): Promise<void> {
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
+  const { data: rows, error } = await supabase
+    .from('gmail_transactions')
+    .select('id, gmail_message_id, amount, transaction_id, counterparty, channel, internal_date, direction')
+    .is('linked_deposit_request_id', null)
+    .eq('parsed', true)
+    .in('direction', ['out', 'debit'])
+    .gte('internal_date', sevenDaysAgo)
+    .not('counterparty', 'is', null)
+    .order('internal_date', { ascending: false })
+    .limit(100);
+  if (error || !rows?.length) return;
+
+  const { data: agents } = await supabase
+    .from('cashout_agents')
+    .select('agent_id, float_phone')
+    .eq('is_active', true)
+    .not('float_phone', 'is', null);
+  if (!agents?.length) return;
+
+  const byLast9 = new Map<string, string>();
+  for (const a of agents as any[]) {
+    const d = String(a.float_phone ?? '').replace(/[^0-9]/g, '');
+    if (d.length >= 9) byLast9.set(d.slice(-9), String(a.agent_id));
+  }
+
+  let handled = 0;
+  for (const r of rows as any[]) {
+    if (handled >= 10) break;
+    const digits = String(r.counterparty ?? '').replace(/[^0-9]/g, '');
+    if (digits.length < 9) continue;
+    const agentId = byLast9.get(digits.slice(-9));
+    if (!agentId) continue;
+    if (!r.amount || Number(r.amount) <= 0) continue;
+    handled += 1;
+
+    const ageMinutes = r.internal_date
+      ? (Date.now() - new Date(r.internal_date).getTime()) / 60000
+      : 0;
+    console.log(
+      `[gmail-poll] orphan merchant float send row=${r.id} agent=${agentId} amt=${r.amount} → attempting credit`,
+    );
+    // Leave the trace first so "detected" is never invisible, even if the
+    // credit attempt below dies mid-flight. Resolved on success.
+    await raiseMerchantFloatAlert(supabase, {
+      gmailRowId: String(r.id),
+      agentId,
+      amount: Number(r.amount),
+      transactionId: r.transaction_id ?? null,
+      counterparty: r.counterparty ?? null,
+      reason: 'Outbound send to a registered merchant float phone had no linked receipt; backstop sweep is crediting it.',
+      severity: 'high',
+      ageMinutes,
+      extra: { stage: 'unlinked_backstop_sweep' },
+    });
+    try {
+      await creditMerchantFloatFromOutboundSms(supabase, {
+        agentId,
+        parsed: {
+          amount: Number(r.amount),
+          transaction_id: r.transaction_id ?? null,
+          channel: r.channel ?? null,
+          direction: 'out',
+          counterparty: r.counterparty ?? null,
+        } as any,
+        gmailMessageId: String(r.gmail_message_id),
+        internalMs: r.internal_date ? new Date(r.internal_date).getTime() : Date.now(),
+      });
+    } catch (e) {
+      console.warn('[gmail-poll] orphan merchant float credit failed:', e);
+      await raiseMerchantFloatAlert(supabase, {
+        gmailRowId: String(r.id),
+        agentId,
+        amount: Number(r.amount),
+        transactionId: r.transaction_id ?? null,
+        counterparty: r.counterparty ?? null,
+        reason: `Backstop sweep could not credit this float send: ${String(e)}`,
+        severity: 'critical',
+        ageMinutes,
+        extra: { stage: 'unlinked_backstop_sweep_failed' },
+      });
+    }
+  }
+}
 // ── Helper: auto-approve a pending MoMo withdrawal request when an outgoing
 // MTN/Airtel email matches the recipient phone + amount + provider on a
 // pending withdrawal_request. Runs the request through approve-withdrawal
