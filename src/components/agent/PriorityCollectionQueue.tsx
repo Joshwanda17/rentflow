@@ -158,7 +158,7 @@ export function PriorityCollectionQueue({ open, onOpenChange, agentId }: Props) 
               <p className="text-success font-semibold">🎉 All tenants are up to date!</p>
             </div>
           ) : (
-            queue.map((item, idx) => (
+            paginatedQueue.map((item, idx) => (
               <div
                 key={item.tenant_id + idx}
                 className={cn(
@@ -169,7 +169,7 @@ export function PriorityCollectionQueue({ open, onOpenChange, agentId }: Props) 
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-xs font-bold text-muted-foreground w-5 shrink-0">#{idx + 1}</span>
+                    <span className="text-xs font-bold text-muted-foreground w-5 shrink-0">#{(page - 1) * PAGE_SIZE + idx + 1}</span>
                     <div className="min-w-0">
                       <p className="font-semibold text-sm truncate">{item.tenant_name}</p>
                       <p className={cn("text-[10px] font-medium", riskLabels[item.risk_level].color)}>
