@@ -2604,7 +2604,10 @@ async function sweepLinkedPendingDeposits(
     .select('id, linked_deposit_request_id, amount, transaction_id, internal_date, direction, parsed')
     .not('linked_deposit_request_id', 'is', null)
     .eq('parsed', true)
-    .in('direction', ['in', 'credit'])
+    // Include OUTBOUND ("sent to") company float-delivery SMS: those are
+    // the rows behind merchant float credits, and excluding them left
+    // orphaned pending float receipts stuck forever.
+    .in('direction', ['in', 'credit', 'out', 'debit'])
     .gte('internal_date', sevenDaysAgo)
     .order('internal_date', { ascending: false })
     .limit(100);
