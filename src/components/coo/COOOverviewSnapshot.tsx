@@ -82,7 +82,7 @@ const STATUS_LABEL: Record<string, string> = {
   service_center_review: 'Service centre vetting',
   agent_ops_approved: 'Agent Ops cleared',
   tenant_ops_approved: 'Tenant Ops cleared',
-  landlord_ops_approved: 'Ready for your sign-off',
+  landlord_ops_approved: 'Pending COO approval',
 };
 
 function statusTone(status: string) {
