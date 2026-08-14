@@ -22601,6 +22601,7 @@ export type Database = {
           country_code: string | null
           created_at: string
           district: string | null
+          district_id: number | null
           easy_read_size: number
           email: string
           evicted_at: string | null
@@ -22691,6 +22692,7 @@ export type Database = {
           country_code?: string | null
           created_at?: string
           district?: string | null
+          district_id?: number | null
           easy_read_size?: number
           email: string
           evicted_at?: string | null
@@ -22781,6 +22783,7 @@ export type Database = {
           country_code?: string | null
           created_at?: string
           district?: string | null
+          district_id?: number | null
           easy_read_size?: number
           email?: string
           evicted_at?: string | null
@@ -22903,6 +22906,34 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_lc1_verification_inbox"
             referencedColumns: ["lc1_id"]
+          },
+          {
+            foreignKeyName: "profiles_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "mv_ug_district_alias"
+            referencedColumns: ["district_id"]
+          },
+          {
+            foreignKeyName: "profiles_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "mv_ug_subcounty_alias"
+            referencedColumns: ["district_id"]
+          },
+          {
+            foreignKeyName: "profiles_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "mv_ug_village_geo"
+            referencedColumns: ["district_id"]
+          },
+          {
+            foreignKeyName: "profiles_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "ug_districts"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "profiles_merchant_agent_referrer_id_fkey"
@@ -29754,6 +29785,53 @@ export type Database = {
           },
           {
             foreignKeyName: "ug_counties_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "ug_districts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ug_district_aliases: {
+        Row: {
+          alias: string
+          created_at: string
+          district_id: number
+        }
+        Insert: {
+          alias: string
+          created_at?: string
+          district_id: number
+        }
+        Update: {
+          alias?: string
+          created_at?: string
+          district_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ug_district_aliases_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "mv_ug_district_alias"
+            referencedColumns: ["district_id"]
+          },
+          {
+            foreignKeyName: "ug_district_aliases_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "mv_ug_subcounty_alias"
+            referencedColumns: ["district_id"]
+          },
+          {
+            foreignKeyName: "ug_district_aliases_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "mv_ug_village_geo"
+            referencedColumns: ["district_id"]
+          },
+          {
+            foreignKeyName: "ug_district_aliases_district_id_fkey"
             columns: ["district_id"]
             isOneToOne: false
             referencedRelation: "ug_districts"
@@ -40641,7 +40719,9 @@ export type Database = {
         Args: { p_deposit_id: string }
         Returns: Json
       }
+      ug_canonical_region: { Args: { p_text: string }; Returns: string }
       ug_norm_name: { Args: { p: string }; Returns: string }
+      ug_resolve_district_id: { Args: { p_text: string }; Returns: number }
       ug_resolve_village: {
         Args: { p_village_id: number }
         Returns: {
