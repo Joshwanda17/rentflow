@@ -7,6 +7,7 @@ import { COOROIApprovals } from '@/components/coo/COOROIApprovals';
 import { CancelledProxyWithdrawals } from '@/components/coo/CancelledProxyWithdrawals';
 import FinancialTransactionsTable from '@/components/coo/FinancialTransactionsTable';
 import AgentCollectionsOverview from '@/components/coo/AgentCollectionsOverview';
+import { AgentCollectionsCommandCenter } from '@/components/executive/agent-ops-v2/AgentCollectionsCommandCenter';
 import FinancialReportsPanel from '@/components/coo/FinancialReportsPanel';
 import COOPartnersPage from '@/components/coo/COOPartnersPage';
 import { StaffPerformancePanel } from '@/components/executive/StaffPerformancePanel';
@@ -133,6 +134,7 @@ export default function COODashboardPage() {
           <div className="space-y-3">
             {isMobile && renderBackButton('Overview')}
             {renderSectionHeader('Agent Collections', Users)}
+            <AgentCollectionsCommandCenter />
             <AgentCollectionsOverview />
           </div>
         );
