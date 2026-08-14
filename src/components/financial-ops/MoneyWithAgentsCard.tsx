@@ -1,7 +1,11 @@
 import { useState } from 'react';
 import { Wallet, HandCoins, ArrowRightLeft, AlertTriangle, SlidersHorizontal } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
-import { useMerchantFloatPositions, MerchantFloatPosition } from '@/hooks/useMerchantFloat';
+import {
+  useMerchantFloatPositions,
+  useMerchantFloatLedgerVariance,
+  MerchantFloatPosition,
+} from '@/hooks/useMerchantFloat';
 import { MerchantReconcileDialog } from './MerchantReconcileDialog';
 import { MerchantFloatStatementDialog } from './MerchantFloatStatementDialog';
 import { MerchantOwnMoneyReviewPanel } from './MerchantOwnMoneyReviewPanel';
@@ -20,8 +24,20 @@ import { MerchantOwnMoneyReviewPanel } from './MerchantOwnMoneyReviewPanel';
  */
 export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () => void }) {
   const { data, isLoading, error } = useMerchantFloatPositions();
+  const { data: variance } = useMerchantFloatLedgerVariance();
   const [reconciling, setReconciling] = useState<MerchantFloatPosition | null>(null);
   const [statementFor, setStatementFor] = useState<MerchantFloatPosition | null>(null);
+
+  // The cached float on `wallets` can drift above what the ledger actually
+  // proves. Finance must see the SPENDABLE figure, so the cache is only ever
+  // allowed to reduce it — never inflate it (same strict rule as withdrawable).
+  const varianceByDesk = new Map((variance ?? []).map((v) => [v.deskId, v]));
+  const spendableFloat = (r: MerchantFloatPosition) => {
+    const v = varianceByDesk.get(r.deskId);
+    const cached = Math.max(0, r.ledgerFloatHeld);
+    if (!v) return cached;
+    return Math.max(0, Math.min(cached, Math.max(0, v.ledgerFloat)));
+  };
 
   // Show every merchant desk that finance can act on — an agent with no
   // activity yet (or a fully settled one) must still be visible here so this
@@ -31,7 +47,7 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
   );
   const heldTotal = rows.reduce((s, r) => s + r.companyCashWithAgent, 0);
   const owedTotal = rows.reduce((s, r) => s + r.owedToAgent, 0);
-  const floatTotal = rows.reduce((s, r) => s + Math.max(0, r.ledgerFloatHeld), 0);
+  const floatTotal = rows.reduce((s, r) => s + spendableFloat(r), 0);
 
   return (
     <div className="rounded-2xl border border-border bg-card p-5 min-w-0">
@@ -128,7 +144,12 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
                     {r.agentName || r.label || 'Merchant agent'}
                   </button>
                   <p className="text-[11px] font-semibold text-primary tabular-nums">
-                    Float balance: {formatUGX(Math.max(0, r.ledgerFloatHeld))}
+                    Float balance: {formatUGX(spendableFloat(r))}
+                    {spendableFloat(r) < Math.max(0, r.ledgerFloatHeld) && (
+                      <span className="ml-1 font-normal text-muted-foreground">
+                        (shown on their phone {formatUGX(Math.max(0, r.ledgerFloatHeld))} — books prove less)
+                      </span>
+                    )}
                   </p>
                   <p className="text-[11px] text-muted-foreground truncate">
                     {r.agentPhone || '—'} · they paid out {formatUGX(r.paidOut)} · we paid them back {formatUGX(r.reimbursed)}
