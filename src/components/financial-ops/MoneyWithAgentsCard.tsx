@@ -31,6 +31,7 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
   );
   const heldTotal = rows.reduce((s, r) => s + r.companyCashWithAgent, 0);
   const owedTotal = rows.reduce((s, r) => s + r.owedToAgent, 0);
+  const floatTotal = rows.reduce((s, r) => s + Math.max(0, r.ledgerFloatHeld), 0);
 
   return (
     <div className="rounded-2xl border border-border bg-card p-5 min-w-0">
@@ -59,7 +60,18 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
         )}
       </div>
 
-      <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="rounded-xl border border-primary/30 bg-primary/5 p-3">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Float they can spend now
+          </p>
+          <p className="mt-1 font-mono text-xl font-bold tabular-nums text-primary break-all">
+            {isLoading ? '—' : formatUGX(floatTotal)}
+          </p>
+          <p className="text-[10px] text-muted-foreground mt-1">
+            Live float balance across merchant agents. Drops as payouts are claimed and paid.
+          </p>
+        </div>
         <div className="rounded-xl border border-warning/30 bg-warning/5 p-3">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
             Our cash still on their phones
@@ -115,6 +127,9 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
                   >
                     {r.agentName || r.label || 'Merchant agent'}
                   </button>
+                  <p className="text-[11px] font-semibold text-primary tabular-nums">
+                    Float balance: {formatUGX(Math.max(0, r.ledgerFloatHeld))}
+                  </p>
                   <p className="text-[11px] text-muted-foreground truncate">
                     {r.agentPhone || '—'} · they paid out {formatUGX(r.paidOut)} · we paid them back {formatUGX(r.reimbursed)}
                   </p>

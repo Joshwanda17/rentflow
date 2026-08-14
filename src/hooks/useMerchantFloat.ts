@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -78,12 +79,33 @@ export interface MerchantFloatPosition {
 }
 
 export function useMerchantFloatPositions(enabled = true) {
+  const qc = useQueryClient();
+
+  // Payout claims + settlements move merchant float, so this board follows the
+  // same events live instead of waiting for the next poll.
+  useEffect(() => {
+    if (!enabled) return;
+    const invalidate = () => {
+      qc.invalidateQueries({ queryKey: ['merchant-float-positions'] });
+      qc.invalidateQueries({ queryKey: ['merchant-payout-float'] });
+    };
+    const channel = supabase
+      .channel('merchant-float-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'withdrawal_requests' }, invalidate)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'merchant_payout_funding' }, invalidate)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'merchant_out_of_pocket_advances' }, invalidate)
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [enabled, qc]);
+
   return useQuery({
     queryKey: ['merchant-float-positions'],
     enabled,
     retry: false,
-    staleTime: 20_000,
-    refetchInterval: 45_000,
+    staleTime: 10_000,
+    refetchInterval: 20_000,
     queryFn: async (): Promise<MerchantFloatPosition[]> => {
       const { data, error } = await supabase.rpc('get_merchant_float_positions' as any);
       if (error) throw error;
