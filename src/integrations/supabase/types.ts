@@ -28956,6 +28956,39 @@ export type Database = {
         }
         Relationships: []
       }
+      tenant_call_reports: {
+        Row: {
+          called_at: string
+          called_by: string
+          comment: string | null
+          created_at: string
+          id: string
+          outcome: string
+          rent_request_id: string | null
+          tenant_id: string
+        }
+        Insert: {
+          called_at?: string
+          called_by: string
+          comment?: string | null
+          created_at?: string
+          id?: string
+          outcome: string
+          rent_request_id?: string | null
+          tenant_id: string
+        }
+        Update: {
+          called_at?: string
+          called_by?: string
+          comment?: string | null
+          created_at?: string
+          id?: string
+          outcome?: string
+          rent_request_id?: string | null
+          tenant_id?: string
+        }
+        Relationships: []
+      }
       tenant_documents: {
         Row: {
           bucket: string
@@ -34090,6 +34123,20 @@ export type Database = {
           name_norm: string | null
           names: string | null
           profile_ids: string[] | null
+        }
+        Relationships: []
+      }
+      v_tenant_call_summary: {
+        Row: {
+          call_count: number | null
+          last_call_at: string | null
+          last_outcome: string | null
+          last_picked_up_at: string | null
+          latest_comment: string | null
+          latest_comment_at: string | null
+          missed_count: number | null
+          picked_up_count: number | null
+          tenant_id: string | null
         }
         Relationships: []
       }
