@@ -270,14 +270,6 @@ function monthBounds(now: Date) {
   return { start: iso(start), end: iso(end) };
 }
 
-/** Monday-anchored start of the week containing `d`. */
-function weekStart(d: Date) {
-  const copy = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const day = (copy.getDay() + 6) % 7;
-  copy.setDate(copy.getDate() - day);
-  return copy;
-}
-
 interface MyWorkProps {
   /** When true, the surrounding surface already supplies the page heading
    *  and subtitle, so this component renders its body only. */
