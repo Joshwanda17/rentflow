@@ -165,16 +165,15 @@ export interface AgentOpsOverviewProps {
 
 export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
   const qc = useQueryClient();
-  // Today's window (local day start → now) drives every KPI and table.
-  const [today] = useState(() => startOfDay(new Date()).toISOString());
-  const { start, end, trendStart } = useMemo(() => {
-    const now = new Date();
-    return {
-      start: today,
-      end: now.toISOString(),
-      trendStart: startOfDay(subDays(now, DAILY_TREND_DAYS)).toISOString(),
-    };
-  }, [today]);
+  const [preset, setPreset] = useState<PresetKey>('today');
+  const [custom, setCustom] = useState<DateRange | undefined>();
+  const { start, end } = useMemo(() => resolveRange(preset, custom), [preset, custom]);
+  const startIso = start.toISOString();
+  const endIso = end.toISOString();
+
+  // 30-day trend window stays independent of the selected preset so the spark
+  // lines and trend chart always have enough daily buckets.
+  const trendStart = useMemo(() => startOfDay(subDays(new Date(), DAILY_TREND_DAYS)).toISOString(), []);
 
   useEffect(() => {
     const ch = supabase
