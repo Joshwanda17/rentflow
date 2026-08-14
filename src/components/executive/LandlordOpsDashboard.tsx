@@ -4643,6 +4643,7 @@ export function LandlordOpsDashboard() {
 
   // ─── HUB: Reports & Exports ───
   if (view === 'reports') {
+    // (see service-centres hub above)
     // The From / To pickers below drive every centralized extract, exactly like
     // the Tenant Ops hub. Each entry calls the dashboard's existing export
     // handler — no report logic is duplicated here.
