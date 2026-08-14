@@ -87,7 +87,7 @@ export function MerchantReconcileDialog({
         setAmount('');
         setReason('');
         setEvidence('');
-        setPostToLedger(false);
+        setPostToLedger(true);
         onOpenChange(false);
         return;
       }
