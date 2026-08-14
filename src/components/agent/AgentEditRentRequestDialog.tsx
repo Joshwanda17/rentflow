@@ -642,6 +642,102 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
             <Textarea id="note" rows={3} value={note} onChange={(e) => setNote(e.target.value)}
               placeholder="Explain what you corrected so the reviewer can re-check quickly…" />
           </div>
+
+          <div className="space-y-3 rounded-md border p-3">
+            <div>
+              <p className="text-sm font-medium flex items-center gap-1.5">
+                <Camera className="h-4 w-4 text-primary" /> House photos
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Tap a slot to retake or add a photo. Untouched slots keep the photo already on file.
+              </p>
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              {HOUSE_PHOTO_SLOTS.map((angle, i) => {
+                const picked = newPhotos[i];
+                const existing = existingPhotos[i];
+                const src = picked?.preview ?? existing ?? null;
+                return (
+                  <div key={angle} className="space-y-1">
+                    <label className="relative block aspect-square cursor-pointer overflow-hidden rounded-lg border bg-muted">
+                      {src ? (
+                        <img src={src} alt={`${angle} of the house`} className="h-full w-full object-cover" />
+                      ) : (
+                        <span className="flex h-full w-full items-center justify-center">
+                          <Camera className="h-5 w-5 text-muted-foreground" />
+                        </span>
+                      )}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="sr-only"
+                        onChange={(e) => pickPhoto(i, e)}
+                      />
+                    </label>
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-[10px] text-muted-foreground">{angle}</span>
+                      {picked && (
+                        <button
+                          type="button"
+                          onClick={() => clearNewPhoto(i)}
+                          className="text-[10px] text-destructive inline-flex items-center gap-0.5"
+                        >
+                          <X className="h-3 w-3" /> undo
+                        </button>
+                      )}
+                    </div>
+                    {picked && <p className="text-[10px] font-medium text-primary">New</p>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="space-y-2 rounded-md border p-3">
+            <p className="text-sm font-medium flex items-center gap-1.5">
+              <FileImage className="h-4 w-4 text-primary" /> LC letter
+            </p>
+            <div className="flex items-center gap-3">
+              {newLcLetter ? (
+                <img src={newLcLetter.preview} alt="New LC letter" className="h-16 w-16 rounded-lg border object-cover" />
+              ) : existingLcUrl ? (
+                <img src={existingLcUrl} alt="LC letter on file" className="h-16 w-16 rounded-lg border object-cover" />
+              ) : (
+                <span className="flex h-16 w-16 items-center justify-center rounded-lg border bg-muted">
+                  <FileImage className="h-5 w-5 text-muted-foreground" />
+                </span>
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-muted-foreground">
+                  {newLcLetter
+                    ? `New letter selected — ${(newLcLetter.file.size / (1024 * 1024)).toFixed(1)} MB`
+                    : existingLcPath
+                      ? 'A letter is already on file. Pick a new image only if it must be replaced.'
+                      : 'No LC letter on file. Add one if the reviewer asked for it.'}
+                </p>
+                <div className="mt-1.5 flex items-center gap-2">
+                  <label className="cursor-pointer text-xs font-medium text-primary underline">
+                    {existingLcPath || newLcLetter ? 'Replace letter' : 'Add letter'}
+                    <input type="file" accept="image/jpeg,image/jpg,image/png" className="sr-only" onChange={pickLcLetter} />
+                  </label>
+                  {newLcLetter && (
+                    <button
+                      type="button"
+                      className="text-xs text-destructive"
+                      onClick={() => {
+                        URL.revokeObjectURL(newLcLetter.preview);
+                        setNewLcLetter(null);
+                      }}
+                    >
+                      Undo
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+            <p className="text-[10px] text-muted-foreground">JPG, JPEG or PNG · max 10 MB.</p>
+          </div>
         </div>
 
         <DialogFooter className="sticky bottom-0 -mx-6 px-6 py-4 mt-2 bg-background border-t flex-col-reverse sm:flex-row gap-2 sm:gap-2 sm:space-x-0">
@@ -659,7 +755,7 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
             className="w-full sm:w-auto gap-2"
           >
             {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            Resubmit
+            {uploadingEvidence ? 'Uploading photos…' : 'Resubmit'}
           </Button>
         </DialogFooter>
       </DialogContent>
