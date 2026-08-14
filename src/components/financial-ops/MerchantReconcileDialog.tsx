@@ -36,10 +36,11 @@ export function MerchantReconcileDialog({
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
   const [evidence, setEvidence] = useState('');
-  // Opening balances can optionally be recognised on the BOOKS: balanced legs
-  // (agent float cash_in + platform cash_out) plus the float bucket moved by the
-  // sole wallet writer. Display-only stays the default.
-  const [postToLedger, setPostToLedger] = useState(false);
+  // Opening balances are ALWAYS recognised on the BOOKS: balanced legs (agent
+  // float cash_in + platform cash_out) plus the float bucket moved by the sole
+  // wallet writer. Board-only opening balances are no longer allowed — they
+  // read as a false success because they can never move the float figure.
+  const [postToLedger, setPostToLedger] = useState(true);
   const { data: history } = useMerchantFloatAdjustments(position?.deskId);
   const { data: variances } = useMerchantFloatLedgerVariance(open);
   const post = usePostMerchantAdjustment();
@@ -205,22 +206,19 @@ export function MerchantReconcileDialog({
           </div>
 
           {type === 'opening_balance' && (
-            <label className="flex items-start gap-2 rounded-lg border border-border bg-muted/20 px-3 py-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={postToLedger}
-                onChange={(e) => setPostToLedger(e.target.checked)}
-                className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
-              />
+            <div className="flex items-start gap-2 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2">
+              <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
               <span className="text-[11px] leading-snug">
-                <span className="font-semibold text-foreground">Record this on the books</span>
+                <span className="font-semibold text-foreground">
+                  Recorded on the books — required
+                </span>
                 <span className="block text-[10px] text-muted-foreground">
                   Posts real balanced entries (agent float in, company float out) and raises their
-                  float balance. This is the only fix that moves "They're holding our money". Leave
-                  unticked for a board-only note.
+                  float balance. Board-only opening balances are not allowed: they never move
+                  "They're holding our money".
                 </span>
               </span>
-            </label>
+            </div>
           )}
 
           <div>
