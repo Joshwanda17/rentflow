@@ -34225,6 +34225,7 @@ export type Database = {
         Row: {
           advance_balance: number | null
           float_balance: number | null
+          float_balance_signed: number | null
           pending_holds: number | null
           restricted_held: number | null
           total_visible: number | null
