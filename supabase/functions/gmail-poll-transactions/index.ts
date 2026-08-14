@@ -381,6 +381,52 @@ async function raiseGmailAuthAlert(status: number, body: string, path: string) {
   }
 }
 
+// Visibility backstop: any outbound send that we RECOGNISED as a registered
+// merchant float phone but did not (or could not) auto-credit must leave a
+// FinOps-visible row. "Detected but withheld" must never look identical to
+// "never happened".
+async function raiseMerchantFloatAlert(
+  supabase: ReturnType<typeof createClient>,
+  opts: {
+    gmailRowId: string;
+    agentId: string | null;
+    amount: number | null;
+    transactionId: string | null;
+    counterparty: string | null;
+    reason: string;
+    severity?: 'low' | 'medium' | 'high' | 'critical';
+    ageMinutes?: number;
+    extra?: Record<string, unknown>;
+  },
+): Promise<void> {
+  try {
+    await supabase.from('deposit_match_alerts').upsert(
+      {
+        alert_type: 'merchant_float_uncredited',
+        subject_id: opts.gmailRowId,
+        subject_label: 'Merchant float send detected but not credited',
+        user_id: opts.agentId,
+        amount: opts.amount,
+        transaction_reference: opts.transactionId,
+        age_minutes: Math.max(0, Math.round(opts.ageMinutes ?? 0)),
+        severity: opts.severity ?? 'high',
+        details: {
+          reason: opts.reason,
+          counterparty: opts.counterparty,
+          agent_id: opts.agentId,
+          observed_at: new Date().toISOString(),
+          ...(opts.extra ?? {}),
+        },
+        resolved_at: null,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'alert_type,subject_id' },
+    );
+  } catch (e) {
+    console.warn('[raiseMerchantFloatAlert] upsert failed:', e);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
