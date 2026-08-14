@@ -175,37 +175,26 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
                   </p>
                 </div>
                 <div className="text-right shrink-0">
-                  {latest ? (
-                    <>
-                      <p
-                        className={`font-mono text-sm font-bold tabular-nums ${
-                          latest.direction === 'cash_in' ? 'text-success' : 'text-destructive'
-                        }`}
-                      >
-                        {latest.direction === 'cash_in' ? '+' : '−'}
-                        {formatUGX(latest.amount)}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground">
-                        {format(new Date(latest.date), 'd MMM yyyy · HH:mm')}
-                      </p>
-                    </>
-                  ) : (
-                    <>
-                      <p
-                        className={`font-mono text-sm font-bold tabular-nums ${
-                          holding ? 'text-warning' : 'text-foreground'
-                        }`}
-                      >
-                        {formatUGX(holding ? spendableFloat(r) : r.owedToAgent)}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground">
-                        {holding
-                          ? 'our money still on their phone'
-                          : settled
-                            ? 'nothing outstanding either way'
-                            : 'we must send this back to them'}
-                      </p>
-                    </>
+                  <p
+                    className={`font-mono text-sm font-bold tabular-nums ${
+                      spendableFloat(r) > 0 ? 'text-warning' : 'text-foreground'
+                    }`}
+                  >
+                    {formatUGX(spendableFloat(r))}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {spendableFloat(r) > 0
+                      ? 'float balance on their phone'
+                      : holding
+                        ? 'our money still on their phone'
+                        : settled
+                          ? 'nothing outstanding either way'
+                          : 'we must send this back to them'}
+                  </p>
+                  {latest && (
+                    <p className="text-[10px] text-muted-foreground">
+                      last movement {format(new Date(latest.date), 'd MMM yyyy · HH:mm')}
+                    </p>
                   )}
                   <button
                     type="button"
