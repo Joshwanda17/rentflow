@@ -1561,6 +1561,25 @@ async function creditMerchantFloatFromOutboundSms(
   if (!gmailRow?.id) return;
   if (gmailRow.linked_deposit_request_id) {
     console.log(`[gmail-poll] merchant float credit skip: email ${gmailMessageId} already linked to a deposit`);
+    // Withheld, not silent: if the linked deposit is still pending, the money
+    // is detected but uncredited — make that visible to FinOps.
+    const { data: linkedDep } = await supabase
+      .from('deposit_requests')
+      .select('id, status')
+      .eq('id', gmailRow.linked_deposit_request_id)
+      .maybeSingle();
+    if (linkedDep && String((linkedDep as any).status) === 'pending') {
+      await raiseMerchantFloatAlert(supabase, {
+        gmailRowId: String(gmailRow.id),
+        agentId,
+        amount: parsed.amount ?? null,
+        transactionId: parsed.transaction_id ?? null,
+        counterparty: (parsed as any).counterparty ?? null,
+        reason: 'Email already linked to a deposit that is still pending — awaiting the linked-pending retry sweep.',
+        severity: 'medium',
+        extra: { deposit_request_id: (linkedDep as any).id, stage: 'already_linked_pending' },
+      });
+    }
     return;
   }
 
@@ -1613,6 +1632,16 @@ async function creditMerchantFloatFromOutboundSms(
     .single();
   if (depErr || !newDep?.id) {
     console.warn('[gmail-poll] merchant float credit: could not insert deposit_request', depErr);
+    await raiseMerchantFloatAlert(supabase, {
+      gmailRowId: String(gmailRow.id),
+      agentId,
+      amount: parsed.amount ?? null,
+      transactionId: parsed.transaction_id ?? null,
+      counterparty: (parsed as any).counterparty ?? null,
+      reason: `Could not create the float receipt row: ${depErr?.message ?? 'unknown error'}`,
+      severity: 'critical',
+      extra: { stage: 'deposit_insert_failed' },
+    });
     await logDepositDecision(supabase, {
       source: 'matcher',
       decision: 'failed',
@@ -1652,6 +1681,16 @@ async function creditMerchantFloatFromOutboundSms(
     if (!res.ok) {
       const txt = await res.text();
       console.warn('[gmail-poll] merchant float approve-deposit non-200:', res.status, txt.slice(0, 300));
+      await raiseMerchantFloatAlert(supabase, {
+        gmailRowId: String(gmailRow.id),
+        agentId,
+        amount: parsed.amount ?? null,
+        transactionId: parsed.transaction_id ?? null,
+        counterparty: (parsed as any).counterparty ?? null,
+        reason: `approve-deposit refused the float credit (HTTP ${res.status}).`,
+        severity: 'critical',
+        extra: { stage: 'approve_non_200', deposit_request_id: newDep.id, body: txt.slice(0, 300) },
+      });
       await logDepositDecision(supabase, {
         source: 'matcher',
         decision: 'failed',
@@ -1666,6 +1705,15 @@ async function creditMerchantFloatFromOutboundSms(
     console.log(
       `[gmail-poll] merchant float credited agent=${profile.id} dep=${newDep.id} amt=${parsed.amount}`,
     );
+    // Credit landed: clear any prior "detected but not credited" alert.
+    try {
+      await supabase
+        .from('deposit_match_alerts')
+        .update({ resolved_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .eq('alert_type', 'merchant_float_uncredited')
+        .eq('subject_id', gmailRow.id)
+        .is('resolved_at', null);
+    } catch (_e) { /* non-fatal */ }
     await logDepositDecision(supabase, {
       source: 'matcher',
       decision: 'auto_credited',
@@ -1682,6 +1730,16 @@ async function creditMerchantFloatFromOutboundSms(
     });
   } catch (e) {
     console.warn('[gmail-poll] merchant float approve-deposit invoke failed:', e);
+    await raiseMerchantFloatAlert(supabase, {
+      gmailRowId: String(gmailRow.id),
+      agentId,
+      amount: parsed.amount ?? null,
+      transactionId: parsed.transaction_id ?? null,
+      counterparty: (parsed as any).counterparty ?? null,
+      reason: `Could not reach approve-deposit to post the float credit: ${String(e)}`,
+      severity: 'critical',
+      extra: { stage: 'approve_invoke_error', deposit_request_id: newDep.id },
+    });
     await logDepositDecision(supabase, {
       source: 'matcher',
       decision: 'failed',
