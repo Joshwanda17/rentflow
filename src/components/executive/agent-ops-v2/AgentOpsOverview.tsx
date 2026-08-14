@@ -187,11 +187,11 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
   }, [qc]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['agent-ops-overview', 'daily', start],
+    queryKey: ['agent-ops-overview', 'daily', startIso, endIso],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_agent_ops_overview' as any, {
-        p_range_start: start,
-        p_range_end: end,
+        p_range_start: startIso,
+        p_range_end: endIso,
       });
       if (error) throw error;
       return data as unknown as OverviewPayload;
@@ -201,11 +201,11 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
 
   // Daily series for the charts — same RPC, daily buckets over the last 30 days.
   const { data: trendPayload } = useQuery({
-    queryKey: ['agent-ops-overview', 'daily-trend', trendStart],
+    queryKey: ['agent-ops-overview', 'daily-trend', trendStart, endIso],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_agent_ops_overview' as any, {
         p_range_start: trendStart,
-        p_range_end: end,
+        p_range_end: endIso,
       });
       if (error) throw error;
       return data as unknown as OverviewPayload;
