@@ -82,7 +82,7 @@ const STATUS_LABEL: Record<string, string> = {
   service_center_review: 'Service centre vetting',
   agent_ops_approved: 'Agent Ops cleared',
   tenant_ops_approved: 'Tenant Ops cleared',
-  landlord_ops_approved: 'Ready for your sign-off',
+  landlord_ops_approved: 'Pending COO approval',
 };
 
 function statusTone(status: string) {
@@ -272,14 +272,14 @@ export default function COOOverviewSnapshot() {
         </CardContent>
       </Card>
 
-      {/* Latest rent requests for review */}
+      {/* Latest rent requests pending COO approval */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-bold">Latest rent requests for review</CardTitle>
+          <CardTitle className="text-sm font-bold">Rent requests pending COO approval</CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
           {review_requests.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">No rent requests waiting for review.</p>
+            <p className="text-sm text-muted-foreground py-4 text-center">No rent requests pending COO approval.</p>
           ) : (
             <ul className="divide-y">
               {review_requests.map(r => (

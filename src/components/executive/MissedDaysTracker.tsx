@@ -234,6 +234,13 @@ export function MissedDaysTracker() {
   const totalOutstanding = tenantList.reduce((s, t) => s + t.outstanding_balance, 0);
   const totalMissedDays = tenantList.reduce((s, t) => s + t.missed_days, 0);
 
+  // Collection KPIs
+  const totalCollected = tenantList.reduce((s, t) => s + t.amount_repaid, 0);
+  const paidTenants = tenantList.filter(t => t.outstanding_balance <= 0);
+  const unpaidTenants = tenantList.filter(t => t.outstanding_balance > 0);
+  const paidVolume = paidTenants.reduce((s, t) => s + t.amount_repaid, 0);
+  const unpaidVolume = unpaidTenants.reduce((s, t) => s + t.outstanding_balance, 0);
+
   const riskColor = (risk: string) => {
     if (risk === 'critical') return 'bg-destructive/15 text-destructive border-destructive/30';
     if (risk === 'warning') return 'bg-amber-500/15 text-amber-600 border-amber-500/30';
@@ -253,16 +260,44 @@ export function MissedDaysTracker() {
       {/* KPIs - scrollable horizontal strip on mobile */}
       <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 snap-x snap-mandatory scrollbar-none">
         <div className="snap-start shrink-0 w-[45%] sm:w-auto sm:flex-1">
-          <KPICard title="Critical (5+)" value={criticalCount} icon={AlertTriangle} loading={isLoading} color="bg-destructive/10 text-destructive" />
+          <KPICard
+            title="Pending collections"
+            value={formatUGX(totalOutstanding)}
+            icon={Banknote}
+            loading={isLoading}
+            color="bg-amber-500/10 text-amber-600"
+            subtitle={`${unpaidTenants.length} tenant${unpaidTenants.length === 1 ? '' : 's'} still owing`}
+          />
         </div>
         <div className="snap-start shrink-0 w-[45%] sm:w-auto sm:flex-1">
-          <KPICard title="Warning (2-4)" value={warningCount} icon={Clock} loading={isLoading} color="bg-amber-500/10 text-amber-600" />
+          <KPICard
+            title="Collected so far"
+            value={formatUGX(totalCollected)}
+            icon={TrendingDown}
+            loading={isLoading}
+            color="bg-emerald-500/10 text-emerald-600"
+            subtitle={`${tenantList.length} tenant${tenantList.length === 1 ? '' : 's'} on plan`}
+          />
         </div>
         <div className="snap-start shrink-0 w-[45%] sm:w-auto sm:flex-1">
-          <KPICard title="Outstanding" value={formatUGX(totalOutstanding)} icon={Banknote} loading={isLoading} color="bg-primary/10 text-primary" />
+          <KPICard
+            title="Paid tenants"
+            value={paidTenants.length}
+            icon={Users}
+            loading={isLoading}
+            color="bg-emerald-500/10 text-emerald-600"
+            subtitle={formatUGX(paidVolume)}
+          />
         </div>
         <div className="snap-start shrink-0 w-[45%] sm:w-auto sm:flex-1">
-          <KPICard title="Missed Days" value={totalMissedDays} icon={CalendarX2} loading={isLoading} color="bg-destructive/10 text-destructive" />
+          <KPICard
+            title="Unpaid tenants"
+            value={unpaidTenants.length}
+            icon={AlertTriangle}
+            loading={isLoading}
+            color="bg-destructive/10 text-destructive"
+            subtitle={formatUGX(unpaidVolume)}
+          />
         </div>
       </div>
 
