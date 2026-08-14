@@ -18511,6 +18511,42 @@ export type Database = {
           },
         ]
       }
+      merchant_float_deliveries: {
+        Row: {
+          agent_user_id: string
+          amount: number
+          gmail_transaction_id: string | null
+          id: string
+          ledger_group_id: string | null
+          occurred_at: string
+          provider: string | null
+          recorded_at: string
+          tid_normalized: string
+        }
+        Insert: {
+          agent_user_id: string
+          amount: number
+          gmail_transaction_id?: string | null
+          id?: string
+          ledger_group_id?: string | null
+          occurred_at: string
+          provider?: string | null
+          recorded_at?: string
+          tid_normalized: string
+        }
+        Update: {
+          agent_user_id?: string
+          amount?: number
+          gmail_transaction_id?: string | null
+          id?: string
+          ledger_group_id?: string | null
+          occurred_at?: string
+          provider?: string | null
+          recorded_at?: string
+          tid_normalized?: string
+        }
+        Relationships: []
+      }
       merchant_float_reconciliations: {
         Row: {
           adjustment_type: string
@@ -40157,6 +40193,17 @@ export type Database = {
           p_source_table: string
         }
         Returns: string
+      }
+      record_merchant_float_delivery: {
+        Args: {
+          p_agent_user_id: string
+          p_amount: number
+          p_gmail_transaction_id: string
+          p_occurred_at: string
+          p_provider: string
+          p_tid: string
+        }
+        Returns: Json
       }
       record_merchant_payout_success_run: {
         Args: { p_days?: number }
