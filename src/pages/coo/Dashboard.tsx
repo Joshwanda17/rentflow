@@ -54,12 +54,10 @@ const quickNavItems: QuickNavItem[] = [
   { id: 'daily-collections', label: 'Daily Collections', icon: CalendarCheck, color: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20', description: 'Live monitoring' },
   { id: 'withdrawals', label: 'Withdrawals', icon: Banknote, color: 'bg-red-500/10 text-red-600 border-red-500/20', description: 'Approve payouts' },
   { id: 'agent-activity', label: 'Agent Activity', icon: Activity, color: 'bg-purple-500/10 text-purple-600 border-purple-500/20', description: 'Live tracking' },
-  { id: 'analytics', label: 'Analytics', icon: BarChart3, color: 'bg-teal-500/10 text-teal-600 border-teal-500/20', description: 'Payment modes' },
   { id: 'partners', label: 'Partners', icon: Handshake, color: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20', description: 'Manage partners' },
   { id: 'partner-broadcast', label: 'Partner Broadcast', icon: Megaphone, color: 'bg-violet-500/10 text-violet-600 border-violet-500/20', description: 'Mass email partners' },
   { id: 'partner-onboarding', label: 'Partner Onboarding', icon: UserPlus, color: 'bg-fuchsia-500/10 text-fuchsia-600 border-fuchsia-500/20', description: 'Approve / reject', route: '/partner-onboarding' },
   { id: 'reports', label: 'Financial Reports', icon: FileText, color: 'bg-sky-500/10 text-sky-600 border-sky-500/20', description: 'Financial reports' },
-  { id: 'alerts', label: 'Alerts', icon: AlertTriangle, color: 'bg-orange-500/10 text-orange-600 border-orange-500/20', description: 'Risk & flags' },
   { id: 'partner-topups', label: 'Partner Top-ups', icon: TrendingUp, color: 'bg-green-500/10 text-green-600 border-green-500/20', description: 'Pending top-ups' },
   { id: 'partner-finance', label: 'Partner Finance', icon: Receipt, color: 'bg-violet-500/10 text-violet-600 border-violet-500/20', description: 'All activity' },
   { id: 'staff-performance', label: 'Staff', icon: UserCheck, color: 'bg-pink-500/10 text-pink-600 border-pink-500/20', description: 'Team metrics' },
@@ -162,28 +160,12 @@ export default function COODashboardPage() {
             <COOAgentHub />
           </div>
         );
-      case 'analytics':
-        return (
-          <div className="space-y-3">
-            {isMobile && renderBackButton('Overview')}
-            {renderSectionHeader('Payment Analytics', BarChart3)}
-            <PaymentModeAnalytics />
-          </div>
-        );
       case 'reports':
         return (
           <div className="space-y-3">
             {isMobile && renderBackButton('Overview')}
             {renderSectionHeader('Financial Reports', FileText)}
             <FinancialReportsPanel />
-          </div>
-        );
-      case 'alerts':
-        return (
-          <div className="space-y-3">
-            {isMobile && renderBackButton('Overview')}
-            {renderSectionHeader('Risk & Alerts', AlertTriangle)}
-            <FinancialAlertsPanel />
           </div>
         );
       case 'withdrawals':
@@ -337,11 +319,6 @@ export default function COODashboardPage() {
               </div>
             </div>
 
-            {/* Summary panels */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-              <PaymentModeAnalytics />
-              <FinancialAlertsPanel />
-            </div>
           </div>
         );
     }
