@@ -112,6 +112,7 @@ import { Lc1VerificationInboxPanel } from './landlord-ops/Lc1VerificationInboxPa
 import { Lc1DuplicatesPanel } from './landlord-ops/Lc1DuplicatesPanel';
 import { ResidenceVerificationPanel } from './landlord-ops/ResidenceVerificationPanel';
 import { HubEntryCard } from '@/components/ops/HubEntryCard';
+import { ServiceCentreManagerNetworkPanel } from '@/components/executive/ServiceCentreManagerNetworkPanel';
 import { HubHeader } from '@/components/ops/HubHeader';
 
 /**
@@ -349,7 +350,7 @@ function ImagePreviewDialog({ images, open, onClose, title, startIndex = 0 }: { 
   );
 }
 
-type View = 'home' | 'landlords' | 'locations' | 'lc1' | 'lc1-requests' | 'residence-verify' | 'lc1-duplicates' | 'empty' | 'occupied' | 'verify' | 'pipeline' | 'chain' | 'matching' | 'agents' | 'analytics' | 'cities' | 'no-landlord' | 'advance-requests' | 'landlords-paid' | 'landlords-tenants' | 'all-requests' | 'houses-by-landlord' | 'agent-verify-requests' | 'lc1-inbox' | 'rent-pipeline-queue' | 'rejected-queue' | 'payout-review' | 'agent-capacity' | 'reports';
+type View = 'home' | 'landlords' | 'locations' | 'lc1' | 'lc1-requests' | 'residence-verify' | 'lc1-duplicates' | 'empty' | 'occupied' | 'verify' | 'pipeline' | 'chain' | 'matching' | 'agents' | 'analytics' | 'cities' | 'no-landlord' | 'advance-requests' | 'landlords-paid' | 'landlords-tenants' | 'all-requests' | 'houses-by-landlord' | 'agent-verify-requests' | 'lc1-inbox' | 'rent-pipeline-queue' | 'rejected-queue' | 'payout-review' | 'agent-capacity' | 'service-centres' | 'reports';
 
 // ─── Hub section titles (dedicated workspaces reached from the dashboard) ───
 const hubTitles: Partial<Record<View, string>> = {
