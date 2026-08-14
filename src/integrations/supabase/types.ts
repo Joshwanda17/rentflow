@@ -37390,6 +37390,10 @@ export type Database = {
         Returns: Json
       }
       get_partner_ops_daily_report: { Args: { p_date?: string }; Returns: Json }
+      get_partner_ops_promissory_block: {
+        Args: { p_end: string; p_start: string }
+        Returns: Json
+      }
       get_partner_ops_range_report: {
         Args: { p_end: string; p_start: string }
         Returns: Json
