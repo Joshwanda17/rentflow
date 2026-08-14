@@ -229,11 +229,50 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-base font-bold text-foreground">Agent Operations Overview</h2>
-        <p className="text-xs text-muted-foreground">
-          Today · {format(new Date(today), 'EEEE d MMM yyyy')} — daily aggregates across all agents.
-        </p>
+      {/* Header + date preset filter bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h2 className="text-base font-bold text-foreground">Agent Operations Overview</h2>
+          <p className="text-xs text-muted-foreground">
+            {format(start, 'dd MMM yyyy')} → {format(end, 'dd MMM yyyy')} · daily aggregates across all agents.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {PRESETS.map(p => (
+            <Button
+              key={p.key}
+              size="sm"
+              variant={preset === p.key ? 'default' : 'outline'}
+              className="h-8 text-xs"
+              onClick={() => setPreset(p.key)}
+            >
+              {p.label}
+            </Button>
+          ))}
+          {preset === 'custom' && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button size="sm" variant="secondary" className="h-8 text-xs">
+                  <CalendarIcon className="h-3.5 w-3.5 mr-1" />
+                  {custom?.from
+                    ? `${format(custom.from, 'dd MMM')}${custom.to ? ` – ${format(custom.to, 'dd MMM')}` : ''}`
+                    : 'Pick dates'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end">
+                <Calendar
+                  mode="range"
+                  numberOfMonths={2}
+                  selected={custom}
+                  onSelect={setCustom}
+                  disabled={{ after: new Date() }}
+                  initialFocus
+                  className="pointer-events-auto p-3"
+                />
+              </PopoverContent>
+            </Popover>
+          )}
+        </div>
       </div>
 
 
