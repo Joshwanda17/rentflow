@@ -223,6 +223,15 @@ export function MissedDaysTracker() {
     return 'on_track';
   };
 
+  const callInfo = (tenantId: string): TenantCallSummary | undefined => callSummaries?.get(tenantId);
+
+  /** Reached and still inside the Call Again window → sits in "Called / Waiting". */
+  const isCalled = (tenantId: string) => {
+    const s = callInfo(tenantId);
+    if (!s || s.last_outcome !== 'picked_up' || !s.last_picked_up_at) return false;
+    return differenceInDays(new Date(), parseISO(s.last_picked_up_at)) < callAgainDays;
+  };
+
   const filtered = useMemo(() => {
     let list = tenantList;
     // Call bucket: a tenant is "Called / Waiting" only while the last successful
