@@ -570,15 +570,25 @@ export function MissedDaysTracker() {
                       )}
                     </div>
 
-                    {/* View profile button */}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full h-10 text-xs font-medium"
-                      onClick={() => setProfileSheet({ userId: t.tenant_id, userName: t.tenant_name, userPhone: t.phone, userType: 'tenant' })}
-                    >
-                      View Tenant Profile
-                    </Button>
+                    {/* Call logging + profile */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="h-10 text-xs font-medium"
+                        onClick={() => setCallTarget(t)}
+                      >
+                        <PhoneCall className="h-3.5 w-3.5 mr-1.5" /> Log call
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-10 text-xs font-medium"
+                        onClick={() => setProfileSheet({ userId: t.tenant_id, userName: t.tenant_name, userPhone: t.phone, userType: 'tenant' })}
+                      >
+                        View Tenant Profile
+                      </Button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -595,6 +605,20 @@ export function MissedDaysTracker() {
           userName={profileSheet.userName}
           userPhone={profileSheet.userPhone}
           userType={profileSheet.userType}
+        />
+      )}
+
+      {callTarget && (
+        <LogTenantCallDialog
+          open={!!callTarget}
+          onClose={() => setCallTarget(null)}
+          tenantId={callTarget.tenant_id}
+          tenantName={callTarget.tenant_name}
+          tenantPhone={callTarget.phone}
+          rentRequestId={callTarget.rent_request_id}
+          missedDays={callTarget.missed_days}
+          dailyRepayment={callTarget.daily_repayment}
+          outstandingBalance={callTarget.outstanding_balance}
         />
       )}
     </div>
