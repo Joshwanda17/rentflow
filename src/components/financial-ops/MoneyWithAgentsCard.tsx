@@ -174,11 +174,11 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
                 key={r.deskId}
                 className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background px-3 py-2 min-w-0"
               >
-                <div className="min-w-0 text-center">
+                <div className="min-w-0 text-left">
                   <button
                     type="button"
                     onClick={() => setStatementFor(r)}
-                    className="text-sm font-medium text-foreground truncate hover:text-primary hover:underline text-center w-full"
+                    className="text-sm font-medium text-foreground truncate hover:text-primary hover:underline text-left w-full"
                   >
                     {r.agentName || r.label || 'Merchant agent'}
                   </button>
@@ -188,7 +188,7 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
                     movements.map((m, idx) => (
                       <p
                         key={`${m.agentId}-${m.date}-${idx}`}
-                        className={`text-[11px] font-semibold tabular-nums ${
+                        className={`text-[11px] font-semibold tabular-nums text-left ${
                           m.direction === 'cash_in' ? 'text-success' : 'text-destructive'
                         }`}
                       >
@@ -200,11 +200,11 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
                       </p>
                     ))
                   )}
-                  <p className="text-[11px] text-muted-foreground truncate text-center">
+                  <p className="text-[11px] text-muted-foreground truncate text-left">
                     {r.agentPhone || '—'} · they paid out {formatUGX(r.paidOut)} · we paid them back {formatUGX(r.reimbursed)}
                   </p>
                 </div>
-                <div className="text-center shrink-0">
+                <div className="text-right shrink-0">
                   <p
                     className={`font-mono text-sm font-bold tabular-nums ${
                       spendableFloat(r) > 0 ? 'text-warning' : 'text-foreground'
