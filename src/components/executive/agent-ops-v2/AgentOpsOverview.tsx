@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import { format, subDays, startOfDay, endOfDay, isSameDay, isToday, isYesterday } from 'date-fns';
+import { format, subDays, startOfDay, endOfDay, startOfMonth, startOfYear, addDays } from 'date-fns';
 import {
   ResponsiveContainer, AreaChart, Area,
   XAxis, YAxis,
@@ -15,20 +15,67 @@ import {
 import {
   Users, UserPlus, Activity, FileText, Home, Wallet, Banknote, TrendingDown,
   TrendingUp, ArrowRight, UsersRound, Network, Coins, Hourglass, Receipt, Trophy,
+  CalendarIcon, RefreshCw,
 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon } from 'lucide-react';
 import { AgentRentCapacityPanel } from '../AgentRentCapacityPanel';
+import type { DateRange } from 'react-day-picker';
 
 
 
 
-// The overview is daily-only: KPIs always aggregate today, and every chart is
-// built from daily buckets. There is no range selector.
+// KPIs aggregate the selected date range. The trend chart always uses the last
+// 30 days so spark lines have enough daily buckets.
 const DAILY_TREND_DAYS = 30;
+
+type PresetKey = 'today' | 'yesterday' | 'five' | 'weekend' | 'month' | 'year' | 'custom';
+
+const PRESETS: { key: PresetKey; label: string }[] = [
+  { key: 'today', label: 'Today' },
+  { key: 'yesterday', label: 'Yesterday' },
+  { key: 'five', label: 'Last 5 days' },
+  { key: 'weekend', label: 'Weekend' },
+  { key: 'month', label: 'This month' },
+  { key: 'year', label: 'This year' },
+  { key: 'custom', label: 'Custom range' },
+];
+
+/** Most recent Saturday + Sunday pair (inclusive), based on local device date. */
+function lastWeekend(now: Date): { start: Date; end: Date } {
+  let sat = startOfDay(now);
+  while (sat.getDay() !== 6) sat = subDays(sat, 1);
+  return { start: sat, end: endOfDay(addDays(sat, 1)) };
+}
+
+function resolveRange(preset: PresetKey, custom?: DateRange): { start: Date; end: Date } {
+  const now = new Date();
+  switch (preset) {
+    case 'today':
+      return { start: startOfDay(now), end: endOfDay(now) };
+    case 'yesterday': {
+      const y = subDays(now, 1);
+      return { start: startOfDay(y), end: endOfDay(y) };
+    }
+    case 'five':
+      return { start: startOfDay(subDays(now, 4)), end: endOfDay(now) };
+    case 'weekend': {
+      const w = lastWeekend(now);
+      return { start: w.start, end: w.end };
+    }
+    case 'month':
+      return { start: startOfMonth(now), end: endOfDay(now) };
+    case 'year':
+      return { start: startOfYear(now), end: endOfDay(now) };
+    case 'custom': {
+      const from = custom?.from ? startOfDay(custom.from) : startOfDay(now);
+      const to = custom?.to ? endOfDay(custom.to) : endOfDay(custom?.from ?? now);
+      return { start: from, end: to };
+    }
+  }
+}
 
 function fmtMoney(n: number): string {
   if (n >= 1e9) return `UGX ${(n / 1e9).toFixed(2)}B`;
@@ -118,16 +165,15 @@ export interface AgentOpsOverviewProps {
 
 export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
   const qc = useQueryClient();
-  // Today's window (local day start → now) drives every KPI and table.
-  const [today] = useState(() => startOfDay(new Date()).toISOString());
-  const { start, end, trendStart } = useMemo(() => {
-    const now = new Date();
-    return {
-      start: today,
-      end: now.toISOString(),
-      trendStart: startOfDay(subDays(now, DAILY_TREND_DAYS)).toISOString(),
-    };
-  }, [today]);
+  const [preset, setPreset] = useState<PresetKey>('today');
+  const [custom, setCustom] = useState<DateRange | undefined>();
+  const { start, end } = useMemo(() => resolveRange(preset, custom), [preset, custom]);
+  const startIso = start.toISOString();
+  const endIso = end.toISOString();
+
+  // 30-day trend window stays independent of the selected preset so the spark
+  // lines and trend chart always have enough daily buckets.
+  const trendStart = useMemo(() => startOfDay(subDays(new Date(), DAILY_TREND_DAYS)).toISOString(), []);
 
   useEffect(() => {
     const ch = supabase
@@ -141,11 +187,11 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
   }, [qc]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['agent-ops-overview', 'daily', start],
+    queryKey: ['agent-ops-overview', 'daily', startIso, endIso],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_agent_ops_overview' as any, {
-        p_range_start: start,
-        p_range_end: end,
+        p_range_start: startIso,
+        p_range_end: endIso,
       });
       if (error) throw error;
       return data as unknown as OverviewPayload;
@@ -155,11 +201,11 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
 
   // Daily series for the charts — same RPC, daily buckets over the last 30 days.
   const { data: trendPayload } = useQuery({
-    queryKey: ['agent-ops-overview', 'daily-trend', trendStart],
+    queryKey: ['agent-ops-overview', 'daily-trend', trendStart, endIso],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_agent_ops_overview' as any, {
         p_range_start: trendStart,
-        p_range_end: end,
+        p_range_end: endIso,
       });
       if (error) throw error;
       return data as unknown as OverviewPayload;
@@ -183,11 +229,50 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-base font-bold text-foreground">Agent Operations Overview</h2>
-        <p className="text-xs text-muted-foreground">
-          Today · {format(new Date(today), 'EEEE d MMM yyyy')} — daily aggregates across all agents.
-        </p>
+      {/* Header + date preset filter bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h2 className="text-base font-bold text-foreground">Agent Operations Overview</h2>
+          <p className="text-xs text-muted-foreground">
+            {format(start, 'dd MMM yyyy')} → {format(end, 'dd MMM yyyy')} · daily aggregates across all agents.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {PRESETS.map(p => (
+            <Button
+              key={p.key}
+              size="sm"
+              variant={preset === p.key ? 'default' : 'outline'}
+              className="h-8 text-xs"
+              onClick={() => setPreset(p.key)}
+            >
+              {p.label}
+            </Button>
+          ))}
+          {preset === 'custom' && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button size="sm" variant="secondary" className="h-8 text-xs">
+                  <CalendarIcon className="h-3.5 w-3.5 mr-1" />
+                  {custom?.from
+                    ? `${format(custom.from, 'dd MMM')}${custom.to ? ` – ${format(custom.to, 'dd MMM')}` : ''}`
+                    : 'Pick dates'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end">
+                <Calendar
+                  mode="range"
+                  numberOfMonths={2}
+                  selected={custom}
+                  onSelect={setCustom}
+                  disabled={{ after: new Date() }}
+                  initialFocus
+                  className="pointer-events-auto p-3"
+                />
+              </PopoverContent>
+            </Popover>
+          )}
+        </div>
       </div>
 
 
