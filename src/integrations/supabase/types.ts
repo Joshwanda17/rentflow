@@ -33624,10 +33624,12 @@ export type Database = {
           is_active: boolean | null
           net_position: number | null
           oldest_advance_at: string | null
+          owed_total: number | null
           own_cash_outstanding: number | null
           own_cash_under_review: number | null
           reserved: number | null
           state: string | null
+          unattested: number | null
         }
         Relationships: [
           {
@@ -37472,10 +37474,12 @@ export type Database = {
           is_active: boolean | null
           net_position: number | null
           oldest_advance_at: string | null
+          owed_total: number | null
           own_cash_outstanding: number | null
           own_cash_under_review: number | null
           reserved: number | null
           state: string | null
+          unattested: number | null
         }[]
         SetofOptions: {
           from: "*"
