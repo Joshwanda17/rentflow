@@ -228,6 +228,32 @@ export function PriorityCollectionQueue({ open, onOpenChange, agentId }: Props) 
           )}
         </div>
 
+        {queue.length > PAGE_SIZE && (
+          <div className="sticky bottom-0 bg-background/95 backdrop-blur border-t border-border/40 p-3 flex items-center justify-between">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page <= 1}
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              className="h-9 gap-1"
+            >
+              <ChevronLeft className="h-4 w-4" /> Prev
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              Page {page} of {totalPages} ({queue.length})
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= totalPages}
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              className="h-9 gap-1"
+            >
+              Next <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+
         <RentPaymentStatusSheet
           open={!!editTarget}
           onOpenChange={(v) => { if (!v) setEditTarget(null); }}
