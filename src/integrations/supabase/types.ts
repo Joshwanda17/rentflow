@@ -3932,6 +3932,36 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_ops_service_centre_targets: {
+        Row: {
+          created_at: string
+          id: string
+          month: string
+          note: string | null
+          set_by: string | null
+          target_count: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          month: string
+          note?: string | null
+          set_by?: string | null
+          target_count?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          month?: string
+          note?: string | null
+          set_by?: string | null
+          target_count?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       agent_proxy_card_dismissals: {
         Row: {
           agent_id: string
@@ -34419,6 +34449,7 @@ export type Database = {
         }
         Returns: Json
       }
+      agent_ops_report_authorized: { Args: never; Returns: boolean }
       agent_ops_strict_agent_ids: {
         Args: never
         Returns: {
@@ -36331,6 +36362,10 @@ export type Database = {
           with_float: number
           with_withdrawable: number
         }[]
+      }
+      get_agent_products_services_report: {
+        Args: { p_date?: string }
+        Returns: Json
       }
       get_agent_profile_360: { Args: { p_agent_id: string }; Returns: Json }
       get_agent_proxy_roi_payouts: {
