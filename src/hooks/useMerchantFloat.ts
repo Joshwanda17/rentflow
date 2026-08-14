@@ -368,45 +368,6 @@ export function usePostMerchantOpeningFloatLedger() {
   });
 }
 
-function __unusedLegacyPostMerchantAdjustment() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (input: MerchantAdjustmentInput) => {
-      const { data: auth } = await supabase.auth.getUser();
-      if (!auth?.user) throw new Error('You must be signed in.');
-      if (input.reason.trim().length < 10) throw new Error('Reason must be at least 10 characters.');
-      if (!Number.isFinite(input.amount) || input.amount === 0) throw new Error('Enter a non-zero amount.');
-      const { data, error } = await supabase
-        .from('merchant_float_reconciliations' as any)
-        .insert({
-        desk_id: input.deskId,
-        agent_id: input.agentId,
-        adjustment_type: input.adjustmentType,
-        amount: Math.round(input.amount),
-        reason: input.reason.trim(),
-        evidence_note: input.evidenceNote?.trim() || null,
-        created_by: auth.user.id,
-        })
-        // Read the row back so a blocked / silently dropped write can never be
-        // reported to the operator as a success.
-        .select('id, adjustment_type, amount, created_at')
-        .maybeSingle();
-      if (error) throw error;
-      if (!data) {
-        throw new Error(
-          'The fix was not saved — the database did not return the record. Check your finance role and try again.',
-        );
-      }
-      return data as any;
-    },
-    onSuccess: (_d, v) => {
-      qc.invalidateQueries({ queryKey: ['merchant-float-positions'] });
-      qc.invalidateQueries({ queryKey: ['merchant-float-adjustments', v.deskId] });
-      qc.invalidateQueries({ queryKey: ['merchant-float-ledger-variance'] });
-    },
-  });
-}
-
 /**
  * PHASE 10 — the general ledger is the source of truth for merchant float.
  * `merchant_float_reconciliations` records are display-only narrative fixes,
