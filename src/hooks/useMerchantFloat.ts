@@ -425,3 +425,55 @@ export function useMerchantFloatStatement(agentId?: string | null, enabled = tru
     },
   });
 }
+
+/**
+ * Most recent float movement on each merchant agent's line — read-only.
+ *
+ * Inbound (`cash_in`) = company money landing on their phone.
+ * Outbound (`cash_out`) = money leaving their float (customer payout / charge).
+ * Purely for display; no balances are derived from this.
+ */
+export interface LatestFloatMovement {
+  agentId: string;
+  date: string;
+  amount: number;
+  direction: 'cash_in' | 'cash_out';
+  description: string | null;
+  category: string;
+}
+
+export function useLatestMerchantFloatMovements(agentIds: string[], enabled = true) {
+  const ids = Array.from(new Set(agentIds.filter(Boolean))).sort();
+  return useQuery({
+    queryKey: ['merchant-latest-float-movement', ids],
+    enabled: enabled && ids.length > 0,
+    retry: false,
+    staleTime: 10_000,
+    refetchInterval: 20_000,
+    queryFn: async (): Promise<Map<string, LatestFloatMovement>> => {
+      const { data, error } = await supabase
+        .from('general_ledger')
+        .select('user_id, transaction_date, created_at, description, category, direction, amount')
+        .in('user_id', ids)
+        .eq('wallet_bucket', 'float')
+        .neq('classification', 'admin_correction')
+        .order('transaction_date', { ascending: false })
+        .limit(1000);
+      if (error) throw error;
+      const latest = new Map<string, LatestFloatMovement>();
+      for (const r of (data ?? []) as any[]) {
+        const agentId = String(r.user_id);
+        if (latest.has(agentId)) continue;
+        latest.set(agentId, {
+          agentId,
+          date: String(r.transaction_date ?? r.created_at),
+          amount: Number(r.amount ?? 0),
+          direction: r.direction === 'cash_in' ? 'cash_in' : 'cash_out',
+          description: r.description ?? null,
+          category: String(r.category ?? ''),
+        });
+      }
+      return latest;
+    },
+  });
+}
