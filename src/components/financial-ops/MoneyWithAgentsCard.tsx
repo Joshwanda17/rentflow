@@ -5,7 +5,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import {
   useMerchantFloatPositions,
   useMerchantFloatLedgerVariance,
-  useLatestMerchantFloatMovements,
+  useRecentMerchantFloatMovements,
   MerchantFloatPosition,
 } from '@/hooks/useMerchantFloat';
 import { MerchantReconcileDialog } from './MerchantReconcileDialog';
@@ -44,28 +44,34 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
   // Show every merchant desk that finance can act on — an agent with no
   // activity yet (or a fully settled one) must still be visible here so this
   // board matches the merchant agent roster.
-  const rows = (data ?? [])
-    .filter(
-      (r) => r.isActive || r.paidOut > 0 || r.reimbursed > 0 || r.companyCashWithAgent > 0,
-    )
+  const visible = (data ?? []).filter(
+    (r) => r.isActive || r.paidOut > 0 || r.reimbursed > 0 || r.companyCashWithAgent > 0,
+  );
+
+  // Up to two most recent movements on each agent's attached mobile money line —
+  // display + sort key only, never used to compute any balance on this board.
+  const { data: recentMovements } = useRecentMerchantFloatMovements(
+    visible.map((r) => r.agentId).filter((id): id is string => !!id),
+  );
+
+  const movementsFor = (r: MerchantFloatPosition) =>
+    (r.agentId ? recentMovements?.get(r.agentId) : undefined) ?? [];
+  const latestMovementAt = (r: MerchantFloatPosition) => movementsFor(r)[0]?.date ?? null;
+
+  const rows = visible
+    .map((r, i) => ({ r, i }))
     .sort((a, b) => {
-      const latest = (r: MerchantFloatPosition) =>
-        Math.max(
-          r.lastPayoutAt ? new Date(r.lastPayoutAt).getTime() : 0,
-          r.lastReimbursedAt ? new Date(r.lastReimbursedAt).getTime() : 0,
-        );
-      return latest(b) - latest(a);
-    });
+      const ta = latestMovementAt(a.r) ? new Date(latestMovementAt(a.r)!).getTime() : null;
+      const tb = latestMovementAt(b.r) ? new Date(latestMovementAt(b.r)!).getTime() : null;
+      if (ta === null && tb === null) return a.i - b.i;
+      if (ta === null) return 1;
+      if (tb === null) return -1;
+      return tb - ta;
+    })
+    .map((x) => x.r);
   const heldTotal = rows.reduce((s, r) => s + spendableFloat(r), 0);
   const owedTotal = rows.reduce((s, r) => s + r.owedToAgent, 0);
   const floatTotal = rows.reduce((s, r) => s + spendableFloat(r), 0);
-
-  // Most recent movement on each agent's attached mobile money line — display
-  // only, never used to compute any balance on this board.
-  const { data: latestMovements } = useLatestMerchantFloatMovements(
-    rows.map((r) => r.agentId).filter((id): id is string => !!id),
-  );
-
 
   return (
     <div className="rounded-2xl border border-border bg-card p-5 min-w-0">
@@ -148,33 +154,45 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
           {rows.map((r) => {
             const holding = r.companyCashWithAgent > 0;
             const settled = !holding && r.owedToAgent <= 0;
-            const latest = r.agentId ? latestMovements?.get(r.agentId) : undefined;
+            const movements = movementsFor(r);
+            const latestAt = latestMovementAt(r);
+            const booksProveLess = spendableFloat(r) < Math.max(0, r.ledgerFloatHeld);
             return (
               <div
                 key={r.deskId}
                 className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background px-3 py-2 min-w-0"
               >
-                <div className="min-w-0">
+                <div className="min-w-0 text-center">
                   <button
                     type="button"
                     onClick={() => setStatementFor(r)}
-                    className="text-sm font-medium text-foreground truncate hover:text-primary hover:underline text-left w-full"
+                    className="text-sm font-medium text-foreground truncate hover:text-primary hover:underline text-center w-full"
                   >
                     {r.agentName || r.label || 'Merchant agent'}
                   </button>
-                  <p className="text-[11px] font-semibold text-primary tabular-nums">
-                    Float balance: {formatUGX(spendableFloat(r))}
-                    {spendableFloat(r) < Math.max(0, r.ledgerFloatHeld) && (
-                      <span className="ml-1 font-normal text-muted-foreground">
-                        (shown on their phone {formatUGX(Math.max(0, r.ledgerFloatHeld))} — books prove less)
-                      </span>
-                    )}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground truncate">
+                  {movements.length === 0 ? (
+                    <p className="text-[11px] text-muted-foreground">No float movements</p>
+                  ) : (
+                    movements.map((m, idx) => (
+                      <p
+                        key={`${m.agentId}-${m.date}-${idx}`}
+                        className={`text-[11px] font-semibold tabular-nums ${
+                          m.direction === 'cash_in' ? 'text-success' : 'text-destructive'
+                        }`}
+                      >
+                        {m.direction === 'cash_in' ? '+' : '−'}
+                        {formatUGX(m.amount)}
+                        <span className="ml-1 font-normal text-muted-foreground">
+                          {format(new Date(m.date), 'd MMM')}
+                        </span>
+                      </p>
+                    ))
+                  )}
+                  <p className="text-[11px] text-muted-foreground truncate text-center">
                     {r.agentPhone || '—'} · they paid out {formatUGX(r.paidOut)} · we paid them back {formatUGX(r.reimbursed)}
                   </p>
                 </div>
-                <div className="text-right shrink-0">
+                <div className="text-center shrink-0">
                   <p
                     className={`font-mono text-sm font-bold tabular-nums ${
                       spendableFloat(r) > 0 ? 'text-warning' : 'text-foreground'
@@ -191,9 +209,14 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
                           ? 'nothing outstanding either way'
                           : 'we must send this back to them'}
                   </p>
-                  {latest && (
+                  {latestAt && (
                     <p className="text-[10px] text-muted-foreground">
-                      last movement {format(new Date(latest.date), 'd MMM yyyy · HH:mm')}
+                      last movement {format(new Date(latestAt), 'd MMM yyyy · HH:mm')}
+                    </p>
+                  )}
+                  {booksProveLess && (
+                    <p className="text-[10px] text-muted-foreground">
+                      (shown on their phone {formatUGX(Math.max(0, r.ledgerFloatHeld))} — books prove less)
                     </p>
                   )}
                   <button
