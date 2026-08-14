@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
+import { Lock } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import {
   MERCHANT_ADJUSTMENT_LABELS,
