@@ -4902,6 +4902,12 @@ export function LandlordOpsDashboard() {
             onClick={() => goToView('agent-capacity')}
           />
           <HubEntryCard
+            title="Service Centre Managers"
+            description="Managers, sub-agents, houses, landlords, rent & LC1 verifications"
+            icon={Building2}
+            onClick={() => goToView('service-centres')}
+          />
+          <HubEntryCard
             title="Reports & Exports"
             description="Print the landlord payouts report for any date range"
             icon={Printer}
