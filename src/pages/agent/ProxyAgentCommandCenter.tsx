@@ -24,6 +24,7 @@ import { formatDynamic } from '@/lib/currencyFormat';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
 
 import { PromissoryNoteDialog } from '@/components/agent/PromissoryNoteDialog';
+import { useMyProxyAgentStatus } from '@/hooks/useProxyAgentApproval';
 import { WithdrawRequestDialog } from '@/components/wallet/WithdrawRequestDialog';
 import {
   useProxyCommandCenterSummary,
@@ -198,10 +199,58 @@ export default function ProxyAgentCommandCenter() {
     { key: 'withdraw', label: 'Withdraw', icon: Wallet, onClick: () => { hapticTap(); setWithdrawOpen(true); } },
   ]), [handleInvitePartner]);
 
+  // ── Database-level access gate: only approved proxy agents may use this page ──
+  const accessQ = useMyProxyAgentStatus(agentId);
+  const access = accessQ.data?.status ?? 'none';
+
   const partnerTotal = partnersQ.data?.total ?? 0;
   const noteTotal = notesQ.data?.total ?? 0;
   const partnerPages = Math.max(1, Math.ceil(partnerTotal / PAGE_SIZE));
   const notePages = Math.max(1, Math.ceil(noteTotal / PAGE_SIZE));
+
+  if (accessQ.isLoading) {
+    return (
+      <div className="min-h-screen bg-background px-3 py-6 space-y-3">
+        <Skeleton className="h-10 rounded-2xl" />
+        <Skeleton className="h-24 rounded-2xl" />
+        <Skeleton className="h-24 rounded-2xl" />
+      </div>
+    );
+  }
+
+  if (access !== 'approved') {
+    const copy =
+      access === 'pending'
+        ? 'Your proxy agent application is awaiting Partner Ops approval. You will get access as soon as it is approved.'
+        : access === 'rejected'
+          ? 'Your proxy agent application was not approved.'
+          : access === 'suspended'
+            ? 'Your proxy agent access is currently suspended.'
+            : 'This page is only for approved proxy agents. Accept a proxy agent invite to apply.';
+    return (
+      <div className="min-h-screen bg-background px-4 py-8">
+        <div className="mx-auto w-full max-w-md space-y-4">
+          <Card>
+            <CardContent className="p-5 space-y-3">
+              <div className="flex items-center gap-2">
+                <UserCheck className="h-5 w-5 text-primary" />
+                <h1 className="text-base font-black">Proxy agent access</h1>
+              </div>
+              <p className="text-sm text-muted-foreground">{copy}</p>
+              {accessQ.data?.review_notes && (
+                <p className="rounded-md border bg-muted/40 p-2 text-xs">
+                  Note from Partner Ops: {accessQ.data.review_notes}
+                </p>
+              )}
+              <Button variant="outline" className="w-full" onClick={() => navigate('/', { replace: true })}>
+                Back to home
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pb-24">

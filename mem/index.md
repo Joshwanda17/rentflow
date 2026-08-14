@@ -85,3 +85,4 @@
 - [Merchant float position math](mem://features/financial-ops/merchant-float-position-math) — Money With Agents: reimbursement = recorded agent_float_deposit float credits + corrections; matched MoMo emails are evidence only (double counting caused the false 384m owed); per-merchant corrections via merchant_float_reconciliations
 - [Landlords Funded stats](mem://features/landlord-ops/landlords-funded-stats) — ops_landlord_funded_stats RPC + Landlords Funded PDF pack (period comparisons, charts, per district/agent/service centre)
 - [Yoola always first](mem://infrastructure/sms-yoola-always-first) - OTP/password-reset SMS always try Yoola first; no rotation away from Yoola on resend
+- [Self-managed deployment email](mem://features/partner/self-managed-deployment-email) — Self-managed portfolio approval sends partner-self-managed-deployment via the approve-pending-portfolio edge function

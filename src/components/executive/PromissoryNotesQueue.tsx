@@ -18,13 +18,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Search, User, Phone, Calendar, TrendingUp, CheckCircle, Clock, AlertTriangle, XCircle, Mail, MessageCircle, FileText, Trash2, BadgeCheck, MapPin } from 'lucide-react';
+import { Search, User, Phone, Calendar, TrendingUp, CheckCircle, Clock, AlertTriangle, XCircle, Mail, MessageCircle, FileText, Trash2, BadgeCheck, MapPin, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useEffect } from 'react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { formatLocation, locationHaystack } from '@/lib/locationText';
 import { CompactAmount } from '@/components/ui/CompactAmount';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
+import { usePromissoryOpsReport, PROMISSORY_RANGES } from '@/hooks/usePromissoryOpsReport';
+import { ProxyAgentPerformanceList } from './ProxyAgentPerformanceList';
 
 export function PromissoryNotesQueue() {
   const queryClient = useQueryClient();
@@ -36,6 +38,7 @@ export function PromissoryNotesQueue() {
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const [deleteReason, setDeleteReason] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [page, setPage] = useState(1);
   const [approveTarget, setApproveTarget] = useState<any>(null);
   const [approveReason, setApproveReason] = useState('');
   const [approving, setApproving] = useState(false);
@@ -87,7 +90,7 @@ export function PromissoryNotesQueue() {
       setRejectTarget(null);
       setRejectReason('');
       setSelectedNote(null);
-      queryClient.invalidateQueries({ queryKey: ['promissory-notes-queue'] });
+      queryClient.invalidateQueries({ queryKey: ['promissory-ops-report'] });
     } catch (err: any) {
       toast.error(err?.message || 'Failed to reverse promissory note bonus.');
     } finally {
@@ -134,7 +137,7 @@ export function PromissoryNotesQueue() {
       setSelectedLead(null);
       setLeadSearch('');
       setSelectedNote(null);
-      queryClient.invalidateQueries({ queryKey: ['promissory-notes-queue'] });
+      queryClient.invalidateQueries({ queryKey: ['promissory-ops-report'] });
     } catch (err: any) {
       toast.error(err?.message || 'Failed to approve promissory note.');
     } finally {
@@ -185,7 +188,7 @@ export function PromissoryNotesQueue() {
       setDeleteTarget(null);
       setDeleteReason('');
       setSelectedNote(null);
-      queryClient.invalidateQueries({ queryKey: ['promissory-notes-queue'] });
+      queryClient.invalidateQueries({ queryKey: ['promissory-ops-report'] });
     } catch (err: any) {
       toast.error(err?.message || 'Failed to delete promissory note.');
     } finally {
@@ -193,120 +196,17 @@ export function PromissoryNotesQueue() {
     }
   };
 
-  const { data: notes = [], isLoading } = useQuery({
-    queryKey: ['promissory-notes-queue'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('promissory_notes')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(200);
-
-      if (error) throw error;
-      if (!data) return [];
-
-      // Fetch agent profiles
-      const agentIds = [...new Set([
-        ...data.map(n => n.agent_id),
-        ...data.map(n => n.partner_user_id),
-      ].filter(Boolean))];
-      const { data: agents } = await supabase
-        .from('profiles')
-        .select('id, full_name, phone, region, district, sub_county, parish, village, city, town, landmark')
-        .in('id', agentIds);
-
-      const agentMap = new Map(agents?.map(a => [a.id, a]) || []);
-
-      const addressOf = (p: any) => formatLocation([
-        p?.landmark, p?.village, p?.parish, p?.sub_county, p?.city || p?.town, p?.district, p?.region,
-      ]);
-
-      // ---- Detect partners who have actually come in (registered) ----
-      const last9 = (v?: string | null) => (v || '').replace(/\D/g, '').slice(-9);
-      const phoneKeys = new Set<string>();
-      const emailKeys = new Set<string>();
-      data.forEach(n => {
-        [n.whatsapp_number, n.phone_number].forEach(p => {
-          const k = last9(p);
-          if (k.length === 9) phoneKeys.add(k);
-        });
-        if (n.email) emailKeys.add(n.email.trim().toLowerCase());
-      });
-      const phoneVariants = [...phoneKeys].flatMap(k => [`+256${k}`, `256${k}`, `0${k}`, k]);
-
-      const [{ data: byPhone }, { data: byEmail }] = await Promise.all([
-        phoneVariants.length
-          ? supabase.from('profiles').select('id, full_name, phone, email, created_at').in('phone', phoneVariants)
-          : Promise.resolve({ data: [] as any[] } as any),
-        emailKeys.size
-          ? supabase.from('profiles').select('id, full_name, phone, email, created_at').in('email', [...emailKeys])
-          : Promise.resolve({ data: [] as any[] } as any),
-      ]);
-
-      const phoneIndex = new Map<string, any>();
-      (byPhone || []).forEach((p: any) => {
-        const k = last9(p.phone);
-        if (k.length === 9 && !phoneIndex.has(k)) phoneIndex.set(k, p);
-      });
-      const emailIndex = new Map<string, any>();
-      (byEmail || []).forEach((p: any) => {
-        const k = (p.email || '').trim().toLowerCase();
-        if (k && !emailIndex.has(k)) emailIndex.set(k, p);
-      });
-
-      return data.map(note => {
-        const agent = agentMap.get(note.agent_id) as any;
-        const partner = note.partner_user_id ? (agentMap.get(note.partner_user_id) as any) : null;
-        const agentAddress = addressOf(agent);
-        const partnerAddress = addressOf(partner);
-
-        const noteEmail = (note.email || '').trim().toLowerCase();
-        const matched =
-          partner ||
-          phoneIndex.get(last9(note.whatsapp_number)) ||
-          phoneIndex.get(last9(note.phone_number)) ||
-          (noteEmail ? emailIndex.get(noteEmail) : null) ||
-          null;
-        const matchedBy = partner
-          ? 'linked account'
-          : phoneIndex.get(last9(note.whatsapp_number)) || phoneIndex.get(last9(note.phone_number))
-          ? 'phone'
-          : matched
-          ? 'email'
-          : null;
-
-        return {
-          ...note,
-          agent_name: agent?.full_name || 'Unknown Agent',
-          agent_phone: agent?.phone || '',
-          agent_address: agentAddress,
-          partner_address: partnerAddress,
-          came_in: !!matched,
-          came_in_user_id: matched?.id || null,
-          came_in_name: matched?.full_name || null,
-          came_in_phone: matched?.phone || null,
-          came_in_email: matched?.email || null,
-          came_in_matched_by: matchedBy,
-          came_in_at: matched?.created_at || null,
-          search_text: locationHaystack([
-            note.partner_name,
-            note.whatsapp_number,
-            note.phone_number,
-            agent?.full_name,
-            agentAddress,
-            partnerAddress,
-            matched?.full_name,
-            matched?.phone,
-            matched?.email,
-            matched ? 'came in registered' : 'not registered',
-          ]),
-        };
-      });
-    },
-  });
+  const { range, setRange, report, isLoading, refetch } = usePromissoryOpsReport();
+  const notes = report.notes;
+  const kpis = report.kpis;
 
   const filtered = notes.filter(n => {
-    const matchesSearch = !search || (n.search_text || '').includes(search.toLowerCase());
+    const haystack = [
+      n.partner_name, n.whatsapp_number, n.phone_number, n.email,
+      n.agent_name, n.came_in_name, n.lead_partner_name,
+      n.came_in ? 'came in registered' : 'not registered',
+    ].filter(Boolean).join(' ').toLowerCase();
+    const matchesSearch = !search || haystack.includes(search.toLowerCase());
     const matchesStatus =
       statusFilter === 'all'
         ? true
@@ -323,9 +223,11 @@ export function PromissoryNotesQueue() {
     return acc;
   }, {} as Record<string, number>);
 
-  const totalReceivable = notes
-    .filter(n => ['pending', 'activated'].includes(n.status))
-    .reduce((sum, n) => sum + Number(n.amount) - Number(n.total_collected), 0);
+  const NOTES_PER_PAGE = 10;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / NOTES_PER_PAGE));
+  const safePage = Math.min(page, totalPages);
+  const pagedNotes = filtered.slice((safePage - 1) * NOTES_PER_PAGE, safePage * NOTES_PER_PAGE);
+  useEffect(() => { setPage(1); }, [search, statusFilter, range]);
 
   const statusConfig: Record<string, { icon: any; color: string; label: string }> = {
     pending: { icon: Clock, color: 'bg-amber-100 text-amber-700 border-amber-200', label: 'Pending' },
@@ -336,37 +238,57 @@ export function PromissoryNotesQueue() {
   };
 
   const statuses = ['all', 'pending', 'activated', 'fulfilled', 'defaulted', 'cancelled'];
-  const cameInCount = notes.filter((n: any) => n.came_in).length;
-  const notRegisteredCount = notes.length - cameInCount;
+
+  const kpiCards: { label: string; value: React.ReactNode; hint?: string; tone: string }[] = [
+    { label: 'Promissory notes', value: kpis.notes_count, hint: `${kpis.approved_notes} approved`, tone: 'bg-primary/5 border-primary/20' },
+    { label: 'Partners came in', value: kpis.partners_came_in, hint: `of ${kpis.notes_count} notes`, tone: 'bg-emerald-50 border-emerald-200' },
+    { label: 'Receivable', value: <CompactAmount value={Number(kpis.receivable)} />, hint: 'outstanding on live notes', tone: 'bg-amber-50 border-amber-200' },
+    { label: 'Promised vs fulfilled', value: <CompactAmount value={Number(kpis.promised_total)} />, hint: `fulfilled ${Math.round(Number(kpis.promised_total) > 0 ? (Number(kpis.fulfilled_total) / Number(kpis.promised_total)) * 100 : 0)}%`, tone: 'bg-sky-50 border-sky-200' },
+    { label: 'Proxy agents', value: kpis.proxy_agents, hint: `${kpis.proxies_approved} approved`, tone: 'bg-violet-50 border-violet-200' },
+    { label: 'Lead attachments', value: kpis.lead_attachments, hint: 'active proxy attachments', tone: 'bg-muted/40 border-border' },
+    { label: 'Pending commission', value: <CompactAmount value={Number(kpis.pending_commission)} />, hint: `${kpis.pending_commission_count} requests`, tone: 'bg-amber-50 border-amber-200' },
+    { label: 'Approved commission', value: <CompactAmount value={Number(kpis.approved_commission)} />, hint: `${kpis.approved_commission_count} paid`, tone: 'bg-emerald-50 border-emerald-200' },
+    { label: 'Proxies pending review', value: kpis.proxies_pending, hint: 'awaiting approval', tone: 'bg-rose-50 border-rose-200' },
+  ];
 
   return (
     <div className="space-y-4">
-      {/* Summary Cards */}
-      <div className="grid grid-cols-3 gap-2">
-        <Card className="bg-primary/5 border-primary/20">
-          <CardContent className="p-3 text-center">
-            <p className="text-xs text-muted-foreground">Total Notes</p>
-            <p className="text-lg font-bold">{notes.length}</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-emerald-50 border-emerald-200">
-          <CardContent className="p-3 text-center">
-            <p className="text-xs text-muted-foreground">Receivable</p>
-            <p className="text-sm font-bold text-emerald-700"><CompactAmount value={totalReceivable} /></p>
-          </CardContent>
-        </Card>
-        <Card className="bg-amber-50 border-amber-200">
-          <CardContent className="p-3 text-center">
-            <p className="text-xs text-muted-foreground">Pending</p>
-            <p className="text-lg font-bold text-amber-700">{statusCounts.pending || 0}</p>
-          </CardContent>
-        </Card>
+      {/* Range selector */}
+      <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
+        {PROMISSORY_RANGES.map(r => (
+          <button
+            key={r.key}
+            onClick={() => setRange(r.key)}
+            className={cn(
+              'px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all',
+              range === r.key ? 'bg-primary text-primary-foreground' : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+            )}
+          >
+            {r.label}
+          </button>
+        ))}
+        <Button variant="ghost" size="sm" className="ml-auto shrink-0" onClick={() => refetch()}>
+          <RefreshCw className="h-3.5 w-3.5 mr-1" /> Refresh
+        </Button>
+      </div>
+
+      {/* KPI grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-2">
+        {kpiCards.map(k => (
+          <Card key={k.label} className={k.tone}>
+            <CardContent className="p-3">
+              <p className="text-[11px] text-muted-foreground leading-tight">{k.label}</p>
+              <p className="text-base font-bold mt-0.5">{k.value}</p>
+              {k.hint && <p className="text-[10px] text-muted-foreground truncate">{k.hint}</p>}
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       {/* Search & Filter */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name, agent, phone, district or address..." className="pl-9" />
+        <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by partner, agent, phone or email..." className="pl-9" />
       </div>
 
       <div className="flex gap-1.5 overflow-x-auto scrollbar-hide">
@@ -376,9 +298,7 @@ export function PromissoryNotesQueue() {
             onClick={() => setStatusFilter(s)}
             className={cn(
               'px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all',
-              statusFilter === s
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+              statusFilter === s ? 'bg-primary text-primary-foreground' : 'bg-muted/50 text-muted-foreground hover:bg-muted'
             )}
           >
             {s === 'all' ? `All (${notes.length})` : `${s.charAt(0).toUpperCase() + s.slice(1)} (${statusCounts[s] || 0})`}
@@ -391,7 +311,7 @@ export function PromissoryNotesQueue() {
             statusFilter === 'came_in' ? 'bg-primary text-primary-foreground' : 'bg-muted/50 text-muted-foreground hover:bg-muted'
           )}
         >
-          Came in ({cameInCount})
+          Came in ({kpis.partners_came_in})
         </button>
         <button
           onClick={() => setStatusFilter('not_registered')}
@@ -400,105 +320,131 @@ export function PromissoryNotesQueue() {
             statusFilter === 'not_registered' ? 'bg-primary text-primary-foreground' : 'bg-muted/50 text-muted-foreground hover:bg-muted'
           )}
         >
-          Not registered ({notRegisteredCount})
+          Not registered ({kpis.notes_count - kpis.partners_came_in})
         </button>
       </div>
 
       {/* Notes list */}
-      {isLoading ? (
-        <div className="text-center py-8 text-muted-foreground text-sm">Loading promissory notes...</div>
-      ) : filtered.length === 0 ? (
-        <div className="text-center py-8 text-muted-foreground text-sm">No promissory notes found</div>
-      ) : (
-        <div className="space-y-2">
-          {filtered.map(note => {
-            const config = statusConfig[note.status] || statusConfig.pending;
-            const StatusIcon = config.icon;
-            const outstanding = Number(note.amount) - Number(note.total_collected);
+      <Card>
+        <CardContent className="p-3">
+          {isLoading ? (
+            <div className="text-center py-8 text-muted-foreground text-sm">Loading promissory notes...</div>
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground text-sm">No promissory notes found</div>
+          ) : (
+            <>
+              {/* Desktop table */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-left text-muted-foreground border-b">
+                      <th className="py-2 pr-3 font-medium">Agent</th>
+                      <th className="py-2 pr-3 font-medium">Partner</th>
+                      <th className="py-2 pr-3 font-medium text-right">Promised</th>
+                      <th className="py-2 pr-3 font-medium text-right">Fulfilled</th>
+                      <th className="py-2 pr-3 font-medium">Registered</th>
+                      <th className="py-2 pr-3 font-medium">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pagedNotes.map(note => {
+                      const config = statusConfig[note.status] || statusConfig.pending;
+                      const StatusIcon = config.icon;
+                      return (
+                        <tr key={note.id} className="border-b last:border-0 cursor-pointer hover:bg-muted/40" onClick={() => setSelectedNote(note)}>
+                          <td className="py-2 pr-3 truncate max-w-[160px]">{note.agent_name}</td>
+                          <td className="py-2 pr-3">
+                            <span className="font-medium block truncate max-w-[160px]">{note.partner_name}</span>
+                            <span className="text-[10px] text-muted-foreground">{note.whatsapp_number}</span>
+                          </td>
+                          <td className="py-2 pr-3 text-right font-medium"><CompactAmount value={Number(note.amount)} /></td>
+                          <td className="py-2 pr-3 text-right font-medium text-emerald-600"><CompactAmount value={Number(note.total_collected)} /></td>
+                          <td className="py-2 pr-3">{format(new Date(note.created_at), 'dd MMM yyyy')}</td>
+                          <td className="py-2 pr-3">
+                            <div className="flex items-center gap-1">
+                              <Badge variant="outline" className={cn('text-[10px]', config.color)}>
+                                <StatusIcon className="h-3 w-3 mr-1" />
+                                {config.label}
+                              </Badge>
+                              {note.came_in && (
+                                <span title="Partner came in" className="inline-flex">
+                                  <BadgeCheck className="h-3.5 w-3.5 text-emerald-600" />
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
 
-            return (
-              <Card key={note.id} className="border cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => setSelectedNote(note)}>
-                <CardContent className="p-3 space-y-2">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                        <span className="font-medium text-sm truncate">{note.partner_name}</span>
+              {/* Mobile cards */}
+              <div className="md:hidden space-y-2">
+                {pagedNotes.map(note => {
+                  const config = statusConfig[note.status] || statusConfig.pending;
+                  const StatusIcon = config.icon;
+                  return (
+                    <button
+                      key={note.id}
+                      type="button"
+                      onClick={() => setSelectedNote(note)}
+                      className="w-full text-left rounded-lg border p-3 hover:bg-muted/40 transition-colors"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{note.partner_name}</p>
+                          <p className="text-[11px] text-muted-foreground truncate">Agent: {note.agent_name}</p>
+                        </div>
+                        <Badge variant="outline" className={cn('text-[10px] shrink-0', config.color)}>
+                          <StatusIcon className="h-3 w-3 mr-1" />
+                          {config.label}
+                        </Badge>
                       </div>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <Phone className="h-3 w-3 text-muted-foreground shrink-0" />
-                        <span className="text-xs text-muted-foreground">{note.whatsapp_number}</span>
+                      <div className="mt-2 grid grid-cols-2 gap-2 text-[11px]">
+                        <div>
+                          <span className="text-muted-foreground">Promised: </span>
+                          <span className="font-medium"><CompactAmount value={Number(note.amount)} /></span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Fulfilled: </span>
+                          <span className="font-medium text-emerald-600"><CompactAmount value={Number(note.total_collected)} /></span>
+                        </div>
+                        <div className="col-span-2 text-muted-foreground flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          {format(new Date(note.created_at), 'dd MMM yyyy')}
+                          {note.came_in && <span className="ml-auto text-emerald-700 font-medium">Came in</span>}
+                        </div>
                       </div>
-                    </div>
-                    <Badge variant="outline" className={cn('text-[10px] shrink-0', config.color)}>
-                      <StatusIcon className="h-3 w-3 mr-1" />
-                      {config.label}
-                    </Badge>
-                  </div>
+                    </button>
+                  );
+                })}
+              </div>
 
-                  {note.came_in ? (
-                    <div className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1.5">
-                      <div className="flex items-center gap-1.5">
-                        <BadgeCheck className="h-3.5 w-3.5 text-emerald-700 shrink-0" />
-                        <span className="text-[11px] font-semibold text-emerald-800">
-                          Came in — partner registered
-                        </span>
-                        <span className="text-[10px] text-emerald-700/80 ml-auto">via {note.came_in_matched_by}</span>
-                      </div>
-                      <p className="text-[11px] text-emerald-800/90 mt-0.5 truncate">
-                        {note.came_in_name || 'Account'}
-                        {note.came_in_phone ? ` · ${note.came_in_phone}` : ''}
-                        {note.came_in_email ? ` · ${note.came_in_email}` : ''}
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-1.5 rounded-md border border-dashed border-border px-2 py-1">
-                      <Clock className="h-3 w-3 text-muted-foreground shrink-0" />
-                      <span className="text-[11px] text-muted-foreground">Not yet registered in the system</span>
-                    </div>
-                  )}
+              {/* Pagination */}
+              <div className="flex items-center justify-between gap-2 pt-3 mt-1 border-t">
+                <span className="text-[11px] text-muted-foreground">
+                  {(safePage - 1) * NOTES_PER_PAGE + 1}–{Math.min(safePage * NOTES_PER_PAGE, filtered.length)} of {filtered.length}
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" className="h-7 px-2" disabled={safePage <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                  </Button>
+                  <span className="text-[11px] text-muted-foreground">Page {safePage} of {totalPages}</span>
+                  <Button variant="outline" size="sm" className="h-7 px-2" disabled={safePage >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
 
-                  <div className="flex items-center justify-between text-xs">
-                    <div>
-                      <span className="text-muted-foreground">Promised: </span>
-                      <span className="font-bold"><CompactAmount value={Number(note.amount)} /></span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Collected: </span>
-                      <span className="font-medium"><CompactAmount value={Number(note.total_collected)} /></span>
-                    </div>
-                    {outstanding > 0 && (
-                      <div>
-                        <span className="text-muted-foreground">Due: </span>
-                        <span className="font-bold text-primary"><CompactAmount value={outstanding} /></span>
-                      </div>
-                    )}
-                  </div>
+      {/* Proxy agent performance */}
+      <ProxyAgentPerformanceList agents={report.proxy_agents} isLoading={isLoading} />
 
-                  <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Calendar className="h-3 w-3" />
-                      {format(new Date(note.created_at), 'dd MMM yyyy')}
-                    </span>
-                    <span>{note.contribution_type === 'monthly' ? `Monthly (Day ${note.deduction_day})` : 'Once-off'}</span>
-                    <span>Agent: {note.agent_name}</span>
-                  </div>
-
-                  {/* Progress bar for collection */}
-                  {Number(note.amount) > 0 && (
-                    <div className="w-full bg-muted rounded-full h-1.5">
-                      <div
-                        className="bg-primary rounded-full h-1.5 transition-all"
-                        style={{ width: `${Math.min(100, (Number(note.total_collected) / Number(note.amount)) * 100)}%` }}
-                      />
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      )}
 
       {/* Detail Sheet */}
       <Sheet open={!!selectedNote} onOpenChange={(open) => { if (!open) setSelectedNote(null); }}>
