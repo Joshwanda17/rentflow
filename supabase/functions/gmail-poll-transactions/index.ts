@@ -907,6 +907,13 @@ Deno.serve(async (req) => {
       } catch (e) {
         console.warn('[gmail-poll] linked-pending sweep failed (non-fatal):', e);
       }
+      // Backstop #2: outbound sends to a registered merchant float phone that
+      // never got a receipt at all (silent-gap net, Rule 3 independent).
+      try {
+        await sweepUnlinkedMerchantFloatSends(supabase);
+      } catch (e) {
+        console.warn('[gmail-poll] unlinked merchant float sweep failed (non-fatal):', e);
+      }
     }
 
     return new Response(JSON.stringify({
