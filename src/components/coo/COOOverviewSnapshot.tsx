@@ -279,7 +279,7 @@ export default function COOOverviewSnapshot() {
         </CardHeader>
         <CardContent className="pt-0">
           {review_requests.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">No rent requests waiting for review.</p>
+            <p className="text-sm text-muted-foreground py-4 text-center">No rent requests pending COO approval.</p>
           ) : (
             <ul className="divide-y">
               {review_requests.map(r => (
