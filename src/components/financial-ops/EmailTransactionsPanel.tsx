@@ -13,6 +13,8 @@ import { BacklogSweepLauncher } from '@/components/financial-ops/BacklogSweepDia
 import { Info, Inbox, AlertOctagon, Send, Menu } from 'lucide-react';
 import { Wrench, Clock } from 'lucide-react';
 import { SlidersHorizontal } from 'lucide-react';
+import { CalendarRange } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle,
