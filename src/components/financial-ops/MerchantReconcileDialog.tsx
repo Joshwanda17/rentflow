@@ -14,6 +14,7 @@ import {
   useMerchantFloatAdjustments,
   useMerchantFloatLedgerVariance,
   usePostMerchantAdjustment,
+  usePostMerchantOpeningFloatLedger,
 } from '@/hooks/useMerchantFloat';
 
 /**
@@ -35,15 +36,25 @@ export function MerchantReconcileDialog({
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
   const [evidence, setEvidence] = useState('');
+  // Opening balances can optionally be recognised on the BOOKS: balanced legs
+  // (agent float cash_in + platform cash_out) plus the float bucket moved by the
+  // sole wallet writer. Display-only stays the default.
+  const [postToLedger, setPostToLedger] = useState(false);
   const { data: history } = useMerchantFloatAdjustments(position?.deskId);
   const { data: variances } = useMerchantFloatLedgerVariance(open);
   const post = usePostMerchantAdjustment();
+  const postLedger = usePostMerchantOpeningFloatLedger();
 
   if (!position) return null;
 
   const truth = variances?.find((v) => v.deskId === position.deskId);
   const numericAmount = Number(amount.replace(/[^\d.-]/g, ''));
-  const valid = Number.isFinite(numericAmount) && numericAmount !== 0 && reason.trim().length >= 10;
+  const ledgerMode = type === 'opening_balance' && postToLedger;
+  const valid =
+    Number.isFinite(numericAmount) &&
+    (ledgerMode ? numericAmount > 0 : numericAmount !== 0) &&
+    reason.trim().length >= 10;
+  const busy = post.isPending || postLedger.isPending;
 
   // What a recorded fix can and cannot move. Every adjustment type folds into
   // `adjustments_total` (which moves "Money we paid them back" and "We owe
@@ -55,6 +66,29 @@ export function MerchantReconcileDialog({
 
   const submit = async () => {
     try {
+      if (ledgerMode) {
+        const res = await postLedger.mutateAsync({
+          deskId: position.deskId,
+          agentId: position.agentId,
+          adjustmentType: 'opening_balance',
+          amount: numericAmount,
+          reason,
+          evidenceNote: evidence,
+        });
+        toast.success('Recorded on the books', {
+          description: `Balanced legs posted. "They're holding our money" is now ${formatUGX(
+            position.companyCashWithAgent + Math.round(numericAmount),
+          )} (was ${formatUGX(position.companyCashWithAgent)}). Ledger group ${String(
+            res.ledger_group_id,
+          ).slice(0, 8)}.`,
+        });
+        setAmount('');
+        setReason('');
+        setEvidence('');
+        setPostToLedger(false);
+        onOpenChange(false);
+        return;
+      }
       const row = await post.mutateAsync({
         deskId: position.deskId,
         agentId: position.agentId,
