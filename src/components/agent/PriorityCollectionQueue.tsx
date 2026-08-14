@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
-import { AlertTriangle, Navigation, Phone, Ban, CheckCircle2 } from 'lucide-react';
+import { AlertTriangle, Navigation, Phone, Ban, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { differenceInDays } from 'date-fns';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -35,6 +35,8 @@ interface Props {
 
 export function PriorityCollectionQueue({ open, onOpenChange, agentId }: Props) {
   const [editTarget, setEditTarget] = useState<CollectionItem | null>(null);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 15;
 
   const { data: queue = [], isLoading } = useQuery({
     queryKey: ['priority-collection-queue', agentId],
@@ -94,6 +96,17 @@ export function PriorityCollectionQueue({ open, onOpenChange, agentId }: Props) 
     staleTime: 60000,
   });
 
+  useEffect(() => {
+    if (open) setPage(1);
+  }, [open]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [queue.length]);
+
+  const totalPages = Math.max(1, Math.ceil(queue.length / PAGE_SIZE));
+  const paginatedQueue = queue.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
   const riskColors = {
     low: 'border-success/30 bg-success/5',
     medium: 'border-warning/30 bg-warning/5',
@@ -145,7 +158,7 @@ export function PriorityCollectionQueue({ open, onOpenChange, agentId }: Props) 
               <p className="text-success font-semibold">🎉 All tenants are up to date!</p>
             </div>
           ) : (
-            queue.map((item, idx) => (
+            paginatedQueue.map((item, idx) => (
               <div
                 key={item.tenant_id + idx}
                 className={cn(
@@ -156,7 +169,7 @@ export function PriorityCollectionQueue({ open, onOpenChange, agentId }: Props) 
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-xs font-bold text-muted-foreground w-5 shrink-0">#{idx + 1}</span>
+                    <span className="text-xs font-bold text-muted-foreground w-5 shrink-0">#{(page - 1) * PAGE_SIZE + idx + 1}</span>
                     <div className="min-w-0">
                       <p className="font-semibold text-sm truncate">{item.tenant_name}</p>
                       <p className={cn("text-[10px] font-medium", riskLabels[item.risk_level].color)}>
@@ -214,6 +227,32 @@ export function PriorityCollectionQueue({ open, onOpenChange, agentId }: Props) 
             ))
           )}
         </div>
+
+        {queue.length > PAGE_SIZE && (
+          <div className="sticky bottom-0 bg-background/95 backdrop-blur border-t border-border/40 p-3 flex items-center justify-between">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page <= 1}
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              className="h-9 gap-1"
+            >
+              <ChevronLeft className="h-4 w-4" /> Prev
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              Page {page} of {totalPages} ({queue.length})
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= totalPages}
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              className="h-9 gap-1"
+            >
+              Next <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
 
         <RentPaymentStatusSheet
           open={!!editTarget}
