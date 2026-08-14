@@ -37625,6 +37625,29 @@ export type Database = {
         Args: { p_manager_id?: string }
         Returns: Json
       }
+      get_service_centre_manager_network: {
+        Args: { p_limit?: number; p_offset?: number; p_search?: string }
+        Returns: {
+          agent_id: string
+          agent_name: string
+          agent_phone: string
+          centre_created_at: string
+          centre_location: string
+          centre_status: string
+          houses_pending: number
+          houses_total: number
+          houses_verified: number
+          landlords_pending: number
+          landlords_total: number
+          landlords_verified: number
+          lc1_pending: number
+          lc1_verified: number
+          monthly_rent_verified: number
+          sub_agents_managed: number
+          sub_agents_pending: number
+          total_count: number
+        }[]
+      }
       get_shadow_match_rate: {
         Args: { p_hours?: number }
         Returns: {
