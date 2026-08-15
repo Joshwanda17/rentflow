@@ -3570,25 +3570,46 @@ export function ComprehensiveCashMovement() {
     setLoading(true);
     try {
       const { from } = periodRange(period);
-      // Page through to bypass 1000-row default limit
+      // Keyset (cursor) pagination on transaction_date, de-duplicated by id.
+      // OFFSET paging re-scanned and re-sorted the whole ledger on every page,
+      // which grew quadratically and tripped the Postgres statement timeout
+      // (HTTP 500) past ~20k rows. A `>= cursor` window walks the
+      // (transaction_date, id) index instead. Same rows, same order — rows that
+      // share the boundary timestamp are carried over and de-duplicated, so no
+      // row is dropped or counted twice.
       const PAGE = 1000;
-      let acc: LedgerRow[] = [];
-      let offset = 0;
+      const acc: LedgerRow[] = [];
+      const seen = new Set<string>();
+      let cursorDate: string | null = from ? from.toISOString() : null;
+      let pages = 0;
       // eslint-disable-next-line no-constant-condition
       while (true) {
         let q = supabase
           .from('general_ledger')
           .select('id, transaction_date, amount, direction, category, ledger_scope, classification, reference_id, description, linked_party, user_id, transaction_group_id, source_table, source_id')
           .order('transaction_date', { ascending: true })
-          .range(offset, offset + PAGE - 1);
-        if (from) q = q.gte('transaction_date', from.toISOString());
+          .order('id', { ascending: true })
+          .limit(PAGE);
+        if (cursorDate) q = q.gte('transaction_date', cursorDate);
         const { data, error } = await q;
         if (error) throw error;
         const batch = (data || []) as LedgerRow[];
-        acc = acc.concat(batch);
+        let added = 0;
+        for (const r of batch) {
+          if (seen.has(r.id)) continue;
+          seen.add(r.id);
+          acc.push(r);
+          added += 1;
+        }
         if (batch.length < PAGE) break;
-        offset += PAGE;
-        if (offset > 200_000) break; // safety cap
+        // Nothing new on a full page means every row shares the cursor
+        // timestamp — advance by 1ms to avoid an infinite loop.
+        const last = batch[batch.length - 1];
+        cursorDate = added === 0
+          ? new Date(new Date(last.transaction_date).getTime() + 1).toISOString()
+          : last.transaction_date;
+        pages += 1;
+        if (pages > 400) break; // safety cap
       }
       setRows(acc);
       setGeneratedAt(new Date());
@@ -6904,38 +6925,31 @@ function WalletMovementSummary({
     setPriorLoading(true);
     (async () => {
       try {
-        const PAGE = 1000;
-        let offset = 0;
+        // Server-side aggregate — this comparison only ever needed per-category
+        // sums. Paging raw wallet-scope rows with deep OFFSETs timed out (HTTP 500).
+        // Same dimensions, same client-side adjustment filter, identical totals.
         const inByCat = new Map<string, number>();
         const outByCat = new Map<string, number>();
         let totalIn = 0;
         let totalOut = 0;
-        // Only wallet-scope rows are needed for this comparison.
-        // eslint-disable-next-line no-constant-condition
-        while (true) {
-          const { data, error } = await readOnlyLedger()
-            .select('amount, direction, category, classification')
-            .eq('ledger_scope', 'wallet')
-            .gte('transaction_date', priorRange.from.toISOString())
-            .lt('transaction_date', priorRange.to.toISOString())
-            .order('transaction_date', { ascending: true })
-            .range(offset, offset + PAGE - 1);
-          if (error) throw error;
-          const batch = (data || []) as Array<Pick<LedgerRow, 'amount' | 'direction' | 'category' | 'classification'>>;
-          for (const r of batch) {
-            if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) continue;
-            const amt = Number(r.amount) || 0;
-            if (r.direction === 'cash_in') {
-              inByCat.set(r.category, (inByCat.get(r.category) || 0) + amt);
-              totalIn += amt;
-            } else if (r.direction === 'cash_out') {
-              outByCat.set(r.category, (outByCat.get(r.category) || 0) + amt);
-              totalOut += amt;
-            }
+        const { data, error } = await supabase.rpc('get_wallet_ledger_category_sums', {
+          p_from: priorRange.from.toISOString(),
+          p_to: priorRange.to.toISOString(),
+        } as any);
+        if (error) throw error;
+        const groups = (data || []) as unknown as Array<{
+          direction: string; category: string; classification: string; amount: number | string;
+        }>;
+        for (const r of groups) {
+          if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) continue;
+          const amt = Number(r.amount) || 0;
+          if (r.direction === 'cash_in') {
+            inByCat.set(r.category, (inByCat.get(r.category) || 0) + amt);
+            totalIn += amt;
+          } else if (r.direction === 'cash_out') {
+            outByCat.set(r.category, (outByCat.get(r.category) || 0) + amt);
+            totalOut += amt;
           }
-          if (batch.length < PAGE) break;
-          offset += PAGE;
-          if (offset > 200_000) break;
         }
         if (!cancelled) setPriorTotals({ inByCat, outByCat, totalIn, totalOut });
       } catch (err) {

@@ -36998,6 +36998,25 @@ export type Database = {
           withdrawal_status: string
         }[]
       }
+      get_cfo_cash_movement_rows: {
+        Args: { p_after?: string; p_from?: string; p_limit?: number }
+        Returns: {
+          amount: number
+          category: string
+          classification: string
+          description: string
+          direction: string
+          id: string
+          ledger_scope: string
+          linked_party: string
+          reference_id: string
+          source_id: string
+          source_table: string
+          transaction_date: string
+          transaction_group_id: string
+          user_id: string
+        }[]
+      }
       get_cfo_ledger_trail: {
         Args: {
           p_categories?: string[]
@@ -37233,6 +37252,17 @@ export type Database = {
         }[]
       }
       get_financial_ops_pulse: { Args: never; Returns: Json }
+      get_financial_statement_ledger_sums: {
+        Args: { p_end?: string; p_start?: string }
+        Returns: {
+          amount: number
+          category: string
+          desc_bucket: string
+          direction: string
+          ledger_scope: string
+          period: string
+        }[]
+      }
       get_flagged_tenants_for_transfer: {
         Args: never
         Returns: {
@@ -38499,6 +38529,15 @@ export type Database = {
         }[]
       }
       get_user_wallet_view: { Args: { p_user_id: string }; Returns: Json }
+      get_wallet_ledger_category_sums: {
+        Args: { p_from: string; p_to: string }
+        Returns: {
+          amount: number
+          category: string
+          classification: string
+          direction: string
+        }[]
+      }
       get_wallet_ops_stats: { Args: { p_period?: string }; Returns: Json }
       get_wallet_reconciliation: {
         Args: never
