@@ -7862,6 +7862,27 @@ export type Database = {
         }
         Relationships: []
       }
+      db_stat_snapshots: {
+        Row: {
+          captured_at: string
+          day: string
+          xact_commit: number
+          xact_rollback: number
+        }
+        Insert: {
+          captured_at?: string
+          day: string
+          xact_commit: number
+          xact_rollback: number
+        }
+        Update: {
+          captured_at?: string
+          day?: string
+          xact_commit?: number
+          xact_rollback?: number
+        }
+        Relationships: []
+      }
       default_recovery_ledger: {
         Row: {
           agent_id: string | null
