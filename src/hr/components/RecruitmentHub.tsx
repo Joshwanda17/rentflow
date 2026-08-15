@@ -260,12 +260,18 @@ export default function RecruitmentHub() {
 
   return (
     <Tabs value={tab} onValueChange={setTab} className="space-y-4">
-      <TabsList className="grid grid-cols-4 w-full">
+      <TabsList className="grid grid-cols-5 w-full">
+        <TabsTrigger value="internships">Internships</TabsTrigger>
         <TabsTrigger value="requisitions">Requisitions</TabsTrigger>
         <TabsTrigger value="postings">Postings</TabsTrigger>
         <TabsTrigger value="applications">Applications</TabsTrigger>
         <TabsTrigger value="pool">Talent Pool</TabsTrigger>
       </TabsList>
+
+      {/* ---------------- Internships ---------------- */}
+      <TabsContent value="internships" className="space-y-3">
+        <HRInternshipApplications />
+      </TabsContent>
 
       {/* ---------------- Requisitions ---------------- */}
       <TabsContent value="requisitions" className="space-y-3">
