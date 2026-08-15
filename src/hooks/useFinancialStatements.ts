@@ -336,72 +336,59 @@ async function generateStatementsRaw(activeFilters: StatementFilters): Promise<F
       const startDate = activeFilters.startDate || start;
       const endDate = activeFilters.endDate || end;
 
-      // Helper: build scoped ledger query — fetches ALL rows via pagination
-      const fetchAllScoped = async (scope: 'platform' | 'wallet' | 'bridge', direction?: 'cash_in' | 'cash_out') => {
-        const pageSize = 5000;
-        let allRows: any[] = [];
-        let offset = 0;
-        let hasMore = true;
+      // ── Ledger legs are aggregated ON THE SERVER ────────────────────────────
+      // Previously this hook paged ~400k `general_ledger` rows into the browser
+      // (5k-row pages with deep OFFSETs), which reliably tripped the Postgres
+      // statement timeout and returned HTTP 500. `get_financial_statement_ledger_sums`
+      // returns the exact same money, pre-summed per
+      // (period, ledger_scope, direction, category, legacy description bucket).
+      // We rehydrate one synthetic row per group so every downstream
+      // `sumBy` / `sumByDescriptionMatch` / total calculation below is untouched
+      // and produces byte-identical figures.
+      interface LedgerSumRow {
+        period: string;
+        ledger_scope: string;
+        direction: string;
+        category: string;
+        desc_bucket: string | null;
+        amount: number | string;
+      }
 
-        while (hasMore) {
-          let q = supabase.from('general_ledger').select('amount, direction, category, ledger_scope, description');
-          if (startDate) q = q.gte('transaction_date', startDate.toISOString());
-          if (endDate) q = q.lte('transaction_date', endDate.toISOString());
-          q = q.eq('ledger_scope', scope);
-          q = q.in('classification', ['production', 'legacy_real']);
-          if (direction) q = q.eq('direction', direction);
-          q = q.range(offset, offset + pageSize - 1);
-          
-          const { data } = await q;
-          const rows = data || [];
-          allRows = allRows.concat(rows);
-          hasMore = rows.length === pageSize;
-          offset += pageSize;
-        }
-        return allRows;
-      };
+      const { data: sumRowsRaw, error: sumsError } = await supabase.rpc(
+        'get_financial_statement_ledger_sums',
+        {
+          p_start: startDate ? startDate.toISOString() : null,
+          p_end: endDate ? endDate.toISOString() : null,
+        } as any,
+      );
+      if (sumsError) throw sumsError;
+      const sumRows = ((sumRowsRaw || []) as unknown as LedgerSumRow[]).map(r => ({
+        amount: Number(r.amount) || 0,
+        direction: r.direction,
+        category: r.category,
+        ledger_scope: r.ledger_scope,
+        description: r.desc_bucket ?? null,
+        period: r.period,
+      }));
 
-      // Helper for prev-period query
-      const fetchAllPrevPlatform = async () => {
-        if (!startDate) return [];
-        const pageSize = 5000;
-        let allRows: any[] = [];
-        let offset = 0;
-        let hasMore = true;
+      const scopedRows = (scope: 'platform' | 'wallet' | 'bridge', direction: 'cash_in' | 'cash_out') =>
+        sumRows.filter(r => r.period === 'current' && r.ledger_scope === scope && r.direction === direction);
 
-        while (hasMore) {
-          let q = supabase.from('general_ledger').select('amount, direction, category, ledger_scope');
-          q = q.lt('transaction_date', startDate.toISOString());
-          q = q.eq('ledger_scope', 'platform');
-          q = q.in('classification', ['production', 'legacy_real']);
-          q = q.range(offset, offset + pageSize - 1);
-          
-          const { data } = await q;
-          const rows = data || [];
-          allRows = allRows.concat(rows);
-          hasMore = rows.length === pageSize;
-          offset += pageSize;
-        }
-        return allRows;
-      };
+      const platformIn = scopedRows('platform', 'cash_in');
+      const platformOut = scopedRows('platform', 'cash_out');
+      const walletIn = scopedRows('wallet', 'cash_in');
+      const walletOut = scopedRows('wallet', 'cash_out');
+      const bridgeIn = scopedRows('bridge', 'cash_in');
+      const bridgeOut = scopedRows('bridge', 'cash_out');
+      const prevPlatform = sumRows.filter(r => r.period === 'prior');
 
       const [
-        platformIn, platformOut,
-        walletIn, walletOut,
-        bridgeIn, bridgeOut,
         walletsRes, rentRequestsRes, advancesRes,
-        prevPlatform, allTimePlatformRes, promissoryNotesRes,
+        allTimePlatformRes, promissoryNotesRes,
       ] = await Promise.all([
-        fetchAllScoped('platform', 'cash_in'),
-        fetchAllScoped('platform', 'cash_out'),
-        fetchAllScoped('wallet', 'cash_in'),
-        fetchAllScoped('wallet', 'cash_out'),
-        fetchAllScoped('bridge', 'cash_in'),
-        fetchAllScoped('bridge', 'cash_out'),
         supabase.rpc('get_wallet_totals'),
         supabase.from('rent_requests').select('id, rent_amount, access_fee, request_fee, status, tenant_id, agent_id, created_at').limit(10000),
         supabase.from('agent_advances').select('access_fee, access_fee_collected, access_fee_status, status').in('status', ['active', 'overdue']),
-        fetchAllPrevPlatform(),
         supabase.rpc('get_platform_cash_summary'),
         supabase.from('promissory_notes').select('amount, total_collected, status').in('status', ['pending', 'activated']),
       ]);
