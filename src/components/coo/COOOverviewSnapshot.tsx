@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Area, AreaChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis,
@@ -8,12 +9,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, format, startOfMonth, subDays } from 'date-fns';
 import {
   Users, Handshake, Home, Building2, UserCheck, Banknote, TrendingUp,
-  Target, Coins, RefreshCw, LineChart, ClipboardList, Loader2,
+  Target, Coins, RefreshCw, LineChart, ClipboardList, Loader2, CalendarDays,
 } from 'lucide-react';
+import type { DateRange } from 'react-day-picker';
 
 interface Counts {
   agents: number;
@@ -69,6 +74,7 @@ interface PendingRoi {
 interface Snapshot {
   generated_at: string;
   days: number;
+  range?: { from: string; to: string; bucket: 'day' | 'month' };
   counts: Counts;
   money: Money;
   collections_series: CollectionPoint[];
@@ -148,20 +154,119 @@ function ChartTooltip({ active, payload, label }: any) {
   );
 }
 
+type PresetId = 'all' | 'today' | 'yesterday' | 'month' | 'custom';
+
+const PRESETS: { id: PresetId; label: string }[] = [
+  { id: 'all', label: 'All time' },
+  { id: 'today', label: 'Today' },
+  { id: 'yesterday', label: 'Yesterday' },
+  { id: 'month', label: 'This month' },
+  { id: 'custom', label: 'Custom' },
+];
+
+const ALL_TIME_START = '2020-01-01';
+const fmt = (d: Date) => format(d, 'yyyy-MM-dd');
+
+function resolveRange(preset: PresetId, custom?: DateRange): { from: string; to: string } {
+  const today = new Date();
+  switch (preset) {
+    case 'today':
+      return { from: fmt(today), to: fmt(today) };
+    case 'yesterday': {
+      const y = subDays(today, 1);
+      return { from: fmt(y), to: fmt(y) };
+    }
+    case 'month':
+      return { from: fmt(startOfMonth(today)), to: fmt(today) };
+    case 'custom':
+      if (custom?.from) {
+        return { from: fmt(custom.from), to: fmt(custom.to ?? custom.from) };
+      }
+      return { from: ALL_TIME_START, to: fmt(today) };
+    case 'all':
+    default:
+      return { from: ALL_TIME_START, to: fmt(today) };
+  }
+}
+
 export default function COOOverviewSnapshot() {
+  const [preset, setPreset] = useState<PresetId>('month');
+  const [custom, setCustom] = useState<DateRange | undefined>();
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  const range = useMemo(() => resolveRange(preset, custom), [preset, custom]);
+
   const { data, isLoading, isFetching, refetch, error } = useQuery({
-    queryKey: ['coo-overview-snapshot', 14],
+    queryKey: ['coo-overview-snapshot', range.from, range.to],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_coo_overview_snapshot', { p_days: 14 });
+      const { data, error } = await supabase.rpc('get_coo_overview_snapshot', {
+        p_days: 14,
+        p_from: range.from,
+        p_to: range.to,
+      } as any);
       if (error) throw error;
       return data as unknown as Snapshot;
     },
     staleTime: 60_000,
   });
 
+  const rangeLabel =
+    preset === 'all' ? 'All time'
+      : preset === 'custom' && custom?.from
+        ? `${format(custom.from, 'dd MMM yyyy')} – ${format(custom.to ?? custom.from, 'dd MMM yyyy')}`
+        : PRESETS.find(p => p.id === preset)?.label ?? '';
+
+  const filterBar = (
+    <section className="rounded-xl border bg-card p-2.5">
+      <div className="flex flex-wrap items-center gap-1.5">
+        {PRESETS.filter(p => p.id !== 'custom').map(p => (
+          <Button
+            key={p.id}
+            size="sm"
+            variant={preset === p.id ? 'default' : 'outline'}
+            className="h-7 rounded-full px-3 text-[11px] font-bold"
+            onClick={() => setPreset(p.id)}
+          >
+            {p.label}
+          </Button>
+        ))}
+        <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              size="sm"
+              variant={preset === 'custom' ? 'default' : 'outline'}
+              className="h-7 rounded-full px-3 text-[11px] font-bold"
+            >
+              <CalendarDays className="mr-1 h-3.5 w-3.5" />
+              {preset === 'custom' && custom?.from ? rangeLabel : 'Custom range'}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0 z-[60]" align="start">
+            <Calendar
+              mode="range"
+              selected={custom}
+              onSelect={(r) => {
+                setCustom(r);
+                setPreset('custom');
+                if (r?.from && r?.to) setPickerOpen(false);
+              }}
+              numberOfMonths={1}
+              disabled={{ after: new Date() }}
+              initialFocus
+            />
+          </PopoverContent>
+        </Popover>
+        <span className="ml-auto text-[10px] font-semibold text-muted-foreground">
+          Showing: {rangeLabel}
+        </span>
+      </div>
+    </section>
+  );
+
   if (isLoading) {
     return (
       <div className="space-y-3">
+        {filterBar}
         <Skeleton className="h-24 w-full rounded-xl" />
         <Skeleton className="h-56 w-full rounded-xl" />
         <Skeleton className="h-40 w-full rounded-xl" />
@@ -171,9 +276,12 @@ export default function COOOverviewSnapshot() {
 
   if (error || !data) {
     return (
-      <div className="rounded-xl border-2 border-red-500/40 bg-red-500/8 p-4 text-sm">
-        Could not load the operations snapshot.
-        <button onClick={() => refetch()} className="ml-2 font-bold underline">Try again</button>
+      <div className="space-y-3">
+        {filterBar}
+        <div className="rounded-xl border-2 border-red-500/40 bg-red-500/8 p-4 text-sm">
+          Could not load the operations snapshot.
+          <button onClick={() => refetch()} className="ml-2 font-bold underline">Try again</button>
+        </div>
       </div>
     );
   }
@@ -195,25 +303,29 @@ export default function COOOverviewSnapshot() {
           </button>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
-          <CountTile label="Agents" value={counts.agents} icon={Users} hint="Incl. sub-agents, with a rent request" />
+          <CountTile label="Agents" value={counts.agents} icon={Users} hint="Collects or repays rent for tenants" />
           <CountTile label="Partners" value={counts.partners} icon={Handshake} hint="With one or more portfolios" />
-          <CountTile label="Tenants" value={counts.tenants} icon={Home} hint="With a rent request or repayment" />
-          <CountTile label="Landlords" value={counts.landlords} icon={Building2} hint="Ever received a rent payout" />
+          <CountTile label="Tenants" value={counts.tenants} icon={Home} hint="Has a repayment record" />
+          <CountTile label="Landlords" value={counts.landlords} icon={Building2} hint="Ever received landlord float" />
           <CountTile label="Employees" value={counts.employees} icon={UserCheck} hint="Active employee role" />
         </div>
       </section>
 
+      {filterBar}
+
       {/* Money position */}
       <section>
-        <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2 px-0.5">Money position</p>
+        <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2 px-0.5">
+          Money position · {rangeLabel}
+        </p>
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5">
           <MoneyTile
             label="Landlord float sent" value={money.landlord_float_disbursed} icon={Banknote}
-            hint="Rent paid out to landlords" tone="border-emerald-500/30 bg-emerald-500/8"
+            hint="Rent paid out to landlords in range" tone="border-emerald-500/30 bg-emerald-500/8"
           />
           <MoneyTile
             label="Agent collections" value={money.agent_collected_total} icon={Coins}
-            hint="All repayments collected to date" tone="border-primary/30 bg-primary/8"
+            hint="Repayments collected in range" tone="border-primary/30 bg-primary/8"
           />
           <MoneyTile
             label="Expected daily" value={money.expected_daily} icon={Target}
@@ -225,11 +337,11 @@ export default function COOOverviewSnapshot() {
           />
           <MoneyTile
             label="Partner returns paid" value={money.partner_roi_paid} icon={TrendingUp}
-            hint="Returns credited to partners" tone="border-violet-500/30 bg-violet-500/8"
+            hint="Returns credited to partners in range" tone="border-violet-500/30 bg-violet-500/8"
           />
           <MoneyTile
             label="Partner compounded" value={money.partner_compounded} icon={LineChart}
-            hint="Returns reinvested into portfolios" tone="border-fuchsia-500/30 bg-fuchsia-500/8"
+            hint="Returns reinvested in range" tone="border-fuchsia-500/30 bg-fuchsia-500/8"
           />
         </div>
       </section>
@@ -237,7 +349,7 @@ export default function COOOverviewSnapshot() {
       {/* Collections vs expected */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-bold">Agent collections vs expected · last {data.days} days</CardTitle>
+          <CardTitle className="text-sm font-bold">Agent collections vs expected · {rangeLabel}</CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
           <div className="h-64 w-full">
@@ -275,7 +387,7 @@ export default function COOOverviewSnapshot() {
       {/* Latest rent requests pending COO approval */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-bold">Rent requests pending COO approval</CardTitle>
+          <CardTitle className="text-sm font-bold">Rent requests pending COO approval · {rangeLabel}</CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
           {review_requests.length === 0 ? (
@@ -310,7 +422,7 @@ export default function COOOverviewSnapshot() {
       {/* Requests vs repaying vs outstanding */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-bold">Rent requested vs repaying vs still to collect</CardTitle>
+          <CardTitle className="text-sm font-bold">Rent requested vs repaying vs still to collect · {rangeLabel}</CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
           <div className="h-64 w-full">

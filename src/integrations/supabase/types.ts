@@ -36967,7 +36967,11 @@ export type Database = {
         }[]
       }
       get_coo_command_center: { Args: never; Returns: Json }
-      get_coo_overview_snapshot: { Args: { p_days?: number }; Returns: Json }
+      get_coo_overview_snapshot: {
+        Args: { p_days?: number; p_from?: string; p_to?: string }
+        Returns: Json
+      }
+      get_coo_rent_coverage_statement: { Args: never; Returns: Json }
       get_coo_system_overview: { Args: never; Returns: Json }
       get_coo_transaction_kpis: { Args: never; Returns: Json }
       get_crm_directory: {
