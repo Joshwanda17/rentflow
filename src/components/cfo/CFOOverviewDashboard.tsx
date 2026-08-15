@@ -34,7 +34,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
   const [exportingCommissions, setExportingCommissions] = useState(false);
   const [activeBreakdown, setActiveBreakdown] = useState<string | null>(null);
   const {
-    platformCash, liabilities, revenue, receivables,
+    platformCash, liabilities, revenue, receivables, moneyFlow,
     todayCashFlow, integrityChecks, pendingApprovals, treasuryControls, refetchControls,
     isLoading
   } = useCFOOverviewData();
