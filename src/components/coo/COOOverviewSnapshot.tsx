@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Area, AreaChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis,
@@ -8,12 +9,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, format, startOfMonth, subDays } from 'date-fns';
 import {
   Users, Handshake, Home, Building2, UserCheck, Banknote, TrendingUp,
-  Target, Coins, RefreshCw, LineChart, ClipboardList, Loader2,
+  Target, Coins, RefreshCw, LineChart, ClipboardList, Loader2, CalendarDays,
 } from 'lucide-react';
+import type { DateRange } from 'react-day-picker';
 
 interface Counts {
   agents: number;
@@ -69,6 +74,7 @@ interface PendingRoi {
 interface Snapshot {
   generated_at: string;
   days: number;
+  range?: { from: string; to: string; bucket: 'day' | 'month' };
   counts: Counts;
   money: Money;
   collections_series: CollectionPoint[];
