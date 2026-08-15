@@ -269,101 +269,106 @@ function IncomeStatementSection({ d, cm }: { d: FinancialStatementsData['incomeS
   );
 }
 
-function CashFlowSection({ d, cm }: { d: FinancialStatementsData['cashFlow']; cm?: ComparisonMetrics | null }) {
+// ─────────────────────────────────────────────────────────────
+// Statement of Cash Flows — corporate presentation.
+// Sourced entirely from public.get_statement_of_cash_flows(), which derives
+// cash from the General Ledger cash accounts (A1 Cash & Bank, A2 Float with
+// Agents) via ledger_account_map / cash_flow_line_map. Internal wallet
+// transfers, platform mirror legs, custody movements and reclassifications
+// are eliminated inside the RPC and never reach these totals.
+// ─────────────────────────────────────────────────────────────
+
+function CashFlowRow({ label, value, indent = 0, weight = 'normal' }: { label: string; value: number; indent?: number; weight?: 'normal' | 'group' | 'section' }) {
+  return (
+    <div
+      className={cn(
+        'flex justify-between items-center gap-4',
+        weight === 'normal' && 'text-sm',
+        weight === 'group' && 'text-sm font-semibold border-t border-border/50 pt-1.5 mt-1',
+        weight === 'section' && 'text-sm font-bold border-t-2 border-primary/30 pt-2 mt-1.5',
+      )}
+      style={{ paddingLeft: indent * 12 }}
+    >
+      <span className={cn(weight === 'normal' ? 'text-muted-foreground' : 'text-foreground')}>{label}</span>
+      <span className={cn('font-mono shrink-0', value < 0 ? 'text-destructive' : value > 0 ? 'text-success' : 'text-muted-foreground')}>
+        {value < 0 ? `(${formatUGX(Math.abs(value))})` : formatUGX(value)}
+      </span>
+    </div>
+  );
+}
+
+function CashFlowStatementSectionBlock({ title, section }: { title: string; section: StatementOfCashFlows['operating'] }) {
   return (
     <div className="space-y-1">
-      <SectionHeader>Platform Operating Activities</SectionHeader>
-      <LineItem label="Tenant Fees Received" value={d.operatingActivities.tenantFeesReceived} indent />
-      <LineItem label="Other Platform Income" value={d.operatingActivities.otherServiceIncome} indent />
-      <LineItem label="Platform Rewards Paid" value={d.operatingActivities.platformRewardsPaid} negative indent />
-      <LineItem label="Agent Commissions Paid" value={d.operatingActivities.agentCommissionsPaid} negative indent />
-      {d.operatingActivities.agentCommissionWithdrawals > 0 && (
-        <LineItem label="Agent Commission Withdrawals" value={d.operatingActivities.agentCommissionWithdrawals} negative indent />
+      <SectionHeader>{title}</SectionHeader>
+      {section.groups.length === 0 && (
+        <p className="pl-4 text-xs text-muted-foreground">No cash flows in this period.</p>
       )}
-      {d.operatingActivities.agentCommissionUsedForRent > 0 && (
-        <LineItem label="Agent Commission Used for Rent" value={d.operatingActivities.agentCommissionUsedForRent} negative indent />
-      )}
-      <LineItem label="Payroll Paid" value={d.operatingActivities.payrollPaid} negative indent />
-      <LineItem label="Agent Requisitions Paid" value={d.operatingActivities.agentRequisitionsPaid} negative indent />
-      <LineItem label="Financial Agent Expenses Paid" value={d.operatingActivities.financialAgentExpensesPaid} negative indent />
-      <LineItem label="Marketing Expenses Paid" value={d.operatingActivities.marketingPaid} negative indent />
-      <LineItem label="R&D Expenses Paid" value={d.operatingActivities.rdPaid} negative indent />
-      <LineItem label="Operational Expenses Paid" value={d.operatingActivities.operationalSubcatPaid} negative indent />
-      <LineItem label="General Operating Expenses Paid" value={d.operatingActivities.withdrawalsPaid} negative indent />
-      <LineItem label="Net Platform Operating Cash" value={d.operatingActivities.netOperating} bold delta={cm?.netOperatingCash} />
-
-      <SectionHeader>Rent Facilitation (Capital Pass-Through)</SectionHeader>
-      <p className="text-[10px] text-muted-foreground pl-4 -mt-1 mb-1">Tenant repayments received and rent deployed to landlords</p>
-      <LineItem label="Rent Repayments Received" value={d.facilitationActivities.rentRepayments} indent />
-      {d.facilitationActivities.rentPrincipalCollected > 0 && (
-        <LineItem label="Rent Principal Collected" value={d.facilitationActivities.rentPrincipalCollected} indent />
-      )}
-      {d.facilitationActivities.agentRepayments > 0 && (
-        <LineItem label="Agent Repayments" value={d.facilitationActivities.agentRepayments} indent />
-      )}
-      {d.facilitationActivities.advanceRepayments > 0 && (
-        <LineItem label="Advance & Credit Repayments" value={d.facilitationActivities.advanceRepayments} indent />
-      )}
-      <LineItem label="Rent Deployed to Landlords" value={d.facilitationActivities.rentDeployments} negative indent />
-      {d.facilitationActivities.rentDisbursements > 0 && (
-        <LineItem label="Rent Disbursements" value={d.facilitationActivities.rentDisbursements} negative indent />
-      )}
-      <LineItem label="Net Facilitation" value={d.facilitationActivities.netFacilitation} bold delta={cm?.netFacilitation} />
-
-      <SectionHeader>User Custody Flows (Not Platform Revenue)</SectionHeader>
-      <p className="text-[10px] text-muted-foreground pl-4 -mt-1 mb-1">Funds held in trust — deposits, withdrawals, and wallet movements</p>
-      <LineItem label="User Deposits Received" value={d.custodialActivities.userDeposits} indent />
-      {d.custodialActivities.roiWalletCredits > 0 && (
-        <LineItem label="ROI Wallet Credits" value={d.custodialActivities.roiWalletCredits} indent />
-      )}
-      {d.custodialActivities.walletCommissionCredits > 0 && (
-        <LineItem label="Commission & Bonus Credits" value={d.custodialActivities.walletCommissionCredits} indent />
-      )}
-      {d.custodialActivities.walletCorrectionCredits > 0 && (
-        <LineItem label="CFO Credits (Corrections)" value={d.custodialActivities.walletCorrectionCredits} indent />
-      )}
-      {d.custodialActivities.rentFloatFunding > 0 && (
-        <LineItem label="Rent Float Funding" value={d.custodialActivities.rentFloatFunding} indent />
-      )}
-      <LineItem label="User Withdrawals Processed" value={d.custodialActivities.userWithdrawals} negative indent />
-      {d.custodialActivities.userTransfers > 0 && (
-        <LineItem label="Wallet Transfers" value={d.custodialActivities.userTransfers} negative indent />
-      )}
-      {d.custodialActivities.walletDeductions > 0 && (
-        <LineItem label="Wallet Deductions" value={d.custodialActivities.walletDeductions} negative indent />
-      )}
-      {d.custodialActivities.agentFloatUsedForRent > 0 && (
-        <LineItem label="Agent Float Used for Rent" value={d.custodialActivities.agentFloatUsedForRent} negative indent />
-      )}
-      {d.custodialActivities.walletCorrectionDebits > 0 && (
-        <LineItem label="CFO Debits (Corrections)" value={d.custodialActivities.walletCorrectionDebits} negative indent />
-      )}
-      <LineItem label="Net Change in Custody" value={d.custodialActivities.netCustodial} bold delta={cm?.netCustodial} />
-
-      <SectionHeader>Financing Activities</SectionHeader>
-      <LineItem label="Supporter Capital Inflows" value={d.financingActivities.supporterCapitalInflows} indent />
-      {d.financingActivities.partnerFunding > 0 && (
-        <LineItem label="Partner Funding" value={d.financingActivities.partnerFunding} indent />
-      )}
-      {d.financingActivities.shareCapital > 0 && (
-        <LineItem label="Share Capital" value={d.financingActivities.shareCapital} indent />
-      )}
-      {d.financingActivities.roiReinvestment > 0 && (
-        <LineItem label="ROI Reinvestment" value={d.financingActivities.roiReinvestment} indent />
-      )}
-      <LineItem label="Supporter Capital Withdrawals" value={d.financingActivities.supporterCapitalWithdrawals} negative indent />
-      <LineItem label="Net Financing Cash" value={d.financingActivities.netFinancing} bold delta={cm?.netFinancing} />
-
-      <div className="pt-3 mt-2 border-t-2 border-primary/30 space-y-1">
-        <LineItem label="Opening Platform Balance" value={d.openingBalance} />
-        <div className={cn('flex justify-between items-center text-sm font-semibold', d.netCashMovement >= 0 ? 'text-success' : 'text-destructive')}>
-          <span className="flex items-center">Net Platform Cash Movement{cm && <DeltaBadge delta={cm.netCashMovement} />}</span>
-          <span className="font-mono">{d.netCashMovement >= 0 ? '+' : ''}{formatUGX(d.netCashMovement)}</span>
+      {section.groups.map(g => (
+        <div key={g.label} className="space-y-1 mb-2">
+          <p className="text-xs font-semibold text-foreground pl-1">{g.label}</p>
+          {g.lines.map(l => (
+            <CashFlowRow key={l.label} label={l.label} value={l.amount} indent={2} />
+          ))}
+          <CashFlowRow label={`Total ${g.label}`} value={g.total} indent={1} weight="group" />
         </div>
-        <div className="flex justify-between items-center text-base font-bold">
-          <span className="flex items-center">Closing Platform Balance{cm && <DeltaBadge delta={cm.closingBalance} />}</span>
-          <span className="font-mono text-primary">{formatUGX(d.closingBalance)}</span>
+      ))}
+      <CashFlowRow
+        label={`Net cash provided by (used in) ${title.replace('Cash Flows from ', '').toLowerCase()}`}
+        value={section.total}
+        weight="section"
+      />
+    </div>
+  );
+}
+
+function CashFlowSection({ d, error }: { d: StatementOfCashFlows | null; error?: string | null }) {
+  if (error) {
+    return (
+      <div className="flex items-start gap-2 rounded-md border border-destructive/40 p-3 text-xs text-destructive">
+        <AlertTriangle className="h-4 w-4 shrink-0" />
+        <span>Could not build the cash flow statement: {error}</span>
+      </div>
+    );
+  }
+  if (!d) {
+    return (
+      <div className="flex items-center gap-2 py-8 justify-center text-sm text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" /> Building statement of cash flows…
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-1">
+      <p className="text-[10px] text-muted-foreground">{d.cash_definition}</p>
+
+      <CashFlowStatementSectionBlock title="Cash Flows from Operating Activities" section={d.operating} />
+      <CashFlowStatementSectionBlock title="Cash Flows from Investing Activities" section={d.investing} />
+      <CashFlowStatementSectionBlock title="Cash Flows from Financing Activities" section={d.financing} />
+
+      <div className="pt-4 mt-3 border-t-2 border-primary/30 space-y-1">
+        <CashFlowRow label="Effect of exchange rate changes on cash and cash equivalents" value={d.exchange_rate_effect} />
+        <CashFlowRow label="Net increase / (decrease) in cash and cash equivalents" value={d.net_change} weight="group" />
+        <CashFlowRow label="Cash and cash equivalents at beginning of period" value={d.opening_cash} />
+        <div className="flex justify-between items-center text-base font-bold border-t-2 border-primary/30 pt-2">
+          <span>Cash and cash equivalents at end of period</span>
+          <span className="font-mono text-primary">{formatUGX(d.closing_cash)}</span>
         </div>
+        <div className={cn('flex items-center gap-1.5 pt-1 text-[11px]', d.reconciles ? 'text-success' : 'text-destructive')}>
+          {d.reconciles ? <CheckCircle2 className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
+          <span>
+            {d.reconciles
+              ? 'Opening cash + net increase / (decrease) = closing cash, and closing cash equals the cash accounts on the Balance Sheet.'
+              : 'Opening cash + net movement does not tie to closing cash — review the ledger.'}
+          </span>
+        </div>
+        {Math.abs(d.unreconciled_residual) >= 1 && (
+          <p className="text-[10px] text-muted-foreground">
+            {formatUGX(Math.abs(d.unreconciled_residual))} of the period movement comes from historic single-sided
+            ledger postings with no counterpart leg. It is disclosed on its own line inside Other Operating Activities
+            rather than spread across real business lines.
+          </p>
+        )}
       </div>
     </div>
   );
