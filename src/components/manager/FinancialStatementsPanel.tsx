@@ -19,6 +19,11 @@ import { CheckCircle2, AlertTriangle } from 'lucide-react';
 
 import { formatDynamic as formatUGX } from '@/lib/currencyFormat';
 import BalanceSheetPanel from '@/components/cfo/BalanceSheetPanel';
+import {
+  useStatementOfCashFlows,
+  flattenCashFlowStatement,
+  type StatementOfCashFlows,
+} from '@/hooks/useStatementOfCashFlows';
 
 const PERIODS: { value: StatementPeriod; label: string }[] = [
   { value: 'today', label: 'Today' },
