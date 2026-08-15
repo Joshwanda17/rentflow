@@ -9,6 +9,12 @@ import { supabase } from '@/integrations/supabase/client';
  * The returned `withdrawableCached` field is kept for API compatibility
  * with existing callers but now mirrors `available` exactly (no drift
  * possible). `ledgerNet` reflects the raw ledger net used internally.
+ *
+ * IMPORTANT (2026-08-15): a failed read THROWS. It must never resolve to
+ * `available: 0` — that turned every transient RPC failure into a bogus
+ * "Insufficient funds. Available: UGX 0" while the wallet card (same RPC,
+ * cached) still showed the real balance. "Unknown" and "zero" are
+ * different states and callers must treat them differently.
  */
 export async function computeLedgerAvailable(userId: string): Promise<{
   available: number;
@@ -20,9 +26,9 @@ export async function computeLedgerAvailable(userId: string): Promise<{
     p_user_id: userId,
   });
   if (error) {
-    // Conservative fallback: zero out rather than read the cache.
-    // The cache is exactly what we are trying to avoid trusting.
-    return { available: 0, ledgerNet: 0, withdrawableCached: 0, pendingHolds: 0 };
+    // Never fabricate a balance. Surface the failure so the caller can say
+    // "couldn't verify" instead of "you have nothing".
+    throw error;
   }
   const row = (data ?? {}) as {
     withdrawable?: number | string;
