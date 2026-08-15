@@ -35419,6 +35419,13 @@ export type Database = {
         Args: { _account_code: string }
         Returns: string
       }
+      budget_actuals_by_account: {
+        Args: { p_from: string; p_to: string }
+        Returns: {
+          account_code: string
+          actual: number
+        }[]
+      }
       budget_add_line: {
         Args: {
           _category?: string
@@ -35444,6 +35451,18 @@ export type Database = {
         }
         Returns: string
       }
+      budget_create_cycle: {
+        Args: {
+          p_deadline: string
+          p_financial_year: string
+          p_instructions: string
+          p_period_end: string
+          p_period_start: string
+          p_period_type: string
+          p_title: string
+        }
+        Returns: string
+      }
       budget_create_submission: {
         Args: {
           _call_id?: string
@@ -35456,12 +35475,34 @@ export type Database = {
         }
         Returns: string
       }
+      budget_decide_line: {
+        Args: {
+          p_approved_amount: number
+          p_decision: string
+          p_line_id: string
+          p_note: string
+        }
+        Returns: Json
+      }
+      budget_finalize_submission: {
+        Args: { p_comment: string; p_decision: string; p_submission_id: string }
+        Returns: Json
+      }
       budget_has_authority: { Args: { _fn: string }; Returns: boolean }
       budget_is_approver: { Args: never; Returns: boolean }
       budget_is_releaser: { Args: never; Returns: boolean }
       budget_my_position_in_department: {
         Args: { _department_id: string }
         Returns: string
+      }
+      budget_notify: {
+        Args: {
+          _message: string
+          _meta: Json
+          _title: string
+          _user_id: string
+        }
+        Returns: undefined
       }
       budget_position_for: { Args: { _fn: string }; Returns: string }
       budget_probe_one: { Args: never; Returns: string }
@@ -35480,13 +35521,40 @@ export type Database = {
         }[]
       }
       budget_remove_line: { Args: { _line_id: string }; Returns: undefined }
+      budget_request_revision: {
+        Args: { p_comment: string; p_submission_id: string }
+        Returns: string
+      }
       budget_return: {
         Args: { _note: string; _submission_id: string }
+        Returns: undefined
+      }
+      budget_save_draft: {
+        Args: {
+          p_call_id: string
+          p_department_id: string
+          p_lines: Json
+          p_purpose: string
+          p_submission_id: string
+          p_title: string
+        }
+        Returns: string
+      }
+      budget_set_cycle_status: {
+        Args: { p_call_id: string; p_status: string }
+        Returns: undefined
+      }
+      budget_start_review: {
+        Args: { p_submission_id: string }
         Returns: undefined
       }
       budget_submit: {
         Args: { _note?: string; _submission_id: string }
         Returns: undefined
+      }
+      budget_submit_submission: {
+        Args: { p_submission_id: string }
+        Returns: Json
       }
       budget_user_department_ids: {
         Args: { _user_id: string }
@@ -37098,6 +37166,11 @@ export type Database = {
       }
       get_approximate_user_count: { Args: never; Returns: number }
       get_authoritative_wallet: { Args: { p_user_id: string }; Returns: Json }
+      get_budget_consolidation: { Args: { p_call_id: string }; Returns: Json }
+      get_budget_vs_actual: {
+        Args: { p_call_id: string; p_department_id?: string }
+        Returns: Json
+      }
       get_buffer_metrics: { Args: never; Returns: Json }
       get_buffer_trend_data: { Args: never; Returns: Json }
       get_business_advance_audit_log: {
