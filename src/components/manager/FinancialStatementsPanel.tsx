@@ -19,6 +19,11 @@ import { CheckCircle2, AlertTriangle } from 'lucide-react';
 
 import { formatDynamic as formatUGX } from '@/lib/currencyFormat';
 import BalanceSheetPanel from '@/components/cfo/BalanceSheetPanel';
+import {
+  useStatementOfCashFlows,
+  flattenCashFlowStatement,
+  type StatementOfCashFlows,
+} from '@/hooks/useStatementOfCashFlows';
 
 const PERIODS: { value: StatementPeriod; label: string }[] = [
   { value: 'today', label: 'Today' },
@@ -264,101 +269,106 @@ function IncomeStatementSection({ d, cm }: { d: FinancialStatementsData['incomeS
   );
 }
 
-function CashFlowSection({ d, cm }: { d: FinancialStatementsData['cashFlow']; cm?: ComparisonMetrics | null }) {
+// ─────────────────────────────────────────────────────────────
+// Statement of Cash Flows — corporate presentation.
+// Sourced entirely from public.get_statement_of_cash_flows(), which derives
+// cash from the General Ledger cash accounts (A1 Cash & Bank, A2 Float with
+// Agents) via ledger_account_map / cash_flow_line_map. Internal wallet
+// transfers, platform mirror legs, custody movements and reclassifications
+// are eliminated inside the RPC and never reach these totals.
+// ─────────────────────────────────────────────────────────────
+
+function CashFlowRow({ label, value, indent = 0, weight = 'normal' }: { label: string; value: number; indent?: number; weight?: 'normal' | 'group' | 'section' }) {
+  return (
+    <div
+      className={cn(
+        'flex justify-between items-center gap-4',
+        weight === 'normal' && 'text-sm',
+        weight === 'group' && 'text-sm font-semibold border-t border-border/50 pt-1.5 mt-1',
+        weight === 'section' && 'text-sm font-bold border-t-2 border-primary/30 pt-2 mt-1.5',
+      )}
+      style={{ paddingLeft: indent * 12 }}
+    >
+      <span className={cn(weight === 'normal' ? 'text-muted-foreground' : 'text-foreground')}>{label}</span>
+      <span className={cn('font-mono shrink-0', value < 0 ? 'text-destructive' : value > 0 ? 'text-success' : 'text-muted-foreground')}>
+        {value < 0 ? `(${formatUGX(Math.abs(value))})` : formatUGX(value)}
+      </span>
+    </div>
+  );
+}
+
+function CashFlowStatementSectionBlock({ title, section }: { title: string; section: StatementOfCashFlows['operating'] }) {
   return (
     <div className="space-y-1">
-      <SectionHeader>Platform Operating Activities</SectionHeader>
-      <LineItem label="Tenant Fees Received" value={d.operatingActivities.tenantFeesReceived} indent />
-      <LineItem label="Other Platform Income" value={d.operatingActivities.otherServiceIncome} indent />
-      <LineItem label="Platform Rewards Paid" value={d.operatingActivities.platformRewardsPaid} negative indent />
-      <LineItem label="Agent Commissions Paid" value={d.operatingActivities.agentCommissionsPaid} negative indent />
-      {d.operatingActivities.agentCommissionWithdrawals > 0 && (
-        <LineItem label="Agent Commission Withdrawals" value={d.operatingActivities.agentCommissionWithdrawals} negative indent />
+      <SectionHeader>{title}</SectionHeader>
+      {section.groups.length === 0 && (
+        <p className="pl-4 text-xs text-muted-foreground">No cash flows in this period.</p>
       )}
-      {d.operatingActivities.agentCommissionUsedForRent > 0 && (
-        <LineItem label="Agent Commission Used for Rent" value={d.operatingActivities.agentCommissionUsedForRent} negative indent />
-      )}
-      <LineItem label="Payroll Paid" value={d.operatingActivities.payrollPaid} negative indent />
-      <LineItem label="Agent Requisitions Paid" value={d.operatingActivities.agentRequisitionsPaid} negative indent />
-      <LineItem label="Financial Agent Expenses Paid" value={d.operatingActivities.financialAgentExpensesPaid} negative indent />
-      <LineItem label="Marketing Expenses Paid" value={d.operatingActivities.marketingPaid} negative indent />
-      <LineItem label="R&D Expenses Paid" value={d.operatingActivities.rdPaid} negative indent />
-      <LineItem label="Operational Expenses Paid" value={d.operatingActivities.operationalSubcatPaid} negative indent />
-      <LineItem label="General Operating Expenses Paid" value={d.operatingActivities.withdrawalsPaid} negative indent />
-      <LineItem label="Net Platform Operating Cash" value={d.operatingActivities.netOperating} bold delta={cm?.netOperatingCash} />
-
-      <SectionHeader>Rent Facilitation (Capital Pass-Through)</SectionHeader>
-      <p className="text-[10px] text-muted-foreground pl-4 -mt-1 mb-1">Tenant repayments received and rent deployed to landlords</p>
-      <LineItem label="Rent Repayments Received" value={d.facilitationActivities.rentRepayments} indent />
-      {d.facilitationActivities.rentPrincipalCollected > 0 && (
-        <LineItem label="Rent Principal Collected" value={d.facilitationActivities.rentPrincipalCollected} indent />
-      )}
-      {d.facilitationActivities.agentRepayments > 0 && (
-        <LineItem label="Agent Repayments" value={d.facilitationActivities.agentRepayments} indent />
-      )}
-      {d.facilitationActivities.advanceRepayments > 0 && (
-        <LineItem label="Advance & Credit Repayments" value={d.facilitationActivities.advanceRepayments} indent />
-      )}
-      <LineItem label="Rent Deployed to Landlords" value={d.facilitationActivities.rentDeployments} negative indent />
-      {d.facilitationActivities.rentDisbursements > 0 && (
-        <LineItem label="Rent Disbursements" value={d.facilitationActivities.rentDisbursements} negative indent />
-      )}
-      <LineItem label="Net Facilitation" value={d.facilitationActivities.netFacilitation} bold delta={cm?.netFacilitation} />
-
-      <SectionHeader>User Custody Flows (Not Platform Revenue)</SectionHeader>
-      <p className="text-[10px] text-muted-foreground pl-4 -mt-1 mb-1">Funds held in trust — deposits, withdrawals, and wallet movements</p>
-      <LineItem label="User Deposits Received" value={d.custodialActivities.userDeposits} indent />
-      {d.custodialActivities.roiWalletCredits > 0 && (
-        <LineItem label="ROI Wallet Credits" value={d.custodialActivities.roiWalletCredits} indent />
-      )}
-      {d.custodialActivities.walletCommissionCredits > 0 && (
-        <LineItem label="Commission & Bonus Credits" value={d.custodialActivities.walletCommissionCredits} indent />
-      )}
-      {d.custodialActivities.walletCorrectionCredits > 0 && (
-        <LineItem label="CFO Credits (Corrections)" value={d.custodialActivities.walletCorrectionCredits} indent />
-      )}
-      {d.custodialActivities.rentFloatFunding > 0 && (
-        <LineItem label="Rent Float Funding" value={d.custodialActivities.rentFloatFunding} indent />
-      )}
-      <LineItem label="User Withdrawals Processed" value={d.custodialActivities.userWithdrawals} negative indent />
-      {d.custodialActivities.userTransfers > 0 && (
-        <LineItem label="Wallet Transfers" value={d.custodialActivities.userTransfers} negative indent />
-      )}
-      {d.custodialActivities.walletDeductions > 0 && (
-        <LineItem label="Wallet Deductions" value={d.custodialActivities.walletDeductions} negative indent />
-      )}
-      {d.custodialActivities.agentFloatUsedForRent > 0 && (
-        <LineItem label="Agent Float Used for Rent" value={d.custodialActivities.agentFloatUsedForRent} negative indent />
-      )}
-      {d.custodialActivities.walletCorrectionDebits > 0 && (
-        <LineItem label="CFO Debits (Corrections)" value={d.custodialActivities.walletCorrectionDebits} negative indent />
-      )}
-      <LineItem label="Net Change in Custody" value={d.custodialActivities.netCustodial} bold delta={cm?.netCustodial} />
-
-      <SectionHeader>Financing Activities</SectionHeader>
-      <LineItem label="Supporter Capital Inflows" value={d.financingActivities.supporterCapitalInflows} indent />
-      {d.financingActivities.partnerFunding > 0 && (
-        <LineItem label="Partner Funding" value={d.financingActivities.partnerFunding} indent />
-      )}
-      {d.financingActivities.shareCapital > 0 && (
-        <LineItem label="Share Capital" value={d.financingActivities.shareCapital} indent />
-      )}
-      {d.financingActivities.roiReinvestment > 0 && (
-        <LineItem label="ROI Reinvestment" value={d.financingActivities.roiReinvestment} indent />
-      )}
-      <LineItem label="Supporter Capital Withdrawals" value={d.financingActivities.supporterCapitalWithdrawals} negative indent />
-      <LineItem label="Net Financing Cash" value={d.financingActivities.netFinancing} bold delta={cm?.netFinancing} />
-
-      <div className="pt-3 mt-2 border-t-2 border-primary/30 space-y-1">
-        <LineItem label="Opening Platform Balance" value={d.openingBalance} />
-        <div className={cn('flex justify-between items-center text-sm font-semibold', d.netCashMovement >= 0 ? 'text-success' : 'text-destructive')}>
-          <span className="flex items-center">Net Platform Cash Movement{cm && <DeltaBadge delta={cm.netCashMovement} />}</span>
-          <span className="font-mono">{d.netCashMovement >= 0 ? '+' : ''}{formatUGX(d.netCashMovement)}</span>
+      {section.groups.map(g => (
+        <div key={g.label} className="space-y-1 mb-2">
+          <p className="text-xs font-semibold text-foreground pl-1">{g.label}</p>
+          {g.lines.map(l => (
+            <CashFlowRow key={l.label} label={l.label} value={l.amount} indent={2} />
+          ))}
+          <CashFlowRow label={`Total ${g.label}`} value={g.total} indent={1} weight="group" />
         </div>
-        <div className="flex justify-between items-center text-base font-bold">
-          <span className="flex items-center">Closing Platform Balance{cm && <DeltaBadge delta={cm.closingBalance} />}</span>
-          <span className="font-mono text-primary">{formatUGX(d.closingBalance)}</span>
+      ))}
+      <CashFlowRow
+        label={`Net cash provided by (used in) ${title.replace('Cash Flows from ', '').toLowerCase()}`}
+        value={section.total}
+        weight="section"
+      />
+    </div>
+  );
+}
+
+function CashFlowSection({ d, error }: { d: StatementOfCashFlows | null; error?: string | null }) {
+  if (error) {
+    return (
+      <div className="flex items-start gap-2 rounded-md border border-destructive/40 p-3 text-xs text-destructive">
+        <AlertTriangle className="h-4 w-4 shrink-0" />
+        <span>Could not build the cash flow statement: {error}</span>
+      </div>
+    );
+  }
+  if (!d) {
+    return (
+      <div className="flex items-center gap-2 py-8 justify-center text-sm text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" /> Building statement of cash flows…
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-1">
+      <p className="text-[10px] text-muted-foreground">{d.cash_definition}</p>
+
+      <CashFlowStatementSectionBlock title="Cash Flows from Operating Activities" section={d.operating} />
+      <CashFlowStatementSectionBlock title="Cash Flows from Investing Activities" section={d.investing} />
+      <CashFlowStatementSectionBlock title="Cash Flows from Financing Activities" section={d.financing} />
+
+      <div className="pt-4 mt-3 border-t-2 border-primary/30 space-y-1">
+        <CashFlowRow label="Effect of exchange rate changes on cash and cash equivalents" value={d.exchange_rate_effect} />
+        <CashFlowRow label="Net increase / (decrease) in cash and cash equivalents" value={d.net_change} weight="group" />
+        <CashFlowRow label="Cash and cash equivalents at beginning of period" value={d.opening_cash} />
+        <div className="flex justify-between items-center text-base font-bold border-t-2 border-primary/30 pt-2">
+          <span>Cash and cash equivalents at end of period</span>
+          <span className="font-mono text-primary">{formatUGX(d.closing_cash)}</span>
         </div>
+        <div className={cn('flex items-center gap-1.5 pt-1 text-[11px]', d.reconciles ? 'text-success' : 'text-destructive')}>
+          {d.reconciles ? <CheckCircle2 className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
+          <span>
+            {d.reconciles
+              ? 'Opening cash + net increase / (decrease) = closing cash, and closing cash equals the cash accounts on the Balance Sheet.'
+              : 'Opening cash + net movement does not tie to closing cash — review the ledger.'}
+          </span>
+        </div>
+        {Math.abs(d.unreconciled_residual) >= 1 && (
+          <p className="text-[10px] text-muted-foreground">
+            {formatUGX(Math.abs(d.unreconciled_residual))} of the period movement comes from historic single-sided
+            ledger postings with no counterpart leg. It is disclosed on its own line inside Other Operating Activities
+            rather than spread across real business lines.
+          </p>
+        )}
       </div>
     </div>
   );
@@ -618,6 +628,8 @@ function FinancialStatementsPanelInner() {
   );
   const drillCtx = useMemo<DrillContextValue>(() => ({ open: setDrillLabel }), []);
 
+  const { data: cashFlow, error: cashFlowError } = useStatementOfCashFlows(drillDates.start, drillDates.end);
+
   useEffect(() => {
     generate();
   }, []);
@@ -726,58 +738,18 @@ function FinancialStatementsPanelInner() {
       rows.push(['Net Adjustments', '', d.adjustments.total]);
       rows.push(['NET OPERATING INCOME', '', d.netOperatingIncome]);
     } else if (activeTab === 'cashflow') {
-      const d = data.cashFlow;
-      rows.push(['WELILE — Cash Flow Statement', '', period]);
+      if (!cashFlow) { toast.error('Cash flow statement is still loading'); return; }
+      rows.push(['WELILE — Statement of Cash Flows', '', period]);
+      rows.push(['All amounts in UGX', '', '']);
+      rows.push([cashFlow.cash_definition, '', '']);
       rows.push(['', '', '']);
-      rows.push(['OPERATING ACTIVITIES', '', '']);
-      rows.push(['Tenant Fees Received', '', d.operatingActivities.tenantFeesReceived]);
-      rows.push(['Other Platform Income', '', d.operatingActivities.otherServiceIncome]);
-      rows.push(['Platform Rewards Paid', '', -d.operatingActivities.platformRewardsPaid]);
-      rows.push(['Agent Commissions Paid', '', -d.operatingActivities.agentCommissionsPaid]);
-      if (d.operatingActivities.agentCommissionWithdrawals) rows.push(['Agent Commission Withdrawals', '', -d.operatingActivities.agentCommissionWithdrawals]);
-      if (d.operatingActivities.agentCommissionUsedForRent) rows.push(['Agent Commission Used for Rent', '', -d.operatingActivities.agentCommissionUsedForRent]);
-      rows.push(['Payroll Paid', '', -d.operatingActivities.payrollPaid]);
-      rows.push(['Agent Requisitions Paid', '', -d.operatingActivities.agentRequisitionsPaid]);
-      rows.push(['Financial Agent Expenses Paid', '', -d.operatingActivities.financialAgentExpensesPaid]);
-      rows.push(['Marketing Expenses Paid', '', -d.operatingActivities.marketingPaid]);
-      rows.push(['R&D Expenses Paid', '', -d.operatingActivities.rdPaid]);
-      rows.push(['Operational Expenses Paid', '', -d.operatingActivities.operationalSubcatPaid]);
-      rows.push(['General Operating Expenses Paid', '', -d.operatingActivities.withdrawalsPaid]);
-      rows.push(['Net Operating Cash', '', d.operatingActivities.netOperating]);
-      rows.push(['', '', '']);
-      rows.push(['RENT FACILITATION (PASS-THROUGH)', '', '']);
-      rows.push(['Rent Repayments Received', '', d.facilitationActivities.rentRepayments]);
-      if (d.facilitationActivities.rentPrincipalCollected) rows.push(['Rent Principal Collected', '', d.facilitationActivities.rentPrincipalCollected]);
-      if (d.facilitationActivities.agentRepayments) rows.push(['Agent Repayments', '', d.facilitationActivities.agentRepayments]);
-      if (d.facilitationActivities.advanceRepayments) rows.push(['Advance & Credit Repayments', '', d.facilitationActivities.advanceRepayments]);
-      rows.push(['Rent Deployed to Landlords', '', -d.facilitationActivities.rentDeployments]);
-      if (d.facilitationActivities.rentDisbursements) rows.push(['Rent Disbursements', '', -d.facilitationActivities.rentDisbursements]);
-      rows.push(['Net Facilitation', '', d.facilitationActivities.netFacilitation]);
-      rows.push(['', '', '']);
-      rows.push(['CUSTODIAL ACTIVITIES (Not Platform Revenue)', '', '']);
-      rows.push(['User Deposits Received', '', d.custodialActivities.userDeposits]);
-      if (d.custodialActivities.roiWalletCredits) rows.push(['ROI Wallet Credits', '', d.custodialActivities.roiWalletCredits]);
-      if (d.custodialActivities.walletCommissionCredits) rows.push(['Commission & Bonus Credits', '', d.custodialActivities.walletCommissionCredits]);
-      if (d.custodialActivities.walletCorrectionCredits) rows.push(['CFO Credits (Corrections)', '', d.custodialActivities.walletCorrectionCredits]);
-      if (d.custodialActivities.rentFloatFunding) rows.push(['Rent Float Funding', '', d.custodialActivities.rentFloatFunding]);
-      rows.push(['User Withdrawals Processed', '', -d.custodialActivities.userWithdrawals]);
-      if (d.custodialActivities.userTransfers) rows.push(['Wallet Transfers', '', -d.custodialActivities.userTransfers]);
-      if (d.custodialActivities.walletDeductions) rows.push(['Wallet Deductions', '', -d.custodialActivities.walletDeductions]);
-      if (d.custodialActivities.agentFloatUsedForRent) rows.push(['Agent Float Used for Rent', '', -d.custodialActivities.agentFloatUsedForRent]);
-      if (d.custodialActivities.walletCorrectionDebits) rows.push(['CFO Debits (Corrections)', '', -d.custodialActivities.walletCorrectionDebits]);
-      rows.push(['Net Change in Custody', '', d.custodialActivities.netCustodial]);
-      rows.push(['', '', '']);
-      rows.push(['FINANCING ACTIVITIES', '', '']);
-      rows.push(['Supporter Capital Inflows', '', d.financingActivities.supporterCapitalInflows]);
-      if (d.financingActivities.partnerFunding) rows.push(['Partner Funding', '', d.financingActivities.partnerFunding]);
-      if (d.financingActivities.shareCapital) rows.push(['Share Capital', '', d.financingActivities.shareCapital]);
-      if (d.financingActivities.roiReinvestment) rows.push(['ROI Reinvestment', '', d.financingActivities.roiReinvestment]);
-      rows.push(['Supporter Capital Withdrawals', '', -d.financingActivities.supporterCapitalWithdrawals]);
-      rows.push(['Net Financing Cash', '', d.financingActivities.netFinancing]);
-      rows.push(['', '', '']);
-      rows.push(['Opening Platform Balance', '', d.openingBalance]);
-      rows.push(['Net Platform Cash Movement', '', d.netCashMovement]);
-      rows.push(['CLOSING PLATFORM BALANCE', '', d.closingBalance]);
+      for (const r of flattenCashFlowStatement(cashFlow)) {
+        rows.push([
+          r.level === 'line' ? `  ${r.label}` : r.label,
+          '',
+          r.amount === null ? '' : r.amount,
+        ]);
+      }
     } else if (activeTab === 'balance') {
       const d = data.balanceSheet;
       rows.push(['WELILE — Balance Sheet', '', period]);
@@ -930,39 +902,25 @@ function FinancialStatementsPanelInner() {
         pdf.text('NET OPERATING INCOME', margin, y);
         pdf.text(formatUGX(d.netOperatingIncome), pw - margin, y, { align: 'right' });
       } else if (activeTab === 'cashflow') {
-        const d = data.cashFlow;
-        addSection('Platform Operating Activities');
-        addRow('Tenant Fees Received', d.operatingActivities.tenantFeesReceived, false, false, true);
-        addRow('Other Platform Income', d.operatingActivities.otherServiceIncome, false, false, true);
-        addRow('Platform Rewards Paid', d.operatingActivities.platformRewardsPaid, false, true, true);
-        addRow('Agent Commissions Paid', d.operatingActivities.agentCommissionsPaid, false, true, true);
-        addRow('Marketing Expenses Paid', d.operatingActivities.marketingPaid, false, true, true);
-        addRow('R&D Expenses Paid', d.operatingActivities.rdPaid, false, true, true);
-        addRow('Operational Expenses Paid', d.operatingActivities.operationalSubcatPaid, false, true, true);
-        addRow('Operating Expenses Paid', d.operatingActivities.withdrawalsPaid, false, true, true);
-        addRow('Net Platform Operating Cash', d.operatingActivities.netOperating, true);
-        y += 3;
-        addSection('Rent Facilitation (Pass-Through)');
-        addRow('Rent Repayments Received', d.facilitationActivities.rentRepayments, false, false, true);
-        addRow('Rent Deployed to Landlords', d.facilitationActivities.rentDeployments, false, true, true);
-        addRow('Net Facilitation', d.facilitationActivities.netFacilitation, true);
-        y += 3;
-        addSection('User Custody Flows (Not Revenue)');
-        addRow('User Deposits Received', d.custodialActivities.userDeposits, false, false, true);
-        addRow('User Withdrawals Processed', d.custodialActivities.userWithdrawals, false, true, true);
-        addRow('Net Change in Custody', d.custodialActivities.netCustodial, true);
-        y += 3;
-        addSection('Financing Activities');
-        addRow('Supporter Capital Inflows', d.financingActivities.supporterCapitalInflows, false, false, true);
-        addRow('Supporter Capital Withdrawals', d.financingActivities.supporterCapitalWithdrawals, false, true, true);
-        addRow('Net Financing Cash', d.financingActivities.netFinancing, true);
-        y += 5;
-        pdf.setDrawColor(37, 99, 235);
-        pdf.line(margin, y, pw - margin, y);
-        y += 5;
-        addRow('Opening Platform Balance', d.openingBalance);
-        addRow('Net Platform Cash Movement', d.netCashMovement);
-        addRow('CLOSING PLATFORM BALANCE', d.closingBalance, true);
+        if (!cashFlow) { toast.error('Cash flow statement is still loading'); setSharing(false); return; }
+        pdf.setFontSize(7);
+        pdf.setTextColor(120, 120, 120);
+        pdf.text(pdf.splitTextToSize(cashFlow.cash_definition, pw - margin * 2), margin, y);
+        y += 8;
+        pdf.setTextColor(0, 0, 0);
+        for (const r of flattenCashFlowStatement(cashFlow)) {
+          if (r.level === 'section') { y += 2; addSection(r.label); continue; }
+          if (r.amount === null) {
+            if (y > 270) { pdf.addPage(); y = 20; }
+            pdf.setFontSize(8);
+            pdf.setFont('helvetica', 'bold');
+            pdf.setTextColor(0, 0, 0);
+            pdf.text(r.label, margin + 3, y);
+            y += 5;
+            continue;
+          }
+          addRow(r.label, r.amount, r.level !== 'line', false, r.level === 'line');
+        }
       } else if (activeTab === 'balance') {
         const d = data.balanceSheet;
         addSection('Assets');
@@ -1166,7 +1124,7 @@ function FinancialStatementsPanelInner() {
 
             {/* Active Statement */}
             {activeTab === 'income' && <IncomeStatementSection d={data.incomeStatement} cm={comparisonMetrics} />}
-            {activeTab === 'cashflow' && <CashFlowSection d={data.cashFlow} cm={comparisonMetrics} />}
+            {activeTab === 'cashflow' && <CashFlowSection d={cashFlow} error={cashFlowError} />}
             {activeTab === 'movement' && <ComprehensiveCashMovement />}
             {activeTab === 'balance' && <BalanceSheetPanel />}
             {activeTab === 'volume' && <FacilitatedVolumeSection d={data.facilitatedVolume} cm={comparisonMetrics} />}
