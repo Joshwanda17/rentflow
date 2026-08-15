@@ -197,6 +197,9 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
 
   const [partnershipAmount, setPartnershipAmount] = useState(0);
   const [loading, setLoading] = useState(true);
+  // GPS persistence state (the reading is saved server-side, not just held in React).
+  const [savingGps, setSavingGps] = useState(false);
+  const [gpsSavedAt, setGpsSavedAt] = useState<string | null>(null);
   // Secondary (financial history) datasets stream in after the sheet paints.
   const [secondaryLoading, setSecondaryLoading] = useState(true);
   const [copied, setCopied] = useState(false);
@@ -506,8 +509,35 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
 
   const handleCaptureGPS = async () => {
     const loc = await captureLocation();
-    if (loc) {
-      toast({ title: '📍 GPS Captured', description: `Lat: ${loc.latitude.toFixed(5)}, Lng: ${loc.longitude.toFixed(5)}` });
+    if (!loc) return;
+    // Persist the reading server-side — a captured coordinate that only lives
+    // in React state is worthless for payouts/collections gating.
+    setSavingGps(true);
+    try {
+      const { error } = await supabase.rpc('agent_capture_contact_location' as any, {
+        p_target_id: tenantId,
+        p_target_role: 'tenant',
+        p_address: {},
+        p_latitude: loc.latitude,
+        p_longitude: loc.longitude,
+        p_accuracy: loc.accuracy ?? undefined,
+      } as any);
+      if (error) throw error;
+      setGpsSavedAt(new Date().toISOString());
+      toast({
+        title: '📍 GPS saved',
+        description: `Lat ${loc.latitude.toFixed(5)}, Lng ${loc.longitude.toFixed(5)} stored on ${profile?.full_name || 'this tenant'}'s profile.`,
+      });
+      tenantLoc.onCaptured?.();
+      loadFullProfile({ silent: true });
+    } catch (err: any) {
+      toast({
+        title: 'Could not save GPS',
+        description: err?.message || 'The location was read but not stored. Try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSavingGps(false);
     }
   };
 
@@ -1694,16 +1724,11 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
                   <MessageCircle className="h-5 w-5 text-success" />
                 </a>
                 <button
-                  onClick={() => {
-                    const msg = encodeURIComponent(
-                      `Hi ${profile.full_name}, this is your Welile agent. Please update your phone number in the Welile app. Go to Settings > Profile to make changes. Thank you!`
-                    );
-                    window.open(`https://wa.me/${phoneIntl}?text=${msg}`, '_blank');
-                  }}
+                  onClick={() => setEditDialogOpen(true)}
                   className="h-11 w-11 rounded-xl bg-warning/15 flex items-center justify-center active:scale-90 transition-transform"
                   style={{ touchAction: 'manipulation' }}
-                  aria-label="Request phone edit"
-                  title="Request phone edit"
+                  aria-label="Edit phone number"
+                  title="Edit phone number"
                 >
                   <Pencil className="h-5 w-5 text-warning" />
                 </button>
@@ -1720,16 +1745,11 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
                 <p className="text-base font-semibold truncate">{profile.email || 'Not set'}</p>
               </div>
               <button
-                onClick={() => {
-                  const msg = encodeURIComponent(
-                    `Hi ${profile.full_name}, this is your Welile agent. Please update your email address in the Welile app. Go to Settings > Profile to make changes. Thank you!`
-                  );
-                  window.open(`https://wa.me/${phoneIntl}?text=${msg}`, '_blank');
-                }}
+                onClick={() => setEditDialogOpen(true)}
                 className="h-11 w-11 rounded-xl bg-warning/15 flex items-center justify-center active:scale-90 transition-transform shrink-0"
                 style={{ touchAction: 'manipulation' }}
-                aria-label="Request email edit"
-                title="Request email edit"
+                aria-label="Edit email address"
+                title="Edit email address"
               >
                 <Pencil className="h-5 w-5 text-warning" />
               </button>
@@ -1765,10 +1785,10 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
               size="lg"
               className="w-full gap-2 text-base h-12 rounded-xl"
               onClick={handleCaptureGPS}
-              disabled={gpsLoading}
+              disabled={gpsLoading || savingGps}
             >
-              {gpsLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Navigation className="h-5 w-5" />}
-              Capture GPS Location
+              {gpsLoading || savingGps ? <Loader2 className="h-5 w-5 animate-spin" /> : <Navigation className="h-5 w-5" />}
+              {savingGps ? 'Saving location…' : gpsLoading ? 'Reading GPS…' : 'Capture & Save GPS Location'}
             </Button>
             {gpsLocation && (
               <div className="bg-muted/40 rounded-xl p-3 flex items-center gap-2">
@@ -1779,6 +1799,9 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
                   <span className="font-mono font-semibold">{gpsLocation.longitude.toFixed(5)}</span>
                   {gpsLocation.accuracy && (
                     <span className="text-xs text-muted-foreground ml-2">±{Math.round(gpsLocation.accuracy)}m</span>
+                  )}
+                  {gpsSavedAt && (
+                    <span className="block text-xs text-success font-semibold">Saved to profile ✓</span>
                   )}
                 </div>
               </div>
