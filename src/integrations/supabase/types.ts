@@ -38071,6 +38071,10 @@ export type Database = {
           withdrawal_id: string
         }[]
       }
+      get_statement_of_financial_position: {
+        Args: { p_as_at?: string }
+        Returns: Json
+      }
       get_subagent_leaderboard: {
         Args: { p_limit?: number; p_offset?: number; p_period?: string }
         Returns: {
