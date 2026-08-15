@@ -197,6 +197,8 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
 
   const [partnershipAmount, setPartnershipAmount] = useState(0);
   const [loading, setLoading] = useState(true);
+  // Secondary (financial history) datasets stream in after the sheet paints.
+  const [secondaryLoading, setSecondaryLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [showAllRepayments, setShowAllRepayments] = useState(false);
   const [showAllRequests, setShowAllRequests] = useState(false);
