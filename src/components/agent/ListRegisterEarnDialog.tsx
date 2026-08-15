@@ -43,8 +43,7 @@ export function ListRegisterEarnDialog({ onListHouse, onRegisterTenant }: Props)
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) close(); }}>
       <DialogContent
-        className="w-[calc(100vw-1.5rem)] sm:w-full max-w-md p-0 gap-0 overflow-hidden max-h-[92vh] flex flex-col"
-        hideCloseButton
+        className="w-[calc(100vw-1.5rem)] sm:w-full max-w-md p-0 gap-0 overflow-hidden max-h-[92vh] flex flex-col [&>button]:hidden"
       >
         <div className="relative shrink-0">
           <img
