@@ -5376,8 +5376,10 @@ export type Database = {
         Row: {
           created_at: string
           deadline: string | null
+          financial_year: string | null
           id: string
-          issued_by_position_id: string
+          instructions: string | null
+          issued_by_position_id: string | null
           issued_by_user_id: string
           period_end: string
           period_start: string
@@ -5389,8 +5391,10 @@ export type Database = {
         Insert: {
           created_at?: string
           deadline?: string | null
+          financial_year?: string | null
           id?: string
-          issued_by_position_id: string
+          instructions?: string | null
+          issued_by_position_id?: string | null
           issued_by_user_id: string
           period_end: string
           period_start: string
@@ -5402,8 +5406,10 @@ export type Database = {
         Update: {
           created_at?: string
           deadline?: string | null
+          financial_year?: string | null
           id?: string
-          issued_by_position_id?: string
+          instructions?: string | null
+          issued_by_position_id?: string | null
           issued_by_user_id?: string
           period_end?: string
           period_start?: string
@@ -5472,10 +5478,55 @@ export type Database = {
           },
         ]
       }
+      budget_submission_documents: {
+        Row: {
+          created_at: string
+          file_name: string | null
+          id: string
+          line_id: string | null
+          storage_path: string
+          submission_id: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          file_name?: string | null
+          id?: string
+          line_id?: string | null
+          storage_path: string
+          submission_id: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          file_name?: string | null
+          id?: string
+          line_id?: string | null
+          storage_path?: string
+          submission_id?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_submission_documents_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "budget_submission_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budget_submission_documents_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "budget_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       budget_submission_events: {
         Row: {
           actor_position_id: string | null
-          actor_user_id: string
+          actor_user_id: string | null
           created_at: string
           event_type: string
           id: string
@@ -5484,7 +5535,7 @@ export type Database = {
         }
         Insert: {
           actor_position_id?: string | null
-          actor_user_id: string
+          actor_user_id?: string | null
           created_at?: string
           event_type: string
           id?: string
@@ -5493,7 +5544,7 @@ export type Database = {
         }
         Update: {
           actor_position_id?: string | null
-          actor_user_id?: string
+          actor_user_id?: string | null
           created_at?: string
           event_type?: string
           id?: string
@@ -5519,39 +5570,76 @@ export type Database = {
       }
       budget_submission_lines: {
         Row: {
+          account_code: string | null
+          approved_amount: number | null
           category: string | null
           created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
           description: string
+          document_path: string | null
           id: string
+          justification: string | null
           line_total: number | null
+          period_month: string | null
           quantity: number
           sort_order: number
+          status: string
           submission_id: string
           unit_amount: number
+          updated_at: string
         }
         Insert: {
+          account_code?: string | null
+          approved_amount?: number | null
           category?: string | null
           created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
           description: string
+          document_path?: string | null
           id?: string
+          justification?: string | null
           line_total?: number | null
+          period_month?: string | null
           quantity?: number
           sort_order?: number
+          status?: string
           submission_id: string
           unit_amount: number
+          updated_at?: string
         }
         Update: {
+          account_code?: string | null
+          approved_amount?: number | null
           category?: string | null
           created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
           description?: string
+          document_path?: string | null
           id?: string
+          justification?: string | null
           line_total?: number | null
+          period_month?: string | null
           quantity?: number
           sort_order?: number
+          status?: string
           submission_id?: string
           unit_amount?: number
+          updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "budget_submission_lines_account_code_fkey"
+            columns: ["account_code"]
+            isOneToOne: false
+            referencedRelation: "ledger_account_catalog"
+            referencedColumns: ["code"]
+          },
           {
             foreignKeyName: "budget_submission_lines_submission_id_fkey"
             columns: ["submission_id"]
@@ -5563,55 +5651,79 @@ export type Database = {
       }
       budget_submissions: {
         Row: {
+          approved_total: number
           call_id: string | null
+          cfo_comment: string | null
           created_at: string
           department_id: string
           id: string
+          is_late: boolean
+          parent_submission_id: string | null
           period_end: string
           period_start: string
           period_type: string
           purpose: string | null
           reference: string
+          reviewed_at: string | null
+          reviewed_by: string | null
           status: string
+          submitted_at: string | null
           submitted_by_position_id: string | null
           submitted_by_user_id: string | null
           title: string | null
           total_amount: number
           updated_at: string
+          version: number
         }
         Insert: {
+          approved_total?: number
           call_id?: string | null
+          cfo_comment?: string | null
           created_at?: string
           department_id: string
           id?: string
+          is_late?: boolean
+          parent_submission_id?: string | null
           period_end: string
           period_start: string
           period_type?: string
           purpose?: string | null
           reference: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           status?: string
+          submitted_at?: string | null
           submitted_by_position_id?: string | null
           submitted_by_user_id?: string | null
           title?: string | null
           total_amount?: number
           updated_at?: string
+          version?: number
         }
         Update: {
+          approved_total?: number
           call_id?: string | null
+          cfo_comment?: string | null
           created_at?: string
           department_id?: string
           id?: string
+          is_late?: boolean
+          parent_submission_id?: string | null
           period_end?: string
           period_start?: string
           period_type?: string
           purpose?: string | null
           reference?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           status?: string
+          submitted_at?: string | null
           submitted_by_position_id?: string | null
           submitted_by_user_id?: string | null
           title?: string | null
           total_amount?: number
           updated_at?: string
+          version?: number
         }
         Relationships: [
           {
@@ -5626,6 +5738,13 @@ export type Database = {
             columns: ["department_id"]
             isOneToOne: false
             referencedRelation: "hr_departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budget_submissions_parent_submission_id_fkey"
+            columns: ["parent_submission_id"]
+            isOneToOne: false
+            referencedRelation: "budget_submissions"
             referencedColumns: ["id"]
           },
           {
@@ -35296,6 +35415,10 @@ export type Database = {
           restricted: boolean
         }[]
       }
+      budget_activity_for_account: {
+        Args: { _account_code: string }
+        Returns: string
+      }
       budget_add_line: {
         Args: {
           _category?: string
@@ -35365,6 +35488,10 @@ export type Database = {
         Args: { _note?: string; _submission_id: string }
         Returns: undefined
       }
+      budget_user_department_ids: {
+        Args: { _user_id: string }
+        Returns: string[]
+      }
       build_funder_reference: {
         Args: { p_created_at: string; p_user_id: string }
         Returns: string
@@ -35392,6 +35519,10 @@ export type Database = {
       calculate_business_advance_limit: {
         Args: { _tenant_id: string }
         Returns: Json
+      }
+      can_access_budget_submission: {
+        Args: { _submission_id: string; _user_id: string }
+        Returns: boolean
       }
       can_manage_tenant_documents: {
         Args: { _user_id: string }
@@ -38934,6 +39065,7 @@ export type Database = {
         Args: { p_user_id?: string }
         Returns: boolean
       }
+      is_budget_reviewer: { Args: { _user_id: string }; Returns: boolean }
       is_business_advance_ops: { Args: { _uid: string }; Returns: boolean }
       is_conversation_participant: {
         Args: { _conversation_id: string; _user_id: string }
