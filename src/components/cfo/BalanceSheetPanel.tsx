@@ -97,7 +97,7 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default function StatementOfFinancialPositionPanel() {
+export default function BalanceSheetPanel() {
   const [asAt, setAsAt] = useState<Date>(new Date());
   const [data, setData] = useState<StatementOfFinancialPosition | null>(null);
   const [loading, setLoading] = useState(false);
@@ -121,7 +121,7 @@ export default function StatementOfFinancialPositionPanel() {
 
   useEffect(() => { load(asAt); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const title = `WELILE — STATEMENT OF FINANCIAL POSITION / BALANCE SHEET — As at ${format(asAt, 'dd MMMM yyyy')}`;
+  const title = `WELILE — BALANCE SHEET — As at ${format(asAt, 'dd MMMM yyyy')}`;
 
   const exportCSV = () => {
     if (!data) return;
@@ -183,7 +183,7 @@ export default function StatementOfFinancialPositionPanel() {
 
       pdf.setTextColor(0, 0, 0);
       pdf.setFontSize(13);
-      pdf.text('STATEMENT OF FINANCIAL POSITION / BALANCE SHEET', margin, y);
+      pdf.text('BALANCE SHEET', margin, y);
       y += 6;
       pdf.setFontSize(9);
       pdf.setFont('helvetica', 'normal');
@@ -260,7 +260,7 @@ export default function StatementOfFinancialPositionPanel() {
       const blob = pdf.output('blob');
       const file = new File([blob], fileName, { type: 'application/pdf' });
       if (navigator.share && navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ title: 'Welile Statement of Financial Position', files: [file] });
+        await navigator.share({ title: 'Welile Balance Sheet', files: [file] });
       } else {
         pdf.save(fileName);
         toast.success('PDF downloaded');
@@ -316,7 +316,7 @@ export default function StatementOfFinancialPositionPanel() {
       {data && (
         <>
           <div className="text-center pb-2 border-b border-border">
-            <p className="text-[11px] font-bold uppercase tracking-widest">Welile — Statement of Financial Position</p>
+            <p className="text-[11px] font-bold uppercase tracking-widest">Welile — Balance Sheet</p>
             <p className="text-[10px] text-muted-foreground">Balance Sheet — As at {format(asAt, 'dd MMMM yyyy')} · All figures in {data.currency}</p>
           </div>
 
