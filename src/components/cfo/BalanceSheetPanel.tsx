@@ -19,6 +19,23 @@ interface PositionLine {
   source: string;
 }
 
+interface ScheduleRow {
+  ledger_scope: string;
+  category: string;
+  groups: number;
+  net_debit_less_credit: number;
+}
+
+interface Reconciliation {
+  suspense_amount: number;
+  suspense_side: 'asset' | 'liability' | 'none';
+  unresolved_groups: number;
+  unresolved_absolute_amount: number;
+  schedule: ScheduleRow[];
+  excluded_classifications: { classification: string; legs: number; amount: number }[];
+  memo_sub_ledgers: PositionLine[];
+}
+
 export interface StatementOfFinancialPosition {
   as_at: string;
   generated_at: string;
@@ -43,6 +60,13 @@ export interface StatementOfFinancialPosition {
     expenses_to_date: number;
     total: number;
   };
+  trial_balance?: {
+    total_debits: number;
+    total_credits: number;
+    difference: number;
+    balanced: boolean;
+  };
+  reconciliation?: Reconciliation;
   balance_check: {
     total_assets: number;
     total_liabilities_and_equity: number;
