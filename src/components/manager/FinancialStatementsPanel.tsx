@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect, createContext, useContext, useMemo } from 'react';
 import { format } from 'date-fns';
-import { FileText, TrendingUp, Wallet, BarChart3, Download, FileSpreadsheet, RefreshCw, Loader2, Calendar, ArrowUpRight, ArrowDownRight, Minus, GitCompareArrows, Activity } from 'lucide-react';
+import { FileText, TrendingUp, Wallet, BarChart3, Download, FileSpreadsheet, RefreshCw, Loader2, Calendar, ArrowUpRight, ArrowDownRight, Minus, GitCompareArrows, Activity, ClipboardList } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -19,6 +19,7 @@ import { CheckCircle2, AlertTriangle } from 'lucide-react';
 
 import { formatDynamic as formatUGX } from '@/lib/currencyFormat';
 import BalanceSheetPanel from '@/components/cfo/BalanceSheetPanel';
+import BudgetApprovalPanel from '@/components/cfo/BudgetApprovalPanel';
 import {
   useStatementOfCashFlows,
   flattenCashFlowStatement,
