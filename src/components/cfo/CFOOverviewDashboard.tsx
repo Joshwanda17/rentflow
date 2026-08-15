@@ -654,6 +654,33 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
 
 /* ── Sub-components ── */
 
+function DeckStat({ icon, label, value, caption, tone }: {
+  icon: React.ReactNode; label: string; value: string; caption: string; tone?: string;
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-muted/30 p-3 min-w-0">
+      <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
+        <span className="shrink-0">{icon}</span>
+        <p className="text-[10px] font-semibold uppercase tracking-wide truncate">{label}</p>
+      </div>
+      <p className={`text-lg font-bold font-mono tabular-nums leading-tight ${tone || ''}`}>{value}</p>
+      <p className="text-[10px] text-muted-foreground leading-tight">{caption}</p>
+    </div>
+  );
+}
+
+function DeckLink({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="px-3 py-1.5 rounded-full border border-border bg-muted/50 text-xs font-semibold hover:bg-muted transition-colors"
+    >
+      {label} →
+    </button>
+  );
+}
+
 function MetricCard({ icon, label, sublabel, value, detail, valueColor, onClick }: {
   icon: React.ReactNode;
   label: string;
