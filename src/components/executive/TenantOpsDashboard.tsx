@@ -49,6 +49,7 @@ import DailyCollectionMonitoringDashboard from '@/components/shared/DailyCollect
 import { DailyRentReport } from '@/components/reports/DailyRentReport';
 import { AgentRentCapacityPanel } from './AgentRentCapacityPanel';
 import { TenantProductsServicesReport } from './tenant-ops/TenantProductsServicesReport';
+import { TenantRepaymentReliabilityPanel } from './tenant-ops/TenantRepaymentReliabilityPanel';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
