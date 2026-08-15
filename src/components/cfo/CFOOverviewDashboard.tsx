@@ -209,6 +209,36 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
   const solvencyRatio = totalLiabilities > 0 ? ((totalCash + totalReceivables) / totalLiabilities) * 100 : 100;
   const netToday = todayCashFlow?.netToday ?? 0;
 
+  /* ── CFO command-deck derivations (reporting layer only) ── */
+  const revenueTotal = revenue?.totalRevenue ?? 0;
+  const expenseTotal = revenue?.totalExpenses ?? 0;
+  const netProfit = revenue?.netProfit ?? 0;
+  const netMargin = revenueTotal > 0 ? (netProfit / revenueTotal) * 100 : 0;
+
+  const liquidityCoverage = walletTotal > 0 ? (totalCash / walletTotal) * 100 : 100;
+  const netWorkingCapital = totalCash + totalReceivables - totalLiabilities;
+
+  const burn30d = moneyFlow?.totalOutflows ?? 0;
+  const dailyBurn = burn30d / 30;
+  const runwayDays = dailyBurn > 0 ? moneyWeCanUse / dailyBurn : null;
+
+  const advancesIssued = receivables?.advancesPrincipal ?? 0;
+  const advancesOutstandingAll = receivables?.advancesOutstandingAll ?? 0;
+  const recoveryRate = advancesIssued > 0
+    ? ((receivables?.advancesRecovered ?? 0) / advancesIssued) * 100
+    : 100;
+
+  const controlBreaches =
+    (integrityChecks?.walletDriftCount ?? 0) +
+    (integrityChecks?.missingGroupCount ?? 0) +
+    (integrityChecks?.negativeLedgerCount ?? 0);
+
+  const trend = revenue?.trend ?? [];
+  const trendMax = Math.max(1, ...trend.map((t) => t.amount));
+
+  const statusTone = (ok: boolean, warn: boolean) =>
+    warn ? 'text-amber-600' : ok ? 'text-emerald-600' : 'text-destructive';
+
   const liabilityItems = [
     { label: 'Total Wallet Balances', value: liabilities?.tenantFunds ?? 0, icon: <Wallet className="h-4 w-4" /> },
   ];
