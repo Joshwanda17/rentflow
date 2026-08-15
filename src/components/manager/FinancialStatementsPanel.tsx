@@ -362,6 +362,31 @@ function CashFlowSection({ d, error }: { d: StatementOfCashFlows | null; error?:
               : 'Opening cash + net movement does not tie to closing cash — review the ledger.'}
           </span>
         </div>
+        {/* Explicit tie-out to the Balance Sheet cash accounts. Each account is
+            shown at its signed ledger value (debits less credits) so the total
+            can be checked by simple addition. */}
+        <div className="pt-3 mt-2 border-t border-border/60 space-y-1">
+          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+            Reconciliation to Balance Sheet cash accounts
+          </p>
+          {(d.cash_accounts ?? []).map((a) => (
+            <CashFlowRow key={a.code} label={`${a.code} ${a.label}`} value={a.closing} indent={1} />
+          ))}
+          <CashFlowRow label="Total Balance Sheet cash accounts (A1 + A2)" value={d.balance_sheet_cash} weight="group" />
+          <CashFlowRow
+            label="Difference: closing cash less Balance Sheet cash accounts"
+            value={d.closing_cash - d.balance_sheet_cash}
+            weight="group"
+          />
+          <div className={cn('flex items-center gap-1.5 text-[11px]', d.ties_to_balance_sheet ? 'text-success' : 'text-destructive')}>
+            {d.ties_to_balance_sheet ? <CheckCircle2 className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
+            <span>
+              {d.ties_to_balance_sheet
+                ? 'Closing cash equals A1 + A2 exactly — zero unexplained difference.'
+                : 'Closing cash does not equal A1 + A2 — review the cash account mapping.'}
+            </span>
+          </div>
+        </div>
         {Math.abs(d.unreconciled_residual) >= 1 && (
           <p className="text-[10px] text-muted-foreground">
             {formatUGX(Math.abs(d.unreconciled_residual))} of the period movement comes from historic single-sided
