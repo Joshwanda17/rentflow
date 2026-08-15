@@ -13,7 +13,7 @@ import COOPartnersPage from '@/components/coo/COOPartnersPage';
 import { StaffPerformancePanel } from '@/components/executive/StaffPerformancePanel';
 import ExecutiveBrief from '@/hr/components/ExecutiveBrief';
 import { DirectorRequisitionsPanel } from '@/components/requisitions/DirectorRequisitionsPanel';
-import HRInternshipApplications from '@/components/hr/HRInternshipApplications';
+
 import { RentPipelineQueue } from '@/components/executive/RentPipelineQueue';
 import { RejectedRequestsQueue } from '@/components/executive/RejectedRequestsQueue';
 import { FinancialOpsCommandCenter } from '@/components/financial-ops/FinancialOpsCommandCenter';
