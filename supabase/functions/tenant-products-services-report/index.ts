@@ -52,13 +52,6 @@ function eatYesterday(): string {
   return d.toISOString().slice(0, 10);
 }
 
-function unusedEatNowLabel(): string {
-  return new Intl.DateTimeFormat('en-GB', {
-    timeZone: TZ, day: '2-digit', month: 'short', year: 'numeric',
-    hour: '2-digit', minute: '2-digit', hour12: false,
-  }).format(new Date());
-}
-
 function fmtDay(d: string): string {
   try {
     return new Intl.DateTimeFormat('en-GB', {
