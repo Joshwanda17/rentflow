@@ -35,6 +35,12 @@ function label(row: { category: string; referenceId?: string | null; description
   return CATEGORY_LABELS[row.category] ?? row.category.replace(/_/g, ' ');
 }
 
+/** True for the leg that settled a customer cash-out (not the telecom charge). */
+function isCustomerPayout(row: { category: string; referenceId?: string | null; description?: string | null }) {
+  const ref = `${row.referenceId ?? ''} ${row.description ?? ''}`.toLowerCase();
+  return row.category === 'agent_float_settlement' && !ref.includes('telecom');
+}
+
 /**
  * Statement of one merchant agent's float movement — money we sent them and
  * money that left their float as payouts / telecom charges, with the balance
@@ -72,7 +78,9 @@ export function MerchantFloatStatementDialog({
         date: r.date,
         category: r.category,
         label: label(r),
-        description: r.description || r.referenceId || null,
+        description: isCustomerPayout(r)
+          ? `Paid to ${r.payeeName || 'Unknown customer'} · ${r.description || r.referenceId || ''}`.trim()
+          : r.description || r.referenceId || null,
         direction: r.direction,
         amount: r.amount,
         runningBalance: r.runningBalance,
@@ -192,9 +200,23 @@ export function MerchantFloatStatementDialog({
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-foreground truncate">{label(r)}</p>
+                {isCustomerPayout(r) && (
+                  <p
+                    className={`text-[11px] font-semibold truncate ${
+                      r.payeeName ? 'text-foreground' : 'text-muted-foreground'
+                    }`}
+                  >
+                    Paid to {r.payeeName || 'Unknown customer'}
+                  </p>
+                )}
                 <p className="text-[11px] text-muted-foreground truncate">
                   {r.description || r.referenceId || '—'}
                 </p>
+                {isCustomerPayout(r) && r.payoutRequestId && (
+                  <p className="text-[10px] font-mono text-muted-foreground truncate">
+                    Transaction: {r.payoutRequestId}
+                  </p>
+                )}
               </div>
               <div className="text-right shrink-0">
                 <p
