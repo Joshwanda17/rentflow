@@ -628,6 +628,8 @@ function FinancialStatementsPanelInner() {
   );
   const drillCtx = useMemo<DrillContextValue>(() => ({ open: setDrillLabel }), []);
 
+  const { data: cashFlow, error: cashFlowError } = useStatementOfCashFlows(drillDates.start, drillDates.end);
+
   useEffect(() => {
     generate();
   }, []);
@@ -735,59 +737,26 @@ function FinancialStatementsPanelInner() {
       if (d.adjustments.orphanReversals) rows.push(['Orphan Reversals', '', -d.adjustments.orphanReversals]);
       rows.push(['Net Adjustments', '', d.adjustments.total]);
       rows.push(['NET OPERATING INCOME', '', d.netOperatingIncome]);
-    } else if (activeTab === 'cashflow') {
-      const d = data.cashFlow;
-      rows.push(['WELILE — Cash Flow Statement', '', period]);
-      rows.push(['', '', '']);
-      rows.push(['OPERATING ACTIVITIES', '', '']);
-      rows.push(['Tenant Fees Received', '', d.operatingActivities.tenantFeesReceived]);
-      rows.push(['Other Platform Income', '', d.operatingActivities.otherServiceIncome]);
-      rows.push(['Platform Rewards Paid', '', -d.operatingActivities.platformRewardsPaid]);
-      rows.push(['Agent Commissions Paid', '', -d.operatingActivities.agentCommissionsPaid]);
-      if (d.operatingActivities.agentCommissionWithdrawals) rows.push(['Agent Commission Withdrawals', '', -d.operatingActivities.agentCommissionWithdrawals]);
-      if (d.operatingActivities.agentCommissionUsedForRent) rows.push(['Agent Commission Used for Rent', '', -d.operatingActivities.agentCommissionUsedForRent]);
-      rows.push(['Payroll Paid', '', -d.operatingActivities.payrollPaid]);
-      rows.push(['Agent Requisitions Paid', '', -d.operatingActivities.agentRequisitionsPaid]);
-      rows.push(['Financial Agent Expenses Paid', '', -d.operatingActivities.financialAgentExpensesPaid]);
-      rows.push(['Marketing Expenses Paid', '', -d.operatingActivities.marketingPaid]);
-      rows.push(['R&D Expenses Paid', '', -d.operatingActivities.rdPaid]);
-      rows.push(['Operational Expenses Paid', '', -d.operatingActivities.operationalSubcatPaid]);
-      rows.push(['General Operating Expenses Paid', '', -d.operatingActivities.withdrawalsPaid]);
-      rows.push(['Net Operating Cash', '', d.operatingActivities.netOperating]);
-      rows.push(['', '', '']);
-      rows.push(['RENT FACILITATION (PASS-THROUGH)', '', '']);
-      rows.push(['Rent Repayments Received', '', d.facilitationActivities.rentRepayments]);
-      if (d.facilitationActivities.rentPrincipalCollected) rows.push(['Rent Principal Collected', '', d.facilitationActivities.rentPrincipalCollected]);
-      if (d.facilitationActivities.agentRepayments) rows.push(['Agent Repayments', '', d.facilitationActivities.agentRepayments]);
-      if (d.facilitationActivities.advanceRepayments) rows.push(['Advance & Credit Repayments', '', d.facilitationActivities.advanceRepayments]);
-      rows.push(['Rent Deployed to Landlords', '', -d.facilitationActivities.rentDeployments]);
-      if (d.facilitationActivities.rentDisbursements) rows.push(['Rent Disbursements', '', -d.facilitationActivities.rentDisbursements]);
-      rows.push(['Net Facilitation', '', d.facilitationActivities.netFacilitation]);
-      rows.push(['', '', '']);
-      rows.push(['CUSTODIAL ACTIVITIES (Not Platform Revenue)', '', '']);
-      rows.push(['User Deposits Received', '', d.custodialActivities.userDeposits]);
-      if (d.custodialActivities.roiWalletCredits) rows.push(['ROI Wallet Credits', '', d.custodialActivities.roiWalletCredits]);
-      if (d.custodialActivities.walletCommissionCredits) rows.push(['Commission & Bonus Credits', '', d.custodialActivities.walletCommissionCredits]);
-      if (d.custodialActivities.walletCorrectionCredits) rows.push(['CFO Credits (Corrections)', '', d.custodialActivities.walletCorrectionCredits]);
-      if (d.custodialActivities.rentFloatFunding) rows.push(['Rent Float Funding', '', d.custodialActivities.rentFloatFunding]);
-      rows.push(['User Withdrawals Processed', '', -d.custodialActivities.userWithdrawals]);
-      if (d.custodialActivities.userTransfers) rows.push(['Wallet Transfers', '', -d.custodialActivities.userTransfers]);
-      if (d.custodialActivities.walletDeductions) rows.push(['Wallet Deductions', '', -d.custodialActivities.walletDeductions]);
-      if (d.custodialActivities.agentFloatUsedForRent) rows.push(['Agent Float Used for Rent', '', -d.custodialActivities.agentFloatUsedForRent]);
-      if (d.custodialActivities.walletCorrectionDebits) rows.push(['CFO Debits (Corrections)', '', -d.custodialActivities.walletCorrectionDebits]);
-      rows.push(['Net Change in Custody', '', d.custodialActivities.netCustodial]);
-      rows.push(['', '', '']);
-      rows.push(['FINANCING ACTIVITIES', '', '']);
-      rows.push(['Supporter Capital Inflows', '', d.financingActivities.supporterCapitalInflows]);
-      if (d.financingActivities.partnerFunding) rows.push(['Partner Funding', '', d.financingActivities.partnerFunding]);
-      if (d.financingActivities.shareCapital) rows.push(['Share Capital', '', d.financingActivities.shareCapital]);
-      if (d.financingActivities.roiReinvestment) rows.push(['ROI Reinvestment', '', d.financingActivities.roiReinvestment]);
-      rows.push(['Supporter Capital Withdrawals', '', -d.financingActivities.supporterCapitalWithdrawals]);
-      rows.push(['Net Financing Cash', '', d.financingActivities.netFinancing]);
-      rows.push(['', '', '']);
-      rows.push(['Opening Platform Balance', '', d.openingBalance]);
-      rows.push(['Net Platform Cash Movement', '', d.netCashMovement]);
-      rows.push(['CLOSING PLATFORM BALANCE', '', d.closingBalance]);
+      } else if (activeTab === 'cashflow') {
+        if (!cashFlow) { toast.error('Cash flow statement is still loading'); setSharing(false); return; }
+        pdf.setFontSize(7);
+        pdf.setTextColor(120, 120, 120);
+        pdf.text(pdf.splitTextToSize(cashFlow.cash_definition, pw - margin * 2), margin, y);
+        y += 8;
+        pdf.setTextColor(0, 0, 0);
+        for (const r of flattenCashFlowStatement(cashFlow)) {
+          if (r.level === 'section') { y += 2; addSection(r.label); continue; }
+          if (r.amount === null) {
+            if (y > 270) { pdf.addPage(); y = 20; }
+            pdf.setFontSize(8);
+            pdf.setFont('helvetica', 'bold');
+            pdf.setTextColor(0, 0, 0);
+            pdf.text(r.label, margin + 3, y);
+            y += 5;
+            continue;
+          }
+          addRow(r.label, r.amount, r.level !== 'line', false, r.level === 'line');
+        }
     } else if (activeTab === 'balance') {
       const d = data.balanceSheet;
       rows.push(['WELILE — Balance Sheet', '', period]);
@@ -1176,7 +1145,7 @@ function FinancialStatementsPanelInner() {
 
             {/* Active Statement */}
             {activeTab === 'income' && <IncomeStatementSection d={data.incomeStatement} cm={comparisonMetrics} />}
-            {activeTab === 'cashflow' && <CashFlowSection d={data.cashFlow} cm={comparisonMetrics} />}
+            {activeTab === 'cashflow' && <CashFlowSection d={cashFlow} error={cashFlowError} />}
             {activeTab === 'movement' && <ComprehensiveCashMovement />}
             {activeTab === 'balance' && <BalanceSheetPanel />}
             {activeTab === 'volume' && <FacilitatedVolumeSection d={data.facilitatedVolume} cm={comparisonMetrics} />}
