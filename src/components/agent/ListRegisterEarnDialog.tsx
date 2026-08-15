@@ -2,7 +2,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Home, UserPlus, Coins, Percent, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import heroImg from '@/assets/agent-list-register-earn.jpg';
+import heroAsset from '@/assets/agent-list-register-earn.png.asset.json';
 
 const STORAGE_KEY = 'welile.listRegisterEarnDialog.dismissedAt';
 const SUPPRESS_MS = 12 * 60 * 60 * 1000; // once every 12 hours
@@ -48,14 +48,14 @@ export function ListRegisterEarnDialog({ onListHouse, onRegisterTenant }: Props)
         {/* Hero image — shorter on small screens so copy stays visible */}
         <div className="relative shrink-0">
           <img
-            src={heroImg}
-            alt="Welile agent listing a house and registering a happy tenant family"
-            width={1280}
-            height={640}
+            src={heroAsset.url}
+            alt="House listing, checklist, phone and wallet with coins illustrating agent earnings"
+            width={1664}
+            height={950}
             loading="lazy"
-            className="w-full h-28 sm:h-36 object-cover"
+            className="w-full h-24 sm:h-32 object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/30 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
           <button
             onClick={close}
             aria-label="Close"
@@ -64,7 +64,6 @@ export function ListRegisterEarnDialog({ onListHouse, onRegisterTenant }: Props)
             <X className="h-4 w-4" />
           </button>
           <div className="absolute bottom-2 left-3 right-3">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-primary">Agent earnings</p>
             <h2 className="text-base sm:text-lg font-bold leading-tight text-foreground">
               List + register, earn twice
             </h2>
@@ -72,43 +71,39 @@ export function ListRegisterEarnDialog({ onListHouse, onRegisterTenant }: Props)
         </div>
 
         <div className="p-3 sm:p-4 space-y-3 overflow-y-auto">
-          {/* Headline amounts — full-width cards on mobile for easy scanning */}
-          <div className="grid grid-cols-1 xs:grid-cols-2 gap-2">
+          {/* Headline amounts */}
+          <div className="grid grid-cols-2 gap-2">
             <div className="rounded-2xl border border-warning/40 bg-warning/10 p-3">
               <div className="flex items-center gap-1.5 text-warning">
                 <Coins className="h-3.5 w-3.5" />
-                <span className="text-[10px] font-bold uppercase tracking-wider">Instant bonus</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider">Bonus</span>
               </div>
-              <p className="mt-1 text-xl sm:text-2xl font-bold tabular-nums text-foreground">UGX 12,000</p>
-              <p className="text-[11px] text-muted-foreground leading-snug">
-                When a tenant is verified in your listed house.
-              </p>
+              <p className="mt-0.5 text-lg sm:text-2xl font-bold tabular-nums text-foreground">UGX 12,000</p>
+              <p className="text-[11px] text-muted-foreground leading-snug">One-off</p>
             </div>
             <div className="rounded-2xl border border-success/40 bg-success/10 p-3">
               <div className="flex items-center gap-1.5 text-success">
                 <Percent className="h-3.5 w-3.5" />
-                <span className="text-[10px] font-bold uppercase tracking-wider">Recurring</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider">Commission</span>
               </div>
-              <p className="mt-1 text-xl sm:text-2xl font-bold tabular-nums text-foreground">8% – 10%</p>
-              <p className="text-[11px] text-muted-foreground leading-snug">
-                Commission every rent cycle that tenant pays.
-              </p>
+              <p className="mt-0.5 text-lg sm:text-2xl font-bold tabular-nums text-foreground">8% – 10%</p>
+              <p className="text-[11px] text-muted-foreground leading-snug">Every rent cycle</p>
             </div>
           </div>
 
           {/* Condensed steps */}
-          <ol className="flex flex-col gap-2 text-[12px] text-foreground">
+          <ol className="flex flex-col gap-1.5 text-[12px] text-foreground">
             <li className="flex items-center gap-2 rounded-xl bg-muted/40 px-3 py-2">
               <span className="h-5 w-5 shrink-0 rounded-full bg-primary/15 text-primary text-[11px] font-bold flex items-center justify-center">1</span>
-              <span><strong>List</strong> the empty house with photos & GPS.</span>
+              <span><strong>List</strong> an empty house</span>
             </li>
             <li className="flex items-center gap-2 rounded-xl bg-muted/40 px-3 py-2">
               <span className="h-5 w-5 shrink-0 rounded-full bg-primary/15 text-primary text-[11px] font-bold flex items-center justify-center">2</span>
-              <span><strong>Register</strong> the tenant moving in.</span>
+              <span><strong>Register</strong> the tenant moving in</span>
             </li>
             <li className="flex items-center gap-2 rounded-xl bg-muted/40 px-3 py-2">
               <span className="h-5 w-5 shrink-0 rounded-full bg-primary/15 text-primary text-[11px] font-bold flex items-center justify-center">3</span>
-              <span><strong>Get paid</strong> UGX 12,000 + ongoing commission.</span>
+              <span><strong>Get paid</strong> into your wallet</span>
             </li>
           </ol>
 
