@@ -6556,6 +6556,51 @@ export type Database = {
           },
         ]
       }
+      cash_flow_line_map: {
+        Row: {
+          account_code: string | null
+          category: string | null
+          created_at: string
+          display_only: boolean
+          group_label: string
+          group_sort: number
+          id: string
+          line_label: string
+          line_sort: number
+          notes: string | null
+          section: string
+          updated_at: string
+        }
+        Insert: {
+          account_code?: string | null
+          category?: string | null
+          created_at?: string
+          display_only?: boolean
+          group_label: string
+          group_sort?: number
+          id?: string
+          line_label: string
+          line_sort?: number
+          notes?: string | null
+          section: string
+          updated_at?: string
+        }
+        Update: {
+          account_code?: string | null
+          category?: string | null
+          created_at?: string
+          display_only?: boolean
+          group_label?: string
+          group_sort?: number
+          id?: string
+          line_label?: string
+          line_sort?: number
+          notes?: string | null
+          section?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       cashout_agents: {
         Row: {
           agent_id: string
@@ -38199,6 +38244,10 @@ export type Database = {
           wallet_withdrawable: number
           withdrawal_id: string
         }[]
+      }
+      get_statement_of_cash_flows: {
+        Args: { p_from: string; p_to: string }
+        Returns: Json
       }
       get_statement_of_financial_position: {
         Args: { p_as_at?: string }
