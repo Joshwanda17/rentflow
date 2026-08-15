@@ -197,6 +197,9 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
 
   const [partnershipAmount, setPartnershipAmount] = useState(0);
   const [loading, setLoading] = useState(true);
+  // GPS persistence state (the reading is saved server-side, not just held in React).
+  const [savingGps, setSavingGps] = useState(false);
+  const [gpsSavedAt, setGpsSavedAt] = useState<string | null>(null);
   // Secondary (financial history) datasets stream in after the sheet paints.
   const [secondaryLoading, setSecondaryLoading] = useState(true);
   const [copied, setCopied] = useState(false);
