@@ -261,27 +261,32 @@ export function UnifiedWalletHeroCard({
             onClick={handleOpenWallet}
             className="w-full text-left active:scale-[0.98] transition-transform"
           >
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* Float section */}
-              <div className="bg-primary-foreground/15 rounded-xl p-3 min-w-0">
-                <div className="flex items-center gap-1.5 mb-1.5">
-                  <PiggyBank className="h-3 w-3 text-primary-foreground/50" />
-                  <p className="text-[9px] uppercase tracking-[0.15em] font-semibold text-primary-foreground/50">Wallet Float</p>
-                </div>
-                <p className="text-lg font-black tracking-tight leading-none text-primary-foreground whitespace-nowrap">
-                  {formatAmount(
-                    Math.max(0, (floatBalance ?? 0) - Math.max(0, floatReserved ?? 0)),
-                  )}
-                </p>
-                <p className="text-[9px] text-primary-foreground/40 mt-1 font-medium">
-                  {floatCaption ?? 'Tenant collections · Pay Rent'}
-                </p>
-                {!!floatReserved && floatReserved > 0 && (
-                  <p className="text-[9px] text-amber-200/80 mt-0.5 font-medium">
-                    {formatAmount(floatReserved)} held by payouts you claimed
+            <div className={`grid grid-cols-1 ${floatBalance !== undefined ? 'sm:grid-cols-2' : ''} gap-3`}>
+              {/* Float section — omitted entirely when floatBalance is not
+                  passed (merchant agents: their float lives exclusively in
+                  MerchantFloatAvailableCard, which explains it correctly and
+                  isn't sitting next to Deposit/Withdraw/Transfer buttons). */}
+              {floatBalance !== undefined && (
+                <div className="bg-primary-foreground/15 rounded-xl p-3 min-w-0">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <PiggyBank className="h-3 w-3 text-primary-foreground/50" />
+                    <p className="text-[9px] uppercase tracking-[0.15em] font-semibold text-primary-foreground/50">Wallet Float</p>
+                  </div>
+                  <p className="text-lg font-black tracking-tight leading-none text-primary-foreground whitespace-nowrap">
+                    {formatAmount(
+                      Math.max(0, (floatBalance ?? 0) - Math.max(0, floatReserved ?? 0)),
+                    )}
                   </p>
-                )}
-              </div>
+                  <p className="text-[9px] text-primary-foreground/40 mt-1 font-medium">
+                    {floatCaption ?? 'Tenant collections · Pay Rent'}
+                  </p>
+                  {!!floatReserved && floatReserved > 0 && (
+                    <p className="text-[9px] text-amber-200/80 mt-0.5 font-medium">
+                      {formatAmount(floatReserved)} held by payouts you claimed
+                    </p>
+                  )}
+                </div>
+              )}
 
               {/* Withdrawable section — STRICT ledger-backed value only.
                   Must NEVER display commissionBalance here: commission is

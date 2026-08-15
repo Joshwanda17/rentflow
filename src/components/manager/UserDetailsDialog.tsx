@@ -137,9 +137,11 @@ interface UserDetailsDialogProps {
   onRolesUpdated?: () => void;
   onUserDeleted?: () => void;
   onUserUpdated?: () => void;
+  /** Whether the wallet balance can be manually credited/debited from this dialog. Defaults to true. */
+  canAdjustBalance?: boolean;
 }
 
-export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpdated, onUserDeleted, onUserUpdated }: UserDetailsDialogProps) {
+export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpdated, onUserDeleted, onUserUpdated, canAdjustBalance = true }: UserDetailsDialogProps) {
   const isMobile = useIsMobile();
   const { user: actingUser } = useAuth();
   const { canEdit } = useCanEditAccess();
@@ -1475,14 +1477,19 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                   <UserEcosystemSection userId={user.id} />
 
                   <div className="grid grid-cols-2 gap-3">
-                    <Card className="p-3 relative group cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setAddBalanceOpen(true)}>
+                    <Card
+                      className={`p-3 relative group transition-colors ${canAdjustBalance ? 'cursor-pointer hover:border-primary/50' : ''}`}
+                      onClick={canAdjustBalance ? () => setAddBalanceOpen(true) : undefined}
+                    >
                       <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
                         <Wallet className="h-3 w-3" />
                         Wallet Balance
                       </div>
                       <div className="flex items-center justify-between">
                         <p className="font-semibold text-sm">{formatUGX(walletBalance)}</p>
-                        <Plus className="h-4 w-4 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
+                        {canAdjustBalance && (
+                          <Plus className="h-4 w-4 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
+                        )}
                       </div>
                     </Card>
                     <Card className="p-3">
@@ -2092,14 +2099,16 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
             </div>
           </Tabs>
 
-          <AddBalanceDialog
-            open={addBalanceOpen}
-            onOpenChange={setAddBalanceOpen}
-            userId={user.id}
-            userName={user.full_name}
-            currentBalance={walletBalance}
-            onSuccess={fetchUserDetails}
-          />
+          {canAdjustBalance && (
+            <AddBalanceDialog
+              open={addBalanceOpen}
+              onOpenChange={setAddBalanceOpen}
+              userId={user.id}
+              userName={user.full_name}
+              currentBalance={walletBalance}
+              onSuccess={fetchUserDetails}
+            />
+          )}
         </SheetContent>
       </Sheet>
     );
@@ -2189,11 +2198,16 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                 <UserEcosystemSection userId={user.id} />
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <Card className="p-3 relative group cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setAddBalanceOpen(true)}>
+                  <Card
+                    className={`p-3 relative group transition-colors ${canAdjustBalance ? 'cursor-pointer hover:border-primary/50' : ''}`}
+                    onClick={canAdjustBalance ? () => setAddBalanceOpen(true) : undefined}
+                  >
                     <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1"><Wallet className="h-3 w-3" />Wallet Balance</div>
                     <div className="flex items-center justify-between">
                       <p className="font-semibold text-sm">{formatUGX(walletBalance)}</p>
-                      <Plus className="h-4 w-4 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
+                      {canAdjustBalance && (
+                        <Plus className="h-4 w-4 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
+                      )}
                     </div>
                   </Card>
                   <Card className="p-3">
@@ -2606,14 +2620,16 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
         </Tabs>
       </DialogContent>
 
-      <AddBalanceDialog
-        open={addBalanceOpen}
-        onOpenChange={setAddBalanceOpen}
-        userId={user.id}
-        userName={user.full_name}
-        currentBalance={walletBalance}
-        onSuccess={fetchUserDetails}
-      />
+      {canAdjustBalance && (
+        <AddBalanceDialog
+          open={addBalanceOpen}
+          onOpenChange={setAddBalanceOpen}
+          userId={user.id}
+          userName={user.full_name}
+          currentBalance={walletBalance}
+          onSuccess={fetchUserDetails}
+        />
+      )}
     </Dialog>
   );
 }

@@ -893,13 +893,21 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         {wallet ? (
           <UnifiedWalletHeroCard
           balance={
-            Math.max(0, visibleAgentFloatBalance - merchantReservedFloat) +
-            realWithdrawableBalance
+            isMerchant
+              ? realWithdrawableBalance
+              : Math.max(0, visibleAgentFloatBalance - merchantReservedFloat) +
+                realWithdrawableBalance
           }
           role="agent"
-          floatBalance={visibleAgentFloatBalance}
-          floatReserved={merchantReservedFloat}
-          floatCaption={isMerchant ? 'Company float · available for payouts' : undefined}
+          // Merchant Agents never see the generic operational-float box here —
+          // it's company custody money, not theirs to Deposit/Withdraw/Transfer
+          // via this card's action buttons, and MerchantFloatAvailableCard
+          // (rendered on their Home tab) is the single, correctly-guardrailed
+          // place that explains and displays it ("Company cash in your hands").
+          // Showing it in both places invited exactly that confusion.
+          floatBalance={isMerchant ? undefined : visibleAgentFloatBalance}
+          floatReserved={isMerchant ? undefined : merchantReservedFloat}
+          floatCaption={undefined}
           commissionBalance={commissionBalance}
           withdrawableBalance={realWithdrawableBalance}
           otherBalance={otherBalance}

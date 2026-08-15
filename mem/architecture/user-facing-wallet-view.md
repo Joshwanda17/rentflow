@@ -3,6 +3,21 @@ name: User-facing wallet view (hybrid model)
 description: End-user wallet UIs read get_user_wallet_view RPC / v_user_wallet_strict view only. wallets.* cache stays for operator dashboards (CFO, FinOps, CEO, COO, CTO, HR, Manager, Executive). Build guard enforces the boundary.
 type: feature
 ---
+**Update 2026-08-14 — the RPC's internal data source has changed since this was written, and its
+self-heal guarantee has partially regressed.** As of `20260811050458_wallet_projection_dirty_flag_deferral.sql`,
+`get_user_wallet_view` reads `wallet_balances_projection` (a cached table with an `is_dirty` flag,
+recomputed lazily by `wallet_projection_read_repair()` and a 2-minute `flush_dirty_wallet_projections`
+cron) rather than deriving live from `v_user_wallet_strict` on every call as described below. The
+2026-08-11 version of the RPC checked `is_dirty` and repaired before returning; a 2026-08-13 rewrite
+(`20260813183746_87115a61-...sql:35-51`) that added pending-portfolio holds **dropped that check** — it
+now only repairs when the row is missing entirely. `get_user_available_balance` lost its repair check
+entirely in the same window (`20260813183622_a79bc578-...sql:33-46`), reverting to a plain read of the
+projection. Freshness for both RPCs now depends on the 2-minute cron rather than repairing on every
+read. See `mem/architecture/wallet-view-dirty-check-regression.md` and
+`docs/investigations/Financial_Ops_Wallets_Merchant_Agents_Verified_2026-08-14.md`. The frontend
+consumption rule below (call the RPC, never the raw cache) is still correct and unaffected.
+
+---
 **Rule.** Any wallet number a regular end user sees (tenant, agent, supporter, landlord) MUST come from `get_user_wallet_view(user_id)` (or a hook that wraps it: `useAvailableBalance`, `computeLedgerAvailable`, `useAgentBalances`). The `wallets` table (`balance`, `withdrawable_balance`, `float_balance`, `advance_balance`) is operator-only and is consumed exclusively by CFO, Financial Ops, CEO, COO, CTO, HR, Manager, and Executive surfaces for reconciliation work.
 
 **Why.** The `wallets.*` cache can drift above the strict ledger position (phantom drift, anchor windows, missing legacy posts). Showing the cache to end users caused "Insufficient ledger balance" errors at withdrawal time and eroded trust. Reconciliation dashboards explicitly need to see the cache to fix it — they keep using it.

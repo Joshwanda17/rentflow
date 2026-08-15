@@ -16,8 +16,10 @@ Canonical helpers (2026-08-01):
   installments, never days.
 
 Collection paths (both frequency-aware):
-- `sweep_agent_advance_recovery()` (15-min cron): on non-due days it writes an
-  `agent_advance_ledger` row with `deduction_status='not_due'` and takes nothing.
+- `sweep_agent_advance_recovery()` (daily cron, `0 4 * * *` — rescheduled from `*/15 * * * *` in
+  `20260629101626_...sql:173-186`; see `mem/features/wallet/auto-advance-recovery-sweep.md`): on
+  non-due days it writes an `agent_advance_ledger` row with `deduction_status='not_due'` and takes
+  nothing.
   Due-day anchor = last ledger date with `amount_deducted > 0`, falling back to the
   issue date (self-correcting after missed runs / term edits).
 - `process-agent-advance-deductions` edge fn: same due-day gate + period installment.

@@ -988,7 +988,7 @@ Just click the link and enter your password to get started!`;
       </Sheet>
 
       {/* Dialogs */}
-      <UserDetailsDialog open={dialogOpen} onOpenChange={setDialogOpen} user={selectedUser} onRolesUpdated={handleRefresh} onUserDeleted={handleRefresh} onUserUpdated={handleRefresh} />
+      <UserDetailsDialog open={dialogOpen} onOpenChange={setDialogOpen} user={selectedUser} onRolesUpdated={handleRefresh} onUserDeleted={handleRefresh} onUserUpdated={handleRefresh} canAdjustBalance={false} />
       
       <BulkAssignRoleDialog open={bulkAssignRoleOpen} onOpenChange={setBulkAssignRoleOpen} selectedUserIds={Array.from(selectedUserIds)} onSuccess={() => { clearSelection(); handleRefresh(); }} />
       <BulkRemoveRoleDialog open={bulkRemoveRoleOpen} onOpenChange={setBulkRemoveRoleOpen} selectedUserIds={Array.from(selectedUserIds)} onSuccess={() => { clearSelection(); handleRefresh(); }} />
