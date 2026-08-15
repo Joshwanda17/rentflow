@@ -3577,23 +3577,25 @@ export function ComprehensiveCashMovement() {
       // (transaction_date, id) index instead. Same rows, same order — rows that
       // share the boundary timestamp are carried over and de-duplicated, so no
       // row is dropped or counted twice.
-      const PAGE = 1000;
+      // Rows come from the staff-gated `get_cfo_cash_movement_rows` reporting
+      // function instead of a direct REST read: the REST path re-evaluated the
+      // ledger RLS policies per row (~3s per 1,000 rows) on top of the deep
+      // OFFSET, so large periods returned HTTP 500. Same columns, same order,
+      // same rows — only the transport changed.
+      const PAGE = 5000;
       const acc: LedgerRow[] = [];
       const seen = new Set<string>();
       let cursorDate: string | null = from ? from.toISOString() : null;
       let pages = 0;
       // eslint-disable-next-line no-constant-condition
       while (true) {
-        let q = supabase
-          .from('general_ledger')
-          .select('id, transaction_date, amount, direction, category, ledger_scope, classification, reference_id, description, linked_party, user_id, transaction_group_id, source_table, source_id')
-          .order('transaction_date', { ascending: true })
-          .order('id', { ascending: true })
-          .limit(PAGE);
-        if (cursorDate) q = q.gte('transaction_date', cursorDate);
-        const { data, error } = await q;
+        const { data, error } = await supabase.rpc('get_cfo_cash_movement_rows', {
+          p_from: from ? from.toISOString() : null,
+          p_after: cursorDate,
+          p_limit: PAGE,
+        } as any);
         if (error) throw error;
-        const batch = (data || []) as LedgerRow[];
+        const batch = (data || []) as unknown as LedgerRow[];
         let added = 0;
         for (const r of batch) {
           if (seen.has(r.id)) continue;
