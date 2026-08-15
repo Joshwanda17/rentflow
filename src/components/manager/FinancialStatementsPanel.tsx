@@ -18,6 +18,7 @@ import { Calendar as CalendarPicker } from '@/components/ui/calendar';
 import { CheckCircle2, AlertTriangle } from 'lucide-react';
 
 import { formatDynamic as formatUGX } from '@/lib/currencyFormat';
+import StatementOfFinancialPositionPanel from '@/components/cfo/StatementOfFinancialPositionPanel';
 
 const PERIODS: { value: StatementPeriod; label: string }[] = [
   { value: 'today', label: 'Today' },
