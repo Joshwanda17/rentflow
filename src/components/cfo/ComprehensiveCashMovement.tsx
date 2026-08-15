@@ -3574,9 +3574,9 @@ export function ComprehensiveCashMovement() {
       // OFFSET paging re-scanned and re-sorted the whole ledger on every page,
       // which grew quadratically and tripped the Postgres statement timeout
       // (HTTP 500) past ~20k rows. A `>= cursor` window walks the
-      // (transaction_date, id) index instead. Same rows, same order — rows that
-      // share the boundary timestamp are carried over and de-duplicated, so no
-      // row is dropped or counted twice.
+      // (transaction_date, id) index instead. Rows that share the boundary
+      // timestamp are carried over and de-duplicated, so no row is dropped or
+      // counted twice.
       // Rows come from the staff-gated `get_cfo_cash_movement_rows` reporting
       // function instead of a direct REST read: the REST path re-evaluated the
       // ledger RLS policies per row (~3s per 1,000 rows) on top of the deep
