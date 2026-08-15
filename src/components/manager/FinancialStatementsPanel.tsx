@@ -567,7 +567,7 @@ function FacilitatedVolumeSection({ d, cm }: { d: FinancialStatementsData['facil
 // Main Panel
 // ─────────────────────────────────────────────────────────────
 
-type Tab = 'income' | 'cashflow' | 'movement' | 'balance' | 'volume';
+type Tab = 'income' | 'cashflow' | 'movement' | 'balance' | 'volume' | 'budget';
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'movement', label: 'Cash Movement', icon: <Activity className="h-3.5 w-3.5" /> },
@@ -575,6 +575,7 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'cashflow', label: 'Cash Flow', icon: <Wallet className="h-3.5 w-3.5" /> },
   { id: 'balance', label: 'Balance Sheet', icon: <FileText className="h-3.5 w-3.5" /> },
   { id: 'volume', label: 'Facilitated Volume', icon: <BarChart3 className="h-3.5 w-3.5" /> },
+  { id: 'budget', label: 'Department Budgets', icon: <ClipboardList className="h-3.5 w-3.5" /> },
 ];
 
 export function FinancialStatementsPanel() {
@@ -697,6 +698,7 @@ function FinancialStatementsPanelInner() {
       case 'movement': return 'Comprehensive Cash Movement';
       case 'balance': return 'Balance Sheet';
       case 'volume': return 'Facilitated Volume Report';
+      case 'budget': return 'Department Budgets & CFO Approval';
     }
   };
 
@@ -1112,7 +1114,7 @@ function FinancialStatementsPanelInner() {
         <ReconciliationCard r={data.reconciliation} />
       )}
 
-      {data && (
+      {(data || activeTab === 'budget') && (
         <Card ref={contentRef}>
           <CardContent className="pt-4 pb-6">
             {/* Tab Switcher */}
@@ -1138,8 +1140,8 @@ function FinancialStatementsPanelInner() {
             <div className="flex items-center justify-between mb-4 pb-3 border-b border-border">
               <h3 className="text-sm font-semibold">{getTabLabel()}</h3>
               <div className="flex items-center gap-2">
-                <Badge variant="outline" className="text-xs">{data.incomeStatement.period}</Badge>
-                {comparisonMode !== 'none' && comparisonMetrics && (
+                {data && <Badge variant="outline" className="text-xs">{data.incomeStatement.period}</Badge>}
+                {data && comparisonMode !== 'none' && comparisonMetrics && (
                   <Badge variant="secondary" className="text-[10px]">
                     vs {COMPARISON_MODES.find(m => m.value === comparisonMode)?.label}
                   </Badge>
@@ -1148,14 +1150,15 @@ function FinancialStatementsPanelInner() {
             </div>
 
             {/* Active Statement */}
-            {activeTab === 'income' && <IncomeStatementSection d={data.incomeStatement} cm={comparisonMetrics} />}
-            {activeTab === 'cashflow' && <CashFlowSection d={cashFlow} error={cashFlowError} />}
+            {activeTab === 'income' && data && <IncomeStatementSection d={data.incomeStatement} cm={comparisonMetrics} />}
+            {activeTab === 'cashflow' && data && <CashFlowSection d={cashFlow} error={cashFlowError} />}
             {activeTab === 'movement' && <ComprehensiveCashMovement />}
             {activeTab === 'balance' && <BalanceSheetPanel />}
-            {activeTab === 'volume' && <FacilitatedVolumeSection d={data.facilitatedVolume} cm={comparisonMetrics} />}
+            {activeTab === 'volume' && data && <FacilitatedVolumeSection d={data.facilitatedVolume} cm={comparisonMetrics} />}
+            {activeTab === 'budget' && <BudgetApprovalPanel />}
 
             {/* Export Actions */}
-            {activeTab !== 'balance' && (
+            {data && activeTab !== 'balance' && activeTab !== 'budget' && (
             <div className="flex gap-2 mt-6 pt-4 border-t border-border">
               <Button variant="outline" size="sm" className="flex-1 gap-2 text-xs" onClick={handleExportCSV}>
                 <FileSpreadsheet className="h-3.5 w-3.5" />
@@ -1172,7 +1175,7 @@ function FinancialStatementsPanelInner() {
       )}
 
       {/* Empty state */}
-      {!data && !loading && (
+      {!data && !loading && activeTab !== 'budget' && (
         <div className="text-center py-12 text-muted-foreground">
           <FileText className="h-12 w-12 mx-auto mb-3 opacity-30" />
           <p className="text-sm">Select a period and generate statements</p>
