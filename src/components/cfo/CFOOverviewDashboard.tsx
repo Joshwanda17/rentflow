@@ -244,7 +244,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
   ];
 
   return (
-    <div className="space-y-5 max-w-2xl mx-auto">
+    <div className="space-y-5 max-w-5xl mx-auto">
 
       {/* ── PAY TO WALLET ── */}
       {onTabChange && (
