@@ -9,6 +9,13 @@ import { supabase } from '@/integrations/supabase/client';
  * The returned `withdrawableCached` field is kept for API compatibility
  * with existing callers but now mirrors `available` exactly (no drift
  * possible). `ledgerNet` reflects the raw ledger net used internally.
+ *
+ * Throws on RPC failure (timeout, transient network, expired token)
+ * instead of returning a fabricated `0`. A failed read is UNKNOWN, not
+ * verified-zero — callers (WithdrawFlow) already treat a thrown/null
+ * result as "can't verify" and fall back to the last-known wallet
+ * figure rather than blocking the user with a fake "Available: UGX 0".
+ * See: Withdraw_Available_Zero_2026-08-15 incident (Gloria Namatovu).
  */
 export async function computeLedgerAvailable(userId: string): Promise<{
   available: number;
@@ -20,9 +27,7 @@ export async function computeLedgerAvailable(userId: string): Promise<{
     p_user_id: userId,
   });
   if (error) {
-    // Conservative fallback: zero out rather than read the cache.
-    // The cache is exactly what we are trying to avoid trusting.
-    return { available: 0, ledgerNet: 0, withdrawableCached: 0, pendingHolds: 0 };
+    throw new Error(`computeLedgerAvailable: get_user_wallet_view failed — ${error.message}`);
   }
   const row = (data ?? {}) as {
     withdrawable?: number | string;
