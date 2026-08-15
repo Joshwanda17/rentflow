@@ -154,20 +154,119 @@ function ChartTooltip({ active, payload, label }: any) {
   );
 }
 
+type PresetId = 'all' | 'today' | 'yesterday' | 'month' | 'custom';
+
+const PRESETS: { id: PresetId; label: string }[] = [
+  { id: 'all', label: 'All time' },
+  { id: 'today', label: 'Today' },
+  { id: 'yesterday', label: 'Yesterday' },
+  { id: 'month', label: 'This month' },
+  { id: 'custom', label: 'Custom' },
+];
+
+const ALL_TIME_START = '2020-01-01';
+const fmt = (d: Date) => format(d, 'yyyy-MM-dd');
+
+function resolveRange(preset: PresetId, custom?: DateRange): { from: string; to: string } {
+  const today = new Date();
+  switch (preset) {
+    case 'today':
+      return { from: fmt(today), to: fmt(today) };
+    case 'yesterday': {
+      const y = subDays(today, 1);
+      return { from: fmt(y), to: fmt(y) };
+    }
+    case 'month':
+      return { from: fmt(startOfMonth(today)), to: fmt(today) };
+    case 'custom':
+      if (custom?.from) {
+        return { from: fmt(custom.from), to: fmt(custom.to ?? custom.from) };
+      }
+      return { from: ALL_TIME_START, to: fmt(today) };
+    case 'all':
+    default:
+      return { from: ALL_TIME_START, to: fmt(today) };
+  }
+}
+
 export default function COOOverviewSnapshot() {
+  const [preset, setPreset] = useState<PresetId>('month');
+  const [custom, setCustom] = useState<DateRange | undefined>();
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  const range = useMemo(() => resolveRange(preset, custom), [preset, custom]);
+
   const { data, isLoading, isFetching, refetch, error } = useQuery({
-    queryKey: ['coo-overview-snapshot', 14],
+    queryKey: ['coo-overview-snapshot', range.from, range.to],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_coo_overview_snapshot', { p_days: 14 });
+      const { data, error } = await supabase.rpc('get_coo_overview_snapshot', {
+        p_days: 14,
+        p_from: range.from,
+        p_to: range.to,
+      } as any);
       if (error) throw error;
       return data as unknown as Snapshot;
     },
     staleTime: 60_000,
   });
 
+  const rangeLabel =
+    preset === 'all' ? 'All time'
+      : preset === 'custom' && custom?.from
+        ? `${format(custom.from, 'dd MMM yyyy')} – ${format(custom.to ?? custom.from, 'dd MMM yyyy')}`
+        : PRESETS.find(p => p.id === preset)?.label ?? '';
+
+  const filterBar = (
+    <section className="rounded-xl border bg-card p-2.5">
+      <div className="flex flex-wrap items-center gap-1.5">
+        {PRESETS.filter(p => p.id !== 'custom').map(p => (
+          <Button
+            key={p.id}
+            size="sm"
+            variant={preset === p.id ? 'default' : 'outline'}
+            className="h-7 rounded-full px-3 text-[11px] font-bold"
+            onClick={() => setPreset(p.id)}
+          >
+            {p.label}
+          </Button>
+        ))}
+        <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              size="sm"
+              variant={preset === 'custom' ? 'default' : 'outline'}
+              className="h-7 rounded-full px-3 text-[11px] font-bold"
+            >
+              <CalendarDays className="mr-1 h-3.5 w-3.5" />
+              {preset === 'custom' && custom?.from ? rangeLabel : 'Custom range'}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0 z-[60]" align="start">
+            <Calendar
+              mode="range"
+              selected={custom}
+              onSelect={(r) => {
+                setCustom(r);
+                setPreset('custom');
+                if (r?.from && r?.to) setPickerOpen(false);
+              }}
+              numberOfMonths={1}
+              disabled={{ after: new Date() }}
+              initialFocus
+            />
+          </PopoverContent>
+        </Popover>
+        <span className="ml-auto text-[10px] font-semibold text-muted-foreground">
+          Showing: {rangeLabel}
+        </span>
+      </div>
+    </section>
+  );
+
   if (isLoading) {
     return (
       <div className="space-y-3">
+        {filterBar}
         <Skeleton className="h-24 w-full rounded-xl" />
         <Skeleton className="h-56 w-full rounded-xl" />
         <Skeleton className="h-40 w-full rounded-xl" />
@@ -177,9 +276,12 @@ export default function COOOverviewSnapshot() {
 
   if (error || !data) {
     return (
-      <div className="rounded-xl border-2 border-red-500/40 bg-red-500/8 p-4 text-sm">
-        Could not load the operations snapshot.
-        <button onClick={() => refetch()} className="ml-2 font-bold underline">Try again</button>
+      <div className="space-y-3">
+        {filterBar}
+        <div className="rounded-xl border-2 border-red-500/40 bg-red-500/8 p-4 text-sm">
+          Could not load the operations snapshot.
+          <button onClick={() => refetch()} className="ml-2 font-bold underline">Try again</button>
+        </div>
       </div>
     );
   }
@@ -201,13 +303,15 @@ export default function COOOverviewSnapshot() {
           </button>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
-          <CountTile label="Agents" value={counts.agents} icon={Users} hint="Incl. sub-agents, with a rent request" />
+          <CountTile label="Agents" value={counts.agents} icon={Users} hint="Collects or repays rent for tenants" />
           <CountTile label="Partners" value={counts.partners} icon={Handshake} hint="With one or more portfolios" />
-          <CountTile label="Tenants" value={counts.tenants} icon={Home} hint="With a rent request or repayment" />
-          <CountTile label="Landlords" value={counts.landlords} icon={Building2} hint="Ever received a rent payout" />
+          <CountTile label="Tenants" value={counts.tenants} icon={Home} hint="Has a repayment record" />
+          <CountTile label="Landlords" value={counts.landlords} icon={Building2} hint="Ever received landlord float" />
           <CountTile label="Employees" value={counts.employees} icon={UserCheck} hint="Active employee role" />
         </div>
       </section>
+
+      {filterBar}
 
       {/* Money position */}
       <section>
