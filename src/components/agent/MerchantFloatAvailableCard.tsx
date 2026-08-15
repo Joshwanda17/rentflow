@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Wallet, AlertTriangle, Hand, Smartphone, BadgeCheck, HandCoins, Signal, Flag, Search, Check } from 'lucide-react';
+import { Wallet, AlertTriangle, Hand, Smartphone, BadgeCheck, HandCoins, Signal, Flag, Search, Check, BatteryWarning } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -105,7 +105,7 @@ export function MerchantFloatAvailableCard() {
         </div>
       </div>
 
-      {holding > 0 && (
+      {holding > 0 ? (
         <div className="mt-3 rounded-2xl border-2 border-warning/50 bg-warning/10 p-4 text-center">
           <div className="flex items-center justify-center gap-2">
             <AlertTriangle className="h-4 w-4 text-warning shrink-0" />
@@ -121,6 +121,21 @@ export function MerchantFloatAvailableCard() {
             first, and it drops each time you pay a request.
           </p>
         </div>
+      ) : (
+        !isLoading && (
+          <div className="mt-3 rounded-2xl border-2 border-muted-foreground/30 bg-muted/30 p-4 text-center">
+            <div className="flex items-center justify-center gap-2">
+              <BatteryWarning className="h-4 w-4 text-muted-foreground shrink-0" />
+              <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                Operational float is finished
+              </p>
+            </div>
+            <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+              You can still process pay-outs. Pay from your own MTN or Airtel line and Finance
+              pays you back — every shilling you front is tracked below, never silent debt.
+            </p>
+          </div>
+        )
       )}
 
       {(offledger !== 0 || unbacked > 0) && (

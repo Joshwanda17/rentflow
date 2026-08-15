@@ -6,7 +6,7 @@ import { format, startOfDay, startOfWeek, startOfMonth, subDays, subMonths } fro
 import { Download, FileText, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
-type ReportType = 'daily' | 'weekly' | 'monthly' | 'agent';
+type ReportType = 'daily' | 'weekly' | 'monthly' | 'agent' | 'coverage';
 
 export default function FinancialReportsPanel() {
   const [generating, setGenerating] = useState<ReportType | null>(null);
@@ -45,6 +45,12 @@ export default function FinancialReportsPanel() {
           r.payment_method, r.location_name || '', r.momo_provider || '', r.momo_phone || '',
         ]);
         downloadCSV(headers, rows, filename);
+      } else if (type === 'coverage') {
+        const { data, error } = await supabase.rpc('get_coo_rent_coverage_statement' as any);
+        if (error) throw error;
+        const { generateRentCoverageStatementPdf } = await import('@/lib/rentCoverageStatementPdf');
+        const blob = await generateRentCoverageStatementPdf(data as any);
+        downloadBlob(blob, `rent-coverage-statement-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
       } else {
         const { data } = await supabase.from('general_ledger').select('*')
           .gte('transaction_date', fromDate).lte('transaction_date', toDate)
@@ -57,8 +63,8 @@ export default function FinancialReportsPanel() {
         downloadCSV(headers, rows, filename);
       }
       toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} report downloaded`);
-    } catch (e) {
-      toast.error('Failed to generate report');
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to generate report');
     } finally {
       setGenerating(null);
     }
@@ -67,10 +73,14 @@ export default function FinancialReportsPanel() {
   const downloadCSV = (headers: string[], rows: any[][], filename: string) => {
     const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
+    downloadBlob(blob, `${filename}.csv`);
+  };
+
+  const downloadBlob = (blob: Blob, filename: string) => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${filename}.csv`;
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -80,6 +90,7 @@ export default function FinancialReportsPanel() {
     { type: 'weekly' as ReportType, label: 'Weekly Collection Report', desc: 'Collections this week' },
     { type: 'monthly' as ReportType, label: 'Monthly Financial Summary', desc: 'Full month ledger summary' },
     { type: 'agent' as ReportType, label: 'Agent Payment Report', desc: 'Agent collections last 30 days' },
+    { type: 'coverage' as ReportType, label: 'Rent Coverage Financial Statement (PDF)', desc: 'Real tenants, active tenants, rent disbursed since launch vs collected' },
   ];
 
   return (

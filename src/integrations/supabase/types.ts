@@ -14307,6 +14307,7 @@ export type Database = {
           linkedin_url: string | null
           location: string | null
           portfolio_url: string | null
+          public_ref: string | null
           purged_at: string | null
           resume_filename: string | null
           resume_url: string | null
@@ -14343,6 +14344,7 @@ export type Database = {
           linkedin_url?: string | null
           location?: string | null
           portfolio_url?: string | null
+          public_ref?: string | null
           purged_at?: string | null
           resume_filename?: string | null
           resume_url?: string | null
@@ -14379,6 +14381,7 @@ export type Database = {
           linkedin_url?: string | null
           location?: string | null
           portfolio_url?: string | null
+          public_ref?: string | null
           purged_at?: string | null
           resume_filename?: string | null
           resume_url?: string | null
@@ -36964,7 +36967,11 @@ export type Database = {
         }[]
       }
       get_coo_command_center: { Args: never; Returns: Json }
-      get_coo_overview_snapshot: { Args: { p_days?: number }; Returns: Json }
+      get_coo_overview_snapshot: {
+        Args: { p_days?: number; p_from?: string; p_to?: string }
+        Returns: Json
+      }
+      get_coo_rent_coverage_statement: { Args: never; Returns: Json }
       get_coo_system_overview: { Args: never; Returns: Json }
       get_coo_transaction_kpis: { Args: never; Returns: Json }
       get_crm_directory: {
@@ -38070,6 +38077,10 @@ export type Database = {
           wallet_withdrawable: number
           withdrawal_id: string
         }[]
+      }
+      get_statement_of_financial_position: {
+        Args: { p_as_at?: string }
+        Returns: Json
       }
       get_subagent_leaderboard: {
         Args: { p_limit?: number; p_offset?: number; p_period?: string }
