@@ -5,6 +5,7 @@ import { usePhoneDuplicateCheck } from '@/hooks/usePhoneDuplicateCheck';
 import { useOtpVerification } from '@/hooks/useOtpVerification';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { loginTelemetry as lt } from '@/lib/loginTelemetry';
 import { getLocationData } from '@/hooks/useGeolocation';
 import { generatePhoneEmailVariants, cleanPhoneNumber, isValidPhoneNumber, getTriedPhoneFormats } from '@/lib/phoneUtils';
 import {
@@ -936,6 +937,30 @@ export function useAuthForm() {
     }
 
     metrics.totalMs = Math.round(performance.now() - t0);
+
+    // One row per actual user-facing login attempt (not per candidate email
+    // guess — a single tap can fire several signInWithPassword calls while
+    // probing placeholder emails, and most of those are expected to fail by
+    // design). This is what the board's sign-in success-rate KPI reads,
+    // instead of the unrelated boot/gate telemetry phases.
+    const signinRateLimited = !loginSuccess && (
+      lastError?.message?.toLowerCase().includes('rate') ||
+      lastError?.message?.toLowerCase().includes('too many')
+    );
+    lt.mark(
+      'auth.signin.attempt',
+      {
+        attempts: metrics.attempts,
+        winnerPhase: metrics.winnerPhase,
+        totalMs: metrics.totalMs,
+        accountExists,
+      },
+      loginSuccess ? 'success' : (signinRateLimited ? 'rate_limited' : 'error'),
+    );
+    // The success path navigates away immediately; make sure the row lands
+    // instead of waiting on the 4s buffered flush.
+    void lt.flushNow();
+
     // Persist last login metrics for in-app diagnostics + log to console for
     // remote debugging via session capture. Compact label so it stands out.
     try {
