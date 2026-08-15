@@ -66,6 +66,7 @@ import { SubAgentsPanel } from '@/components/agent/SubAgentsPanel';
 import { MyParentAgentCard } from '@/components/agent/MyParentAgentCard';
 import { ServiceCenterQualificationCard } from '@/components/agent/ServiceCenterQualificationCard';
 import { LastWeekWinnerOverlay } from '@/components/agent/LastWeekWinnerOverlay';
+import { ListRegisterEarnDialog } from '@/components/agent/ListRegisterEarnDialog';
 import { SubAgentInviteLinkDialog } from '@/components/agent/SubAgentInviteLinkDialog';
 import SavedRentDraftsPanel from '@/components/agent/SavedRentDraftsPanel';
 import { useBusinessAdvanceCommissionListener } from '@/hooks/useBusinessAdvanceCommissionListener';
@@ -1046,6 +1047,14 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             {!isMerchant && (
               <>
               <LastWeekWinnerOverlay />
+              <ListRegisterEarnDialog
+                onListHouse={() => {
+                  if (!guardListingHours()) return;
+                  setListHouseFromPromo(true);
+                  setListHouseOpen(true);
+                }}
+                onRegisterTenant={() => setRentRequestOpen(true)}
+              />
               <ServiceCenterQualificationCard agentId={user.id} />
               </>
             )}
