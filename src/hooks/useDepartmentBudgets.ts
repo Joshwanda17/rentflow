@@ -115,6 +115,16 @@ export interface BudgetEvent {
 
 export const BUDGET_DOCUMENTS_BUCKET = 'budget-documents';
 
+/**
+ * Chart-of-accounts codes a department may budget against: spending categories
+ * (expenses) and long-term asset purchases (capital items). Balance-sheet
+ * accounts such as cash, wallet custody or shareholders' capital are not
+ * budgetable — the same rule is enforced server-side in budget_save_draft.
+ */
+export function isBudgetableAccount(a: BudgetAccount) {
+  return a.nature === 'expense' || a.section === 'non_current_asset';
+}
+
 export function useBudgetCycles() {
   const [cycles, setCycles] = useState<BudgetCycle[]>([]);
   const [loading, setLoading] = useState(true);
@@ -230,4 +240,27 @@ export async function getBudgetDocumentUrl(storagePath: string) {
     .createSignedUrl(storagePath, 60);
   if (error) throw error;
   return data.signedUrl;
+}
+
+/**
+ * Registers any attachment paths that were uploaded before the draft existed,
+ * so reviewers and department colleagues can open them from the registry.
+ */
+export async function registerBudgetDocuments(submissionId: string, paths: string[]) {
+  const wanted = paths.filter(Boolean);
+  if (!wanted.length) return;
+  const { data: existing } = await supabase
+    .from('budget_submission_documents')
+    .select('storage_path')
+    .eq('submission_id', submissionId);
+  const known = new Set((existing ?? []).map(r => r.storage_path));
+  const missing = wanted.filter(p => !known.has(p));
+  if (!missing.length) return;
+  await supabase.from('budget_submission_documents').insert(
+    missing.map(p => ({
+      submission_id: submissionId,
+      storage_path: p,
+      file_name: p.split('/').pop() ?? null,
+    })),
+  );
 }

@@ -10,14 +10,14 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import {
-  AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, Loader2, Plus,
+  AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, FileText, Loader2, Plus,
   RefreshCw, RotateCcw, XCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { formatDynamic as formatUGX } from '@/lib/currencyFormat';
 import {
-  fetchConsolidation, fetchLines, fetchSubmissions, useBudgetCycles,
+  fetchConsolidation, fetchLines, fetchSubmissions, getBudgetDocumentUrl, useBudgetCycles,
   type BudgetConsolidation, type BudgetLine, type BudgetSubmission,
 } from '@/hooks/useDepartmentBudgets';
 
@@ -222,6 +222,15 @@ export default function BudgetApprovalPanel() {
                         {l.period_month && ` · ${format(new Date(l.period_month), 'MMM yyyy')}`}
                       </p>
                       {l.justification && <p className="text-muted-foreground">Justification: {l.justification}</p>}
+                      {l.document_path && (
+                        <Button size="sm" variant="ghost" className="h-7 gap-1 px-2 text-[11px]"
+                          onClick={async () => {
+                            try { window.open(await getBudgetDocumentUrl(l.document_path!), '_blank'); }
+                            catch { toast.error('Could not open supporting document'); }
+                          }}>
+                          <FileText className="h-3.5 w-3.5" /> View supporting document
+                        </Button>
+                      )}
                       <div className="flex flex-wrap items-end gap-2">
                         <div>
                           <Label className="text-[11px]">Approved amount (UGX)</Label>
@@ -340,7 +349,7 @@ function Row({ label, a, b }: { label: string; a: number; b: number }) {
 function CycleManager({ cycles, onCreated }: { cycles: ReturnType<typeof useBudgetCycles>['cycles']; onCreated: () => Promise<void> }) {
   const [title, setTitle] = useState('');
   const [fy, setFy] = useState('');
-  const [periodType, setPeriodType] = useState('annual');
+  const [periodType, setPeriodType] = useState('yearly');
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
   const [deadline, setDeadline] = useState('');
@@ -391,7 +400,7 @@ function CycleManager({ cycles, onCreated }: { cycles: ReturnType<typeof useBudg
               <Select value={periodType} onValueChange={setPeriodType}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent className="z-[100]">
-                  {['monthly', 'quarterly', 'annual'].map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                  {['monthly', 'quarterly', 'yearly'].map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
