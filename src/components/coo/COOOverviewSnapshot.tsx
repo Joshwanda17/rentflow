@@ -315,15 +315,17 @@ export default function COOOverviewSnapshot() {
 
       {/* Money position */}
       <section>
-        <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2 px-0.5">Money position</p>
+        <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2 px-0.5">
+          Money position · {rangeLabel}
+        </p>
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5">
           <MoneyTile
             label="Landlord float sent" value={money.landlord_float_disbursed} icon={Banknote}
-            hint="Rent paid out to landlords" tone="border-emerald-500/30 bg-emerald-500/8"
+            hint="Rent paid out to landlords in range" tone="border-emerald-500/30 bg-emerald-500/8"
           />
           <MoneyTile
             label="Agent collections" value={money.agent_collected_total} icon={Coins}
-            hint="All repayments collected to date" tone="border-primary/30 bg-primary/8"
+            hint="Repayments collected in range" tone="border-primary/30 bg-primary/8"
           />
           <MoneyTile
             label="Expected daily" value={money.expected_daily} icon={Target}
@@ -335,11 +337,11 @@ export default function COOOverviewSnapshot() {
           />
           <MoneyTile
             label="Partner returns paid" value={money.partner_roi_paid} icon={TrendingUp}
-            hint="Returns credited to partners" tone="border-violet-500/30 bg-violet-500/8"
+            hint="Returns credited to partners in range" tone="border-violet-500/30 bg-violet-500/8"
           />
           <MoneyTile
             label="Partner compounded" value={money.partner_compounded} icon={LineChart}
-            hint="Returns reinvested into portfolios" tone="border-fuchsia-500/30 bg-fuchsia-500/8"
+            hint="Returns reinvested in range" tone="border-fuchsia-500/30 bg-fuchsia-500/8"
           />
         </div>
       </section>
@@ -347,7 +349,7 @@ export default function COOOverviewSnapshot() {
       {/* Collections vs expected */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-bold">Agent collections vs expected · last {data.days} days</CardTitle>
+          <CardTitle className="text-sm font-bold">Agent collections vs expected · {rangeLabel}</CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
           <div className="h-64 w-full">
@@ -385,7 +387,7 @@ export default function COOOverviewSnapshot() {
       {/* Latest rent requests pending COO approval */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-bold">Rent requests pending COO approval</CardTitle>
+          <CardTitle className="text-sm font-bold">Rent requests pending COO approval · {rangeLabel}</CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
           {review_requests.length === 0 ? (
@@ -420,7 +422,7 @@ export default function COOOverviewSnapshot() {
       {/* Requests vs repaying vs outstanding */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-bold">Rent requested vs repaying vs still to collect</CardTitle>
+          <CardTitle className="text-sm font-bold">Rent requested vs repaying vs still to collect · {rangeLabel}</CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
           <div className="h-64 w-full">
