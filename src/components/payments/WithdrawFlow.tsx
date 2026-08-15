@@ -16,6 +16,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { invalidateOpsWallet } from '@/hooks/ops/useOpsDataLayer';
 import { computeLedgerAvailable } from '@/lib/computeLedgerAvailable';
+import { resolveWithdrawCap } from '@/lib/withdrawAvailability';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { UGANDA_BANKS, PAYOUT_METHODS } from '@/lib/ugandaBanks';
@@ -234,11 +235,15 @@ export default function WithdrawFlow({
   // The "available" source is the LESSER of (caller-supplied wallet
   // available, ledger-true available). Advance bucket is debt — NOT
   // withdrawable money — so it is excluded.
-  const trueAvailable = trustAvailableBalance
-    ? availableBalance
-    : ledgerAvailable !== null
-      ? Math.min(availableBalance, ledgerAvailable)
-      : availableBalance;
+  // Single authoritative cap. `ledgerAvailable === null` means UNKNOWN
+  // (read failed / not fetched yet) — it falls back to the figure the wallet
+  // UI is already showing and the server RPC stays the final gate. It must
+  // never collapse to zero (root cause of the "Available: UGX 0" report).
+  const trueAvailable = resolveWithdrawCap({
+    uiAvailable: availableBalance,
+    ledgerAvailable,
+    trustUiAvailable: trustAvailableBalance,
+  });
   // Daily withdrawal limits removed globally (2026-08-10). The only cap is
   // the caller-supplied or ledger-true available balance.
   const rawMax = source === 'available' ? trueAvailable : roiBalance;
@@ -251,7 +256,7 @@ export default function WithdrawFlow({
 
   /** Force-fetch the strict ledger balance from the server, bypassing
    *  any cached values. Updates `ledgerAvailable` + `ledgerCheckedAt`. */
-  const refetchLedger = async () => {
+  const refetchLedger = async (): Promise<number | null> => {
     if (!user) return null;
     setValidating(true);
     try {
@@ -260,6 +265,8 @@ export default function WithdrawFlow({
       setLedgerCheckedAt(Date.now());
       return fresh.available;
     } catch (e) {
+      // Keep the last known-good snapshot. A failed verification is NOT a
+      // zero balance — returning null tells callers "unknown".
       console.warn('[WithdrawFlow] ledger refetch failed', e);
       return null;
     } finally {
