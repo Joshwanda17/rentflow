@@ -49,6 +49,7 @@ import DailyCollectionMonitoringDashboard from '@/components/shared/DailyCollect
 import { DailyRentReport } from '@/components/reports/DailyRentReport';
 import { AgentRentCapacityPanel } from './AgentRentCapacityPanel';
 import { TenantProductsServicesReport } from './tenant-ops/TenantProductsServicesReport';
+import { TenantRepaymentReliabilityPanel } from './tenant-ops/TenantRepaymentReliabilityPanel';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -58,7 +59,7 @@ import { toast } from 'sonner';
 import {
   FileCheck, Clock, AlertTriangle, CheckCircle2, Banknote,
   ArrowRight, Activity, ClipboardList, CalendarCheck, CalendarX2,
-  ArrowLeft, History, Table2, Link2, HandCoins, Users, Trash2, Loader2, FileSearch, Printer, Network, Shield, CalendarIcon, Download, Wallet, Landmark, MapPin
+  ArrowLeft, History, Table2, Link2, HandCoins, Users, Trash2, Loader2, FileSearch, Printer, Network, Shield, ShieldCheck, CalendarIcon, Download, Wallet, Landmark, MapPin
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ResidenceAddressForm from '@/components/profile/ResidenceAddressForm';
@@ -67,7 +68,7 @@ import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Gauge } from 'lucide-react';
 
-type ActiveView = 'overview' | 'pipeline' | 'pipeline-hub' | 'daily' | 'missed' | 'behavior' | 'history' | 'all-requests' | 'link-agent' | 'transfer-audit' | 'collect-rent' | 'agent-tenants' | 'tenant-detail' | 'registration-review' | 'advance-requests' | 'agent-allocations' | 'daily-collections' | 'landlord-float' | 'landlord-float-timeline' | 'location-browser' | 'tenant-location-browser' | 'global-verification' | 'welile-operations' | 'daily-repayments-report' | 'agent-capacity-hub' | 'all-tenants-hub' | 'reports-hub' | 'tenant-products-report';
+type ActiveView = 'overview' | 'pipeline' | 'pipeline-hub' | 'daily' | 'missed' | 'behavior' | 'history' | 'all-requests' | 'link-agent' | 'transfer-audit' | 'collect-rent' | 'agent-tenants' | 'tenant-detail' | 'registration-review' | 'advance-requests' | 'agent-allocations' | 'daily-collections' | 'landlord-float' | 'landlord-float-timeline' | 'location-browser' | 'tenant-location-browser' | 'global-verification' | 'welile-operations' | 'daily-repayments-report' | 'agent-capacity-hub' | 'all-tenants-hub' | 'reports-hub' | 'tenant-products-report' | 'reliability-hub';
 
 interface NavCard {
   id: ActiveView;
@@ -1408,6 +1409,8 @@ export function TenantOpsDashboard() {
         );
       case 'tenant-products-report':
         return <TenantProductsServicesReport />;
+      case 'reliability-hub':
+        return <TenantRepaymentReliabilityPanel />;
       case 'reports-hub':
         return (
           <div className="space-y-3">
@@ -1436,6 +1439,7 @@ export function TenantOpsDashboard() {
     'all-tenants-hub': 'All Tenants',
     'daily-collections': 'Daily Collection Monitoring',
     'reports-hub': 'Reports & Exports',
+    'reliability-hub': 'Repayment Reliability Score',
   };
 
   const activeLabel = navCards.find(n => n.id === activeView)?.label || sectionHubLabels[activeView] || '';
@@ -1707,6 +1711,12 @@ export function TenantOpsDashboard() {
                   view: 'daily-collections',
                   icon: CalendarCheck,
                   description: 'Track and edit today’s expected vs collected rent across the fleet',
+                })}
+                {renderHubEntry({
+                  title: 'Repayment Reliability Score',
+                  view: 'reliability-hub',
+                  icon: ShieldCheck,
+                  description: 'Risk score per tenant from rent amount, expected daily repayments, missed days and payment recency — with the collecting agent',
                 })}
                 {renderHubEntry({
                   title: 'Reports & Exports',
