@@ -43,6 +43,7 @@ import type {
   JobPosting,
 } from '@/hr/types';
 import ApplicationsPanel from '@/hr/components/applications/ApplicationsPanel';
+import HRInternshipApplications from '@/components/hr/HRInternshipApplications';
 
 const ALL = '__all__';
 
