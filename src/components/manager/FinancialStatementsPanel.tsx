@@ -737,26 +737,19 @@ function FinancialStatementsPanelInner() {
       if (d.adjustments.orphanReversals) rows.push(['Orphan Reversals', '', -d.adjustments.orphanReversals]);
       rows.push(['Net Adjustments', '', d.adjustments.total]);
       rows.push(['NET OPERATING INCOME', '', d.netOperatingIncome]);
-      } else if (activeTab === 'cashflow') {
-        if (!cashFlow) { toast.error('Cash flow statement is still loading'); setSharing(false); return; }
-        pdf.setFontSize(7);
-        pdf.setTextColor(120, 120, 120);
-        pdf.text(pdf.splitTextToSize(cashFlow.cash_definition, pw - margin * 2), margin, y);
-        y += 8;
-        pdf.setTextColor(0, 0, 0);
-        for (const r of flattenCashFlowStatement(cashFlow)) {
-          if (r.level === 'section') { y += 2; addSection(r.label); continue; }
-          if (r.amount === null) {
-            if (y > 270) { pdf.addPage(); y = 20; }
-            pdf.setFontSize(8);
-            pdf.setFont('helvetica', 'bold');
-            pdf.setTextColor(0, 0, 0);
-            pdf.text(r.label, margin + 3, y);
-            y += 5;
-            continue;
-          }
-          addRow(r.label, r.amount, r.level !== 'line', false, r.level === 'line');
-        }
+    } else if (activeTab === 'cashflow') {
+      if (!cashFlow) { toast.error('Cash flow statement is still loading'); return; }
+      rows.push(['WELILE — Statement of Cash Flows', '', period]);
+      rows.push(['All amounts in UGX', '', '']);
+      rows.push([cashFlow.cash_definition, '', '']);
+      rows.push(['', '', '']);
+      for (const r of flattenCashFlowStatement(cashFlow)) {
+        rows.push([
+          r.level === 'line' ? `  ${r.label}` : r.label,
+          '',
+          r.amount === null ? '' : r.amount,
+        ]);
+      }
     } else if (activeTab === 'balance') {
       const d = data.balanceSheet;
       rows.push(['WELILE — Balance Sheet', '', period]);
@@ -909,39 +902,25 @@ function FinancialStatementsPanelInner() {
         pdf.text('NET OPERATING INCOME', margin, y);
         pdf.text(formatUGX(d.netOperatingIncome), pw - margin, y, { align: 'right' });
       } else if (activeTab === 'cashflow') {
-        const d = data.cashFlow;
-        addSection('Platform Operating Activities');
-        addRow('Tenant Fees Received', d.operatingActivities.tenantFeesReceived, false, false, true);
-        addRow('Other Platform Income', d.operatingActivities.otherServiceIncome, false, false, true);
-        addRow('Platform Rewards Paid', d.operatingActivities.platformRewardsPaid, false, true, true);
-        addRow('Agent Commissions Paid', d.operatingActivities.agentCommissionsPaid, false, true, true);
-        addRow('Marketing Expenses Paid', d.operatingActivities.marketingPaid, false, true, true);
-        addRow('R&D Expenses Paid', d.operatingActivities.rdPaid, false, true, true);
-        addRow('Operational Expenses Paid', d.operatingActivities.operationalSubcatPaid, false, true, true);
-        addRow('Operating Expenses Paid', d.operatingActivities.withdrawalsPaid, false, true, true);
-        addRow('Net Platform Operating Cash', d.operatingActivities.netOperating, true);
-        y += 3;
-        addSection('Rent Facilitation (Pass-Through)');
-        addRow('Rent Repayments Received', d.facilitationActivities.rentRepayments, false, false, true);
-        addRow('Rent Deployed to Landlords', d.facilitationActivities.rentDeployments, false, true, true);
-        addRow('Net Facilitation', d.facilitationActivities.netFacilitation, true);
-        y += 3;
-        addSection('User Custody Flows (Not Revenue)');
-        addRow('User Deposits Received', d.custodialActivities.userDeposits, false, false, true);
-        addRow('User Withdrawals Processed', d.custodialActivities.userWithdrawals, false, true, true);
-        addRow('Net Change in Custody', d.custodialActivities.netCustodial, true);
-        y += 3;
-        addSection('Financing Activities');
-        addRow('Supporter Capital Inflows', d.financingActivities.supporterCapitalInflows, false, false, true);
-        addRow('Supporter Capital Withdrawals', d.financingActivities.supporterCapitalWithdrawals, false, true, true);
-        addRow('Net Financing Cash', d.financingActivities.netFinancing, true);
-        y += 5;
-        pdf.setDrawColor(37, 99, 235);
-        pdf.line(margin, y, pw - margin, y);
-        y += 5;
-        addRow('Opening Platform Balance', d.openingBalance);
-        addRow('Net Platform Cash Movement', d.netCashMovement);
-        addRow('CLOSING PLATFORM BALANCE', d.closingBalance, true);
+        if (!cashFlow) { toast.error('Cash flow statement is still loading'); setSharing(false); return; }
+        pdf.setFontSize(7);
+        pdf.setTextColor(120, 120, 120);
+        pdf.text(pdf.splitTextToSize(cashFlow.cash_definition, pw - margin * 2), margin, y);
+        y += 8;
+        pdf.setTextColor(0, 0, 0);
+        for (const r of flattenCashFlowStatement(cashFlow)) {
+          if (r.level === 'section') { y += 2; addSection(r.label); continue; }
+          if (r.amount === null) {
+            if (y > 270) { pdf.addPage(); y = 20; }
+            pdf.setFontSize(8);
+            pdf.setFont('helvetica', 'bold');
+            pdf.setTextColor(0, 0, 0);
+            pdf.text(r.label, margin + 3, y);
+            y += 5;
+            continue;
+          }
+          addRow(r.label, r.amount, r.level !== 'line', false, r.level === 'line');
+        }
       } else if (activeTab === 'balance') {
         const d = data.balanceSheet;
         addSection('Assets');
