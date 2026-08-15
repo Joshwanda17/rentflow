@@ -197,6 +197,8 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
 
   const [partnershipAmount, setPartnershipAmount] = useState(0);
   const [loading, setLoading] = useState(true);
+  // Secondary (financial history) datasets stream in after the sheet paints.
+  const [secondaryLoading, setSecondaryLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [showAllRepayments, setShowAllRepayments] = useState(false);
   const [showAllRequests, setShowAllRequests] = useState(false);
@@ -241,7 +243,9 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
   const [historyFrom, setHistoryFrom] = useState<string>('');
   const [historyTo, setHistoryTo] = useState<string>('');
 
-  const loadLastAllocation = async () => {
+  // One round trip powers BOTH the full allocation log and the "reverse last"
+  // action — no separate query for the latest reversible row.
+  const loadAllocations = async () => {
     if (!user?.id) return;
     const { data } = await supabase
       .from('agent_collections')
@@ -249,19 +253,36 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
       .eq('agent_id', user.id)
       .eq('tenant_id', tenantId)
       .ilike('notes', '%float allocation%')
-      .order('created_at', { ascending: false })
-      .limit(5);
-    const reversible = (data || []).find((r: any) => !(r.notes || '').toLowerCase().includes('[reversed'));
+      .order('created_at', { ascending: true })
+      .limit(400);
+    const rows = (data || []) as any[];
+    setFloatAllocations(
+      rows.map((r: any) => {
+        const notes = String(r.notes || '');
+        const isReversed = notes.toLowerCase().includes('[reversed');
+        const reasonMatch = notes.match(/\[reversed[:\s-]*([^\]]*)\]/i);
+        return {
+          date: r.created_at,
+          amount: Number(r.amount) || 0,
+          status: (isReversed ? 'reversed' : 'active') as 'active' | 'reversed',
+          reason: reasonMatch ? (reasonMatch[1].trim() || null) : null,
+        };
+      }),
+    );
+    const reversible = [...rows].reverse().find((r: any) => !(r.notes || '').toLowerCase().includes('[reversed'));
     setLastAllocation(reversible ? { id: reversible.id, amount: Number(reversible.amount), created_at: reversible.created_at } : null);
   };
+
+  // Back-compat alias — post-action refreshes call this.
+  const loadLastAllocation = loadAllocations;
 
   const aiId = generateWelileAiId(tenantId);
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Header/identity first (single RPC), everything else streams in behind it.
     loadFullProfile();
     refetchFloat();
-    loadLastAllocation();
   }, [tenantId, user?.id]);
 
   // When opened in "edit" mode (e.g. the prominent Edit button on a tenant
@@ -272,11 +293,48 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
     }
   }, [autoEdit, profile, loading]);
 
+  const responseOrNull = (result: PromiseSettledResult<any>, label: string) => {
+    if (result.status === 'rejected') {
+      console.warn(`[TenantProfileView] ${label} request failed`, result.reason);
+      return null;
+    }
+    if (result.value?.error) {
+      console.warn(`[TenantProfileView] ${label} returned an error`, result.value.error);
+    }
+    return result.value;
+  };
+
+  /**
+   * Stage 1 — the identity RPC only. As soon as it resolves the sheet paints
+   * (header, AI ID, contacts, roles), so the agent never stares at a spinner
+   * while financial history is still in flight.
+   */
   const loadFullProfile = async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true);
     try {
-      const settled = await Promise.allSettled([
+      const [profileRes] = (await Promise.allSettled([
         supabase.rpc('get_agent_tenant_profile', { p_tenant_id: tenantId }),
+      ])).map((r, i) => responseOrNull(r, ['profile'][i]));
+      const profileRow = Array.isArray(profileRes?.data) ? profileRes.data[0] : profileRes?.data;
+      setProfile(profileRow ? (profileRow as unknown as TenantProfile) : null);
+    } catch (err) {
+      console.error('Failed to load tenant profile:', err);
+    } finally {
+      if (!opts?.silent) setLoading(false);
+      // Fire-and-forget: secondary data hydrates the sections in place.
+      void loadSecondary();
+    }
+  };
+
+  /**
+   * Stage 2 — every dependent dataset in a single parallel burst (no
+   * sequential follow-ups, no N+1). Sections render skeleton/empty until it
+   * lands, then fill in.
+   */
+  const loadSecondary = async () => {
+    setSecondaryLoading(true);
+    try {
+      const settled = await Promise.allSettled([
         supabase
           .from('rent_requests')
           .select('id, rent_amount, total_repayment, amount_repaid, status, created_at, disbursed_at, duration_days, daily_repayment, registration_type, initial_outstanding_balance, outstanding_grace_days, landlord_id, lc1_id, house_category, tenant_no_smartphone, request_latitude, request_longitude, landlord:landlords(name, property_address, house_category, phone, village, sub_county, district), lc1:lc1_chairpersons(name, phone, village, verified)')
@@ -308,55 +366,13 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
           .from('user_roles')
           .select('role, enabled')
           .eq('user_id', tenantId),
+        // Allocations run inside the same burst instead of after it.
+        user?.id ? loadAllocations() : Promise.resolve(null),
       ]);
 
-      const responseOrNull = (result: PromiseSettledResult<any>, label: string) => {
-        if (result.status === 'rejected') {
-          console.warn(`[TenantProfileView] ${label} request failed`, result.reason);
-          return null;
-        }
-        if (result.value?.error) {
-          console.warn(`[TenantProfileView] ${label} returned an error`, result.value.error);
-        }
-        return result.value;
-      };
-
-      const [profileRes, rentRes, repaymentRes, walletRes, portfolioRes, ledgerRes, rolesRes] = settled.map((result, idx) =>
-        responseOrNull(result, ['profile', 'rent requests', 'repayments', 'wallet', 'portfolio', 'ledger', 'roles'][idx]),
+      const [rentRes, repaymentRes, walletRes, portfolioRes, ledgerRes, rolesRes] = settled.map((result, idx) =>
+        responseOrNull(result, ['rent requests', 'repayments', 'wallet', 'portfolio', 'ledger', 'roles', 'allocations'][idx]),
       );
-
-      // Agent's own float allocations toward this tenant (exact date & time).
-      if (user?.id) {
-        const { data: allocData } = await supabase
-          .from('agent_collections')
-          .select('amount, created_at, notes')
-          .eq('agent_id', user.id)
-          .eq('tenant_id', tenantId)
-          .ilike('notes', '%float allocation%')
-          .order('created_at', { ascending: true })
-          .limit(400);
-        setFloatAllocations(
-          (allocData || []).map((r: any) => {
-            const notes = String(r.notes || '');
-            const isReversed = notes.toLowerCase().includes('[reversed');
-            // Pull out the bracketed reversal note if present.
-            const reasonMatch = notes.match(/\[reversed[:\s-]*([^\]]*)\]/i);
-            return {
-              date: r.created_at,
-              amount: Number(r.amount) || 0,
-              status: (isReversed ? 'reversed' : 'active') as 'active' | 'reversed',
-              reason: reasonMatch ? (reasonMatch[1].trim() || null) : null,
-            };
-          }),
-        );
-      }
-
-      const profileRow = Array.isArray(profileRes?.data) ? profileRes.data[0] : profileRes?.data;
-      if (profileRow) {
-        setProfile(profileRow as unknown as TenantProfile);
-      } else {
-        setProfile(null);
-      }
 
       setRequests(((rentRes?.data as unknown as RentRequestRow[]) || []).map((req) => {
         const effective = getEffectiveRentRequestAmounts(req);
@@ -385,9 +401,9 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
         .map(r => r.role as string);
       setUserRoles(enabledRoles);
     } catch (err) {
-      console.error('Failed to load tenant profile:', err);
+      console.error('Failed to load tenant profile details:', err);
     } finally {
-      if (!opts?.silent) setLoading(false);
+      setSecondaryLoading(false);
     }
   };
 
@@ -1052,6 +1068,15 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
           {sharingProfile ? <Loader2 className="h-5 w-5 animate-spin" /> : <Share2 className="h-5 w-5" />}
         </Button>
       </div>
+
+      {secondaryLoading && (
+        <div className="px-3 sm:px-4 pt-2">
+          <div className="flex items-center gap-2 rounded-lg bg-muted/50 px-3 py-1.5 text-[11px] text-muted-foreground">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Loading rent history, wallet & allocations…
+          </div>
+        </div>
+      )}
 
       <EditTenantDialog
         open={editDialogOpen}
