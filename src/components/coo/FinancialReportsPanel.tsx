@@ -8,28 +8,6 @@ import { toast } from 'sonner';
 
 type ReportType = 'daily' | 'weekly' | 'monthly' | 'agent' | 'coverage';
 
-interface CoverageStatement {
-  generated_at: string;
-  tenants: { total: number; repaying: number; funded: number; completed: number };
-  plans: { total: number; repaying: number; funded: number; completed: number };
-  money: {
-    rent_approved_total: number;
-    landlord_float_disbursed: number;
-    landlord_payout_count: number;
-    landlords_paid: number;
-    total_repayment_booked: number;
-    collected_total: number;
-    collection_count: number;
-    recorded_repaid: number;
-    outstanding: number;
-    coverage_rate: number;
-    first_collection_at: string | null;
-    last_collection_at: string | null;
-  };
-}
-
-const ugx = (n: number) => `UGX ${new Intl.NumberFormat('en-UG').format(Math.round(Number(n) || 0))}`;
-
 export default function FinancialReportsPanel() {
   const [generating, setGenerating] = useState<ReportType | null>(null);
 
@@ -70,33 +48,9 @@ export default function FinancialReportsPanel() {
       } else if (type === 'coverage') {
         const { data, error } = await supabase.rpc('get_coo_rent_coverage_statement' as any);
         if (error) throw error;
-        const s = data as unknown as CoverageStatement;
-        const t = s.tenants, p = s.plans, m = s.money;
-        const headers = ['Section', 'Metric', 'Value'];
-        const rows: any[][] = [
-          ['Tenants', 'Real tenants (repaying + funded + completed with repayments)', t.total],
-          ['Tenants', 'Active (repaying)', t.repaying],
-          ['Tenants', 'Funded (awaiting first collections)', t.funded],
-          ['Tenants', 'Completed', t.completed],
-          ['Rent plans', 'Total plans', p.total],
-          ['Rent plans', 'Repaying', p.repaying],
-          ['Rent plans', 'Funded', p.funded],
-          ['Rent plans', 'Completed', p.completed],
-          ['Disbursed', 'Rent disbursed since launch (landlord float)', ugx(m.landlord_float_disbursed)],
-          ['Disbursed', 'Landlord payouts count', m.landlord_payout_count],
-          ['Disbursed', 'Landlords paid', m.landlords_paid],
-          ['Disbursed', 'Rent approved (plan value)', ugx(m.rent_approved_total)],
-          ['Covered', 'Collected from tenants (all collections)', ugx(m.collected_total)],
-          ['Covered', 'Collections recorded', m.collection_count],
-          ['Covered', 'Recorded repaid on plans', ugx(m.recorded_repaid)],
-          ['Covered', 'Coverage of disbursement (%)', `${m.coverage_rate}%`],
-          ['Outstanding', 'Still to collect on real plans', ugx(m.outstanding)],
-          ['Outstanding', 'Total repayment booked', ugx(m.total_repayment_booked)],
-          ['Window', 'First collection', m.first_collection_at || '—'],
-          ['Window', 'Last collection', m.last_collection_at || '—'],
-          ['Meta', 'Generated at', s.generated_at],
-        ];
-        downloadCSV(headers, rows, `rent-coverage-statement-${format(new Date(), 'yyyy-MM-dd')}`);
+        const { generateRentCoverageStatementPdf } = await import('@/lib/rentCoverageStatementPdf');
+        const blob = await generateRentCoverageStatementPdf(data as any);
+        downloadBlob(blob, `rent-coverage-statement-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
       } else {
         const { data } = await supabase.from('general_ledger').select('*')
           .gte('transaction_date', fromDate).lte('transaction_date', toDate)
@@ -119,10 +73,14 @@ export default function FinancialReportsPanel() {
   const downloadCSV = (headers: string[], rows: any[][], filename: string) => {
     const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
+    downloadBlob(blob, `${filename}.csv`);
+  };
+
+  const downloadBlob = (blob: Blob, filename: string) => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${filename}.csv`;
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -132,7 +90,7 @@ export default function FinancialReportsPanel() {
     { type: 'weekly' as ReportType, label: 'Weekly Collection Report', desc: 'Collections this week' },
     { type: 'monthly' as ReportType, label: 'Monthly Financial Summary', desc: 'Full month ledger summary' },
     { type: 'agent' as ReportType, label: 'Agent Payment Report', desc: 'Agent collections last 30 days' },
-    { type: 'coverage' as ReportType, label: 'Rent Coverage Financial Statement', desc: 'Real tenants, active tenants, rent disbursed since launch vs collected' },
+    { type: 'coverage' as ReportType, label: 'Rent Coverage Financial Statement (PDF)', desc: 'Real tenants, active tenants, rent disbursed since launch vs collected' },
   ];
 
   return (
