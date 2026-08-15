@@ -661,12 +661,16 @@ export default function WithdrawFlow({
       // Cached props may be stale; the ledger is the source of truth.
       try {
         const freshAvailable = trustAvailableBalance ? availableBalance : await refetchLedger();
-        const freshLedger = trustAvailableBalance
-          ? availableBalance
-          : freshAvailable !== null
-            ? freshAvailable
-            : trueAvailable;
-        if (source === 'available' && amount > freshLedger) {
+        // UNKNOWN (verification failed) → do NOT block the user with a
+        // fabricated "Available: UGX 0". Defer to the server-side
+        // `submit_withdrawal_request` gate, which is authoritative.
+        const verified = trustAvailableBalance || freshAvailable !== null;
+        const freshLedger = resolveWithdrawCap({
+          uiAvailable: availableBalance,
+          ledgerAvailable: trustAvailableBalance ? null : freshAvailable,
+          trustUiAvailable: trustAvailableBalance,
+        });
+        if (verified && source === 'available' && amount > freshLedger) {
           const message = `Insufficient funds. Available: UGX ${freshLedger.toLocaleString()}, requested: UGX ${amount.toLocaleString()}.`;
           setPaymentStatus('failed');
           setLastFailureMessage(message);
