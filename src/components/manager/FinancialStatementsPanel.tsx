@@ -531,13 +531,14 @@ function FacilitatedVolumeSection({ d, cm }: { d: FinancialStatementsData['facil
 // Main Panel
 // ─────────────────────────────────────────────────────────────
 
-type Tab = 'income' | 'cashflow' | 'movement' | 'balance' | 'volume';
+type Tab = 'income' | 'cashflow' | 'movement' | 'balance' | 'position' | 'volume';
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'movement', label: 'Cash Movement', icon: <Activity className="h-3.5 w-3.5" /> },
   { id: 'income', label: 'Income', icon: <TrendingUp className="h-3.5 w-3.5" /> },
   { id: 'cashflow', label: 'Cash Flow', icon: <Wallet className="h-3.5 w-3.5" /> },
   { id: 'balance', label: 'Balance Sheet', icon: <FileText className="h-3.5 w-3.5" /> },
+  { id: 'position', label: 'Financial Position', icon: <FileText className="h-3.5 w-3.5" /> },
   { id: 'volume', label: 'Facilitated Volume', icon: <BarChart3 className="h-3.5 w-3.5" /> },
 ];
 
@@ -658,6 +659,7 @@ function FinancialStatementsPanelInner() {
       case 'cashflow': return 'Cash Flow Statement';
       case 'movement': return 'Comprehensive Cash Movement';
       case 'balance': return 'Balance Sheet';
+      case 'position': return 'Statement of Financial Position';
       case 'volume': return 'Facilitated Volume Report';
     }
   };
@@ -1168,9 +1170,11 @@ function FinancialStatementsPanelInner() {
             {activeTab === 'cashflow' && <CashFlowSection d={data.cashFlow} cm={comparisonMetrics} />}
             {activeTab === 'movement' && <ComprehensiveCashMovement />}
             {activeTab === 'balance' && <BalanceSheetSection d={data.balanceSheet} />}
+            {activeTab === 'position' && <StatementOfFinancialPositionPanel />}
             {activeTab === 'volume' && <FacilitatedVolumeSection d={data.facilitatedVolume} cm={comparisonMetrics} />}
 
             {/* Export Actions */}
+            {activeTab !== 'position' && (
             <div className="flex gap-2 mt-6 pt-4 border-t border-border">
               <Button variant="outline" size="sm" className="flex-1 gap-2 text-xs" onClick={handleExportCSV}>
                 <FileSpreadsheet className="h-3.5 w-3.5" />
@@ -1181,6 +1185,7 @@ function FinancialStatementsPanelInner() {
                 PDF / Share
               </Button>
             </div>
+            )}
           </CardContent>
         </Card>
       )}
