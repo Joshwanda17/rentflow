@@ -15,6 +15,7 @@ import { format } from 'date-fns';
 import { formatDynamic as formatUGX } from '@/lib/currencyFormat';
 import {
   fetchLines, fetchSubmissions, uploadBudgetDocument, getBudgetDocumentUrl,
+  registerBudgetDocuments, isBudgetableAccount,
   useBudgetCycles, useBudgetReferenceData,
   type BudgetSubmission, type BudgetLine,
 } from '@/hooks/useDepartmentBudgets';
@@ -53,6 +54,7 @@ export default function DepartmentBudgetSubmission() {
   const [uploadingIdx, setUploadingIdx] = useState<number | null>(null);
 
   const openCycles = useMemo(() => cycles.filter(c => c.status === 'open'), [cycles]);
+  const budgetableAccounts = useMemo(() => accounts.filter(isBudgetableAccount), [accounts]);
   const cycle = useMemo(() => cycles.find(c => c.id === cycleId), [cycles, cycleId]);
   const active = useMemo(() => submissions.find(s => s.id === activeId) ?? null, [submissions, activeId]);
   const readOnly = active ? !EDITABLE_STATUSES.includes(active.status) : false;
@@ -144,7 +146,9 @@ export default function DepartmentBudgetSubmission() {
         p_lines: payload,
       });
       if (error) throw error;
-      setActiveId(data as unknown as string);
+      const newId = data as unknown as string;
+      setActiveId(newId);
+      await registerBudgetDocuments(newId, payload.map(l => l.document_path).filter(Boolean) as string[]);
       toast.success('Draft saved');
       await loadSubmissions();
     } catch (e) {
@@ -301,7 +305,7 @@ export default function DepartmentBudgetSubmission() {
                     <Select value={l.account_code} onValueChange={v => updateLine(idx, { account_code: v })} disabled={readOnly}>
                       <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
                       <SelectContent className="z-[100]">
-                        {accounts.map(a => (
+                        {budgetableAccounts.map(a => (
                           <SelectItem key={a.code} value={a.code}>{a.code} — {a.label}</SelectItem>
                         ))}
                       </SelectContent>
