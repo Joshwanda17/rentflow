@@ -283,6 +283,21 @@ export default function BalanceSheetPanel() {
       row('Total Assets', data.balance_check.total_assets);
       row('Total Liabilities and Equity', data.balance_check.total_liabilities_and_equity);
       row('Difference', data.balance_check.difference, true);
+      if (data.trial_balance) {
+        heading('Trial Balance');
+        row('Total Debits', data.trial_balance.total_debits);
+        row('Total Credits', data.trial_balance.total_credits);
+        row('Difference', data.trial_balance.difference, true);
+      }
+      if (data.reconciliation) {
+        heading('Unresolved one-sided ledger postings');
+        row(`Transactions affected: ${data.reconciliation.unresolved_groups.toLocaleString()}`, data.reconciliation.unresolved_absolute_amount);
+        row(`Suspense carried (${data.reconciliation.suspense_side})`, data.reconciliation.suspense_amount, true);
+        data.reconciliation.schedule?.forEach(r =>
+          row(`${r.category.replace(/_/g, ' ')} · ${r.ledger_scope} · ${r.groups} txns`, r.net_debit_less_credit));
+        heading('Memo — operational records and wallet caches (not in totals)');
+        data.reconciliation.memo_sub_ledgers?.forEach(l => row(l.label, l.value));
+      }
       pdf.setFontSize(8);
       pdf.setFont('helvetica', 'bold');
       pdf.setTextColor(...(data.balance_check.balanced ? [22, 163, 74] : [220, 38, 38]) as [number, number, number]);
