@@ -1069,6 +1069,15 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
         </Button>
       </div>
 
+      {secondaryLoading && (
+        <div className="px-3 sm:px-4 pt-2">
+          <div className="flex items-center gap-2 rounded-lg bg-muted/50 px-3 py-1.5 text-[11px] text-muted-foreground">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Loading rent history, wallet & allocations…
+          </div>
+        </div>
+      )}
+
       <EditTenantDialog
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
