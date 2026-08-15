@@ -38,6 +38,20 @@ function eatNowLabel(): string {
   }).format(new Date());
 }
 
+/** Current hour (0-23) in Africa/Kampala. */
+function eatHour(): number {
+  return Number(new Intl.DateTimeFormat('en-GB', {
+    timeZone: TZ, hour: '2-digit', hour12: false,
+  }).format(new Date()));
+}
+
+/** Yesterday's calendar date in Africa/Kampala. */
+function eatYesterday(): string {
+  const d = new Date(`${eatToday()}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
+
 function fmtDay(d: string): string {
   try {
     return new Intl.DateTimeFormat('en-GB', {
@@ -91,7 +105,11 @@ Deno.serve(async (req) => {
 
     const body = req.method === 'POST' ? await req.json().catch(() => ({})) : {};
     const isDate = (v: unknown) => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
-    const from: string = isDate(body?.date) ? body.date : eatToday();
+    // Defensive default: an automated run just after EAT midnight is reporting on
+    // the day that just ended, not the fresh one.
+    const from: string = isDate(body?.date)
+      ? body.date
+      : (eatHour() < 2 ? eatYesterday() : eatToday());
     const to: string = isDate(body?.to) ? body.to : from;
     const recipients: string[] = Array.isArray(body?.recipients) && body.recipients.length
       ? body.recipients.filter((r: unknown) => typeof r === 'string' && (r as string).includes('@'))
