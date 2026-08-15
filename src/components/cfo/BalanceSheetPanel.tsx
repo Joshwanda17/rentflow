@@ -175,6 +175,25 @@ export default function BalanceSheetPanel() {
     rows.push(['TOTAL LIABILITIES AND EQUITY', data.balance_check.total_liabilities_and_equity]);
     rows.push(['Balance check difference', data.balance_check.difference]);
     rows.push(['Balanced', data.balance_check.balanced ? 'YES' : 'NO']);
+    if (data.trial_balance) {
+      rows.push([]);
+      rows.push(['TRIAL BALANCE', '']);
+      rows.push(['Total debits', data.trial_balance.total_debits]);
+      rows.push(['Total credits', data.trial_balance.total_credits]);
+      rows.push(['Difference', data.trial_balance.difference]);
+    }
+    if (data.reconciliation) {
+      rows.push([]);
+      rows.push(['UNRESOLVED ONE-SIDED LEDGER POSTINGS', '']);
+      rows.push(['Transactions affected', data.reconciliation.unresolved_groups]);
+      rows.push(['Absolute amount', data.reconciliation.unresolved_absolute_amount]);
+      rows.push([`Suspense carried (${data.reconciliation.suspense_side})`, data.reconciliation.suspense_amount]);
+      data.reconciliation.schedule?.forEach(r =>
+        rows.push([`${r.category} (${r.ledger_scope}) — ${r.groups} transactions`, r.net_debit_less_credit]));
+      rows.push([]);
+      rows.push(['MEMO — NOT IN TOTALS', '']);
+      data.reconciliation.memo_sub_ledgers?.forEach(l => rows.push([l.label, l.value]));
+    }
 
     const csv = rows.map(r => r.map(c => `"${String(c ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -390,6 +409,81 @@ export default function BalanceSheetPanel() {
               <TotalRow label="Total Liabilities and Equity" value={data.balance_check.total_liabilities_and_equity} emphasis />
             </div>
           </div>
+
+          {(data.trial_balance || data.reconciliation) && (
+            <div className="rounded-lg border border-border p-3 space-y-3">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-primary">Trial balance and reconciliation</p>
+
+              {data.trial_balance && (
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div>
+                    <p className="text-[9px] uppercase text-muted-foreground">Total debits</p>
+                    <p className="font-mono text-xs font-semibold">{formatUGX(data.trial_balance.total_debits)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] uppercase text-muted-foreground">Total credits</p>
+                    <p className="font-mono text-xs font-semibold">{formatUGX(data.trial_balance.total_credits)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] uppercase text-muted-foreground">Difference</p>
+                    <p className={cn('font-mono text-xs font-semibold', data.trial_balance.balanced ? 'text-success' : 'text-destructive')}>
+                      {formatUGX(data.trial_balance.difference)}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {data.reconciliation && (
+                <>
+                  <p className="text-[10px] text-muted-foreground">
+                    {data.reconciliation.unresolved_groups.toLocaleString()} historic ledger transactions carry only one side of their entry
+                    ({formatUGX(data.reconciliation.unresolved_absolute_amount)} in absolute terms). Their net effect of{' '}
+                    {formatUGX(data.reconciliation.suspense_amount)} is held in the suspense line on the{' '}
+                    {data.reconciliation.suspense_side} side and listed below by category. Nothing has been written back to the ledger.
+                  </p>
+
+                  {data.reconciliation.schedule?.length > 0 && (
+                    <div className="space-y-0.5">
+                      {data.reconciliation.schedule.map(r => (
+                        <div key={`${r.ledger_scope}-${r.category}`} className="flex items-center justify-between gap-3 border-b border-border/40 py-1">
+                          <span className="text-[10px] text-muted-foreground truncate">
+                            {r.category.replace(/_/g, ' ')} · {r.ledger_scope} · {r.groups.toLocaleString()} transactions
+                          </span>
+                          <span className={cn('font-mono text-[10px] shrink-0', r.net_debit_less_credit < 0 ? 'text-destructive' : 'text-foreground')}>
+                            {r.net_debit_less_credit < 0
+                              ? `(${formatUGX(Math.abs(r.net_debit_less_credit))})`
+                              : formatUGX(r.net_debit_less_credit)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {data.reconciliation.memo_sub_ledgers?.length > 0 && (
+                    <>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-primary pt-1">
+                        Memo — operational records and wallet caches (not in the totals)
+                      </p>
+                      <div className="space-y-0.5">
+                        {data.reconciliation.memo_sub_ledgers.map(l => (
+                          <LineRow key={l.label} line={l} showSources={showSources} />
+                        ))}
+                      </div>
+                    </>
+                  )}
+
+                  {data.reconciliation.excluded_classifications?.length > 0 && (
+                    <p className="text-[10px] text-muted-foreground">
+                      Excluded ledger classifications:{' '}
+                      {data.reconciliation.excluded_classifications
+                        .map(c => `${c.classification} (${c.legs.toLocaleString()} legs, ${formatUGX(c.amount)})`)
+                        .join(' · ')}
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+          )}
 
           <div className="flex gap-2 pt-3 border-t border-border">
             <Button variant="outline" size="sm" className="flex-1 gap-2 text-xs" onClick={exportCSV}>
