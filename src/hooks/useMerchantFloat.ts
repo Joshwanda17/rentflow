@@ -436,6 +436,68 @@ export interface MerchantFloatStatementRow {
   amount: number;
   referenceId: string | null;
   runningBalance: number;
+  /**
+   * Customer/user who actually received the payout this float leg settled.
+   * Resolved through: float ledger leg → withdrawal_requests.id → profiles.
+   * `null` when the relationship cannot be traced (never guessed).
+   */
+  payeeName?: string | null;
+  payeeId?: string | null;
+  /** Withdrawal request id extracted from the leg reference, for audit. */
+  payoutRequestId?: string | null;
+}
+
+const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+
+/**
+ * Batch-resolve the paid customer for merchant float payout legs.
+ *
+ * Two round trips total (withdrawal_requests, then profiles) — never per row.
+ * Read-only: no ledger amounts, classifications or float math are touched.
+ */
+async function resolveFloatPayees(
+  rows: MerchantFloatStatementRow[],
+): Promise<MerchantFloatStatementRow[]> {
+  const byRequest = new Map<string, string[]>();
+  for (const r of rows) {
+    if (r.category !== 'agent_float_settlement') continue;
+    const wid = `${r.referenceId ?? ''} ${r.description ?? ''}`.match(UUID_RE)?.[0]?.toLowerCase();
+    if (!wid) continue;
+    r.payoutRequestId = wid;
+    byRequest.set(wid, [...(byRequest.get(wid) ?? []), r.id]);
+  }
+  const requestIds = Array.from(byRequest.keys());
+  if (requestIds.length === 0) return rows;
+
+  const { data: reqs } = await supabase
+    .from('withdrawal_requests')
+    .select('id, user_id')
+    .in('id', requestIds);
+
+  const userByRequest = new Map<string, string>();
+  for (const w of (reqs ?? []) as any[]) {
+    if (w?.user_id) userByRequest.set(String(w.id).toLowerCase(), String(w.user_id));
+  }
+  const userIds = Array.from(new Set(userByRequest.values()));
+  if (userIds.length === 0) return rows;
+
+  const { data: people } = await supabase
+    .from('profiles')
+    .select('id, full_name')
+    .in('id', userIds);
+  const nameById = new Map<string, string>();
+  for (const p of (people ?? []) as any[]) {
+    if (p?.full_name) nameById.set(String(p.id), String(p.full_name));
+  }
+
+  for (const r of rows) {
+    if (!r.payoutRequestId) continue;
+    const uid = userByRequest.get(r.payoutRequestId);
+    if (!uid) continue;
+    r.payeeId = uid;
+    r.payeeName = nameById.get(uid) ?? null;
+  }
+  return rows;
 }
 
 export function useMerchantFloatStatement(agentId?: string | null, enabled = true) {
@@ -469,7 +531,7 @@ export function useMerchantFloatStatement(agentId?: string | null, enabled = tru
           runningBalance: bal,
         };
       });
-      return rows.reverse();
+      return resolveFloatPayees(rows.reverse());
     },
   });
 }

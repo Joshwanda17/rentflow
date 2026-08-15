@@ -10,12 +10,14 @@ import { supabase } from '@/integrations/supabase/client';
  * with existing callers but now mirrors `available` exactly (no drift
  * possible). `ledgerNet` reflects the raw ledger net used internally.
  *
- * Throws on RPC failure (timeout, transient network, expired token)
- * instead of returning a fabricated `0`. A failed read is UNKNOWN, not
- * verified-zero — callers (WithdrawFlow) already treat a thrown/null
- * result as "can't verify" and fall back to the last-known wallet
- * figure rather than blocking the user with a fake "Available: UGX 0".
- * See: Withdraw_Available_Zero_2026-08-15 incident (Gloria Namatovu).
+ * IMPORTANT (2026-08-15): a failed read THROWS. It must never resolve to
+ * `available: 0` — that turned every transient RPC failure into a bogus
+ * "Insufficient funds. Available: UGX 0" while the wallet card (same RPC,
+ * cached) still showed the real balance. "Unknown" and "zero" are
+ * different states, and callers (WithdrawFlow) already treat a
+ * thrown/null result as "can't verify" and fall back to the last-known
+ * wallet figure. See: Withdraw_Available_Zero_2026-08-15 incident
+ * (Gloria Namatovu).
  */
 export async function computeLedgerAvailable(userId: string): Promise<{
   available: number;
@@ -27,7 +29,9 @@ export async function computeLedgerAvailable(userId: string): Promise<{
     p_user_id: userId,
   });
   if (error) {
-    throw new Error(`computeLedgerAvailable: get_user_wallet_view failed — ${error.message}`);
+    // Never fabricate a balance. Surface the failure so the caller can say
+    // "couldn't verify" instead of "you have nothing".
+    throw error;
   }
   const row = (data ?? {}) as {
     withdrawable?: number | string;

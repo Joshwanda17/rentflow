@@ -197,7 +197,6 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'Partner Finance', icon: Receipt, id: 'partner-finance' },
         { label: 'Partner Top-ups', icon: TrendingUp, id: 'partner-topups' },
         { label: 'Staff Performance', icon: UserCheck, id: 'staff-performance' },
-        { label: 'Internship Applications', icon: GraduationCap, id: 'internships' },
         { label: 'Requisitions', icon: ClipboardList, id: 'requisitions' },
       ],
     },
