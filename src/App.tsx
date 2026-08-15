@@ -91,6 +91,7 @@ const OAuthConsent = lazy(() => import("./pages/OAuthConsent"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const DashboardRedirect = lazy(() => import("./pages/DashboardRedirect"));
 const SelectRole = lazy(() => import("./pages/SelectRole"));
+const DepartmentBudgets = lazy(() => import("./pages/DepartmentBudgets"));
 const TransactionHistory = lazy(() => import("./pages/TransactionHistory"));
 const Settings = lazy(() => import("./pages/Settings"));
 const YourProfile = lazy(() => import("./pages/YourProfile"));
@@ -422,6 +423,7 @@ function AppRoutes() {
           <Route path="/unsubscribe" element={<Unsubscribe />} />
           <Route path="/stop-sms" element={<StopSms />} />
           <Route path="/requisition/new" element={<PublicRequisitionForm />} />
+          <Route path="/budgets" element={<DepartmentBudgets />} />
           <Route path="/receipt/:id" element={<PayoutReceipt />} />
           <Route path="/resume-sms" element={<ResumeSms />} />
           <Route path="/r/:code" element={<ResolveRLink />} />
