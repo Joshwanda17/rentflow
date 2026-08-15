@@ -1724,16 +1724,11 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
                   <MessageCircle className="h-5 w-5 text-success" />
                 </a>
                 <button
-                  onClick={() => {
-                    const msg = encodeURIComponent(
-                      `Hi ${profile.full_name}, this is your Welile agent. Please update your phone number in the Welile app. Go to Settings > Profile to make changes. Thank you!`
-                    );
-                    window.open(`https://wa.me/${phoneIntl}?text=${msg}`, '_blank');
-                  }}
+                  onClick={() => setEditDialogOpen(true)}
                   className="h-11 w-11 rounded-xl bg-warning/15 flex items-center justify-center active:scale-90 transition-transform"
                   style={{ touchAction: 'manipulation' }}
-                  aria-label="Request phone edit"
-                  title="Request phone edit"
+                  aria-label="Edit phone number"
+                  title="Edit phone number"
                 >
                   <Pencil className="h-5 w-5 text-warning" />
                 </button>
@@ -1750,16 +1745,11 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
                 <p className="text-base font-semibold truncate">{profile.email || 'Not set'}</p>
               </div>
               <button
-                onClick={() => {
-                  const msg = encodeURIComponent(
-                    `Hi ${profile.full_name}, this is your Welile agent. Please update your email address in the Welile app. Go to Settings > Profile to make changes. Thank you!`
-                  );
-                  window.open(`https://wa.me/${phoneIntl}?text=${msg}`, '_blank');
-                }}
+                onClick={() => setEditDialogOpen(true)}
                 className="h-11 w-11 rounded-xl bg-warning/15 flex items-center justify-center active:scale-90 transition-transform shrink-0"
                 style={{ touchAction: 'manipulation' }}
-                aria-label="Request email edit"
-                title="Request email edit"
+                aria-label="Edit email address"
+                title="Edit email address"
               >
                 <Pencil className="h-5 w-5 text-warning" />
               </button>
@@ -1795,10 +1785,10 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
               size="lg"
               className="w-full gap-2 text-base h-12 rounded-xl"
               onClick={handleCaptureGPS}
-              disabled={gpsLoading}
+              disabled={gpsLoading || savingGps}
             >
-              {gpsLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Navigation className="h-5 w-5" />}
-              Capture GPS Location
+              {gpsLoading || savingGps ? <Loader2 className="h-5 w-5 animate-spin" /> : <Navigation className="h-5 w-5" />}
+              {savingGps ? 'Saving location…' : gpsLoading ? 'Reading GPS…' : 'Capture & Save GPS Location'}
             </Button>
             {gpsLocation && (
               <div className="bg-muted/40 rounded-xl p-3 flex items-center gap-2">
@@ -1809,6 +1799,9 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
                   <span className="font-mono font-semibold">{gpsLocation.longitude.toFixed(5)}</span>
                   {gpsLocation.accuracy && (
                     <span className="text-xs text-muted-foreground ml-2">±{Math.round(gpsLocation.accuracy)}m</span>
+                  )}
+                  {gpsSavedAt && (
+                    <span className="block text-xs text-success font-semibold">Saved to profile ✓</span>
                   )}
                 </div>
               </div>
