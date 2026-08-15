@@ -231,13 +231,6 @@ export default function COODashboardPage() {
             <StaffPerformancePanel />
           </div>
         );
-      case 'internships':
-        return (
-          <div className="space-y-3">
-            {isMobile && renderBackButton('Overview')}
-            <HRInternshipApplications />
-          </div>
-        );
       case 'advance-requests':
         return (
           <div className="space-y-6">
