@@ -135,7 +135,7 @@ export default function RecruitmentHub() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
 
-  const [tab, setTab] = useState('applications');
+  const [tab, setTab] = useState('internships');
   const [reqStatus, setReqStatus] = useState<ReqStatus>('pending');
   const [openTrail, setOpenTrail] = useState<Record<string, boolean>>({});
 
