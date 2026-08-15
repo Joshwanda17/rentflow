@@ -38660,6 +38660,10 @@ export type Database = {
           total_repaid: number
         }[]
       }
+      get_tenant_repayment_reliability: {
+        Args: { p_band?: string; p_limit?: number; p_offset?: number }
+        Returns: Json
+      }
       get_tenants_at_leaf:
         | {
             Args: {
