@@ -506,8 +506,35 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
 
   const handleCaptureGPS = async () => {
     const loc = await captureLocation();
-    if (loc) {
-      toast({ title: '📍 GPS Captured', description: `Lat: ${loc.latitude.toFixed(5)}, Lng: ${loc.longitude.toFixed(5)}` });
+    if (!loc) return;
+    // Persist the reading server-side — a captured coordinate that only lives
+    // in React state is worthless for payouts/collections gating.
+    setSavingGps(true);
+    try {
+      const { error } = await supabase.rpc('agent_capture_contact_location' as any, {
+        p_target_id: tenantId,
+        p_target_role: 'tenant',
+        p_address: {},
+        p_latitude: loc.latitude,
+        p_longitude: loc.longitude,
+        p_accuracy: loc.accuracy ?? undefined,
+      } as any);
+      if (error) throw error;
+      setGpsSavedAt(new Date().toISOString());
+      toast({
+        title: '📍 GPS saved',
+        description: `Lat ${loc.latitude.toFixed(5)}, Lng ${loc.longitude.toFixed(5)} stored on ${profile?.full_name || 'this tenant'}'s profile.`,
+      });
+      tenantLoc.onCaptured?.();
+      loadFullProfile({ silent: true });
+    } catch (err: any) {
+      toast({
+        title: 'Could not save GPS',
+        description: err?.message || 'The location was read but not stored. Try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSavingGps(false);
     }
   };
 
