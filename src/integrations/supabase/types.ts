@@ -16218,6 +16218,33 @@ export type Database = {
           },
         ]
       }
+      ledger_account_catalog: {
+        Row: {
+          code: string
+          created_at: string
+          label: string
+          nature: string
+          section: string
+          sort_order: number
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          label: string
+          nature: string
+          section: string
+          sort_order?: number
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          label?: string
+          nature?: string
+          section?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
       ledger_account_groups: {
         Row: {
           description: string
@@ -16235,6 +16262,50 @@ export type Database = {
           group_id?: string
         }
         Relationships: []
+      }
+      ledger_account_map: {
+        Row: {
+          account_code: string
+          category: string
+          created_at: string
+          debit_when: string
+          id: string
+          ledger_scope: string
+          notes: string | null
+          updated_at: string
+          wallet_bucket: string | null
+        }
+        Insert: {
+          account_code: string
+          category: string
+          created_at?: string
+          debit_when?: string
+          id?: string
+          ledger_scope: string
+          notes?: string | null
+          updated_at?: string
+          wallet_bucket?: string | null
+        }
+        Update: {
+          account_code?: string
+          category?: string
+          created_at?: string
+          debit_when?: string
+          id?: string
+          ledger_scope?: string
+          notes?: string | null
+          updated_at?: string
+          wallet_bucket?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ledger_account_map_account_code_fkey"
+            columns: ["account_code"]
+            isOneToOne: false
+            referencedRelation: "ledger_account_catalog"
+            referencedColumns: ["code"]
+          },
+        ]
       }
       ledger_accounts: {
         Row: {
@@ -40852,6 +40923,17 @@ export type Database = {
         Args: never
         Returns: {
           snapshotted_count: number
+        }[]
+      }
+      sofp_ledger_legs: {
+        Args: { p_as_at: string }
+        Returns: {
+          account_code: string
+          category: string
+          cr: number
+          dr: number
+          ledger_scope: string
+          transaction_group_id: string
         }[]
       }
       stamp_float_request_settlement: {
