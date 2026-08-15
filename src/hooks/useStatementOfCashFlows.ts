@@ -20,6 +20,20 @@ export interface CashFlowGroup {
   lines: CashFlowLine[];
 }
 
+/**
+ * Signed General Ledger trial-balance value of a cash account (debits less
+ * credits) — the identical basis the Statement of Financial Position uses.
+ * Published so closing cash can be tied to the Balance Sheet cash accounts
+ * without re-deriving signs by hand (taking A1 as a positive figure when its
+ * ledger balance is a credit is what produced the earlier 2 x A2 discrepancy).
+ */
+export interface CashFlowAccountBalance {
+  code: string;
+  label: string;
+  opening: number;
+  closing: number;
+}
+
 export interface CashFlowStatementSection {
   total: number;
   groups: CashFlowGroup[];
@@ -37,6 +51,9 @@ export interface StatementOfCashFlows {
   net_change: number;
   opening_cash: number;
   closing_cash: number;
+  cash_accounts: CashFlowAccountBalance[];
+  balance_sheet_cash: number;
+  ties_to_balance_sheet: boolean;
   unreconciled_residual: number;
   reconciles: boolean;
 }
@@ -91,5 +108,15 @@ export function flattenCashFlowStatement(d: StatementOfCashFlows): { label: stri
   rows.push({ label: 'Net increase / (decrease) in cash and cash equivalents', amount: d.net_change, level: 'total' });
   rows.push({ label: 'Cash and cash equivalents at beginning of period', amount: d.opening_cash, level: 'line' });
   rows.push({ label: 'Cash and cash equivalents at end of period', amount: d.closing_cash, level: 'total' });
+  rows.push({ label: 'Reconciliation to Balance Sheet cash accounts', amount: null, level: 'section' });
+  for (const a of d.cash_accounts ?? []) {
+    rows.push({ label: `${a.code} ${a.label}`, amount: a.closing, level: 'line' });
+  }
+  rows.push({ label: 'Total Balance Sheet cash accounts (A1 + A2)', amount: d.balance_sheet_cash, level: 'total' });
+  rows.push({
+    label: 'Difference: closing cash less Balance Sheet cash accounts',
+    amount: Number((d.closing_cash - d.balance_sheet_cash).toFixed(2)),
+    level: 'total',
+  });
   return rows;
 }
