@@ -2,13 +2,14 @@
 
 Read-only until approved. No ledger writes, no reconciliation entries, no schema changes are made by this plan document.
 
-## Step 0 — Stop the bleeding on the reporting surface (do this first)
+## Step 0 — Stop the bleeding on the reporting surface (SHIP THIS FIRST, ON ITS OWN)
 
-Before any correction, the board must stop presenting unsupported figures as spendable float.
+This step is executed and verified **before any work begins on Steps 1–5**. It is a standalone unit of work: nothing in Steps 1–5 is started until Step 0 is live and confirmed on the CFO board. Rationale: every hour the board keeps showing UGX 38,973,832 as spendable float is an hour a treasury decision can be made on a number the ledger does not support. Removing that exposure does not depend on any of the deeper fixes, so it must not wait for them.
 
 - `get_merchant_float_positions()` gains an evidence classification per desk: `evidenced`, `asserted_only`, `clamp_artifact`, `unverified_other`.
 - The headline total on "Money With Merchant Agents" reports the **evidenced** total only. Asserted and clamp-artifact amounts move into a clearly separated "Unverified — excluded from float" block with the reason per desk.
-- No desk is deleted or zeroed in the database at this stage. This is presentation truth only, so the CFO stops seeing a number they could act on while the underlying books are still under investigation.
+- No desk is deleted or zeroed in the database at this stage. No ledger writes, no reconciliation entries, no wallet mutations — read/derive and display only. This is presentation truth, so the CFO stops seeing a number they could act on while the underlying books are still under investigation.
+- Step 0 exit criteria, all of which must hold before Step 1 is opened: the board headline equals the evidenced total; every excluded desk shows an explicit reason; the previously displayed 38,973,832 no longer appears anywhere as available float; and the 15-desk classification matches the read-only audit anchored 2026-08-16 23:59:59+03.
 
 ## Step 1 — The clamp: make suppressed debits visible instead of absorbed
 
