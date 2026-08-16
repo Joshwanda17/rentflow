@@ -34,6 +34,7 @@ import { getNextRunDate } from '@/lib/standingOrderSchedule';
 import { UGANDA_BANKS } from '@/lib/ugandaBanks';
 import { CFO_PAYOUT_LABELS, CFO_PAYOUT_VERB, CFO_PAYOUT_TOAST } from '@/lib/cfoPayoutLabels';
 import { logStandingOrderAction } from '@/lib/standingOrderAudit';
+import { useCfoApprovalNotifications } from '@/hooks/useCfoApprovalNotifications';
 
 type Operation = 'credit' | 'debit' | 'withdraw';
 type FinancialImpact = 'expense' | 'revenue' | 'neutral';
