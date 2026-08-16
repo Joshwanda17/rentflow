@@ -37911,9 +37911,13 @@ export type Database = {
           agent_id: string
           agent_name: string
           agent_phone: string
+          asserted_only_amount: number
+          clamp_artifact_amount: number
           company_cash_with_agent: number
           desk_id: string
           email_matched_total: number
+          evidence_status: string
+          evidenced_amount: number
           float_credits_recorded: number
           is_active: boolean
           label: string

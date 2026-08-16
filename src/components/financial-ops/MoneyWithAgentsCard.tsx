@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Wallet, HandCoins, ArrowRightLeft, AlertTriangle, SlidersHorizontal } from 'lucide-react';
+import { Wallet, HandCoins, ArrowRightLeft, AlertTriangle, SlidersHorizontal, ShieldAlert } from 'lucide-react';
 import { format } from 'date-fns';
 import { formatUGX } from '@/lib/rentCalculations';
 import {
@@ -41,6 +41,21 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
     return Math.max(0, Math.min(cached, Math.max(0, v.ledgerFloat)));
   };
 
+  // Headline truth: only float with independent provider corroboration counts.
+  // Cache-clamp artifacts and internally asserted amounts are reported
+  // separately below instead of being presented as money anyone can spend.
+  const excludedFloat = (r: MerchantFloatPosition) =>
+    Math.max(0, r.clampArtifactAmount) + Math.max(0, r.assertedOnlyAmount);
+  const isUnverified = (r: MerchantFloatPosition) => r.evidenceStatus !== 'evidenced';
+  const evidenceLabel = (r: MerchantFloatPosition) =>
+    r.evidenceStatus === 'mixed'
+      ? 'partly unverified'
+      : r.evidenceStatus === 'clamp_artifact'
+        ? 'cache exceeds the books'
+        : r.evidenceStatus === 'asserted_only'
+          ? 'no independent evidence'
+          : 'evidenced';
+
   // Show every merchant desk that finance can act on — an agent with no
   // activity yet (or a fully settled one) must still be visible here so this
   // board matches the merchant agent roster.
@@ -69,9 +84,11 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
       return tb - ta;
     })
     .map((x) => x.r);
-  const heldTotal = rows.reduce((s, r) => s + spendableFloat(r), 0);
+  const heldTotal = rows.reduce((s, r) => s + Math.max(0, r.evidencedAmount), 0);
   const owedTotal = rows.reduce((s, r) => s + r.owedToAgent, 0);
-  const floatTotal = rows.reduce((s, r) => s + spendableFloat(r), 0);
+  const floatTotal = rows.reduce((s, r) => s + Math.max(0, r.evidencedAmount), 0);
+  const excludedRows = rows.filter((r) => excludedFloat(r) > 0);
+  const excludedTotal = excludedRows.reduce((s, r) => s + excludedFloat(r), 0);
 
   return (
     <div className="rounded-2xl border border-border bg-card p-5 min-w-0">
@@ -109,7 +126,8 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
             {isLoading ? '—' : formatUGX(floatTotal)}
           </p>
           <p className="text-[10px] text-muted-foreground mt-1">
-            Live float balance across merchant agents. Drops as payouts are claimed and paid.
+            Only float backed by a matching MTN/Airtel record. Unverified amounts are listed
+            separately below and are not counted here.
           </p>
         </div>
         <div className="rounded-xl border border-warning/30 bg-warning/5 p-3">
@@ -120,7 +138,7 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
             {isLoading ? '—' : formatUGX(heldTotal)}
           </p>
           <p className="text-[10px] text-muted-foreground mt-1">
-            We already sent them this money and they have not used it yet
+            Money we sent them that they have not used yet — evidenced portion only
           </p>
         </div>
         <div className="rounded-xl border border-border bg-muted/30 p-3">
@@ -153,7 +171,9 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
           )}
           {(rows.length > 0 || isLoading) && (
             <div className="flex items-center justify-between gap-3 px-3 py-2">
-              <p className="text-[10px] text-muted-foreground">Total float with merchant agents</p>
+              <p className="text-[10px] text-muted-foreground">
+                Total float with merchant agents (evidenced only)
+              </p>
               <p
                 className={`font-mono text-base font-extrabold tabular-nums text-right ${
                   floatTotal > 0 ? 'text-warning' : floatTotal < 0 ? 'text-destructive' : 'text-foreground'
@@ -172,7 +192,9 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
             return (
               <div
                 key={r.deskId}
-                className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background px-3 py-2 min-w-0"
+                className={`flex items-center justify-between gap-3 rounded-xl border bg-background px-3 py-2 min-w-0 ${
+                  isUnverified(r) ? 'border-dashed border-destructive/40' : 'border-border'
+                }`}
               >
                 <div className="min-w-0 text-left">
                   <button
@@ -182,6 +204,11 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
                   >
                     {r.agentName || r.label || 'Merchant agent'}
                   </button>
+                  {isUnverified(r) && (
+                    <span className="mt-0.5 inline-flex items-center gap-1 rounded-full border border-destructive/40 bg-destructive/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-destructive">
+                      <ShieldAlert className="h-2.5 w-2.5" /> {evidenceLabel(r)}
+                    </span>
+                  )}
                   {movements.length === 0 ? (
                     <p className="text-[11px] text-muted-foreground">No float movements</p>
                   ) : (
@@ -207,11 +234,20 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
                 <div className="text-right shrink-0">
                   <p
                     className={`font-mono text-sm font-bold tabular-nums ${
-                      spendableFloat(r) > 0 ? 'text-warning' : 'text-foreground'
+                      isUnverified(r)
+                        ? 'text-muted-foreground'
+                        : spendableFloat(r) > 0
+                          ? 'text-warning'
+                          : 'text-foreground'
                     }`}
                   >
                     {formatUGX(spendableFloat(r))}
                   </p>
+                  {isUnverified(r) && (
+                    <p className="text-[10px] text-destructive">
+                      {formatUGX(excludedFloat(r))} not counted as float
+                    </p>
+                  )}
                   <p className="text-[10px] text-muted-foreground">
                     {spendableFloat(r) > 0
                       ? 'float balance on their phone'
@@ -242,6 +278,50 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
               </div>
             );
           })}
+        </div>
+      )}
+
+      {!error && excludedRows.length > 0 && (
+        <div className="mt-4 rounded-xl border-2 border-dashed border-destructive/40 bg-destructive/5 p-3">
+          <div className="flex items-start gap-2">
+            <ShieldAlert className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-destructive">
+                Unverified — excluded from float
+              </p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                {formatUGX(excludedTotal)} shown on merchant desks that the books do not support.
+                Not spendable, not owed, and not included in any figure above. Under investigation.
+              </p>
+            </div>
+          </div>
+          <div className="mt-2 space-y-1.5">
+            {excludedRows.map((r) => (
+              <div
+                key={`excluded-${r.deskId}`}
+                className="rounded-lg border border-destructive/20 bg-background px-3 py-2 min-w-0"
+              >
+                <div className="flex items-start justify-between gap-3 flex-wrap">
+                  <p className="text-xs font-medium text-foreground truncate min-w-0">
+                    {r.agentName || r.label || 'Merchant agent'}
+                  </p>
+                  <p className="font-mono text-xs font-bold tabular-nums text-destructive shrink-0">
+                    {formatUGX(excludedFloat(r))}
+                  </p>
+                </div>
+                {r.clampArtifactAmount > 0 && (
+                  <p className="text-[10px] text-muted-foreground">
+                    {formatUGX(r.clampArtifactAmount)} — cache exceeds what the ledger supports
+                  </p>
+                )}
+                {r.assertedOnlyAmount > 0 && (
+                  <p className="text-[10px] text-muted-foreground">
+                    {formatUGX(r.assertedOnlyAmount)} — no independent evidence found
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

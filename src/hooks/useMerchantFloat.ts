@@ -76,6 +76,17 @@ export interface MerchantFloatPosition {
   payoutsWithoutFloatEvidence: number;
   lastPayoutAt: string | null;
   lastReimbursedAt: string | null;
+  /**
+   * Evidence quality of the shown float balance (read-only, derived).
+   * `clampArtifactAmount` is the part of the cache that only exists because the
+   * wallet floor discarded real debits; `evidencedAmount` is the part backed by a
+   * matching telecom transaction; `assertedOnlyAmount` is the rest — internally
+   * asserted with no independent corroboration.
+   */
+  clampArtifactAmount: number;
+  evidencedAmount: number;
+  assertedOnlyAmount: number;
+  evidenceStatus: 'evidenced' | 'asserted_only' | 'clamp_artifact' | 'mixed';
 }
 
 export function useMerchantFloatPositions(enabled = true) {
@@ -128,6 +139,10 @@ export function useMerchantFloatPositions(enabled = true) {
         payoutsWithoutFloatEvidence: Number(r.payouts_without_float_evidence ?? 0),
         lastPayoutAt: r.last_payout_at ?? null,
         lastReimbursedAt: r.last_reimbursed_at ?? null,
+        clampArtifactAmount: Number(r.clamp_artifact_amount ?? 0),
+        evidencedAmount: Number(r.evidenced_amount ?? 0),
+        assertedOnlyAmount: Number(r.asserted_only_amount ?? 0),
+        evidenceStatus: (r.evidence_status ?? 'evidenced') as MerchantFloatPosition['evidenceStatus'],
       }));
     },
   });
