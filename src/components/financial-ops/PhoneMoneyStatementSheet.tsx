@@ -202,16 +202,31 @@ export function PhoneMoneyStatementSheet({ line, onOpenChange }: Props) {
                     <Badge variant="outline" className="mt-1 text-[10px]">Provider charge</Badge>
                   )}
                   {r.phone && (
-                    <Button
-                      asChild
-                      variant="outline"
-                      size="sm"
-                      className="mt-2 h-8 px-2 text-xs"
-                    >
-                      <a href={`tel:${normalizePhone(r.phone)}`}>
-                        <Phone className="h-3.5 w-3.5 mr-1.5" /> Call {r.phone}
-                      </a>
-                    </Button>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <Button
+                        asChild
+                        variant="outline"
+                        size="sm"
+                        className="h-8 px-2 text-xs"
+                      >
+                        <a href={`tel:${normalizePhone(r.phone)}`}>
+                          <Phone className="h-3.5 w-3.5 mr-1.5" /> Call
+                        </a>
+                      </Button>
+                      <Button
+                        asChild
+                        size="sm"
+                        className="h-8 px-2 text-xs bg-[#25D366] hover:bg-[#1da851] text-white border-none"
+                      >
+                        <a
+                          href={`https://wa.me/${normalizePhone(r.phone).replace(/\D/g, '')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <WhatsAppIcon className="h-3.5 w-3.5 mr-1.5" /> WhatsApp
+                        </a>
+                      </Button>
+                    </div>
                   )}
                 </div>
                 <div className="text-right shrink-0">
