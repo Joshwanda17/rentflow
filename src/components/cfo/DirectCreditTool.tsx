@@ -954,7 +954,7 @@ export function DirectCreditTool() {
                     onClick={() => handleCategoryChange(cat.id)}
                     className="focus:outline-none"
                   >
-                    <Badge variant="secondary" className="text-[10px] px-2 py-0.5 gap-1">
+                    <Badge variant="default" className="text-[10px] px-2 py-0.5 gap-1 cursor-pointer hover:opacity-90">
                       {cat.label}
                       <span className="font-bold">{pendingByCategory[cat.id]}</span>
                     </Badge>
