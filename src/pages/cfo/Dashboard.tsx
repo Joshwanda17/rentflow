@@ -12,6 +12,7 @@ import { PlatformVsWalletSummary } from '@/components/cfo/PlatformVsWalletSummar
 import { CFOROIRequests } from '@/components/cfo/CFOROIRequests';
 import { CFOOverviewDashboard } from '@/components/cfo/CFOOverviewDashboard';
 import { DirectCreditTool } from '@/components/cfo/DirectCreditTool';
+import BudgetApprovalPanel from '@/components/cfo/BudgetApprovalPanel';
 import { MerchantFloatRequestsPanel } from '@/components/cfo/MerchantFloatRequestsPanel';
 import { MerchantFloatRequisitionPanel } from '@/components/financial-ops/MerchantFloatRequisitionPanel';
 import { CFOPayoutsShareButton } from '@/components/cfo/CFOPayoutsShareButton';
@@ -216,6 +217,18 @@ export default function CFODashboardPage() {
         );
       case 'statements':
         return <FinancialStatementsPanel />;
+      case 'department-budgets':
+        return (
+          <div className="space-y-4">
+            <div>
+              <h1 className="text-xl font-bold">Department Budgets &amp; CFO Approval</h1>
+              <p className="text-sm text-muted-foreground">
+                Review department submissions, trim or reject lines, manage budget cycles and track Budget vs Actual.
+              </p>
+            </div>
+            <BudgetApprovalPanel />
+          </div>
+        );
       case 'allocation-traces':
         return <AgentAllocationTracesPanel />;
       case 'solvency':

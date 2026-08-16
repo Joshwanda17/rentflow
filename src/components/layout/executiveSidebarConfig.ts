@@ -54,6 +54,11 @@ const HR_ACCESS: SidebarItemAccess = {
   permission: 'hr',
 };
 
+/** Same gate the CFO dashboard route already enforces. */
+const CFO_ACCESS: SidebarItemAccess = {
+  roles: ['cfo', 'super_admin'],
+};
+
 export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
   cto: [
     {
@@ -141,6 +146,12 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'Agent Float', icon: Building2, id: 'float-management' },
         { label: 'Delivery Tracking', icon: Truck, id: 'delivery-pipeline' },
         { label: 'Cash Check', icon: Scale, id: 'cash-reconciliation' },
+      ],
+    },
+    {
+      title: 'Budgeting',
+      items: [
+        { label: 'Department Budgets', icon: ClipboardList, id: 'department-budgets', access: CFO_ACCESS },
       ],
     },
     {
