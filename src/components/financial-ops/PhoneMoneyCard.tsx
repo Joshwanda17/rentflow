@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Smartphone, Info, Banknote } from 'lucide-react';
+import { Smartphone, Info, Banknote, ChevronRight } from 'lucide-react';
 import mtnLogoAsset from '@/assets/mtn-logo.png.asset.json';
 import airtelLogoAsset from '@/assets/airtel-logo.png.asset.json';
 import { formatUGX } from '@/lib/rentCalculations';
