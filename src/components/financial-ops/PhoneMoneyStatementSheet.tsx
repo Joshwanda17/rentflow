@@ -45,6 +45,8 @@ interface Row {
   phone: string | null;
 }
 
+type DirectionFilter = 'all' | 'in' | 'out';
+
 /**
  * Detailed movement statement for one Actual Money line. Read-only: it simply
  * replays the provider SMS/emails (or verified cash deposits) that produced the
@@ -123,21 +125,31 @@ export function PhoneMoneyStatementSheet({ line, onOpenChange }: Props) {
   const rows = data ?? [];
   const isMobile = useIsMobile();
   const [page, setPage] = useState(0);
+  const [filter, setFilter] = useState<DirectionFilter>('all');
   useEffect(() => { setPage(0); }, [line]);
+  useEffect(() => { setPage(0); }, [filter]);
+
+  const isInflow = (r: Row) => r.direction === 'in' || r.direction === 'cash';
+
+  const filteredRows = useMemo(() => {
+    if (filter === 'all') return rows;
+    if (filter === 'in') return rows.filter(isInflow);
+    return rows.filter((r) => !isInflow(r));
+  }, [rows, filter]);
 
   const totals = useMemo(() => {
     let inflow = 0;
     let outflow = 0;
-    rows.forEach((r) => {
-      if (r.direction === 'in' || r.direction === 'cash') inflow += r.amount;
+    filteredRows.forEach((r) => {
+      if (isInflow(r)) inflow += r.amount;
       else outflow += r.amount;
     });
     return { inflow, outflow };
-  }, [rows]);
+  }, [filteredRows]);
 
-  const pageCount = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const pageCount = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount - 1);
-  const pageRows = rows.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
+  const pageRows = filteredRows.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
 
   return (
     <Sheet open={!!line} onOpenChange={onOpenChange}>
@@ -165,6 +177,26 @@ export function PhoneMoneyStatementSheet({ line, onOpenChange }: Props) {
               <p className="font-mono text-sm font-semibold text-destructive">{formatUGX(totals.outflow)}</p>
             </div>
           </div>
+
+          <div className="flex items-center gap-2 pt-3">
+            {(['all', 'in', 'out'] as DirectionFilter[]).map((key) => (
+              <Button
+                key={key}
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setFilter(key)}
+                className={cn(
+                  'h-7 px-3 text-xs rounded-full border transition-colors',
+                  filter === key
+                    ? 'bg-primary text-primary-foreground border-primary hover:bg-primary/90'
+                    : 'bg-background text-muted-foreground border-border hover:bg-muted',
+                )}
+              >
+                {key === 'all' ? 'All' : key === 'in' ? 'Money in' : 'Money out'}
+              </Button>
+            ))}
+          </div>
         </SheetHeader>
 
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch] divide-y divide-border">
@@ -175,6 +207,11 @@ export function PhoneMoneyStatementSheet({ line, onOpenChange }: Props) {
           )}
           {!isLoading && rows.length === 0 && (
             <p className="p-8 text-center text-sm text-muted-foreground">No movements recorded on this line yet.</p>
+          )}
+          {!isLoading && rows.length > 0 && filteredRows.length === 0 && (
+            <p className="p-8 text-center text-sm text-muted-foreground">
+              No {filter === 'in' ? 'money in' : 'money out'} movements match this filter.
+            </p>
           )}
           {pageRows.map((r) => {
             const isIn = r.direction === 'in' || r.direction === 'cash';
@@ -243,13 +280,13 @@ export function PhoneMoneyStatementSheet({ line, onOpenChange }: Props) {
           })}
         </div>
 
-        {rows.length > PAGE_SIZE && (
+        {filteredRows.length > PAGE_SIZE && (
           <div className="shrink-0 border-t border-border p-3 flex items-center justify-between gap-2 bg-background">
             <Button variant="outline" size="sm" disabled={safePage === 0} onClick={() => setPage(safePage - 1)}>
               <ChevronLeft className="h-4 w-4 mr-1" /> Prev
             </Button>
             <p className="text-xs text-muted-foreground">
-              Page {safePage + 1} of {pageCount} • {rows.length} movements
+              Page {safePage + 1} of {pageCount} • {filteredRows.length} movements
             </p>
             <Button variant="outline" size="sm" disabled={safePage >= pageCount - 1} onClick={() => setPage(safePage + 1)}>
               Next <ChevronRight className="h-4 w-4 ml-1" />
