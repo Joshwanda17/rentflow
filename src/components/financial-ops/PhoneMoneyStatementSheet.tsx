@@ -177,6 +177,26 @@ export function PhoneMoneyStatementSheet({ line, onOpenChange }: Props) {
               <p className="font-mono text-sm font-semibold text-destructive">{formatUGX(totals.outflow)}</p>
             </div>
           </div>
+
+          <div className="flex items-center gap-2 pt-3">
+            {(['all', 'in', 'out'] as DirectionFilter[]).map((key) => (
+              <Button
+                key={key}
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setFilter(key)}
+                className={cn(
+                  'h-7 px-3 text-xs rounded-full border transition-colors',
+                  filter === key
+                    ? 'bg-primary text-primary-foreground border-primary hover:bg-primary/90'
+                    : 'bg-background text-muted-foreground border-border hover:bg-muted',
+                )}
+              >
+                {key === 'all' ? 'All' : key === 'in' ? 'Money in' : 'Money out'}
+              </Button>
+            ))}
+          </div>
         </SheetHeader>
 
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch] divide-y divide-border">
