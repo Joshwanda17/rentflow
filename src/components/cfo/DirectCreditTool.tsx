@@ -1293,12 +1293,13 @@ export function DirectCreditTool() {
                 </div>
 
                 {payoutMethod === 'cash' && (
-                  <div>
-                    <Label>Pickup Details <span className="text-destructive">*</span></Label>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Pickup Details <span className="text-destructive">*</span></Label>
                     <Input
                       placeholder="e.g. Welile HQ Reception, Nakasero — collected by Jane Doe"
                       value={pickupLocation}
                       onChange={(e) => setPickupLocation(e.target.value)}
+                      className="h-11"
                     />
                   </div>
                 )}
