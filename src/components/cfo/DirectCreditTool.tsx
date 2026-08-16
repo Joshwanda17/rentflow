@@ -1222,14 +1222,25 @@ export function DirectCreditTool() {
               </div>
             )}
 
-            <div>
-              <Label>Amount (UGX)</Label>
-              <Input type="number" placeholder="50000" value={amount} onChange={e => setAmount(e.target.value)} />
-              <div className="flex flex-wrap gap-1.5 mt-2">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Amount (UGX)</Label>
+              <Input
+                type="number"
+                placeholder="e.g. 50000"
+                value={amount}
+                onChange={e => setAmount(e.target.value)}
+                className="h-11 text-base font-medium"
+              />
+              <div className="flex flex-wrap gap-2">
                 {[10000, 50000, 100000, 200000, 500000].map(v => (
-                  <Button key={v} size="sm" variant="outline" className="text-xs h-7" onClick={() => setAmount(String(v))}>
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => setAmount(String(v))}
+                    className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+                  >
                     {(v / 1000).toFixed(0)}K
-                  </Button>
+                  </button>
                 ))}
               </div>
             </div>
