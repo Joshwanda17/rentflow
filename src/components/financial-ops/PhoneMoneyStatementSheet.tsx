@@ -129,19 +129,27 @@ export function PhoneMoneyStatementSheet({ line, onOpenChange }: Props) {
   useEffect(() => { setPage(0); }, [line]);
   useEffect(() => { setPage(0); }, [filter]);
 
+  const isInflow = (r: Row) => r.direction === 'in' || r.direction === 'cash';
+
+  const filteredRows = useMemo(() => {
+    if (filter === 'all') return rows;
+    if (filter === 'in') return rows.filter(isInflow);
+    return rows.filter((r) => !isInflow(r));
+  }, [rows, filter]);
+
   const totals = useMemo(() => {
     let inflow = 0;
     let outflow = 0;
-    rows.forEach((r) => {
-      if (r.direction === 'in' || r.direction === 'cash') inflow += r.amount;
+    filteredRows.forEach((r) => {
+      if (isInflow(r)) inflow += r.amount;
       else outflow += r.amount;
     });
     return { inflow, outflow };
-  }, [rows]);
+  }, [filteredRows]);
 
-  const pageCount = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const pageCount = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount - 1);
-  const pageRows = rows.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
+  const pageRows = filteredRows.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
 
   return (
     <Sheet open={!!line} onOpenChange={onOpenChange}>
