@@ -932,14 +932,8 @@ export function DirectCreditTool() {
               <option value="">Select a category...</option>
               {availableCategories.map((cat) => {
                 const impactLabel = IMPACT_CONFIG[cat.impact].label;
-                let readySuffix = '';
-                if (cat.id === 'rent_disbursement' && rentQueueCount > 0) {
-                  readySuffix = ` • ${rentQueueCount} ready`;
-                } else if (cat.id === 'business_advance' && businessAdvanceQueueCount > 0) {
-                  readySuffix = ` • ${businessAdvanceQueueCount} ready`;
-                } else if (cat.id === 'roi_payout' && roiPayoutQueueCount > 0) {
-                  readySuffix = ` • ${roiPayoutQueueCount} ready`;
-                }
+                const pending = pendingByCategory[cat.id] ?? 0;
+                const readySuffix = pending > 0 ? ` • ${pending} ready` : '';
                 return (
                   <option key={cat.id} value={cat.id}>
                     {`${cat.label} — ${impactLabel}${readySuffix}`}
@@ -948,6 +942,27 @@ export function DirectCreditTool() {
               })}
             </select>
             <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          </div>
+          {availableCategories.some((cat) => (pendingByCategory[cat.id] ?? 0) > 0) && (
+            <div className="flex flex-wrap items-center gap-1.5 mt-2">
+              {availableCategories
+                .filter((cat) => (pendingByCategory[cat.id] ?? 0) > 0)
+                .map((cat) => (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => handleCategoryChange(cat.id)}
+                    className="focus:outline-none"
+                  >
+                    <Badge variant="secondary" className="text-[10px] px-2 py-0.5 gap-1">
+                      {cat.label}
+                      <span className="font-bold">{pendingByCategory[cat.id]}</span>
+                    </Badge>
+                  </button>
+                ))}
+              <span className="text-[10px] text-muted-foreground">waiting for your approval</span>
+            </div>
+          )}
           </div>
         </div>
 
