@@ -1143,8 +1143,8 @@ export function DirectCreditTool() {
 
             {/* ── Wallet Routing v2: Recipient Type (REQUIRED) ── */}
             {selectedUser && (
-              <div>
-                <Label className="flex items-center gap-1.5 mb-1.5">
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1.5 text-sm font-medium">
                   Recipient Type
                   <span className="text-destructive">*</span>
                   {selectedCategory && selectedCategory.recipientLock !== 'either' && (
@@ -1153,7 +1153,7 @@ export function DirectCreditTool() {
                     </Badge>
                   )}
                 </Label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <button
                     type="button"
                     onClick={() => {
@@ -1161,17 +1161,22 @@ export function DirectCreditTool() {
                       setRecipientType('user');
                     }}
                     disabled={selectedCategory?.recipientLock === 'operational_wallet'}
-                    className={`text-left rounded-lg border p-3 transition ${
+                    className={`text-left rounded-xl border p-3.5 transition-all ${
                       recipientType === 'user'
-                        ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-200'
-                        : 'border-border hover:border-emerald-300 hover:bg-emerald-50/40'
-                    } ${selectedCategory?.recipientLock === 'operational_wallet' ? 'opacity-40 cursor-not-allowed hover:bg-transparent hover:border-border' : ''}`}
+                        ? 'border-emerald-500 bg-emerald-50 ring-1 ring-emerald-200 shadow-sm'
+                        : 'border-border bg-background hover:border-emerald-300 hover:bg-emerald-50/40'
+                    } ${selectedCategory?.recipientLock === 'operational_wallet' ? 'opacity-40 cursor-not-allowed hover:bg-background hover:border-border' : ''}`}
                   >
-                    <div className="text-sm font-semibold text-emerald-700">User Wallet</div>
-                    <div className="text-[11px] text-emerald-700/80 mt-0.5">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
+                        <Wallet className="h-3.5 w-3.5" />
+                      </div>
+                      <div className="text-sm font-semibold text-emerald-700">User Wallet</div>
+                    </div>
+                    <div className="text-[11px] text-emerald-700/80 mt-2">
                       Money belongs to the recipient. Lands in <strong>Withdrawable</strong> — they can cash out immediately.
                     </div>
-                    <div className="text-[10px] text-muted-foreground mt-1">
+                    <div className="text-[10px] text-muted-foreground mt-1.5">
                       Use for: payroll, agent commissions, ROI, refunds, personal payouts.
                     </div>
                   </button>
@@ -1182,17 +1187,22 @@ export function DirectCreditTool() {
                       setRecipientType('operational_wallet');
                     }}
                     disabled={selectedCategory?.recipientLock === 'user'}
-                    className={`text-left rounded-lg border p-3 transition ${
+                    className={`text-left rounded-xl border p-3.5 transition-all ${
                       recipientType === 'operational_wallet'
-                        ? 'border-amber-500 bg-amber-50 ring-2 ring-amber-200'
-                        : 'border-border hover:border-amber-300 hover:bg-amber-50/40'
-                    } ${selectedCategory?.recipientLock === 'user' ? 'opacity-40 cursor-not-allowed hover:bg-transparent hover:border-border' : ''}`}
+                        ? 'border-amber-500 bg-amber-50 ring-1 ring-amber-200 shadow-sm'
+                        : 'border-border bg-background hover:border-amber-300 hover:bg-amber-50/40'
+                    } ${selectedCategory?.recipientLock === 'user' ? 'opacity-40 cursor-not-allowed hover:bg-background hover:border-border' : ''}`}
                   >
-                    <div className="text-sm font-semibold text-amber-700">Operational Wallet</div>
-                    <div className="text-[11px] text-amber-700/80 mt-0.5">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
+                        <Building2 className="h-3.5 w-3.5" />
+                      </div>
+                      <div className="text-sm font-semibold text-amber-700">Operational Wallet</div>
+                    </div>
+                    <div className="text-[11px] text-amber-700/80 mt-2">
                       Company-controlled funds. Lands in <strong>Float</strong> — <em>NOT</em> withdrawable by the recipient.
                     </div>
-                    <div className="text-[10px] text-muted-foreground mt-1">
+                    <div className="text-[10px] text-muted-foreground mt-1.5">
                       Use for: rent disbursement, agent float top-up, treasury movements.
                     </div>
                   </button>
