@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2, Send, ArrowUpRight, ArrowDownLeft, TrendingUp, TrendingDown, Minus, Info, ChevronDown, Banknote, Phone, Building2, AlertTriangle } from 'lucide-react';
+import { Loader2, Send, ArrowUpRight, ArrowDownLeft, TrendingUp, TrendingDown, Minus, Info, ChevronDown, Banknote, Phone, Building2, AlertTriangle, Wallet } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -866,42 +866,63 @@ export function DirectCreditTool() {
   const ImpactIcon = impactInfo?.icon;
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm flex items-center gap-2">
-          {isCredit ? <ArrowUpRight className="h-4 w-4 text-emerald-600" /> : <ArrowDownLeft className="h-4 w-4 text-destructive" />}
-          CFO Wallet Adjustment
-        </CardTitle>
+    <Card className="overflow-hidden border border-border/60 shadow-sm">
+      <CardHeader className="border-b bg-muted/30 px-5 pb-4 pt-5">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <div className={`flex h-7 w-7 items-center justify-center rounded-lg ${isCredit ? 'bg-emerald-100 text-emerald-700' : operation === 'withdraw' ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700'}`}>
+              {isCredit ? <ArrowUpRight className="h-4 w-4" /> : operation === 'withdraw' ? <Banknote className="h-4 w-4" /> : <ArrowDownLeft className="h-4 w-4" />}
+            </div>
+            CFO Wallet Adjustment
+          </CardTitle>
+          {impactInfo && (
+            <Badge variant="outline" className={`gap-1 text-[10px] ${impactInfo.color}`}>
+              <impactInfo.icon className="h-3 w-3" />
+              {impactInfo.label}
+            </Badge>
+          )}
+        </div>
       </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="grid grid-cols-3 gap-2">
-          <Button
-            type="button"
-            variant={isCredit ? 'default' : 'outline'}
-            className={isCredit ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : ''}
-            onClick={() => handleOperationChange('credit')}
-          >
-            <ArrowUpRight className="h-4 w-4 mr-1.5 shrink-0" />
-            <span>{CFO_PAYOUT_LABELS.credit}</span>
-          </Button>
-          <Button
-            type="button"
-            variant={operation === 'debit' ? 'default' : 'outline'}
-            className={operation === 'debit' ? 'bg-destructive hover:bg-destructive/90 text-destructive-foreground' : ''}
-            onClick={() => handleOperationChange('debit')}
-          >
-            <ArrowDownLeft className="h-4 w-4 mr-1.5 shrink-0" />
-            <span>{CFO_PAYOUT_LABELS.debit}</span>
-          </Button>
-          <Button
-            type="button"
-            variant={operation === 'withdraw' ? 'default' : 'outline'}
-            className={operation === 'withdraw' ? 'bg-orange-600 hover:bg-orange-700 text-white' : ''}
-            onClick={() => handleOperationChange('withdraw')}
-          >
-            <Banknote className="h-4 w-4 mr-1.5 shrink-0" />
-            <span>Withdraw</span>
-          </Button>
+      <CardContent className="space-y-5 p-5">
+        <div className="rounded-xl border border-border/60 bg-muted/20 p-1.5">
+          <div className="grid grid-cols-3 gap-1">
+            <button
+              type="button"
+              onClick={() => handleOperationChange('credit')}
+              className={`flex items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 text-xs font-semibold transition-all ${
+                isCredit
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
+              }`}
+            >
+              <ArrowUpRight className="h-3.5 w-3.5 shrink-0" />
+              <span>{CFO_PAYOUT_LABELS.credit}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleOperationChange('debit')}
+              className={`flex items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 text-xs font-semibold transition-all ${
+                operation === 'debit'
+                  ? 'bg-destructive text-destructive-foreground shadow-sm'
+                  : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
+              }`}
+            >
+              <ArrowDownLeft className="h-3.5 w-3.5 shrink-0" />
+              <span>{CFO_PAYOUT_LABELS.debit}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleOperationChange('withdraw')}
+              className={`flex items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 text-xs font-semibold transition-all ${
+                operation === 'withdraw'
+                  ? 'bg-orange-600 text-white shadow-sm'
+                  : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
+              }`}
+            >
+              <Banknote className="h-3.5 w-3.5 shrink-0" />
+              <span>Withdraw</span>
+            </button>
+          </div>
         </div>
 
         {operation === 'withdraw' && (
@@ -924,13 +945,20 @@ export function DirectCreditTool() {
           <RecipientRoutingWarningBanner variant="compact" />
         )}
 
-        <div>
-          <Label htmlFor="payout-category" className="flex items-center gap-1.5 mb-1.5">
-            Payout Category
-            <span className="text-destructive">*</span>
-          </Label>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="payout-category" className="flex items-center gap-1.5 text-sm font-medium">
+              Payout Category
+              <span className="text-destructive">*</span>
+            </Label>
+            {selectedCategory && (
+              <span className="text-[10px] text-muted-foreground">
+                {availableCategories.length} categories available
+              </span>
+            )}
+          </div>
           <Select value={selectedCategoryId} onValueChange={handleCategoryChange}>
-            <SelectTrigger id="payout-category" className="h-10 w-full text-sm">
+            <SelectTrigger id="payout-category" className="h-11 w-full text-sm bg-background">
               <SelectValue placeholder="Select a category..." />
             </SelectTrigger>
             <SelectContent>
@@ -939,7 +967,7 @@ export function DirectCreditTool() {
                 const pending = pendingByCategory[cat.id] ?? 0;
                 return (
                   <SelectItem key={cat.id} value={cat.id}>
-                    <span className="flex items-center gap-1.5">
+                    <span className="flex items-center gap-2">
                       <span>{cat.label}</span>
                       <span className="text-muted-foreground">— {impactLabel}</span>
                       {pending > 0 && (
@@ -954,7 +982,8 @@ export function DirectCreditTool() {
             </SelectContent>
           </Select>
           {availableCategories.some((cat) => (pendingByCategory[cat.id] ?? 0) > 0) && (
-            <div className="flex flex-wrap items-center gap-1.5 mt-2">
+            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border/50 bg-muted/20 p-2.5">
+              <span className="text-[11px] font-medium text-muted-foreground">Pending approval:</span>
               {availableCategories
                 .filter((cat) => (pendingByCategory[cat.id] ?? 0) > 0)
                 .map((cat) => (
@@ -964,20 +993,19 @@ export function DirectCreditTool() {
                     onClick={() => handleCategoryChange(cat.id)}
                     className="focus:outline-none"
                   >
-                    <Badge variant="default" className="text-[10px] px-2 py-0.5 gap-1 cursor-pointer hover:opacity-90">
+                    <Badge className="text-[10px] px-2 py-0.5 gap-1 cursor-pointer hover:opacity-90 bg-primary/90 hover:bg-primary">
                       {cat.label}
                       <span className="font-bold">{pendingByCategory[cat.id]}</span>
                     </Badge>
                   </button>
                 ))}
-              <span className="text-[10px] text-muted-foreground">waiting for your approval</span>
             </div>
           )}
         </div>
 
         {hasSubCategories && (
-          <div>
-            <Label htmlFor="payout-subcategory" className="flex items-center gap-1.5 mb-1.5">
+          <div className="space-y-2">
+            <Label htmlFor="payout-subcategory" className="flex items-center gap-1.5 text-sm font-medium">
               Subcategory
               <span className="text-destructive">*</span>
             </Label>
@@ -986,7 +1014,7 @@ export function DirectCreditTool() {
                 id="payout-subcategory"
                 value={selectedSubCategoryId}
                 onChange={(e) => setSelectedSubCategoryId(e.target.value)}
-                className="flex h-10 w-full appearance-none rounded-lg border border-border bg-background px-3 py-2 pr-10 text-sm text-foreground transition-colors ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary/50"
+                className="flex h-11 w-full appearance-none rounded-xl border border-border bg-background px-4 py-2 pr-10 text-sm text-foreground transition-colors ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary/50"
               >
                 <option value="">Select a subcategory...</option>
                 {selectedCategory?.subCategories?.map((sub) => (
@@ -995,7 +1023,7 @@ export function DirectCreditTool() {
                   </option>
                 ))}
               </select>
-              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             </div>
           </div>
         )}
@@ -1003,31 +1031,42 @@ export function DirectCreditTool() {
         {/* Category Impact Explanation */}
 
         {selectedCategory && impactInfo && ImpactIcon && !isQueueCategory && !needsSubCategory && (
-          <div className={`rounded-lg border p-3 text-xs space-y-1.5 ${impactInfo.color}`}>
-            <div className="flex items-center gap-2 font-semibold">
-              <ImpactIcon className="h-4 w-4" />
+          <div className={`rounded-xl border p-4 text-xs space-y-2 ${impactInfo.color}`}>
+            <div className="flex items-center gap-2 font-semibold text-sm">
+              <div className="flex h-6 w-6 items-center justify-center rounded-md bg-current/10">
+                <ImpactIcon className="h-3.5 w-3.5" />
+              </div>
               Financial Impact: {impactInfo.label}
             </div>
-            <p className="opacity-80">{selectedCategory.description}</p>
+            <p className="opacity-80 leading-relaxed">{selectedCategory.description}</p>
             {selectedSubCategory && (
-              <p className="font-medium">📂 Subcategory: {selectedSubCategory.label}</p>
+              <div className="flex items-center gap-1.5 rounded-md bg-background/60 px-2 py-1 text-[11px] font-medium w-fit">
+                <span className="opacity-60">Subcategory:</span>
+                {selectedSubCategory.label}
+              </div>
             )}
-            <div className="pt-1 border-t border-current/10 space-y-0.5 text-[10px]">
-              <p><span className="font-medium">Wallet entry:</span> {selectedCategory.walletCategory.replace(/_/g, ' ')}</p>
-              <p><span className="font-medium">Platform entry:</span> {selectedCategory.platformCategory.replace(/_/g, ' ')}</p>
+            <div className="pt-2 border-t border-current/10 space-y-1 text-[10px]">
+              <div className="flex justify-between gap-2">
+                <span className="opacity-70">Wallet entry</span>
+                <span className="font-medium font-mono">{selectedCategory.walletCategory.replace(/_/g, ' ')}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span className="opacity-70">Platform entry</span>
+                <span className="font-medium font-mono">{selectedCategory.platformCategory.replace(/_/g, ' ')}</span>
+              </div>
               {selectedCategory.impact === 'expense' && (
-                <p className="font-medium text-orange-700">
-                  📉 This payout is a platform expense — reduces platform earnings.
+                <p className="font-medium mt-1">
+                  This payout is recorded as a platform expense.
                 </p>
               )}
               {selectedCategory.impact === 'revenue' && (
-                <p className="font-medium text-emerald-700">
-                  ✅ This payout earns money for the platform — recorded as platform income.
+                <p className="font-medium mt-1">
+                  This payout is recorded as platform income.
                 </p>
               )}
               {selectedCategory.impact === 'neutral' && (
-                <p className="font-medium">
-                  ➖ This is a balance adjustment — no effect on profit or loss.
+                <p className="font-medium mt-1">
+                  This is a balance adjustment with no P&L effect.
                 </p>
               )}
             </div>
@@ -1104,8 +1143,8 @@ export function DirectCreditTool() {
 
             {/* ── Wallet Routing v2: Recipient Type (REQUIRED) ── */}
             {selectedUser && (
-              <div>
-                <Label className="flex items-center gap-1.5 mb-1.5">
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1.5 text-sm font-medium">
                   Recipient Type
                   <span className="text-destructive">*</span>
                   {selectedCategory && selectedCategory.recipientLock !== 'either' && (
@@ -1114,7 +1153,7 @@ export function DirectCreditTool() {
                     </Badge>
                   )}
                 </Label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <button
                     type="button"
                     onClick={() => {
@@ -1122,17 +1161,22 @@ export function DirectCreditTool() {
                       setRecipientType('user');
                     }}
                     disabled={selectedCategory?.recipientLock === 'operational_wallet'}
-                    className={`text-left rounded-lg border p-3 transition ${
+                    className={`text-left rounded-xl border p-3.5 transition-all ${
                       recipientType === 'user'
-                        ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-200'
-                        : 'border-border hover:border-emerald-300 hover:bg-emerald-50/40'
-                    } ${selectedCategory?.recipientLock === 'operational_wallet' ? 'opacity-40 cursor-not-allowed hover:bg-transparent hover:border-border' : ''}`}
+                        ? 'border-emerald-500 bg-emerald-50 ring-1 ring-emerald-200 shadow-sm'
+                        : 'border-border bg-background hover:border-emerald-300 hover:bg-emerald-50/40'
+                    } ${selectedCategory?.recipientLock === 'operational_wallet' ? 'opacity-40 cursor-not-allowed hover:bg-background hover:border-border' : ''}`}
                   >
-                    <div className="text-sm font-semibold text-emerald-700">User Wallet</div>
-                    <div className="text-[11px] text-emerald-700/80 mt-0.5">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
+                        <Wallet className="h-3.5 w-3.5" />
+                      </div>
+                      <div className="text-sm font-semibold text-emerald-700">User Wallet</div>
+                    </div>
+                    <div className="text-[11px] text-emerald-700/80 mt-2">
                       Money belongs to the recipient. Lands in <strong>Withdrawable</strong> — they can cash out immediately.
                     </div>
-                    <div className="text-[10px] text-muted-foreground mt-1">
+                    <div className="text-[10px] text-muted-foreground mt-1.5">
                       Use for: payroll, agent commissions, ROI, refunds, personal payouts.
                     </div>
                   </button>
@@ -1143,17 +1187,22 @@ export function DirectCreditTool() {
                       setRecipientType('operational_wallet');
                     }}
                     disabled={selectedCategory?.recipientLock === 'user'}
-                    className={`text-left rounded-lg border p-3 transition ${
+                    className={`text-left rounded-xl border p-3.5 transition-all ${
                       recipientType === 'operational_wallet'
-                        ? 'border-amber-500 bg-amber-50 ring-2 ring-amber-200'
-                        : 'border-border hover:border-amber-300 hover:bg-amber-50/40'
-                    } ${selectedCategory?.recipientLock === 'user' ? 'opacity-40 cursor-not-allowed hover:bg-transparent hover:border-border' : ''}`}
+                        ? 'border-amber-500 bg-amber-50 ring-1 ring-amber-200 shadow-sm'
+                        : 'border-border bg-background hover:border-amber-300 hover:bg-amber-50/40'
+                    } ${selectedCategory?.recipientLock === 'user' ? 'opacity-40 cursor-not-allowed hover:bg-background hover:border-border' : ''}`}
                   >
-                    <div className="text-sm font-semibold text-amber-700">Operational Wallet</div>
-                    <div className="text-[11px] text-amber-700/80 mt-0.5">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
+                        <Building2 className="h-3.5 w-3.5" />
+                      </div>
+                      <div className="text-sm font-semibold text-amber-700">Operational Wallet</div>
+                    </div>
+                    <div className="text-[11px] text-amber-700/80 mt-2">
                       Company-controlled funds. Lands in <strong>Float</strong> — <em>NOT</em> withdrawable by the recipient.
                     </div>
-                    <div className="text-[10px] text-muted-foreground mt-1">
+                    <div className="text-[10px] text-muted-foreground mt-1.5">
                       Use for: rent disbursement, agent float top-up, treasury movements.
                     </div>
                   </button>
@@ -1173,33 +1222,44 @@ export function DirectCreditTool() {
               </div>
             )}
 
-            <div>
-              <Label>Amount (UGX)</Label>
-              <Input type="number" placeholder="50000" value={amount} onChange={e => setAmount(e.target.value)} />
-              <div className="flex flex-wrap gap-1.5 mt-2">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Amount (UGX)</Label>
+              <Input
+                type="number"
+                placeholder="e.g. 50000"
+                value={amount}
+                onChange={e => setAmount(e.target.value)}
+                className="h-11 text-base font-medium"
+              />
+              <div className="flex flex-wrap gap-2">
                 {[10000, 50000, 100000, 200000, 500000].map(v => (
-                  <Button key={v} size="sm" variant="outline" className="text-xs h-7" onClick={() => setAmount(String(v))}>
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => setAmount(String(v))}
+                    className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+                  >
                     {(v / 1000).toFixed(0)}K
-                  </Button>
+                  </button>
                 ))}
               </div>
             </div>
 
             {/* ── Payout Method + Recipient Details (Withdraw only) ── */}
             {operation === 'withdraw' && (
-              <div className="space-y-3 rounded-lg border border-orange-200 bg-orange-50/40 p-3">
-                <div>
-                  <Label className="flex items-center gap-1.5 mb-1.5">
+              <div className="space-y-4 rounded-xl border border-orange-200/70 bg-orange-50/30 p-4">
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-1.5 text-sm font-medium">
                     Payout Method <span className="text-destructive">*</span>
                   </Label>
                   <div className="grid grid-cols-3 gap-2">
                     <button
                       type="button"
                       onClick={() => setPayoutMethod('cash')}
-                      className={`rounded-lg border p-2 text-xs font-medium transition flex flex-col items-center gap-1 ${
+                      className={`rounded-xl border p-2.5 text-xs font-semibold transition-all flex flex-col items-center gap-1.5 ${
                         payoutMethod === 'cash'
-                          ? 'border-orange-500 bg-white ring-2 ring-orange-200'
-                          : 'border-border bg-white hover:border-orange-300'
+                          ? 'border-orange-500 bg-white ring-1 ring-orange-200 shadow-sm'
+                          : 'border-border bg-background hover:border-orange-300'
                       }`}
                     >
                       <Banknote className="h-4 w-4" />
@@ -1208,10 +1268,10 @@ export function DirectCreditTool() {
                     <button
                       type="button"
                       onClick={() => setPayoutMethod('mobile_money')}
-                      className={`rounded-lg border p-2 text-xs font-medium transition flex flex-col items-center gap-1 ${
+                      className={`rounded-xl border p-2.5 text-xs font-semibold transition-all flex flex-col items-center gap-1.5 ${
                         payoutMethod === 'mobile_money'
-                          ? 'border-orange-500 bg-white ring-2 ring-orange-200'
-                          : 'border-border bg-white hover:border-orange-300'
+                          ? 'border-orange-500 bg-white ring-1 ring-orange-200 shadow-sm'
+                          : 'border-border bg-background hover:border-orange-300'
                       }`}
                     >
                       <Phone className="h-4 w-4" />
@@ -1220,10 +1280,10 @@ export function DirectCreditTool() {
                     <button
                       type="button"
                       onClick={() => setPayoutMethod('bank_transfer')}
-                      className={`rounded-lg border p-2 text-xs font-medium transition flex flex-col items-center gap-1 ${
+                      className={`rounded-xl border p-2.5 text-xs font-semibold transition-all flex flex-col items-center gap-1.5 ${
                         payoutMethod === 'bank_transfer'
-                          ? 'border-orange-500 bg-white ring-2 ring-orange-200'
-                          : 'border-border bg-white hover:border-orange-300'
+                          ? 'border-orange-500 bg-white ring-1 ring-orange-200 shadow-sm'
+                          : 'border-border bg-background hover:border-orange-300'
                       }`}
                     >
                       <Building2 className="h-4 w-4" />
@@ -1233,84 +1293,89 @@ export function DirectCreditTool() {
                 </div>
 
                 {payoutMethod === 'cash' && (
-                  <div>
-                    <Label>Pickup Details <span className="text-destructive">*</span></Label>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Pickup Details <span className="text-destructive">*</span></Label>
                     <Input
                       placeholder="e.g. Welile HQ Reception, Nakasero — collected by Jane Doe"
                       value={pickupLocation}
                       onChange={(e) => setPickupLocation(e.target.value)}
+                      className="h-11"
                     />
                   </div>
                 )}
 
                 {payoutMethod === 'mobile_money' && (
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="col-span-2">
-                      <Label>MoMo Number <span className="text-destructive">*</span></Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="col-span-2 space-y-2">
+                      <Label className="text-sm font-medium">MoMo Number <span className="text-destructive">*</span></Label>
                       <Input
                         type="tel"
                         placeholder="07XX XXX XXX"
                         value={momoNumber}
                         onChange={(e) => setMomoNumber(e.target.value)}
+                        className="h-11"
                       />
                     </div>
-                    <div>
-                      <Label>Provider <span className="text-destructive">*</span></Label>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Provider <span className="text-destructive">*</span></Label>
                       <div className="relative">
                         <select
                           value={momoProvider}
                           onChange={(e) => setMomoProvider(e.target.value as 'MTN' | 'Airtel')}
-                          className="flex h-10 w-full appearance-none rounded-lg border border-border bg-background px-3 py-2 pr-10 text-sm"
+                          className="flex h-11 w-full appearance-none rounded-xl border border-border bg-background px-4 py-2 pr-10 text-sm"
                         >
                           <option value="MTN">MTN</option>
                           <option value="Airtel">Airtel</option>
                         </select>
-                        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                       </div>
                     </div>
-                    <div>
-                      <Label>Account Name <span className="text-destructive">*</span></Label>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Account Name <span className="text-destructive">*</span></Label>
                       <Input
                         placeholder="Registered MoMo name"
                         value={momoName}
                         onChange={(e) => setMomoName(e.target.value)}
+                        className="h-11"
                       />
                     </div>
                   </div>
                 )}
 
                 {payoutMethod === 'bank_transfer' && (
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="col-span-2">
-                      <Label>Bank Name <span className="text-destructive">*</span></Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="col-span-2 space-y-2">
+                      <Label className="text-sm font-medium">Bank Name <span className="text-destructive">*</span></Label>
                       <div className="relative">
                         <select
                           value={bankName}
                           onChange={(e) => setBankName(e.target.value)}
-                          className="flex h-10 w-full appearance-none rounded-lg border border-border bg-background px-3 py-2 pr-10 text-sm"
+                          className="flex h-11 w-full appearance-none rounded-xl border border-border bg-background px-4 py-2 pr-10 text-sm"
                         >
                           <option value="">Select bank...</option>
                           {UGANDA_BANKS.map((b) => (
                             <option key={b} value={b}>{b}</option>
                           ))}
                         </select>
-                        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                       </div>
                     </div>
-                    <div>
-                      <Label>Account Number <span className="text-destructive">*</span></Label>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Account Number <span className="text-destructive">*</span></Label>
                       <Input
                         placeholder="0123456789"
                         value={bankAccountNumber}
                         onChange={(e) => setBankAccountNumber(e.target.value)}
+                        className="h-11"
                       />
                     </div>
-                    <div>
-                      <Label>Account Name <span className="text-destructive">*</span></Label>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Account Name <span className="text-destructive">*</span></Label>
                       <Input
                         placeholder="Account holder full name"
                         value={bankAccountName}
                         onChange={(e) => setBankAccountName(e.target.value)}
+                        className="h-11"
                       />
                     </div>
                   </div>
@@ -1318,8 +1383,8 @@ export function DirectCreditTool() {
               </div>
             )}
 
-            <div>
-              <Label>Reason (min 10 chars)</Label>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Reason (min 10 chars)</Label>
               <Textarea
                 placeholder={
                   operation === 'withdraw'
@@ -1331,8 +1396,14 @@ export function DirectCreditTool() {
                 value={reason}
                 onChange={e => setReason(e.target.value)}
                 rows={2}
+                className="min-h-[80px] resize-none"
               />
-              <p className="text-[10px] text-muted-foreground mt-1">{reason.length}/10 characters minimum</p>
+              <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                <span>{reason.length}/10 characters minimum</span>
+                {reason.length > 0 && reason.length < 10 && (
+                  <span className="text-destructive font-medium">{10 - reason.length} more characters needed</span>
+                )}
+              </div>
             </div>
 
             {/* Automation Toggle (credit only) */}
@@ -1352,33 +1423,35 @@ export function DirectCreditTool() {
 
             {/* Summary before submit */}
             {selectedCategory && amt > 0 && selectedUser && recipientType && (
-              <div className="rounded-lg bg-muted/30 border p-3 text-xs space-y-1">
+              <div className="rounded-xl bg-muted/20 border border-border/60 p-4 text-xs space-y-2">
                 <p className="font-bold text-sm flex items-center gap-1.5">
-                  <Info className="h-3.5 w-3.5" />
+                  <div className="flex h-5 w-5 items-center justify-center rounded-md bg-primary/10 text-primary">
+                    <Info className="h-3 w-3" />
+                  </div>
                   Double-Entry Summary
                 </p>
-                <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 overflow-x-auto">
+                <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 overflow-x-auto">
                   <span className="text-muted-foreground">Entry 1:</span>
                   <span>
-                    {isCredit ? '↗ Credit' : '↘ Debit'} UGX {amt.toLocaleString()} {isCredit ? 'to' : 'from'}{' '}
+                    {isCredit ? 'Credit' : 'Debit'} UGX {amt.toLocaleString()} {isCredit ? 'to' : 'from'}{' '}
                     <span className="font-medium">{selectedUser.full_name}</span>'s wallet
                     <Badge variant="outline" className="ml-1 text-[8px] px-1">{selectedCategory.walletCategory.replace(/_/g, ' ')}</Badge>
                   </span>
                   <span className="text-muted-foreground">Entry 2:</span>
                   <span>
-                    {isCredit ? '↘ Debit' : '↗ Credit'} UGX {amt.toLocaleString()} {isCredit ? 'from' : 'to'} platform
+                    {isCredit ? 'Debit' : 'Credit'} UGX {amt.toLocaleString()} {isCredit ? 'from' : 'to'} platform
                     <Badge variant="outline" className="ml-1 text-[8px] px-1">{selectedCategory.platformCategory.replace(/_/g, ' ')}</Badge>
                   </span>
                   {selectedSubCategory && (
                     <>
                       <span className="text-muted-foreground">Tag:</span>
-                      <span>📂 {selectedSubCategory.label}</span>
+                      <span>{selectedSubCategory.label}</span>
                     </>
                   )}
                   {automateEnabled && (
                     <>
                       <span className="text-muted-foreground">Recurrence:</span>
-                      <span>🔁 {describeSchedule(automateConfig)}</span>
+                      <span>{describeSchedule(automateConfig)}</span>
                     </>
                   )}
                 </div>
@@ -1386,9 +1459,9 @@ export function DirectCreditTool() {
                   const bucket = RECIPIENT_BUCKET[recipientType as RecipientType];
                   const meta = BUCKET_LABEL[bucket];
                   return (
-                    <div className={`mt-2 rounded-md border p-2 text-[11px] ${meta.tone}`}>
+                    <div className={`mt-1 rounded-lg border p-2.5 text-[11px] ${meta.tone}`}>
                       <div className="font-semibold">
-                        💼 Lands in: {meta.name} bucket
+                        Lands in: {meta.name} bucket
                       </div>
                       <div className="opacity-80 mt-0.5">{meta.note}</div>
                       <div className="opacity-70 mt-1 italic">
@@ -1401,7 +1474,8 @@ export function DirectCreditTool() {
             )}
 
             <Button
-              className={`w-full ${
+              size="lg"
+              className={`w-full h-12 text-base font-semibold shadow-sm transition-all ${
                 operation === 'withdraw'
                   ? 'bg-orange-600 hover:bg-orange-700'
                   : isCredit
