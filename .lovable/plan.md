@@ -1,69 +1,87 @@
-# Remediation plan — merchant float overstatement (38,973,832 → evidenced 5,000)
+# Phase 2 — Void the 15 duplicate-reversal ledger legs (UGX 32,810,000)
 
-Read-only until approved. No ledger writes, no reconciliation entries, no schema changes are made by this plan document.
+Scope fence: these 15 legs only. No wallet cache write, no new correction categories, no touching the
+101 UNKNOWN_NEEDS_REVIEW legs, no change to `apply_wallet_movement`, no reporting-surface changes.
 
-## Step 0 — Stop the bleeding on the reporting surface (SHIP THIS FIRST, ON ITS OWN)
+## Confirmed target set (re-verified just now)
 
-This step is executed and verified **before any work begins on Steps 1–5**. It is a standalone unit of work: nothing in Steps 1–5 is started until Step 0 is live and confirmed on the CFO board. Rationale: every hour the board keeps showing UGX 38,973,832 as spendable float is an hour a treasury decision can be made on a number the ledger does not support. Removing that exposure does not depend on any of the deeper fixes, so it must not wait for them.
+All 15 legs share the exact same signature: `ledger_scope='wallet'`, `wallet_bucket='float'`,
+`direction='cash_out'`, `classification='admin_correction'`, `category='system_balance_correction'`,
+`created_at = 2026-08-14 14:06:34.380038+00`, description starting
+`Balance effect: historical merchant float sweep credit settled back`.
 
-- `get_merchant_float_positions()` gains an evidence classification per desk: `evidenced`, `asserted_only`, `clamp_artifact`, `unverified_other`.
-- The headline total on "Money With Merchant Agents" reports the **evidenced** total only. Asserted and clamp-artifact amounts move into a clearly separated "Unverified — excluded from float" block with the reason per desk.
-- No desk is deleted or zeroed in the database at this stage. No ledger writes, no reconciliation entries, no wallet mutations — read/derive and display only. This is presentation truth, so the CFO stops seeing a number they could act on while the underlying books are still under investigation.
-- Step 0 exit criteria, all of which must hold before Step 1 is opened: the board headline equals the evidenced total; every excluded desk shows an explicit reason; the previously displayed 38,973,832 no longer appears anywhere as available float; and the 15-desk classification matches the read-only audit anchored 2026-08-16 23:59:59+03.
+They are the second wave of a reversal that had already been posted three minutes earlier at
+14:03:55 as `agent_float_deposit` cash_out. That first wave is the legitimate reversal; this second
+wave debited the same money a second time.
 
-## Step 1 — The clamp: make suppressed debits visible instead of absorbed
+| Desk | Amount (UGX) | Leg id |
+|---|---|---|
+| Bayo Mercy | 5,000,000 | 4def02f0 |
+| Hilary Evanz | 5,000,000 | 842259c8 |
+| Tugabirwe Apophia | 5,000,000 | 9d6c61be |
+| NABBALE CLAIRE | 3,000,000 | 9281bf43 |
+| Nankambo sharimah | 3,000,000 | 5ac98738 |
+| Babrah Tusingwire | 2,000,000 | 3c820f77 |
+| Catherine Nabaggala | 2,000,000 | 7c2a6883 |
+| Hilary Evanz | 2,000,000 | 6ca49532 |
+| NABBALE CLAIRE | 2,000,000 | cd46c822 |
+| JOSHUA WANDA | 1,200,000 | def7109f |
+| JOSHUA WANDA | 1,000,000 | de4ce602 |
+| JOSHUA WANDA | 950,000 | cb65d81b |
+| Bayo Mercy | 500,000 | aad29706 |
+| Bayo Mercy | 110,000 | 87309178 |
+| Bayo Mercy | 50,000 | 34b6e86a |
+| **Total** | **32,810,000** | 15 legs, 8 desks |
 
-The clamp stays (removing it would let live edge functions fail mid-settlement), but it stops being silent and stops being lossy in reporting.
+## Method
 
-- `apply_wallet_movement` continues to floor the cached bucket at zero, but every clamp event records the **full suppressed amount** — desk, bucket, category, ledger entry id, requested delta, resulting shortfall — into the existing `wallet_overdraw_events` table, which today logs the clamp but is not consumed by any float reporting path.
-- A new derived figure, `clamped_shortfall`, is exposed per user from the strict pivot (`v_user_wallet_strict`) so any surface showing a bucket balance can also show "this figure is X higher than the ledger supports."
-- Desks whose balances are genuinely correct are unaffected: their clamped shortfall is zero, so nothing about their display changes. That is the safety property — the change is additive and only surfaces on desks that were already wrong.
-- Float availability gates (claim eligibility, payout reservation) switch to `min(cache, ledger_net)` so a clamp artifact can never authorize a real payout. This is the same strict-rule shape already used for withdrawable balance.
+Append-only. No `UPDATE`, no `DELETE` on `general_ledger` — the ledger stays immutable.
 
-## Step 2 — Authorization on `merchant_float_reconciliations`
+For each of the 15 legs, one call to `create_ledger_transaction` posting a balanced pair:
 
-- Write access (insert/update) restricted to `cfo`, `financial_ops`, `manager`, `super_admin` via RLS + explicit grants. Merchant agents lose write access entirely; they keep read access to their own desk.
-- Self-authorship is blocked regardless of role: no row may be authored by the holder of the desk it credits.
-- Evidence becomes structurally required for any type that increases a desk position (`opening_balance`, `reimbursement_recorded`): a provider reference (TID / MoMo transaction id) or an explicit named waiver with a reason. Reason-length alone is not evidence.
-- **Existing non-authorized rows are not deleted and not silently corrected.** They are marked `authorization_status='unauthorized_legacy'` and excluded from every position calculation. Each one then needs a named human decision — ratify (with evidence attached) or reverse. Ratification is a new, attributable row, never an in-place edit of history.
+- wallet leg: `cash_in`, `wallet_bucket='float'`, `recipient_type='operational_wallet'`,
+  `category='system_balance_correction'`, `classification='admin_correction'`
+- platform leg: `cash_out`, `category='phantom_writedown_clearing'`
 
-## Step 3 — The `display_only` double-count
+Idempotency key per leg: `phase2-void-<leg_id>`. Re-running the migration posts nothing.
+Description on each names the voided leg id and the reason, so the audit trail is self-explaining.
+One `audit_logs` row (`action_type='ledger_duplicate_reversal_void'`) with the reason and the 15 ids.
 
-- `trg_stamp_merchant_reconciliation_truth` stops forcing a constant. It derives `ledger_effect` from what actually happened: `posted` when a balance-moving production leg exists for that reconciliation, `display_only` only when none does.
-- The 14 affected rows are corrected **by reclassification, not by a compensating write**. Their `ledger_effect` is restated to `posted` so the aggregation stops adding them on top of the ledger leg that already carries them. No reversing ledger entry is created, because no ledger entry was wrong — only the label was. This is the single-write property you asked for.
-- A regression guard asserts the invariant directly: for every reconciliation row, `ledger_effect='display_only'` implies zero matching production legs. This runs in the existing payout acceptance test suite.
+The whole thing runs as a single transaction with `SET LOCAL lock_timeout = '5s'`.
 
-## Step 4 — Auto-remediate vs. human sign-off
+## Expected effect — raw ledger net moves to match the cache
 
-**Auto-remediable (mechanical, no judgment):**
-- Presentation reclassification of desks into evidenced / unverified buckets.
-- `ledger_effect` restatement for the 14 mislabeled rows.
-- Backfill of `clamped_shortfall` diagnostics.
-- Tightening of grants, RLS, and the self-authorship block.
+| Desk | Raw net before | Void | Raw net after | Cache shown |
+|---|---|---|---|---|
+| Tugabirwe Apophia | −4,353,043 | +5,000,000 | 646,957 | 646,957 |
+| Hilary Evanz | −5,152,101 | +7,000,000 | 1,847,899 | 1,847,899 |
+| NABBALE CLAIRE | −3,854,703 | +5,000,000 | 1,145,297 | 1,145,297 |
+| Babrah Tusingwire | −44,114 | +2,000,000 | 1,955,886 | 1,955,886 |
+| All 12 desks | −53,871,729 | +32,810,000 | −21,061,729 | — |
 
-**Requires a named human sign-off, per desk, recorded with identity and reason:**
-- **The 10,888,671 (Tugabirwe Apophia, Hilary Evanz).** Real money left the company, was credited once and reversed twice, and there is no trace of restoration. Restoring it naively re-creates a discrepancy: Hilary's TIDs are already in `ledger_reconciled_tids` (replay is a silent no-op), Tugabirwe's replay would over-credit, and both desks have overlapping `needs_review` out-of-pocket claims for the same shortfall. Correct sequence: resolve or void the overlapping out-of-pocket claims first, then post one balanced, attributable correction per desk for the exact evidenced amount, with the CFO named on it. No automation touches this.
-- **The Bayo Mercy authorship pattern.** A merchant agent authored balance-creating entries about her own desk and others while holding the largest position on the board. That is a governance and possibly conduct matter, not a data-cleanup task. Each of her entries needs individual adjudication; the pattern itself needs a decision from the CFO/COO about the entries' standing.
-- **Every `unauthorized_legacy` row**: ratify with evidence, or reverse.
+Four desks reach exact cache identity. The residual −21,061,729 is the UNKNOWN_NEEDS_REVIEW
+population and stays untouched and visible — it is not absorbed or plugged.
 
-## Step 5 — Catching this class of defect automatically
+**The wallet cache will not move.** `v_user_wallet_strict` does not admit `admin_correction`
+`system_balance_correction` **cash_in** legs (deliberate rule — credits of that shape are filtered,
+debits pass). So this restores the books without crediting anyone. That is the intended outcome:
+the cache was already right on these desks.
 
-Three independent layers, because each of the three root causes fails differently.
+## The four verification checks (run after, reported back)
 
-1. **Clamp-drift detector (scheduled).** A recurring check comparing every wallet bucket against the strict pivot, raising an alert whenever `cache − ledger_net > 0` on a merchant desk. This is the check that would have caught all 11 clamp-artifact desks on day one. It reuses the existing finance-anomaly alert framework (categorized `financial_integrity`, materiality-routed) rather than adding a new alert channel.
-2. **Assertion-coverage check.** For every desk position, the share of the balance supported by provider-referenced evidence. Any desk over a materiality threshold whose evidenced share falls below a configured percentage raises an alert. A board total where evidenced coverage is under, say, 90% should page, not sit quietly.
-3. **Structural regression tests.** Added to the payout acceptance suite: (a) `display_only` implies no production legs; (b) no reconciliation row is authored by its own desk holder; (c) no reconciliation row exists from a non-authorized role; (d) no merchant desk reports a float position exceeding its ledger net. These fail the build rather than waiting for a cron.
+1. **Count and sum**: exactly 15 idempotency keys `phase2-void-%` exist, 30 new rows, total
+   32,810,000 on each side.
+2. **Group balance**: every new `transaction_group_id` nets to zero (cash_in = cash_out); the
+   existing `ledger_group_balance_regression` invariant still passes globally.
+3. **Per-desk raw net**: the four desks above equal their cached float to the shilling; all 12 desks
+   reconcile to the predicted table.
+4. **Cache untouched**: `wallets` float_balance for all 12 desks is byte-identical to the
+   pre-migration snapshot, and `get_merchant_float_positions()` headline evidenced figure is
+   unchanged at UGX 15,000.
 
-## What I will not do
+## What is explicitly NOT in this phase
 
-- No writes of any kind until this plan is approved.
-- No automated correction of the missing 10,888,671.
-- No deletion or in-place rewriting of existing reconciliation history.
-- No removal of the clamp itself (it would break live settlement paths); only its silence is removed.
-
-## Verification once approved
-
-- Board headline equals the evidenced total; excluded amounts are itemized with per-desk reasons.
-- Clamp-drift detector, run against today's data, reproduces the 11 desks this audit found by hand.
-- `owed_to_agent` drops by exactly the previously double-counted amount, with no new ledger rows created.
-- Regression tests fail if any of the four structural invariants is reintroduced.
+- The silent clamp in `apply_wallet_movement` (root cause) — separate remediation step.
+- The `display_only` defect in `trg_stamp_merchant_reconciliation_truth`.
+- The 13.7M Bayo Mercy Equity account (still UNTRACED).
+- Mudumba samuel's 2,208,633 (NO INDEPENDENT EVIDENCE — needs provider confirmation).
