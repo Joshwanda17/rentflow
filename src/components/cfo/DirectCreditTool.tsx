@@ -1383,8 +1383,8 @@ export function DirectCreditTool() {
               </div>
             )}
 
-            <div>
-              <Label>Reason (min 10 chars)</Label>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Reason (min 10 chars)</Label>
               <Textarea
                 placeholder={
                   operation === 'withdraw'
@@ -1396,8 +1396,14 @@ export function DirectCreditTool() {
                 value={reason}
                 onChange={e => setReason(e.target.value)}
                 rows={2}
+                className="min-h-[80px] resize-none"
               />
-              <p className="text-[10px] text-muted-foreground mt-1">{reason.length}/10 characters minimum</p>
+              <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                <span>{reason.length}/10 characters minimum</span>
+                {reason.length > 0 && reason.length < 10 && (
+                  <span className="text-destructive font-medium">{10 - reason.length} more characters needed</span>
+                )}
+              </div>
             </div>
 
             {/* Automation Toggle (credit only) */}
