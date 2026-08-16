@@ -1423,33 +1423,35 @@ export function DirectCreditTool() {
 
             {/* Summary before submit */}
             {selectedCategory && amt > 0 && selectedUser && recipientType && (
-              <div className="rounded-lg bg-muted/30 border p-3 text-xs space-y-1">
+              <div className="rounded-xl bg-muted/20 border border-border/60 p-4 text-xs space-y-2">
                 <p className="font-bold text-sm flex items-center gap-1.5">
-                  <Info className="h-3.5 w-3.5" />
+                  <div className="flex h-5 w-5 items-center justify-center rounded-md bg-primary/10 text-primary">
+                    <Info className="h-3 w-3" />
+                  </div>
                   Double-Entry Summary
                 </p>
-                <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 overflow-x-auto">
+                <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 overflow-x-auto">
                   <span className="text-muted-foreground">Entry 1:</span>
                   <span>
-                    {isCredit ? '↗ Credit' : '↘ Debit'} UGX {amt.toLocaleString()} {isCredit ? 'to' : 'from'}{' '}
+                    {isCredit ? 'Credit' : 'Debit'} UGX {amt.toLocaleString()} {isCredit ? 'to' : 'from'}{' '}
                     <span className="font-medium">{selectedUser.full_name}</span>'s wallet
                     <Badge variant="outline" className="ml-1 text-[8px] px-1">{selectedCategory.walletCategory.replace(/_/g, ' ')}</Badge>
                   </span>
                   <span className="text-muted-foreground">Entry 2:</span>
                   <span>
-                    {isCredit ? '↘ Debit' : '↗ Credit'} UGX {amt.toLocaleString()} {isCredit ? 'from' : 'to'} platform
+                    {isCredit ? 'Debit' : 'Credit'} UGX {amt.toLocaleString()} {isCredit ? 'from' : 'to'} platform
                     <Badge variant="outline" className="ml-1 text-[8px] px-1">{selectedCategory.platformCategory.replace(/_/g, ' ')}</Badge>
                   </span>
                   {selectedSubCategory && (
                     <>
                       <span className="text-muted-foreground">Tag:</span>
-                      <span>📂 {selectedSubCategory.label}</span>
+                      <span>{selectedSubCategory.label}</span>
                     </>
                   )}
                   {automateEnabled && (
                     <>
                       <span className="text-muted-foreground">Recurrence:</span>
-                      <span>🔁 {describeSchedule(automateConfig)}</span>
+                      <span>{describeSchedule(automateConfig)}</span>
                     </>
                   )}
                 </div>
@@ -1457,9 +1459,9 @@ export function DirectCreditTool() {
                   const bucket = RECIPIENT_BUCKET[recipientType as RecipientType];
                   const meta = BUCKET_LABEL[bucket];
                   return (
-                    <div className={`mt-2 rounded-md border p-2 text-[11px] ${meta.tone}`}>
+                    <div className={`mt-1 rounded-lg border p-2.5 text-[11px] ${meta.tone}`}>
                       <div className="font-semibold">
-                        💼 Lands in: {meta.name} bucket
+                        Lands in: {meta.name} bucket
                       </div>
                       <div className="opacity-80 mt-0.5">{meta.note}</div>
                       <div className="opacity-70 mt-1 italic">
