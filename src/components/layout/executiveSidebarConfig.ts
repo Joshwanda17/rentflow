@@ -149,6 +149,12 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
       ],
     },
     {
+      title: 'Budgeting',
+      items: [
+        { label: 'Department Budgets', icon: ClipboardList, id: 'department-budgets', access: CFO_ACCESS },
+      ],
+    },
+    {
       title: 'Reports & Audit',
       items: [
         { label: 'Financial Reports', icon: BookOpen, id: 'statements' },
