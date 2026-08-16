@@ -45,6 +45,8 @@ interface Row {
   phone: string | null;
 }
 
+type DirectionFilter = 'all' | 'in' | 'out';
+
 /**
  * Detailed movement statement for one Actual Money line. Read-only: it simply
  * replays the provider SMS/emails (or verified cash deposits) that produced the
