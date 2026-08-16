@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 
 export function OpportunitySummaryForm({ onClose }: { onClose?: () => void }) {
   const { user } = useAuth();
-  const { summary, loading: loadingSummary } = useOpportunitySummary();
+  const { summary, loading: loadingSummary, refetch } = useOpportunitySummary();
   const [totalRentRequested, setTotalRentRequested] = useState('');
   const [totalRequests, setTotalRequests] = useState('');
   const [totalLandlords, setTotalLandlords] = useState('');
@@ -61,9 +61,10 @@ export function OpportunitySummaryForm({ onClose }: { onClose?: () => void }) {
         if (error) throw error;
         toast.success('Opportunity summary posted!');
       }
-    } catch (err) {
+      await refetch();
+    } catch (err: any) {
       console.error('Failed to save summary:', err);
-      toast.error('Failed to save summary');
+      toast.error(err?.message || 'Failed to save summary');
     } finally {
       setSubmitting(false);
     }
