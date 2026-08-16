@@ -1,12 +1,16 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
-import { ArrowDownLeft, ArrowUpRight, Banknote, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { ArrowDownLeft, ArrowUpRight, Banknote, Loader2, Phone, ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
+
+const PAGE_SIZE = 20;
 
 export type PhoneMoneyLine = 'mtn_momo' | 'airtel_money' | 'cash';
 
@@ -30,6 +34,7 @@ interface Row {
   reference: string | null;
   balanceAfter: number | null;
   note: string | null;
+  phone: string | null;
 }
 
 /**
@@ -51,16 +56,17 @@ export function PhoneMoneyStatementSheet({ line, onOpenChange }: Props) {
           .order('verified_at', { ascending: false })
           .limit(100);
         if (error) throw error;
-        const names = await resolveNames((cash ?? []).map((c: any) => c.user_id));
+        const people = await resolveNames((cash ?? []).map((c: any) => c.user_id));
         return (cash ?? []).map((c: any) => ({
           id: c.id,
           at: c.verified_at ?? c.created_at,
           amount: Number(c.amount ?? 0),
           direction: 'cash' as const,
-          party: names.get(c.user_id) ?? 'Unknown depositor',
+          party: people.get(c.user_id)?.name ?? 'Unknown depositor',
           reference: c.deposit_request_id ? String(c.deposit_request_id).slice(0, 8) : null,
           balanceAfter: null,
           note: 'Verified cash collected — awaiting banking',
+          phone: people.get(c.user_id)?.phone ?? null,
         }));
       }
 
@@ -73,21 +79,24 @@ export function PhoneMoneyStatementSheet({ line, onOpenChange }: Props) {
       if (error) throw error;
 
       const depositIds = (tx ?? []).map((t: any) => t.linked_deposit_request_id).filter(Boolean);
-      let depositUsers = new Map<string, string>();
+      let depositUsers = new Map<string, { name: string; phone: string | null }>();
       if (depositIds.length) {
         const { data: deps } = await supabase
           .from('deposit_requests')
           .select('id, user_id')
           .in('id', depositIds);
-        const names = await resolveNames((deps ?? []).map((d: any) => d.user_id));
-        depositUsers = new Map((deps ?? []).map((d: any) => [d.id, names.get(d.user_id) ?? 'Unknown user']));
+        const people = await resolveNames((deps ?? []).map((d: any) => d.user_id));
+        depositUsers = new Map(
+          (deps ?? []).map((d: any) => [d.id, people.get(d.user_id) ?? { name: 'Unknown user', phone: null }]),
+        );
       }
 
       return (tx ?? []).map((t: any) => {
         const linked = t.linked_deposit_request_id ? depositUsers.get(t.linked_deposit_request_id) : null;
         const raw = (t.counterparty || '').trim();
         const fromSnippet = extractParty(t.snippet);
-        const party = linked || (raw && raw.toLowerCase() !== 'you have received' ? raw : '') || fromSnippet || 'Unnamed counterparty';
+        const party =
+          linked?.name || (raw && raw.toLowerCase() !== 'you have received' ? raw : '') || fromSnippet || 'Unnamed counterparty';
         return {
           id: t.id,
           at: t.internal_date ?? t.created_at,
@@ -97,12 +106,17 @@ export function PhoneMoneyStatementSheet({ line, onOpenChange }: Props) {
           reference: t.transaction_id ?? null,
           balanceAfter: t.balance != null ? Number(t.balance) : null,
           note: t.snippet ? String(t.snippet).slice(0, 180) : null,
+          phone: linked?.phone ?? extractPhone(t.counterparty) ?? extractPhone(t.snippet),
         };
       });
     },
   });
 
   const rows = data ?? [];
+  const isMobile = useIsMobile();
+  const [page, setPage] = useState(0);
+  useEffect(() => { setPage(0); }, [line]);
+
   const totals = useMemo(() => {
     let inflow = 0;
     let outflow = 0;
@@ -113,12 +127,22 @@ export function PhoneMoneyStatementSheet({ line, onOpenChange }: Props) {
     return { inflow, outflow };
   }, [rows]);
 
+  const pageCount = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount - 1);
+  const pageRows = rows.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
+
   return (
     <Sheet open={!!line} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-xl flex flex-col p-0">
-        <SheetHeader className="p-5 pb-3 border-b border-border">
+      <SheetContent
+        side={isMobile ? 'bottom' : 'right'}
+        className={cn(
+          'flex flex-col p-0 gap-0',
+          isMobile ? 'h-[92dvh] rounded-t-2xl' : 'w-full sm:max-w-xl',
+        )}
+      >
+        <SheetHeader className="p-4 sm:p-5 pb-3 border-b border-border shrink-0 text-left">
           <SheetTitle>{line ? TITLES[line] : 'Statement'}</SheetTitle>
-          <SheetDescription>
+          <SheetDescription className="text-xs sm:text-sm">
             {line === 'cash'
               ? 'Verified cash deposits collected by agents and not yet banked.'
               : 'Every money-in and money-out movement parsed from provider messages on this line.'}
@@ -135,7 +159,7 @@ export function PhoneMoneyStatementSheet({ line, onOpenChange }: Props) {
           </div>
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto divide-y divide-border">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch] divide-y divide-border">
           {isLoading && (
             <div className="p-8 flex items-center justify-center text-muted-foreground gap-2">
               <Loader2 className="h-4 w-4 animate-spin" /> Loading statement…
@@ -144,10 +168,10 @@ export function PhoneMoneyStatementSheet({ line, onOpenChange }: Props) {
           {!isLoading && rows.length === 0 && (
             <p className="p-8 text-center text-sm text-muted-foreground">No movements recorded on this line yet.</p>
           )}
-          {rows.map((r) => {
+          {pageRows.map((r) => {
             const isIn = r.direction === 'in' || r.direction === 'cash';
             return (
-              <div key={r.id} className="p-4 flex items-start gap-3">
+              <div key={r.id} className="p-3 sm:p-4 flex items-start gap-3">
                 <div className={cn('p-2 rounded-lg shrink-0', isIn ? 'bg-success/10' : 'bg-destructive/10')}>
                   {r.direction === 'cash' ? (
                     <Banknote className="h-4 w-4 text-success" />
@@ -169,9 +193,21 @@ export function PhoneMoneyStatementSheet({ line, onOpenChange }: Props) {
                   {r.direction === 'charge' && (
                     <Badge variant="outline" className="mt-1 text-[10px]">Provider charge</Badge>
                   )}
+                  {r.phone && (
+                    <Button
+                      asChild
+                      variant="outline"
+                      size="sm"
+                      className="mt-2 h-8 px-2 text-xs"
+                    >
+                      <a href={`tel:${normalizePhone(r.phone)}`}>
+                        <Phone className="h-3.5 w-3.5 mr-1.5" /> Call {r.phone}
+                      </a>
+                    </Button>
+                  )}
                 </div>
                 <div className="text-right shrink-0">
-                  <p className={cn('font-mono text-sm font-semibold tabular-nums', isIn ? 'text-success' : 'text-destructive')}>
+                  <p className={cn('font-mono text-xs sm:text-sm font-semibold tabular-nums', isIn ? 'text-success' : 'text-destructive')}>
                     {isIn ? '+' : '-'}{formatUGX(r.amount)}
                   </p>
                   {r.balanceAfter != null && (
@@ -182,16 +218,47 @@ export function PhoneMoneyStatementSheet({ line, onOpenChange }: Props) {
             );
           })}
         </div>
+
+        {rows.length > PAGE_SIZE && (
+          <div className="shrink-0 border-t border-border p-3 flex items-center justify-between gap-2 bg-background">
+            <Button variant="outline" size="sm" disabled={safePage === 0} onClick={() => setPage(safePage - 1)}>
+              <ChevronLeft className="h-4 w-4 mr-1" /> Prev
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              Page {safePage + 1} of {pageCount} • {rows.length} movements
+            </p>
+            <Button variant="outline" size="sm" disabled={safePage >= pageCount - 1} onClick={() => setPage(safePage + 1)}>
+              Next <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          </div>
+        )}
       </SheetContent>
     </Sheet>
   );
 }
 
-async function resolveNames(userIds: (string | null)[]): Promise<Map<string, string>> {
+async function resolveNames(userIds: (string | null)[]): Promise<Map<string, { name: string; phone: string | null }>> {
   const ids = Array.from(new Set(userIds.filter(Boolean) as string[]));
   if (!ids.length) return new Map();
   const { data } = await supabase.from('profiles').select('id, full_name, phone').in('id', ids);
-  return new Map((data ?? []).map((p: any) => [p.id, p.full_name || p.phone || 'Unnamed user']));
+  return new Map(
+    (data ?? []).map((p: any) => [p.id, { name: p.full_name || p.phone || 'Unnamed user', phone: p.phone ?? null }]),
+  );
+}
+
+/** Extract a Ugandan phone number from free text (SMS snippet / counterparty field). */
+function extractPhone(text: string | null): string | null {
+  if (!text) return null;
+  const m = String(text).match(/(?:\+?256|0)7\d{8}/);
+  return m ? m[0] : null;
+}
+
+function normalizePhone(phone: string): string {
+  const digits = phone.replace(/[^\d+]/g, '');
+  if (digits.startsWith('+')) return digits;
+  if (digits.startsWith('256')) return `+${digits}`;
+  if (digits.startsWith('0')) return `+256${digits.slice(1)}`;
+  return digits;
 }
 
 /** Pull a human name/phone out of a provider SMS snippet when the parser left counterparty empty. */
