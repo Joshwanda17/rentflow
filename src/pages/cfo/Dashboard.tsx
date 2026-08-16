@@ -186,19 +186,36 @@ export default function CFODashboardPage() {
         return <DirectorRequisitionsPanel />;
       case 'wallet-payout':
         return (
-          <div className="space-y-4">
-            <div className="rounded-xl border-2 border-primary/30 bg-primary/5 p-4">
-              <button onClick={() => setActiveTab('overview')} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-3 transition-colors">
-                <ArrowLeft className="h-4 w-4" />
-                Back to Treasury
-              </button>
-              <div className="flex items-start justify-between gap-2 flex-wrap mb-1">
-                <h1 className="text-xl font-bold flex items-center gap-2">💳 Pay Out to Any User's Wallet</h1>
-                <CFOPayoutsShareButton />
+          <div className="space-y-5">
+            <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 via-primary/5 to-background p-5 sm:p-6">
+              <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-primary/10 blur-2xl" />
+              <div className="relative">
+                <button
+                  onClick={() => setActiveTab('overview')}
+                  className="group mb-4 inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-3 py-1.5 text-xs font-medium text-muted-foreground backdrop-blur-sm transition-colors hover:bg-background hover:text-foreground"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" />
+                  Back to Treasury
+                </button>
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/15 text-primary">
+                        <Wallet className="h-5 w-5" />
+                      </div>
+                      <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Pay Out to Any User's Wallet</h1>
+                    </div>
+                    <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
+                      Search a user by name or phone number, enter the amount, and credit or debit their wallet instantly. Use “Share Payouts PDF” to send a list of everyone you've paid out via WhatsApp.
+                    </p>
+                  </div>
+                  <div className="shrink-0">
+                    <CFOPayoutsShareButton />
+                  </div>
+                </div>
               </div>
-              <p className="text-sm text-muted-foreground mb-4">Search a user by name or phone number, enter the amount, and credit or debit their wallet instantly. Use “Share Payouts PDF” to send a list of everyone you've paid out via WhatsApp.</p>
-              <DirectCreditTool />
             </div>
+            <DirectCreditTool />
           </div>
         );
       case 'roi-requests':
