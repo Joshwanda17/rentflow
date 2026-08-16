@@ -216,6 +216,18 @@ export default function CFODashboardPage() {
         );
       case 'statements':
         return <FinancialStatementsPanel />;
+      case 'department-budgets':
+        return (
+          <div className="space-y-4">
+            <div>
+              <h1 className="text-xl font-bold">Department Budgets &amp; CFO Approval</h1>
+              <p className="text-sm text-muted-foreground">
+                Review department submissions, trim or reject lines, manage budget cycles and track Budget vs Actual.
+              </p>
+            </div>
+            <BudgetApprovalPanel />
+          </div>
+        );
       case 'allocation-traces':
         return <AgentAllocationTracesPanel />;
       case 'solvency':
