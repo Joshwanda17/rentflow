@@ -1305,36 +1305,38 @@ export function DirectCreditTool() {
                 )}
 
                 {payoutMethod === 'mobile_money' && (
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="col-span-2">
-                      <Label>MoMo Number <span className="text-destructive">*</span></Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="col-span-2 space-y-2">
+                      <Label className="text-sm font-medium">MoMo Number <span className="text-destructive">*</span></Label>
                       <Input
                         type="tel"
                         placeholder="07XX XXX XXX"
                         value={momoNumber}
                         onChange={(e) => setMomoNumber(e.target.value)}
+                        className="h-11"
                       />
                     </div>
-                    <div>
-                      <Label>Provider <span className="text-destructive">*</span></Label>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Provider <span className="text-destructive">*</span></Label>
                       <div className="relative">
                         <select
                           value={momoProvider}
                           onChange={(e) => setMomoProvider(e.target.value as 'MTN' | 'Airtel')}
-                          className="flex h-10 w-full appearance-none rounded-lg border border-border bg-background px-3 py-2 pr-10 text-sm"
+                          className="flex h-11 w-full appearance-none rounded-xl border border-border bg-background px-4 py-2 pr-10 text-sm"
                         >
                           <option value="MTN">MTN</option>
                           <option value="Airtel">Airtel</option>
                         </select>
-                        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                       </div>
                     </div>
-                    <div>
-                      <Label>Account Name <span className="text-destructive">*</span></Label>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Account Name <span className="text-destructive">*</span></Label>
                       <Input
                         placeholder="Registered MoMo name"
                         value={momoName}
                         onChange={(e) => setMomoName(e.target.value)}
+                        className="h-11"
                       />
                     </div>
                   </div>
