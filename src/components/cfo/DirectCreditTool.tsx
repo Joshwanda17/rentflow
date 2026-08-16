@@ -1031,31 +1031,42 @@ export function DirectCreditTool() {
         {/* Category Impact Explanation */}
 
         {selectedCategory && impactInfo && ImpactIcon && !isQueueCategory && !needsSubCategory && (
-          <div className={`rounded-lg border p-3 text-xs space-y-1.5 ${impactInfo.color}`}>
-            <div className="flex items-center gap-2 font-semibold">
-              <ImpactIcon className="h-4 w-4" />
+          <div className={`rounded-xl border p-4 text-xs space-y-2 ${impactInfo.color}`}>
+            <div className="flex items-center gap-2 font-semibold text-sm">
+              <div className="flex h-6 w-6 items-center justify-center rounded-md bg-current/10">
+                <ImpactIcon className="h-3.5 w-3.5" />
+              </div>
               Financial Impact: {impactInfo.label}
             </div>
-            <p className="opacity-80">{selectedCategory.description}</p>
+            <p className="opacity-80 leading-relaxed">{selectedCategory.description}</p>
             {selectedSubCategory && (
-              <p className="font-medium">📂 Subcategory: {selectedSubCategory.label}</p>
+              <div className="flex items-center gap-1.5 rounded-md bg-background/60 px-2 py-1 text-[11px] font-medium w-fit">
+                <span className="opacity-60">Subcategory:</span>
+                {selectedSubCategory.label}
+              </div>
             )}
-            <div className="pt-1 border-t border-current/10 space-y-0.5 text-[10px]">
-              <p><span className="font-medium">Wallet entry:</span> {selectedCategory.walletCategory.replace(/_/g, ' ')}</p>
-              <p><span className="font-medium">Platform entry:</span> {selectedCategory.platformCategory.replace(/_/g, ' ')}</p>
+            <div className="pt-2 border-t border-current/10 space-y-1 text-[10px]">
+              <div className="flex justify-between gap-2">
+                <span className="opacity-70">Wallet entry</span>
+                <span className="font-medium font-mono">{selectedCategory.walletCategory.replace(/_/g, ' ')}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span className="opacity-70">Platform entry</span>
+                <span className="font-medium font-mono">{selectedCategory.platformCategory.replace(/_/g, ' ')}</span>
+              </div>
               {selectedCategory.impact === 'expense' && (
-                <p className="font-medium text-orange-700">
-                  📉 This payout is a platform expense — reduces platform earnings.
+                <p className="font-medium mt-1">
+                  This payout is recorded as a platform expense.
                 </p>
               )}
               {selectedCategory.impact === 'revenue' && (
-                <p className="font-medium text-emerald-700">
-                  ✅ This payout earns money for the platform — recorded as platform income.
+                <p className="font-medium mt-1">
+                  This payout is recorded as platform income.
                 </p>
               )}
               {selectedCategory.impact === 'neutral' && (
-                <p className="font-medium">
-                  ➖ This is a balance adjustment — no effect on profit or loss.
+                <p className="font-medium mt-1">
+                  This is a balance adjustment with no P&L effect.
                 </p>
               )}
             </div>
