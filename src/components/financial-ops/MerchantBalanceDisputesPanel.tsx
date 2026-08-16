@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Flag, SlidersHorizontal, Check, X } from 'lucide-react';
+import { Flag, SlidersHorizontal, Check, X, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
@@ -56,6 +56,15 @@ export function MerchantBalanceDisputesPanel() {
     setFixing(p);
   };
 
+  // The figure being disputed may itself be unverified. Show that inline so
+  // nobody resolves a dispute against a balance the books do not support.
+  const positionFor = (d: MerchantBalanceDispute) =>
+    (positions ?? []).find((x) => x.deskId === d.deskId) ??
+    (positions ?? []).find((x) => x.agentId === d.agentId) ??
+    null;
+  const excludedFor = (p: MerchantFloatPosition) =>
+    Math.max(0, p.clampArtifactAmount) + Math.max(0, p.assertedOnlyAmount);
+
   return (
     <div className="rounded-2xl border border-border bg-card p-5 min-w-0">
       <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -96,6 +105,8 @@ export function MerchantBalanceDisputesPanel() {
         )}
         {rows.map((d) => {
           const closed = d.status === 'resolved' || d.status === 'rejected';
+          const pos = positionFor(d);
+          const unverified = !!pos && pos.evidenceStatus !== 'evidenced';
           return (
             <div key={d.id} className="rounded-xl border border-border bg-background p-3 min-w-0">
               <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -148,6 +159,31 @@ export function MerchantBalanceDisputesPanel() {
               <p className="mt-2 rounded-lg bg-muted/30 p-2 text-[11px] leading-relaxed text-foreground">
                 “{d.reason}”
               </p>
+
+              {unverified && pos && (
+                <div className="mt-2 rounded-lg border border-dashed border-destructive/40 bg-destructive/5 p-2 flex gap-2">
+                  <ShieldAlert className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-destructive">
+                      This desk's float is itself unverified
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">
+                      Evidenced float {formatUGX(Math.max(0, pos.evidencedAmount))} ·{' '}
+                      {formatUGX(excludedFor(pos))} excluded from float
+                    </p>
+                    {pos.clampArtifactAmount > 0 && (
+                      <p className="text-[10px] text-muted-foreground">
+                        {formatUGX(pos.clampArtifactAmount)} — cache exceeds what the ledger supports
+                      </p>
+                    )}
+                    {pos.assertedOnlyAmount > 0 && (
+                      <p className="text-[10px] text-muted-foreground">
+                        {formatUGX(pos.assertedOnlyAmount)} — no independent evidence found
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {closed ? (
                 d.resolutionNote && (
