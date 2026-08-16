@@ -125,7 +125,9 @@ export function PhoneMoneyStatementSheet({ line, onOpenChange }: Props) {
   const rows = data ?? [];
   const isMobile = useIsMobile();
   const [page, setPage] = useState(0);
+  const [filter, setFilter] = useState<DirectionFilter>('all');
   useEffect(() => { setPage(0); }, [line]);
+  useEffect(() => { setPage(0); }, [filter]);
 
   const totals = useMemo(() => {
     let inflow = 0;
