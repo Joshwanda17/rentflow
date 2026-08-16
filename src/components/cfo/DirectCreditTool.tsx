@@ -945,13 +945,20 @@ export function DirectCreditTool() {
           <RecipientRoutingWarningBanner variant="compact" />
         )}
 
-        <div>
-          <Label htmlFor="payout-category" className="flex items-center gap-1.5 mb-1.5">
-            Payout Category
-            <span className="text-destructive">*</span>
-          </Label>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="payout-category" className="flex items-center gap-1.5 text-sm font-medium">
+              Payout Category
+              <span className="text-destructive">*</span>
+            </Label>
+            {selectedCategory && (
+              <span className="text-[10px] text-muted-foreground">
+                {availableCategories.length} categories available
+              </span>
+            )}
+          </div>
           <Select value={selectedCategoryId} onValueChange={handleCategoryChange}>
-            <SelectTrigger id="payout-category" className="h-10 w-full text-sm">
+            <SelectTrigger id="payout-category" className="h-11 w-full text-sm bg-background">
               <SelectValue placeholder="Select a category..." />
             </SelectTrigger>
             <SelectContent>
@@ -960,7 +967,7 @@ export function DirectCreditTool() {
                 const pending = pendingByCategory[cat.id] ?? 0;
                 return (
                   <SelectItem key={cat.id} value={cat.id}>
-                    <span className="flex items-center gap-1.5">
+                    <span className="flex items-center gap-2">
                       <span>{cat.label}</span>
                       <span className="text-muted-foreground">— {impactLabel}</span>
                       {pending > 0 && (
@@ -975,7 +982,8 @@ export function DirectCreditTool() {
             </SelectContent>
           </Select>
           {availableCategories.some((cat) => (pendingByCategory[cat.id] ?? 0) > 0) && (
-            <div className="flex flex-wrap items-center gap-1.5 mt-2">
+            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border/50 bg-muted/20 p-2.5">
+              <span className="text-[11px] font-medium text-muted-foreground">Pending approval:</span>
               {availableCategories
                 .filter((cat) => (pendingByCategory[cat.id] ?? 0) > 0)
                 .map((cat) => (
@@ -985,13 +993,12 @@ export function DirectCreditTool() {
                     onClick={() => handleCategoryChange(cat.id)}
                     className="focus:outline-none"
                   >
-                    <Badge variant="default" className="text-[10px] px-2 py-0.5 gap-1 cursor-pointer hover:opacity-90">
+                    <Badge className="text-[10px] px-2 py-0.5 gap-1 cursor-pointer hover:opacity-90 bg-primary/90 hover:bg-primary">
                       {cat.label}
                       <span className="font-bold">{pendingByCategory[cat.id]}</span>
                     </Badge>
                   </button>
                 ))}
-              <span className="text-[10px] text-muted-foreground">waiting for your approval</span>
             </div>
           )}
         </div>
