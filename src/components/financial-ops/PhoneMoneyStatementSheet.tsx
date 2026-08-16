@@ -280,13 +280,13 @@ export function PhoneMoneyStatementSheet({ line, onOpenChange }: Props) {
           })}
         </div>
 
-        {rows.length > PAGE_SIZE && (
+        {filteredRows.length > PAGE_SIZE && (
           <div className="shrink-0 border-t border-border p-3 flex items-center justify-between gap-2 bg-background">
             <Button variant="outline" size="sm" disabled={safePage === 0} onClick={() => setPage(safePage - 1)}>
               <ChevronLeft className="h-4 w-4 mr-1" /> Prev
             </Button>
             <p className="text-xs text-muted-foreground">
-              Page {safePage + 1} of {pageCount} • {rows.length} movements
+              Page {safePage + 1} of {pageCount} • {filteredRows.length} movements
             </p>
             <Button variant="outline" size="sm" disabled={safePage >= pageCount - 1} onClick={() => setPage(safePage + 1)}>
               Next <ChevronRight className="h-4 w-4 ml-1" />
