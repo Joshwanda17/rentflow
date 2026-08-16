@@ -1247,19 +1247,19 @@ export function DirectCreditTool() {
 
             {/* ── Payout Method + Recipient Details (Withdraw only) ── */}
             {operation === 'withdraw' && (
-              <div className="space-y-3 rounded-lg border border-orange-200 bg-orange-50/40 p-3">
-                <div>
-                  <Label className="flex items-center gap-1.5 mb-1.5">
+              <div className="space-y-4 rounded-xl border border-orange-200/70 bg-orange-50/30 p-4">
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-1.5 text-sm font-medium">
                     Payout Method <span className="text-destructive">*</span>
                   </Label>
                   <div className="grid grid-cols-3 gap-2">
                     <button
                       type="button"
                       onClick={() => setPayoutMethod('cash')}
-                      className={`rounded-lg border p-2 text-xs font-medium transition flex flex-col items-center gap-1 ${
+                      className={`rounded-xl border p-2.5 text-xs font-semibold transition-all flex flex-col items-center gap-1.5 ${
                         payoutMethod === 'cash'
-                          ? 'border-orange-500 bg-white ring-2 ring-orange-200'
-                          : 'border-border bg-white hover:border-orange-300'
+                          ? 'border-orange-500 bg-white ring-1 ring-orange-200 shadow-sm'
+                          : 'border-border bg-background hover:border-orange-300'
                       }`}
                     >
                       <Banknote className="h-4 w-4" />
@@ -1268,10 +1268,10 @@ export function DirectCreditTool() {
                     <button
                       type="button"
                       onClick={() => setPayoutMethod('mobile_money')}
-                      className={`rounded-lg border p-2 text-xs font-medium transition flex flex-col items-center gap-1 ${
+                      className={`rounded-xl border p-2.5 text-xs font-semibold transition-all flex flex-col items-center gap-1.5 ${
                         payoutMethod === 'mobile_money'
-                          ? 'border-orange-500 bg-white ring-2 ring-orange-200'
-                          : 'border-border bg-white hover:border-orange-300'
+                          ? 'border-orange-500 bg-white ring-1 ring-orange-200 shadow-sm'
+                          : 'border-border bg-background hover:border-orange-300'
                       }`}
                     >
                       <Phone className="h-4 w-4" />
@@ -1280,10 +1280,10 @@ export function DirectCreditTool() {
                     <button
                       type="button"
                       onClick={() => setPayoutMethod('bank_transfer')}
-                      className={`rounded-lg border p-2 text-xs font-medium transition flex flex-col items-center gap-1 ${
+                      className={`rounded-xl border p-2.5 text-xs font-semibold transition-all flex flex-col items-center gap-1.5 ${
                         payoutMethod === 'bank_transfer'
-                          ? 'border-orange-500 bg-white ring-2 ring-orange-200'
-                          : 'border-border bg-white hover:border-orange-300'
+                          ? 'border-orange-500 bg-white ring-1 ring-orange-200 shadow-sm'
+                          : 'border-border bg-background hover:border-orange-300'
                       }`}
                     >
                       <Building2 className="h-4 w-4" />
