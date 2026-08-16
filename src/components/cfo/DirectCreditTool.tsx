@@ -963,7 +963,6 @@ export function DirectCreditTool() {
               <span className="text-[10px] text-muted-foreground">waiting for your approval</span>
             </div>
           )}
-          </div>
         </div>
 
         {hasSubCategories && (
