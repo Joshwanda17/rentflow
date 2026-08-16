@@ -1474,7 +1474,8 @@ export function DirectCreditTool() {
             )}
 
             <Button
-              className={`w-full ${
+              size="lg"
+              className={`w-full h-12 text-base font-semibold shadow-sm transition-all ${
                 operation === 'withdraw'
                   ? 'bg-orange-600 hover:bg-orange-700'
                   : isCredit
