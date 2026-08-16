@@ -9,6 +9,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Loader2, Send, ArrowUpRight, ArrowDownLeft, TrendingUp, TrendingDown, Minus, Info, ChevronDown, Banknote, Phone, Building2, AlertTriangle } from 'lucide-react';
 import {
   AlertDialog,
@@ -922,27 +929,30 @@ export function DirectCreditTool() {
             Payout Category
             <span className="text-destructive">*</span>
           </Label>
-          <div className="relative">
-            <select
-              id="payout-category"
-              value={selectedCategoryId}
-              onChange={(e) => handleCategoryChange(e.target.value)}
-              className="flex h-10 w-full appearance-none rounded-lg border border-border bg-background px-3 py-2 pr-10 text-sm text-foreground transition-colors ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary/50"
-            >
-              <option value="">Select a category...</option>
+          <Select value={selectedCategoryId} onValueChange={handleCategoryChange}>
+            <SelectTrigger id="payout-category" className="h-10 w-full text-sm">
+              <SelectValue placeholder="Select a category..." />
+            </SelectTrigger>
+            <SelectContent>
               {availableCategories.map((cat) => {
                 const impactLabel = IMPACT_CONFIG[cat.impact].label;
                 const pending = pendingByCategory[cat.id] ?? 0;
-                const readySuffix = pending > 0 ? ` • ${pending} ready` : '';
                 return (
-                  <option key={cat.id} value={cat.id}>
-                    {`${cat.label} — ${impactLabel}${readySuffix}`}
-                  </option>
+                  <SelectItem key={cat.id} value={cat.id}>
+                    <span className="flex items-center gap-1.5">
+                      <span>{cat.label}</span>
+                      <span className="text-muted-foreground">— {impactLabel}</span>
+                      {pending > 0 && (
+                        <span className="text-primary font-medium">
+                          • {pending} ready
+                        </span>
+                      )}
+                    </span>
+                  </SelectItem>
                 );
               })}
-            </select>
-            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          </div>
+            </SelectContent>
+          </Select>
           {availableCategories.some((cat) => (pendingByCategory[cat.id] ?? 0) > 0) && (
             <div className="flex flex-wrap items-center gap-1.5 mt-2">
               {availableCategories
