@@ -883,35 +883,46 @@ export function DirectCreditTool() {
           )}
         </div>
       </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="grid grid-cols-3 gap-2">
-          <Button
-            type="button"
-            variant={isCredit ? 'default' : 'outline'}
-            className={isCredit ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : ''}
-            onClick={() => handleOperationChange('credit')}
-          >
-            <ArrowUpRight className="h-4 w-4 mr-1.5 shrink-0" />
-            <span>{CFO_PAYOUT_LABELS.credit}</span>
-          </Button>
-          <Button
-            type="button"
-            variant={operation === 'debit' ? 'default' : 'outline'}
-            className={operation === 'debit' ? 'bg-destructive hover:bg-destructive/90 text-destructive-foreground' : ''}
-            onClick={() => handleOperationChange('debit')}
-          >
-            <ArrowDownLeft className="h-4 w-4 mr-1.5 shrink-0" />
-            <span>{CFO_PAYOUT_LABELS.debit}</span>
-          </Button>
-          <Button
-            type="button"
-            variant={operation === 'withdraw' ? 'default' : 'outline'}
-            className={operation === 'withdraw' ? 'bg-orange-600 hover:bg-orange-700 text-white' : ''}
-            onClick={() => handleOperationChange('withdraw')}
-          >
-            <Banknote className="h-4 w-4 mr-1.5 shrink-0" />
-            <span>Withdraw</span>
-          </Button>
+      <CardContent className="space-y-5 p-5">
+        <div className="rounded-xl border border-border/60 bg-muted/20 p-1.5">
+          <div className="grid grid-cols-3 gap-1">
+            <button
+              type="button"
+              onClick={() => handleOperationChange('credit')}
+              className={`flex items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 text-xs font-semibold transition-all ${
+                isCredit
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
+              }`}
+            >
+              <ArrowUpRight className="h-3.5 w-3.5 shrink-0" />
+              <span>{CFO_PAYOUT_LABELS.credit}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleOperationChange('debit')}
+              className={`flex items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 text-xs font-semibold transition-all ${
+                operation === 'debit'
+                  ? 'bg-destructive text-destructive-foreground shadow-sm'
+                  : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
+              }`}
+            >
+              <ArrowDownLeft className="h-3.5 w-3.5 shrink-0" />
+              <span>{CFO_PAYOUT_LABELS.debit}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleOperationChange('withdraw')}
+              className={`flex items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 text-xs font-semibold transition-all ${
+                operation === 'withdraw'
+                  ? 'bg-orange-600 text-white shadow-sm'
+                  : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
+              }`}
+            >
+              <Banknote className="h-3.5 w-3.5 shrink-0" />
+              <span>Withdraw</span>
+            </button>
+          </div>
         </div>
 
         {operation === 'withdraw' && (
