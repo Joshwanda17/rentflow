@@ -387,45 +387,25 @@ export function DirectCreditTool() {
   const [bankAccountNumber, setBankAccountNumber] = useState('');
   const [bankAccountName, setBankAccountName] = useState('');
 
-  const { data: rentQueueCount = 0 } = useQuery({
-    queryKey: ['rent-disbursement-queue-count'],
-    queryFn: async () => {
-      const { count, error } = await supabase
-        .from('rent_requests')
-        .select('id', { count: 'exact', head: true })
-        .eq('status', 'coo_approved');
-      if (error) return 0;
-      return count ?? 0;
-    },
-    staleTime: 20_000,
-  });
+  /**
+   * Pending-approval counts per payout category.
+   *
+   * Reuses the existing CFO approval-notification layer (same filters the
+   * queues themselves use, kept live via realtime) instead of duplicating
+   * per-category count queries here. Counts only — no approval logic.
+   */
+  const { counts: approvalCounts } = useCfoApprovalNotifications();
 
-  const { data: businessAdvanceQueueCount = 0 } = useQuery({
-    queryKey: ['business-advance-disbursement-queue-count'],
-    queryFn: async () => {
-      const { count, error } = await supabase
-        .from('business_advances')
-        .select('id', { count: 'exact', head: true })
-        .eq('status', 'coo_approved');
-      if (error) return 0;
-      return count ?? 0;
-    },
-    staleTime: 20_000,
-  });
-
-  const { data: roiPayoutQueueCount = 0 } = useQuery({
-    queryKey: ['roi-payout-queue-count'],
-    queryFn: async () => {
-      const { count, error } = await supabase
-        .from('pending_wallet_operations')
-        .select('id', { count: 'exact', head: true })
-        .eq('category', 'roi_payout')
-        .eq('status', 'coo_approved');
-      if (error) return 0;
-      return count ?? 0;
-    },
-    staleTime: 20_000,
-  });
+  const pendingByCategory = useMemo<Record<string, number>>(
+    () => ({
+      roi_payout: approvalCounts.roi,
+      rent_disbursement: approvalCounts.rent,
+      // This category renders both the Credit Draw approval queue and the
+      // Business Advance disbursement queue, so the badge covers both.
+      business_advance: approvalCounts.businessAdvances + approvalCounts.creditDraws,
+    }),
+    [approvalCounts],
+  );
 
   const availableCategories = useMemo(
     () => {
