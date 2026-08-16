@@ -208,6 +208,11 @@ export function PhoneMoneyStatementSheet({ line, onOpenChange }: Props) {
           {!isLoading && rows.length === 0 && (
             <p className="p-8 text-center text-sm text-muted-foreground">No movements recorded on this line yet.</p>
           )}
+          {!isLoading && rows.length > 0 && filteredRows.length === 0 && (
+            <p className="p-8 text-center text-sm text-muted-foreground">
+              No {filter === 'in' ? 'money in' : 'money out'} movements match this filter.
+            </p>
+          )}
           {pageRows.map((r) => {
             const isIn = r.direction === 'in' || r.direction === 'cash';
             return (
