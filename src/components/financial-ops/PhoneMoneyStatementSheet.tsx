@@ -215,8 +215,9 @@ export function PhoneMoneyStatementSheet({ line, onOpenChange }: Props) {
                       </Button>
                       <Button
                         asChild
+                        variant="default"
                         size="sm"
-                        className="h-8 px-2 text-xs bg-[#25D366] hover:bg-[#1da851] text-white border-none"
+                        className="h-8 px-2 text-xs"
                       >
                         <a
                           href={`https://wa.me/${normalizePhone(r.phone).replace(/\D/g, '')}`}
