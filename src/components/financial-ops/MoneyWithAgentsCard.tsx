@@ -281,6 +281,50 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
         </div>
       )}
 
+      {!error && excludedRows.length > 0 && (
+        <div className="mt-4 rounded-xl border-2 border-dashed border-destructive/40 bg-destructive/5 p-3">
+          <div className="flex items-start gap-2">
+            <ShieldAlert className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-destructive">
+                Unverified — excluded from float
+              </p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                {formatUGX(excludedTotal)} shown on merchant desks that the books do not support.
+                Not spendable, not owed, and not included in any figure above. Under investigation.
+              </p>
+            </div>
+          </div>
+          <div className="mt-2 space-y-1.5">
+            {excludedRows.map((r) => (
+              <div
+                key={`excluded-${r.deskId}`}
+                className="rounded-lg border border-destructive/20 bg-background px-3 py-2 min-w-0"
+              >
+                <div className="flex items-start justify-between gap-3 flex-wrap">
+                  <p className="text-xs font-medium text-foreground truncate min-w-0">
+                    {r.agentName || r.label || 'Merchant agent'}
+                  </p>
+                  <p className="font-mono text-xs font-bold tabular-nums text-destructive shrink-0">
+                    {formatUGX(excludedFloat(r))}
+                  </p>
+                </div>
+                {r.clampArtifactAmount > 0 && (
+                  <p className="text-[10px] text-muted-foreground">
+                    {formatUGX(r.clampArtifactAmount)} — cache exceeds what the ledger supports
+                  </p>
+                )}
+                {r.assertedOnlyAmount > 0 && (
+                  <p className="text-[10px] text-muted-foreground">
+                    {formatUGX(r.assertedOnlyAmount)} — no independent evidence found
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="mt-4 rounded-xl bg-primary/5 border border-primary/10 p-3 flex gap-2">
         <Wallet className="h-4 w-4 text-primary shrink-0 mt-0.5" />
         <p className="text-[11px] leading-relaxed text-muted-foreground">
