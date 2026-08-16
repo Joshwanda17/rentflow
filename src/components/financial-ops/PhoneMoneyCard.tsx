@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Smartphone, Info, Banknote } from 'lucide-react';
@@ -6,6 +6,7 @@ import mtnLogoAsset from '@/assets/mtn-logo.png.asset.json';
 import airtelLogoAsset from '@/assets/airtel-logo.png.asset.json';
 import { formatUGX } from '@/lib/rentCalculations';
 import { useFinOpsAutoRefresh } from '@/hooks/useFinOpsAutoRefresh';
+import { PhoneMoneyStatementSheet, type PhoneMoneyLine } from './PhoneMoneyStatementSheet';
 
 /**
  * Phone Money — the real balance sitting on the merchant MTN/Airtel lines
@@ -17,6 +18,7 @@ import { useFinOpsAutoRefresh } from '@/hooks/useFinOpsAutoRefresh';
 export function PhoneMoneyCard() {
   const autoRefresh = useFinOpsAutoRefresh();
   const queryClient = useQueryClient();
+  const [openLine, setOpenLine] = useState<PhoneMoneyLine | null>(null);
 
   // Live: a new provider SMS (money in / out on the MTN or Airtel line) or a
   // cash-deposit verification instantly refreshes the figures instead of the
@@ -79,9 +81,9 @@ export function PhoneMoneyCard() {
   const total = (phone?.totalFloat ?? 0) + cashAtHand;
 
   const rows = [
-    { label: 'MTN Money', amount: mtn, logo: mtnLogoAsset.url },
-    { label: 'Airtel Money', amount: airtel, logo: airtelLogoAsset.url },
-    { label: 'Cash at Hand', amount: cashAtHand, logo: null as string | null },
+    { label: 'MTN Money', amount: mtn, logo: mtnLogoAsset.url, line: 'mtn_momo' as PhoneMoneyLine },
+    { label: 'Airtel Money', amount: airtel, logo: airtelLogoAsset.url, line: 'airtel_money' as PhoneMoneyLine },
+    { label: 'Cash at Hand', amount: cashAtHand, logo: null as string | null, line: 'cash' as PhoneMoneyLine },
   ];
 
   return (
@@ -101,7 +103,13 @@ export function PhoneMoneyCard() {
 
       <div className="mt-4 pt-4 border-t border-border space-y-3">
         {rows.map((r) => (
-          <div key={r.label} className="flex items-center justify-between gap-3 min-w-0">
+          <button
+            key={r.label}
+            type="button"
+            onClick={() => setOpenLine(r.line)}
+            aria-label={`View ${r.label} detailed statement`}
+            className="w-full flex items-center justify-between gap-3 min-w-0 rounded-lg -mx-1 px-1 py-1 text-left hover:bg-muted/50 active:bg-muted transition-colors"
+          >
             <div className="flex items-center gap-2.5 min-w-0">
               {r.logo ? (
                 <span className="h-6 w-6 rounded-md overflow-hidden shrink-0 border border-border bg-background">
@@ -114,10 +122,13 @@ export function PhoneMoneyCard() {
               )}
               <span className="text-sm text-foreground truncate">{r.label}</span>
             </div>
-            <span className="font-mono text-sm font-semibold tabular-nums text-foreground shrink-0">
-              {loading ? '—' : formatUGX(r.amount)}
+            <span className="flex items-center gap-1.5 shrink-0">
+              <span className="font-mono text-sm font-semibold tabular-nums text-foreground">
+                {loading ? '—' : formatUGX(r.amount)}
+              </span>
+              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
             </span>
-          </div>
+          </button>
         ))}
       </div>
 
@@ -126,9 +137,11 @@ export function PhoneMoneyCard() {
       <div className="mt-4 rounded-xl bg-primary/5 border border-primary/10 p-3 flex gap-2">
         <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />
         <p className="text-[11px] leading-relaxed text-muted-foreground">
-          This represents the total float available on mobile money lines and cash awaiting banking.
+          This represents the total float available on mobile money lines and cash awaiting banking. Tap any line for a detailed statement.
         </p>
       </div>
+
+      <PhoneMoneyStatementSheet line={openLine} onOpenChange={(open) => !open && setOpenLine(null)} />
     </div>
   );
 }
