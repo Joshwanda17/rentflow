@@ -866,12 +866,22 @@ export function DirectCreditTool() {
   const ImpactIcon = impactInfo?.icon;
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm flex items-center gap-2">
-          {isCredit ? <ArrowUpRight className="h-4 w-4 text-emerald-600" /> : <ArrowDownLeft className="h-4 w-4 text-destructive" />}
-          CFO Wallet Adjustment
-        </CardTitle>
+    <Card className="overflow-hidden border border-border/60 shadow-sm">
+      <CardHeader className="border-b bg-muted/30 px-5 pb-4 pt-5">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <div className={`flex h-7 w-7 items-center justify-center rounded-lg ${isCredit ? 'bg-emerald-100 text-emerald-700' : operation === 'withdraw' ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700'}`}>
+              {isCredit ? <ArrowUpRight className="h-4 w-4" /> : operation === 'withdraw' ? <Banknote className="h-4 w-4" /> : <ArrowDownLeft className="h-4 w-4" />}
+            </div>
+            CFO Wallet Adjustment
+          </CardTitle>
+          {impactInfo && (
+            <Badge variant="outline" className={`gap-1 text-[10px] ${impactInfo.color}`}>
+              <impactInfo.icon className="h-3 w-3" />
+              {impactInfo.label}
+            </Badge>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="grid grid-cols-3 gap-2">
