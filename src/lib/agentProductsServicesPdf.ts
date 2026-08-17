@@ -126,11 +126,15 @@ export function generateAgentProductsServicesPdf(opts: {
   const drawTable = (
     tblTitle: string,
     head: string[],
-    widths: number[],
+    widthRatios: number[],
     body: (string | number)[][],
     aligns: ('left' | 'right')[] = [],
   ) => {
     if (!body.length) return;
+    // Normalise the supplied relative widths so every table fills exactly
+    // 100% of the printable width — never wider, never short.
+    const ratioTotal = widthRatios.reduce((a, b) => a + (b > 0 ? b : 0), 0) || 1;
+    const widths = widthRatios.map((w) => ((w > 0 ? w : 0) / ratioTotal) * contentWidth);
     ensure(18);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8.5);
