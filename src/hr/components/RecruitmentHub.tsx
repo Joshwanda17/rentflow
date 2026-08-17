@@ -152,6 +152,281 @@ function isAlwaysOpen(posting: JobPosting): boolean {
   return posting.requisition_id === null && posting.closes_at === null;
 }
 
+type JobApplicationRow = Database['public']['Tables']['job_applications']['Row'];
+
+function ApplicationsTab() {
+  const [search, setSearch] = useState('');
+  const [selected, setSelected] = useState<JobApplicationRow | null>(null);
+
+  const { data: rows = [], isLoading, error } = useQuery({
+    queryKey: ['job-applications'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('job_applications')
+        .select('*')
+        .is('purged_at', null)
+        .order('created_at', { ascending: false })
+        .limit(500);
+      if (error) throw new Error(error.message);
+      return (data ?? []) as JobApplicationRow[];
+    },
+  });
+
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return rows;
+    return rows.filter((r) =>
+      [r.full_name, r.email, r.whatsapp_number, r.public_ref].some((v) =>
+        (v ?? '').toLowerCase().includes(term),
+      ),
+    );
+  }, [rows, search]);
+
+  const openCv = async (path: string) => {
+    try {
+      const url = await getResumeUrl(path);
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not open CV');
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        <Skeleton className="h-9 w-full" />
+        <Skeleton className="h-32 w-full" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card className="p-6 border-destructive/40 flex items-start gap-3">
+        <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+        <div>
+          <p className="text-sm font-semibold text-foreground">Could not load applications</p>
+          <p className="text-xs text-muted-foreground mt-1">{error.message}</p>
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="relative">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search name, email, WhatsApp or reference"
+          className="pl-8 h-9"
+        />
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="text-center py-10 text-muted-foreground">
+          <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
+          No applications match these filters.
+        </div>
+      ) : (
+        <Card className="overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Full name</TableHead>
+                <TableHead>Role interest</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead>Location</TableHead>
+                <TableHead>Experience</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Created</TableHead>
+                <TableHead>Reference</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((row) => (
+                <TableRow
+                  key={row.id}
+                  className="cursor-pointer"
+                  onClick={() => setSelected(row)}
+                >
+                  <TableCell>{row.full_name || '—'}</TableCell>
+                  <TableCell>{row.role_interest || '—'}</TableCell>
+                  <TableCell>{row.category || '—'}</TableCell>
+                  <TableCell>{row.location || '—'}</TableCell>
+                  <TableCell>{row.experience_level || '—'}</TableCell>
+                  <TableCell>{row.status || '—'}</TableCell>
+                  <TableCell>{fmtDateTime(row.created_at)}</TableCell>
+                  <TableCell>{row.public_ref || '—'}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Card>
+      )}
+
+      <Sheet open={!!selected} onOpenChange={(open) => !open && setSelected(null)}>
+        <SheetContent className="w-full sm:max-w-md overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>{selected?.full_name || 'Application'}</SheetTitle>
+          </SheetHeader>
+          {selected && <ApplicationDetail app={selected} onOpenCv={openCv} />}
+        </SheetContent>
+      </Sheet>
+    </div>
+  );
+}
+
+function Field({ label, value }: { label: string; value: React.ReactNode }) {
+  if (value === null || value === undefined || value === '') return null;
+  return (
+    <div className="space-y-1">
+      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <p className="text-sm break-words">{value}</p>
+    </div>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-3">
+      <h4 className="text-sm font-semibold">{title}</h4>
+      <div className="grid grid-cols-1 gap-3">{children}</div>
+    </div>
+  );
+}
+
+function ApplicationDetail({
+  app,
+  onOpenCv,
+}: {
+  app: JobApplicationRow;
+  onOpenCv: (path: string) => void;
+}) {
+  return (
+    <div className="space-y-6 py-4">
+      <Section title="Contact">
+        <Field label="Full name" value={app.full_name} />
+        <Field label="Email" value={app.email} />
+        <Field label="WhatsApp" value={app.whatsapp_number} />
+        <Field label="Location" value={app.location} />
+      </Section>
+
+      <Separator />
+
+      <Section title="Role and experience">
+        <Field label="Role interest" value={app.role_interest} />
+        <Field label="Category" value={app.category} />
+        <Field label="Experience level" value={app.experience_level} />
+        <Field label="Employment type" value={app.employment_type} />
+        <Field
+          label="Availability date"
+          value={app.availability_date ? fmtDate(app.availability_date) : null}
+        />
+        <Field label="Cover note" value={app.cover_note} />
+      </Section>
+
+      <Separator />
+
+      <Section title="Education and employer">
+        <Field label="Highest education" value={app.highest_education} />
+        <Field label="Current employer" value={app.current_employer} />
+      </Section>
+
+      <Separator />
+
+      <Section title="Links">
+        {app.portfolio_url && (
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Portfolio</Label>
+            <a
+              href={app.portfolio_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-primary hover:underline break-all block"
+            >
+              {app.portfolio_url}
+            </a>
+          </div>
+        )}
+        {app.linkedin_url && (
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">LinkedIn</Label>
+            <a
+              href={app.linkedin_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-primary hover:underline break-all block"
+            >
+              {app.linkedin_url}
+            </a>
+          </div>
+        )}
+        {app.resume_url ? (
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground">CV</Label>
+            <Button size="sm" variant="outline" onClick={() => onOpenCv(app.resume_url!)}>
+              <FileText className="h-4 w-4 mr-2" />
+              View CV
+            </Button>
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">No CV attached</p>
+        )}
+      </Section>
+
+      <Separator />
+
+      <Section title="Consent">
+        <Field label="Consent text version" value={app.consent_text_version} />
+        <Field
+          label="Consented at"
+          value={app.consented_at ? fmtDateTime(app.consented_at) : null}
+        />
+        <Field label="Future roles consent" value={app.future_roles_consent ? 'Yes' : 'No'} />
+      </Section>
+
+      <Separator />
+
+      <Section title="Workflow">
+        <Field label="Status" value={app.status} />
+        <Field
+          label="Contacted at"
+          value={app.contacted_at ? fmtDateTime(app.contacted_at) : null}
+        />
+        <Field
+          label="Decided at"
+          value={app.decided_at ? fmtDateTime(app.decided_at) : null}
+        />
+        <Field label="Decision reason" value={app.decision_reason} />
+      </Section>
+
+      <Separator />
+
+      <Section title="Source and UTM">
+        <Field label="Source" value={app.source} />
+        <Field label="UTM source" value={app.utm_source} />
+        <Field label="UTM medium" value={app.utm_medium} />
+        <Field label="UTM campaign" value={app.utm_campaign} />
+      </Section>
+
+      <Separator />
+
+      <Section title="Reference">
+        <Field label="Public reference" value={app.public_ref} />
+      </Section>
+
+      <Separator />
+
+      <Section title="Record">
+        <Field label="Created at" value={fmtDateTime(app.created_at)} />
+        <Field label="Updated at" value={fmtDateTime(app.updated_at)} />
+      </Section>
+    </div>
+  );
+}
+
 export default function RecruitmentHub() {
   const navigate = useNavigate();
 
