@@ -605,7 +605,7 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
 
       {/* Proper list — not nested in a collapsible */}
       <div className="p-3 space-y-2">
-        {filtered.length === 0 ? (
+        {(tab === 'verified' || tab === 'rejected' || tab === 'cancelled') ? null : filtered.length === 0 ? (
           <div className="text-center py-6 text-xs text-muted-foreground">
             No requests match “{search}”.
           </div>
