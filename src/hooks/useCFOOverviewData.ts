@@ -10,15 +10,20 @@ export function useCFOOverviewData() {
   const platformCash = useQuery({
     queryKey: ['cfo-overview-platform-cash'],
     queryFn: async () => {
-      const [summaryRes, breakdownRes] = await Promise.all([
-        supabase.rpc('get_platform_cash_summary'),
+      const [treasuryRes, breakdownRes] = await Promise.all([
+        supabase.rpc('get_treasury_cash_position' as any, {} as any),
         supabase.rpc('get_platform_cash_breakdown'),
       ]);
 
-      const summary = summaryRes.data as any;
-      const cashIn = Number(summary?.platform_cash_in ?? summary?.total_revenue ?? 0);
-      const cashOut = Number(summary?.platform_cash_out ?? summary?.total_costs ?? 0);
-      const totalCash = cashIn - cashOut;
+      // Money We Have is rebased on the Balance Sheet cash accounts:
+      // A1 Cash and Bank + A5 Cash in Transit. This excludes liability legs
+      // (e.g. cash_custody_payable) and custody/float offset entries, which a
+      // flat platform-scope category sum wrongly netted off treasury cash.
+      const treasury = treasuryRes.data as any;
+      const a1 = Number(treasury?.a1_cash_and_bank ?? 0);
+      const a5 = Number(treasury?.a5_cash_in_transit ?? 0);
+      const totalCash = Number(treasury?.total_cash ?? a1 + a5);
+      const cashLines = (treasury?.lines as any[]) || [];
 
       // Group breakdown by source category for CFO view
       const breakdown = (breakdownRes.data as any[]) || [];
