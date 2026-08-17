@@ -318,11 +318,16 @@ export function CashDepositCodesPanel({
     });
     setBanking(null);
     if (error) {
+      const msg = /deposit_not_verified/i.test(error.message)
+        ? 'Only a verified (approved) deposit can be marked as banked.'
+        : /invalid_deposit_amount/i.test(error.message)
+          ? 'This deposit has no valid amount to bank.'
+          : /not_authorized/i.test(error.message)
+            ? 'You do not have permission to change this.'
+            : error.message;
       toast({
         title: 'Could not update',
-        description: /not_authorized/i.test(error.message)
-          ? 'You do not have permission to change this.'
-          : error.message,
+        description: msg,
         variant: 'destructive',
       });
       return;
@@ -332,7 +337,10 @@ export function CashDepositCodesPanel({
     );
     toast({
       title: location === 'bank' ? 'Marked as banked' : 'Marked as cash at hand',
-      description: `${fmtUgx(row.amount)} · ${row.depositor_name || 'depositor'}`,
+      description:
+        location === 'bank'
+          ? `${fmtUgx(row.amount)} posted to Treasury · ${row.depositor_name || 'depositor'}`
+          : `${fmtUgx(row.amount)} returned to cash in transit · ${row.depositor_name || 'depositor'}`,
     });
     load();
   };
