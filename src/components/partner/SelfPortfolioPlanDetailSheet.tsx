@@ -347,14 +347,6 @@ export function SelfPortfolioPlanDetailSheet({
             </p>
           </div>
 
-          {/* Sticky price footer */}
-          <div className="sticky bottom-0 -mx-5 mt-6 border-t border-border bg-background px-5 py-4 flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-lg font-extrabold underline underline-offset-4 truncate">
-                {formatDynamic(plan.funding_amount)}
-              </p>
-            </div>
-          </div>
         </div>
       </SheetContent>
     </Sheet>
