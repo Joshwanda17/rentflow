@@ -155,11 +155,11 @@ export function SelfPortfolioPlanDetailSheet({
         <div className="relative -mt-6 rounded-t-3xl bg-background px-5 pt-6 pb-5">
           <h2 className="text-2xl font-extrabold leading-tight tracking-tight">
             {plan.house_category ? `${plan.house_category} in ` : 'Rent plan in '}
-            {plan.tenant_location || plan.request_city || 'Uganda'}
+            {regionLabel}
           </h2>
-          <p className="mt-2 text-sm text-muted-foreground flex items-center gap-1">
-            <MapPin className="h-3.5 w-3.5 flex-none" />
-            {plan.request_city || 'Uganda'}
+          <p className="mt-2 text-sm text-muted-foreground flex items-start gap-1">
+            <MapPin className="h-3.5 w-3.5 flex-none mt-0.5" />
+            <span>{fullAddress}</span>
           </p>
           <p className="text-sm text-muted-foreground">
             {plan.duration_days ?? 30} day term
