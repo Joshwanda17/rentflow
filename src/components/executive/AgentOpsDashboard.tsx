@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { AgentOpsHomeView, type DateRange } from './agent-ops-v2/AgentOpsHomeView';
 import { AgentOpsBottomNav, type BottomTab } from './agent-ops-v2/AgentOpsBottomNav';
 import { AdvanceRequestsQueue } from '@/components/ops/AdvanceRequestsQueue';
@@ -28,6 +28,7 @@ import { ServiceCentreOverview } from './service-centres/ServiceCentreOverview';
 import { ServiceCentreDirectory } from './service-centres/ServiceCentreDirectory';
 import { ServiceCentrePayouts } from './service-centres/ServiceCentrePayouts';
 import { ServiceCentreOperatingModel } from './service-centres/ServiceCentreOperatingModel';
+import { AgentProductsPanel } from './agent-ops/AgentProductsPanel';
 import { SubAgentVerificationQueue } from './SubAgentVerificationQueue';
 import { TenantToSubAgentPanel } from './TenantToSubAgentPanel';
 import { AgentOpsFloatPayoutReview } from '@/components/agent/AgentOpsFloatPayoutReview';
@@ -62,7 +63,7 @@ import {
   ClipboardList, AlertTriangle, Building2, Wallet, Bell, ArrowLeftRight,
   ChevronLeft, Briefcase, TrendingUp, TrendingDown, UsersRound, PiggyBank, HandCoins, ShieldCheck, FileBarChart, Network,
   LayoutGrid, ChevronDown, ToggleRight, Layers, Gauge, Target, Activity
-  , Coins, Megaphone, Lock, Store, MapPinned, Workflow
+  , Coins, Megaphone, Lock, Store, MapPinned, Workflow, Package
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -75,7 +76,7 @@ import {
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
-type ActiveView = null | 'products-services-report' | 'pipeline' | 'directory' | 'rent-capacity' | 'connector' | 'performance' | 'lifecycle' | 'tasks' | 'escalations' | 'service-centres' | 'sc-overview' | 'sc-directory' | 'sc-payouts' | 'sc-requests' | 'sc-operating-model' | 'sub-agents' | 'promote-tenant' | 'float-payouts' | 'leaderboard' | 'earnings' | 'transfers' | 'locked-transfers' | 'advances-analytics' | 'advance-requests' | 'active-advances' | 'advance-potential' | 'advance-limits' | 'advance-repayments' | 'balances' | 'lending-agents' | 'trust-capture' | 'performance-report' | 'allocation-report' | 'feature-flags' | 'bulk-ops' | 'listing-campaign' | 'daily-collections-report' | 'advance-activity-correlation';
+type ActiveView = null | 'products-services-report' | 'sc-products' | 'pipeline' | 'directory' | 'rent-capacity' | 'connector' | 'performance' | 'lifecycle' | 'tasks' | 'escalations' | 'service-centres' | 'sc-overview' | 'sc-directory' | 'sc-payouts' | 'sc-requests' | 'sc-operating-model' | 'sub-agents' | 'promote-tenant' | 'float-payouts' | 'leaderboard' | 'earnings' | 'transfers' | 'locked-transfers' | 'advances-analytics' | 'advance-requests' | 'active-advances' | 'advance-potential' | 'advance-limits' | 'advance-repayments' | 'balances' | 'lending-agents' | 'trust-capture' | 'performance-report' | 'allocation-report' | 'feature-flags' | 'bulk-ops' | 'listing-campaign' | 'daily-collections-report' | 'advance-activity-correlation';
 
 const NAV_ITEMS: { key: ActiveView; icon: any; label: string; color: string; priority?: boolean }[] = [
   { key: 'products-services-report', icon: FileBarChart, label: 'Products & Services Report', color: 'bg-purple-900', priority: true },
@@ -97,6 +98,7 @@ const NAV_ITEMS: { key: ActiveView; icon: any; label: string; color: string; pri
   { key: 'sc-payouts', icon: Banknote, label: 'Center Payouts', color: 'bg-orange-700' },
   { key: 'sc-requests', icon: Store, label: 'Free Center Requests', color: 'bg-orange-800', priority: true },
   { key: 'sc-operating-model', icon: Workflow, label: 'Operating Model', color: 'bg-amber-700' },
+  { key: 'sc-products', icon: Package, label: 'Products', color: 'bg-amber-600', priority: true },
   { key: 'sub-agents', icon: UsersRound, label: 'Sub-Agents', color: 'bg-amber-600', priority: true },
   { key: 'promote-tenant', icon: ArrowLeftRight, label: 'Tenant → Sub-Agent', color: 'bg-fuchsia-600', priority: true },
   { key: 'directory', icon: Search, label: 'Directory', color: 'bg-blue-500', priority: true },
@@ -118,10 +120,28 @@ const NAV_ITEMS: { key: ActiveView; icon: any; label: string; color: string; pri
 
 export function AgentOpsDashboard() {
   const [activeView, setActiveView] = useState<ActiveView>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
   const [selectedAgent, setSelectedAgent] = useState<any>(null);
   const [bottomTab, setBottomTab] = useState<BottomTab>('home');
   const [dateRange, setDateRange] = useState<DateRange>('24h');
   const pendingAdvanceCount = usePendingAdvanceCount();
+
+  // Deep-linkable sections: /executive-hub?tab=agent-ops&section=products
+  useEffect(() => {
+    const s = searchParams.get('section');
+    if (!s) return;
+    setActiveView((s === 'products' ? 'sc-products' : s) as ActiveView);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const next = new URLSearchParams(searchParams);
+    const slug = activeView === 'sc-products' ? 'products' : activeView;
+    if (slug) next.set('section', slug);
+    else next.delete('section');
+    if (next.toString() !== searchParams.toString()) setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeView]);
 
   const { data: kpis, isLoading: kpisLoading } = useQuery({
     queryKey: ['agent-ops-kpis'],
@@ -244,6 +264,7 @@ export function AgentOpsDashboard() {
       case 'sc-payouts': return <ServiceCentrePayouts />;
       case 'sc-requests': return <ServiceCenterRequestsQueue />;
       case 'sc-operating-model': return <ServiceCentreOperatingModel />;
+      case 'sc-products': return <AgentProductsPanel />;
       case 'sub-agents': return <SubAgentVerificationQueue />;
       case 'promote-tenant': return <TenantToSubAgentPanel />;
       case 'float-payouts': return <AgentOpsFloatPayoutReview />;
@@ -322,7 +343,7 @@ export function AgentOpsDashboard() {
   const MORE_GROUPS: { title: string; keys: ActiveView[] }[] = [
     { title: 'Agents', keys: ['directory', 'performance', 'sub-agents', 'bulk-ops'] },
     { title: 'Field Operations', keys: ['pipeline', 'rent-capacity', 'daily-collections-report', 'tasks', 'escalations', 'connector'] },
-    { title: 'Service Centers', keys: ['sc-overview', 'service-centres', 'sc-directory', 'sc-payouts', 'sc-requests', 'sc-operating-model'] },
+    { title: 'Service Centers', keys: ['sc-overview', 'service-centres', 'sc-directory', 'sc-payouts', 'sc-requests', 'sc-operating-model', 'sc-products'] },
     { title: 'Financials', keys: ['balances', 'float-payouts', 'earnings', 'locked-transfers', 'allocation-report', 'lending-agents'] },
     { title: 'Advances', keys: ['advances-analytics', 'advance-requests', 'active-advances', 'advance-potential', 'advance-limits', 'advance-repayments', 'advance-activity-correlation'] },
     { title: 'Reports', keys: ['products-services-report', 'performance-report', 'allocation-report'] },
@@ -488,7 +509,7 @@ function AgentOpsSideNav({
   const SIDE_GROUPS: { title: string; keys: ActiveView[]; pinned?: boolean; defaultOpen?: boolean }[] = [
     { title: 'Agents', defaultOpen: true, keys: ['directory', 'performance', 'sub-agents', 'bulk-ops'] },
     { title: 'Field Operations', defaultOpen: true, keys: ['pipeline', 'rent-capacity', 'daily-collections-report', 'tasks', 'escalations', 'connector'] },
-    { title: 'Service Centers', keys: ['sc-overview', 'service-centres', 'sc-directory', 'sc-payouts', 'sc-requests', 'sc-operating-model'] },
+    { title: 'Service Centers', keys: ['sc-overview', 'service-centres', 'sc-directory', 'sc-payouts', 'sc-requests', 'sc-operating-model', 'sc-products'] },
     { title: 'Financials', keys: ['balances', 'float-payouts', 'earnings', 'locked-transfers', 'allocation-report', 'lending-agents'] },
     { title: 'Advances', keys: ['advances-analytics', 'advance-requests', 'active-advances', 'advance-potential', 'advance-limits', 'advance-repayments', 'advance-activity-correlation'] },
     { title: 'Reports', keys: ['products-services-report', 'performance-report', 'allocation-report'] },
