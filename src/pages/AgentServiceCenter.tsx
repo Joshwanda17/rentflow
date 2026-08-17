@@ -117,12 +117,6 @@ export default function AgentServiceCenter() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="min-w-0">
-            <img
-              src={officeIllustration.url}
-              alt="Service center illustration"
-              className="mb-2 h-24 w-auto"
-              loading="eager"
-            />
             <h1 className="flex items-center gap-2 truncate text-lg font-bold text-foreground">
               <Store className="h-5 w-5 text-primary" /> Service Center
             </h1>
