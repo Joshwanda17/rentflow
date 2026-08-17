@@ -37,6 +37,7 @@ function PhotoSlider({
   className,
   imgClassName,
   fit = 'cover',
+  keyboard = false,
 }: {
   photos: string[];
   index: number;
@@ -45,6 +46,7 @@ function PhotoSlider({
   className?: string;
   imgClassName?: string;
   fit?: 'cover' | 'contain';
+  keyboard?: boolean;
 }) {
   const total = photos.length;
   const go = useCallback(
@@ -75,14 +77,14 @@ function PhotoSlider({
   };
 
   useEffect(() => {
-    if (total < 2) return;
+    if (total < 2 || !keyboard) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'ArrowLeft') go(-1);
       if (e.key === 'ArrowRight') go(1);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [go, total]);
+  }, [go, total, keyboard]);
 
   if (total === 0) return null;
 
@@ -206,6 +208,7 @@ export function SelfPortfolioPlanDetailSheet({
             index={Math.min(heroIndex, photos.length - 1)}
             onIndexChange={setHeroIndex}
             onSelect={(i) => setLightboxIndex(i)}
+            keyboard={lightboxIndex === null}
             className="w-full h-56 rounded-none"
           />
         ) : (
@@ -215,7 +218,15 @@ export function SelfPortfolioPlanDetailSheet({
         )}
 
         {/* Expanded image card */}
-        <Dialog open={lightboxIndex !== null} onOpenChange={(v) => !v && setLightboxIndex(null)}>
+        <Dialog
+          open={lightboxIndex !== null}
+          onOpenChange={(v) => {
+            if (!v) {
+              if (lightboxIndex !== null) setHeroIndex(lightboxIndex);
+              setLightboxIndex(null);
+            }
+          }}
+        >
           <DialogContent className="max-w-3xl border-0 bg-background p-0 overflow-hidden [&>button]:hidden">
             <DialogHeader className="sr-only">
               <DialogTitle>House photo</DialogTitle>
@@ -226,12 +237,16 @@ export function SelfPortfolioPlanDetailSheet({
                   photos={photos}
                   index={lightboxIndex}
                   onIndexChange={setLightboxIndex}
+                  keyboard
                   fit="contain"
                   className="w-full h-[70vh] rounded-none bg-foreground/5"
                 />
                 <button
                   type="button"
-                  onClick={() => setLightboxIndex(null)}
+                  onClick={() => {
+                    setHeroIndex(lightboxIndex);
+                    setLightboxIndex(null);
+                  }}
                   aria-label="Close photo"
                   className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full bg-background/85 text-foreground shadow-md backdrop-blur transition hover:bg-background"
                 >
