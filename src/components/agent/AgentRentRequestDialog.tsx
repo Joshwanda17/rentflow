@@ -4894,6 +4894,14 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       ← Back to search
                     </Button>
                   </div>
+                  {ugLocation && lc1Auto.isEmpty && (
+                    <div className="rounded-lg border border-amber-300/60 bg-amber-50 p-2.5">
+                      <p className="text-[11px] font-semibold text-amber-800 leading-snug">
+                        No LC1 chairperson is registered for {ugLocation.village} yet — add them here.
+                        Their village and district are inherited from the location you captured for this house.
+                      </p>
+                    </div>
+                  )}
                   <div className="space-y-1">
                     <Label >Name *</Label>
                     <p className="text-xs text-muted-foreground leading-snug">The local council (LC1) chairperson for that area.</p>
@@ -4929,7 +4937,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       value={lc1Village}
                       error={hasFieldError('lc1Village') ? getFieldError('lc1Village') : null}
                       districtName={propertyDistrict || null}
-                      onChange={(name) => setLc1Village(name)}
+                      onChange={(name, selection) => {
+                        setLc1Village(name);
+                        setLc1LocationUnit(selection);
+                      }}
                     />
                     <FieldError message={vPlace(lc1Village, 'Kira Zone A') || getFieldError('lc1Village')} />
                   </div>
