@@ -126,11 +126,15 @@ export function generateAgentProductsServicesPdf(opts: {
   const drawTable = (
     tblTitle: string,
     head: string[],
-    widths: number[],
+    widthRatios: number[],
     body: (string | number)[][],
     aligns: ('left' | 'right')[] = [],
   ) => {
     if (!body.length) return;
+    // Normalise the supplied relative widths so every table fills exactly
+    // 100% of the printable width — never wider, never short.
+    const ratioTotal = widthRatios.reduce((a, b) => a + (b > 0 ? b : 0), 0) || 1;
+    const widths = widthRatios.map((w) => ((w > 0 ? w : 0) / ratioTotal) * contentWidth);
     ensure(18);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8.5);
@@ -176,7 +180,7 @@ export function generateAgentProductsServicesPdf(opts: {
     y += 5;
   };
 
-  const w4: number[] = [110, 50, 50, contentWidth - 210];
+  const w4: number[] = [110, 50, 50, 50];
   const a4: ('left' | 'right')[] = ['left', 'right', 'right', 'right'];
 
   // ===== 1. New agents =====
@@ -259,7 +263,7 @@ export function generateAgentProductsServicesPdf(opts: {
     drawTable(
       'DAILY BREAKDOWN (LAST 14 DAYS)',
       ['Day', 'New agents', 'Collected', 'Advances issued', 'Advances recovered', 'Service centres'],
-      [40, 34, 60, 60, 60, contentWidth - 254],
+      [40, 34, 60, 60, 60, 40],
       series.map(s => [
         fmtDay(s.day), num(s.new_agents), apsUgx(s.collected),
         apsUgx(s.advances_issued), apsUgx(s.advances_deducted), num(s.service_centres_added),
@@ -273,7 +277,7 @@ export function generateAgentProductsServicesPdf(opts: {
     drawTable(
       `7. INDIVIDUAL AGENT PERFORMANCE — FLOAT & COLLECTIONS (${num(report.agent_float_rows.length)} agent${report.agent_float_rows.length === 1 ? '' : 's'})`,
       ['Agent', 'Phone', 'Location', 'Float received', 'Paid out', 'Closing float', 'Commission', 'Collected', 'Txns'],
-      [46, 28, 30, 34, 30, 32, 30, 32, contentWidth - 262],
+      [46, 28, 30, 34, 30, 32, 30, 32, 20],
       report.agent_float_rows.map(r => [
         r.agent_name || '—', r.phone || '—', r.location || '—',
         apsUgx(r.float_received), apsUgx(r.float_paid_out), apsUgx(r.closing_float),
@@ -287,7 +291,7 @@ export function generateAgentProductsServicesPdf(opts: {
     drawTable(
       `AGENT RENT RECEIVABLES DETAIL (${num(report.rent_rows.length)} agent${report.rent_rows.length === 1 ? '' : 's'})`,
       ['Agent', 'Phone', 'Plans', 'Daily due', 'Collected today', 'Repaid to date', 'Outstanding', 'Avg days'],
-      [50, 30, 22, 38, 40, 40, 40, contentWidth - 260],
+      [50, 30, 22, 38, 40, 40, 40, 26],
       report.rent_rows.map(r => [
         r.agent_name || '—', r.phone || '—', num(r.live_plans),
         apsUgx(r.daily_receivable), apsUgx(r.collected_today), apsUgx(r.repaid_to_date),
@@ -301,7 +305,7 @@ export function generateAgentProductsServicesPdf(opts: {
     drawTable(
       `AGENT ADVANCES DETAIL (${num(report.advance_rows.length)} advance${report.advance_rows.length === 1 ? '' : 's'})`,
       ['Agent', 'Phone', 'Status', 'Principal', 'Recovered', 'Outstanding', 'Installment', 'Deducted today'],
-      [50, 30, 26, 38, 38, 38, 34, contentWidth - 254],
+      [50, 30, 26, 38, 38, 38, 34, 38],
       report.advance_rows.map(r => [
         r.agent_name || '—', r.phone || '—', title(r.status),
         apsUgx(r.principal), apsUgx(r.recovered), apsUgx(r.outstanding),
@@ -315,7 +319,7 @@ export function generateAgentProductsServicesPdf(opts: {
     drawTable(
       `SERVICE CENTRE REGISTER (${num(report.service_centre_rows.length)} record${report.service_centre_rows.length === 1 ? '' : 's'})`,
       ['Agent', 'Phone', 'Location', 'Status', 'Created', 'Verified', 'Approved'],
-      [50, 30, 56, 28, 38, 38, contentWidth - 240],
+      [50, 30, 56, 28, 38, 38, 38],
       report.service_centre_rows.map(r => [
         r.agent_name || '—', r.agent_phone || '—', r.location_name || '—',
         title(r.status), fmtDay(r.created_at), fmtDay(r.verified_at), fmtDay(r.approved_at),
@@ -331,7 +335,7 @@ export function generateAgentProductsServicesPdf(opts: {
     drawTable(
       `${label} — REPAYMENT POSITIONS (${num(rows.length)} record${rows.length === 1 ? '' : 's'})`,
       ['Holder', 'Phone', 'Item', 'Issued', 'Value', 'Paid', 'Outstanding', 'Daily rate', '% repaid', 'Position'],
-      [42, 28, 40, 28, 30, 30, 32, 26, 22, contentWidth - 278],
+      [42, 26, 38, 26, 28, 28, 30, 24, 20, 30],
       rows.map(r => [
         r.client_name || '—', r.client_phone || '—', r.item_name || '—', fmtDay(r.sale_date),
         apsUgx(r.value), apsUgx(r.paid), apsUgx(r.outstanding), apsUgx(r.daily_rate),
