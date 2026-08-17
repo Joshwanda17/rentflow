@@ -3,11 +3,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDynamic } from '@/lib/currencyFormat';
 import { toast } from 'sonner';
-import { CalendarClock, ChevronLeft, ChevronRight, Home, Loader2, RefreshCw, ShieldCheck, TrendingUp, Wallet } from 'lucide-react';
+import { CalendarClock, Check, ChevronLeft, ChevronRight, Home, Loader2, MapPin, Plus, RefreshCw, ShieldCheck, TrendingUp, Wallet } from 'lucide-react';
 
 import { SelfPortfolioDeployDialog } from './SelfPortfolioDeployDialog';
 import { SelfPortfolioPlanDetailSheet } from './SelfPortfolioPlanDetailSheet';
@@ -295,6 +294,11 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
         const isSelected = selected.includes(plan.rent_request_id);
         const unaffordable = !isSelected && Number(plan.funding_amount || 0) > remaining;
         const images = (plan.house_image_urls ?? []).filter(Boolean);
+        const monthlyRoi = Math.round((Number(plan.funding_amount || 0) * MONTHLY_ROI_RATE) / 100);
+        const titleLine = `${plan.house_category ?? 'Rental home'}${plan.request_city ? ` in ${plan.request_city}` : ''}`;
+        const addressLine = [plan.tenant_location, plan.request_city, 'Uganda'].filter(Boolean).join(', ');
+        const refLine = `PLAN: ${plan.rent_request_id.slice(0, 8).toUpperCase()}`;
+        const dailyLabel = plan.daily_repayment ? `${formatDynamic(plan.daily_repayment)}/day` : null;
         return (
           <Card
             key={plan.rent_request_id}
@@ -307,88 +311,93 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
                 setDetailPlan(plan);
               }
             }}
-            className={`p-2 rounded-2xl transition-colors cursor-pointer hover:bg-muted/30 ${isSelected ? 'ring-2 ring-primary/60 bg-primary/5' : ''}`}
+            className={`relative overflow-hidden rounded-3xl p-2.5 transition-all cursor-pointer hover:shadow-md ${isSelected ? 'ring-2 ring-primary bg-primary/5' : 'border-border/70'}`}
           >
-            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-muted">
-              {images.length > 0 ? (
-                <img
-                  src={images[0]}
-                  alt="House photo"
-                  loading="lazy"
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center">
-                  <Home className="h-7 w-7 text-muted-foreground" />
-                </div>
-              )}
-
-              {(isFunded || heldByOther) && (
-                <div className="absolute left-2 top-2">
-                  <Badge variant="secondary" className="rounded-full bg-background/85 text-[10px] font-semibold backdrop-blur">
-                    {isFunded ? 'Funded by you' : 'On hold'}
-                  </Badge>
-                </div>
-              )}
-
-              {!isFunded && (
-                <div className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-background/85 backdrop-blur">
-                  <Checkbox
-                    checked={isSelected}
-                    disabled={heldByOther || busy || unaffordable}
-                    onClick={(e) => e.stopPropagation()}
-                    onCheckedChange={() => toggle(plan.rent_request_id)}
-                    aria-label={`Select plan for ${plan.tenant_full_name ?? plan.tenant_first_name ?? 'tenant'}`}
-                  />
-                </div>
-              )}
-
-
-              {images.length > 1 && (
-                <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1">
-                  {images.slice(0, 5).map((src, i) => (
-                    <span
-                      key={src + i}
-                      className={`h-1.5 w-1.5 rounded-full ${i === 0 ? 'bg-background' : 'bg-background/50'}`}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="px-1.5 pb-1 pt-3">
-              <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-2">
-                <p className="truncate text-sm font-bold">
-                  {plan.tenant_full_name || plan.tenant_first_name || 'Tenant'}
-                </p>
-                <p className="shrink-0 text-sm font-black text-foreground">
-                  {formatDynamic(plan.funding_amount)}
-                </p>
+            <div className="flex gap-3">
+              {/* Photo */}
+              <div className="relative aspect-square w-24 shrink-0 overflow-hidden rounded-2xl bg-muted sm:w-32">
+                {images.length > 0 ? (
+                  <img src={images[0]} alt={titleLine} loading="lazy" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center">
+                    <Home className="h-7 w-7 text-muted-foreground" />
+                  </div>
+                )}
+                {images.length > 1 && (
+                  <span className="absolute bottom-1.5 right-1.5 rounded-full bg-background/85 px-1.5 py-0.5 text-[9px] font-bold backdrop-blur">
+                    +{images.length - 1}
+                  </span>
+                )}
               </div>
-              <p className="truncate text-[11px] text-muted-foreground">
-                Landlord: {plan.landlord_name ?? 'Landlord'}
-              </p>
-              {Number(plan.funding_amount) > 0 ? (
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  Project earns{' '}
-                  <span className="font-black text-primary">
-                    {formatDynamic(Math.round(Number(plan.funding_amount) * 0.15))}
-                  </span>{' '}
-                  monthly
-                </p>
-              ) : null}
 
-              {heldByOther && (
-                <p className="mt-2 text-[10px] text-muted-foreground">
-                  Another partner is confirming this plan right now.
+              {/* Details */}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  {refLine}
                 </p>
-              )}
-              {unaffordable && !heldByOther && (
-                <p className="mt-2 text-[10px] font-semibold text-destructive">
-                  Needs {formatDynamic(plan.funding_amount)} — more than the {formatDynamic(remaining)}{' '}
-                  you have left in your withdrawable balance.
+                <p className="truncate text-sm font-bold leading-tight sm:text-base">{titleLine}</p>
+                <p className="mt-0.5 flex items-start gap-1 text-[11px] leading-snug text-muted-foreground">
+                  <MapPin className="mt-0.5 h-3 w-3 flex-none" />
+                  <span className="line-clamp-2">{addressLine || 'Uganda'}</span>
                 </p>
-              )}
+
+                {/* KPI chips */}
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
+                    {MONTHLY_ROI_RATE}% / month
+                  </span>
+                  {plan.duration_days ? (
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                      {plan.duration_days} days
+                    </span>
+                  ) : null}
+                  {dailyLabel ? (
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                      {dailyLabel}
+                    </span>
+                  ) : null}
+                  {isFunded ? (
+                    <Badge variant="secondary" className="rounded-full text-[10px] font-semibold">Funded by you</Badge>
+                  ) : heldByOther ? (
+                    <Badge variant="secondary" className="rounded-full text-[10px] font-semibold">On hold</Badge>
+                  ) : null}
+                </div>
+
+                {/* Price row + action */}
+                <div className="mt-2 flex items-end justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-base font-black leading-none sm:text-lg">
+                      {formatDynamic(plan.funding_amount)}
+                    </p>
+                    <p className="mt-1 truncate text-[10px] text-muted-foreground">
+                      Earns <span className="font-bold text-primary">{formatDynamic(monthlyRoi)}</span> monthly ·{' '}
+                      {plan.tenant_full_name || plan.tenant_first_name || 'Tenant'}
+                    </p>
+                  </div>
+
+                  {!isFunded && (
+                    <Button
+                      size="icon"
+                      variant={isSelected ? 'secondary' : 'default'}
+                      disabled={heldByOther || busy || unaffordable}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggle(plan.rent_request_id);
+                      }}
+                      aria-label={`${isSelected ? 'Remove' : 'Select'} plan for ${plan.tenant_full_name ?? plan.tenant_first_name ?? 'tenant'}`}
+                      className="h-10 w-10 shrink-0 rounded-full shadow-sm"
+                    >
+                      {isSelected ? <Check className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
+                    </Button>
+                  )}
+                </div>
+
+                {unaffordable && !heldByOther && (
+                  <p className="mt-1.5 text-[10px] font-semibold text-muted-foreground">
+                    Add {formatDynamic(Number(plan.funding_amount) - remaining)} to your balance to include this plan.
+                  </p>
+                )}
+              </div>
             </div>
           </Card>
         );
