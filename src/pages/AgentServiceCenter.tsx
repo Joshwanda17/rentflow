@@ -126,7 +126,7 @@ export default function AgentServiceCenter() {
           <img
             src={officeIllustration.url}
             alt="Service center illustration"
-            className="mx-auto mb-3 h-28 w-auto"
+            className="mx-auto block mb-3 h-28 w-auto"
             loading="eager"
           />
           <div className="min-w-0">
