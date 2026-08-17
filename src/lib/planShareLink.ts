@@ -41,7 +41,7 @@ export function planShareDescription(plan: SharePlanInput): string {
   const monthly = Math.round((rent * SHARE_ROI_RATE) / 100);
   return `Support this tenant for ${formatDynamic(rent)} by paying their landlord on the platform and earn ${formatDynamic(
     monthly,
-  )} per month for the next 12 months Start here today welileapp.com.`;
+  )} per month for the next 12 months Start here today.`;
 }
 
 /**
