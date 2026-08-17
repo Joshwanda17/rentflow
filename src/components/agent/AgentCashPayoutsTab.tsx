@@ -43,6 +43,10 @@ import {
   type CashoutAgentConfig,
 } from '@/lib/cashoutAgentConfig';
 import { useWithdrawalsPaused } from '@/hooks/useWithdrawalsPaused';
+import {
+  PROXY_PRIORITY_BLOCK_MESSAGE, PROXY_PRIORITY_WAITING_LABEL, URGENT_PROXY_BADGE_LABEL,
+  isUrgentProxyWithdrawal, sortProxyPriorityFirst, isUrgentProxyBlocking,
+} from '@/lib/proxyPriorityQueue';
 import { invalidateWalletBalance } from '@/hooks/wallet/useWalletBalance';
 import { AlertTriangle } from 'lucide-react';
 
@@ -440,6 +444,17 @@ export function AgentCashPayoutsTab() {
       claimedSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return;
     }
+    // Proxy-agent priority gate: while an urgent proxy withdrawal is unclaimed,
+    // only that payout may be claimed. The server enforces this too
+    // (`proxy_priority_hold`); this is the fast, explicit client message.
+    if (
+      blockingUrgentProxy &&
+      blockingUrgentProxy.id !== id &&
+      !isUrgentProxyWithdrawal(row || undefined)
+    ) {
+      toast.error(PROXY_PRIORITY_BLOCK_MESSAGE);
+      return;
+    }
     claimLockRef.current.add(id);
     setClaimingIds(new Set(claimLockRef.current));
     toast.info('Claiming withdrawal… please wait', { id: `claim-${id}`, duration: 4000 });
@@ -469,6 +484,9 @@ export function AgentCashPayoutsTab() {
     qc.invalidateQueries({ queryKey: ['cashout-queue-counts'] });
     qc.invalidateQueries({ queryKey: ['cashout-queue-available-total'] });
     qc.invalidateQueries({ queryKey: ['cashout-my-active-claims'] });
+    // The priority hold is released as soon as the urgent proxy payout is
+    // claimed, completed, cancelled or failed.
+    qc.invalidateQueries({ queryKey: ['cashout-blocking-urgent-proxy'] });
   };
 
   // Check if this agent is a cashout agent
@@ -561,6 +579,33 @@ export function AgentCashPayoutsTab() {
 
   // Unfiltered count of all available (unclaimed/expired) requests — powers the
   // "action required" badge and live banner regardless of active filters.
+  // PRIORITY GATE (mirrors `assert_no_urgent_proxy_priority` in the database):
+  // while ANY urgent proxy-agent withdrawal is still unclaimed, no other
+  // merchant payout may be claimed. Queried unfiltered so the hold is visible
+  // even when this merchant's filters or channel tab exclude the urgent row.
+  const { data: blockingUrgentProxy = null } = useQuery({
+    queryKey: ['cashout-blocking-urgent-proxy'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('withdrawal_requests')
+        .select('id, amount, created_at, priority_level, status, processed_at, fin_ops_reference, assigned_cashout_agent_id')
+        .eq('priority_level', 'urgent_proxy')
+        .in('status', CASHOUT_QUEUE_STATUSES)
+        .is('processed_at', null)
+        .is('fin_ops_reference', null)
+        .is('assigned_cashout_agent_id', null)
+        .order('created_at', { ascending: true })
+        .limit(1);
+      const row = (data || [])[0] ?? null;
+      if (error) throw error;
+      return row && isUrgentProxyBlocking(row) ? row : null;
+    },
+    enabled: !!isCashoutAgent,
+    staleTime: 10_000,
+    refetchInterval: 20_000,
+    refetchOnWindowFocus: true,
+  });
+
   const { data: availableTotal = 0 } = useQuery({
     queryKey: ['cashout-queue-available-total', isCashoutAgent?.id, categoryOrClause, channelProviderOrClause, frozenUserIds],
     queryFn: async () => {
@@ -1162,7 +1207,10 @@ export function AgentCashPayoutsTab() {
 
   // Server-driven queue values. The active tab's page comes from `queuePage`,
   // counts come from `queueCounts`, and the unfiltered total from `availableTotal`.
-  const pageRows: any[] = (queuePage?.rows ?? []).filter((row: any) => isMerchantQueueActionable(row));
+  // Urgent proxy-agent payouts are always Priority #1 at the top of the queue.
+  const pageRows: any[] = sortProxyPriorityFirst(
+    (queuePage?.rows ?? []).filter((row: any) => isMerchantQueueActionable(row)),
+  );
   const pageCount = queuePage?.count ?? 0;
   const channelCounts = queueCounts ?? { all: 0, momo: 0, cash: 0, bank: 0 };
   const totalPending = availableTotal;
@@ -1827,6 +1875,9 @@ export function AgentCashPayoutsTab() {
                   const methodLabel = channel === 'momo' ? 'Mobile Money' : channel === 'bank' ? 'Bank Transfer' : 'Cash';
                   const isLandlordPayout =
                     typeof w.reason === 'string' && w.reason.startsWith('Landlord float payout');
+                  const isUrgentProxy = isUrgentProxyWithdrawal(w);
+                  const proxyBlocked =
+                    !isUrgentProxy && !!blockingUrgentProxy && blockingUrgentProxy.id !== w.id;
                   const name = isLandlordPayout
                     ? (w.mobile_money_name || 'Landlord')
                     : (w.profiles?.full_name
@@ -1835,8 +1886,24 @@ export function AgentCashPayoutsTab() {
                         || w.bank_account_name
                         || 'Unknown');
                   return (
-                    <Card key={w.id} className="rounded-2xl border-border transition-colors hover:border-primary/30">
+                    <Card
+                      key={w.id}
+                      className={cn(
+                        'rounded-2xl transition-colors',
+                        isUrgentProxy
+                          ? 'border-2 border-destructive/60 bg-destructive/5 ring-2 ring-destructive/20'
+                          : 'border-border hover:border-primary/30',
+                      )}
+                    >
                       <CardContent className="p-4 space-y-3.5">
+                        {isUrgentProxy && (
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="inline-flex items-center rounded-md bg-destructive px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-destructive-foreground">
+                              {URGENT_PROXY_BADGE_LABEL}
+                            </span>
+                            <span className="text-[11px] font-semibold text-destructive">Priority #1 — process this first</span>
+                          </div>
+                        )}
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex min-w-0 flex-1 items-start gap-3">
                             <div className={cn(
@@ -1865,27 +1932,36 @@ export function AgentCashPayoutsTab() {
                             <p className="whitespace-nowrap text-base sm:text-lg font-bold tabular-nums leading-tight text-foreground">{formatUGX(w.amount)}</p>
                           </div>
                         </div>
+                        {proxyBlocked && (
+                          <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs font-semibold text-destructive">
+                            {PROXY_PRIORITY_WAITING_LABEL} {PROXY_PRIORITY_BLOCK_MESSAGE}
+                          </div>
+                        )}
                         <Button
                           className="w-full h-12 gap-2 font-semibold text-base"
                           onClick={() => handleClaim(w.id, {
                             momoNumber: w.mobile_money_number ?? null,
                             momoName: w.mobile_money_name ?? null,
                           })}
-                          disabled={claimingIds.has(w.id) || hasActiveClaim}
+                          disabled={claimingIds.has(w.id) || hasActiveClaim || proxyBlocked}
                           title={
                             claimingIds.has(w.id)
                               ? 'Request is being processed…'
-                              : hasActiveClaim
-                                ? 'Finish your current claim before claiming another'
-                                : 'Claim this withdrawal'
+                              : proxyBlocked
+                                ? PROXY_PRIORITY_BLOCK_MESSAGE
+                                : hasActiveClaim
+                                  ? 'Finish your current claim before claiming another'
+                                  : 'Claim this withdrawal'
                           }
                         >
                           {claimingIds.has(w.id) ? (
                             <><Loader2 className="h-5 w-5 animate-spin" /> Claiming…</>
+                          ) : proxyBlocked ? (
+                            <><Clock className="h-5 w-5" /> Waiting for Priority Proxy Withdrawal</>
                           ) : hasActiveClaim ? (
                             <><Clock className="h-5 w-5" /> Finish current claim first</>
                           ) : (
-                            <><UserCheck className="h-5 w-5" /> Claim</>
+                            <><UserCheck className="h-5 w-5" /> {isUrgentProxy ? 'Claim Priority Payout' : 'Claim'}</>
                           )}
                         </Button>
                       </CardContent>
