@@ -70,19 +70,38 @@ Deno.serve(async (req) => {
   const target = destination.toString();
 
   let plan: {
-    rent_amount: number | null;
+    funding_amount: number | null;
     house_category: string | null;
     request_city: string | null;
+    tenant_location: string | null;
     house_image_urls: string[] | null;
   } | null = null;
 
   if (/^[0-9a-f-]{36}$/i.test(planId)) {
+    // The fundable-plans view carries the same fields the funder card shows
+    // (full tenant location + photos); fall back to the raw request row.
     const { data } = await supabase
-      .from("rent_requests")
-      .select("rent_amount, house_category, request_city, house_image_urls")
-      .eq("id", planId)
+      .from("v_partner_self_fundable_plans")
+      .select("funding_amount, house_category, request_city, tenant_location, house_image_urls")
+      .eq("rent_request_id", planId)
       .maybeSingle();
     plan = data as typeof plan;
+    if (!plan) {
+      const { data: raw } = await supabase
+        .from("rent_requests")
+        .select("rent_amount, house_category, request_city, house_image_urls")
+        .eq("id", planId)
+        .maybeSingle();
+      if (raw) {
+        plan = {
+          funding_amount: (raw as any).rent_amount,
+          house_category: (raw as any).house_category,
+          request_city: (raw as any).request_city,
+          tenant_location: null,
+          house_image_urls: (raw as any).house_image_urls,
+        };
+      }
+    }
   }
 
   // Click tracking stays on the same code the /s/ route records.
@@ -95,8 +114,12 @@ Deno.serve(async (req) => {
   } catch { /* preview must never fail on analytics */ }
 
   const houseTitle = pretty(plan?.house_category) || "Rental Home";
-  const location = plan?.request_city ? `${plan.request_city}, Uganda` : "Uganda";
-  const rent = Number(plan?.rent_amount ?? 0);
+  const locParts = String(plan?.tenant_location || plan?.request_city || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const location = locParts.length ? `${locParts.join(", ")}, Uganda` : "Uganda";
+  const rent = Number(plan?.funding_amount ?? 0);
   const monthly = Math.round((rent * ROI_RATE) / 100);
 
   const title = `Support a tenant in a ${houseTitle} in ${location}`;
