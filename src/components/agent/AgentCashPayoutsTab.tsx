@@ -43,6 +43,10 @@ import {
   type CashoutAgentConfig,
 } from '@/lib/cashoutAgentConfig';
 import { useWithdrawalsPaused } from '@/hooks/useWithdrawalsPaused';
+import {
+  PROXY_PRIORITY_BLOCK_MESSAGE, PROXY_PRIORITY_WAITING_LABEL, URGENT_PROXY_BADGE_LABEL,
+  isUrgentProxyWithdrawal, sortProxyPriorityFirst, isUrgentProxyBlocking,
+} from '@/lib/proxyPriorityQueue';
 import { invalidateWalletBalance } from '@/hooks/wallet/useWalletBalance';
 import { AlertTriangle } from 'lucide-react';
 
