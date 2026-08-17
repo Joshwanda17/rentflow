@@ -698,5 +698,6 @@ export default function RecruitmentHub() {
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+    </>
   );
 }
