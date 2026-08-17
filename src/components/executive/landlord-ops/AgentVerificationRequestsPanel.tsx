@@ -350,6 +350,22 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
             )}
           </div>
         </div>
+        {resubmittedCount > 0 && (
+          <div className="mt-2.5 flex items-center gap-2 flex-wrap">
+            <Button
+              size="sm"
+              variant={onlyResubmitted ? 'default' : 'outline'}
+              className="h-7 text-[11px] gap-1.5"
+              onClick={() => setOnlyResubmitted((v) => !v)}
+            >
+              <RotateCcw className="h-3 w-3" />
+              {onlyResubmitted ? 'Showing resubmitted only' : `Resubmitted after rejection (${resubmittedCount})`}
+            </Button>
+            <span className="text-[10px] text-muted-foreground">
+              These were rejected before and returned to review by the agent — the original rejection is shown on each card.
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Proper list — not nested in a collapsible */}
