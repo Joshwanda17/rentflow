@@ -61,6 +61,13 @@ export interface StatementFilters {
 
 export interface IncomeStatementData {
   period: string;
+  /**
+   * Dynamically derived, service-based view of the SAME ledger rows used by the
+   * classic sections below. Revenue is grouped into the Welile services that
+   * actually exist; expenses are split into Marketing vs Operating using only
+   * existing ledger categories. Nothing here alters the legacy figures.
+   */
+  byService: ServiceIncomeStatement;
   revenue: {
     accessFees: number;
     requestFees: number;
