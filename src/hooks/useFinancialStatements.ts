@@ -1,6 +1,54 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { startOfDay, endOfDay, subDays, subWeeks, subMonths, subYears, startOfMonth, startOfYear, startOfWeek, startOfQuarter, differenceInDays } from 'date-fns';
+import {
+  REVENUE_SERVICE_FAMILIES,
+  MARKETING_EXPENSE_CATEGORIES,
+  MARKETING_LEGACY_DESC_BUCKETS,
+  OPERATING_EXPENSE_CATEGORIES,
+  OPERATING_LEGACY_DESC_BUCKETS,
+  classifyLedgerCategory,
+  prettyCategory,
+  type ServiceFamilyKey,
+} from '@/lib/incomeStatementServiceMap';
+
+/** One traceable line: a single existing ledger category and its period total. */
+export interface StatementCategoryLine {
+  /** Ledger category (or legacy description bucket) the amount comes from. */
+  source: string;
+  label: string;
+  amount: number;
+}
+
+export interface ServiceRevenueFamily {
+  key: ServiceFamilyKey | 'other';
+  label: string;
+  lines: StatementCategoryLine[];
+  total: number;
+}
+
+export interface ExpenseGroup {
+  lines: StatementCategoryLine[];
+  total: number;
+}
+
+/** Categories that hit the ledger but map to no existing service/expense bucket. */
+export interface UnmappedLedgerLine {
+  category: string;
+  direction: 'cash_in' | 'cash_out';
+  amount: number;
+}
+
+export interface ServiceIncomeStatement {
+  revenueFamilies: ServiceRevenueFamily[];
+  totalRevenue: number;
+  marketing: ExpenseGroup;
+  operating: ExpenseGroup;
+  totalMarketingExpenses: number;
+  totalOperatingExpenses: number;
+  netProfit: number;
+  reviewQueue: UnmappedLedgerLine[];
+}
 
 export type StatementPeriod = 'today' | '7days' | 'week' | '30days' | 'month' | 'quarter' | 'year' | 'all' | 'custom';
 export type ComparisonMode = 'none' | 'dod' | 'wow' | 'mom' | 'yoy';
