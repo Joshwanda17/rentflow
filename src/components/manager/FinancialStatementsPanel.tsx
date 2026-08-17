@@ -789,6 +789,28 @@ function FinancialStatementsPanelInner() {
       const d = data.incomeStatement;
       rows.push(['WELILE — Income Statement', '', period]);
       rows.push(['', '', '']);
+      rows.push(['REVENUE BY WELILE SERVICE', '', '']);
+      d.byService.revenueFamilies.forEach(fam => {
+        rows.push([fam.label, '', '']);
+        fam.lines.forEach(l => rows.push([`  ${l.label}`, l.source, l.amount]));
+        rows.push([`  ${fam.label} Subtotal`, '', fam.total]);
+      });
+      rows.push(['Total Revenue (Services)', '', d.byService.totalRevenue]);
+      rows.push(['', '', '']);
+      rows.push(['MARKETING EXPENSES', '', '']);
+      d.byService.marketing.lines.forEach(l => rows.push([`  ${l.label}`, l.source, -l.amount]));
+      rows.push(['Total Marketing Expenses', '', -d.byService.totalMarketingExpenses]);
+      rows.push(['', '', '']);
+      rows.push(['OPERATING EXPENSES', '', '']);
+      d.byService.operating.lines.forEach(l => rows.push([`  ${l.label}`, l.source, -l.amount]));
+      rows.push(['Total Operating Expenses', '', -d.byService.totalOperatingExpenses]);
+      rows.push(['Net Profit/(Loss)', '', d.byService.netProfit]);
+      if (d.byService.reviewQueue.length > 0) {
+        rows.push(['', '', '']);
+        rows.push(['FLAGGED FOR REVIEW (UNMAPPED CATEGORIES)', '', '']);
+        d.byService.reviewQueue.forEach(l => rows.push([`  ${l.category}`, l.direction, l.amount]));
+      }
+      rows.push(['', '', '']);
       rows.push(['REVENUE RECOGNITION', '', '']);
       rows.push(['Expected Access Fees', '', d.revenueRecognition.expectedAccessFees]);
       rows.push(['Expected Request Fees', '', d.revenueRecognition.expectedRequestFees]);
