@@ -183,6 +183,106 @@ export function generateAgentProductsServicesPdf(opts: {
   const w4: number[] = [110, 50, 50, 50];
   const a4: ('left' | 'right')[] = ['left', 'right', 'right', 'right'];
 
+  // ===== KPI summary cards (before the detailed sections) =====
+  const drawKpiCards = (
+    cards: { label: string; value: string; detail?: string }[],
+    perRow = 4,
+  ) => {
+    if (!cards.length) return;
+    const gap = 3;
+    const cardW = (contentWidth - gap * (perRow - 1)) / perRow;
+    const cardH = 17;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(brand[0], brand[1], brand[2]);
+    ensure(6 + cardH);
+    doc.text('DAILY SUMMARY', margin, y);
+    y += 3;
+    for (let i = 0; i < cards.length; i += perRow) {
+      const row = cards.slice(i, i + perRow);
+      ensure(cardH + 2);
+      row.forEach((c, idx) => {
+        const x = margin + idx * (cardW + gap);
+        doc.setFillColor(248, 246, 252);
+        doc.setDrawColor(226, 220, 238);
+        doc.roundedRect(x, y, cardW, cardH, 1.5, 1.5, 'FD');
+        doc.setFillColor(brand[0], brand[1], brand[2]);
+        doc.rect(x, y, 1.2, cardH, 'F');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(6.4);
+        doc.setTextColor(110, 100, 125);
+        doc.text(c.label.toUpperCase(), x + 4, y + 5);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.setTextColor(35, 35, 45);
+        const maxChars = Math.floor((cardW - 7) / 1.95);
+        const shown = c.value.length > maxChars ? `${c.value.slice(0, Math.max(1, maxChars - 1))}…` : c.value;
+        doc.text(shown, x + 4, y + 11);
+        if (c.detail) {
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(6.2);
+          doc.setTextColor(120, 115, 130);
+          const dMax = Math.floor((cardW - 7) / 1.25);
+          doc.text(
+            c.detail.length > dMax ? `${c.detail.slice(0, Math.max(1, dMax - 1))}…` : c.detail,
+            x + 4,
+            y + 14.8,
+          );
+        }
+      });
+      y += cardH + gap;
+    }
+    y += 3;
+  };
+
+  const collectionRatePct =
+    report.rent.daily_receivable > 0
+      ? (Number(report.rent.collected_today) / Number(report.rent.daily_receivable)) * 100
+      : 0;
+
+  drawKpiCards([
+    {
+      label: 'Rent collected today',
+      value: apsUgx(report.rent.collected_today),
+      detail: `${num(report.rent.collections_today)} entries · ${apsPctLabel(report.rent.collected_today, report.rent.collected_prev)} vs prev day`,
+    },
+    {
+      label: 'Collection rate vs expected',
+      value: `${collectionRatePct.toFixed(1)}%`,
+      detail: `expected ${apsUgx(report.rent.daily_receivable)}`,
+    },
+    {
+      label: 'Outstanding receivable',
+      value: apsUgx(report.rent.outstanding),
+      detail: `${num(report.rent.live_plans)} live plans · ${num(report.rent.avg_days_outstanding)} avg days`,
+    },
+    {
+      label: 'Active agents today',
+      value: num(report.agents.active_today),
+      detail: `${num(report.agents.total)} on register · +${num(report.agents.new_today)} new`,
+    },
+    {
+      label: 'Advances issued today',
+      value: apsUgx(report.advances.issued_today),
+      detail: `${num(report.advances.issued_count)} advance(s) · ${num(report.advances.approved)} approved`,
+    },
+    {
+      label: 'Advances outstanding',
+      value: apsUgx(report.advances.outstanding),
+      detail: `${num(report.advances.active_count)} active · recovered ${apsUgx(report.advances.deducted_today)}`,
+    },
+    {
+      label: 'Service centres',
+      value: num(report.service_centres.active_total),
+      detail: `+${num(report.service_centres.new_today)} today · ${num(report.service_centres.pending_total)} pending`,
+    },
+    {
+      label: 'Products outstanding',
+      value: apsUgx(Number(report.bikes.outstanding) + Number(report.phones.outstanding)),
+      detail: `bikes ${apsUgx(report.bikes.outstanding)} · phones ${apsUgx(report.phones.outstanding)}`,
+    },
+  ]);
+
   // ===== 1. New agents =====
   drawTable('1. NEW AGENTS', ['Metric', 'Today', 'Previous day', 'Change'], w4, [
     ['New agents added', num(report.agents.new_today), num(report.agents.new_prev), apsPctLabel(report.agents.new_today, report.agents.new_prev)],
