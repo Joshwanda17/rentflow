@@ -19,7 +19,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Home, Loader2, Plus, Banknote, TrendingUp, Users, Clock, Search, CheckCircle2, ShieldCheck, RefreshCw, ArrowLeft, Pencil, History, Trash2 } from 'lucide-react';
+import { Home, Loader2, Plus, Banknote, TrendingUp, Users, Clock, Search, CheckCircle2, ShieldCheck, RefreshCw, ArrowLeft, Pencil, History, Trash2, ChevronDown } from 'lucide-react';
 import { z } from 'zod';
 
 // Shared client-side validation for the core enrollment fields. Kept strict so
@@ -102,6 +102,86 @@ interface RecentRentPayment {
   tenant_name: string;
 }
 
+interface TenantDueRow {
+  id: string;
+  period_month: string;
+  amount_due: number;
+  amount_collected: number;
+  collection_status: string;
+  payout_status: string;
+  updated_at: string;
+}
+
+/** Collapsible per-tenant payment history, loaded on first expand. */
+function TenantPaymentHistory({ subscriptionId }: { subscriptionId: string }) {
+  const [rows, setRows] = useState<TenantDueRow[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      setLoading(true);
+      const { data, error: err } = await supabase
+        .from('welile_homes_monthly_dues')
+        .select('id, period_month, amount_due, amount_collected, collection_status, payout_status, updated_at')
+        .eq('subscription_id', subscriptionId)
+        .order('period_month', { ascending: true });
+      if (!active) return;
+      if (err) setError(err.message);
+      else setRows((data ?? []) as TenantDueRow[]);
+      setLoading(false);
+    })();
+    return () => { active = false; };
+  }, [subscriptionId]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2 py-2 text-xs text-muted-foreground">
+        <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading payment history…
+      </div>
+    );
+  }
+  if (error) {
+    return <p className="py-2 text-xs text-destructive">{error}</p>;
+  }
+
+  const paid = (rows ?? []).filter((r) => Number(r.amount_collected) > 0);
+  if (paid.length === 0) {
+    return <p className="py-2 text-xs text-muted-foreground">No payments recorded for this tenant yet.</p>;
+  }
+
+  const total = paid.reduce((a, r) => a + Number(r.amount_collected || 0), 0);
+
+  return (
+    <div className="rounded-lg border border-border/60 bg-muted/30">
+      <div className="flex items-center justify-between gap-2 border-b border-border/60 px-2.5 py-1.5 text-[11px] text-muted-foreground">
+        <span>{paid.length} payment{paid.length === 1 ? '' : 's'}</span>
+        <span className="font-semibold text-foreground">{formatUGX(total)}</span>
+      </div>
+      <ul className="divide-y divide-border/50">
+        {paid.map((r) => (
+          <li key={r.id} className="flex items-center justify-between gap-2 px-2.5 py-2">
+            <div className="min-w-0">
+              <p className="text-xs font-medium">
+                {new Date(r.period_month).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })} rent
+              </p>
+              <p className="text-[10px] text-muted-foreground">
+                {new Date(r.updated_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                {Number(r.amount_collected) < Number(r.amount_due) ? ' · partial' : ''}
+                {r.payout_status !== 'unpaid' ? ' · landlord paid' : ''}
+              </p>
+            </div>
+            <span className="shrink-0 text-xs font-semibold tabular-nums text-emerald-600">
+              {formatUGX(Number(r.amount_collected))}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 type PreviewDelta<T> = { old: T; new: T };
 interface EditPreview {
   success: boolean;
@@ -158,6 +238,7 @@ export function AgentWelileHomesSheet({ open, onOpenChange }: AgentWelileHomesSh
   const [verifyFor, setVerifyFor] = useState<WHSubscription | null>(null);
   const [deleteFor, setDeleteFor] = useState<WHSubscription | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [historyOpenId, setHistoryOpenId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -376,12 +457,25 @@ export function AgentWelileHomesSheet({ open, onOpenChange }: AgentWelileHomesSh
                   <Card key={s.id}>
                     <CardContent className="p-3 space-y-2">
                       <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="font-semibold truncate">{s.tenant_name}</p>
-                          <p className="text-xs text-muted-foreground truncate">{s.tenant_phone}</p>
-                        </div>
+                        <button
+                          type="button"
+                          aria-expanded={historyOpenId === s.id}
+                          onClick={() => setHistoryOpenId((id) => (id === s.id ? null : s.id))}
+                          className="min-w-0 flex-1 text-left"
+                        >
+                          <p className="flex items-center gap-1 font-semibold truncate">
+                            <span className="truncate">{s.tenant_name}</span>
+                            <ChevronDown
+                              className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform ${historyOpenId === s.id ? 'rotate-180' : ''}`}
+                            />
+                          </p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {s.tenant_phone}{s.tenant_phone ? ' · ' : ''}Tap for payment history
+                          </p>
+                        </button>
                         {!s.has_smartphone && <Badge variant="outline" className="shrink-0">No phone</Badge>}
                       </div>
+                      {historyOpenId === s.id && <TenantPaymentHistory subscriptionId={s.id} />}
                       {(() => {
                         const st = getEnrollStatus(s);
                         return (
