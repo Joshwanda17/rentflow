@@ -9,6 +9,11 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Button } from '@/components/ui/button';
 import { RentPaymentStatusSheet } from './RentPaymentStatusSheet';
 import type { AgentPaymentStatus } from '@/hooks/useRentPaymentStatusMutation';
+import {
+  COLLECTIBLE_STATUSES,
+  hasDisbursementEvidence,
+  type AllocationSettlement,
+} from '@/lib/collectibleRentRequests';
 
 interface CollectionItem {
   rent_request_id: string;
@@ -45,11 +50,35 @@ export function PriorityCollectionQueue({ open, onOpenChange, agentId }: Props) 
         .from('rent_requests')
         .select('id, tenant_id, rent_amount, daily_repayment, amount_repaid, total_repayment, disbursed_at, status, request_latitude, request_longitude, agent_payment_status')
         .eq('agent_id', agentId)
-        .neq('status', 'rejected');
+        // Only tenants Welile has actually funded can owe anything. Pre-funding
+        // statuses already carry total_repayment, so a status blacklist showed
+        // un-disbursed requests as owing.
+        .in('status', COLLECTIBLE_STATUSES as unknown as string[]);
 
       if (!requests?.length) return [];
 
-      const tenantIds = [...new Set(requests.map(r => r.tenant_id))];
+      // Landlord settlement evidence, same rule as v_agent_daily_eligibility.
+      const { data: allocs } = await supabase
+        .from('agent_landlord_float_allocations')
+        .select('rent_request_id, status, paid_out_amount')
+        .in('rent_request_id', requests.map(r => r.id));
+
+      const settlementMap: Record<string, AllocationSettlement> = {};
+      (allocs || []).forEach(a => {
+        const key = (a as any).rent_request_id as string;
+        if (!key) return;
+        const cur = settlementMap[key] || { openAllocations: 0, paidOutAmount: 0 };
+        if ((a as any).status === 'open') cur.openAllocations += 1;
+        cur.paidOutAmount += Number((a as any).paid_out_amount) || 0;
+        settlementMap[key] = cur;
+      });
+
+      const collectible = requests.filter(r =>
+        hasDisbursementEvidence(Number(r.amount_repaid) || 0, settlementMap[r.id]),
+      );
+      if (!collectible.length) return [];
+
+      const tenantIds = [...new Set(collectible.map(r => r.tenant_id))];
       const { data: profiles } = await supabase
         .from('profiles')
         .select('id, full_name, phone')
@@ -58,7 +87,7 @@ export function PriorityCollectionQueue({ open, onOpenChange, agentId }: Props) 
       const profileMap: Record<string, { name: string; phone: string }> = {};
       (profiles || []).forEach(p => { profileMap[p.id] = { name: p.full_name, phone: p.phone || '' }; });
 
-      const items: CollectionItem[] = requests.map(r => {
+      const items: CollectionItem[] = collectible.map(r => {
         const outstanding = (r.total_repayment || 0) - (r.amount_repaid || 0);
         const daysOverdue = r.disbursed_at
           ? Math.max(0, differenceInDays(new Date(), new Date(r.disbursed_at)) - Math.floor((r.amount_repaid || 0) / (r.daily_repayment || 1)))
