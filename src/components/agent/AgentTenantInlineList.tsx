@@ -312,11 +312,11 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
               <button
                 key={tenant.id}
                 onClick={() => onOpenTenantSheet(tenant.id)}
-                className="w-full flex items-center gap-5 p-5 rounded-3xl bg-card border-2 border-border/60 active:scale-[0.97] transition-all text-left touch-manipulation shadow-sm hover:shadow-md"
-                style={{ touchAction: 'manipulation', minHeight: '104px' }}
+                className="w-full flex items-center gap-3 p-3 rounded-2xl bg-card border-2 border-border/60 active:scale-[0.97] transition-all text-left touch-manipulation shadow-sm hover:shadow-md"
+                style={{ touchAction: 'manipulation', minHeight: '80px' }}
               >
                 <div
-                  className={`w-16 h-16 rounded-full flex items-center justify-center shrink-0 text-2xl font-bold ${
+                  className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 text-base font-bold ${
                     hasDebt
                       ? 'bg-rose-100 text-rose-700'
                       : isInReview
@@ -344,21 +344,21 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold text-lg truncate">
+                  <p className="font-bold text-sm truncate">
                     {tenant.full_name?.trim() || 'Tenant'}
                   </p>
                   {tenant.phone && (
-                    <p className="text-base text-muted-foreground flex items-center gap-1.5 truncate mt-1">
-                      <Phone className="h-4 w-4 shrink-0" />
+                    <p className="text-xs text-muted-foreground flex items-center gap-1 truncate mt-0.5">
+                      <Phone className="h-3 w-3 shrink-0" />
                       {tenant.phone}
                     </p>
                   )}
                 </div>
-                <div className="text-right shrink-0">
-                  <p className={`text-sm font-bold uppercase tracking-wide ${toneText}`}>
+                <div className="text-right shrink-0 flex flex-col items-end min-w-0 max-w-[45%]">
+                  <p className={`text-[10px] font-bold uppercase tracking-wide ${toneText}`}>
                     {hasDebt ? 'Owing' : isInReview ? 'In review' : 'Paid up'}
                   </p>
-                  <p className={`font-bold font-mono text-xl ${toneText}`}>
+                  <p className={`font-bold font-mono text-sm ${toneText} truncate`}>
                     {hasDebt ? formatUGX(balance) : isInReview ? 'Not funded' : 'UGX 0'}
                   </p>
                 </div>
