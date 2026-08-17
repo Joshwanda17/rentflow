@@ -1,6 +1,13 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Check, Copy, Loader2, Share2 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Check, Copy, Facebook, Loader2, Mail, MessageCircle, Send, Share2, Twitter } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -19,7 +26,11 @@ async function buildLink(plan: SharePlanInput) {
 
 /**
  * Trackable share action for a fundable rent plan.
- * `variant="icon"` sits on the plan card; `variant="block"` is the detail sheet row.
+ *
+ * Always opens a real share surface: the native OS/browser share sheet when the
+ * Web Share API is available (mobile, Safari, Edge), otherwise a platform
+ * picker so desktop users can still post to WhatsApp, Telegram, Facebook, X,
+ * email or SMS. Clipboard copy is only ever an explicit last option.
  */
 export function PlanShareButton({
   plan,
@@ -30,26 +41,34 @@ export function PlanShareButton({
 }) {
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [link, setLink] = useState('');
 
-  const share = async () => {
+  const title = planShareTitle(plan);
+  const description = planShareDescription(plan);
+  const message = `${title}\n\n${description}`;
+
+  const start = async () => {
     setBusy(true);
     try {
       const url = await buildLink(plan);
-      const title = planShareTitle(plan);
-      const text = `${title}\n\n${planShareDescription(plan)}`;
+      setLink(url);
 
-      if (navigator.share) {
+      const payload: ShareData = { title, text: message, url };
+      const canNative =
+        typeof navigator !== 'undefined' &&
+        typeof navigator.share === 'function' &&
+        (typeof navigator.canShare !== 'function' || navigator.canShare(payload));
+
+      if (canNative) {
         try {
-          await navigator.share({ title, text, url });
+          await navigator.share(payload);
           return;
         } catch (e: any) {
           if (e?.name === 'AbortError') return;
         }
       }
-      await navigator.clipboard.writeText(`${text}\n${url}`);
-      setCopied(true);
-      toast.success('Share link copied');
-      setTimeout(() => setCopied(false), 2000);
+      setPickerOpen(true);
     } catch (e: any) {
       toast.error(e?.message ?? 'Could not create the share link');
     } finally {
@@ -57,48 +76,129 @@ export function PlanShareButton({
     }
   };
 
-  if (variant === 'block') {
-    return (
+  const full = `${message}\n${link}`;
+  const openTarget = (href: string) => {
+    window.open(href, '_blank', 'noopener,noreferrer');
+    setPickerOpen(false);
+  };
+
+  const targets = [
+    {
+      label: 'WhatsApp',
+      icon: MessageCircle,
+      onClick: () => openTarget(`https://wa.me/?text=${encodeURIComponent(full)}`),
+    },
+    {
+      label: 'Telegram',
+      icon: Send,
+      onClick: () =>
+        openTarget(
+          `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(message)}`,
+        ),
+    },
+    {
+      label: 'Facebook',
+      icon: Facebook,
+      onClick: () => openTarget(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(link)}`),
+    },
+    {
+      label: 'X',
+      icon: Twitter,
+      onClick: () =>
+        openTarget(
+          `https://twitter.com/intent/tweet?text=${encodeURIComponent(message)}&url=${encodeURIComponent(link)}`,
+        ),
+    },
+    {
+      label: 'Email',
+      icon: Mail,
+      onClick: () =>
+        openTarget(`mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(full)}`),
+    },
+    {
+      label: 'SMS',
+      icon: MessageCircle,
+      onClick: () => openTarget(`sms:?&body=${encodeURIComponent(full)}`),
+    },
+  ];
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(full);
+      setCopied(true);
+      toast.success('Share link copied');
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error('Could not copy the link');
+    }
+  };
+
+  const trigger =
+    variant === 'block' ? (
       <Button
         variant="outline"
         className="w-full gap-2 rounded-xl"
         disabled={busy}
         onClick={(e) => {
           e.stopPropagation();
-          void share();
+          void start();
         }}
       >
-        {busy ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : copied ? (
-          <Check className="h-4 w-4" />
-        ) : (
-          <Share2 className="h-4 w-4" />
-        )}
-        {copied ? 'Link copied' : 'Share this plan'}
+        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
+        Share this plan
+      </Button>
+    ) : (
+      <Button
+        size="icon"
+        variant="outline"
+        disabled={busy}
+        aria-label="Share this rent plan"
+        className="h-10 w-10 shrink-0 rounded-full"
+        onClick={(e) => {
+          e.stopPropagation();
+          void start();
+        }}
+      >
+        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
       </Button>
     );
-  }
 
   return (
-    <Button
-      size="icon"
-      variant="outline"
-      disabled={busy}
-      aria-label="Share this rent plan"
-      className="h-10 w-10 shrink-0 rounded-full"
-      onClick={(e) => {
-        e.stopPropagation();
-        void share();
-      }}
-    >
-      {busy ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
-      ) : copied ? (
-        <Check className="h-4 w-4" />
-      ) : (
-        <Share2 className="h-4 w-4" />
-      )}
-    </Button>
+    <>
+      {trigger}
+
+      <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
+        <DialogContent
+          className="max-w-sm"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <DialogHeader>
+            <DialogTitle className="text-base">Share this rent plan</DialogTitle>
+            <DialogDescription className="text-xs">{description}</DialogDescription>
+          </DialogHeader>
+
+          <div className="grid grid-cols-3 gap-2">
+            {targets.map((t) => (
+              <button
+                key={t.label}
+                type="button"
+                onClick={t.onClick}
+                className="flex flex-col items-center gap-1.5 rounded-xl border border-border bg-card p-3 text-xs font-semibold transition hover:bg-accent"
+              >
+                <t.icon className="h-5 w-5 text-primary" />
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          <p className="truncate rounded-lg bg-muted px-3 py-2 text-[11px] font-mono">{link}</p>
+
+          <Button variant="outline" className="w-full gap-2" onClick={copy}>
+            {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+            {copied ? 'Copied' : 'Copy link'}
+          </Button>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
