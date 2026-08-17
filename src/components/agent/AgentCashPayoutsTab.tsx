@@ -1883,7 +1883,7 @@ export function AgentCashPayoutsTab() {
                   const methodLabel = channel === 'momo' ? 'Mobile Money' : channel === 'bank' ? 'Bank Transfer' : 'Cash';
                   const isLandlordPayout =
                     typeof w.reason === 'string' && w.reason.startsWith('Landlord float payout');
-                  const isUrgentProxy = isUrgentProxyWithdrawal(w);
+                  const isUrgentProxy = proxyPriorityEnforced && isUrgentProxyWithdrawal(w);
                   const proxyBlocked =
                     !isUrgentProxy && !!blockingUrgentProxy && blockingUrgentProxy.id !== w.id;
                   const name = isLandlordPayout
