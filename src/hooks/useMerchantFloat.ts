@@ -339,6 +339,12 @@ export function usePostMerchantAdjustment() {
           'The fix was not saved — the database did not return the record. Check your finance role and try again.',
         );
       }
+      // Any fix must leave the board showing exactly what the books say — reseed
+      // the cached float to the ledger figure so stale cache warnings clear.
+      await supabase.rpc('sync_merchant_desk_float_cache' as any, {
+        p_desk_id: input.deskId,
+        p_reason: `${input.adjustmentType} fix ${(data as any).id}`,
+      });
       return data as any;
     },
     onSuccess: (_d, v) => {
