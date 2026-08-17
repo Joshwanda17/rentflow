@@ -11,7 +11,6 @@ import { CalendarClock, ChevronLeft, ChevronRight, Home, Loader2, MapPin, Refres
 
 import { SelfPortfolioDeployDialog } from './SelfPortfolioDeployDialog';
 import { SelfPortfolioPlanDetailSheet } from './SelfPortfolioPlanDetailSheet';
-import { PlanGpsChip } from './PlanGpsChip';
 
 const MIN_FUNDING = 50000;
 const PLANS_PER_PAGE = 4;
