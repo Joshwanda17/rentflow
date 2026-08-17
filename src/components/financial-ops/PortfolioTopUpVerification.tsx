@@ -101,7 +101,23 @@ export function PortfolioTopUpVerification() {
       const { data, error } = await supabase.functions.invoke('approve-portfolio-topup', {
         body: { portfolio_id: portfolioId, action, reason },
       });
-      if (error) throw new Error(error.message);
+      if (error) {
+        // Non-2xx responses hide the real reason behind a generic
+        // "Edge Function returned a non-2xx status code" message.
+        // Read the response body so Financial Ops sees the actual cause
+        // (e.g. the partner wallet no longer holds enough funds).
+        let detail = '';
+        const res = (error as any)?.context;
+        if (res && typeof res.json === 'function') {
+          try {
+            const body = await res.clone().json();
+            if (body?.error) detail = String(body.error);
+          } catch {
+            try { detail = (await res.clone().text())?.slice(0, 500) || ''; } catch { /* ignore */ }
+          }
+        }
+        throw new Error(detail || error.message);
+      }
       if (data?.error) throw new Error(data.error);
 
       if (action === 'approve') {
