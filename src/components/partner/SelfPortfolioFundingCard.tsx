@@ -367,8 +367,7 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
                       {formatDynamic(plan.funding_amount)}
                     </p>
                     <p className="mt-1 truncate text-[10px] text-muted-foreground">
-                      Earns <span className="font-bold text-primary">{formatDynamic(monthlyRoi)}</span> monthly ·{' '}
-                      {plan.tenant_full_name || plan.tenant_first_name || 'Tenant'}
+                      Earn <span className="font-bold text-primary">{formatDynamic(monthlyRoi)}</span> monthly
                     </p>
                   </div>
 
