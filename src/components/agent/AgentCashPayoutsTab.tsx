@@ -47,6 +47,7 @@ import {
   PROXY_PRIORITY_BLOCK_MESSAGE, PROXY_PRIORITY_WAITING_LABEL, URGENT_PROXY_BADGE_LABEL,
   isUrgentProxyWithdrawal, sortProxyPriorityFirst, isUrgentProxyBlocking,
 } from '@/lib/proxyPriorityQueue';
+import { useProxyPayoutPriority } from '@/hooks/useProxyPayoutPriority';
 import { invalidateWalletBalance } from '@/hooks/wallet/useWalletBalance';
 import { AlertTriangle } from 'lucide-react';
 
