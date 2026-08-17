@@ -1214,10 +1214,11 @@ export function AgentCashPayoutsTab() {
 
   // Server-driven queue values. The active tab's page comes from `queuePage`,
   // counts come from `queueCounts`, and the unfiltered total from `availableTotal`.
-  // Urgent proxy-agent payouts are always Priority #1 at the top of the queue.
-  const pageRows: any[] = sortProxyPriorityFirst(
-    (queuePage?.rows ?? []).filter((row: any) => isMerchantQueueActionable(row)),
-  );
+  // Urgent proxy-agent payouts are Priority #1 at the top of the queue while the
+  // CTO control "Show Proxy Agent withdrawals first" is ON. When OFF, the queue
+  // keeps its normal (server) order so normal withdrawals are worked first.
+  const actionableRows: any[] = (queuePage?.rows ?? []).filter((row: any) => isMerchantQueueActionable(row));
+  const pageRows: any[] = proxyPriorityEnforced ? sortProxyPriorityFirst(actionableRows) : actionableRows;
   const pageCount = queuePage?.count ?? 0;
   const channelCounts = queueCounts ?? { all: 0, momo: 0, cash: 0, bank: 0 };
   const totalPending = availableTotal;
