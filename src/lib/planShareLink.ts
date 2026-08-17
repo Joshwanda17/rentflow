@@ -48,7 +48,9 @@ export function planShareDescription(plan: SharePlanInput): string {
  * Create (or reuse) a trackable short link for a fundable rent plan.
  *
  * Returns the branded, click-counted link for the code:
- * - `shortUrl`  https://welileapp.com/s/<code> — what we always share.
+ * - `shortUrl`  https://s.welileapp.com/s/<code> — what we always share.
+ *   The share subdomain proxies to the `og-plan` edge function so WhatsApp /
+ *   Facebook / X crawlers receive the house photo in Open Graph tags.
  * - `shareUrl`  alias of `shortUrl`, kept so callers stay unchanged. The raw
  *   `og-plan` function URL is never shared (it exposes the backend host).
  */
@@ -58,11 +60,11 @@ export async function createPlanShareLink(
 ): Promise<{ code: string; shortUrl: string; shareUrl: string }> {
   const targetPath = '/funder-onboarding';
   const targetParams = { plan: planId, ref: userId } as Record<string, string>;
-  const origin = getPublicOrigin();
+  const shareOrigin = 'https://s.welileapp.com';
   const build = (code: string) => ({
     code,
-    shortUrl: `${origin}/s/${code}`,
-    shareUrl: `${origin}/s/${code}`,
+    shortUrl: `${shareOrigin}/s/${code}`,
+    shareUrl: `${shareOrigin}/s/${code}`,
   });
 
   const findExisting = async () => {
