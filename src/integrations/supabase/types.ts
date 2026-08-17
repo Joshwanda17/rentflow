@@ -34477,6 +34477,8 @@ export type Database = {
           house_category: string | null
           house_image_urls: string[] | null
           landlord_name: string | null
+          landlord_phone: string | null
+          lc1_chairperson_name: string | null
           number_of_payments: number | null
           posted_at: string | null
           projected_end_date: string | null

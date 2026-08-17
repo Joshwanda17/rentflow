@@ -44,6 +44,8 @@ interface FundablePlan {
   tenant_avatar_url: string | null;
   tenant_has_photo?: boolean | null;
   landlord_name: string | null;
+  landlord_phone: string | null;
+  lc1_chairperson_name: string | null;
   house_image_urls: string[] | null;
   held_by: string | null;
   hold_expires_at: string | null;
