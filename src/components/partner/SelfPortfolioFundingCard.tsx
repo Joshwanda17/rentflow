@@ -291,14 +291,6 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
         const isSelected = selected.includes(plan.rent_request_id);
         const unaffordable = !isSelected && Number(plan.funding_amount || 0) > remaining;
         const images = (plan.house_image_urls ?? []).filter(Boolean);
-        const metrics = [
-          plan.daily_repayment ? `${formatDynamic(plan.daily_repayment)} daily` : null,
-          `${plan.duration_days ?? 30} days`,
-          plan.projected_end_date
-            ? `ends ${new Date(plan.projected_end_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`
-            : null,
-          plan.repayment_cadence ? `collected ${plan.repayment_cadence}` : null,
-        ].filter(Boolean) as string[];
         return (
           <Card
             key={plan.rent_request_id}
