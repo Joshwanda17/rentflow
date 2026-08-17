@@ -165,6 +165,11 @@ export function SelfPortfolioPlanDetailSheet({
 }) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [heroIndex, setHeroIndex] = useState(0);
+  const planId = plan?.rent_request_id ?? null;
+  useEffect(() => {
+    setHeroIndex(0);
+    setLightboxIndex(null);
+  }, [planId, open]);
   if (!plan) return null;
   const photos = (plan.house_image_urls ?? []).filter(Boolean);
   const name = plan.tenant_full_name || plan.tenant_first_name || 'Tenant';
