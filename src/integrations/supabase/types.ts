@@ -41339,6 +41339,16 @@ export type Database = {
         Args: { p_lc1_id: string; p_reason: string; p_status: string }
         Returns: Json
       }
+      set_merchant_desk_float_to: {
+        Args: {
+          p_agent_id: string
+          p_desk_id: string
+          p_evidence_note?: string
+          p_reason: string
+          p_target: number
+        }
+        Returns: Json
+      }
       set_my_operating_location: {
         Args: {
           p_district: string
