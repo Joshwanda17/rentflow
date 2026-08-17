@@ -39580,6 +39580,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      merchant_float_visible_net: {
+        Args: { p_agent_id: string }
+        Returns: number
+      }
       merchant_handles_payout: {
         Args: {
           p_agent_id: string
