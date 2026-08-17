@@ -305,9 +305,9 @@ export function MerchantReconcileDialog({
                   Recorded on the books — required
                 </span>
                 <span className="block text-[10px] text-muted-foreground">
-                  Posts real balanced entries (agent float in, company float out) and raises their
-                  float balance. Board-only opening balances are not allowed: they never move
-                  "They're holding our money".
+                  You type the figure their float should END at. We post only the difference — up
+                  through balanced float legs, down through an evidenced write-down — so repeating
+                  the same figure never stacks their balance.
                 </span>
               </span>
             </div>
@@ -327,19 +327,21 @@ export function MerchantReconcileDialog({
 
           <div>
             <Label className="text-xs">
-              {writedownMode ? 'Evidence (required — at least 20 letters)' : 'Proof (optional)'}
+              {writedownMode || (targetMode && targetDelta < 0)
+                ? 'Evidence (required — at least 20 letters)'
+                : 'Proof (optional)'}
             </Label>
             <Input
               value={evidence}
               onChange={(e) => setEvidence(e.target.value)}
               placeholder={
-                writedownMode
+                writedownMode || (targetMode && targetDelta < 0)
                   ? 'Which agent, what was on their phone (balance / screenshot ref / TID), date & time checked'
                   : 'MoMo transaction ID, statement line, or approval note'
               }
               className="mt-1 h-9 text-sm"
             />
-            {writedownMode && (
+            {(writedownMode || (targetMode && targetDelta < 0)) && (
               <p className="mt-1 text-[10px] text-muted-foreground">
                 {evidence.trim().length}/20 — name the agent, the balance or screenshot reference or
                 provider TID, and the date and time it was checked.
@@ -350,12 +352,31 @@ export function MerchantReconcileDialog({
           <Button onClick={submit} disabled={!valid || busy} className="w-full">
             {busy
               ? 'Saving…'
-              : writedownMode
+              : targetMode
+                ? `Set float to ${amount.trim() ? formatUGX(Math.round(numericAmount) || 0) : '—'}`
+                : writedownMode
                 ? 'Post write-down to the books'
                 : ledgerMode
                   ? 'Post to the books'
                   : 'Save fix'}
           </Button>
+
+          {valid && targetMode && (
+            <div className="rounded-lg border border-primary/40 bg-primary/5 px-3 py-2 space-y-1">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                What this will change
+              </p>
+              <p className="text-[11px] text-foreground">
+                Float on the books: {formatUGX(currentFloat)} →{' '}
+                <span className="font-semibold">{formatUGX(Math.round(numericAmount))}</span>
+              </p>
+              <p className="text-[10px] text-muted-foreground">
+                {targetDelta > 0
+                  ? `We add ${formatUGX(targetDelta)} through balanced float legs.`
+                  : `We take off ${formatUGX(Math.abs(targetDelta))} through a permanent, evidenced write-down.`}
+              </p>
+            </div>
+          )}
 
           {valid && writedownMode && (
             <div className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 space-y-1">
