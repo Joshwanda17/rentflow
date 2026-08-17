@@ -243,7 +243,10 @@ export function SelfPortfolioPlanDetailSheet({
                 />
                 <button
                   type="button"
-                  onClick={() => setLightboxIndex(null)}
+                  onClick={() => {
+                    setHeroIndex(lightboxIndex);
+                    setLightboxIndex(null);
+                  }}
                   aria-label="Close photo"
                   className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full bg-background/85 text-foreground shadow-md backdrop-blur transition hover:bg-background"
                 >
