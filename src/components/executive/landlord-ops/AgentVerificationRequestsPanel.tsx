@@ -519,7 +519,73 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
             )}
           </div>
         </div>
-        {resubmittedCount > 0 && (
+        {/* Tabs — pending, resubmitted and the read-only decision history */}
+        <Tabs value={tab} onValueChange={(v) => setTab(v as QueueTab)} className="mt-3">
+          <TabsList className="h-auto flex-wrap justify-start gap-1 bg-background/70 p-1">
+            {(['pending', 'resubmitted', 'verified', 'rejected', 'cancelled', 'all'] as QueueTab[]).map((t) => (
+              <TabsTrigger key={t} value={t} className="h-7 text-[11px] px-2.5 gap-1.5">
+                {TAB_LABEL[t]}
+                <Badge variant="secondary" className="h-4 px-1 text-[9px]">{tabCounts[t]}</Badge>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+
+        {/* Date range + export */}
+        <div className="mt-2.5 flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+            <Input type="date" value={fromDate} max={toDate} onChange={(e) => setFromDate(e.target.value)} className="h-7 w-[135px] text-[11px] bg-background/80" />
+            <span className="text-[11px] text-muted-foreground">to</span>
+            <Input type="date" value={toDate} min={fromDate} onChange={(e) => setToDate(e.target.value)} className="h-7 w-[135px] text-[11px] bg-background/80" />
+          </div>
+          {([['7d', 6], ['30d', 29], ['90d', 89]] as [string, number][]).map(([label, days]) => (
+            <Button
+              key={label}
+              size="sm"
+              variant="outline"
+              className="h-7 text-[10px] px-2"
+              onClick={() => {
+                setFromDate(fmtDay(subDays(new Date(), days), 'yyyy-MM-dd'));
+                setToDate(fmtDay(new Date(), 'yyyy-MM-dd'));
+              }}
+            >
+              Last {label}
+            </Button>
+          ))}
+          <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1.5" onClick={() => setShowChart((v) => !v)}>
+            <BarChart3 className="h-3 w-3" />
+            {showChart ? 'Hide chart' : 'Show chart'}
+          </Button>
+          <Button size="sm" className="h-7 text-[10px] gap-1.5 ml-auto" disabled={exporting} onClick={handleExportPdf}>
+            {exporting ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileDown className="h-3 w-3" />}
+            Export PDF
+          </Button>
+        </div>
+
+        {showChart && chartData.length > 0 && (
+          <div className="mt-2.5 rounded-xl border border-amber-500/25 bg-background/70 p-2">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+              Daily activity · requests created vs decided
+            </p>
+            <div className="h-[160px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} margin={{ top: 4, right: 6, left: -18, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.2} vertical={false} />
+                  <XAxis dataKey="day" tickFormatter={(d) => fmtDay(new Date(d), 'dd MMM')} tick={{ fontSize: 9 }} interval="preserveStartEnd" />
+                  <YAxis tick={{ fontSize: 9 }} allowDecimals={false} />
+                  <Tooltip contentStyle={{ fontSize: 11 }} labelFormatter={(d) => fmtDay(new Date(String(d)), 'dd MMM yyyy')} />
+                  <Legend wrapperStyle={{ fontSize: 10 }} />
+                  <Bar dataKey="created" name="Created" fill="hsl(var(--muted-foreground))" radius={[2, 2, 0, 0]} />
+                  <Bar dataKey="verified" name="Verified" fill="hsl(142 71% 40%)" radius={[2, 2, 0, 0]} />
+                  <Bar dataKey="rejected" name="Rejected" fill="hsl(0 72% 51%)" radius={[2, 2, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+
+        {resubmittedCount > 0 && tab !== 'resubmitted' && (
           <div className="mt-2.5 flex items-center gap-2 flex-wrap">
             <Button
               size="sm"
