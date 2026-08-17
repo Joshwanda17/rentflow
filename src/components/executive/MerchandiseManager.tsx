@@ -377,9 +377,6 @@ export function MerchandiseManager() {
         </div>
       </div>
 
-      {/* Live customer orders + realtime pop-ups */}
-      <MerchandiseLiveOrders />
-
       {/* Filters */}
       <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-border bg-card p-3">
         <div className="flex flex-col gap-1">
@@ -428,6 +425,9 @@ export function MerchandiseManager() {
         <KPICard title="Current Stock" value={totals.currentStock.toLocaleString()} icon={Boxes} color="bg-indigo-500/10 text-indigo-600" />
         <KPICard title="Inventory Value" value={formatUGX(totals.inventoryValue)} icon={Package} color="bg-cyan-500/10 text-cyan-600" subtitle="Stock at avg cost" />
       </div>
+
+      {/* Live customer orders + realtime pop-ups */}
+      <MerchandiseLiveOrders />
 
       {/* Cost of goods sold callout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
