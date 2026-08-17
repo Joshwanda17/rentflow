@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import airtelLogo from '@/assets/airtel-logo.jpeg.asset.json';
 import { useCurrency } from '@/hooks/useCurrency';
 import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -1846,7 +1847,12 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                     onClick={() => { setMomoProvider('airtel'); validateTid(transactionId, 'airtel'); }}
                     className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border-2 transition-all font-semibold text-sm ${momoProvider === 'airtel' ? 'border-destructive bg-destructive/10 shadow-sm' : 'border-border hover:border-destructive/50'}`}
                   >
-                    <div className="w-7 h-7 rounded-full bg-destructive flex items-center justify-center text-destructive-foreground font-bold text-[9px]">AIR</div>
+                    <img
+                      src={airtelLogo.url}
+                      alt="Airtel Money logo"
+                      className="w-7 h-7 rounded-full object-cover"
+                      loading="lazy"
+                    />
                     Airtel Money
                   </button>
                 </div>
