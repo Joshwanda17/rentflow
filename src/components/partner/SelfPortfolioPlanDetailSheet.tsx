@@ -173,26 +173,34 @@ export function SelfPortfolioPlanDetailSheet({
             <MapPin className="h-3.5 w-3.5 flex-none mt-0.5" />
             <span>{fullAddress}</span>
           </p>
-          <p className="text-sm text-muted-foreground">
-            {plan.duration_days ?? 30} day term
-            {plan.repayment_cadence ? ` · Collected ${plan.repayment_cadence}` : ''}
-          </p>
-          <div className="mt-2">
-            <PlanGpsChip
-              latitude={plan.request_latitude}
-              longitude={plan.request_longitude}
-              className="text-[11px]"
-            />
-          </div>
 
-          {/* Stat strip */}
-          <div className="mt-6 grid grid-cols-3 divide-x divide-border">
-            {stats.map((s) => (
-              <div key={s.label} className="px-2 text-center min-w-0">
-                <p className="text-sm font-extrabold truncate">{s.value}</p>
-                <p className="text-[11px] text-muted-foreground">{s.label}</p>
+          {/* Key details */}
+          <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="rounded-2xl bg-primary/5 px-4 py-3">
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Rent amount</p>
+              <p className="text-xl font-black text-primary truncate">{formatDynamic(plan.funding_amount)}</p>
+            </div>
+            <div className="rounded-2xl bg-muted/50 px-4 py-3 flex items-center gap-3">
+              <User className="h-5 w-5 text-muted-foreground flex-none" />
+              <div className="min-w-0">
+                <p className="text-[11px] text-muted-foreground">Landlord</p>
+                <p className="text-sm font-bold truncate">{plan.landlord_name ?? 'Landlord'}</p>
               </div>
-            ))}
+            </div>
+            <div className="rounded-2xl bg-muted/50 px-4 py-3 flex items-center gap-3">
+              <Phone className="h-5 w-5 text-muted-foreground flex-none" />
+              <div className="min-w-0">
+                <p className="text-[11px] text-muted-foreground">Contact</p>
+                <p className="text-sm font-bold truncate">{plan.landlord_phone ?? '—'}</p>
+              </div>
+            </div>
+            <div className="rounded-2xl bg-muted/50 px-4 py-3 flex items-center gap-3">
+              <ShieldCheck className="h-5 w-5 text-muted-foreground flex-none" />
+              <div className="min-w-0">
+                <p className="text-[11px] text-muted-foreground">LC Name</p>
+                <p className="text-sm font-bold truncate">{plan.lc1_chairperson_name ?? '—'}</p>
+              </div>
+            </div>
           </div>
 
           {/* Tenant row */}
