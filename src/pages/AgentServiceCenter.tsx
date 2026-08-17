@@ -336,6 +336,7 @@ export default function AgentServiceCenter() {
         }}
         onUnlink={(s) => { setDetailId(null); setUnlinkTarget(s); }}
         actionsDisabled={!!suspendTarget || !!unlinkTarget || !!transferTarget}
+        pendingTransferRentRequestIds={pendingTransferRentRequestIds}
       />
       <SuspendSubAgentDialog
         subAgent={suspendTarget ? subAgents.find((s) => s.sub_agent_id === suspendTarget.sub_agent_id) ?? suspendTarget : null}
