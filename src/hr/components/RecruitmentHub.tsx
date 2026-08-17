@@ -530,6 +530,23 @@ export default function RecruitmentHub() {
                     </p>
                   )}
 
+                  {!alwaysOpen && (
+                    <div className="mt-3 flex items-center justify-between gap-3">
+                      <span className="text-xs text-muted-foreground">
+                        {job.status === 'open'
+                          ? 'Accepting applications'
+                          : 'Not accepting applications'}
+                      </span>
+                      <Switch
+                        checked={job.status === 'open'}
+                        disabled={job.status === 'draft' || togglingId === job.id}
+                        onCheckedChange={(checked) =>
+                          handleStatusToggle(job, checked ? 'open' : 'closed')
+                        }
+                      />
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-2 gap-2 mt-3 text-xs text-muted-foreground">
                     <div>
                       Employment:{' '}
@@ -549,9 +566,14 @@ export default function RecruitmentHub() {
                     </div>
                   </div>
 
-                  <p className="mt-3 font-mono text-xs text-primary break-all">
-                    /careers/{job.public_slug}
-                  </p>
+                  <a
+                    href={`https://welile.com/careers?c=${job.public_slug}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-3 font-mono text-xs text-primary break-all hover:underline block"
+                  >
+                    welile.com/careers?c={job.public_slug}
+                  </a>
                 </Card>
               );
             })}
