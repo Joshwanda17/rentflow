@@ -76,7 +76,6 @@ const SheetHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElemen
       <X className="h-4 w-4" />
       <span className="sr-only">Close</span>
     </SheetPrimitive.Close>
-    {props.children}
   </div>
 );
 SheetHeader.displayName = "SheetHeader";
