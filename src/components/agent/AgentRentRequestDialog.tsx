@@ -1131,6 +1131,16 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [lc1Results, setLc1Results] = useState<Lc1Hit[]>([]);
   const [lc1Searching, setLc1Searching] = useState(false);
   const [lc1SearchedOnce, setLc1SearchedOnce] = useState(false);
+  // Official village unit behind the LC1's village (dataset-backed capture),
+  // used to stamp the full administrative chain when registering a new LC1.
+  const [lc1LocationUnit, setLc1LocationUnit] = useState<UgLocationSelection | null>(null);
+  // Village-driven auto-match: the LC1 already registered for the tenant's
+  // village is preselected so the agent never searches. Set to true only when
+  // the preselection came from the automatic lookup (not a manual pick).
+  const [lc1AutoMatched, setLc1AutoMatched] = useState(false);
+  // Village the agent explicitly opted out of auto-matching for (they tapped
+  // "Change" or chose to register a new LC1) — never re-apply for that village.
+  const lc1AutoOptOutRef = useRef<string | null>(null);
   const searchLc1 = useCallback(async () => {
     const q = lc1Query.trim();
     if (q.length < 2) {
