@@ -125,7 +125,7 @@ export default function AgentServiceCenter() {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div className="min-w-0">
-              <h1 className="flex items-center gap-2 truncate text-lg font-bold text-foreground">
+              <h1 className="flex items-center gap-2 truncate text-left text-lg font-bold text-foreground">
                 <Store className="h-5 w-5 text-primary" /> Service Center
               </h1>
               <p className="truncate text-xs text-muted-foreground">
