@@ -2,6 +2,7 @@ import { cn } from '@/lib/utils';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ClipboardCheck, Package, Route, Search, ShoppingBag, Store, UserPlus, Users } from 'lucide-react';
+import officeIllustration from '@/assets/At_the_office-bro-2.svg.asset.json';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -112,17 +113,25 @@ export default function AgentServiceCenter() {
   return (
     <div className="min-h-[100dvh] bg-background">
       <header className="sticky top-0 z-10 border-b border-border/60 bg-background/95 backdrop-blur">
-        <div className="mx-auto flex max-w-3xl items-center gap-2 px-4 py-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Go back">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div className="min-w-0">
-            <h1 className="flex items-center gap-2 truncate text-lg font-bold text-foreground">
-              <Store className="h-5 w-5 text-primary" /> Service Center
-            </h1>
-            <p className="truncate text-xs text-muted-foreground">
-              Your team, their tenants and your supplies in one place
-            </p>
+        <div className="mx-auto max-w-3xl px-4 py-3">
+          <img
+            src={officeIllustration.url}
+            alt="Service center illustration"
+            className="mx-auto mb-3 h-28 w-auto"
+            loading="eager"
+          />
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Go back">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div className="min-w-0">
+              <h1 className="flex items-center gap-2 truncate text-lg font-bold text-foreground">
+                <Store className="h-5 w-5 text-primary" /> Service Center
+              </h1>
+              <p className="truncate text-xs text-muted-foreground">
+                Your team, their tenants and your supplies in one place
+              </p>
+            </div>
           </div>
         </div>
       </header>
