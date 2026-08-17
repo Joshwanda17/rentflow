@@ -435,6 +435,43 @@ export function AgentWelileHomesSheet({ open, onOpenChange }: AgentWelileHomesSh
       <VerifyTenantDialog sub={verifyFor} onClose={() => setVerifyFor(null)} onDone={load} />
       <AllocateDialog sub={allocFor} onClose={() => setAllocFor(null)} onDone={load} />
       <EditDialog sub={editFor} agentId={user?.id} onClose={() => setEditFor(null)} onDone={load} />
+
+      <AlertDialog open={!!deleteFor} onOpenChange={(open) => { if (!open) setDeleteFor(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete tenant enrollment?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove <span className="font-semibold text-foreground">{deleteFor?.tenant_name}</span> and all their monthly dues from Welile Homes. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting} onClick={() => setDeleteFor(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleting}
+              onClick={async () => {
+                if (!deleteFor) return;
+                setDeleting(true);
+                try {
+                  const { error } = await (supabase.rpc as any)('delete_welile_home_subscription', {
+                    p_subscription_id: deleteFor.id,
+                  });
+                  if (error) throw error;
+                  toast({ title: 'Enrollment deleted', description: `${deleteFor.tenant_name} has been removed.` });
+                  setDeleteFor(null);
+                  load();
+                } catch (err: any) {
+                  toast({ title: 'Could not delete', description: err?.message || 'Please try again.', variant: 'destructive' });
+                } finally {
+                  setDeleting(false);
+                }
+              }}
+            >
+              {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
