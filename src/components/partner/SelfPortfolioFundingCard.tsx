@@ -298,7 +298,7 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
         const titleLine = `${plan.house_category ?? 'Rental home'}${plan.request_city ? ` in ${plan.request_city}` : ''}`;
         const addressLine = [plan.tenant_location, plan.request_city, 'Uganda'].filter(Boolean).join(', ');
         const refLine = `PLAN: ${plan.rent_request_id.slice(0, 8).toUpperCase()}`;
-        const dailyLabel = plan.daily_repayment ? `${formatDynamic(plan.daily_repayment)}/day` : null;
+        
         return (
           <Card
             key={plan.rent_request_id}
@@ -349,11 +349,6 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
                   {plan.duration_days ? (
                     <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
                       {plan.duration_days} days
-                    </span>
-                  ) : null}
-                  {dailyLabel ? (
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
-                      {dailyLabel}
                     </span>
                   ) : null}
                   {isFunded ? (
