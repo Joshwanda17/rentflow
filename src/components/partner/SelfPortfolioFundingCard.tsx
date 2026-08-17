@@ -295,12 +295,15 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
         const unaffordable = !isSelected && Number(plan.funding_amount || 0) > remaining;
         const images = (plan.house_image_urls ?? []).filter(Boolean);
         const monthlyRoi = Math.round((Number(plan.funding_amount || 0) * MONTHLY_ROI_RATE) / 100);
-        const titleLine = `${plan.house_category ?? 'Rental home'}${plan.request_city ? ` in ${plan.request_city}` : ''}`;
+        const prettyName = (raw?: string | null) =>
+          (raw ?? '')
+            .replace(/[_-]/g, ' ')
+            .replace(/\b\w/g, (c) => c.toUpperCase()) || 'Rental home';
+        const titleLine = `${prettyName(plan.house_category)}${plan.request_city ? ` in ${prettyName(plan.request_city)}` : ''}`;
         const village = plan.tenant_location?.split(',')[0]?.trim();
         const district = plan.request_city?.split(',')[0]?.trim();
         const addressLine = [village, district, 'Uganda'].filter(Boolean).join(', ');
-        const refLine = `PLAN: ${plan.rent_request_id.slice(0, 8).toUpperCase()}`;
-        
+
         return (
           <Card
             key={plan.rent_request_id}
@@ -313,11 +316,11 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
                 setDetailPlan(plan);
               }
             }}
-            className={`relative overflow-hidden rounded-3xl p-2.5 transition-all cursor-pointer hover:shadow-md ${isSelected ? 'ring-2 ring-primary bg-primary/5' : 'border-border/70'}`}
+            className={`relative overflow-hidden rounded-3xl p-2.5 transition-all cursor-pointer border ${isSelected ? 'ring-2 ring-primary bg-primary/5 border-primary' : 'border-primary/30 hover:border-primary/60'}`}
           >
-            <div className="flex gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row">
               {/* Photo */}
-              <div className="relative aspect-square w-24 shrink-0 overflow-hidden rounded-2xl bg-muted sm:w-32">
+              <div className="relative aspect-[4/3] w-full shrink-0 overflow-hidden rounded-2xl bg-muted sm:aspect-square sm:w-32">
                 {images.length > 0 ? (
                   <img src={images[0]} alt={titleLine} loading="lazy" className="h-full w-full object-cover" />
                 ) : (
@@ -334,9 +337,6 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
 
               {/* Details */}
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  {refLine}
-                </p>
                 <p className="truncate text-sm font-bold leading-tight sm:text-base">{titleLine}</p>
                 <p className="mt-0.5 flex items-start gap-1 text-[11px] leading-snug text-muted-foreground">
                   <MapPin className="mt-0.5 h-3 w-3 flex-none" />
