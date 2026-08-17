@@ -40505,6 +40505,16 @@ export type Database = {
           inserted_count: number
         }[]
       }
+      post_merchant_evidenced_writedown: {
+        Args: {
+          p_agent_id: string
+          p_amount: number
+          p_desk_id: string
+          p_evidence_note: string
+          p_reason: string
+        }
+        Returns: Json
+      }
       post_merchant_opening_float_ledger: {
         Args: {
           p_agent_id: string
