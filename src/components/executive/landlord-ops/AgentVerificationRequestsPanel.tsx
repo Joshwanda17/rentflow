@@ -293,7 +293,7 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search landlord, phone or agent…"
+              placeholder="Search landlord, agent or district…"
               className="pl-8 h-8 text-xs bg-background/80"
             />
             {search && (
@@ -330,6 +330,12 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
                     <Badge variant="outline" className="shrink-0 border-amber-500/40 text-amber-700 text-[10px]">
                       Pending
                     </Badge>
+                    {districtByLandlord[req.landlord_id] && (
+                      <Badge variant="outline" className="shrink-0 text-[10px] gap-1">
+                        <MapPin className="h-2.5 w-2.5" />
+                        {districtByLandlord[req.landlord_id]}
+                      </Badge>
+                    )}
                   </div>
                   {req.landlord_phone && (
                     <a href={`tel:${req.landlord_phone}`} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 truncate mt-0.5">
