@@ -5,24 +5,41 @@
 // or the exact bank) are enabled on their `cashout_agents.config` matrix.
 // Mirrors src/lib/cashoutAgentConfig.ts.
 
-export const SUPPORTED_BANK_IDS = [
-  "stanbic",
-  "centenary",
-  "dfcu",
-  "equity",
-  "postbank",
-  "housing_finance",
-] as const;
+/** Canonical bank ids + name patterns. Mirrors src/lib/cashoutAgentConfig.ts. */
+export const SUPPORTED_BANK_PATTERNS: Record<string, string[]> = {
+  absa: ["absa"],
+  bank_of_africa: ["bank of africa", "boa uganda"],
+  baroda: ["baroda"],
+  bank_of_india: ["bank of india"],
+  cairo: ["cairo"],
+  centenary: ["centenary", "centinary"],
+  citibank: ["citibank", "citi bank"],
+  dfcu: ["dfcu"],
+  dtb: ["diamond trust", "dtb"],
+  ecobank: ["ecobank", "eco bank"],
+  equity: ["equity"],
+  exim: ["exim"],
+  housing_finance: ["housing finance", "housingfinance"],
+  im_bank: ["i m bank", "i and m bank", "im bank"],
+  kcb: ["kcb", "kenya commercial bank"],
+  ncba: ["ncba", "nc bank"],
+  pearl: ["pearl"],
+  salaam: ["salaam"],
+  stanbic: ["stanbic"],
+  stanchart: ["standard chartered", "stanchart", "scb"],
+  tropical: ["tropical"],
+  uba: ["united bank for africa", "uba"],
+  postbank: ["postbank", "post bank"],
+};
+
+export const SUPPORTED_BANK_IDS = Object.keys(SUPPORTED_BANK_PATTERNS);
 
 export function normalizeBankId(raw: unknown): string | null {
   const s = String(raw ?? "").toLowerCase().replace(/[^a-z]+/g, " ").trim();
   if (!s) return null;
-  if (s.includes("stanbic")) return "stanbic";
-  if (s.includes("centenary") || s.includes("centinary")) return "centenary";
-  if (s.includes("dfcu")) return "dfcu";
-  if (s.includes("equity")) return "equity";
-  if (s.includes("post bank") || s.includes("postbank")) return "postbank";
-  if (s.includes("housing finance") || s.includes("housingfinance")) return "housing_finance";
+  for (const [id, pats] of Object.entries(SUPPORTED_BANK_PATTERNS)) {
+    if (pats.some((p) => s.includes(p))) return id;
+  }
   return null;
 }
 
