@@ -165,6 +165,7 @@ export function AgentRejectedLandlordsPanel() {
         .from('landlord_verification_requests')
         .update({
           status: 'pending',
+          reject_comment: null,
           resolved_by: null,
           resolved_at: null,
           landlord_name: form.name.trim(),
