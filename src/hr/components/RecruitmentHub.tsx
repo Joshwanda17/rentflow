@@ -151,6 +151,9 @@ export default function RecruitmentHub() {
   const [reqStatus, setReqStatus] = useState<ReqStatus>('pending');
   const [openTrail, setOpenTrail] = useState<Record<string, boolean>>({});
 
+  const [confirmClose, setConfirmClose] = useState<JobPosting | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+
   const [pipelineJob, setPipelineJob] = useState<string>(ALL);
   const [sortBy, setSortBy] = useState<'newest' | 'score'>('newest');
 
