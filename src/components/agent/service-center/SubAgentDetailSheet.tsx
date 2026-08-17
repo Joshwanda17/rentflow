@@ -64,6 +64,7 @@ export function SubAgentDetailSheet({
   onTransfer,
   onUnlink,
   actionsDisabled = false,
+  pendingTransferRentRequestIds = [],
 }: {
   subAgent: ServiceCenterSubAgent | null;
   open: boolean;
@@ -73,6 +74,8 @@ export function SubAgentDetailSheet({
   onUnlink: (s: ServiceCenterSubAgent) => void;
   /** True while one of the action dialogs is open / a mutation is running. */
   actionsDisabled?: boolean;
+  /** Rent plans already awaiting an Agent Ops decision — the server refuses a second request. */
+  pendingTransferRentRequestIds?: string[];
 }) {
   const [entityTab, setEntityTab] = useState<'tenants' | 'landlords' | 'houses'>('tenants');
 
