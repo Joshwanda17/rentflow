@@ -395,9 +395,9 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
         <MetricCard
           icon={<div className="h-10 w-10 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center"><Banknote className="h-5 w-5 text-blue-600" /></div>}
           label="Money We Have"
-          sublabel="From funders, repayments, collections & wallets"
+          sublabel="Cash and Bank (A1) + Cash in Transit (A5) — Balance Sheet basis"
           value={fmt(totalCash)}
-          detail={`Free to use: ${fmtShort(moneyWeCanUse)}`}
+          detail={`Bank: ${fmtShort(platformCash?.a1 ?? 0)} · In transit: ${fmtShort(platformCash?.a5 ?? 0)}`}
           onClick={() => setActiveBreakdown('cash')}
         />
         <MetricCard
