@@ -131,6 +131,14 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
         { event: '*', schema: 'public', table: 'landlord_verification_requests' },
         () => load(),
       )
+      // The landlord record is the other half of this state (a resubmit returns a
+      // rejected landlord to review). Refetch on it too so the queue can never
+      // disagree with the landlord's own verification status.
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'landlords' },
+        () => load(),
+      )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
