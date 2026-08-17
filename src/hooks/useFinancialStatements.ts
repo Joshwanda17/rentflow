@@ -1,6 +1,54 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { startOfDay, endOfDay, subDays, subWeeks, subMonths, subYears, startOfMonth, startOfYear, startOfWeek, startOfQuarter, differenceInDays } from 'date-fns';
+import {
+  REVENUE_SERVICE_FAMILIES,
+  MARKETING_EXPENSE_CATEGORIES,
+  MARKETING_LEGACY_DESC_BUCKETS,
+  OPERATING_EXPENSE_CATEGORIES,
+  OPERATING_LEGACY_DESC_BUCKETS,
+  classifyLedgerCategory,
+  prettyCategory,
+  type ServiceFamilyKey,
+} from '@/lib/incomeStatementServiceMap';
+
+/** One traceable line: a single existing ledger category and its period total. */
+export interface StatementCategoryLine {
+  /** Ledger category (or legacy description bucket) the amount comes from. */
+  source: string;
+  label: string;
+  amount: number;
+}
+
+export interface ServiceRevenueFamily {
+  key: ServiceFamilyKey | 'other';
+  label: string;
+  lines: StatementCategoryLine[];
+  total: number;
+}
+
+export interface ExpenseGroup {
+  lines: StatementCategoryLine[];
+  total: number;
+}
+
+/** Categories that hit the ledger but map to no existing service/expense bucket. */
+export interface UnmappedLedgerLine {
+  category: string;
+  direction: 'cash_in' | 'cash_out';
+  amount: number;
+}
+
+export interface ServiceIncomeStatement {
+  revenueFamilies: ServiceRevenueFamily[];
+  totalRevenue: number;
+  marketing: ExpenseGroup;
+  operating: ExpenseGroup;
+  totalMarketingExpenses: number;
+  totalOperatingExpenses: number;
+  netProfit: number;
+  reviewQueue: UnmappedLedgerLine[];
+}
 
 export type StatementPeriod = 'today' | '7days' | 'week' | '30days' | 'month' | 'quarter' | 'year' | 'all' | 'custom';
 export type ComparisonMode = 'none' | 'dod' | 'wow' | 'mom' | 'yoy';
@@ -13,6 +61,13 @@ export interface StatementFilters {
 
 export interface IncomeStatementData {
   period: string;
+  /**
+   * Dynamically derived, service-based view of the SAME ledger rows used by the
+   * classic sections below. Revenue is grouped into the Welile services that
+   * actually exist; expenses are split into Marketing vs Operating using only
+   * existing ledger categories. Nothing here alters the legacy figures.
+   */
+  byService: ServiceIncomeStatement;
   revenue: {
     accessFees: number;
     requestFees: number;
@@ -679,11 +734,101 @@ async function generateStatementsRaw(activeFilters: StatementFilters): Promise<F
       const averageRentAmount = approvedRequests.length > 0 ? totalFacilitatedRentVolume / approvedRequests.length : 0;
       const supporterCapitalDeployed = sumBy(bridgeIn, ['supporter_facilitation_capital', 'supporter_deposit', 'investment_deposit']);
 
+      // ══════════════════════════════════════════════════════════════
+      // SERVICE-BASED INCOME STATEMENT (dynamic, same ledger rows)
+      // ══════════════════════════════════════════════════════════════
+      const line = (source: string, amount: number): StatementCategoryLine => ({
+        source,
+        label: prettyCategory(source),
+        amount,
+      });
+
+      const revenueFamilies: ServiceRevenueFamily[] = REVENUE_SERVICE_FAMILIES.map(fam => {
+        const lines: StatementCategoryLine[] = [];
+        fam.categories.forEach(cat => {
+          const amount = sumWithDirectionFallback(platformIn, platformOut, [cat]);
+          if (amount > 0) lines.push(line(cat, amount));
+        });
+        // Agent advance access fees are an existing Welile agent service whose
+        // collected amount is tracked on `agent_advances` (access_fee_collected).
+        if (fam.key === 'agent' && advanceAccessFeesCollected > 0) {
+          lines.push({
+            source: 'agent_advances.access_fee_collected',
+            label: 'Advance Access Fees Collected',
+            amount: advanceAccessFeesCollected,
+          });
+        }
+        return {
+          key: fam.key,
+          label: fam.label,
+          lines,
+          total: lines.reduce((s, l) => s + l.amount, 0),
+        };
+      }).filter(f => f.lines.length > 0);
+
+      const serviceTotalRevenue = revenueFamilies.reduce((s, f) => s + f.total, 0);
+
+      const buildExpenseGroup = (
+        categories: string[],
+        legacyBuckets: string[],
+      ): ExpenseGroup => {
+        const lines: StatementCategoryLine[] = [];
+        categories.forEach(cat => {
+          const amount = sumWithDirectionFallback(platformOut, platformIn, [cat]);
+          if (amount > 0) lines.push(line(cat, amount));
+        });
+        legacyBuckets.forEach(bucket => {
+          const amount =
+            sumByDescriptionMatch(walletIn, bucket) || sumByDescriptionMatch(platformOut, bucket);
+          if (amount > 0) {
+            lines.push({
+              source: `system_balance_correction · ${bucket}`,
+              label: bucket.replace('→ ', ''),
+              amount,
+            });
+          }
+        });
+        return { lines, total: lines.reduce((s, l) => s + l.amount, 0) };
+      };
+
+      const marketingGroup = buildExpenseGroup(MARKETING_EXPENSE_CATEGORIES, MARKETING_LEGACY_DESC_BUCKETS);
+      const operatingGroup = buildExpenseGroup(OPERATING_EXPENSE_CATEGORIES, OPERATING_LEGACY_DESC_BUCKETS);
+
+      // Anything on the platform ledger that maps to no existing service or
+      // accounting bucket is flagged — never absorbed into a total.
+      const reviewQueue: UnmappedLedgerLine[] = (() => {
+        const acc = new Map<string, UnmappedLedgerLine>();
+        [...platformIn, ...platformOut].forEach(r => {
+          if (r.category === 'opening_balance') return;
+          if (classifyLedgerCategory(r.category).kind !== 'unmapped') return;
+          const dir = r.direction === 'cash_in' ? 'cash_in' : 'cash_out';
+          const key = `${r.category}|${dir}`;
+          const existing = acc.get(key);
+          if (existing) existing.amount += Number(r.amount) || 0;
+          else acc.set(key, { category: r.category, direction: dir, amount: Number(r.amount) || 0 });
+        });
+        return Array.from(acc.values())
+          .filter(l => l.amount !== 0)
+          .sort((a, b) => b.amount - a.amount);
+      })();
+
+      const serviceNetProfit = serviceTotalRevenue - marketingGroup.total - operatingGroup.total;
+
       const result: FinancialStatementsData = {
         generatedAt: new Date(),
         filters: activeFilters,
         incomeStatement: {
           period: formatPeriodLabel(activeFilters),
+          byService: {
+            revenueFamilies,
+            totalRevenue: serviceTotalRevenue,
+            marketing: marketingGroup,
+            operating: operatingGroup,
+            totalMarketingExpenses: marketingGroup.total,
+            totalOperatingExpenses: operatingGroup.total,
+            netProfit: serviceNetProfit,
+            reviewQueue,
+          },
           revenue: { accessFees, requestFees, otherServiceIncome, advanceAccessFeesCollected, total: totalRevenue },
           serviceDeliveryCosts: { platformRewards, agentCommissions, referralBonuses, agentBonuses, transactionExpenses, total: totalServiceCosts },
           grossProfit,
