@@ -301,8 +301,9 @@ export default function RecruitmentHub() {
   }
 
   return (
-    <Tabs value={tab} onValueChange={setTab} className="space-y-4">
-      <TabsList className="grid grid-cols-5 w-full">
+    <>
+      <Tabs value={tab} onValueChange={setTab} className="space-y-4">
+        <TabsList className="grid grid-cols-5 w-full">
         <TabsTrigger value="internships">Internships</TabsTrigger>
         <TabsTrigger value="requisitions">Requisitions</TabsTrigger>
         <TabsTrigger value="postings">Postings</TabsTrigger>
