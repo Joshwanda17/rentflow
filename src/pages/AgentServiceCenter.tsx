@@ -128,7 +128,7 @@ export default function AgentServiceCenter() {
               <h1 className="flex items-center gap-2 truncate text-left text-lg font-bold text-foreground">
                 <Store className="h-5 w-5 text-primary" /> Service Center
               </h1>
-              <p className="truncate text-xs text-muted-foreground">
+              <p className="truncate text-left text-xs text-muted-foreground">
                 Your team, their tenants and your supplies in one place
               </p>
             </div>
