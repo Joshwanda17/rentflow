@@ -40,7 +40,7 @@ export async function getJobPostings(_status?: string): Promise<JobPosting[]> {
   return postings.map((p) => ({
     ...p,
     application_count: countMap.get(p.public_slug) || 0,
-  })) as JobPosting[];
+  })) as unknown as JobPosting[];
 }
 
 export async function getJobPosting(_jobId: string): Promise<JobPosting | null> {
