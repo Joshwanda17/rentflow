@@ -47,12 +47,10 @@ export function planShareDescription(plan: SharePlanInput): string {
 /**
  * Create (or reuse) a trackable short link for a fundable rent plan.
  *
- * Returns both shapes for the same code:
- * - `shortUrl`  https://welileapp.com/s/<code> — in-app, click-counted route.
- * - `shareUrl`  the `og-plan` function URL, which serves Open Graph tags with
- *   the plan's house photo so WhatsApp/Facebook/X render a real preview image
- *   (a static SPA route cannot do that), records the same click, then forwards
- *   the visitor to the funder page.
+ * Returns the branded, click-counted link for the code:
+ * - `shortUrl`  https://welileapp.com/s/<code> — what we always share.
+ * - `shareUrl`  alias of `shortUrl`, kept so callers stay unchanged. The raw
+ *   `og-plan` function URL is never shared (it exposes the backend host).
  */
 export async function createPlanShareLink(
   userId: string,
@@ -64,7 +62,7 @@ export async function createPlanShareLink(
   const build = (code: string) => ({
     code,
     shortUrl: `${origin}/s/${code}`,
-    shareUrl: `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/og-plan/${code}`,
+    shareUrl: `${origin}/s/${code}`,
   });
 
   const findExisting = async () => {
