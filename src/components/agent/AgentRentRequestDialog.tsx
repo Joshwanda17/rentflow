@@ -4804,6 +4804,12 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 </h4>
                 <div className="space-y-3">
                   {/* ===== Search-first: find an LC1 already in the system ===== */}
+                  {ugLocation && !lc1Selected && lc1Auto.isLoading && (
+                    <p className="text-[11px] text-muted-foreground inline-flex items-center gap-1.5">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Finding the LC1 chairperson registered for {ugLocation.village}…
+                    </p>
+                  )}
                   {!lc1Selected && lc1Mode === 'search' && (
                     <div className="space-y-2 p-3 rounded-xl bg-primary/5 border border-primary/20">
                       <p className="text-xs text-muted-foreground leading-snug">
@@ -4860,6 +4866,12 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   {/* ===== Selected existing LC1 ===== */}
                   {lc1Selected && (
                     <div className="p-3 rounded-xl border border-success/40 bg-success/5">
+                      {lc1AutoMatched && (
+                        <p className="mb-1.5 text-[11px] font-semibold text-success inline-flex items-center gap-1">
+                          <ShieldCheck className="h-3.5 w-3.5" />
+                          Matched automatically from {ugLocation?.village || lc1Village}
+                        </p>
+                      )}
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <p className="font-medium text-sm truncate">{lc1Name}</p>
