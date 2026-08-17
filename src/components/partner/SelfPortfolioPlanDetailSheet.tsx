@@ -332,28 +332,27 @@ export function SelfPortfolioPlanDetailSheet({
                 <p className="mt-1 text-xs text-muted-foreground">
                   Based on a rent amount of {formatDynamic(plan.funding_amount)}.
                 </p>
-                <div className="mt-3 grid grid-cols-3 gap-2">
+                <ul className="mt-3 divide-y divide-primary/20">
                   {[
                     { label: 'Per day', value: daily },
-                    { label: 'Per week', value: weekly },
                     { label: 'Per month', value: monthly },
                   ].map((row) => (
-                    <div key={row.label} className="rounded-xl border border-border bg-background px-2 py-2 text-center">
-                      <p className="text-[11px] text-muted-foreground">{row.label}</p>
-                      <p className="text-sm font-black text-primary truncate">
+                    <li key={row.label} className="flex items-center justify-between gap-3 py-2.5">
+                      <span className="text-xs text-muted-foreground">{row.label}</span>
+                      <span className="text-sm font-black text-primary">
                         {formatDynamic(Math.round(row.value))}
-                      </p>
-                    </div>
+                      </span>
+                    </li>
                   ))}
-                </div>
-                <div className="mt-3 flex items-center justify-between gap-3 border-t border-primary/20 pt-3">
-                  <span className="text-xs text-muted-foreground">
-                    Over {months} {months === 1 ? 'month' : 'months'}
-                  </span>
-                  <span className="text-base font-black text-primary truncate">
-                    {formatDynamic(Math.round(total))}
-                  </span>
-                </div>
+                  <li className="flex items-center justify-between gap-3 py-2.5">
+                    <span className="text-xs text-muted-foreground">
+                      Over {months} {months === 1 ? 'month' : 'months'}
+                    </span>
+                    <span className="text-base font-black text-primary">
+                      {formatDynamic(Math.round(total))}
+                    </span>
+                  </li>
+                </ul>
               </div>
             );
           })()}
