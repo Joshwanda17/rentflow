@@ -1928,12 +1928,24 @@ function EditMerchantDialog({
                     <Switch checked={c.channels.bank} onCheckedChange={v => set({ channels: { ...c.channels, bank: v } })} />
                   </div>
                   {c.channels.bank && (
-                    <div className="ml-5 grid grid-cols-2 gap-1.5 pb-1">
+                    <div className="ml-5 pb-1 space-y-1.5">
+                      <div className="flex gap-2">
+                        <Button
+                          type="button" size="sm" variant="outline" className="h-6 text-[11px]"
+                          onClick={() => set({ banks: Object.fromEntries(SUPPORTED_BANKS.map(b => [b.id, true])) })}
+                        >All banks</Button>
+                        <Button
+                          type="button" size="sm" variant="outline" className="h-6 text-[11px]"
+                          onClick={() => set({ banks: Object.fromEntries(SUPPORTED_BANKS.map(b => [b.id, false])) })}
+                        >None</Button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-1.5">
                       {SUPPORTED_BANKS.map(b => (
                         <label key={b.id} className="flex items-center gap-1.5 text-xs cursor-pointer">
                           <Checkbox checked={!!c.banks[b.id]} onCheckedChange={v => set({ banks: { ...c.banks, [b.id]: !!v } })} /> {b.label}
                         </label>
                       ))}
+                      </div>
                     </div>
                   )}
                   <div className="flex items-center justify-between">
