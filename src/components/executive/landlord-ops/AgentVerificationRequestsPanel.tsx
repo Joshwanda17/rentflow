@@ -9,7 +9,7 @@ import { useAuth } from '@/hooks/useAuth';
 import {
   ShieldQuestion, CheckCircle2, XCircle, Phone, Loader2, UserCircle,
   MapPin, Home, Banknote, Smartphone, Calendar, Search, Building2,
-  FilterX, Clock,
+  FilterX, Clock, RotateCcw, AlertTriangle,
 } from 'lucide-react';
 import { notifyVerificationResolved } from '@/lib/landlordVerificationNotify';
 import { setLandlordVerification } from '@/lib/landlord-ops/verification';
@@ -70,6 +70,19 @@ interface DetailBundle {
   houses: HouseRow[];
 }
 
+/**
+ * Read-only decision history for a landlord that is back in the pending queue.
+ * A rejected landlord is reopened automatically when the agent resubmits
+ * (`sync_landlord_state_on_verification_request`), and the resubmit clears the
+ * request's own reject_comment — so without this the card looks like a brand
+ * new request and operators believe their rejection never stuck.
+ */
+interface PriorRejection {
+  count: number;
+  reason: string | null;
+  at: string;
+}
+
 const fmtUgx = (n?: number | null) =>
   n == null ? '—' : `UGX ${Number(n).toLocaleString()}`;
 
@@ -94,6 +107,9 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
   // Landlord district per pending request — loaded up-front so the queue can be
   // filtered by district without expanding every card.
   const [districtByLandlord, setDistrictByLandlord] = useState<Record<string, string>>({});
+  // Landlord -> latest recorded rejection (from the append-only event log).
+  const [priorByLandlord, setPriorByLandlord] = useState<Record<string, PriorRejection>>({});
+  const [onlyResubmitted, setOnlyResubmitted] = useState(false);
 
   const load = useCallback(async () => {
     const { data, error } = await supabase
@@ -115,8 +131,27 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
             ((locs ?? []) as { id: string; district: string | null }[]).map(l => [l.id, l.district || '']),
           ),
         );
+        // Append-only transition log — never mutated by the resubmit path, so it
+        // is the only reliable source for "this was already rejected once".
+        const { data: events } = await supabase
+          .from('landlord_verification_events')
+          .select('landlord_id, reason, created_at')
+          .in('landlord_id', ids)
+          .eq('to_status', 'rejected')
+          .order('created_at', { ascending: false });
+        const prior: Record<string, PriorRejection> = {};
+        for (const e of (events ?? []) as { landlord_id: string; reason: string | null; created_at: string }[]) {
+          const existing = prior[e.landlord_id];
+          if (existing) {
+            existing.count += 1; // rows arrive newest-first, so keep the first reason
+          } else {
+            prior[e.landlord_id] = { count: 1, reason: e.reason, at: e.created_at };
+          }
+        }
+        setPriorByLandlord(prior);
       } else {
         setDistrictByLandlord({});
+        setPriorByLandlord({});
       }
     }
     setLoading(false);
@@ -257,15 +292,23 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return requests;
-    return requests.filter((r) =>
+    const base = onlyResubmitted
+      ? requests.filter((r) => !!priorByLandlord[r.landlord_id])
+      : requests;
+    if (!q) return base;
+    return base.filter((r) =>
       (r.landlord_name || '').toLowerCase().includes(q) ||
       (r.landlord_phone || '').toLowerCase().includes(q) ||
       (r.agent_name || '').toLowerCase().includes(q) ||
       (r.agent_phone || '').toLowerCase().includes(q) ||
       (districtByLandlord[r.landlord_id] || '').toLowerCase().includes(q)
     );
-  }, [requests, search, districtByLandlord]);
+  }, [requests, search, districtByLandlord, onlyResubmitted, priorByLandlord]);
+
+  const resubmittedCount = useMemo(
+    () => requests.filter((r) => !!priorByLandlord[r.landlord_id]).length,
+    [requests, priorByLandlord],
+  );
 
   if (loading || requests.length === 0) return null;
 
@@ -307,6 +350,22 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
             )}
           </div>
         </div>
+        {resubmittedCount > 0 && (
+          <div className="mt-2.5 flex items-center gap-2 flex-wrap">
+            <Button
+              size="sm"
+              variant={onlyResubmitted ? 'default' : 'outline'}
+              className="h-7 text-[11px] gap-1.5"
+              onClick={() => setOnlyResubmitted((v) => !v)}
+            >
+              <RotateCcw className="h-3 w-3" />
+              {onlyResubmitted ? 'Showing resubmitted only' : `Resubmitted after rejection (${resubmittedCount})`}
+            </Button>
+            <span className="text-[10px] text-muted-foreground">
+              These were rejected before and returned to review by the agent — the original rejection is shown on each card.
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Proper list — not nested in a collapsible */}
@@ -330,6 +389,15 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
                     <Badge variant="outline" className="shrink-0 border-amber-500/40 text-amber-700 text-[10px]">
                       Pending
                     </Badge>
+                    {priorByLandlord[req.landlord_id] && (
+                      <Badge variant="outline" className="shrink-0 text-[10px] gap-1 border-rose-500/50 text-rose-700 bg-rose-500/10">
+                        <RotateCcw className="h-2.5 w-2.5" />
+                        Resubmitted
+                        {priorByLandlord[req.landlord_id].count > 1
+                          ? ` · rejected ${priorByLandlord[req.landlord_id].count}×`
+                          : ''}
+                      </Badge>
+                    )}
                     {districtByLandlord[req.landlord_id] && (
                       <Badge variant="outline" className="shrink-0 text-[10px] gap-1">
                         <MapPin className="h-2.5 w-2.5" />
@@ -353,6 +421,21 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
                   </p>
                 </div>
               </div>
+
+              {priorByLandlord[req.landlord_id] && (
+                <div className="rounded-lg border border-rose-500/40 bg-rose-50/70 dark:bg-rose-500/10 p-2.5 space-y-1">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-rose-700 flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" />
+                    Previously rejected · {new Date(priorByLandlord[req.landlord_id].at).toLocaleDateString()}
+                  </p>
+                  <p className="text-[11px] text-foreground">
+                    {priorByLandlord[req.landlord_id].reason || 'No reason recorded.'}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">
+                    The agent corrected the record and returned it to review, so it is pending again. Verify only if the issue above is fixed.
+                  </p>
+                </div>
+              )}
 
               {/* Review trigger */}
               <Button
