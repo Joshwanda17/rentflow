@@ -364,11 +364,11 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
               <p className="truncate text-[11px] text-muted-foreground">
                 Landlord: {plan.landlord_name ?? 'Landlord'}
               </p>
-              {plan.daily_repayment ? (
+              {Number(plan.funding_amount) > 0 ? (
                 <p className="mt-1 text-[11px] text-muted-foreground">
                   Project earns{' '}
                   <span className="font-black text-primary">
-                    {formatDynamic(Math.round(plan.daily_repayment * 30))}
+                    {formatDynamic(Math.round(Number(plan.funding_amount) * 0.15))}
                   </span>{' '}
                   monthly
                 </p>
