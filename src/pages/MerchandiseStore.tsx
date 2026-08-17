@@ -24,6 +24,7 @@ import { shortMerchandiseUrl, longMerchandiseUrl } from '@/lib/merchandiseShareL
 import { useRestoreBodyPointerEvents } from '@/hooks/useRestoreBodyPointerEvents';
 import shoppingBagIllustration from '@/assets/Shopping_bag-amico.svg.asset.json';
 import spiroBikeAsset from '@/assets/spiro-bike.jpeg.asset.json';
+import smartphonePromoAsset from '@/assets/smartphone-promo.jpg.asset.json';
 
 // Merchandise tables aren't in generated types yet.
 const db = supabase as any;
