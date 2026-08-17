@@ -361,7 +361,7 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
             </div>
 
             <div className="px-1.5 pb-1 pt-3">
-              <div className="flex items-baseline justify-between gap-2">
+              <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-2">
                 <p className="truncate text-sm font-bold">
                   {plan.tenant_full_name || plan.tenant_first_name || 'Tenant'}
                 </p>
@@ -373,23 +373,20 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
                 <MapPin className="h-3 w-3 shrink-0" />
                 <span className="truncate">
                   {plan.tenant_location || plan.request_city || 'Uganda'}
-                  {plan.house_category ? ` · ${plan.house_category}` : ''}
                 </span>
               </div>
               <p className="truncate text-[11px] text-muted-foreground">
                 Landlord: {plan.landlord_name ?? 'Landlord'}
               </p>
-              <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                <PlanGpsChip
-                  latitude={plan.request_latitude}
-                  longitude={plan.request_longitude}
-                />
-              </div>
-              {metrics.length > 0 && (
-                <p className="mt-0.5 text-[11px] font-semibold text-foreground/80">
-                  {metrics.join(' · ')}
+              {plan.daily_repayment ? (
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Project earns{' '}
+                  <span className="font-black text-primary">
+                    {formatDynamic(Math.round(plan.daily_repayment * 30))}
+                  </span>{' '}
+                  monthly
                 </p>
-              )}
+              ) : null}
 
               {heldByOther && (
                 <p className="mt-2 text-[10px] text-muted-foreground">
