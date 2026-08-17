@@ -1875,6 +1875,9 @@ export function AgentCashPayoutsTab() {
                   const methodLabel = channel === 'momo' ? 'Mobile Money' : channel === 'bank' ? 'Bank Transfer' : 'Cash';
                   const isLandlordPayout =
                     typeof w.reason === 'string' && w.reason.startsWith('Landlord float payout');
+                  const isUrgentProxy = isUrgentProxyWithdrawal(w);
+                  const proxyBlocked =
+                    !isUrgentProxy && !!blockingUrgentProxy && blockingUrgentProxy.id !== w.id;
                   const name = isLandlordPayout
                     ? (w.mobile_money_name || 'Landlord')
                     : (w.profiles?.full_name
@@ -1883,8 +1886,24 @@ export function AgentCashPayoutsTab() {
                         || w.bank_account_name
                         || 'Unknown');
                   return (
-                    <Card key={w.id} className="rounded-2xl border-border transition-colors hover:border-primary/30">
+                    <Card
+                      key={w.id}
+                      className={cn(
+                        'rounded-2xl transition-colors',
+                        isUrgentProxy
+                          ? 'border-2 border-destructive/60 bg-destructive/5 ring-2 ring-destructive/20'
+                          : 'border-border hover:border-primary/30',
+                      )}
+                    >
                       <CardContent className="p-4 space-y-3.5">
+                        {isUrgentProxy && (
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="inline-flex items-center rounded-md bg-destructive px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-destructive-foreground">
+                              {URGENT_PROXY_BADGE_LABEL}
+                            </span>
+                            <span className="text-[11px] font-semibold text-destructive">Priority #1 — process this first</span>
+                          </div>
+                        )}
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex min-w-0 flex-1 items-start gap-3">
                             <div className={cn(
@@ -1913,27 +1932,36 @@ export function AgentCashPayoutsTab() {
                             <p className="whitespace-nowrap text-base sm:text-lg font-bold tabular-nums leading-tight text-foreground">{formatUGX(w.amount)}</p>
                           </div>
                         </div>
+                        {proxyBlocked && (
+                          <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs font-semibold text-destructive">
+                            {PROXY_PRIORITY_WAITING_LABEL} {PROXY_PRIORITY_BLOCK_MESSAGE}
+                          </div>
+                        )}
                         <Button
                           className="w-full h-12 gap-2 font-semibold text-base"
                           onClick={() => handleClaim(w.id, {
                             momoNumber: w.mobile_money_number ?? null,
                             momoName: w.mobile_money_name ?? null,
                           })}
-                          disabled={claimingIds.has(w.id) || hasActiveClaim}
+                          disabled={claimingIds.has(w.id) || hasActiveClaim || proxyBlocked}
                           title={
                             claimingIds.has(w.id)
                               ? 'Request is being processed…'
-                              : hasActiveClaim
-                                ? 'Finish your current claim before claiming another'
-                                : 'Claim this withdrawal'
+                              : proxyBlocked
+                                ? PROXY_PRIORITY_BLOCK_MESSAGE
+                                : hasActiveClaim
+                                  ? 'Finish your current claim before claiming another'
+                                  : 'Claim this withdrawal'
                           }
                         >
                           {claimingIds.has(w.id) ? (
                             <><Loader2 className="h-5 w-5 animate-spin" /> Claiming…</>
+                          ) : proxyBlocked ? (
+                            <><Clock className="h-5 w-5" /> Waiting for Priority Proxy Withdrawal</>
                           ) : hasActiveClaim ? (
                             <><Clock className="h-5 w-5" /> Finish current claim first</>
                           ) : (
-                            <><UserCheck className="h-5 w-5" /> Claim</>
+                            <><UserCheck className="h-5 w-5" /> {isUrgentProxy ? 'Claim Priority Payout' : 'Claim'}</>
                           )}
                         </Button>
                       </CardContent>
