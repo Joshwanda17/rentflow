@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { StorageImage } from '@/components/ui/StorageImage';
 import { optimizeImage } from '@/lib/imageOptimizer';
+import { MerchandiseLiveOrders } from './MerchandiseLiveOrders';
 
 // The merchandise tables are new; the generated Supabase types don't include
 // them yet, so we reach them through an untyped client alias.
@@ -378,6 +379,7 @@ export function MerchandiseManager() {
 
       {/* Filters */}
       <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-border bg-card p-3">
+        {/* eslint-disable-next-line */}
         <div className="flex flex-col gap-1">
           <Label className="text-xs">From</Label>
           <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="w-40" />
