@@ -213,8 +213,8 @@ export function SelfPortfolioPlanDetailSheet({
             <ShieldCheck className="h-4 w-4 text-muted-foreground flex-none mt-0.5" />
             <p className="text-xs text-muted-foreground">
               {isFunded
-                ? 'You already support this tenant. Tenant contact details stay with the agent.'
-                : 'Summary only. The tenant photo stays blurred and contact details are hidden until you support this tenant.'}
+                ? 'You already support this tenant. The landlord and tenant have agreed to share this information through Welile.'
+                : 'Summary only. The landlord and tenant have agreed to share their information through Welile; the photo stays blurred and contact details stay hidden until you support this tenant.'}
             </p>
           </div>
 
