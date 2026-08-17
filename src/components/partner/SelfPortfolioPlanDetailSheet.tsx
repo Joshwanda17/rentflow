@@ -288,23 +288,23 @@ export function SelfPortfolioPlanDetailSheet({
                 {formatDynamic(plan.funding_amount)}
               </span>
             </li>
-            <li className="flex items-center justify-between gap-3 py-3">
+            <li className="flex items-start justify-between gap-3 py-3">
               <span className="flex items-center gap-2 text-sm text-muted-foreground">
                 <User className="h-4 w-4 flex-none" /> Landlord
               </span>
-              <span className="text-sm font-bold truncate">{plan.landlord_name ?? 'Landlord'}</span>
-            </li>
-            <li className="flex items-center justify-between gap-3 py-3">
-              <span className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Phone className="h-4 w-4 flex-none" /> Landlord contact
-              </span>
-              {plan.landlord_phone ? (
-                <a href={`tel:${plan.landlord_phone}`} className="text-sm font-bold text-primary truncate">
-                  {plan.landlord_phone}
-                </a>
-              ) : (
-                <span className="text-sm font-bold">—</span>
-              )}
+              <div className="flex flex-col items-end gap-0.5 text-right">
+                <span className="text-sm font-bold truncate">{plan.landlord_name ?? 'Landlord'}</span>
+                {plan.landlord_phone ? (
+                  <a
+                    href={`tel:${plan.landlord_phone}`}
+                    className="text-xs font-semibold text-primary truncate hover:underline"
+                  >
+                    {plan.landlord_phone}
+                  </a>
+                ) : (
+                  <span className="text-xs font-semibold text-muted-foreground">—</span>
+                )}
+              </div>
             </li>
             <li className="flex items-center justify-between gap-3 py-3">
               <span className="flex items-center gap-2 text-sm text-muted-foreground">
