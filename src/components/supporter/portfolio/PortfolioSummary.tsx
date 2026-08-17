@@ -25,7 +25,7 @@ export function PortfolioSummary({ totalDeployed, activeCount }: Props) {
         <p className="text-2xl xs:text-[26px] font-bold tracking-tight text-foreground break-words leading-tight">
           {formatUGX(totalDeployed)}
         </p>
-        <p className="text-[11px] text-muted-foreground mt-0.5">Currently deployed</p>
+        <p className="text-[11px] text-muted-foreground mt-0.5">Currently supporting</p>
       </div>
 
       <div className="pt-2 border-t border-border/40">
