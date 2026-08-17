@@ -12515,6 +12515,94 @@ export type Database = {
           },
         ]
       }
+      hr_metric_targets: {
+        Row: {
+          amber_lag_pct: number
+          base_metric_key: string | null
+          department_id: string | null
+          id: string
+          metric_key: string
+          note: string | null
+          pace_model: string
+          period_end: string
+          period_start: string
+          red_lag_pct: number
+          retired_at: string | null
+          retired_by: string | null
+          scope_kind: string
+          set_at: string
+          set_by: string
+          source_task_id: string | null
+          staff_id: string | null
+          status: string
+          target_value: number
+        }
+        Insert: {
+          amber_lag_pct?: number
+          base_metric_key?: string | null
+          department_id?: string | null
+          id?: string
+          metric_key: string
+          note?: string | null
+          pace_model?: string
+          period_end: string
+          period_start: string
+          red_lag_pct?: number
+          retired_at?: string | null
+          retired_by?: string | null
+          scope_kind: string
+          set_at?: string
+          set_by?: string
+          source_task_id?: string | null
+          staff_id?: string | null
+          status?: string
+          target_value: number
+        }
+        Update: {
+          amber_lag_pct?: number
+          base_metric_key?: string | null
+          department_id?: string | null
+          id?: string
+          metric_key?: string
+          note?: string | null
+          pace_model?: string
+          period_end?: string
+          period_start?: string
+          red_lag_pct?: number
+          retired_at?: string | null
+          retired_by?: string | null
+          scope_kind?: string
+          set_at?: string
+          set_by?: string
+          source_task_id?: string | null
+          staff_id?: string | null
+          status?: string
+          target_value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_metric_targets_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "hr_departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_metric_targets_source_task_id_fkey"
+            columns: ["source_task_id"]
+            isOneToOne: false
+            referencedRelation: "hr_tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_metric_targets_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "hr_staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_pay_advance_recoveries: {
         Row: {
           advance_id: string
@@ -39146,6 +39234,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      hr_working_days: { Args: { _from: string; _to: string }; Returns: number }
       ignore_withdrawal_dispatch: {
         Args: { p_withdrawal_id: string }
         Returns: boolean
