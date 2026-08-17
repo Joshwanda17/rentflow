@@ -53,10 +53,23 @@ export function MerchantReconcileDialog({
 
   const truth = variances?.find((v) => v.deskId === position.deskId);
   const numericAmount = Number(amount.replace(/[^\d.-]/g, ''));
-  const ledgerMode = type === 'opening_balance' && postToLedger;
+  // "Starting balance" is a TARGET, not an addition. The CFO types the figure
+  // the agent actually holds and we post only the difference — up through the
+  // opening-balance path, down through the evidenced write-down path. Typing
+  // the same figure twice can no longer stack float.
+  const targetMode = type === 'opening_balance' && postToLedger;
+  const currentFloat = Math.max(position.companyCashWithAgent, 0);
+  const targetDelta = targetMode ? Math.round(numericAmount) - currentFloat : 0;
+  const ledgerMode = targetMode && targetDelta > 0;
   const writedownMode = type === 'evidenced_writedown';
   const evidenceOk = evidence.trim().length >= 20;
-  const valid =
+  const valid = targetMode
+    ? Number.isFinite(numericAmount) &&
+      numericAmount >= 0 &&
+      targetDelta !== 0 &&
+      reason.trim().length >= 10 &&
+      (targetDelta > 0 || evidenceOk)
+    :
     Number.isFinite(numericAmount) &&
     (ledgerMode || writedownMode ? numericAmount > 0 : numericAmount !== 0) &&
     reason.trim().length >= 10 &&
@@ -74,6 +87,42 @@ export function MerchantReconcileDialog({
 
   const submit = async () => {
     try {
+      if (targetMode) {
+        if (targetDelta < 0) {
+          const res = await postWritedown.mutateAsync({
+            deskId: position.deskId,
+            agentId: position.agentId,
+            adjustmentType: 'evidenced_writedown',
+            amount: Math.abs(targetDelta),
+            reason,
+            evidenceNote: evidence,
+          });
+          toast.success('Float set on the books', {
+            description: `Float is now ${formatUGX(Number(res.float_after))} (was ${formatUGX(
+              Number(res.float_before),
+            )}). We took off ${formatUGX(Math.abs(targetDelta))}.`,
+          });
+        } else {
+          await postLedger.mutateAsync({
+            deskId: position.deskId,
+            agentId: position.agentId,
+            adjustmentType: 'opening_balance',
+            amount: targetDelta,
+            reason,
+            evidenceNote: evidence,
+          });
+          toast.success('Float set on the books', {
+            description: `Float is now ${formatUGX(currentFloat + targetDelta)} (was ${formatUGX(
+              currentFloat,
+            )}). We added ${formatUGX(targetDelta)}.`,
+          });
+        }
+        setAmount('');
+        setReason('');
+        setEvidence('');
+        onOpenChange(false);
+        return;
+      }
       if (writedownMode) {
         const res = await postWritedown.mutateAsync({
           deskId: position.deskId,
@@ -91,29 +140,6 @@ export function MerchantReconcileDialog({
         setAmount('');
         setReason('');
         setEvidence('');
-        onOpenChange(false);
-        return;
-      }
-      if (ledgerMode) {
-        const res = await postLedger.mutateAsync({
-          deskId: position.deskId,
-          agentId: position.agentId,
-          adjustmentType: 'opening_balance',
-          amount: numericAmount,
-          reason,
-          evidenceNote: evidence,
-        });
-        toast.success('Recorded on the books', {
-          description: `Balanced legs posted. "They're holding our money" is now ${formatUGX(
-            position.companyCashWithAgent + Math.round(numericAmount),
-          )} (was ${formatUGX(position.companyCashWithAgent)}). Ledger group ${String(
-            res.ledger_group_id,
-          ).slice(0, 8)}.`,
-        });
-        setAmount('');
-        setReason('');
-        setEvidence('');
-        setPostToLedger(true);
         onOpenChange(false);
         return;
       }
@@ -210,28 +236,43 @@ export function MerchantReconcileDialog({
           </div>
 
           <div>
-            <Label className="text-xs">Amount (UGX)</Label>
+            <Label className="text-xs">
+              {targetMode ? 'Float the agent actually holds now (UGX)' : 'Amount (UGX)'}
+            </Label>
             <Input
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               inputMode="numeric"
-              placeholder="e.g. 2500000"
+              placeholder={targetMode ? `Now on the books: ${currentFloat}` : 'e.g. 2500000'}
               className="mt-1 h-9 text-sm"
             />
             <p className="mt-1 text-[10px] text-muted-foreground">
               {type === 'payout_correction'
                 ? 'Lowers what we count as paid out by this agent.'
                 : type === 'opening_balance'
-                  ? 'Counts float the agent already held before the board started, so we stop showing it as owed to them.'
+                  ? `This is the FINAL figure, not an addition. Their float on the books becomes exactly this number — we only post the difference from ${formatUGX(currentFloat)}. Entering the same figure twice cannot double it.`
                   : type === 'evidenced_writedown'
                     ? "Reduces the agent's float on the books to the amount actually seen with them. Enter the amount to SUBTRACT."
                     : type === 'write_off'
                       ? 'Closes the balance we agreed to let go with this agent.'
                       : 'Adds to the money we already count as paid back to this agent.'}{' '}
-              {ledgerMode || writedownMode
+              {targetMode
+                ? ''
+                : writedownMode
                 ? 'Must be a positive amount — to reduce float, use CFO Direct Debit.'
                 : 'Use a minus amount to undo an earlier fix.'}
             </p>
+            {targetMode && targetDelta === 0 && numericAmount >= 0 && amount.trim() !== '' && (
+              <p className="mt-1 text-[10px] font-medium text-muted-foreground">
+                Already {formatUGX(currentFloat)} on the books — nothing to change.
+              </p>
+            )}
+            {targetMode && targetDelta < 0 && !evidenceOk && (
+              <p className="mt-1 text-[10px] font-medium text-destructive">
+                This lowers their float by {formatUGX(Math.abs(targetDelta))} — evidence is required
+                below.
+              </p>
+            )}
             {writedownMode && numericAmount > position.companyCashWithAgent && (
               <p className="mt-1 text-[10px] font-medium text-destructive">
                 Cannot exceed the float on the books ({formatUGX(position.companyCashWithAgent)}).
@@ -264,9 +305,9 @@ export function MerchantReconcileDialog({
                   Recorded on the books — required
                 </span>
                 <span className="block text-[10px] text-muted-foreground">
-                  Posts real balanced entries (agent float in, company float out) and raises their
-                  float balance. Board-only opening balances are not allowed: they never move
-                  "They're holding our money".
+                  You type the figure their float should END at. We post only the difference — up
+                  through balanced float legs, down through an evidenced write-down — so repeating
+                  the same figure never stacks their balance.
                 </span>
               </span>
             </div>
@@ -286,19 +327,21 @@ export function MerchantReconcileDialog({
 
           <div>
             <Label className="text-xs">
-              {writedownMode ? 'Evidence (required — at least 20 letters)' : 'Proof (optional)'}
+              {writedownMode || (targetMode && targetDelta < 0)
+                ? 'Evidence (required — at least 20 letters)'
+                : 'Proof (optional)'}
             </Label>
             <Input
               value={evidence}
               onChange={(e) => setEvidence(e.target.value)}
               placeholder={
-                writedownMode
+                writedownMode || (targetMode && targetDelta < 0)
                   ? 'Which agent, what was on their phone (balance / screenshot ref / TID), date & time checked'
                   : 'MoMo transaction ID, statement line, or approval note'
               }
               className="mt-1 h-9 text-sm"
             />
-            {writedownMode && (
+            {(writedownMode || (targetMode && targetDelta < 0)) && (
               <p className="mt-1 text-[10px] text-muted-foreground">
                 {evidence.trim().length}/20 — name the agent, the balance or screenshot reference or
                 provider TID, and the date and time it was checked.
@@ -309,12 +352,31 @@ export function MerchantReconcileDialog({
           <Button onClick={submit} disabled={!valid || busy} className="w-full">
             {busy
               ? 'Saving…'
-              : writedownMode
+              : targetMode
+                ? `Set float to ${amount.trim() ? formatUGX(Math.round(numericAmount) || 0) : '—'}`
+                : writedownMode
                 ? 'Post write-down to the books'
                 : ledgerMode
                   ? 'Post to the books'
                   : 'Save fix'}
           </Button>
+
+          {valid && targetMode && (
+            <div className="rounded-lg border border-primary/40 bg-primary/5 px-3 py-2 space-y-1">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                What this will change
+              </p>
+              <p className="text-[11px] text-foreground">
+                Float on the books: {formatUGX(currentFloat)} →{' '}
+                <span className="font-semibold">{formatUGX(Math.round(numericAmount))}</span>
+              </p>
+              <p className="text-[10px] text-muted-foreground">
+                {targetDelta > 0
+                  ? `We add ${formatUGX(targetDelta)} through balanced float legs.`
+                  : `We take off ${formatUGX(Math.abs(targetDelta))} through a permanent, evidenced write-down.`}
+              </p>
+            </div>
+          )}
 
           {valid && writedownMode && (
             <div className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 space-y-1">
