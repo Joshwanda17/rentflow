@@ -306,6 +306,50 @@ export function SelfPortfolioPlanDetailSheet({
             </li>
           </ul>
 
+          {/* Earnings projection */}
+          {(() => {
+            const monthly = plan.funding_amount * 0.15;
+            const daily = monthly / 30;
+            const weekly = monthly / 4;
+            const months = Math.max(1, Math.round((plan.duration_days ?? 30) / 30));
+            const total = monthly * months;
+            return (
+              <div className="mt-5 rounded-2xl border border-primary/40 bg-primary/5 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-bold">Your projected returns</p>
+                  <span className="rounded-full border border-primary/40 bg-background px-2 py-0.5 text-[11px] font-bold text-primary">
+                    15% per month
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Based on a rent amount of {formatDynamic(plan.funding_amount)}.
+                </p>
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  {[
+                    { label: 'Per day', value: daily },
+                    { label: 'Per week', value: weekly },
+                    { label: 'Per month', value: monthly },
+                  ].map((row) => (
+                    <div key={row.label} className="rounded-xl border border-border bg-background px-2 py-2 text-center">
+                      <p className="text-[11px] text-muted-foreground">{row.label}</p>
+                      <p className="text-sm font-black text-primary truncate">
+                        {formatDynamic(Math.round(row.value))}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3 flex items-center justify-between gap-3 border-t border-primary/20 pt-3">
+                  <span className="text-xs text-muted-foreground">
+                    Over {months} {months === 1 ? 'month' : 'months'}
+                  </span>
+                  <span className="text-base font-black text-primary truncate">
+                    {formatDynamic(Math.round(total))}
+                  </span>
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Thumbnails */}
           {photos.length > 1 && (
             <div className="mt-5">
