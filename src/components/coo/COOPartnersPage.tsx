@@ -5667,7 +5667,12 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
           ? `[Split ROI → Partner Wallet via Proxy ${managed.agentName}] Cash portion ${formatUGX(cashAmount)} to ${p.name}'s partner wallet. Reinvested: ${formatUGX(reinvestAmount)}. Total ROI: ${formatUGX(roiAmount)}. Reason: ${reason}`
           : `[Split ROI → ${modeLabel}] Cash portion ${formatUGX(cashAmount)} to ${p.name}'s wallet. Reinvested: ${formatUGX(reinvestAmount)}. Total ROI: ${formatUGX(roiAmount)}. Reason: ${reason}`,
         linked_party: user.id,
-        status: 'pending',
+        // Split-ROI cash portions MUST enter the same approval chain as full
+        // ROI payouts (COO → CFO). Using a bare 'pending' status orphaned them
+        // outside both queues (COO reads `pending_coo_approval`, CFO reads
+        // `coo_approved`), so the cash portion was never credited and the
+        // partner's proxy payout could never be requested.
+        status: 'pending_coo_approval',
         metadata: {
           partner_name: p.name,
           roi_percentage: p.roiPercentage,
