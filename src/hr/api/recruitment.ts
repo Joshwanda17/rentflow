@@ -43,6 +43,29 @@ export async function getJobPostings(_status?: string): Promise<JobPosting[]> {
   })) as unknown as JobPosting[];
 }
 
+export async function setJobPostingStatus(
+  id: string,
+  status: 'draft' | 'open' | 'closed',
+): Promise<JobPosting> {
+  const userId = await requireUserId();
+  const now = new Date().toISOString();
+  const isClosed = status === 'closed';
+
+  const res = await supabase
+    .from('hr_job_postings')
+    .update({
+      status,
+      updated_at: now,
+      closed_at: isClosed ? now : null,
+      closed_by: isClosed ? userId : null,
+    })
+    .eq('id', id)
+    .select()
+    .single();
+
+  return unwrap(res) as unknown as JobPosting;
+}
+
 export async function getJobPosting(_jobId: string): Promise<JobPosting | null> {
   return null;
 }
