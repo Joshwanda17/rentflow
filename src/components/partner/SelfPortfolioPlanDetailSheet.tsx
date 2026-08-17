@@ -219,16 +219,6 @@ export function SelfPortfolioPlanDetailSheet({
             </div>
           </div>
 
-          {/* Privacy notice band */}
-          <div className="mt-4 -mx-5 bg-muted/50 px-5 py-3 flex items-start gap-2">
-            <ShieldCheck className="h-4 w-4 text-muted-foreground flex-none mt-0.5" />
-            <p className="text-xs text-muted-foreground">
-              {isFunded
-                ? 'You already support this tenant. The landlord and tenant have agreed to share this information through Welile.'
-                : 'Summary only. The landlord and tenant have agreed to share their information through Welile; the photo stays blurred and contact details stay hidden until you support this tenant.'}
-            </p>
-          </div>
-
           {/* Thumbnails */}
           {photos.length > 1 && (
             <div className="mt-5">
@@ -254,13 +244,22 @@ export function SelfPortfolioPlanDetailSheet({
             </div>
           )}
 
+          {/* Privacy notice band */}
+          <div className="mt-4 -mx-5 bg-muted/50 px-5 py-3 flex items-start gap-2">
+            <ShieldCheck className="h-4 w-4 text-muted-foreground flex-none mt-0.5" />
+            <p className="text-xs text-muted-foreground">
+              {isFunded
+                ? 'You already support this tenant. The landlord and tenant have agreed to share this information through Welile.'
+                : 'Summary only. Photo and contact details stay hidden until you support this tenant.'}
+            </p>
+          </div>
+
           {/* Sticky price footer */}
           <div className="sticky bottom-0 -mx-5 mt-6 border-t border-border bg-background px-5 py-4 flex items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="text-lg font-extrabold underline underline-offset-4 truncate">
                 {formatDynamic(plan.funding_amount)}
               </p>
-              <p className="text-xs text-muted-foreground truncate">Rent needed · ends {endLabel}</p>
             </div>
           </div>
         </div>
