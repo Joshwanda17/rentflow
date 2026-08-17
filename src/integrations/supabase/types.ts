@@ -36476,6 +36476,10 @@ export type Database = {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
       }
+      delete_welile_home_subscription: {
+        Args: { p_subscription_id: string }
+        Returns: boolean
+      }
       deposit_bridge_ledger_present: {
         Args: {
           p_amount: number
