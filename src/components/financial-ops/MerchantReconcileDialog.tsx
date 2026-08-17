@@ -255,10 +255,9 @@ export function MerchantReconcileDialog({
                 Already {formatUGX(currentFloat)} on the books — nothing to change.
               </p>
             )}
-            {targetMode && targetDelta < 0 && !evidenceOk && (
+            {targetMode && !evidenceOk && (
               <p className="mt-1 text-[10px] font-medium text-destructive">
-                This lowers their float by {formatUGX(Math.abs(targetDelta))} — evidence is required
-                below.
+                Evidence is required below: what you saw on their phone and when.
               </p>
             )}
             {writedownMode && numericAmount > position.companyCashWithAgent && (
@@ -315,7 +314,7 @@ export function MerchantReconcileDialog({
 
           <div>
             <Label className="text-xs">
-              {writedownMode || (targetMode && targetDelta < 0)
+              {writedownMode || targetMode
                 ? 'Evidence (required — at least 20 letters)'
                 : 'Proof (optional)'}
             </Label>
@@ -323,13 +322,13 @@ export function MerchantReconcileDialog({
               value={evidence}
               onChange={(e) => setEvidence(e.target.value)}
               placeholder={
-                writedownMode || (targetMode && targetDelta < 0)
+                writedownMode || targetMode
                   ? 'Which agent, what was on their phone (balance / screenshot ref / TID), date & time checked'
                   : 'MoMo transaction ID, statement line, or approval note'
               }
               className="mt-1 h-9 text-sm"
             />
-            {(writedownMode || (targetMode && targetDelta < 0)) && (
+            {(writedownMode || targetMode) && (
               <p className="mt-1 text-[10px] text-muted-foreground">
                 {evidence.trim().length}/20 — name the agent, the balance or screenshot reference or
                 provider TID, and the date and time it was checked.
@@ -359,9 +358,8 @@ export function MerchantReconcileDialog({
                 <span className="font-semibold">{formatUGX(Math.round(numericAmount))}</span>
               </p>
               <p className="text-[10px] text-muted-foreground">
-                {targetDelta > 0
-                  ? `We add ${formatUGX(targetDelta)} through balanced float legs.`
-                  : `We take off ${formatUGX(Math.abs(targetDelta))} through a permanent, evidenced write-down.`}
+                Balanced ledger legs record the difference against the books, then the shown balance
+                is cleared to exactly this figure — no leftover "cache exceeds the books" gap.
               </p>
             </div>
           )}
