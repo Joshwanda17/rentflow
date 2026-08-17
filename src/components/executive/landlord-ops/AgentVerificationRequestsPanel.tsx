@@ -365,7 +365,7 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const base = onlyResubmitted
+    const base = (onlyResubmitted || tab === 'resubmitted')
       ? requests.filter((r) => !!priorByLandlord[r.landlord_id])
       : requests;
     if (!q) return base;
@@ -376,14 +376,110 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
       (r.agent_phone || '').toLowerCase().includes(q) ||
       (districtByLandlord[r.landlord_id] || '').toLowerCase().includes(q)
     );
-  }, [requests, search, districtByLandlord, onlyResubmitted, priorByLandlord]);
+  }, [requests, search, districtByLandlord, onlyResubmitted, priorByLandlord, tab]);
 
   const resubmittedCount = useMemo(
     () => requests.filter((r) => !!priorByLandlord[r.landlord_id]).length,
     [requests, priorByLandlord],
   );
 
-  if (loading || requests.length === 0) return null;
+  /** Decided rows matching the current search box (read-only tabs). */
+  const decidedFiltered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const byStatus = tab === 'all' || tab === 'pending' || tab === 'resubmitted'
+      ? decided
+      : decided.filter((r) => r.status === tab);
+    if (!q) return byStatus;
+    return byStatus.filter((r) =>
+      (r.landlord_name || '').toLowerCase().includes(q) ||
+      (r.landlord_phone || '').toLowerCase().includes(q) ||
+      (r.agent_name || '').toLowerCase().includes(q) ||
+      (r.agent_phone || '').toLowerCase().includes(q) ||
+      (districtByLandlordAll[r.landlord_id] || '').toLowerCase().includes(q)
+    );
+  }, [decided, search, tab, districtByLandlordAll]);
+
+  const tabCounts = useMemo(() => ({
+    pending: requests.length,
+    resubmitted: resubmittedCount,
+    verified: decided.filter((r) => r.status === 'verified').length,
+    rejected: decided.filter((r) => r.status === 'rejected').length,
+    cancelled: decided.filter((r) => r.status === 'cancelled').length,
+    all: requests.length + decided.length,
+  }), [requests.length, resubmittedCount, decided]);
+
+  /** Daily activity for the chart: created vs verified vs rejected. */
+  const chartData = useMemo(() => {
+    const map = new Map<string, { day: string; created: number; verified: number; rejected: number }>();
+    const bump = (iso: string, key: 'created' | 'verified' | 'rejected') => {
+      const day = fmtDay(new Date(iso), 'yyyy-MM-dd');
+      const row = map.get(day) || { day, created: 0, verified: 0, rejected: 0 };
+      row[key] += 1;
+      map.set(day, row);
+    };
+    for (const r of decided) {
+      bump(r.created_at, 'created');
+      if (r.resolved_at && (r.status === 'verified' || r.status === 'rejected')) {
+        bump(r.resolved_at, r.status as 'verified' | 'rejected');
+      }
+    }
+    for (const r of requests) {
+      const day = fmtDay(new Date(r.created_at), 'yyyy-MM-dd');
+      if (day >= fromDate && day <= toDate) bump(r.created_at, 'created');
+    }
+    return Array.from(map.values()).sort((a, b) => a.day.localeCompare(b.day));
+  }, [decided, requests, fromDate, toDate]);
+
+  const handleExportPdf = useCallback(async () => {
+    setExporting(true);
+    try {
+      const pendingRows = (tab === 'verified' || tab === 'rejected' || tab === 'cancelled')
+        ? []
+        : filtered.map((r) => ({
+            landlordName: r.landlord_name,
+            landlordPhone: r.landlord_phone,
+            district: districtByLandlord[r.landlord_id] || null,
+            agentName: r.agent_name,
+            agentPhone: r.agent_phone,
+            status: 'pending',
+            resubmitted: !!priorByLandlord[r.landlord_id],
+            rejectionCount: priorByLandlord[r.landlord_id]?.count ?? 0,
+            createdAt: r.created_at,
+            resolvedAt: null,
+            comment: priorByLandlord[r.landlord_id]?.reason || r.note || null,
+          }));
+      const decidedRows = tab === 'pending' || tab === 'resubmitted'
+        ? []
+        : decidedFiltered.map((r) => ({
+            landlordName: r.landlord_name,
+            landlordPhone: r.landlord_phone,
+            district: districtByLandlordAll[r.landlord_id] || null,
+            agentName: r.agent_name,
+            agentPhone: r.agent_phone,
+            status: r.status,
+            resubmitted: false,
+            rejectionCount: 0,
+            createdAt: r.created_at,
+            resolvedAt: r.resolved_at,
+            comment: r.reject_comment || r.note || null,
+          }));
+      const doc = generateLandlordVerificationQueuePdf({
+        tabLabel: TAB_LABEL[tab],
+        from: fromDate,
+        to: toDate,
+        search: search.trim() || null,
+        rows: [...pendingRows, ...decidedRows],
+        trend: chartData,
+      });
+      doc.save(`landlord-verification-${tab}-${fmtDay(new Date(), 'yyyyMMdd-HHmm')}.pdf`);
+    } catch (err: any) {
+      toast({ title: 'Export failed', description: err?.message || 'Could not build the PDF', variant: 'destructive' });
+    } finally {
+      setExporting(false);
+    }
+  }, [tab, filtered, decidedFiltered, districtByLandlord, districtByLandlordAll, priorByLandlord, fromDate, toDate, search, chartData, toast]);
+
+  if (loading || (requests.length === 0 && decided.length === 0)) return null;
 
   return (
     <div className="rounded-2xl border border-amber-500/40 bg-amber-50/40 dark:bg-amber-950/20 shadow-sm overflow-hidden">
