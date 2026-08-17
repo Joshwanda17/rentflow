@@ -126,6 +126,23 @@ export function AgentOpsDashboard() {
   const [dateRange, setDateRange] = useState<DateRange>('24h');
   const pendingAdvanceCount = usePendingAdvanceCount();
 
+  // Deep-linkable sections: /executive-hub?tab=agent-ops&section=products
+  useEffect(() => {
+    const s = searchParams.get('section');
+    if (!s) return;
+    setActiveView((s === 'products' ? 'sc-products' : s) as ActiveView);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const next = new URLSearchParams(searchParams);
+    const slug = activeView === 'sc-products' ? 'products' : activeView;
+    if (slug) next.set('section', slug);
+    else next.delete('section');
+    if (next.toString() !== searchParams.toString()) setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeView]);
+
   const { data: kpis, isLoading: kpisLoading } = useQuery({
     queryKey: ['agent-ops-kpis'],
     queryFn: async () => {
