@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Lock } from 'lucide-react';
+import { Lock, TrendingDown } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import {
   MERCHANT_ADJUSTMENT_LABELS,
@@ -16,6 +16,7 @@ import {
   useMerchantFloatLedgerVariance,
   usePostMerchantAdjustment,
   usePostMerchantOpeningFloatLedger,
+  usePostMerchantFloatWritedown,
 } from '@/hooks/useMerchantFloat';
 
 /**
@@ -46,17 +47,22 @@ export function MerchantReconcileDialog({
   const { data: variances } = useMerchantFloatLedgerVariance(open);
   const post = usePostMerchantAdjustment();
   const postLedger = usePostMerchantOpeningFloatLedger();
+  const postWritedown = usePostMerchantFloatWritedown();
 
   if (!position) return null;
 
   const truth = variances?.find((v) => v.deskId === position.deskId);
   const numericAmount = Number(amount.replace(/[^\d.-]/g, ''));
   const ledgerMode = type === 'opening_balance' && postToLedger;
+  const writedownMode = type === 'evidenced_writedown';
+  const evidenceOk = evidence.trim().length >= 20;
   const valid =
     Number.isFinite(numericAmount) &&
-    (ledgerMode ? numericAmount > 0 : numericAmount !== 0) &&
-    reason.trim().length >= 10;
-  const busy = post.isPending || postLedger.isPending;
+    (ledgerMode || writedownMode ? numericAmount > 0 : numericAmount !== 0) &&
+    reason.trim().length >= 10 &&
+    (!writedownMode || evidenceOk) &&
+    (!writedownMode || numericAmount <= position.companyCashWithAgent);
+  const busy = post.isPending || postLedger.isPending || postWritedown.isPending;
 
   // What a recorded fix can and cannot move. Every adjustment type folds into
   // `adjustments_total` (which moves "Money we paid them back" and "We owe
@@ -68,6 +74,26 @@ export function MerchantReconcileDialog({
 
   const submit = async () => {
     try {
+      if (writedownMode) {
+        const res = await postWritedown.mutateAsync({
+          deskId: position.deskId,
+          agentId: position.agentId,
+          adjustmentType: 'evidenced_writedown',
+          amount: numericAmount,
+          reason,
+          evidenceNote: evidence,
+        });
+        toast.success('Written down on the books', {
+          description: `Float is now ${formatUGX(Number(res.float_after))} (was ${formatUGX(
+            Number(res.float_before),
+          )}). Ledger group ${String(res.ledger_group_id).slice(0, 8)}. This entry is permanent.`,
+        });
+        setAmount('');
+        setReason('');
+        setEvidence('');
+        onOpenChange(false);
+        return;
+      }
       if (ledgerMode) {
         const res = await postLedger.mutateAsync({
           deskId: position.deskId,
@@ -197,14 +223,38 @@ export function MerchantReconcileDialog({
                 ? 'Lowers what we count as paid out by this agent.'
                 : type === 'opening_balance'
                   ? 'Counts float the agent already held before the board started, so we stop showing it as owed to them.'
-                  : type === 'write_off'
-                    ? 'Closes the balance we agreed to let go with this agent.'
-                    : 'Adds to the money we already count as paid back to this agent.'}{' '}
-              {ledgerMode
+                  : type === 'evidenced_writedown'
+                    ? "Reduces the agent's float on the books to the amount actually seen with them. Enter the amount to SUBTRACT."
+                    : type === 'write_off'
+                      ? 'Closes the balance we agreed to let go with this agent.'
+                      : 'Adds to the money we already count as paid back to this agent.'}{' '}
+              {ledgerMode || writedownMode
                 ? 'Must be a positive amount — to reduce float, use CFO Direct Debit.'
                 : 'Use a minus amount to undo an earlier fix.'}
             </p>
+            {writedownMode && numericAmount > position.companyCashWithAgent && (
+              <p className="mt-1 text-[10px] font-medium text-destructive">
+                Cannot exceed the float on the books ({formatUGX(position.companyCashWithAgent)}).
+              </p>
+            )}
           </div>
+
+          {writedownMode && (
+            <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2">
+              <TrendingDown className="mt-0.5 h-3.5 w-3.5 shrink-0 text-destructive" />
+              <span className="text-[11px] leading-snug">
+                <span className="font-semibold text-foreground">
+                  Permanent, ledger-backed write-down
+                </span>
+                <span className="block text-[10px] text-muted-foreground">
+                  Posts real balanced entries (agent float out, company in) and lowers their float
+                  through the normal wallet writer. Only the CFO, Financial Ops or a super admin can
+                  post it, never on their own desk, and it can only ever be answered by another
+                  equally evidenced entry — never edited or deleted.
+                </span>
+              </span>
+            </div>
+          )}
 
           {type === 'opening_balance' && (
             <div className="flex items-start gap-2 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2">
@@ -235,18 +285,54 @@ export function MerchantReconcileDialog({
           </div>
 
           <div>
-            <Label className="text-xs">Proof (optional)</Label>
+            <Label className="text-xs">
+              {writedownMode ? 'Evidence (required — at least 20 letters)' : 'Proof (optional)'}
+            </Label>
             <Input
               value={evidence}
               onChange={(e) => setEvidence(e.target.value)}
-              placeholder="MoMo transaction ID, statement line, or approval note"
+              placeholder={
+                writedownMode
+                  ? 'Which agent, what was on their phone (balance / screenshot ref / TID), date & time checked'
+                  : 'MoMo transaction ID, statement line, or approval note'
+              }
               className="mt-1 h-9 text-sm"
             />
+            {writedownMode && (
+              <p className="mt-1 text-[10px] text-muted-foreground">
+                {evidence.trim().length}/20 — name the agent, the balance or screenshot reference or
+                provider TID, and the date and time it was checked.
+              </p>
+            )}
           </div>
 
           <Button onClick={submit} disabled={!valid || busy} className="w-full">
-            {busy ? 'Saving…' : ledgerMode ? 'Post to the books' : 'Save fix'}
+            {busy
+              ? 'Saving…'
+              : writedownMode
+                ? 'Post write-down to the books'
+                : ledgerMode
+                  ? 'Post to the books'
+                  : 'Save fix'}
           </Button>
+
+          {valid && writedownMode && (
+            <div className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 space-y-1">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                What this will change
+              </p>
+              <p className="text-[11px] text-foreground">
+                They're holding our money: {formatUGX(position.companyCashWithAgent)} →{' '}
+                <span className="font-semibold">
+                  {formatUGX(Math.max(position.companyCashWithAgent - Math.round(numericAmount), 0))}
+                </span>
+              </p>
+              <p className="text-[10px] text-muted-foreground">
+                Two balanced legs are posted (their float out, company in) and their float balance
+                drops for real through the normal wallet writer. Permanent once posted.
+              </p>
+            </div>
+          )}
 
           {valid && ledgerMode && (
             <div className="rounded-lg border border-primary/40 bg-primary/5 px-3 py-2 space-y-1">
@@ -267,7 +353,7 @@ export function MerchantReconcileDialog({
             </div>
           )}
 
-          {valid && !ledgerMode && (
+          {valid && !ledgerMode && !writedownMode && (
             <div className="rounded-lg border border-border bg-muted/20 px-3 py-2 space-y-1">
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
                 What this fix will change
