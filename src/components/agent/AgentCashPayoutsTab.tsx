@@ -584,7 +584,11 @@ export function AgentCashPayoutsTab() {
   // while ANY urgent proxy-agent withdrawal is still unclaimed, no other
   // merchant payout may be claimed. Queried unfiltered so the hold is visible
   // even when this merchant's filters or channel tab exclude the urgent row.
-  const { data: blockingUrgentProxy = null } = useQuery({
+  // CTO Platform Control: "Show Proxy Agent withdrawals first". When OFF the
+  // hold is released and normal withdrawals are claimable in the usual order.
+  const { enforced: proxyPriorityEnforced } = useProxyPayoutPriority();
+
+  const { data: blockingUrgentProxyRow = null } = useQuery({
     queryKey: ['cashout-blocking-urgent-proxy'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -601,11 +605,13 @@ export function AgentCashPayoutsTab() {
       if (error) throw error;
       return row && isUrgentProxyBlocking(row) ? row : null;
     },
-    enabled: !!isCashoutAgent,
+    enabled: !!isCashoutAgent && proxyPriorityEnforced,
     staleTime: 10_000,
     refetchInterval: 20_000,
     refetchOnWindowFocus: true,
   });
+
+  const blockingUrgentProxy = proxyPriorityEnforced ? blockingUrgentProxyRow : null;
 
   const { data: availableTotal = 0 } = useQuery({
     queryKey: ['cashout-queue-available-total', isCashoutAgent?.id, categoryOrClause, channelProviderOrClause, frozenUserIds],
