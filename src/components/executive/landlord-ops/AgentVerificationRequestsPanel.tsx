@@ -90,7 +90,6 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [details, setDetails] = useState<Record<string, DetailBundle>>({});
-  const [isOpen, setIsOpen] = useState(false);
 
   const load = useCallback(async () => {
     const { data, error } = await supabase
