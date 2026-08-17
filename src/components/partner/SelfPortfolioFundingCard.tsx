@@ -11,8 +11,10 @@ import { CalendarClock, ChevronLeft, ChevronRight, Home, Loader2, RefreshCw, Shi
 
 import { SelfPortfolioDeployDialog } from './SelfPortfolioDeployDialog';
 import { SelfPortfolioPlanDetailSheet } from './SelfPortfolioPlanDetailSheet';
+import { SlotAmount } from './SlotAmount';
 
 const MIN_FUNDING = 50000;
+const MONTHLY_ROI_RATE = 15;
 const PLANS_PER_PAGE = 4;
 
 interface EarningsSummary {
