@@ -41339,6 +41339,16 @@ export type Database = {
         Args: { p_lc1_id: string; p_reason: string; p_status: string }
         Returns: Json
       }
+      set_merchant_desk_float_to: {
+        Args: {
+          p_agent_id: string
+          p_desk_id: string
+          p_evidence_note?: string
+          p_reason: string
+          p_target: number
+        }
+        Returns: Json
+      }
       set_my_operating_location: {
         Args: {
           p_district: string
@@ -41469,6 +41479,10 @@ export type Database = {
       sync_house_listing_image_urls: {
         Args: { p_listing: string }
         Returns: undefined
+      }
+      sync_merchant_desk_float_cache: {
+        Args: { p_desk_id: string; p_reason?: string }
+        Returns: Json
       }
       sync_service_center_manager_tags: { Args: never; Returns: Json }
       telecom_sending_charge: { Args: { p_amount: number }; Returns: number }

@@ -339,6 +339,12 @@ export function usePostMerchantAdjustment() {
           'The fix was not saved — the database did not return the record. Check your finance role and try again.',
         );
       }
+      // Any fix must leave the board showing exactly what the books say — reseed
+      // the cached float to the ledger figure so stale cache warnings clear.
+      await supabase.rpc('sync_merchant_desk_float_cache' as any, {
+        p_desk_id: input.deskId,
+        p_reason: `${input.adjustmentType} fix ${(data as any).id}`,
+      });
       return data as any;
     },
     onSuccess: (_d, v) => {
@@ -426,6 +432,58 @@ export function usePostMerchantFloatWritedown() {
         amount: number;
         float_before: number;
         float_after: number;
+      };
+    },
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: ['merchant-float-positions'] });
+      qc.invalidateQueries({ queryKey: ['merchant-payout-float'] });
+      qc.invalidateQueries({ queryKey: ['merchant-float-adjustments', v.deskId] });
+      qc.invalidateQueries({ queryKey: ['merchant-float-ledger-variance'] });
+    },
+  });
+}
+
+/**
+ * SET the desk float to an exact evidenced figure. `set_merchant_desk_float_to`
+ * posts only the difference against the RAW ledger float net (up as a float
+ * credit, down as an evidenced write-down) and then clears the cached float so
+ * the board shows exactly the figure that was set — no residual "cache exceeds
+ * the books" artifact. Requires a finance role and an author who is not the
+ * desk holder; lowering requires evidence.
+ */
+export function useSetMerchantDeskFloat() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      deskId: string;
+      agentId: string | null;
+      target: number;
+      reason: string;
+      evidenceNote?: string;
+    }) => {
+      if (input.reason.trim().length < 10) throw new Error('Reason must be at least 10 characters.');
+      if (!Number.isFinite(input.target) || input.target < 0) {
+        throw new Error('Enter the float the agent actually holds. It cannot be negative.');
+      }
+      const { data, error } = await supabase.rpc('set_merchant_desk_float_to' as any, {
+        p_desk_id: input.deskId,
+        p_agent_id: input.agentId,
+        p_target: Math.round(input.target),
+        p_reason: input.reason.trim(),
+        p_evidence_note: input.evidenceNote?.trim() || null,
+      });
+      if (error) throw error;
+      const row = (data ?? {}) as any;
+      if (!row?.ok) throw new Error(row?.reason || 'The books were not updated.');
+      return row as {
+        no_op: boolean;
+        reconciliation_id: string | null;
+        ledger_group_id: string | null;
+        target: number;
+        raw_net_before: number;
+        float_before: number;
+        float_after: number;
+        delta: number;
       };
     },
     onSuccess: (_d, v) => {

@@ -16,6 +16,7 @@ import {
   useMerchantFloatLedgerVariance,
   usePostMerchantAdjustment,
   usePostMerchantOpeningFloatLedger,
+  useSetMerchantDeskFloat,
   usePostMerchantFloatWritedown,
 } from '@/hooks/useMerchantFloat';
 
@@ -48,6 +49,7 @@ export function MerchantReconcileDialog({
   const post = usePostMerchantAdjustment();
   const postLedger = usePostMerchantOpeningFloatLedger();
   const postWritedown = usePostMerchantFloatWritedown();
+  const setFloat = useSetMerchantDeskFloat();
 
   if (!position) return null;
 
@@ -68,14 +70,15 @@ export function MerchantReconcileDialog({
       numericAmount >= 0 &&
       targetDelta !== 0 &&
       reason.trim().length >= 10 &&
-      (targetDelta > 0 || evidenceOk)
+      evidenceOk
     :
     Number.isFinite(numericAmount) &&
     (ledgerMode || writedownMode ? numericAmount > 0 : numericAmount !== 0) &&
     reason.trim().length >= 10 &&
     (!writedownMode || evidenceOk) &&
     (!writedownMode || numericAmount <= position.companyCashWithAgent);
-  const busy = post.isPending || postLedger.isPending || postWritedown.isPending;
+  const busy =
+    post.isPending || postLedger.isPending || postWritedown.isPending || setFloat.isPending;
 
   // What a recorded fix can and cannot move. Every adjustment type folds into
   // `adjustments_total` (which moves "Money we paid them back" and "We owe
@@ -88,35 +91,20 @@ export function MerchantReconcileDialog({
   const submit = async () => {
     try {
       if (targetMode) {
-        if (targetDelta < 0) {
-          const res = await postWritedown.mutateAsync({
-            deskId: position.deskId,
-            agentId: position.agentId,
-            adjustmentType: 'evidenced_writedown',
-            amount: Math.abs(targetDelta),
-            reason,
-            evidenceNote: evidence,
-          });
-          toast.success('Float set on the books', {
-            description: `Float is now ${formatUGX(Number(res.float_after))} (was ${formatUGX(
-              Number(res.float_before),
-            )}). We took off ${formatUGX(Math.abs(targetDelta))}.`,
-          });
-        } else {
-          await postLedger.mutateAsync({
-            deskId: position.deskId,
-            agentId: position.agentId,
-            adjustmentType: 'opening_balance',
-            amount: targetDelta,
-            reason,
-            evidenceNote: evidence,
-          });
-          toast.success('Float set on the books', {
-            description: `Float is now ${formatUGX(currentFloat + targetDelta)} (was ${formatUGX(
-              currentFloat,
-            )}). We added ${formatUGX(targetDelta)}.`,
-          });
-        }
+        const res = await setFloat.mutateAsync({
+          deskId: position.deskId,
+          agentId: position.agentId,
+          target: Math.round(numericAmount),
+          reason,
+          evidenceNote: evidence,
+        });
+        toast.success('Float set to the evidenced figure', {
+          description: `Float is now exactly ${formatUGX(Number(res.float_after))} (was ${formatUGX(
+            Number(res.float_before),
+          )}). The books moved by ${formatUGX(Math.abs(Number(res.delta)))} ${
+            Number(res.delta) >= 0 ? 'up' : 'down'
+          } and the shown balance was cleared to match.`,
+        });
         setAmount('');
         setReason('');
         setEvidence('');
@@ -267,10 +255,9 @@ export function MerchantReconcileDialog({
                 Already {formatUGX(currentFloat)} on the books — nothing to change.
               </p>
             )}
-            {targetMode && targetDelta < 0 && !evidenceOk && (
+            {targetMode && !evidenceOk && (
               <p className="mt-1 text-[10px] font-medium text-destructive">
-                This lowers their float by {formatUGX(Math.abs(targetDelta))} — evidence is required
-                below.
+                Evidence is required below: what you saw on their phone and when.
               </p>
             )}
             {writedownMode && numericAmount > position.companyCashWithAgent && (
@@ -327,7 +314,7 @@ export function MerchantReconcileDialog({
 
           <div>
             <Label className="text-xs">
-              {writedownMode || (targetMode && targetDelta < 0)
+              {writedownMode || targetMode
                 ? 'Evidence (required — at least 20 letters)'
                 : 'Proof (optional)'}
             </Label>
@@ -335,13 +322,13 @@ export function MerchantReconcileDialog({
               value={evidence}
               onChange={(e) => setEvidence(e.target.value)}
               placeholder={
-                writedownMode || (targetMode && targetDelta < 0)
+                writedownMode || targetMode
                   ? 'Which agent, what was on their phone (balance / screenshot ref / TID), date & time checked'
                   : 'MoMo transaction ID, statement line, or approval note'
               }
               className="mt-1 h-9 text-sm"
             />
-            {(writedownMode || (targetMode && targetDelta < 0)) && (
+            {(writedownMode || targetMode) && (
               <p className="mt-1 text-[10px] text-muted-foreground">
                 {evidence.trim().length}/20 — name the agent, the balance or screenshot reference or
                 provider TID, and the date and time it was checked.
@@ -371,9 +358,8 @@ export function MerchantReconcileDialog({
                 <span className="font-semibold">{formatUGX(Math.round(numericAmount))}</span>
               </p>
               <p className="text-[10px] text-muted-foreground">
-                {targetDelta > 0
-                  ? `We add ${formatUGX(targetDelta)} through balanced float legs.`
-                  : `We take off ${formatUGX(Math.abs(targetDelta))} through a permanent, evidenced write-down.`}
+                Balanced ledger legs record the difference against the books, then the shown balance
+                is cleared to exactly this figure — no leftover "cache exceeds the books" gap.
               </p>
             </div>
           )}
