@@ -5,6 +5,8 @@ import { formatDynamic } from '@/lib/currencyFormat';
 import { ChevronLeft, ChevronRight, Home, MapPin, Phone, ShieldCheck, User, X } from 'lucide-react';
 import tenantPhotoPlaceholder from '@/assets/tenant-photo-placeholder.jpg';
 import { cn } from '@/lib/utils';
+import { PlanShareButton } from './PlanShareButton';
+import { planShareDescription } from '@/lib/planShareLink';
 
 export interface PlanDetail {
   rent_request_id: string;
@@ -267,6 +269,17 @@ export function SelfPortfolioPlanDetailSheet({
             <MapPin className="h-3.5 w-3.5 flex-none mt-0.5" />
             <span>{fullAddress}</span>
           </p>
+
+          {/* Invite others to support this plan */}
+          <div className="mt-4 rounded-2xl border border-primary/30 bg-primary/5 p-3">
+            <p className="text-xs font-bold">Invite someone to support this tenant</p>
+            <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
+              {planShareDescription(plan)}
+            </p>
+            <div className="mt-2.5">
+              <PlanShareButton plan={plan} variant="block" />
+            </div>
+          </div>
 
           {/* Tenant row */}
           <div className="mt-5 flex items-center gap-3">
