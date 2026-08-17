@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { AgentOpsHomeView, type DateRange } from './agent-ops-v2/AgentOpsHomeView';
 import { AgentOpsBottomNav, type BottomTab } from './agent-ops-v2/AgentOpsBottomNav';
 import { AdvanceRequestsQueue } from '@/components/ops/AdvanceRequestsQueue';
@@ -28,6 +28,7 @@ import { ServiceCentreOverview } from './service-centres/ServiceCentreOverview';
 import { ServiceCentreDirectory } from './service-centres/ServiceCentreDirectory';
 import { ServiceCentrePayouts } from './service-centres/ServiceCentrePayouts';
 import { ServiceCentreOperatingModel } from './service-centres/ServiceCentreOperatingModel';
+import { AgentProductsPanel } from './agent-ops/AgentProductsPanel';
 import { SubAgentVerificationQueue } from './SubAgentVerificationQueue';
 import { TenantToSubAgentPanel } from './TenantToSubAgentPanel';
 import { AgentOpsFloatPayoutReview } from '@/components/agent/AgentOpsFloatPayoutReview';
@@ -62,7 +63,7 @@ import {
   ClipboardList, AlertTriangle, Building2, Wallet, Bell, ArrowLeftRight,
   ChevronLeft, Briefcase, TrendingUp, TrendingDown, UsersRound, PiggyBank, HandCoins, ShieldCheck, FileBarChart, Network,
   LayoutGrid, ChevronDown, ToggleRight, Layers, Gauge, Target, Activity
-  , Coins, Megaphone, Lock, Store, MapPinned, Workflow
+  , Coins, Megaphone, Lock, Store, MapPinned, Workflow, Package
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -97,6 +98,7 @@ const NAV_ITEMS: { key: ActiveView; icon: any; label: string; color: string; pri
   { key: 'sc-payouts', icon: Banknote, label: 'Center Payouts', color: 'bg-orange-700' },
   { key: 'sc-requests', icon: Store, label: 'Free Center Requests', color: 'bg-orange-800', priority: true },
   { key: 'sc-operating-model', icon: Workflow, label: 'Operating Model', color: 'bg-amber-700' },
+  { key: 'sc-products', icon: Package, label: 'Products', color: 'bg-amber-600', priority: true },
   { key: 'sub-agents', icon: UsersRound, label: 'Sub-Agents', color: 'bg-amber-600', priority: true },
   { key: 'promote-tenant', icon: ArrowLeftRight, label: 'Tenant → Sub-Agent', color: 'bg-fuchsia-600', priority: true },
   { key: 'directory', icon: Search, label: 'Directory', color: 'bg-blue-500', priority: true },
@@ -118,6 +120,7 @@ const NAV_ITEMS: { key: ActiveView; icon: any; label: string; color: string; pri
 
 export function AgentOpsDashboard() {
   const [activeView, setActiveView] = useState<ActiveView>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
   const [selectedAgent, setSelectedAgent] = useState<any>(null);
   const [bottomTab, setBottomTab] = useState<BottomTab>('home');
   const [dateRange, setDateRange] = useState<DateRange>('24h');
@@ -244,6 +247,7 @@ export function AgentOpsDashboard() {
       case 'sc-payouts': return <ServiceCentrePayouts />;
       case 'sc-requests': return <ServiceCenterRequestsQueue />;
       case 'sc-operating-model': return <ServiceCentreOperatingModel />;
+      case 'sc-products': return <AgentProductsPanel />;
       case 'sub-agents': return <SubAgentVerificationQueue />;
       case 'promote-tenant': return <TenantToSubAgentPanel />;
       case 'float-payouts': return <AgentOpsFloatPayoutReview />;
