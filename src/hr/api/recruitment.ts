@@ -1,11 +1,7 @@
 /**
  * HR data access — Recruitment
- *
- * The HR schema currently provisions departments, staff, assignments, tasks,
- * task events, metric definitions and metric snapshots only. There are no
- * recruitment tables yet, so these reads return empty lists rather than mock
- * rows — no screen may ever display invented data. Writes fail loudly.
  */
+import { supabase, unwrap, requireUserId } from './client';
 import type {
   Application,
   Candidate,
@@ -21,7 +17,53 @@ export async function getHiringRequisitions(): Promise<HiringRequisition[]> {
 }
 
 export async function getJobPostings(_status?: string): Promise<JobPosting[]> {
-  return [];
+  const { data: postings, error } = await supabase
+    .from('hr_job_postings')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) throw new Error(error.message);
+  if (!postings || postings.length === 0) return [];
+
+  const sourceStrings = postings.map((p) => `welile.com/careers?c=${p.public_slug}`);
+  const { data: applications, error: appError } = await supabase
+    .from('job_applications')
+    .select('source')
+    .in('source', sourceStrings);
+  if (appError) throw new Error(appError.message);
+
+  const countMap = new Map<string, number>();
+  for (const row of applications || []) {
+    const slug = (row.source || '').replace('welile.com/careers?c=', '');
+    countMap.set(slug, (countMap.get(slug) || 0) + 1);
+  }
+
+  return postings.map((p) => ({
+    ...p,
+    application_count: countMap.get(p.public_slug) || 0,
+  })) as unknown as JobPosting[];
+}
+
+export async function setJobPostingStatus(
+  id: string,
+  status: 'draft' | 'open' | 'closed',
+): Promise<JobPosting> {
+  const userId = await requireUserId();
+  const now = new Date().toISOString();
+  const isClosed = status === 'closed';
+
+  const res = await supabase
+    .from('hr_job_postings')
+    .update({
+      status,
+      updated_at: now,
+      closed_at: isClosed ? now : null,
+      closed_by: isClosed ? userId : null,
+    })
+    .eq('id', id)
+    .select()
+    .single();
+
+  return unwrap(res) as unknown as JobPosting;
 }
 
 export async function getJobPosting(_jobId: string): Promise<JobPosting | null> {

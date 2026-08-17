@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
@@ -25,12 +26,23 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   getApplications,
   getCandidates,
   getDepartments,
   getEmployees,
   getHiringRequisitions,
   getJobPostings,
+  setJobPostingStatus,
 } from '@/hr/api';
 import type {
   Application,
@@ -139,6 +151,9 @@ export default function RecruitmentHub() {
   const [reqStatus, setReqStatus] = useState<ReqStatus>('pending');
   const [openTrail, setOpenTrail] = useState<Record<string, boolean>>({});
 
+  const [confirmClose, setConfirmClose] = useState<JobPosting | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+
   const [pipelineJob, setPipelineJob] = useState<string>(ALL);
   const [sortBy, setSortBy] = useState<'newest' | 'score'>('newest');
 
@@ -185,6 +200,33 @@ export default function RecruitmentHub() {
   const employeeName = (id: string | null) =>
     (id ? employees.find((e) => e.id === id)?.full_name : null) ?? '—';
   const candidateById = (id: string) => candidates.find((c) => c.id === id) ?? null;
+
+  async function refreshPostings() {
+    const jobs = await getJobPostings();
+    setPostings(jobs);
+  }
+
+  async function applyStatusChange(id: string, status: 'open' | 'closed') {
+    setTogglingId(id);
+    try {
+      await setJobPostingStatus(id, status);
+      await refreshPostings();
+      toast.success(`Posting ${status === 'open' ? 'opened' : 'closed'}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not update posting');
+    } finally {
+      setTogglingId(null);
+      setConfirmClose(null);
+    }
+  }
+
+  function handleStatusToggle(job: JobPosting, nextStatus: 'open' | 'closed') {
+    if (nextStatus === 'closed') {
+      setConfirmClose(job);
+      return;
+    }
+    applyStatusChange(job.id, 'open');
+  }
 
   const reqCounts = useMemo(
     () => ({
@@ -259,8 +301,9 @@ export default function RecruitmentHub() {
   }
 
   return (
-    <Tabs value={tab} onValueChange={setTab} className="space-y-4">
-      <TabsList className="grid grid-cols-5 w-full">
+    <>
+      <Tabs value={tab} onValueChange={setTab} className="space-y-4">
+        <TabsList className="grid grid-cols-5 w-full">
         <TabsTrigger value="internships">Internships</TabsTrigger>
         <TabsTrigger value="requisitions">Requisitions</TabsTrigger>
         <TabsTrigger value="postings">Postings</TabsTrigger>
@@ -488,6 +531,23 @@ export default function RecruitmentHub() {
                     </p>
                   )}
 
+                  {!alwaysOpen && (
+                    <div className="mt-3 flex items-center justify-between gap-3">
+                      <span className="text-xs text-muted-foreground">
+                        {job.status === 'open'
+                          ? 'Accepting applications'
+                          : 'Not accepting applications'}
+                      </span>
+                      <Switch
+                        checked={job.status === 'open'}
+                        disabled={job.status === 'draft' || togglingId === job.id}
+                        onCheckedChange={(checked) =>
+                          handleStatusToggle(job, checked ? 'open' : 'closed')
+                        }
+                      />
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-2 gap-2 mt-3 text-xs text-muted-foreground">
                     <div>
                       Employment:{' '}
@@ -507,9 +567,14 @@ export default function RecruitmentHub() {
                     </div>
                   </div>
 
-                  <p className="mt-3 font-mono text-xs text-primary break-all">
-                    /careers/{job.public_slug}
-                  </p>
+                  <a
+                    href={`https://welile.com/careers?c=${job.public_slug}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-3 font-mono text-xs text-primary break-all hover:underline block"
+                  >
+                    welile.com/careers?c={job.public_slug}
+                  </a>
                 </Card>
               );
             })}
@@ -606,5 +671,33 @@ export default function RecruitmentHub() {
         )}
       </TabsContent>
     </Tabs>
+
+    <AlertDialog
+      open={!!confirmClose}
+      onOpenChange={(open) => {
+        if (!open) setConfirmClose(null);
+      }}
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Close posting?</AlertDialogTitle>
+          <AlertDialogDescription>
+            You are about to close <strong>{confirmClose?.title}</strong>. The public form will
+            stop accepting applications immediately.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={() => setConfirmClose(null)}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() =>
+              confirmClose && applyStatusChange(confirmClose.id, 'closed')
+            }
+          >
+            Close posting
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
