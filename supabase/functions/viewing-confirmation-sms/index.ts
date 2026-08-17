@@ -40,9 +40,7 @@ Deno.serve(async (req) => {
         if (await attemptYoolaPrimary(to, message, { source: "viewing-confirmation-sms" })) return;
         const params = new URLSearchParams({
           username: AT_USERNAME!,
-          to: formatPhone(to),
-          from: "WELILE",
-          message,
+          to: formatPhone(to),          message,
         });
 
         await fetch("https://api.africastalking.com/version1/messaging", {

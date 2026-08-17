@@ -2557,9 +2557,7 @@ async function sendSmsViaAfricasTalking(phone: string, message: string): Promise
       },
       body: new URLSearchParams({
         username,
-        to: formatPhoneIntl(phone),
-        from: "WELILE",
-        message,
+        to: formatPhoneIntl(phone),        message,
       }).toString(),
     });
     const txt = await res.text();
