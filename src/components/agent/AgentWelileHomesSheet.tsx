@@ -156,6 +156,8 @@ export function AgentWelileHomesSheet({ open, onOpenChange }: AgentWelileHomesSh
   const [allocFor, setAllocFor] = useState<WHSubscription | null>(null);
   const [editFor, setEditFor] = useState<WHSubscription | null>(null);
   const [verifyFor, setVerifyFor] = useState<WHSubscription | null>(null);
+  const [deleteFor, setDeleteFor] = useState<WHSubscription | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
     if (!user) return;
