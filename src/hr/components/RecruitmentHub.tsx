@@ -11,6 +11,8 @@ import {
   XCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -36,7 +38,22 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {
-  getApplications,
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Separator } from '@/components/ui/separator';
+import { Label } from '@/components/ui/label';
+import {
   getCandidates,
   getDepartments,
   getEmployees,
@@ -44,6 +61,8 @@ import {
   getJobPostings,
   setJobPostingStatus,
 } from '@/hr/api';
+import { getResumeUrl } from '@/hr/api/resumes';
+import type { Database } from '@/integrations/supabase/types';
 import type {
   Application,
   ApplicationStage,
@@ -54,7 +73,6 @@ import type {
   HiringRequisition,
   JobPosting,
 } from '@/hr/types';
-import ApplicationsPanel from '@/hr/components/applications/ApplicationsPanel';
 import HRInternshipApplications from '@/components/hr/HRInternshipApplications';
 
 const ALL = '__all__';
