@@ -53,12 +53,14 @@ export function AgentHubTabs({ active, onChange, restricted = false }: AgentHubT
             className={cn(
               FLOATING_NAV_ITEM,
               'min-w-[5.5rem] px-3',
-              active === serviceCenterTab.id ? 'text-primary font-bold' : 'text-muted-foreground'
+              'border border-purple-300/80 bg-purple-50/60 shadow-sm',
+              'dark:border-purple-500/60 dark:bg-purple-950/30',
+              active === serviceCenterTab.id ? 'text-primary font-bold' : 'text-purple-900/80 dark:text-purple-100/80'
             )}
             style={{ WebkitTapHighlightColor: 'transparent' }}
           >
             <serviceCenterTab.icon className={cn('h-5 w-5', active === serviceCenterTab.id && 'scale-110')} strokeWidth={active === serviceCenterTab.id ? 2.5 : 2} />
-            <span className={FLOATING_NAV_LABEL}>{serviceCenterTab.label}</span>
+            <span className={cn(FLOATING_NAV_LABEL, 'text-xs font-bold')}>{serviceCenterTab.label}</span>
           </button>
         </div>
       )}
