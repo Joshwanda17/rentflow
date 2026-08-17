@@ -112,7 +112,16 @@ export default function AgentServiceCenter() {
 
   return (
     <div className="min-h-[100dvh] bg-background">
-      <header className="sticky top-0 z-10 border-b border-border/60 bg-background/95 backdrop-blur">
+      <header className="sticky top-0 z-10 border-b border-border/60 bg-background/95 backdrop-blur relative">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => navigate(-1)}
+          aria-label="Go back"
+          className="absolute left-2 top-2"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
         <div className="mx-auto max-w-3xl px-4 py-3">
           <img
             src={officeIllustration.url}
@@ -120,18 +129,13 @@ export default function AgentServiceCenter() {
             className="mx-auto mb-3 h-28 w-auto"
             loading="eager"
           />
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Go back">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div className="min-w-0">
-              <h1 className="flex items-center gap-2 truncate text-left text-lg font-bold text-foreground">
-                <Store className="h-5 w-5 text-primary" /> Service Center
-              </h1>
-              <p className="truncate text-left text-xs text-muted-foreground">
-                Your team, their tenants and your supplies in one place
-              </p>
-            </div>
+          <div className="min-w-0">
+            <h1 className="flex items-center gap-2 truncate text-left text-lg font-bold text-foreground">
+              <Store className="h-5 w-5 text-primary" /> Service Center
+            </h1>
+            <p className="truncate text-left text-xs text-muted-foreground">
+              Your team, their tenants and your supplies in one place
+            </p>
           </div>
         </div>
       </header>
