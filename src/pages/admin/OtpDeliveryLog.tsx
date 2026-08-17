@@ -13,15 +13,41 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 
-/** Sources that send a one-time code / verification SMS. */
-const CODE_SOURCES = [
-  'sms-otp',
+/**
+ * Every source that sends a one-time code / verification SMS.
+ * Matched by prefix so future variants (e.g. `sms-otp:custom`,
+ * `finops-cash-deposit-resend`) show up without another code change.
+ */
+const CODE_SOURCE_PREFIXES = [
+  'sms-otp', // login + phone verification codes (incl. sms-otp:custom)
   'password-reset-sms',
   'issue-landlord-payout-otp',
+  'verify-landlord-payout-otp',
+  'cash-deposit-request-code',
   'cash-deposit-verify-code',
   'agent-cash-deposit-create',
   'agent-cash-deposit-resend',
+  'finops-cash-deposit-initiate',
+  'finops-cash-deposit-resend',
 ];
+
+/** Groups used by the purpose filter. */
+function purposeOf(source: string | null): 'login' | 'password' | 'cash_deposit' | 'landlord_payout' | 'other' {
+  const s = source ?? '';
+  if (s.startsWith('sms-otp')) return 'login';
+  if (s.startsWith('password-reset')) return 'password';
+  if (s.includes('cash-deposit')) return 'cash_deposit';
+  if (s.includes('landlord-payout-otp')) return 'landlord_payout';
+  return 'other';
+}
+
+const PURPOSE_LABELS: Record<string, string> = {
+  login: 'Login / phone code',
+  password: 'Password reset code',
+  cash_deposit: 'Cash deposit code',
+  landlord_payout: 'Landlord payout code',
+  other: 'Other code',
+};
 
 type LogRow = {
   id: string;
@@ -78,6 +104,7 @@ function toCSV(rows: LogRow[]): string {
 export default function OtpDeliveryLogPage() {
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [purposeFilter, setPurposeFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [sweeping, setSweeping] = useState(false);
   const [openRow, setOpenRow] = useState<string | null>(null);
@@ -88,9 +115,9 @@ export default function OtpDeliveryLogPage() {
       const { data, error } = await supabase
         .from('sms_delivery_log')
         .select('id, created_at, recipient_phone, recipient_user_id, recipient_name, status, provider, provider_message_id, provider_response, source, cost, error')
-        .in('source', CODE_SOURCES)
+        .or(CODE_SOURCE_PREFIXES.map((p) => `source.like.${p}%`).join(','))
         .order('created_at', { ascending: false })
-        .limit(500);
+        .limit(1000);
       if (error) throw error;
       return (data ?? []) as LogRow[];
     },
@@ -118,6 +145,7 @@ export default function OtpDeliveryLogPage() {
     const q = search.trim().toLowerCase();
     return rows.filter((r) => {
       if (statusFilter !== 'all' && r.status !== statusFilter) return false;
+      if (purposeFilter !== 'all' && purposeOf(r.source) !== purposeFilter) return false;
       if (!q) return true;
       return (
         (r.recipient_phone || '').toLowerCase().includes(q) ||
@@ -127,7 +155,7 @@ export default function OtpDeliveryLogPage() {
         (r.error || '').toLowerCase().includes(q)
       );
     });
-  }, [data, search, statusFilter]);
+  }, [data, search, statusFilter, purposeFilter]);
 
   const counts = useMemo(() => {
     const rows = data ?? [];
@@ -180,7 +208,7 @@ export default function OtpDeliveryLogPage() {
 
       <div className="max-w-6xl mx-auto px-4 py-6 space-y-4">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">Codes (last 500)</div><div className="text-2xl font-semibold">{counts.total}</div></CardContent></Card>
+          <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">Codes (last 1000)</div><div className="text-2xl font-semibold">{counts.total}</div></CardContent></Card>
           <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">Confirmed on handset</div><div className="text-2xl font-semibold text-emerald-600">{counts.delivered}</div></CardContent></Card>
           <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">Accepted, not yet confirmed</div><div className="text-2xl font-semibold text-amber-600">{counts.awaiting}</div></CardContent></Card>
           <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">Failed to reach</div><div className="text-2xl font-semibold text-destructive">{counts.failed}</div></CardContent></Card>
@@ -210,6 +238,16 @@ export default function OtpDeliveryLogPage() {
                   <SelectItem value="skipped">Skipped provider</SelectItem>
                 </SelectContent>
               </Select>
+              <Select value={purposeFilter} onValueChange={setPurposeFilter}>
+                <SelectTrigger className="sm:w-56"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All code types</SelectItem>
+                  <SelectItem value="login">Login / phone code</SelectItem>
+                  <SelectItem value="password">Password reset code</SelectItem>
+                  <SelectItem value="cash_deposit">Cash deposit code</SelectItem>
+                  <SelectItem value="landlord_payout">Landlord payout code</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {isLoading ? (
@@ -237,7 +275,8 @@ export default function OtpDeliveryLogPage() {
                         </TableCell>
                         <TableCell>
                           <Badge variant={statusVariant(r.status)}>{r.status}</Badge>
-                          <div className="text-[11px] text-muted-foreground mt-1">{r.source}</div>
+                          <div className="text-[11px] font-medium mt-1">{PURPOSE_LABELS[purposeOf(r.source)]}</div>
+                          <div className="text-[11px] text-muted-foreground">{r.source}</div>
                         </TableCell>
                         <TableCell className="text-xs">
                           <div className="font-medium">{r.provider || '—'}</div>
