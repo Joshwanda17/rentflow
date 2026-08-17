@@ -361,12 +361,6 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
                   {formatDynamic(plan.funding_amount)}
                 </p>
               </div>
-              <div className="mt-0.5 flex items-center gap-1 text-[11px] text-muted-foreground">
-                <MapPin className="h-3 w-3 shrink-0" />
-                <span className="truncate">
-                  {plan.tenant_location || plan.request_city || 'Uganda'}
-                </span>
-              </div>
               <p className="truncate text-[11px] text-muted-foreground">
                 Landlord: {plan.landlord_name ?? 'Landlord'}
               </p>
