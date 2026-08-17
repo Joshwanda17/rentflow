@@ -428,35 +428,35 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
       )}
 
       {selected.length > 0 && (
-        <Card className="mt-3 rounded-2xl border-primary/25 bg-background/95 p-4 shadow-xl backdrop-blur-md">
-          <div className="flex items-center justify-between gap-3">
+        <Card className="mt-3 rounded-2xl border-primary/25 bg-background/95 p-3 sm:p-4 shadow-xl backdrop-blur-md">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
               <p className="text-[11px] font-semibold text-muted-foreground">
                 {selected.length} plan{selected.length > 1 ? 's' : ''} selected
               </p>
               <SlotAmount
                 value={total}
-                className="text-2xl font-black leading-none text-primary"
+                className="text-xl sm:text-2xl font-black leading-none text-primary"
               />
             </div>
             <Button
               onClick={openDeploy}
               disabled={busy || total < MIN_FUNDING || overBudget}
-              className="shrink-0"
+              className="shrink-0 w-full sm:w-auto"
             >
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
               <span className="ml-2">{activeCommitmentId ? 'Deploy or top up' : 'Fund now'}</span>
             </Button>
           </div>
 
-          <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2">
+          <div className="mt-3 flex flex-col gap-1.5 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground">
-              <TrendingUp className="h-3.5 w-3.5 text-primary" />
+              <TrendingUp className="h-3.5 w-3.5 text-primary shrink-0" />
               <span>Projected returns · {MONTHLY_ROI_RATE}% monthly</span>
             </div>
             <SlotAmount
               value={Math.round((total * MONTHLY_ROI_RATE) / 100)}
-              className="text-base font-black leading-none text-primary"
+              className="text-sm sm:text-base font-black leading-none text-primary"
             />
           </div>
 
