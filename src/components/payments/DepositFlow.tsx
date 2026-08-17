@@ -42,7 +42,7 @@ import { archiveToDrive } from '@/lib/archiveToDrive';
 import { useHorizontalSwipe } from '@/hooks/useHorizontalSwipe';
 import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
 import savingsBroAsset from '@/assets/Savings-bro.svg.asset.json';
-import mtnLogoAsset from '@/assets/mtn-logo.jpg.asset.json';
+import mtnLogoAsset from '@/assets/mtn-logo.png.asset.json';
 import airtelLogoAsset from '@/assets/airtel-logo.jpg.asset.json';
 import equityLogoAsset from '@/assets/equity-logo.jpg.asset.json';
 
@@ -1839,7 +1839,12 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                     onClick={() => { setMomoProvider('mtn'); validateTid(transactionId, 'mtn'); }}
                     className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border-2 transition-all font-semibold text-sm ${momoProvider === 'mtn' ? 'border-[hsl(var(--warning))] bg-[hsl(var(--warning))]/10 shadow-sm' : 'border-border hover:border-[hsl(var(--warning))]/50'}`}
                   >
-                    <div className="w-7 h-7 rounded-full bg-[hsl(var(--warning))] flex items-center justify-center text-[hsl(var(--warning-foreground))] font-bold text-[9px]">MTN</div>
+                    <img
+                      src={mtnLogoAsset.url}
+                      alt="MTN MoMo logo"
+                      className="w-7 h-7 rounded-full object-cover"
+                      loading="lazy"
+                    />
                     MTN MoMo
                   </button>
                   <button
