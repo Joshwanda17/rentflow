@@ -314,6 +314,37 @@ export function SelfPortfolioPlanDetailSheet({
             </li>
           </ul>
 
+          {/* Thumbnails */}
+          {photos.length > 1 && (
+            <div className="mt-5">
+              <p className="text-sm font-bold mb-2">More photos</p>
+              <div className="grid grid-cols-3 gap-2">
+                {photos.map((url, i) => (
+                  <button
+                    type="button"
+                    key={`thumb-${url}-${i}`}
+                    onClick={() => {
+                      setHeroIndex(i);
+                      setLightboxIndex(i);
+                    }}
+                    aria-label={`Expand house photo ${i + 1}`}
+                    className={cn(
+                      'rounded-xl overflow-hidden ring-2 ring-transparent transition',
+                      i === heroIndex && 'ring-primary',
+                    )}
+                  >
+                    <img
+                      src={url}
+                      alt={`House photo ${i + 1}`}
+                      loading="lazy"
+                      className="w-full h-24 object-cover bg-muted"
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Earnings projection */}
           {(() => {
             const monthly = plan.funding_amount * 0.15;
@@ -355,37 +386,6 @@ export function SelfPortfolioPlanDetailSheet({
               </div>
             );
           })()}
-
-          {/* Thumbnails */}
-          {photos.length > 1 && (
-            <div className="mt-5">
-              <p className="text-sm font-bold mb-2">More photos</p>
-              <div className="grid grid-cols-3 gap-2">
-                {photos.map((url, i) => (
-                  <button
-                    type="button"
-                    key={`thumb-${url}-${i}`}
-                    onClick={() => {
-                      setHeroIndex(i);
-                      setLightboxIndex(i);
-                    }}
-                    aria-label={`Expand house photo ${i + 1}`}
-                    className={cn(
-                      'rounded-xl overflow-hidden ring-2 ring-transparent transition',
-                      i === heroIndex && 'ring-primary',
-                    )}
-                  >
-                    <img
-                      src={url}
-                      alt={`House photo ${i + 1}`}
-                      loading="lazy"
-                      className="w-full h-24 object-cover bg-muted"
-                    />
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* Privacy notice band */}
           <div className="mt-4 -mx-5 bg-muted/50 px-5 py-3 flex items-start gap-2">
