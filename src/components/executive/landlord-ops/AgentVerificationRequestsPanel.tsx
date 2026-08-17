@@ -9,7 +9,7 @@ import { useAuth } from '@/hooks/useAuth';
 import {
   ShieldQuestion, CheckCircle2, XCircle, Phone, Loader2, UserCircle,
   MapPin, Home, Banknote, Smartphone, Calendar, Search, Building2,
-  FilterX, Clock,
+  FilterX, Clock, RotateCcw, AlertTriangle,
 } from 'lucide-react';
 import { notifyVerificationResolved } from '@/lib/landlordVerificationNotify';
 import { setLandlordVerification } from '@/lib/landlord-ops/verification';
@@ -70,6 +70,19 @@ interface DetailBundle {
   houses: HouseRow[];
 }
 
+/**
+ * Read-only decision history for a landlord that is back in the pending queue.
+ * A rejected landlord is reopened automatically when the agent resubmits
+ * (`sync_landlord_state_on_verification_request`), and the resubmit clears the
+ * request's own reject_comment — so without this the card looks like a brand
+ * new request and operators believe their rejection never stuck.
+ */
+interface PriorRejection {
+  count: number;
+  reason: string | null;
+  at: string;
+}
+
 const fmtUgx = (n?: number | null) =>
   n == null ? '—' : `UGX ${Number(n).toLocaleString()}`;
 
@@ -94,6 +107,9 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
   // Landlord district per pending request — loaded up-front so the queue can be
   // filtered by district without expanding every card.
   const [districtByLandlord, setDistrictByLandlord] = useState<Record<string, string>>({});
+  // Landlord -> latest recorded rejection (from the append-only event log).
+  const [priorByLandlord, setPriorByLandlord] = useState<Record<string, PriorRejection>>({});
+  const [onlyResubmitted, setOnlyResubmitted] = useState(false);
 
   const load = useCallback(async () => {
     const { data, error } = await supabase
@@ -115,8 +131,27 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
             ((locs ?? []) as { id: string; district: string | null }[]).map(l => [l.id, l.district || '']),
           ),
         );
+        // Append-only transition log — never mutated by the resubmit path, so it
+        // is the only reliable source for "this was already rejected once".
+        const { data: events } = await supabase
+          .from('landlord_verification_events')
+          .select('landlord_id, reason, created_at')
+          .in('landlord_id', ids)
+          .eq('to_status', 'rejected')
+          .order('created_at', { ascending: false });
+        const prior: Record<string, PriorRejection> = {};
+        for (const e of (events ?? []) as { landlord_id: string; reason: string | null; created_at: string }[]) {
+          const existing = prior[e.landlord_id];
+          if (existing) {
+            existing.count += 1; // rows arrive newest-first, so keep the first reason
+          } else {
+            prior[e.landlord_id] = { count: 1, reason: e.reason, at: e.created_at };
+          }
+        }
+        setPriorByLandlord(prior);
       } else {
         setDistrictByLandlord({});
+        setPriorByLandlord({});
       }
     }
     setLoading(false);
