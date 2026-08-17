@@ -54,6 +54,17 @@ export function SelfPortfolioPlanDetailSheet({
   if (!plan) return null;
   const photos = (plan.house_image_urls ?? []).filter(Boolean);
   const name = plan.tenant_full_name || plan.tenant_first_name || 'Tenant';
+  // "Budumbuli, Bugembe Town, Jinja, Eastern" -> address = whole string, region = last segment
+  const addressParts = (plan.tenant_location || plan.request_city || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const fullAddress = addressParts.length
+    ? `${addressParts.join(', ')}, Uganda`
+    : 'Location not captured yet';
+  const regionLabel = addressParts.length
+    ? addressParts[addressParts.length - 1]
+    : 'Uganda';
   const endLabel = plan.projected_end_date
     ? new Date(plan.projected_end_date).toLocaleDateString('en-GB', {
         day: '2-digit',
@@ -155,11 +166,11 @@ export function SelfPortfolioPlanDetailSheet({
         <div className="relative -mt-6 rounded-t-3xl bg-background px-5 pt-6 pb-5">
           <h2 className="text-2xl font-extrabold leading-tight tracking-tight">
             {plan.house_category ? `${plan.house_category} in ` : 'Rent plan in '}
-            {plan.tenant_location || plan.request_city || 'Uganda'}
+            {regionLabel}
           </h2>
-          <p className="mt-2 text-sm text-muted-foreground flex items-center gap-1">
-            <MapPin className="h-3.5 w-3.5 flex-none" />
-            {plan.request_city || 'Uganda'}
+          <p className="mt-2 text-sm text-muted-foreground flex items-start gap-1">
+            <MapPin className="h-3.5 w-3.5 flex-none mt-0.5" />
+            <span>{fullAddress}</span>
           </p>
           <p className="text-sm text-muted-foreground">
             {plan.duration_days ?? 30} day term
