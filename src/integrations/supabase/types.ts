@@ -35403,6 +35403,10 @@ export type Database = {
         Args: { _dead_letter_id: number }
         Returns: undefined
       }
+      assert_no_urgent_proxy_priority: {
+        Args: { p_withdrawal_id: string }
+        Returns: string
+      }
       assert_no_wallet_ledger_entries: {
         Args: { p_entries: Json }
         Returns: undefined
@@ -35525,6 +35529,14 @@ export type Database = {
       block_signup_ip: {
         Args: { p_ip: string; p_reason: string }
         Returns: string
+      }
+      blocking_urgent_proxy_withdrawal: {
+        Args: never
+        Returns: {
+          amount: number
+          created_at: string
+          id: string
+        }[]
       }
       bonus_restriction_config: {
         Args: { p_category: string }
