@@ -670,5 +670,32 @@ export default function RecruitmentHub() {
         )}
       </TabsContent>
     </Tabs>
+
+    <AlertDialog
+      open={!!confirmClose}
+      onOpenChange={(open) => {
+        if (!open) setConfirmClose(null);
+      }}
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Close posting?</AlertDialogTitle>
+          <AlertDialogDescription>
+            You are about to close <strong>{confirmClose?.title}</strong>. The public form will
+            stop accepting applications immediately.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={() => setConfirmClose(null)}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() =>
+              confirmClose && applyStatusChange(confirmClose.id, 'closed')
+            }
+          >
+            Close posting
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
