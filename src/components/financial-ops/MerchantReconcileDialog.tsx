@@ -236,28 +236,43 @@ export function MerchantReconcileDialog({
           </div>
 
           <div>
-            <Label className="text-xs">Amount (UGX)</Label>
+            <Label className="text-xs">
+              {targetMode ? 'Float the agent actually holds now (UGX)' : 'Amount (UGX)'}
+            </Label>
             <Input
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               inputMode="numeric"
-              placeholder="e.g. 2500000"
+              placeholder={targetMode ? `Now on the books: ${currentFloat}` : 'e.g. 2500000'}
               className="mt-1 h-9 text-sm"
             />
             <p className="mt-1 text-[10px] text-muted-foreground">
               {type === 'payout_correction'
                 ? 'Lowers what we count as paid out by this agent.'
                 : type === 'opening_balance'
-                  ? 'Counts float the agent already held before the board started, so we stop showing it as owed to them.'
+                  ? `This is the FINAL figure, not an addition. Their float on the books becomes exactly this number — we only post the difference from ${formatUGX(currentFloat)}. Entering the same figure twice cannot double it.`
                   : type === 'evidenced_writedown'
                     ? "Reduces the agent's float on the books to the amount actually seen with them. Enter the amount to SUBTRACT."
                     : type === 'write_off'
                       ? 'Closes the balance we agreed to let go with this agent.'
                       : 'Adds to the money we already count as paid back to this agent.'}{' '}
-              {ledgerMode || writedownMode
+              {targetMode
+                ? ''
+                : writedownMode
                 ? 'Must be a positive amount — to reduce float, use CFO Direct Debit.'
                 : 'Use a minus amount to undo an earlier fix.'}
             </p>
+            {targetMode && targetDelta === 0 && numericAmount >= 0 && amount.trim() !== '' && (
+              <p className="mt-1 text-[10px] font-medium text-muted-foreground">
+                Already {formatUGX(currentFloat)} on the books — nothing to change.
+              </p>
+            )}
+            {targetMode && targetDelta < 0 && !evidenceOk && (
+              <p className="mt-1 text-[10px] font-medium text-destructive">
+                This lowers their float by {formatUGX(Math.abs(targetDelta))} — evidence is required
+                below.
+              </p>
+            )}
             {writedownMode && numericAmount > position.companyCashWithAgent && (
               <p className="mt-1 text-[10px] font-medium text-destructive">
                 Cannot exceed the float on the books ({formatUGX(position.companyCashWithAgent)}).
