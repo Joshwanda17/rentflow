@@ -285,18 +285,54 @@ export function MerchantReconcileDialog({
           </div>
 
           <div>
-            <Label className="text-xs">Proof (optional)</Label>
+            <Label className="text-xs">
+              {writedownMode ? 'Evidence (required — at least 20 letters)' : 'Proof (optional)'}
+            </Label>
             <Input
               value={evidence}
               onChange={(e) => setEvidence(e.target.value)}
-              placeholder="MoMo transaction ID, statement line, or approval note"
+              placeholder={
+                writedownMode
+                  ? 'Which agent, what was on their phone (balance / screenshot ref / TID), date & time checked'
+                  : 'MoMo transaction ID, statement line, or approval note'
+              }
               className="mt-1 h-9 text-sm"
             />
+            {writedownMode && (
+              <p className="mt-1 text-[10px] text-muted-foreground">
+                {evidence.trim().length}/20 — name the agent, the balance or screenshot reference or
+                provider TID, and the date and time it was checked.
+              </p>
+            )}
           </div>
 
           <Button onClick={submit} disabled={!valid || busy} className="w-full">
-            {busy ? 'Saving…' : ledgerMode ? 'Post to the books' : 'Save fix'}
+            {busy
+              ? 'Saving…'
+              : writedownMode
+                ? 'Post write-down to the books'
+                : ledgerMode
+                  ? 'Post to the books'
+                  : 'Save fix'}
           </Button>
+
+          {valid && writedownMode && (
+            <div className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 space-y-1">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                What this will change
+              </p>
+              <p className="text-[11px] text-foreground">
+                They're holding our money: {formatUGX(position.companyCashWithAgent)} →{' '}
+                <span className="font-semibold">
+                  {formatUGX(Math.max(position.companyCashWithAgent - Math.round(numericAmount), 0))}
+                </span>
+              </p>
+              <p className="text-[10px] text-muted-foreground">
+                Two balanced legs are posted (their float out, company in) and their float balance
+                drops for real through the normal wallet writer. Permanent once posted.
+              </p>
+            </div>
+          )}
 
           {valid && ledgerMode && (
             <div className="rounded-lg border border-primary/40 bg-primary/5 px-3 py-2 space-y-1">
