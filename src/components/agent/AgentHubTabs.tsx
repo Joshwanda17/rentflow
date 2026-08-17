@@ -61,8 +61,9 @@ export function AgentHubTabs({ active, onChange, restricted = false }: AgentHubT
           >
             <serviceCenterTab.icon className={cn('h-5 w-5', active === serviceCenterTab.id && 'scale-110')} strokeWidth={active === serviceCenterTab.id ? 2.5 : 2} />
             <span className={cn(FLOATING_NAV_LABEL, 'text-xs font-bold')}>{serviceCenterTab.label}</span>
-            <span className="absolute -top-1.5 -right-1.5 inline-flex items-center rounded-full bg-red-500 px-1.5 py-0.5 text-[9px] font-bold text-white shadow-sm">
+            <span className="absolute -top-2 -right-2 inline-flex items-center rounded-full bg-gradient-to-r from-red-500 to-rose-500 px-2 py-0.5 text-[10px] font-extrabold tracking-wide text-white shadow-md ring-2 ring-background dark:ring-background">
               New
+              <span className="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full bg-yellow-300 ring-1 ring-white" />
             </span>
           </button>
         </div>
