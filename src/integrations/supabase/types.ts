@@ -18279,6 +18279,7 @@ export type Database = {
           created_by: string | null
           customer_id: string | null
           id: string
+          issued_channel: string | null
           item_name: string
           notes: string | null
           order_status: string
@@ -18290,6 +18291,7 @@ export type Database = {
           rejection_reason: string | null
           sale_date: string
           selected_size: string | null
+          service_centre_id: string | null
           total_revenue: number
           tracking_reference: string | null
           unit_cost: number
@@ -18305,6 +18307,7 @@ export type Database = {
           created_by?: string | null
           customer_id?: string | null
           id?: string
+          issued_channel?: string | null
           item_name: string
           notes?: string | null
           order_status?: string
@@ -18316,6 +18319,7 @@ export type Database = {
           rejection_reason?: string | null
           sale_date?: string
           selected_size?: string | null
+          service_centre_id?: string | null
           total_revenue: number
           tracking_reference?: string | null
           unit_cost?: number
@@ -18331,6 +18335,7 @@ export type Database = {
           created_by?: string | null
           customer_id?: string | null
           id?: string
+          issued_channel?: string | null
           item_name?: string
           notes?: string | null
           order_status?: string
@@ -18342,13 +18347,22 @@ export type Database = {
           rejection_reason?: string | null
           sale_date?: string
           selected_size?: string | null
+          service_centre_id?: string | null
           total_revenue?: number
           tracking_reference?: string | null
           unit_cost?: number
           unit_price?: number
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "merchandise_sales_service_centre_id_fkey"
+            columns: ["service_centre_id"]
+            isOneToOne: false
+            referencedRelation: "service_centre_setups"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       merchandise_share_codes: {
         Row: {
@@ -34784,6 +34798,7 @@ export type Database = {
       }
     }
     Functions: {
+      _agent_products_authorized: { Args: never; Returns: boolean }
       _cf_partner_ops_portfolios: {
         Args: never
         Returns: {
@@ -34981,6 +34996,20 @@ export type Database = {
         Returns: Json
       }
       agent_ops_directory_guard: { Args: never; Returns: string }
+      agent_ops_issue_agent_product: {
+        Args: {
+          p_agent_id: string
+          p_amount_paid?: number
+          p_item_name: string
+          p_notes?: string
+          p_payment_plan?: string
+          p_quantity: number
+          p_service_centre_id?: string
+          p_unit_cost?: number
+          p_unit_price: number
+        }
+        Returns: string
+      }
       agent_ops_qualifying_agent_ids: {
         Args: never
         Returns: {
@@ -36993,6 +37022,7 @@ export type Database = {
           with_withdrawable: number
         }[]
       }
+      get_agent_products_overview: { Args: never; Returns: Json }
       get_agent_products_services_report: {
         Args: { p_date?: string }
         Returns: Json
