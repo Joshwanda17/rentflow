@@ -42,7 +42,7 @@ export function planShareDescription(plan: SharePlanInput): string {
   const domain = getPublicOrigin().replace(/^https?:\/\//, '').replace(/\/$/, '');
   return `Support this tenant for ${formatDynamic(rent)} by paying their landlord on Welileapp.com and earn ${formatDynamic(
     monthly,
-  )} per month for the next 12 months. Start here today ${domain}.`;
+  )} per month for the next 12 months Start here today ${domain}.`;
 }
 
 /**

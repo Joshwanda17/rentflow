@@ -124,7 +124,7 @@ Deno.serve(async (req) => {
 
   const title = `Support a tenant in a ${houseTitle} in ${location}`;
   const description = rent
-    ? `Support this tenant for ${ugx(rent)} by paying their landlord on Welileapp.com and earn ${ugx(monthly)} per month for the next 12 months. Start here today welileapp.com.`
+    ? `Support this tenant for ${ugx(rent)} by paying their landlord on Welileapp.com and earn ${ugx(monthly)} per month for the next 12 months Start here today.`
     : "Support a tenant's rent on Welile and earn monthly returns. Support today.";
   const image = plan?.house_image_urls?.find(Boolean) || `${SITE_URL}/og-image.png`;
 
