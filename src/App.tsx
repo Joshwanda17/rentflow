@@ -428,6 +428,7 @@ function AppRoutes() {
           <Route path="/receipt/:id" element={<PayoutReceipt />} />
           <Route path="/resume-sms" element={<ResumeSms />} />
           <Route path="/r/:code" element={<ResolveRLink />} />
+          <Route path="/s/:code" element={<TrackedRedirect />} />
           <Route path="/c/:slug/:code" element={<CampaignRedirect />} />
           <Route path="/c/:code" element={<CampaignRedirect />} />
           <Route path="/agent/campaigns" element={<AgentCampaignsPage />} />
