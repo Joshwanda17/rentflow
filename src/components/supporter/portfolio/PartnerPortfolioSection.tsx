@@ -69,8 +69,8 @@ export function PartnerPortfolioSection({ onViewPortfolios, onExploreOpportuniti
           )}
 
           <div className="flex items-center justify-between gap-2 px-1 pt-1">
-            <h3 className="text-[10px] font-bold tracking-wide text-muted-foreground">
-              {active.length > 0 ? 'ACTIVE PORTFOLIOS' : 'PENDING PORTFOLIOS'}
+            <h3 className="text-[10px] font-bold tracking-wide text-muted-foreground uppercase">
+              {active.length > 0 ? 'YOUR ACTIVE PORTFOLIOS' : 'YOUR PENDING PORTFOLIOS'}
             </h3>
             <span className="text-[10px] font-bold text-muted-foreground">{list.length}</span>
           </div>
