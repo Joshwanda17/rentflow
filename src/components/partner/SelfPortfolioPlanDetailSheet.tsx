@@ -208,6 +208,7 @@ export function SelfPortfolioPlanDetailSheet({
             index={Math.min(heroIndex, photos.length - 1)}
             onIndexChange={setHeroIndex}
             onSelect={(i) => setLightboxIndex(i)}
+            keyboard={lightboxIndex === null}
             className="w-full h-56 rounded-none"
           />
         ) : (
@@ -217,7 +218,15 @@ export function SelfPortfolioPlanDetailSheet({
         )}
 
         {/* Expanded image card */}
-        <Dialog open={lightboxIndex !== null} onOpenChange={(v) => !v && setLightboxIndex(null)}>
+        <Dialog
+          open={lightboxIndex !== null}
+          onOpenChange={(v) => {
+            if (!v) {
+              if (lightboxIndex !== null) setHeroIndex(lightboxIndex);
+              setLightboxIndex(null);
+            }
+          }}
+        >
           <DialogContent className="max-w-3xl border-0 bg-background p-0 overflow-hidden [&>button]:hidden">
             <DialogHeader className="sr-only">
               <DialogTitle>House photo</DialogTitle>
@@ -228,6 +237,7 @@ export function SelfPortfolioPlanDetailSheet({
                   photos={photos}
                   index={lightboxIndex}
                   onIndexChange={setLightboxIndex}
+                  keyboard
                   fit="contain"
                   className="w-full h-[70vh] rounded-none bg-foreground/5"
                 />
