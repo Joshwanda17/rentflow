@@ -385,18 +385,6 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
                   latitude={plan.request_latitude}
                   longitude={plan.request_longitude}
                 />
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setDetailPlan(plan);
-                  }}
-                  className="inline-flex min-h-[28px] items-center gap-1 rounded-full border border-border bg-muted/60 px-2 py-1 text-[11px] font-semibold text-foreground transition-colors hover:bg-muted"
-                  aria-label="View plan details"
-                >
-                  <Info className="h-3 w-3" />
-                  Details
-                </button>
               </div>
               {metrics.length > 0 && (
                 <p className="mt-0.5 text-[11px] font-semibold text-foreground/80">
