@@ -426,6 +426,9 @@ export function MerchandiseManager() {
         <KPICard title="Inventory Value" value={formatUGX(totals.inventoryValue)} icon={Package} color="bg-cyan-500/10 text-cyan-600" subtitle="Stock at avg cost" />
       </div>
 
+      {/* Live customer orders + realtime pop-ups */}
+      <MerchandiseLiveOrders />
+
       {/* Cost of goods sold callout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <KPICard title="Cost of Merchandise Sold" value={formatUGX(totals.cogs)} icon={Receipt} color="bg-orange-500/10 text-orange-600" />
