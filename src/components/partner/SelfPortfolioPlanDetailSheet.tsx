@@ -66,20 +66,6 @@ export function SelfPortfolioPlanDetailSheet({
   const regionLabel = addressParts.length
     ? addressParts[addressParts.length - 1]
     : 'Uganda';
-  const endLabel = plan.projected_end_date
-    ? new Date(plan.projected_end_date).toLocaleDateString('en-GB', {
-        day: '2-digit',
-        month: '2-digit',
-        year: '2-digit',
-      })
-    : '—';
-
-  const stats = [
-    { value: plan.daily_repayment ? formatDynamic(plan.daily_repayment) : '—', label: 'Daily' },
-    { value: `${plan.duration_days ?? 30}`, label: 'Days term' },
-    { value: endLabel, label: 'Ends' },
-  ];
-
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="max-h-[92vh] overflow-y-auto rounded-t-3xl p-0">
