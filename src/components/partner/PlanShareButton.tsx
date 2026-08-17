@@ -51,7 +51,7 @@ export function PlanShareButton({
   const start = async () => {
     setBusy(true);
     try {
-      const url = await buildLink(plan);
+      const { shareUrl: url } = await buildLink(plan);
       setLink(url);
 
       const payload: ShareData = { title, text: message, url };
