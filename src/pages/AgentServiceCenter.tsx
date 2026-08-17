@@ -2,7 +2,6 @@ import { cn } from '@/lib/utils';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ClipboardCheck, Package, Route, Search, ShoppingBag, Store, UserPlus, Users } from 'lucide-react';
-import officeIllustration from '@/assets/At_the_office-bro.svg.asset.json';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -118,12 +117,6 @@ export default function AgentServiceCenter() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="min-w-0">
-            <img
-              src={officeIllustration.url}
-              alt="Service center illustration"
-              className="mb-2 h-24 w-auto"
-              loading="eager"
-            />
             <h1 className="flex items-center gap-2 truncate text-lg font-bold text-foreground">
               <Store className="h-5 w-5 text-primary" /> Service Center
             </h1>
