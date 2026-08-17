@@ -12396,6 +12396,83 @@ export type Database = {
           },
         ]
       }
+      hr_job_postings: {
+        Row: {
+          closed_message: string | null
+          closes_at: string | null
+          created_at: string
+          created_by: string | null
+          department_id: string | null
+          description: string | null
+          employment_type: string
+          id: string
+          location: string | null
+          opens_at: string | null
+          public_slug: string | null
+          published_at: string | null
+          requirements: string | null
+          responsibilities: string | null
+          sort_order: number
+          status: string
+          summary: string | null
+          title: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          closed_message?: string | null
+          closes_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          department_id?: string | null
+          description?: string | null
+          employment_type?: string
+          id?: string
+          location?: string | null
+          opens_at?: string | null
+          public_slug?: string | null
+          published_at?: string | null
+          requirements?: string | null
+          responsibilities?: string | null
+          sort_order?: number
+          status?: string
+          summary?: string | null
+          title: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          closed_message?: string | null
+          closes_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          department_id?: string | null
+          description?: string | null
+          employment_type?: string
+          id?: string
+          location?: string | null
+          opens_at?: string | null
+          public_slug?: string | null
+          published_at?: string | null
+          requirements?: string | null
+          responsibilities?: string | null
+          sort_order?: number
+          status?: string
+          summary?: string | null
+          title?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_job_postings_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "hr_departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_metric_definitions: {
         Row: {
           active: boolean
