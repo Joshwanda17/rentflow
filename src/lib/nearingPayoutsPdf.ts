@@ -454,6 +454,56 @@ export async function generateNearingPayoutsPdf(input: NearingPayoutPdfInput): P
     },
   });
 
+  // ── Summary: amount to be paid per channel ──
+  const returnsFor = (r: NearingPayoutPdfRow) => {
+    const det = r.portfolioId ? detailsMap.get(r.portfolioId) : null;
+    const principal = det?.investment_amount ?? r.investmentAmount ?? 0;
+    const roiPct = det?.roi_percentage ?? r.roiPercentage ?? 0;
+    return Math.round(principal * roiPct / 100);
+  };
+
+  const summaryRows = orderedGroups
+    .filter(([label]) => label !== COMPOUNDING_KEY)
+    .map(([label, groupRows]) => [
+      label,
+      String(groupRows.length),
+      formatUGX(groupRows.reduce((s, r) => s + returnsFor(r), 0)),
+    ]);
+
+  if (summaryRows.length > 0) {
+    const grandCount = payoutRows.length;
+    const grandAmount = payoutRows.reduce((s, r) => s + returnsFor(r), 0);
+    const prevY = (doc as any).lastAutoTable?.finalY ?? y;
+    let summaryStartY = prevY + 10;
+    const pageHeight = doc.internal.pageSize.getHeight();
+    if (summaryStartY + 30 > pageHeight - 14) {
+      doc.addPage();
+      summaryStartY = 20;
+    }
+    doc.setTextColor(15, 23, 42);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('Summary — Amount To Be Paid By Channel', margin, summaryStartY);
+
+    autoTable(doc, {
+      head: [['Channel', 'Count', 'Amount']],
+      body: summaryRows,
+      foot: [['TOTAL', String(grandCount), formatUGX(grandAmount)]],
+      startY: summaryStartY + 4,
+      margin: { left: margin, right: margin },
+      tableWidth: pageWidth * 0.6,
+      styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak', valign: 'middle' },
+      headStyles: { fillColor: THEME_PRIMARY, textColor: 255, fontSize: 8, fontStyle: 'bold' },
+      footStyles: { fillColor: THEME_PRIMARY_DARK, textColor: 255, fontSize: 8, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: THEME_STRIPE },
+      columnStyles: {
+        0: { cellWidth: 'auto' },
+        1: { cellWidth: 22, halign: 'center' },
+        2: { cellWidth: 45, halign: 'right', fontStyle: 'bold' },
+      },
+    });
+  }
+
   return doc.output('blob');
 }
 
