@@ -340,6 +340,17 @@ export function SelfPortfolioPlanDetailSheet({
               </span>
               <span className="text-sm font-bold truncate">{plan.lc1_chairperson_name ?? '—'}</span>
             </li>
+            <li className="flex items-center justify-between gap-3 py-3">
+              <span className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Phone className="h-4 w-4 flex-none" /> Proxy Agent
+              </span>
+              <a
+                href="tel:+256751424629"
+                className="text-sm font-bold truncate text-primary hover:underline"
+              >
+                +256 751 424 629
+              </a>
+            </li>
           </ul>
 
           {/* Thumbnails */}
