@@ -389,6 +389,15 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
                     <Badge variant="outline" className="shrink-0 border-amber-500/40 text-amber-700 text-[10px]">
                       Pending
                     </Badge>
+                    {priorByLandlord[req.landlord_id] && (
+                      <Badge variant="outline" className="shrink-0 text-[10px] gap-1 border-rose-500/50 text-rose-700 bg-rose-500/10">
+                        <RotateCcw className="h-2.5 w-2.5" />
+                        Resubmitted
+                        {priorByLandlord[req.landlord_id].count > 1
+                          ? ` · rejected ${priorByLandlord[req.landlord_id].count}×`
+                          : ''}
+                      </Badge>
+                    )}
                     {districtByLandlord[req.landlord_id] && (
                       <Badge variant="outline" className="shrink-0 text-[10px] gap-1">
                         <MapPin className="h-2.5 w-2.5" />
@@ -412,6 +421,21 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
                   </p>
                 </div>
               </div>
+
+              {priorByLandlord[req.landlord_id] && (
+                <div className="rounded-lg border border-rose-500/40 bg-rose-50/70 dark:bg-rose-500/10 p-2.5 space-y-1">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-rose-700 flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" />
+                    Previously rejected · {new Date(priorByLandlord[req.landlord_id].at).toLocaleDateString()}
+                  </p>
+                  <p className="text-[11px] text-foreground">
+                    {priorByLandlord[req.landlord_id].reason || 'No reason recorded.'}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">
+                    The agent corrected the record and returned it to review, so it is pending again. Verify only if the issue above is fixed.
+                  </p>
+                </div>
+              )}
 
               {/* Review trigger */}
               <Button
