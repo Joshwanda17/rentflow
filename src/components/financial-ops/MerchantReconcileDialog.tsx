@@ -353,7 +353,7 @@ export function MerchantReconcileDialog({
             </div>
           )}
 
-          {valid && !ledgerMode && (
+          {valid && !ledgerMode && !writedownMode && (
             <div className="rounded-lg border border-border bg-muted/20 px-3 py-2 space-y-1">
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
                 What this fix will change
