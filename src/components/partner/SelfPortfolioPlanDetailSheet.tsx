@@ -318,7 +318,6 @@ export function SelfPortfolioPlanDetailSheet({
           {(() => {
             const monthly = plan.funding_amount * 0.15;
             const daily = monthly / 30;
-            const weekly = monthly / 4;
             const months = Math.max(1, Math.round((plan.duration_days ?? 30) / 30));
             const total = monthly * months;
             return (
