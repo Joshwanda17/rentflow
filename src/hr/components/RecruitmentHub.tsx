@@ -42,6 +42,7 @@ import {
   getEmployees,
   getHiringRequisitions,
   getJobPostings,
+  setJobPostingStatus,
 } from '@/hr/api';
 import type {
   Application,
