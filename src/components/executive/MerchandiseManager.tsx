@@ -377,9 +377,6 @@ export function MerchandiseManager() {
         </div>
       </div>
 
-      {/* Live customer orders + realtime pop-ups */}
-      <MerchandiseLiveOrders />
-
       {/* Filters */}
       <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-border bg-card p-3">
         <div className="flex flex-col gap-1">
