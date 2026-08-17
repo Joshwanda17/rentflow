@@ -245,37 +245,8 @@ export function SelfPortfolioPlanDetailSheet({
             <span>{fullAddress}</span>
           </p>
 
-          {/* Key details */}
-          <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="rounded-2xl bg-primary/5 px-4 py-3">
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Rent amount</p>
-              <p className="text-xl font-black text-primary truncate">{formatDynamic(plan.funding_amount)}</p>
-            </div>
-            <div className="rounded-2xl bg-muted/50 px-4 py-3 flex items-center gap-3">
-              <User className="h-5 w-5 text-muted-foreground flex-none" />
-              <div className="min-w-0">
-                <p className="text-[11px] text-muted-foreground">Landlord</p>
-                <p className="text-sm font-bold truncate">{plan.landlord_name ?? 'Landlord'}</p>
-              </div>
-            </div>
-            <div className="rounded-2xl bg-muted/50 px-4 py-3 flex items-center gap-3">
-              <Phone className="h-5 w-5 text-muted-foreground flex-none" />
-              <div className="min-w-0">
-                <p className="text-[11px] text-muted-foreground">Contact</p>
-                <p className="text-sm font-bold truncate">{plan.landlord_phone ?? '—'}</p>
-              </div>
-            </div>
-            <div className="rounded-2xl bg-muted/50 px-4 py-3 flex items-center gap-3">
-              <ShieldCheck className="h-5 w-5 text-muted-foreground flex-none" />
-              <div className="min-w-0">
-                <p className="text-[11px] text-muted-foreground">LC Name</p>
-                <p className="text-sm font-bold truncate">{plan.lc1_chairperson_name ?? '—'}</p>
-              </div>
-            </div>
-          </div>
-
           {/* Tenant row */}
-          <div className="mt-6 border-t border-border pt-4 flex items-center gap-3">
+          <div className="mt-5 flex items-center gap-3">
             {/* Privacy: the tenant photo is never sent to the client for this
                 view, so there is no image URL to reveal via devtools. */}
             <div
@@ -298,6 +269,42 @@ export function SelfPortfolioPlanDetailSheet({
               </p>
             </div>
           </div>
+
+          {/* Key details list */}
+          <ul className="mt-4 divide-y divide-border border-t border-border">
+            <li className="flex items-center justify-between gap-3 py-3">
+              <span className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Home className="h-4 w-4 flex-none" /> Rent amount
+              </span>
+              <span className="text-base font-black text-primary truncate">
+                {formatDynamic(plan.funding_amount)}
+              </span>
+            </li>
+            <li className="flex items-center justify-between gap-3 py-3">
+              <span className="flex items-center gap-2 text-sm text-muted-foreground">
+                <User className="h-4 w-4 flex-none" /> Landlord
+              </span>
+              <span className="text-sm font-bold truncate">{plan.landlord_name ?? 'Landlord'}</span>
+            </li>
+            <li className="flex items-center justify-between gap-3 py-3">
+              <span className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Phone className="h-4 w-4 flex-none" /> Landlord contact
+              </span>
+              {plan.landlord_phone ? (
+                <a href={`tel:${plan.landlord_phone}`} className="text-sm font-bold text-primary truncate">
+                  {plan.landlord_phone}
+                </a>
+              ) : (
+                <span className="text-sm font-bold">—</span>
+              )}
+            </li>
+            <li className="flex items-center justify-between gap-3 py-3">
+              <span className="flex items-center gap-2 text-sm text-muted-foreground">
+                <ShieldCheck className="h-4 w-4 flex-none" /> LC Name
+              </span>
+              <span className="text-sm font-bold truncate">{plan.lc1_chairperson_name ?? '—'}</span>
+            </li>
+          </ul>
 
           {/* Thumbnails */}
           {photos.length > 1 && (
