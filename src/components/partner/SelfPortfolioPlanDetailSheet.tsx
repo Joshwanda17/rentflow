@@ -56,9 +56,9 @@ export function SelfPortfolioPlanDetailSheet({
   const name = plan.tenant_full_name || plan.tenant_first_name || 'Tenant';
   const endLabel = plan.projected_end_date
     ? new Date(plan.projected_end_date).toLocaleDateString('en-GB', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
+        day: '2-digit',
+        month: '2-digit',
+        year: '2-digit',
       })
     : '—';
 
