@@ -423,7 +423,6 @@ async function sendViaAfricasTalking(phone: string, message: string): Promise<Sm
   const params = new URLSearchParams({
     username,
     to: formattedPhone,
-    from: "WELILE",
     message,
   });
 

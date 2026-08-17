@@ -62,7 +62,7 @@ async function sendYoolaAttempt(apiKey: string, phone: string, message: string):
     const res = await fetch("https://yoolasms.com/api/v1/send", {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ phone: toBareDigits(phone), message, api_key: apiKey, sender: "WELILE"}),
+      body: JSON.stringify({ phone: toBareDigits(phone), message, api_key: apiKey}),
       signal: controller.signal,
     });
     const text = await res.text();
@@ -105,9 +105,7 @@ async function sendViaAfricasTalking(phone: string, message: string): Promise<Sm
     : "https://api.africastalking.com/version1/messaging";
   const params = new URLSearchParams({
     username,
-    to: formatPhoneInternational(phone),
-    from: "WELILE",
-    message,
+    to: formatPhoneInternational(phone),    message,
   });
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), SMS_ATTEMPT_TIMEOUT_MS);

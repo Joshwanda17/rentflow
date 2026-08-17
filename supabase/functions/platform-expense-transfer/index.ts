@@ -65,9 +65,7 @@ async function sendSMS(
   try {
     const body = new URLSearchParams({
       username,
-      to: formatPhoneInternational(phone),
-      from: "WELILE",
-      message,
+      to: formatPhoneInternational(phone),      message,
     });
     const res = await fetch(baseUrl, {
       method: "POST",
