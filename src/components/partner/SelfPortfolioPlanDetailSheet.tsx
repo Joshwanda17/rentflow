@@ -245,7 +245,7 @@ export function SelfPortfolioPlanDetailSheet({
         {/* Title card */}
         <div className="relative bg-background px-5 pt-5 pb-5">
           <h2 className="text-2xl font-extrabold leading-tight tracking-tight">
-            {plan.house_category ? `${plan.house_category} in ` : 'Rent plan in '}
+            {plan.house_category ? `${plan.house_category.replace(/-/g, ' ')} in ` : 'Rent plan in '}
             {regionLabel}
           </h2>
           <p className="mt-2 text-sm text-muted-foreground flex items-start gap-1">
