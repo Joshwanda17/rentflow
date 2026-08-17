@@ -444,6 +444,17 @@ export function AgentCashPayoutsTab() {
       claimedSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return;
     }
+    // Proxy-agent priority gate: while an urgent proxy withdrawal is unclaimed,
+    // only that payout may be claimed. The server enforces this too
+    // (`proxy_priority_hold`); this is the fast, explicit client message.
+    if (
+      blockingUrgentProxy &&
+      blockingUrgentProxy.id !== id &&
+      !isUrgentProxyWithdrawal(row || undefined)
+    ) {
+      toast.error(PROXY_PRIORITY_BLOCK_MESSAGE);
+      return;
+    }
     claimLockRef.current.add(id);
     setClaimingIds(new Set(claimLockRef.current));
     toast.info('Claiming withdrawal… please wait', { id: `claim-${id}`, duration: 4000 });
@@ -473,6 +484,9 @@ export function AgentCashPayoutsTab() {
     qc.invalidateQueries({ queryKey: ['cashout-queue-counts'] });
     qc.invalidateQueries({ queryKey: ['cashout-queue-available-total'] });
     qc.invalidateQueries({ queryKey: ['cashout-my-active-claims'] });
+    // The priority hold is released as soon as the urgent proxy payout is
+    // claimed, completed, cancelled or failed.
+    qc.invalidateQueries({ queryKey: ['cashout-blocking-urgent-proxy'] });
   };
 
   // Check if this agent is a cashout agent
