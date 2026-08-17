@@ -161,7 +161,11 @@ Deno.serve(async (req) => {
       results.push({ id: row.id, message_id: messageId, checked: true, status: mapped.status, yoola_status: report?.sms_status ?? null });
     }
 
-    return new Response(JSON.stringify({ ok: true, checked: results.length, results }), {
+    return new Response(JSON.stringify(
+      isCronRun
+        ? { ok: true, checked: results.length }
+        : { ok: true, checked: results.length, results },
+    ), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: any) {
