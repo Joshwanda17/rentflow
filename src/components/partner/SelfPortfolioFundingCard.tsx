@@ -10,6 +10,7 @@ import { CalendarClock, Check, ChevronLeft, ChevronRight, Home, Loader2, MapPin,
 
 import { SelfPortfolioDeployDialog } from './SelfPortfolioDeployDialog';
 import { SelfPortfolioPlanDetailSheet } from './SelfPortfolioPlanDetailSheet';
+import { PlanShareButton } from './PlanShareButton';
 import { SlotAmount } from './SlotAmount';
 
 const MIN_FUNDING = 50000;
@@ -371,21 +372,24 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
                     </p>
                   </div>
 
-                  {!isFunded && (
-                    <Button
-                      size="icon"
-                      variant={isSelected ? 'secondary' : 'default'}
-                      disabled={heldByOther || busy || unaffordable}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggle(plan.rent_request_id);
-                      }}
-                      aria-label={`${isSelected ? 'Remove' : 'Select'} plan for ${plan.tenant_full_name ?? plan.tenant_first_name ?? 'tenant'}`}
-                      className="h-10 w-10 shrink-0 rounded-full shadow-sm"
-                    >
-                      {isSelected ? <Check className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
-                    </Button>
-                  )}
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <PlanShareButton plan={plan} />
+                    {!isFunded && (
+                      <Button
+                        size="icon"
+                        variant={isSelected ? 'secondary' : 'default'}
+                        disabled={heldByOther || busy || unaffordable}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggle(plan.rent_request_id);
+                        }}
+                        aria-label={`${isSelected ? 'Remove' : 'Select'} plan for ${plan.tenant_full_name ?? plan.tenant_first_name ?? 'tenant'}`}
+                        className="h-10 w-10 shrink-0 rounded-full shadow-sm"
+                      >
+                        {isSelected ? <Check className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
+                      </Button>
+                    )}
+                  </div>
                 </div>
 
                 {unaffordable && !heldByOther && (
