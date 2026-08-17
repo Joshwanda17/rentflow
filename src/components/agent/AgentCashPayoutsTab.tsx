@@ -565,6 +565,33 @@ export function AgentCashPayoutsTab() {
 
   // Unfiltered count of all available (unclaimed/expired) requests — powers the
   // "action required" badge and live banner regardless of active filters.
+  // PRIORITY GATE (mirrors `assert_no_urgent_proxy_priority` in the database):
+  // while ANY urgent proxy-agent withdrawal is still unclaimed, no other
+  // merchant payout may be claimed. Queried unfiltered so the hold is visible
+  // even when this merchant's filters or channel tab exclude the urgent row.
+  const { data: blockingUrgentProxy = null } = useQuery({
+    queryKey: ['cashout-blocking-urgent-proxy'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('withdrawal_requests')
+        .select('id, amount, created_at, priority_level, status, processed_at, fin_ops_reference, assigned_cashout_agent_id')
+        .eq('priority_level', 'urgent_proxy')
+        .in('status', CASHOUT_QUEUE_STATUSES)
+        .is('processed_at', null)
+        .is('fin_ops_reference', null)
+        .is('assigned_cashout_agent_id', null)
+        .order('created_at', { ascending: true })
+        .limit(1);
+      const row = (data || [])[0] ?? null;
+      if (error) throw error;
+      return row && isUrgentProxyBlocking(row) ? row : null;
+    },
+    enabled: !!isCashoutAgent,
+    staleTime: 10_000,
+    refetchInterval: 20_000,
+    refetchOnWindowFocus: true,
+  });
+
   const { data: availableTotal = 0 } = useQuery({
     queryKey: ['cashout-queue-available-total', isCashoutAgent?.id, categoryOrClause, channelProviderOrClause, frozenUserIds],
     queryFn: async () => {
