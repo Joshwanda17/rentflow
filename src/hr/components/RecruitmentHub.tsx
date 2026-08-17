@@ -201,6 +201,33 @@ export default function RecruitmentHub() {
     (id ? employees.find((e) => e.id === id)?.full_name : null) ?? '—';
   const candidateById = (id: string) => candidates.find((c) => c.id === id) ?? null;
 
+  async function refreshPostings() {
+    const jobs = await getJobPostings();
+    setPostings(jobs);
+  }
+
+  async function applyStatusChange(id: string, status: 'open' | 'closed') {
+    setTogglingId(id);
+    try {
+      await setJobPostingStatus(id, status);
+      await refreshPostings();
+      toast.success(`Posting ${status === 'open' ? 'opened' : 'closed'}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not update posting');
+    } finally {
+      setTogglingId(null);
+      setConfirmClose(null);
+    }
+  }
+
+  function handleStatusToggle(job: JobPosting, nextStatus: 'open' | 'closed') {
+    if (nextStatus === 'closed') {
+      setConfirmClose(job);
+      return;
+    }
+    applyStatusChange(job.id, 'open');
+  }
+
   const reqCounts = useMemo(
     () => ({
       pending: requisitions.filter((r) => r.status === 'pending').length,
