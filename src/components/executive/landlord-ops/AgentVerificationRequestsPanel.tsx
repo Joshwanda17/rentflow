@@ -4,15 +4,21 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import {
   ShieldQuestion, CheckCircle2, XCircle, Phone, Loader2, UserCircle,
   MapPin, Home, Banknote, Smartphone, Calendar, Search, Building2,
-  FilterX, Clock, RotateCcw, AlertTriangle,
+  FilterX, Clock, RotateCcw, AlertTriangle, FileDown, BarChart3, Ban,
 } from 'lucide-react';
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend,
+} from 'recharts';
+import { format as fmtDay, subDays } from 'date-fns';
 import { notifyVerificationResolved } from '@/lib/landlordVerificationNotify';
 import { setLandlordVerification } from '@/lib/landlord-ops/verification';
+import { generateLandlordVerificationQueuePdf } from '@/lib/landlordVerificationQueuePdf';
 
 interface VerificationRequest {
   id: string;
@@ -83,6 +89,27 @@ interface PriorRejection {
   at: string;
 }
 
+/**
+ * Decided (historical) request row — read-only. Kept in a separate shape from
+ * the live pending queue so none of the existing pending logic changes.
+ */
+interface DecidedRequest extends VerificationRequest {
+  status: string;
+  reject_comment: string | null;
+  resolved_at: string | null;
+}
+
+type QueueTab = 'pending' | 'resubmitted' | 'verified' | 'rejected' | 'cancelled' | 'all';
+
+const TAB_LABEL: Record<QueueTab, string> = {
+  pending: 'Pending',
+  resubmitted: 'Resubmitted',
+  verified: 'Verified',
+  rejected: 'Rejected',
+  cancelled: 'Cancelled',
+  all: 'All requests',
+};
+
 const fmtUgx = (n?: number | null) =>
   n == null ? '—' : `UGX ${Number(n).toLocaleString()}`;
 
@@ -110,6 +137,15 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
   // Landlord -> latest recorded rejection (from the append-only event log).
   const [priorByLandlord, setPriorByLandlord] = useState<Record<string, PriorRejection>>({});
   const [onlyResubmitted, setOnlyResubmitted] = useState(false);
+  // ── Tabs / analytics layer (read-only, additive) ──────────────────────────
+  const [tab, setTab] = useState<QueueTab>('pending');
+  const [decided, setDecided] = useState<DecidedRequest[]>([]);
+  const [decidedLoading, setDecidedLoading] = useState(false);
+  const [districtByLandlordAll, setDistrictByLandlordAll] = useState<Record<string, string>>({});
+  const [showChart, setShowChart] = useState(true);
+  const [exporting, setExporting] = useState(false);
+  const [fromDate, setFromDate] = useState<string>(() => fmtDay(subDays(new Date(), 29), 'yyyy-MM-dd'));
+  const [toDate, setToDate] = useState<string>(() => fmtDay(new Date(), 'yyyy-MM-dd'));
 
   const load = useCallback(async () => {
     const { data, error } = await supabase
@@ -156,6 +192,43 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
     }
     setLoading(false);
   }, []);
+
+  /**
+   * Decided requests (verified / rejected / cancelled) in the selected window.
+   * Read-only — used only for the extra tabs, charts and the PDF export.
+   */
+  const loadDecided = useCallback(async () => {
+    setDecidedLoading(true);
+    try {
+      const startIso = new Date(`${fromDate}T00:00:00`).toISOString();
+      const endIso = new Date(`${toDate}T23:59:59.999`).toISOString();
+      const { data } = await supabase
+        .from('landlord_verification_requests')
+        .select('id, landlord_id, landlord_name, landlord_phone, requested_by, agent_name, agent_phone, note, created_at, status, reject_comment, resolved_at')
+        .in('status', ['verified', 'rejected', 'cancelled'])
+        .gte('created_at', startIso)
+        .lte('created_at', endIso)
+        .order('created_at', { ascending: false })
+        .limit(1000);
+      const rows = (data ?? []) as DecidedRequest[];
+      setDecided(rows);
+      const ids = Array.from(new Set(rows.map((r) => r.landlord_id).filter(Boolean)));
+      if (ids.length > 0) {
+        const { data: locs } = await supabase.from('landlords').select('id, district').in('id', ids);
+        setDistrictByLandlordAll(
+          Object.fromEntries(
+            ((locs ?? []) as { id: string; district: string | null }[]).map((l) => [l.id, l.district || '']),
+          ),
+        );
+      } else {
+        setDistrictByLandlordAll({});
+      }
+    } finally {
+      setDecidedLoading(false);
+    }
+  }, [fromDate, toDate]);
+
+  useEffect(() => { void loadDecided(); }, [loadDecided]);
 
   useEffect(() => {
     load();
@@ -292,7 +365,7 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const base = onlyResubmitted
+    const base = (onlyResubmitted || tab === 'resubmitted')
       ? requests.filter((r) => !!priorByLandlord[r.landlord_id])
       : requests;
     if (!q) return base;
@@ -303,14 +376,110 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
       (r.agent_phone || '').toLowerCase().includes(q) ||
       (districtByLandlord[r.landlord_id] || '').toLowerCase().includes(q)
     );
-  }, [requests, search, districtByLandlord, onlyResubmitted, priorByLandlord]);
+  }, [requests, search, districtByLandlord, onlyResubmitted, priorByLandlord, tab]);
 
   const resubmittedCount = useMemo(
     () => requests.filter((r) => !!priorByLandlord[r.landlord_id]).length,
     [requests, priorByLandlord],
   );
 
-  if (loading || requests.length === 0) return null;
+  /** Decided rows matching the current search box (read-only tabs). */
+  const decidedFiltered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const byStatus = tab === 'all' || tab === 'pending' || tab === 'resubmitted'
+      ? decided
+      : decided.filter((r) => r.status === tab);
+    if (!q) return byStatus;
+    return byStatus.filter((r) =>
+      (r.landlord_name || '').toLowerCase().includes(q) ||
+      (r.landlord_phone || '').toLowerCase().includes(q) ||
+      (r.agent_name || '').toLowerCase().includes(q) ||
+      (r.agent_phone || '').toLowerCase().includes(q) ||
+      (districtByLandlordAll[r.landlord_id] || '').toLowerCase().includes(q)
+    );
+  }, [decided, search, tab, districtByLandlordAll]);
+
+  const tabCounts = useMemo(() => ({
+    pending: requests.length,
+    resubmitted: resubmittedCount,
+    verified: decided.filter((r) => r.status === 'verified').length,
+    rejected: decided.filter((r) => r.status === 'rejected').length,
+    cancelled: decided.filter((r) => r.status === 'cancelled').length,
+    all: requests.length + decided.length,
+  }), [requests.length, resubmittedCount, decided]);
+
+  /** Daily activity for the chart: created vs verified vs rejected. */
+  const chartData = useMemo(() => {
+    const map = new Map<string, { day: string; created: number; verified: number; rejected: number }>();
+    const bump = (iso: string, key: 'created' | 'verified' | 'rejected') => {
+      const day = fmtDay(new Date(iso), 'yyyy-MM-dd');
+      const row = map.get(day) || { day, created: 0, verified: 0, rejected: 0 };
+      row[key] += 1;
+      map.set(day, row);
+    };
+    for (const r of decided) {
+      bump(r.created_at, 'created');
+      if (r.resolved_at && (r.status === 'verified' || r.status === 'rejected')) {
+        bump(r.resolved_at, r.status as 'verified' | 'rejected');
+      }
+    }
+    for (const r of requests) {
+      const day = fmtDay(new Date(r.created_at), 'yyyy-MM-dd');
+      if (day >= fromDate && day <= toDate) bump(r.created_at, 'created');
+    }
+    return Array.from(map.values()).sort((a, b) => a.day.localeCompare(b.day));
+  }, [decided, requests, fromDate, toDate]);
+
+  const handleExportPdf = useCallback(async () => {
+    setExporting(true);
+    try {
+      const pendingRows = (tab === 'verified' || tab === 'rejected' || tab === 'cancelled')
+        ? []
+        : filtered.map((r) => ({
+            landlordName: r.landlord_name,
+            landlordPhone: r.landlord_phone,
+            district: districtByLandlord[r.landlord_id] || null,
+            agentName: r.agent_name,
+            agentPhone: r.agent_phone,
+            status: 'pending',
+            resubmitted: !!priorByLandlord[r.landlord_id],
+            rejectionCount: priorByLandlord[r.landlord_id]?.count ?? 0,
+            createdAt: r.created_at,
+            resolvedAt: null,
+            comment: priorByLandlord[r.landlord_id]?.reason || r.note || null,
+          }));
+      const decidedRows = tab === 'pending' || tab === 'resubmitted'
+        ? []
+        : decidedFiltered.map((r) => ({
+            landlordName: r.landlord_name,
+            landlordPhone: r.landlord_phone,
+            district: districtByLandlordAll[r.landlord_id] || null,
+            agentName: r.agent_name,
+            agentPhone: r.agent_phone,
+            status: r.status,
+            resubmitted: false,
+            rejectionCount: 0,
+            createdAt: r.created_at,
+            resolvedAt: r.resolved_at,
+            comment: r.reject_comment || r.note || null,
+          }));
+      const doc = generateLandlordVerificationQueuePdf({
+        tabLabel: TAB_LABEL[tab],
+        from: fromDate,
+        to: toDate,
+        search: search.trim() || null,
+        rows: [...pendingRows, ...decidedRows],
+        trend: chartData,
+      });
+      doc.save(`landlord-verification-${tab}-${fmtDay(new Date(), 'yyyyMMdd-HHmm')}.pdf`);
+    } catch (err: any) {
+      toast({ title: 'Export failed', description: err?.message || 'Could not build the PDF', variant: 'destructive' });
+    } finally {
+      setExporting(false);
+    }
+  }, [tab, filtered, decidedFiltered, districtByLandlord, districtByLandlordAll, priorByLandlord, fromDate, toDate, search, chartData, toast]);
+
+  if (loading || (requests.length === 0 && decided.length === 0)) return null;
 
   return (
     <div className="rounded-2xl border border-amber-500/40 bg-amber-50/40 dark:bg-amber-950/20 shadow-sm overflow-hidden">
@@ -350,7 +519,73 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
             )}
           </div>
         </div>
-        {resubmittedCount > 0 && (
+        {/* Tabs — pending, resubmitted and the read-only decision history */}
+        <Tabs value={tab} onValueChange={(v) => setTab(v as QueueTab)} className="mt-3">
+          <TabsList className="h-auto flex-wrap justify-start gap-1 bg-background/70 p-1">
+            {(['pending', 'resubmitted', 'verified', 'rejected', 'cancelled', 'all'] as QueueTab[]).map((t) => (
+              <TabsTrigger key={t} value={t} className="h-7 text-[11px] px-2.5 gap-1.5">
+                {TAB_LABEL[t]}
+                <Badge variant="secondary" className="h-4 px-1 text-[9px]">{tabCounts[t]}</Badge>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+
+        {/* Date range + export */}
+        <div className="mt-2.5 flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+            <Input type="date" value={fromDate} max={toDate} onChange={(e) => setFromDate(e.target.value)} className="h-7 w-[135px] text-[11px] bg-background/80" />
+            <span className="text-[11px] text-muted-foreground">to</span>
+            <Input type="date" value={toDate} min={fromDate} onChange={(e) => setToDate(e.target.value)} className="h-7 w-[135px] text-[11px] bg-background/80" />
+          </div>
+          {([['7d', 6], ['30d', 29], ['90d', 89]] as [string, number][]).map(([label, days]) => (
+            <Button
+              key={label}
+              size="sm"
+              variant="outline"
+              className="h-7 text-[10px] px-2"
+              onClick={() => {
+                setFromDate(fmtDay(subDays(new Date(), days), 'yyyy-MM-dd'));
+                setToDate(fmtDay(new Date(), 'yyyy-MM-dd'));
+              }}
+            >
+              Last {label}
+            </Button>
+          ))}
+          <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1.5" onClick={() => setShowChart((v) => !v)}>
+            <BarChart3 className="h-3 w-3" />
+            {showChart ? 'Hide chart' : 'Show chart'}
+          </Button>
+          <Button size="sm" className="h-7 text-[10px] gap-1.5 ml-auto" disabled={exporting} onClick={handleExportPdf}>
+            {exporting ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileDown className="h-3 w-3" />}
+            Export PDF
+          </Button>
+        </div>
+
+        {showChart && chartData.length > 0 && (
+          <div className="mt-2.5 rounded-xl border border-amber-500/25 bg-background/70 p-2">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+              Daily activity · requests created vs decided
+            </p>
+            <div className="h-[160px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} margin={{ top: 4, right: 6, left: -18, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.2} vertical={false} />
+                  <XAxis dataKey="day" tickFormatter={(d) => fmtDay(new Date(d), 'dd MMM')} tick={{ fontSize: 9 }} interval="preserveStartEnd" />
+                  <YAxis tick={{ fontSize: 9 }} allowDecimals={false} />
+                  <Tooltip contentStyle={{ fontSize: 11 }} labelFormatter={(d) => fmtDay(new Date(String(d)), 'dd MMM yyyy')} />
+                  <Legend wrapperStyle={{ fontSize: 10 }} />
+                  <Bar dataKey="created" name="Created" fill="hsl(var(--muted-foreground))" radius={[2, 2, 0, 0]} />
+                  <Bar dataKey="verified" name="Verified" fill="hsl(142 71% 40%)" radius={[2, 2, 0, 0]} />
+                  <Bar dataKey="rejected" name="Rejected" fill="hsl(0 72% 51%)" radius={[2, 2, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+
+        {resubmittedCount > 0 && tab !== 'resubmitted' && (
           <div className="mt-2.5 flex items-center gap-2 flex-wrap">
             <Button
               size="sm"
@@ -370,7 +605,7 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
 
       {/* Proper list — not nested in a collapsible */}
       <div className="p-3 space-y-2">
-        {filtered.length === 0 ? (
+        {(tab === 'verified' || tab === 'rejected' || tab === 'cancelled') ? null : filtered.length === 0 ? (
           <div className="text-center py-6 text-xs text-muted-foreground">
             No requests match “{search}”.
           </div>
@@ -615,6 +850,71 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
               })()}
             </div>
           ))
+        )}
+
+        {/* Read-only decision history (verified / rejected / cancelled / all) */}
+        {tab !== 'pending' && tab !== 'resubmitted' && (
+          decidedLoading ? (
+            <div className="flex items-center justify-center gap-2 py-6 text-xs text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading decision history…
+            </div>
+          ) : decidedFiltered.length === 0 ? (
+            <div className="text-center py-6 text-xs text-muted-foreground">
+              No {TAB_LABEL[tab].toLowerCase()} requests in this date range.
+            </div>
+          ) : (
+            decidedFiltered.map((r) => (
+              <div key={r.id} className="rounded-xl border border-border bg-background p-3 space-y-1.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-semibold text-sm truncate">{r.landlord_name || 'Unnamed landlord'}</p>
+                      <Badge
+                        variant="outline"
+                        className={
+                          r.status === 'verified'
+                            ? 'text-[10px] border-emerald-500/50 text-emerald-700 bg-emerald-500/10 gap-1'
+                            : r.status === 'rejected'
+                              ? 'text-[10px] border-rose-500/50 text-rose-700 bg-rose-500/10 gap-1'
+                              : 'text-[10px] gap-1'
+                        }
+                      >
+                        {r.status === 'verified' ? <CheckCircle2 className="h-2.5 w-2.5" />
+                          : r.status === 'rejected' ? <XCircle className="h-2.5 w-2.5" />
+                            : <Ban className="h-2.5 w-2.5" />}
+                        {r.status}
+                      </Badge>
+                      {districtByLandlordAll[r.landlord_id] && (
+                        <Badge variant="outline" className="text-[10px] gap-1">
+                          <MapPin className="h-2.5 w-2.5" />
+                          {districtByLandlordAll[r.landlord_id]}
+                        </Badge>
+                      )}
+                    </div>
+                    {r.landlord_phone && (
+                      <a href={`tel:${r.landlord_phone}`} className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1 mt-0.5">
+                        <Phone className="h-3 w-3" /> {r.landlord_phone}
+                      </a>
+                    )}
+                    <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5 flex-wrap">
+                      <UserCircle className="h-3.5 w-3.5" />
+                      {r.agent_name || 'Agent'}{r.agent_phone ? ` · ${r.agent_phone}` : ''}
+                      <span className="inline-flex items-center gap-1 ml-2 opacity-70">
+                        <Clock className="h-3 w-3" />
+                        requested {new Date(r.created_at).toLocaleDateString()}
+                        {r.resolved_at ? ` · decided ${new Date(r.resolved_at).toLocaleDateString()}` : ''}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+                {(r.reject_comment || r.note) && (
+                  <p className="text-[11px] text-foreground bg-muted/50 rounded-lg p-2">
+                    {r.reject_comment || r.note}
+                  </p>
+                )}
+              </div>
+            ))
+          )
         )}
       </div>
     </div>
