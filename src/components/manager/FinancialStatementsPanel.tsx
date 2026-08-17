@@ -131,8 +131,84 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
 }
 
 function IncomeStatementSection({ d, cm }: { d: FinancialStatementsData['incomeStatement']; cm?: ComparisonMetrics | null }) {
+  const bs = d.byService;
   return (
     <div className="space-y-1">
+      {/* ── Service-based statement: dynamically built from existing ledger data ── */}
+      <SectionHeader>Revenue by Welile Service</SectionHeader>
+      <p className="text-[10px] text-muted-foreground pl-4 -mt-1 mb-1">
+        Only services configured in the system with approved ledger transactions are listed. Every amount traces to its ledger category.
+      </p>
+      {bs.revenueFamilies.length === 0 && (
+        <p className="text-xs text-muted-foreground pl-4">No service revenue recorded for this period.</p>
+      )}
+      {bs.revenueFamilies.map(fam => (
+        <div key={fam.key} className="mb-1">
+          <p className="text-[11px] font-medium pl-2 mt-2">{fam.label}</p>
+          {fam.lines.map(l => (
+            <div key={l.source} className="flex justify-between items-center text-sm pl-6" title={`Ledger source: ${l.source}`}>
+              <span className="text-muted-foreground">{l.label}</span>
+              <span className="font-mono text-success">{formatUGX(l.amount)}</span>
+            </div>
+          ))}
+          <div className="flex justify-between items-center text-xs pl-4 pr-0 font-medium border-t border-border/40 pt-1 mt-1">
+            <span>{fam.label} — Subtotal</span>
+            <span className="font-mono">{formatUGX(fam.total)}</span>
+          </div>
+        </div>
+      ))}
+      <LineItem label="Total Revenue (Services)" value={bs.totalRevenue} bold />
+
+      <SectionHeader>Marketing Expenses</SectionHeader>
+      {bs.marketing.lines.length === 0 && (
+        <p className="text-xs text-muted-foreground pl-4">No marketing expenses recorded for this period.</p>
+      )}
+      {bs.marketing.lines.map(l => (
+        <div key={l.source} className="flex justify-between items-center text-sm pl-6" title={`Ledger source: ${l.source}`}>
+          <span className="text-muted-foreground">{l.label}</span>
+          <span className="font-mono text-destructive">({formatUGX(l.amount)})</span>
+        </div>
+      ))}
+      <LineItem label="Total Marketing Expenses" value={bs.marketing.total} negative bold />
+
+      <SectionHeader>Operating Expenses</SectionHeader>
+      {bs.operating.lines.length === 0 && (
+        <p className="text-xs text-muted-foreground pl-4">No operating expenses recorded for this period.</p>
+      )}
+      {bs.operating.lines.map(l => (
+        <div key={l.source} className="flex justify-between items-center text-sm pl-6" title={`Ledger source: ${l.source}`}>
+          <span className="text-muted-foreground">{l.label}</span>
+          <span className="font-mono text-destructive">({formatUGX(l.amount)})</span>
+        </div>
+      ))}
+      <LineItem label="Total Operating Expenses (Services)" value={bs.operating.total} negative bold />
+
+      <div className={cn(
+        'mt-2 p-3 rounded-lg border flex justify-between items-center font-bold',
+        bs.netProfit >= 0 ? 'bg-success/5 border-success/20 text-success' : 'bg-destructive/5 border-destructive/20 text-destructive'
+      )}>
+        <span>Net {bs.netProfit >= 0 ? 'Profit' : '(Loss)'}</span>
+        <span className="font-mono">{bs.netProfit >= 0 ? formatUGX(bs.netProfit) : `(${formatUGX(Math.abs(bs.netProfit))})`}</span>
+      </div>
+      <p className="text-[10px] text-muted-foreground pl-1 mt-1">
+        Net = Total Revenue − Total Marketing Expenses − Total Operating Expenses. Custody, rent facilitation principal, capital and correction entries are excluded to prevent double-counting.
+      </p>
+
+      {bs.reviewQueue.length > 0 && (
+        <div className="mt-3 p-3 rounded-lg border border-warning/30 bg-warning/5">
+          <p className="text-xs font-semibold text-warning uppercase tracking-wider mb-1">Flagged for review — unmapped ledger categories</p>
+          <p className="text-[10px] text-muted-foreground mb-2">
+            These approved ledger entries do not map to an existing service or accounting category. They are excluded from the totals above until classified.
+          </p>
+          {bs.reviewQueue.map(l => (
+            <div key={`${l.category}-${l.direction}`} className="flex justify-between items-center text-xs">
+              <span className="text-muted-foreground">{l.category} · {l.direction === 'cash_in' ? 'in' : 'out'}</span>
+              <span className="font-mono">{formatUGX(l.amount)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       <SectionHeader>Revenue Recognition</SectionHeader>
       <p className="text-[10px] text-muted-foreground pl-4 -mt-1 mb-1">Expected revenue from active rent requests vs. collected (realized) through ledger</p>
       <LineItem label="Expected Access Fees" value={d.revenueRecognition.expectedAccessFees} indent />
