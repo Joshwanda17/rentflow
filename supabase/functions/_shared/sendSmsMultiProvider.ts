@@ -31,7 +31,10 @@ async function sendViaYoola(phone: string, message: string) {
     const res = await fetch("https://yoolasms.com/api/v1/send", {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ phone: toMsisdn(phone), message, api_key: apiKey, sender: "WELILE"}),
+      // NEVER force sender: "WELILE" — it is unregistered and carriers silently
+      // drop those messages (provider still answers "success"). Omitting the
+      // field makes Yoola use its registered default sender, which delivers.
+      body: JSON.stringify({ phone: toMsisdn(phone), message, api_key: apiKey }),
     });
     const raw = await res.text();
     let data: any; try { data = JSON.parse(raw); } catch { data = null; }
@@ -51,7 +54,9 @@ async function sendViaAT(phone: string, message: string) {
     ? "https://api.sandbox.africastalking.com/version1/messaging"
     : "https://api.africastalking.com/version1/messaging";
   try {
-    const body = new URLSearchParams({ username, to: formatPhoneInternational(phone), from: "WELILE", message });
+    // No `from`: the "WELILE" alphanumeric sender is not registered on this
+    // Africa's Talking account and requests using it are rejected with 403.
+    const body = new URLSearchParams({ username, to: formatPhoneInternational(phone), message });
     const res = await fetch(baseUrl, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded", apiKey, Accept: "application/json" },
