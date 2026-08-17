@@ -601,7 +601,7 @@ export default function RecruitmentHub() {
 
       {/* ---------------- Applications ---------------- */}
       <TabsContent value="applications" className="space-y-3">
-        <ApplicationsPanel />
+        <ApplicationsTab />
       </TabsContent>
 
       {/* ---------------- Talent pool ---------------- */}
