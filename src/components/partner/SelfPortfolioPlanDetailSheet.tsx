@@ -94,15 +94,23 @@ function PhotoSlider({
       onTouchEnd={onTouchEnd}
     >
       <div
-        className="flex h-full w-full transition-transform duration-300 ease-out"
-        style={{ transform: `translateX(-${index * 100}%)` }}
+        className="flex h-full transition-transform duration-300 ease-out"
+        style={{
+          width: `${total * 100}%`,
+          transform: `translateX(-${index * (100 / total)}%)`,
+        }}
       >
         {photos.map((url, i) => (
-          <div key={`${url}-${i}`} className="h-full w-full flex-none">
+          <div
+            key={`${url}-${i}`}
+            className="h-full flex-none"
+            style={{ width: `${100 / total}%` }}
+          >
             <img
               src={url}
               alt={`House photo ${i + 1}`}
-              loading={i === 0 ? 'eager' : 'lazy'}
+              loading="eager"
+              decoding="async"
               draggable={false}
               onClick={() => {
                 if (swiped.current) return;
