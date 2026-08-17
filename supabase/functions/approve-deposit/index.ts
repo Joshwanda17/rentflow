@@ -640,8 +640,18 @@ Deno.serve(async (req) => {
           // deposit purpose.
           const depositRecipientType: 'user' | 'operational_wallet' =
             isFloatDeposit ? 'operational_wallet' : 'user';
-          const { error: depositLedgerErr } = await supabaseAdmin.rpc('create_ledger_transaction', {
-            entries: [
+          // ── Physical cash channel (Financial Ops cash deposits) ──────────
+          // A cash deposit is NOT a bank movement: the money is physically in
+          // the office until it is banked. For those deposits we add a second
+          // balanced pair that (a) debits A5 Cash in Transit against the
+          // custody payable (L1) and (b) reverses the A2 "float with agents"
+          // debit produced by the wallet leg — the cash is with the company,
+          // not with the agent. `fin_ops_set_cash_location('bank')` later moves
+          // A5 → A1/Treasury. Mobile money / bank / agent-cash deposits keep
+          // their existing accounting untouched.
+          const providerKey = (depositRequest.provider || '').toString().trim().toLowerCase();
+          const isPhysicalCashChannel = providerKey === 'cash_deposit';
+          const depositEntries: Record<string, unknown>[] = [
               {
                 user_id: depositRequest.user_id,
                 amount: depositRequest.amount,
@@ -662,17 +672,51 @@ Deno.serve(async (req) => {
               {
                 direction: 'cash_out',
                 amount: depositRequest.amount,
-                category: depositCategory,
+                category: isPhysicalCashChannel ? 'agent_float_cash_offset' : depositCategory,
                 ledger_scope: 'platform',
                 source_table: 'deposit_requests',
                 source_id: depositRequest.id,
-                description: isFloatDeposit
+                description: isPhysicalCashChannel
+                  ? 'Offset: physical cash is held by the company, not with the agent'
+                  : isFloatDeposit
                   ? 'Platform: float deposit credited to agent float bucket'
                   : 'Platform liability: deposit credited to user wallet',
                 currency: 'UGX',
                 transaction_date: new Date().toISOString(),
               },
-            ],
+          ];
+
+          if (isPhysicalCashChannel) {
+            depositEntries.push(
+              {
+                direction: 'cash_in',
+                amount: depositRequest.amount,
+                category: 'cash_receipt_in_transit',
+                ledger_scope: 'platform',
+                source_table: 'deposit_requests',
+                source_id: depositRequest.id,
+                reference_id: depositRequest.transaction_id || depositRequest.id,
+                description: 'Cash received by Financial Ops — held as cash in transit',
+                currency: 'UGX',
+                transaction_date: new Date().toISOString(),
+              },
+              {
+                direction: 'cash_out',
+                amount: depositRequest.amount,
+                category: 'cash_custody_payable',
+                ledger_scope: 'platform',
+                source_table: 'deposit_requests',
+                source_id: depositRequest.id,
+                reference_id: depositRequest.transaction_id || depositRequest.id,
+                description: 'Custody obligation for physical cash received, not yet banked',
+                currency: 'UGX',
+                transaction_date: new Date().toISOString(),
+              },
+            );
+          }
+
+          const { error: depositLedgerErr } = await supabaseAdmin.rpc('create_ledger_transaction', {
+            entries: depositEntries,
           });
 
           if (depositLedgerErr) {
