@@ -87,7 +87,11 @@ Deno.serve(async (req) => {
 
   // Click tracking stays on the same code the /s/ route records.
   try {
-    await supabase.rpc("record_short_link_click", { p_code: code });
+    await supabase.rpc("record_short_link_click", {
+      p_code: code,
+      p_user_agent: req.headers.get("user-agent") ?? "",
+      p_referrer: req.headers.get("referer") ?? "",
+    });
   } catch { /* preview must never fail on analytics */ }
 
   const houseTitle = pretty(plan?.house_category) || "Rental Home";
