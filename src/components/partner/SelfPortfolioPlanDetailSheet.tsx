@@ -54,6 +54,17 @@ export function SelfPortfolioPlanDetailSheet({
   if (!plan) return null;
   const photos = (plan.house_image_urls ?? []).filter(Boolean);
   const name = plan.tenant_full_name || plan.tenant_first_name || 'Tenant';
+  // "Budumbuli, Bugembe Town, Jinja, Eastern" -> address = whole string, region = last segment
+  const addressParts = (plan.tenant_location || plan.request_city || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const fullAddress = addressParts.length
+    ? `${addressParts.join(', ')}, Uganda`
+    : 'Location not captured yet';
+  const regionLabel = addressParts.length
+    ? addressParts[addressParts.length - 1]
+    : 'Uganda';
   const endLabel = plan.projected_end_date
     ? new Date(plan.projected_end_date).toLocaleDateString('en-GB', {
         day: '2-digit',
