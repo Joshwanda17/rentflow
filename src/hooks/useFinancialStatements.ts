@@ -735,6 +735,11 @@ async function generateStatementsRaw(activeFilters: StatementFilters): Promise<F
       const supporterCapitalDeployed = sumBy(bridgeIn, ['supporter_facilitation_capital', 'supporter_deposit', 'investment_deposit']);
 
       const result: FinancialStatementsData = {
+        ...(undefined as unknown as {}),
+      } as FinancialStatementsData;
+      void result;
+      const placeholder = 0; void placeholder;
+      const realResult: FinancialStatementsData = {
         generatedAt: new Date(),
         filters: activeFilters,
         incomeStatement: {
