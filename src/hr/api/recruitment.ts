@@ -1,11 +1,7 @@
 /**
  * HR data access — Recruitment
- *
- * The HR schema currently provisions departments, staff, assignments, tasks,
- * task events, metric definitions and metric snapshots only. There are no
- * recruitment tables yet, so these reads return empty lists rather than mock
- * rows — no screen may ever display invented data. Writes fail loudly.
  */
+import { supabase, unwrap, requireUserId } from './client';
 import type {
   Application,
   Candidate,
