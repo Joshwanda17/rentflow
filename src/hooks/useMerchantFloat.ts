@@ -272,13 +272,15 @@ export type MerchantAdjustmentType =
   | 'opening_balance'
   | 'reimbursement_recorded'
   | 'payout_correction'
-  | 'write_off';
+  | 'write_off'
+  | 'evidenced_writedown';
 
 export const MERCHANT_ADJUSTMENT_LABELS: Record<MerchantAdjustmentType, string> = {
   opening_balance: 'Money already with the agent (starting balance)',
   reimbursement_recorded: 'Money we paid them back outside the system',
   payout_correction: 'Reduce what we count as paid out',
   write_off: 'Agreed to let it go (settled with the agent)',
+  evidenced_writedown: 'Write float DOWN to what the agent actually holds (books)',
 };
 
 export interface MerchantAdjustmentInput {
