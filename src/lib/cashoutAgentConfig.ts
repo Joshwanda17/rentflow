@@ -134,13 +134,36 @@ export const PAYOUT_CATEGORY_GROUPS: PayoutCategoryGroup[] = [
 
 export const ALL_PAYOUT_CATEGORIES: PayoutCategory[] = PAYOUT_CATEGORY_GROUPS.flatMap((g) => g.items);
 
-export const SUPPORTED_BANKS: { id: string; label: string }[] = [
-  { id: 'stanbic', label: 'Stanbic' },
-  { id: 'centenary', label: 'Centenary' },
-  { id: 'dfcu', label: 'DFCU' },
-  { id: 'equity', label: 'Equity' },
-  { id: 'postbank', label: 'PostBank' },
-  { id: 'housing_finance', label: 'Housing Finance' },
+/**
+ * Canonical Uganda commercial banks used for merchant payout assignment.
+ * `patterns` are lowercase substrings matched against a normalized bank name
+ * (non-letters collapsed to single spaces), most specific first.
+ */
+export const SUPPORTED_BANKS: { id: string; label: string; patterns: string[] }[] = [
+  { id: 'absa', label: 'Absa Bank Uganda', patterns: ['absa'] },
+  { id: 'bank_of_africa', label: 'Bank of Africa Uganda', patterns: ['bank of africa', 'boa uganda'] },
+  { id: 'baroda', label: 'Bank of Baroda Uganda', patterns: ['baroda'] },
+  { id: 'bank_of_india', label: 'Bank of India (Uganda)', patterns: ['bank of india'] },
+  { id: 'cairo', label: 'Cairo Bank Uganda', patterns: ['cairo'] },
+  { id: 'centenary', label: 'Centenary Bank', patterns: ['centenary', 'centinary'] },
+  { id: 'citibank', label: 'Citibank Uganda', patterns: ['citibank', 'citi bank'] },
+  { id: 'dfcu', label: 'DFCU Bank', patterns: ['dfcu'] },
+  { id: 'dtb', label: 'Diamond Trust Bank (DTB)', patterns: ['diamond trust', 'dtb'] },
+  { id: 'ecobank', label: 'Ecobank Uganda', patterns: ['ecobank', 'eco bank'] },
+  { id: 'equity', label: 'Equity Bank Uganda', patterns: ['equity'] },
+  { id: 'exim', label: 'Exim Bank Uganda', patterns: ['exim'] },
+  { id: 'housing_finance', label: 'Housing Finance Bank', patterns: ['housing finance', 'housingfinance'] },
+  { id: 'im_bank', label: 'I&M Bank (Uganda)', patterns: ['i m bank', 'i and m bank', 'im bank'] },
+  { id: 'kcb', label: 'KCB Bank Uganda', patterns: ['kcb', 'kenya commercial bank'] },
+  { id: 'ncba', label: 'NCBA Bank Uganda', patterns: ['ncba', 'nc bank'] },
+  { id: 'pearl', label: 'Pearl Bank Uganda', patterns: ['pearl'] },
+  { id: 'salaam', label: 'Salaam Bank Uganda', patterns: ['salaam'] },
+  { id: 'stanbic', label: 'Stanbic Bank Uganda', patterns: ['stanbic'] },
+  { id: 'stanchart', label: 'Standard Chartered Bank Uganda', patterns: ['standard chartered', 'stanchart', 'scb'] },
+  { id: 'tropical', label: 'Tropical Bank', patterns: ['tropical'] },
+  { id: 'uba', label: 'United Bank for Africa (UBA)', patterns: ['united bank for africa', 'uba'] },
+  // Legacy id kept so existing merchant assignments keep resolving.
+  { id: 'postbank', label: 'PostBank Uganda', patterns: ['postbank', 'post bank'] },
 ];
 
 // ===========================================================================
@@ -157,12 +180,9 @@ export const SUPPORTED_BANKS: { id: string; label: string }[] = [
 export function normalizeBankId(raw: unknown): string | null {
   const s = String(raw ?? '').toLowerCase().replace(/[^a-z]+/g, ' ').trim();
   if (!s) return null;
-  if (s.includes('stanbic')) return 'stanbic';
-  if (s.includes('centenary') || s.includes('centinary') || s.includes('cente')) return 'centenary';
-  if (s.includes('dfcu')) return 'dfcu';
-  if (s.includes('equity')) return 'equity';
-  if (s.includes('post bank') || s.includes('postbank')) return 'postbank';
-  if (s.includes('housing finance') || s.includes('housingfinance')) return 'housing_finance';
+  for (const b of SUPPORTED_BANKS) {
+    if (b.patterns.some((p) => s.includes(p))) return b.id;
+  }
   return null;
 }
 
@@ -209,14 +229,9 @@ export function isWithdrawalRoutableToMerchant(config: CashoutAgentConfig | null
   return isWithdrawalCategoryAuthorized(config, withdrawal) && isWithdrawalChannelAuthorized(config, withdrawal);
 }
 
-const BANK_MATCH_PATTERNS: Record<string, string[]> = {
-  stanbic: ['stanbic'],
-  centenary: ['centenary', 'centinary'],
-  dfcu: ['dfcu'],
-  equity: ['equity'],
-  postbank: ['postbank', 'post bank'],
-  housing_finance: ['housing finance', 'housingfinance'],
-};
+const BANK_MATCH_PATTERNS: Record<string, string[]> = Object.fromEntries(
+  SUPPORTED_BANKS.map((b) => [b.id, b.patterns]),
+);
 
 const ALL_BANK_PATTERNS = Object.values(BANK_MATCH_PATTERNS).flat();
 
