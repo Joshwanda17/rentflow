@@ -223,14 +223,38 @@ export function MerchantReconcileDialog({
                 ? 'Lowers what we count as paid out by this agent.'
                 : type === 'opening_balance'
                   ? 'Counts float the agent already held before the board started, so we stop showing it as owed to them.'
-                  : type === 'write_off'
-                    ? 'Closes the balance we agreed to let go with this agent.'
-                    : 'Adds to the money we already count as paid back to this agent.'}{' '}
-              {ledgerMode
+                  : type === 'evidenced_writedown'
+                    ? "Reduces the agent's float on the books to the amount actually seen with them. Enter the amount to SUBTRACT."
+                    : type === 'write_off'
+                      ? 'Closes the balance we agreed to let go with this agent.'
+                      : 'Adds to the money we already count as paid back to this agent.'}{' '}
+              {ledgerMode || writedownMode
                 ? 'Must be a positive amount — to reduce float, use CFO Direct Debit.'
                 : 'Use a minus amount to undo an earlier fix.'}
             </p>
+            {writedownMode && numericAmount > position.companyCashWithAgent && (
+              <p className="mt-1 text-[10px] font-medium text-destructive">
+                Cannot exceed the float on the books ({formatUGX(position.companyCashWithAgent)}).
+              </p>
+            )}
           </div>
+
+          {writedownMode && (
+            <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2">
+              <TrendingDown className="mt-0.5 h-3.5 w-3.5 shrink-0 text-destructive" />
+              <span className="text-[11px] leading-snug">
+                <span className="font-semibold text-foreground">
+                  Permanent, ledger-backed write-down
+                </span>
+                <span className="block text-[10px] text-muted-foreground">
+                  Posts real balanced entries (agent float out, company in) and lowers their float
+                  through the normal wallet writer. Only the CFO, Financial Ops or a super admin can
+                  post it, never on their own desk, and it can only ever be answered by another
+                  equally evidenced entry — never edited or deleted.
+                </span>
+              </span>
+            </div>
+          )}
 
           {type === 'opening_balance' && (
             <div className="flex items-start gap-2 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2">
