@@ -382,26 +382,7 @@ export function MerchantReconcileDialog({
             </div>
           )}
 
-          {valid && ledgerMode && (
-            <div className="rounded-lg border border-primary/40 bg-primary/5 px-3 py-2 space-y-1">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                What this will change
-              </p>
-              <p className="text-[11px] text-foreground">
-                They're holding our money: {formatUGX(position.companyCashWithAgent)} →{' '}
-                <span className="font-semibold">
-                  {formatUGX(position.companyCashWithAgent + Math.round(numericAmount))}
-                </span>
-              </p>
-              <p className="text-[10px] text-muted-foreground">
-                Two balanced legs are posted (their float in, company float out) and their float
-                balance moves through the normal wallet writer. Fully audited and reversible only by
-                a further ledger entry.
-              </p>
-            </div>
-          )}
-
-          {valid && !ledgerMode && !writedownMode && (
+          {valid && !targetMode && !writedownMode && (
             <div className="rounded-lg border border-border bg-muted/20 px-3 py-2 space-y-1">
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
                 What this fix will change
