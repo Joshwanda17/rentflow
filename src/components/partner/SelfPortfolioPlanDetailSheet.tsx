@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { formatDynamic } from '@/lib/currencyFormat';
 import { Home, MapPin, ShieldCheck } from 'lucide-react';
 import tenantPhotoPlaceholder from '@/assets/tenant-photo-placeholder.jpg';
+import { PlanGpsChip } from './PlanGpsChip';
 
 export interface PlanDetail {
   rent_request_id: string;
@@ -28,6 +29,8 @@ export interface PlanDetail {
   tenant_has_photo?: boolean | null;
   landlord_name: string | null;
   house_image_urls: string[] | null;
+  request_latitude?: number | string | null;
+  request_longitude?: number | string | null;
 }
 
 /**
@@ -162,6 +165,13 @@ export function SelfPortfolioPlanDetailSheet({
             {plan.duration_days ?? 30} day term
             {plan.repayment_cadence ? ` · Collected ${plan.repayment_cadence}` : ''}
           </p>
+          <div className="mt-2">
+            <PlanGpsChip
+              latitude={plan.request_latitude}
+              longitude={plan.request_longitude}
+              className="text-[11px]"
+            />
+          </div>
 
           {/* Stat strip */}
           <div className="mt-6 grid grid-cols-3 divide-x divide-border">
