@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { formatDynamic } from '@/lib/currencyFormat';
@@ -51,6 +51,28 @@ function PhotoSlider({
     (dir: -1 | 1) => onIndexChange((index + dir + total) % total),
     [index, total, onIndexChange],
   );
+  const startX = useRef<number | null>(null);
+  const startY = useRef<number | null>(null);
+  const swiped = useRef(false);
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    startX.current = e.touches[0].clientX;
+    startY.current = e.touches[0].clientY;
+    swiped.current = false;
+  };
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (startX.current === null || startY.current === null || swiped.current) return;
+    const dx = e.touches[0].clientX - startX.current;
+    const dy = e.touches[0].clientY - startY.current;
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
+      swiped.current = true;
+      go(dx < 0 ? 1 : -1);
+    }
+  };
+  const onTouchEnd = () => {
+    startX.current = null;
+    startY.current = null;
+  };
 
   useEffect(() => {
     if (total < 2) return;
@@ -65,7 +87,12 @@ function PhotoSlider({
   if (total === 0) return null;
 
   return (
-    <div className={cn('relative overflow-hidden bg-muted', className)}>
+    <div
+      className={cn('relative overflow-hidden bg-muted touch-pan-y select-none', className)}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+    >
       <div
         className="flex h-full w-full transition-transform duration-300 ease-out"
         style={{ transform: `translateX(-${index * 100}%)` }}
@@ -76,7 +103,11 @@ function PhotoSlider({
               src={url}
               alt={`House photo ${i + 1}`}
               loading={i === 0 ? 'eager' : 'lazy'}
-              onClick={() => onSelect?.(i)}
+              draggable={false}
+              onClick={() => {
+                if (swiped.current) return;
+                onSelect?.(i);
+              }}
               className={cn(
                 'h-full w-full',
                 fit === 'cover' ? 'object-cover' : 'object-contain',
@@ -109,20 +140,6 @@ function PhotoSlider({
           <span className="absolute bottom-3 right-3 rounded-md bg-foreground/70 px-2 py-1 text-[11px] font-semibold text-background">
             {index + 1} / {total}
           </span>
-          <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1.5">
-            {photos.map((_, i) => (
-              <button
-                key={`dot-${i}`}
-                type="button"
-                aria-label={`Go to photo ${i + 1}`}
-                onClick={() => onIndexChange(i)}
-                className={cn(
-                  'h-1.5 rounded-full transition-all',
-                  i === index ? 'w-4 bg-background' : 'w-1.5 bg-background/60',
-                )}
-              />
-            ))}
-          </div>
         </>
       )}
     </div>
@@ -148,6 +165,11 @@ export function SelfPortfolioPlanDetailSheet({
 }) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [heroIndex, setHeroIndex] = useState(0);
+  const planId = plan?.rent_request_id ?? null;
+  useEffect(() => {
+    setHeroIndex(0);
+    setLightboxIndex(null);
+  }, [planId, open]);
   if (!plan) return null;
   const photos = (plan.house_image_urls ?? []).filter(Boolean);
   const name = plan.tenant_full_name || plan.tenant_first_name || 'Tenant';
