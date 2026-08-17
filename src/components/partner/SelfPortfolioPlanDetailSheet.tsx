@@ -37,6 +37,7 @@ function PhotoSlider({
   className,
   imgClassName,
   fit = 'cover',
+  keyboard = false,
 }: {
   photos: string[];
   index: number;
@@ -45,6 +46,7 @@ function PhotoSlider({
   className?: string;
   imgClassName?: string;
   fit?: 'cover' | 'contain';
+  keyboard?: boolean;
 }) {
   const total = photos.length;
   const go = useCallback(
@@ -75,14 +77,14 @@ function PhotoSlider({
   };
 
   useEffect(() => {
-    if (total < 2) return;
+    if (total < 2 || !keyboard) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'ArrowLeft') go(-1);
       if (e.key === 'ArrowRight') go(1);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [go, total]);
+  }, [go, total, keyboard]);
 
   if (total === 0) return null;
 
