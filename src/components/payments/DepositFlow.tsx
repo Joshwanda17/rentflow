@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import airtelLogo from '@/assets/airtel-logo.jpeg.asset.json';
 import { useCurrency } from '@/hooks/useCurrency';
 import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
