@@ -70,8 +70,13 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
+    const body = await req.json().catch(() => ({} as Record<string, unknown>));
+    // Scheduled runs (pg_cron) carry no user session — they identify themselves
+    // with mode:"cron" and get a counts-only response. Manual runs from the ops
+    // UI still require an authorized staff user.
+    const isCronRun = String((body as any)?.mode ?? "") === "cron";
     const authHeader = req.headers.get("Authorization") || "";
-    if (!(await callerHasOpsAccess(authHeader))) {
+    if (!isCronRun && !(await callerHasOpsAccess(authHeader))) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -86,9 +91,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    const body = await req.json().catch(() => ({}));
-    const limit = Math.max(1, Math.min(Number(body?.limit ?? 100) || 100, 250));
-    const sinceHours = Math.max(1, Math.min(Number(body?.since_hours ?? 72) || 72, 24 * 14));
+    const limit = Math.max(1, Math.min(Number((body as any)?.limit ?? 100) || 100, 250));
+    const sinceHours = Math.max(1, Math.min(Number((body as any)?.since_hours ?? 72) || 72, 24 * 14));
     const cutoff = new Date(Date.now() - sinceHours * 60 * 60 * 1000).toISOString();
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
@@ -157,7 +161,11 @@ Deno.serve(async (req) => {
       results.push({ id: row.id, message_id: messageId, checked: true, status: mapped.status, yoola_status: report?.sms_status ?? null });
     }
 
-    return new Response(JSON.stringify({ ok: true, checked: results.length, results }), {
+    return new Response(JSON.stringify(
+      isCronRun
+        ? { ok: true, checked: results.length }
+        : { ok: true, checked: results.length, results },
+    ), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: any) {

@@ -230,6 +230,7 @@ const AdminFinancialOpsPage = lazy(() => import('./pages/admin/FinancialOps'));
 const AdminReferralsPage = lazy(() => import('./pages/admin/Referrals'));
 const AdminOAuthFailuresPage = lazy(() => import('./pages/admin/OAuthFailures'));
 const AdminRecoverySmsLogPage = lazy(() => import('./pages/admin/RecoverySmsLog'));
+const AdminOtpDeliveryLogPage = lazy(() => import('./pages/admin/OtpDeliveryLog'));
 const AdminArchivedAccountsPage = lazy(() => import('./pages/admin/ArchivedAccounts'));
 const AdminAccountConflictsPage = lazy(() => import('./pages/admin/AccountConflicts'));
 const AgentRecommendationAuditPage = lazy(() => import('./pages/admin/AgentRecommendationAudit'));
@@ -657,6 +658,7 @@ function AppRoutes() {
           <Route path="/admin/referrals" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'cfo', 'coo', 'cto']} requiredPermission="financial-ops"><AdminReferralsPage /></RoleGuard>} />
           <Route path="/admin/oauth-failures" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'ceo', 'coo', 'cto']} requiredPermission="cto"><AdminOAuthFailuresPage /></RoleGuard>} />
           <Route path="/admin/recovery-sms-log" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'cfo', 'ceo', 'coo', 'cto']} requiredPermission="financial-ops"><AdminRecoverySmsLogPage /></RoleGuard>} />
+          <Route path="/admin/otp-delivery-log" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'cfo', 'ceo', 'coo', 'cto', 'operations']}><AdminOtpDeliveryLogPage /></RoleGuard>} />
           <Route path="/admin/archived-accounts" element={<RoleGuard allowedRoles={['super_admin', 'manager']}><AdminArchivedAccountsPage /></RoleGuard>} />
           <Route path="/admin/account-conflicts" element={<RoleGuard allowedRoles={['super_admin', 'manager']}><AdminAccountConflictsPage /></RoleGuard>} />
           <Route path="/admin/recommendation-audit" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'cto', 'coo', 'operations']}><AgentRecommendationAuditPage /></RoleGuard>} />
