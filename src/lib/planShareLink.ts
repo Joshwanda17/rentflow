@@ -46,13 +46,26 @@ export function planShareDescription(plan: SharePlanInput): string {
 
 /**
  * Create (or reuse) a trackable short link for a fundable rent plan.
- * Shape: https://welileapp.com/s/<code> — resolved and click-counted by the
- * `/s/:code` route through `resolve_short_link` + `record_short_link_click`.
+ *
+ * Returns both shapes for the same code:
+ * - `shortUrl`  https://welileapp.com/s/<code> — in-app, click-counted route.
+ * - `shareUrl`  the `og-plan` function URL, which serves Open Graph tags with
+ *   the plan's house photo so WhatsApp/Facebook/X render a real preview image
+ *   (a static SPA route cannot do that), records the same click, then forwards
+ *   the visitor to the funder page.
  */
-export async function createPlanShareLink(userId: string, planId: string): Promise<string> {
+export async function createPlanShareLink(
+  userId: string,
+  planId: string,
+): Promise<{ code: string; shortUrl: string; shareUrl: string }> {
   const targetPath = '/funder-onboarding';
   const targetParams = { plan: planId, ref: userId } as Record<string, string>;
   const origin = getPublicOrigin();
+  const build = (code: string) => ({
+    code,
+    shortUrl: `${origin}/s/${code}`,
+    shareUrl: `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/og-plan/${code}`,
+  });
 
   const findExisting = async () => {
     const { data } = await supabase
@@ -73,7 +86,7 @@ export async function createPlanShareLink(userId: string, planId: string): Promi
   };
 
   const existing = await findExisting();
-  if (existing) return `${origin}/s/${existing}`;
+  if (existing) return build(existing);
 
   const { data: created, error } = await supabase
     .from('short_links')
@@ -81,9 +94,9 @@ export async function createPlanShareLink(userId: string, planId: string): Promi
     .select('code')
     .single();
 
-  if (!error && created) return `${origin}/s/${created.code}`;
+  if (!error && created) return build(created.code);
 
   const retry = await findExisting();
-  if (retry) return `${origin}/s/${retry}`;
+  if (retry) return build(retry);
   throw error ?? new Error('Failed to create share link');
 }
