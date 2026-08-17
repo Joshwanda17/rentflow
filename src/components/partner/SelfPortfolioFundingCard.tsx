@@ -11,6 +11,7 @@ import { CalendarClock, ChevronLeft, ChevronRight, Home, Loader2, MapPin, Refres
 
 import { SelfPortfolioDeployDialog } from './SelfPortfolioDeployDialog';
 import { SelfPortfolioPlanDetailSheet } from './SelfPortfolioPlanDetailSheet';
+import { PlanGpsChip } from './PlanGpsChip';
 
 const MIN_FUNDING = 50000;
 const PLANS_PER_PAGE = 4;
@@ -45,6 +46,8 @@ interface FundablePlan {
   house_image_urls: string[] | null;
   held_by: string | null;
   hold_expires_at: string | null;
+  request_latitude?: number | string | null;
+  request_longitude?: number | string | null;
 }
 
 /**
@@ -377,6 +380,12 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
               <p className="truncate text-[11px] text-muted-foreground">
                 Landlord: {plan.landlord_name ?? 'Landlord'}
               </p>
+              <div className="mt-1">
+                <PlanGpsChip
+                  latitude={plan.request_latitude}
+                  longitude={plan.request_longitude}
+                />
+              </div>
               {metrics.length > 0 && (
                 <p className="mt-0.5 text-[11px] font-semibold text-foreground/80">
                   {metrics.join(' · ')}

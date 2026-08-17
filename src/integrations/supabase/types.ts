@@ -34382,6 +34382,8 @@ export type Database = {
           rent_request_id: string | null
           repayment_cadence: string | null
           request_city: string | null
+          request_latitude: number | null
+          request_longitude: number | null
           tenant_avatar_url: string | null
           tenant_first_name: string | null
           tenant_full_name: string | null
