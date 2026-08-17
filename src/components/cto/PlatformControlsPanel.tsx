@@ -49,6 +49,12 @@ const UI_OVERRIDE_CONTROLS: ControlDef[] = [
     description: 'Re-enable the "Withdraw" buttons (agent hero, funder actions) and the merchant "Claim" button. Leave OFF while payouts are frozen; flip ON when payouts are available.',
     protective: true,
   },
+  {
+    key: 'proxy_payout_priority',
+    label: 'Show Proxy Agent withdrawals first',
+    description: 'ON: Proxy Agent withdrawals are Priority #1 — they show at the top of the Merchant Agent Payout Queue and no normal withdrawal can be claimed until they are handled. OFF: the hold is released and merchant agents process normal customer withdrawals in the usual order.',
+    protective: true,
+  },
 ];
 
 const GUARD_CONTROLS: ControlDef[] = [
@@ -158,7 +164,7 @@ export function PlatformControlsPanel() {
       <MaintenanceToggleCard />
       {renderGroup('Automation engines', 'Turn scheduled money movements on or off.', AUTOMATION_CONTROLS)}
       {renderGroup('Emergency halts', 'Immediately stop credit or withdrawals during an incident.', HALT_CONTROLS)}
-      {renderGroup('Payout UI overrides', 'Re-enable payout buttons (Claim / Withdraw) once payouts are available again.', UI_OVERRIDE_CONTROLS)}
+      {renderGroup('Payout queue & UI overrides', 'Re-enable payout buttons (Claim / Withdraw) and choose whether Proxy Agent withdrawals hold the merchant queue.', UI_OVERRIDE_CONTROLS)}
       {renderGroup('Safety guards', 'Protective checks that keep the ledger and cash safe. Keep these ON unless instructed.', GUARD_CONTROLS)}
     </div>
   );
