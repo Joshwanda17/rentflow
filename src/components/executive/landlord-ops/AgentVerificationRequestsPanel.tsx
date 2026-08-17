@@ -851,6 +851,71 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
             </div>
           ))
         )}
+
+        {/* Read-only decision history (verified / rejected / cancelled / all) */}
+        {tab !== 'pending' && tab !== 'resubmitted' && (
+          decidedLoading ? (
+            <div className="flex items-center justify-center gap-2 py-6 text-xs text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading decision history…
+            </div>
+          ) : decidedFiltered.length === 0 ? (
+            <div className="text-center py-6 text-xs text-muted-foreground">
+              No {TAB_LABEL[tab].toLowerCase()} requests in this date range.
+            </div>
+          ) : (
+            decidedFiltered.map((r) => (
+              <div key={r.id} className="rounded-xl border border-border bg-background p-3 space-y-1.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-semibold text-sm truncate">{r.landlord_name || 'Unnamed landlord'}</p>
+                      <Badge
+                        variant="outline"
+                        className={
+                          r.status === 'verified'
+                            ? 'text-[10px] border-emerald-500/50 text-emerald-700 bg-emerald-500/10 gap-1'
+                            : r.status === 'rejected'
+                              ? 'text-[10px] border-rose-500/50 text-rose-700 bg-rose-500/10 gap-1'
+                              : 'text-[10px] gap-1'
+                        }
+                      >
+                        {r.status === 'verified' ? <CheckCircle2 className="h-2.5 w-2.5" />
+                          : r.status === 'rejected' ? <XCircle className="h-2.5 w-2.5" />
+                            : <Ban className="h-2.5 w-2.5" />}
+                        {r.status}
+                      </Badge>
+                      {districtByLandlordAll[r.landlord_id] && (
+                        <Badge variant="outline" className="text-[10px] gap-1">
+                          <MapPin className="h-2.5 w-2.5" />
+                          {districtByLandlordAll[r.landlord_id]}
+                        </Badge>
+                      )}
+                    </div>
+                    {r.landlord_phone && (
+                      <a href={`tel:${r.landlord_phone}`} className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1 mt-0.5">
+                        <Phone className="h-3 w-3" /> {r.landlord_phone}
+                      </a>
+                    )}
+                    <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5 flex-wrap">
+                      <UserCircle className="h-3.5 w-3.5" />
+                      {r.agent_name || 'Agent'}{r.agent_phone ? ` · ${r.agent_phone}` : ''}
+                      <span className="inline-flex items-center gap-1 ml-2 opacity-70">
+                        <Clock className="h-3 w-3" />
+                        requested {new Date(r.created_at).toLocaleDateString()}
+                        {r.resolved_at ? ` · decided ${new Date(r.resolved_at).toLocaleDateString()}` : ''}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+                {(r.reject_comment || r.note) && (
+                  <p className="text-[11px] text-foreground bg-muted/50 rounded-lg p-2">
+                    {r.reject_comment || r.note}
+                  </p>
+                )}
+              </div>
+            ))
+          )
+        )}
       </div>
     </div>
   );
