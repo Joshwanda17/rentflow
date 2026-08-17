@@ -217,50 +217,56 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
           )}
         </div>
 
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 gap-2">
           <button
             onClick={() => setActiveFilter('all')}
-            className={`py-4 rounded-2xl text-base font-bold transition-all flex items-center justify-center gap-2 ${
+            className={`py-2 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center gap-1 ${
               activeFilter === 'all'
                 ? 'bg-background shadow-sm text-foreground border-2 border-primary/30'
                 : 'text-muted-foreground bg-muted/50'
             }`}
-            style={{ touchAction: 'manipulation', minHeight: '64px' }}
+            style={{ touchAction: 'manipulation', minHeight: '56px' }}
           >
-            <Users className="h-5 w-5" />
-            All
-            <span className="text-sm font-mono px-2 py-0.5 rounded-md bg-muted text-muted-foreground">
-              {tenants.length}
+            <Users className="h-4 w-4" />
+            <span className="flex items-center gap-1">
+              All
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground">
+                {tenants.length}
+              </span>
             </span>
           </button>
           <button
             onClick={() => setActiveFilter('active')}
-            className={`py-4 rounded-2xl text-base font-bold transition-all flex items-center justify-center gap-2 ${
+            className={`py-2 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center gap-1 ${
               activeFilter === 'active'
                 ? 'bg-emerald-50 shadow-sm text-emerald-700 border-2 border-emerald-300'
                 : 'text-muted-foreground bg-muted/50'
             }`}
-            style={{ touchAction: 'manipulation', minHeight: '64px' }}
+            style={{ touchAction: 'manipulation', minHeight: '56px' }}
           >
-            <CheckCircle2 className="h-5 w-5" />
-            Active
-            <span className="text-sm font-mono px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-700">
-              {activeCount}
+            <CheckCircle2 className="h-4 w-4" />
+            <span className="flex items-center gap-1">
+              Active
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-700">
+                {activeCount}
+              </span>
             </span>
           </button>
           <button
             onClick={() => setActiveFilter('owing')}
-            className={`py-4 rounded-2xl text-base font-bold transition-all flex items-center justify-center gap-2 ${
+            className={`py-2 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center gap-1 ${
               activeFilter === 'owing'
                 ? 'bg-rose-50 shadow-sm text-rose-700 border-2 border-rose-300'
                 : 'text-muted-foreground bg-muted/50'
             }`}
-            style={{ touchAction: 'manipulation', minHeight: '64px' }}
+            style={{ touchAction: 'manipulation', minHeight: '56px' }}
           >
-            <AlertCircle className="h-5 w-5" />
-            Owing
-            <span className="text-sm font-mono px-2 py-0.5 rounded-md bg-rose-100 text-rose-700">
-              {owingCount}
+            <AlertCircle className="h-4 w-4" />
+            <span className="flex items-center gap-1">
+              Owing
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-rose-100 text-rose-700">
+                {owingCount}
+              </span>
             </span>
           </button>
         </div>
