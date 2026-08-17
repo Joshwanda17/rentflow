@@ -51,13 +51,14 @@ export function AgentHubTabs({ active, onChange, restricted = false }: AgentHubT
             aria-label={serviceCenterTab.label}
             onClick={() => { hapticTap(); onChange(serviceCenterTab.id); }}
             className={cn(
-              'relative z-10 flex items-center gap-1.5 rounded-full border border-border/60 bg-background/90 backdrop-blur-xl px-3 py-1.5 text-[10px] font-semibold tracking-wide shadow-sm transition-colors touch-manipulation active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              FLOATING_NAV_ITEM,
+              'min-w-[5.5rem] px-3',
               active === serviceCenterTab.id ? 'text-primary font-bold' : 'text-muted-foreground'
             )}
             style={{ WebkitTapHighlightColor: 'transparent' }}
           >
-            <serviceCenterTab.icon className={cn('h-4 w-4', active === serviceCenterTab.id && 'scale-110')} strokeWidth={active === serviceCenterTab.id ? 2.5 : 2} />
-            <span>{serviceCenterTab.label}</span>
+            <serviceCenterTab.icon className={cn('h-5 w-5', active === serviceCenterTab.id && 'scale-110')} strokeWidth={active === serviceCenterTab.id ? 2.5 : 2} />
+            <span className={FLOATING_NAV_LABEL}>{serviceCenterTab.label}</span>
           </button>
         </div>
       )}
