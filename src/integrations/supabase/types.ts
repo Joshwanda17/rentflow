@@ -14011,6 +14011,69 @@ export type Database = {
         }
         Relationships: []
       }
+      hr_task_attachments: {
+        Row: {
+          caption: string | null
+          event_id: string | null
+          id: string
+          kind: string
+          mime_type: string
+          remove_reason: string | null
+          removed_at: string | null
+          removed_by: string | null
+          size_bytes: number
+          storage_path: string
+          task_id: string
+          uploaded_at: string
+          uploaded_by: string
+        }
+        Insert: {
+          caption?: string | null
+          event_id?: string | null
+          id?: string
+          kind: string
+          mime_type: string
+          remove_reason?: string | null
+          removed_at?: string | null
+          removed_by?: string | null
+          size_bytes: number
+          storage_path: string
+          task_id: string
+          uploaded_at?: string
+          uploaded_by?: string
+        }
+        Update: {
+          caption?: string | null
+          event_id?: string | null
+          id?: string
+          kind?: string
+          mime_type?: string
+          remove_reason?: string | null
+          removed_at?: string | null
+          removed_by?: string | null
+          size_bytes?: number
+          storage_path?: string
+          task_id?: string
+          uploaded_at?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_task_attachments_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "hr_task_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_task_attachments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "hr_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_task_events: {
         Row: {
           actor_user_id: string
