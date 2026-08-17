@@ -39,9 +39,10 @@ export function planShareTitle(plan: SharePlanInput): string {
 export function planShareDescription(plan: SharePlanInput): string {
   const rent = Number(plan.funding_amount || 0);
   const monthly = Math.round((rent * SHARE_ROI_RATE) / 100);
-  return `Support this tenant's house for ${formatDynamic(rent)} on the platform to earn ${formatDynamic(
+  const domain = getPublicOrigin().replace(/^https?:\/\//, '').replace(/\/$/, '');
+  return `Support this tenant for ${formatDynamic(rent)} by paying their landlord on Welileapp.com and earn ${formatDynamic(
     monthly,
-  )} per month. Support today.`;
+  )} per month for the next 12 months. Start here today ${domain}.`;
 }
 
 /**
