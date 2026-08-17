@@ -87,9 +87,13 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectComment, setRejectComment] = useState('');
+  const [verifyComment, setVerifyComment] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [details, setDetails] = useState<Record<string, DetailBundle>>({});
+  // Landlord district per pending request — loaded up-front so the queue can be
+  // filtered by district without expanding every card.
+  const [districtByLandlord, setDistrictByLandlord] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     const { data, error } = await supabase
@@ -97,7 +101,24 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
       .select('id, landlord_id, landlord_name, landlord_phone, requested_by, agent_name, agent_phone, note, created_at')
       .eq('status', 'pending')
       .order('created_at', { ascending: true });
-    if (!error) setRequests((data ?? []) as VerificationRequest[]);
+    if (!error) {
+      const rows = (data ?? []) as VerificationRequest[];
+      setRequests(rows);
+      const ids = Array.from(new Set(rows.map(r => r.landlord_id).filter(Boolean)));
+      if (ids.length > 0) {
+        const { data: locs } = await supabase
+          .from('landlords')
+          .select('id, district')
+          .in('id', ids);
+        setDistrictByLandlord(
+          Object.fromEntries(
+            ((locs ?? []) as { id: string; district: string | null }[]).map(l => [l.id, l.district || '']),
+          ),
+        );
+      } else {
+        setDistrictByLandlord({});
+      }
+    }
     setLoading(false);
   }, []);
 
@@ -122,6 +143,7 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
     if (expandedId === req.id) { setExpandedId(null); return; }
     setExpandedId(req.id);
     setRejectingId(null);
+    setVerifyComment('');
     if (details[req.landlord_id]) return; // cached
     setDetailLoading(true);
     try {
@@ -154,23 +176,35 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
 
   const handleVerify = async (req: VerificationRequest) => {
     if (!user) return;
+    // Optional operator comment. When supplied it becomes the recorded decision
+    // reason (the same field every report/export already reads); when omitted the
+    // existing default reason is kept exactly as before.
+    const comment = verifyComment.trim();
+    if (comment.length > 0 && comment.length < 10) {
+      toast({ title: 'Comment too short', description: 'Either leave the comment empty or give at least 10 characters.', variant: 'destructive' });
+      return;
+    }
     setBusyId(req.id);
     try {
       // Single authorized write path: state + request + audit + event + notify.
       await setLandlordVerification({
         landlordId: req.landlord_id,
         status: 'verified',
-        reason: `Verified from agent verification request (${req.agent_name || 'agent'})`,
+        reason: comment
+          ? `${comment} — verified from agent verification request (${req.agent_name || 'agent'})`
+          : `Verified from agent verification request (${req.agent_name || 'agent'})`,
         source: 'agent_request',
       });
       toast({ title: '✅ Landlord verified', description: `${req.landlord_name || 'Landlord'} is now verified.` });
       setRequests(prev => prev.filter(r => r.id !== req.id));
+      setVerifyComment('');
       void notifyVerificationResolved({
         status: 'verified',
         agentId: req.requested_by,
         landlordId: req.landlord_id,
         landlordName: req.landlord_name,
         landlordPhone: req.landlord_phone,
+        comment: comment || undefined,
         requestId: req.id,
       });
       onResolved?.();
@@ -228,9 +262,10 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
       (r.landlord_name || '').toLowerCase().includes(q) ||
       (r.landlord_phone || '').toLowerCase().includes(q) ||
       (r.agent_name || '').toLowerCase().includes(q) ||
-      (r.agent_phone || '').toLowerCase().includes(q)
+      (r.agent_phone || '').toLowerCase().includes(q) ||
+      (districtByLandlord[r.landlord_id] || '').toLowerCase().includes(q)
     );
-  }, [requests, search]);
+  }, [requests, search, districtByLandlord]);
 
   if (loading || requests.length === 0) return null;
 
