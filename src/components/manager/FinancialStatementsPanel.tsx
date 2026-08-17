@@ -987,6 +987,28 @@ function FinancialStatementsPanelInner() {
 
       if (activeTab === 'income') {
         const d = data.incomeStatement;
+        addSection('Revenue by Welile Service');
+        d.byService.revenueFamilies.forEach(fam => {
+          addSection(fam.label);
+          fam.lines.forEach(l => addRow(l.label, l.amount, false, false, true));
+          addRow(`${fam.label} Subtotal`, fam.total, true);
+        });
+        addRow('Total Revenue (Services)', d.byService.totalRevenue, true);
+        y += 3;
+        addSection('Marketing Expenses');
+        d.byService.marketing.lines.forEach(l => addRow(l.label, l.amount, false, true, true));
+        addRow('Total Marketing Expenses', d.byService.totalMarketingExpenses, true, true);
+        y += 3;
+        addSection('Operating Expenses');
+        d.byService.operating.lines.forEach(l => addRow(l.label, l.amount, false, true, true));
+        addRow('Total Operating Expenses', d.byService.totalOperatingExpenses, true, true);
+        addRow('Net Profit/(Loss)', d.byService.netProfit, true, d.byService.netProfit < 0);
+        if (d.byService.reviewQueue.length > 0) {
+          y += 3;
+          addSection('Flagged for Review (Unmapped Categories)');
+          d.byService.reviewQueue.forEach(l => addRow(`${l.category} (${l.direction})`, l.amount, false, false, true));
+        }
+        y += 3;
         addSection('Revenue Recognition');
         addRow('Expected Access Fees', d.revenueRecognition.expectedAccessFees, false, false, true);
         addRow('Expected Request Fees', d.revenueRecognition.expectedRequestFees, false, false, true);
