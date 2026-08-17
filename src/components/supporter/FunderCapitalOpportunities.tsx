@@ -502,29 +502,6 @@ export function FunderCapitalOpportunities() {
         subtitle="Fund approved tenant rent plans from your balance"
         onBack={() => setView('menu')}
       >
-        {/* Breadcrumb: Capital Opportunities → Support Tenants Directly */}
-        <nav aria-label="Breadcrumb" className="-mt-1">
-          <ol className="flex items-center gap-1.5 text-xs">
-            <li>
-              <button
-                type="button"
-                onClick={() => { hapticTap(); setView('menu'); }}
-                className="font-medium text-muted-foreground hover:text-foreground underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 rounded px-1 -ml-1"
-              >
-                Capital Opportunities
-              </button>
-            </li>
-            <li aria-hidden="true">
-              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/60" />
-            </li>
-            <li>
-              <span className="font-semibold text-foreground" aria-current="page">
-                Support Tenants Directly
-              </span>
-            </li>
-          </ol>
-        </nav>
-
         <HowItWorksSteps steps={DIRECT_FUNDING_STEPS} />
 
         {/* Tenant rent plans awaiting funding — stacked cards with bulk selection */}
