@@ -893,6 +893,11 @@ export default function MerchandiseStore() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
+            <img
+              src={spiroBikeAsset.url}
+              alt="Welile Spiro Bike"
+              className="w-full h-40 object-cover rounded-lg border border-border"
+            />
             <p className="text-xs text-muted-foreground">
               Marketing sets the final bike price. Enter the amount you're comfortable having recovered
               from your wallet toward the Spiro bike.
