@@ -23,10 +23,10 @@ export function AgentInactivityWarningBanner({ agentId }: Props) {
     staleTime: 60_000,
     refetchInterval: 5 * 60_000,
     queryFn: async () => {
-      const [{ count: activeCount }, { data: lastCollection }] = await Promise.all([
+      const [{ data: activeRows }, { data: lastCollection }] = await Promise.all([
         supabase
           .from('rent_requests')
-          .select('id', { count: 'exact', head: true })
+          .select('id, funded_at, disbursed_at, created_at')
           .eq('assigned_agent_id', agentId)
           .in('status', ['repaying', 'funded']),
         supabase
@@ -37,8 +37,15 @@ export function AgentInactivityWarningBanner({ agentId }: Props) {
           .limit(1)
           .maybeSingle(),
       ]);
+      // Earliest moment any currently-active tenancy became collectible.
+      const starts = (activeRows ?? [])
+        .map((r: any) => r.disbursed_at || r.funded_at || r.created_at)
+        .filter(Boolean)
+        .map((d: string) => new Date(d).getTime())
+        .sort((a, b) => a - b);
       return {
-        activeCount: activeCount ?? 0,
+        activeCount: activeRows?.length ?? 0,
+        oldestActiveStartAt: starts.length ? starts[0] : null,
         lastCollectionAt: lastCollection?.created_at ?? null,
       };
     },
@@ -53,16 +60,20 @@ export function AgentInactivityWarningBanner({ agentId }: Props) {
   if (!data) return null;
   if (data.activeCount === 0) return null;
 
-  const lastMs = data.lastCollectionAt ? new Date(data.lastCollectionAt).getTime() : 0;
-  const daysSince = lastMs
-    ? (now - lastMs) / (24 * 60 * 60 * 1000)
-    : Number.POSITIVE_INFINITY;
+  // Idle clock starts at the LATER of: last collection, or the moment the
+  // agent's oldest active tenancy actually became collectible. A tenancy
+  // funded 4 days ago cannot be "5 days uncollected".
+  const lastCollectionMs = data.lastCollectionAt
+    ? new Date(data.lastCollectionAt).getTime()
+    : 0;
+  const startMs = data.oldestActiveStartAt ?? 0;
+  if (!startMs) return null;
+  const lastMs = Math.max(lastCollectionMs, startMs);
+  const daysSince = (now - lastMs) / (24 * 60 * 60 * 1000);
 
   if (daysSince < INACTIVITY_DAYS) return null;
 
-  const inactivityStart = lastMs
-    ? lastMs + INACTIVITY_DAYS * 24 * 60 * 60 * 1000
-    : now - TRANSFER_GRACE_MS; // no collection ever → already expired
+  const inactivityStart = lastMs + INACTIVITY_DAYS * 24 * 60 * 60 * 1000;
   const deadline = inactivityStart + TRANSFER_GRACE_MS;
   const remaining = Math.max(0, deadline - now);
 
