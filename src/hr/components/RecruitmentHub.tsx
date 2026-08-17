@@ -185,10 +185,9 @@ export default function RecruitmentHub() {
       setLoading(true);
       setError(null);
       try {
-        const [reqs, jobs, apps, cands, deps, emps] = await Promise.all([
+        const [reqs, jobs, cands, deps, emps] = await Promise.all([
           getHiringRequisitions(),
           getJobPostings(),
-          getApplications(),
           getCandidates(),
           getDepartments(),
           getEmployees(),
@@ -196,7 +195,7 @@ export default function RecruitmentHub() {
         if (cancelled) return;
         setRequisitions(reqs);
         setPostings(jobs);
-        setApplications(apps);
+        setApplications([]);
         setCandidates(cands);
         setDepartments(deps);
         setEmployees(emps);
