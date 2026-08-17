@@ -9,13 +9,17 @@ import { Switch } from '@/components/ui/switch';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter,
+  AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel,
+} from '@/components/ui/alert-dialog';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Home, Loader2, Plus, Banknote, TrendingUp, Users, Clock, Search, CheckCircle2, ShieldCheck, RefreshCw, ArrowLeft, Pencil, History } from 'lucide-react';
+import { Home, Loader2, Plus, Banknote, TrendingUp, Users, Clock, Search, CheckCircle2, ShieldCheck, RefreshCw, ArrowLeft, Pencil, History, Trash2 } from 'lucide-react';
 import { z } from 'zod';
 
 // Shared client-side validation for the core enrollment fields. Kept strict so
@@ -152,6 +156,8 @@ export function AgentWelileHomesSheet({ open, onOpenChange }: AgentWelileHomesSh
   const [allocFor, setAllocFor] = useState<WHSubscription | null>(null);
   const [editFor, setEditFor] = useState<WHSubscription | null>(null);
   const [verifyFor, setVerifyFor] = useState<WHSubscription | null>(null);
+  const [deleteFor, setDeleteFor] = useState<WHSubscription | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -395,9 +401,9 @@ export function AgentWelileHomesSheet({ open, onOpenChange }: AgentWelileHomesSh
                           {s.landlord_uses_wallet ? 'Landlord: Welile wallet' : `Landlord float${s.landlord_name ? ` · ${s.landlord_name}` : ''}`}
                         </Badge>
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-3 gap-2">
                         {!s.tenant_verified && (
-                          <Button size="sm" className="gap-1.5 col-span-2"
+                          <Button size="sm" className="gap-1.5 col-span-3"
                             onClick={() => setVerifyFor(s)}>
                             <ShieldCheck className="h-3.5 w-3.5" /> Verify
                           </Button>
@@ -410,6 +416,10 @@ export function AgentWelileHomesSheet({ open, onOpenChange }: AgentWelileHomesSh
                           disabled={s.outstanding_balance <= 0}
                           onClick={() => setAllocFor(s)}>
                           <Banknote className="h-3.5 w-3.5" /> Allocate
+                        </Button>
+                        <Button size="sm" variant="outline" className="gap-1.5 text-destructive hover:bg-destructive/10 border-destructive/30"
+                          onClick={() => setDeleteFor(s)}>
+                          <Trash2 className="h-3.5 w-3.5" /> Delete
                         </Button>
                       </div>
                     </CardContent>
@@ -425,6 +435,43 @@ export function AgentWelileHomesSheet({ open, onOpenChange }: AgentWelileHomesSh
       <VerifyTenantDialog sub={verifyFor} onClose={() => setVerifyFor(null)} onDone={load} />
       <AllocateDialog sub={allocFor} onClose={() => setAllocFor(null)} onDone={load} />
       <EditDialog sub={editFor} agentId={user?.id} onClose={() => setEditFor(null)} onDone={load} />
+
+      <AlertDialog open={!!deleteFor} onOpenChange={(open) => { if (!open) setDeleteFor(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete tenant enrollment?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove <span className="font-semibold text-foreground">{deleteFor?.tenant_name}</span> and all their monthly dues from Welile Homes. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting} onClick={() => setDeleteFor(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleting}
+              onClick={async () => {
+                if (!deleteFor) return;
+                setDeleting(true);
+                try {
+                  const { error } = await (supabase.rpc as any)('delete_welile_home_subscription', {
+                    p_subscription_id: deleteFor.id,
+                  });
+                  if (error) throw error;
+                  toast({ title: 'Enrollment deleted', description: `${deleteFor.tenant_name} has been removed.` });
+                  setDeleteFor(null);
+                  load();
+                } catch (err: any) {
+                  toast({ title: 'Could not delete', description: err?.message || 'Please try again.', variant: 'destructive' });
+                } finally {
+                  setDeleting(false);
+                }
+              }}
+            >
+              {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
