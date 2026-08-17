@@ -1218,7 +1218,14 @@ export function AgentCashPayoutsTab() {
   // CTO control "Show Proxy Agent withdrawals first" is ON. When OFF, the queue
   // keeps its normal (server) order so normal withdrawals are worked first.
   const actionableRows: any[] = (queuePage?.rows ?? []).filter((row: any) => isMerchantQueueActionable(row));
-  const pageRows: any[] = proxyPriorityEnforced ? sortProxyPriorityFirst(actionableRows) : actionableRows;
+  // While the control is ON, ordinary (non-proxy) withdrawals must NOT surface
+  // in the queue at all as long as any proxy-agent withdrawal is present —
+  // merchant agents only see the priority proxy payouts. Once no proxy row is
+  // left, the normal queue reappears.
+  const proxyOnlyRows: any[] = actionableRows.filter((row: any) => isUrgentProxyWithdrawal(row));
+  const pageRows: any[] = proxyPriorityEnforced
+    ? (proxyOnlyRows.length > 0 ? sortProxyPriorityFirst(proxyOnlyRows) : actionableRows)
+    : actionableRows;
   const pageCount = queuePage?.count ?? 0;
   const channelCounts = queueCounts ?? { all: 0, momo: 0, cash: 0, bank: 0 };
   const totalPending = availableTotal;
