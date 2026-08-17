@@ -41470,6 +41470,10 @@ export type Database = {
         Args: { p_listing: string }
         Returns: undefined
       }
+      sync_merchant_desk_float_cache: {
+        Args: { p_desk_id: string; p_reason?: string }
+        Returns: Json
+      }
       sync_service_center_manager_tags: { Args: never; Returns: Json }
       telecom_sending_charge: { Args: { p_amount: number }; Returns: number }
       tenant_ops_correct_rent_request: {
