@@ -734,16 +734,101 @@ async function generateStatementsRaw(activeFilters: StatementFilters): Promise<F
       const averageRentAmount = approvedRequests.length > 0 ? totalFacilitatedRentVolume / approvedRequests.length : 0;
       const supporterCapitalDeployed = sumBy(bridgeIn, ['supporter_facilitation_capital', 'supporter_deposit', 'investment_deposit']);
 
+      // ══════════════════════════════════════════════════════════════
+      // SERVICE-BASED INCOME STATEMENT (dynamic, same ledger rows)
+      // ══════════════════════════════════════════════════════════════
+      const line = (source: string, amount: number): StatementCategoryLine => ({
+        source,
+        label: prettyCategory(source),
+        amount,
+      });
+
+      const revenueFamilies: ServiceRevenueFamily[] = REVENUE_SERVICE_FAMILIES.map(fam => {
+        const lines: StatementCategoryLine[] = [];
+        fam.categories.forEach(cat => {
+          const amount = sumWithDirectionFallback(platformIn, platformOut, [cat]);
+          if (amount > 0) lines.push(line(cat, amount));
+        });
+        // Agent advance access fees are an existing Welile agent service whose
+        // collected amount is tracked on `agent_advances` (access_fee_collected).
+        if (fam.key === 'agent' && advanceAccessFeesCollected > 0) {
+          lines.push({
+            source: 'agent_advances.access_fee_collected',
+            label: 'Advance Access Fees Collected',
+            amount: advanceAccessFeesCollected,
+          });
+        }
+        return {
+          key: fam.key,
+          label: fam.label,
+          lines,
+          total: lines.reduce((s, l) => s + l.amount, 0),
+        };
+      }).filter(f => f.lines.length > 0);
+
+      const serviceTotalRevenue = revenueFamilies.reduce((s, f) => s + f.total, 0);
+
+      const buildExpenseGroup = (
+        categories: string[],
+        legacyBuckets: string[],
+      ): ExpenseGroup => {
+        const lines: StatementCategoryLine[] = [];
+        categories.forEach(cat => {
+          const amount = sumWithDirectionFallback(platformOut, platformIn, [cat]);
+          if (amount > 0) lines.push(line(cat, amount));
+        });
+        legacyBuckets.forEach(bucket => {
+          const amount =
+            sumByDescriptionMatch(walletIn, bucket) || sumByDescriptionMatch(platformOut, bucket);
+          if (amount > 0) {
+            lines.push({
+              source: `system_balance_correction · ${bucket}`,
+              label: bucket.replace('→ ', ''),
+              amount,
+            });
+          }
+        });
+        return { lines, total: lines.reduce((s, l) => s + l.amount, 0) };
+      };
+
+      const marketingGroup = buildExpenseGroup(MARKETING_EXPENSE_CATEGORIES, MARKETING_LEGACY_DESC_BUCKETS);
+      const operatingGroup = buildExpenseGroup(OPERATING_EXPENSE_CATEGORIES, OPERATING_LEGACY_DESC_BUCKETS);
+
+      // Anything on the platform ledger that maps to no existing service or
+      // accounting bucket is flagged — never absorbed into a total.
+      const reviewQueue: UnmappedLedgerLine[] = (() => {
+        const acc = new Map<string, UnmappedLedgerLine>();
+        [...platformIn, ...platformOut].forEach(r => {
+          if (r.category === 'opening_balance') return;
+          if (classifyLedgerCategory(r.category).kind !== 'unmapped') return;
+          const dir = r.direction === 'cash_in' ? 'cash_in' : 'cash_out';
+          const key = `${r.category}|${dir}`;
+          const existing = acc.get(key);
+          if (existing) existing.amount += Number(r.amount) || 0;
+          else acc.set(key, { category: r.category, direction: dir, amount: Number(r.amount) || 0 });
+        });
+        return Array.from(acc.values())
+          .filter(l => l.amount !== 0)
+          .sort((a, b) => b.amount - a.amount);
+      })();
+
+      const serviceNetProfit = serviceTotalRevenue - marketingGroup.total - operatingGroup.total;
+
       const result: FinancialStatementsData = {
-        ...(undefined as unknown as {}),
-      } as FinancialStatementsData;
-      void result;
-      const placeholder = 0; void placeholder;
-      const realResult: FinancialStatementsData = {
         generatedAt: new Date(),
         filters: activeFilters,
         incomeStatement: {
           period: formatPeriodLabel(activeFilters),
+          byService: {
+            revenueFamilies,
+            totalRevenue: serviceTotalRevenue,
+            marketing: marketingGroup,
+            operating: operatingGroup,
+            totalMarketingExpenses: marketingGroup.total,
+            totalOperatingExpenses: operatingGroup.total,
+            netProfit: serviceNetProfit,
+            reviewQueue,
+          },
           revenue: { accessFees, requestFees, otherServiceIncome, advanceAccessFeesCollected, total: totalRevenue },
           serviceDeliveryCosts: { platformRewards, agentCommissions, referralBonuses, agentBonuses, transactionExpenses, total: totalServiceCosts },
           grossProfit,
