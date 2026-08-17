@@ -444,6 +444,98 @@ export function usePostMerchantFloatWritedown() {
 }
 
 /**
+ * SET the desk float to an exact evidenced figure. `set_merchant_desk_float_to`
+ * posts only the difference against the RAW ledger float net (up as a float
+ * credit, down as an evidenced write-down) and then clears the cached float so
+ * the board shows exactly the figure that was set — no residual "cache exceeds
+ * the books" artifact. Requires a finance role and an author who is not the
+ * desk holder; lowering requires evidence.
+ */
+export function useSetMerchantDeskFloat() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      deskId: string;
+      agentId: string | null;
+      target: number;
+      reason: string;
+      evidenceNote?: string;
+    }) => {
+      if (input.reason.trim().length < 10) throw new Error('Reason must be at least 10 characters.');
+      if (!Number.isFinite(input.target) || input.target < 0) {
+        throw new Error('Enter the float the agent actually holds. It cannot be negative.');
+      }
+      const { data, error } = await supabase.rpc('set_merchant_desk_float_to' as any, {
+        p_desk_id: input.deskId,
+        p_agent_id: input.agentId,
+        p_target: Math.round(input.target),
+        p_reason: input.reason.trim(),
+        p_evidence_note: input.evidenceNote?.trim() || null,
+      });
+      if (error) throw error;
+      const row = (data ?? {}) as any;
+      if (!row?.ok) throw new Error(row?.reason || 'The books were not updated.');
+      return row as {
+        no_op: boolean;
+        reconciliation_id: string | null;
+        ledger_group_id: string | null;
+        target: number;
+        raw_net_before: number;
+        float_before: number;
+        float_after: number;
+        delta: number;
+      };
+    },
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: ['merchant-float-positions'] });
+      qc.invalidateQueries({ queryKey: ['merchant-payout-float'] });
+      qc.invalidateQueries({ queryKey: ['merchant-float-adjustments', v.deskId] });
+      qc.invalidateQueries({ queryKey: ['merchant-float-ledger-variance'] });
+    },
+  });
+}
+
+function useLegacyMerchantFloatWritedown() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: MerchantAdjustmentInput) => {
+      if (input.reason.trim().length < 10) throw new Error('Reason must be at least 10 characters.');
+      if ((input.evidenceNote ?? '').trim().length < 20) {
+        throw new Error(
+          'Evidence is required: which agent, what was seen on their phone (balance, screenshot reference or provider TID) and when it was checked.',
+        );
+      }
+      if (!Number.isFinite(input.amount) || input.amount <= 0) {
+        throw new Error('Enter a positive amount. It is applied as a reduction of the float.');
+      }
+      const { data, error } = await supabase.rpc('post_merchant_evidenced_writedown' as any, {
+        p_desk_id: input.deskId,
+        p_agent_id: input.agentId,
+        p_amount: Math.round(input.amount),
+        p_reason: input.reason.trim(),
+        p_evidence_note: input.evidenceNote!.trim(),
+      });
+      if (error) throw error;
+      const row = (data ?? {}) as any;
+      if (!row?.ok) throw new Error(row?.reason || 'The books were not updated.');
+      return row as {
+        reconciliation_id: string;
+        ledger_group_id: string;
+        amount: number;
+        float_before: number;
+        float_after: number;
+      };
+    },
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: ['merchant-float-positions'] });
+      qc.invalidateQueries({ queryKey: ['merchant-payout-float'] });
+      qc.invalidateQueries({ queryKey: ['merchant-float-adjustments', v.deskId] });
+      qc.invalidateQueries({ queryKey: ['merchant-float-ledger-variance'] });
+    },
+  });
+}
+
+/**
  * PHASE 10 — the general ledger is the source of truth for merchant float.
  * `merchant_float_reconciliations` records are display-only narrative fixes,
  * so this comparison exists to prove the stored (cached) float still agrees
