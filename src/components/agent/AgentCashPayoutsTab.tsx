@@ -47,6 +47,7 @@ import {
   PROXY_PRIORITY_BLOCK_MESSAGE, PROXY_PRIORITY_WAITING_LABEL, URGENT_PROXY_BADGE_LABEL,
   isUrgentProxyWithdrawal, sortProxyPriorityFirst, isUrgentProxyBlocking,
 } from '@/lib/proxyPriorityQueue';
+import { useProxyPayoutPriority } from '@/hooks/useProxyPayoutPriority';
 import { invalidateWalletBalance } from '@/hooks/wallet/useWalletBalance';
 import { AlertTriangle } from 'lucide-react';
 
@@ -583,7 +584,11 @@ export function AgentCashPayoutsTab() {
   // while ANY urgent proxy-agent withdrawal is still unclaimed, no other
   // merchant payout may be claimed. Queried unfiltered so the hold is visible
   // even when this merchant's filters or channel tab exclude the urgent row.
-  const { data: blockingUrgentProxy = null } = useQuery({
+  // CTO Platform Control: "Show Proxy Agent withdrawals first". When OFF the
+  // hold is released and normal withdrawals are claimable in the usual order.
+  const { enforced: proxyPriorityEnforced } = useProxyPayoutPriority();
+
+  const { data: blockingUrgentProxyRow = null } = useQuery({
     queryKey: ['cashout-blocking-urgent-proxy'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -600,11 +605,13 @@ export function AgentCashPayoutsTab() {
       if (error) throw error;
       return row && isUrgentProxyBlocking(row) ? row : null;
     },
-    enabled: !!isCashoutAgent,
+    enabled: !!isCashoutAgent && proxyPriorityEnforced,
     staleTime: 10_000,
     refetchInterval: 20_000,
     refetchOnWindowFocus: true,
   });
+
+  const blockingUrgentProxy = proxyPriorityEnforced ? blockingUrgentProxyRow : null;
 
   const { data: availableTotal = 0 } = useQuery({
     queryKey: ['cashout-queue-available-total', isCashoutAgent?.id, categoryOrClause, channelProviderOrClause, frozenUserIds],
@@ -1207,10 +1214,11 @@ export function AgentCashPayoutsTab() {
 
   // Server-driven queue values. The active tab's page comes from `queuePage`,
   // counts come from `queueCounts`, and the unfiltered total from `availableTotal`.
-  // Urgent proxy-agent payouts are always Priority #1 at the top of the queue.
-  const pageRows: any[] = sortProxyPriorityFirst(
-    (queuePage?.rows ?? []).filter((row: any) => isMerchantQueueActionable(row)),
-  );
+  // Urgent proxy-agent payouts are Priority #1 at the top of the queue while the
+  // CTO control "Show Proxy Agent withdrawals first" is ON. When OFF, the queue
+  // keeps its normal (server) order so normal withdrawals are worked first.
+  const actionableRows: any[] = (queuePage?.rows ?? []).filter((row: any) => isMerchantQueueActionable(row));
+  const pageRows: any[] = proxyPriorityEnforced ? sortProxyPriorityFirst(actionableRows) : actionableRows;
   const pageCount = queuePage?.count ?? 0;
   const channelCounts = queueCounts ?? { all: 0, momo: 0, cash: 0, bank: 0 };
   const totalPending = availableTotal;
@@ -1875,7 +1883,7 @@ export function AgentCashPayoutsTab() {
                   const methodLabel = channel === 'momo' ? 'Mobile Money' : channel === 'bank' ? 'Bank Transfer' : 'Cash';
                   const isLandlordPayout =
                     typeof w.reason === 'string' && w.reason.startsWith('Landlord float payout');
-                  const isUrgentProxy = isUrgentProxyWithdrawal(w);
+                  const isUrgentProxy = proxyPriorityEnforced && isUrgentProxyWithdrawal(w);
                   const proxyBlocked =
                     !isUrgentProxy && !!blockingUrgentProxy && blockingUrgentProxy.id !== w.id;
                   const name = isLandlordPayout
