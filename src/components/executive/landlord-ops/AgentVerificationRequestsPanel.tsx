@@ -292,15 +292,23 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return requests;
-    return requests.filter((r) =>
+    const base = onlyResubmitted
+      ? requests.filter((r) => !!priorByLandlord[r.landlord_id])
+      : requests;
+    if (!q) return base;
+    return base.filter((r) =>
       (r.landlord_name || '').toLowerCase().includes(q) ||
       (r.landlord_phone || '').toLowerCase().includes(q) ||
       (r.agent_name || '').toLowerCase().includes(q) ||
       (r.agent_phone || '').toLowerCase().includes(q) ||
       (districtByLandlord[r.landlord_id] || '').toLowerCase().includes(q)
     );
-  }, [requests, search, districtByLandlord]);
+  }, [requests, search, districtByLandlord, onlyResubmitted, priorByLandlord]);
+
+  const resubmittedCount = useMemo(
+    () => requests.filter((r) => !!priorByLandlord[r.landlord_id]).length,
+    [requests, priorByLandlord],
+  );
 
   if (loading || requests.length === 0) return null;
 
