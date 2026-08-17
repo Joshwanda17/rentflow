@@ -10,18 +10,18 @@ export function useCFOOverviewData() {
   const platformCash = useQuery({
     queryKey: ['cfo-overview-platform-cash'],
     queryFn: async () => {
-      const [summaryRes, breakdownRes] = await Promise.all([
-        supabase.rpc('get_platform_cash_summary'),
-        supabase.rpc('get_platform_cash_breakdown'),
-      ]);
+      const { data: treasuryData } = await supabase.rpc('get_treasury_cash_position' as any, {} as any);
 
-      const summary = summaryRes.data as any;
-      const cashIn = Number(summary?.platform_cash_in ?? summary?.total_revenue ?? 0);
-      const cashOut = Number(summary?.platform_cash_out ?? summary?.total_costs ?? 0);
-      const totalCash = cashIn - cashOut;
+      // Money We Have is rebased on the Balance Sheet cash accounts:
+      // A1 Cash and Bank + A5 Cash in Transit. This excludes liability legs
+      // (e.g. cash_custody_payable) and custody/float offset entries, which a
+      // flat platform-scope category sum wrongly netted off treasury cash.
+      const treasury = treasuryData as any;
+      const a1 = Number(treasury?.a1_cash_and_bank ?? 0);
+      const a5 = Number(treasury?.a5_cash_in_transit ?? 0);
+      const totalCash = Number(treasury?.total_cash ?? a1 + a5);
+      const cashLines = (treasury?.lines as any[]) || [];
 
-      // Group breakdown by source category for CFO view
-      const breakdown = (breakdownRes.data as any[]) || [];
       const SOURCE_LABELS: Record<string, string> = {
         share_capital: '🏦 Share Capital (Funders)',
         partner_funding: '🤝 Partner Funding',
@@ -50,28 +50,25 @@ export function useCFOOverviewData() {
         rent_receivable_created: '📋 Rent Receivables Created',
       };
 
-      const increases = breakdown
-        .filter((e: any) => e.direction === 'cash_in')
-        .map((e: any) => ({
-          label: SOURCE_LABELS[e.category] || e.category.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
-          value: Number(e.total_amount),
-          count: Number(e.entry_count),
-        }))
+      const labelFor = (cat: string) =>
+        SOURCE_LABELS[cat] || String(cat).replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
+
+      // Increases / decreases now describe movements on the A1 + A5 cash
+      // accounts only, so they reconcile to the Money We Have figure.
+      const increases = cashLines
+        .filter((e: any) => Number(e.net) > 0)
+        .map((e: any) => ({ label: labelFor(e.category), value: Number(e.net), count: Number(e.entry_count) }))
         .sort((a: any, b: any) => b.value - a.value);
 
-      const decreases = breakdown
-        .filter((e: any) => e.direction === 'cash_out')
-        .map((e: any) => ({
-          label: SOURCE_LABELS[e.category] || e.category.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
-          value: Number(e.total_amount),
-          count: Number(e.entry_count),
-        }))
+      const decreases = cashLines
+        .filter((e: any) => Number(e.net) < 0)
+        .map((e: any) => ({ label: labelFor(e.category), value: Math.abs(Number(e.net)), count: Number(e.entry_count) }))
         .sort((a: any, b: any) => b.value - a.value);
 
       const totalIn = increases.reduce((s: number, e: any) => s + e.value, 0);
       const totalOut = decreases.reduce((s: number, e: any) => s + e.value, 0);
 
-      return { totalCash, increases, decreases, totalIn, totalOut };
+      return { totalCash, a1, a5, increases, decreases, totalIn, totalOut };
     },
     staleTime: STALE_TIME,
   });
