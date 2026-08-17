@@ -7,7 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDynamic } from '@/lib/currencyFormat';
 import { toast } from 'sonner';
-import { CalendarClock, ChevronLeft, ChevronRight, Home, Loader2, MapPin, RefreshCw, ShieldCheck, Wallet } from 'lucide-react';
+import { CalendarClock, ChevronLeft, ChevronRight, Home, Loader2, RefreshCw, ShieldCheck, Wallet } from 'lucide-react';
 
 import { SelfPortfolioDeployDialog } from './SelfPortfolioDeployDialog';
 import { SelfPortfolioPlanDetailSheet } from './SelfPortfolioPlanDetailSheet';
@@ -360,12 +360,6 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
                 <p className="shrink-0 text-sm font-black text-foreground">
                   {formatDynamic(plan.funding_amount)}
                 </p>
-              </div>
-              <div className="mt-0.5 flex items-center gap-1 text-[11px] text-muted-foreground">
-                <MapPin className="h-3 w-3 shrink-0" />
-                <span className="truncate">
-                  {plan.tenant_location || plan.request_city || 'Uganda'}
-                </span>
               </div>
               <p className="truncate text-[11px] text-muted-foreground">
                 Landlord: {plan.landlord_name ?? 'Landlord'}
