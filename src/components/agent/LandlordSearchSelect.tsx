@@ -710,7 +710,7 @@ export function LandlordSearchSelect({
                   onMouseEnter={() => setActiveIndex(idx)}
                   onClick={() => commitSelection(l)}
                   className={cn(
-                    'relative w-full flex items-center gap-3 px-4 py-2.5 text-left transition-all duration-75',
+                    'relative w-full flex items-center gap-3 px-4 pt-2.5 pb-1 text-left transition-all duration-75',
                     active
                       ? 'bg-[#f1f3f4] dark:bg-accent/80 shadow-sm translate-x-0.5'
                       : 'hover:bg-[#f1f3f4]/70 dark:hover:bg-accent/60'
