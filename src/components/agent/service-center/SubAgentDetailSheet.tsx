@@ -64,6 +64,7 @@ export function SubAgentDetailSheet({
   onTransfer,
   onUnlink,
   actionsDisabled = false,
+  pendingTransferRentRequestIds = [],
 }: {
   subAgent: ServiceCenterSubAgent | null;
   open: boolean;
@@ -73,6 +74,8 @@ export function SubAgentDetailSheet({
   onUnlink: (s: ServiceCenterSubAgent) => void;
   /** True while one of the action dialogs is open / a mutation is running. */
   actionsDisabled?: boolean;
+  /** Rent plans already awaiting an Agent Ops decision — the server refuses a second request. */
+  pendingTransferRentRequestIds?: string[];
 }) {
   const [entityTab, setEntityTab] = useState<'tenants' | 'landlords' | 'houses'>('tenants');
 
@@ -297,18 +300,25 @@ export function SubAgentDetailSheet({
                   resetKey={`${subAgent.sub_agent_id}-tenants-${open}`}
                   renderRowAction={(r) => {
                     const t = subAgent.tenant_list.find((x) => x.rent_request_id === r.id);
+                    // Mirror the server rules so the button never opens a dialog that refuses.
+                    const transferPending = pendingTransferRentRequestIds.includes(r.id);
+                    const eligible =
+                      !!t?.is_active &&
+                      t.owned_by_subagent !== false &&
+                      ['funded', 'repaying'].includes(t.status);
                     return (
                       <div className="space-y-3">
                         <ServiceCenterTenantPayments rentRequestId={r.id} />
-                        {t?.is_active && (
+                        {t?.is_active && (eligible || transferPending) && (
                           <Button
                             size="sm"
                             variant="outline"
                             className="w-full sm:w-auto"
-                            disabled={actionsDisabled}
+                            disabled={actionsDisabled || transferPending}
                             onClick={() => onTransfer(subAgent, t.rent_request_id)}
                           >
-                            <ArrowLeftRight className="mr-1.5 h-3.5 w-3.5" /> Transfer tenant
+                            <ArrowLeftRight className="mr-1.5 h-3.5 w-3.5" />
+                            {transferPending ? 'Transfer awaiting approval' : 'Transfer tenant'}
                           </Button>
                         )}
                       </div>
