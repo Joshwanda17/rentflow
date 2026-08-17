@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Lock } from 'lucide-react';
+import { Lock, TrendingDown } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import {
   MERCHANT_ADJUSTMENT_LABELS,
@@ -16,6 +16,7 @@ import {
   useMerchantFloatLedgerVariance,
   usePostMerchantAdjustment,
   usePostMerchantOpeningFloatLedger,
+  usePostMerchantFloatWritedown,
 } from '@/hooks/useMerchantFloat';
 
 /**
@@ -46,17 +47,22 @@ export function MerchantReconcileDialog({
   const { data: variances } = useMerchantFloatLedgerVariance(open);
   const post = usePostMerchantAdjustment();
   const postLedger = usePostMerchantOpeningFloatLedger();
+  const postWritedown = usePostMerchantFloatWritedown();
 
   if (!position) return null;
 
   const truth = variances?.find((v) => v.deskId === position.deskId);
   const numericAmount = Number(amount.replace(/[^\d.-]/g, ''));
   const ledgerMode = type === 'opening_balance' && postToLedger;
+  const writedownMode = type === 'evidenced_writedown';
+  const evidenceOk = evidence.trim().length >= 20;
   const valid =
     Number.isFinite(numericAmount) &&
-    (ledgerMode ? numericAmount > 0 : numericAmount !== 0) &&
-    reason.trim().length >= 10;
-  const busy = post.isPending || postLedger.isPending;
+    (ledgerMode || writedownMode ? numericAmount > 0 : numericAmount !== 0) &&
+    reason.trim().length >= 10 &&
+    (!writedownMode || evidenceOk) &&
+    (!writedownMode || numericAmount <= position.companyCashWithAgent);
+  const busy = post.isPending || postLedger.isPending || postWritedown.isPending;
 
   // What a recorded fix can and cannot move. Every adjustment type folds into
   // `adjustments_total` (which moves "Money we paid them back" and "We owe
@@ -68,6 +74,26 @@ export function MerchantReconcileDialog({
 
   const submit = async () => {
     try {
+      if (writedownMode) {
+        const res = await postWritedown.mutateAsync({
+          deskId: position.deskId,
+          agentId: position.agentId,
+          adjustmentType: 'evidenced_writedown',
+          amount: numericAmount,
+          reason,
+          evidenceNote: evidence,
+        });
+        toast.success('Written down on the books', {
+          description: `Float is now ${formatUGX(Number(res.float_after))} (was ${formatUGX(
+            Number(res.float_before),
+          )}). Ledger group ${String(res.ledger_group_id).slice(0, 8)}. This entry is permanent.`,
+        });
+        setAmount('');
+        setReason('');
+        setEvidence('');
+        onOpenChange(false);
+        return;
+      }
       if (ledgerMode) {
         const res = await postLedger.mutateAsync({
           deskId: position.deskId,
