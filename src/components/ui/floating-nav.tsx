@@ -96,7 +96,7 @@ export function FloatingNavRow({
   className?: string;
 }) {
   return (
-    <div ref={containerRef} className={cn('relative flex items-center px-1.5 py-1.5', className)}>
+    <div ref={containerRef} className={cn('relative flex w-full items-center justify-between px-1.5 py-1.5', className)}>
       {children}
     </div>
   );
