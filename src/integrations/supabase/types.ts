@@ -41725,6 +41725,19 @@ export type Database = {
               sign: number
             }[]
           }
+      wallet_strict_for_user: {
+        Args: { p_user_id: string }
+        Returns: {
+          advance_balance: number
+          float_balance: number
+          float_balance_signed: number
+          pending_holds: number
+          restricted_held: number
+          total_visible: number
+          user_id: string
+          withdrawable: number
+        }[]
+      }
       welile_agent_vouch_max_ugx: { Args: never; Returns: number }
       welile_agent_vouch_min_ugx: { Args: never; Returns: number }
       welile_agent_vouch_multiplier: { Args: never; Returns: number }
