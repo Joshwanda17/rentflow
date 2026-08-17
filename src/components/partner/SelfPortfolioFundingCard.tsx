@@ -296,7 +296,9 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
         const images = (plan.house_image_urls ?? []).filter(Boolean);
         const monthlyRoi = Math.round((Number(plan.funding_amount || 0) * MONTHLY_ROI_RATE) / 100);
         const titleLine = `${plan.house_category ?? 'Rental home'}${plan.request_city ? ` in ${plan.request_city}` : ''}`;
-        const addressLine = [plan.tenant_location, plan.request_city, 'Uganda'].filter(Boolean).join(', ');
+        const village = plan.tenant_location?.split(',')[0]?.trim();
+        const district = plan.request_city?.split(',')[0]?.trim();
+        const addressLine = [village, district, 'Uganda'].filter(Boolean).join(', ');
         const refLine = `PLAN: ${plan.rent_request_id.slice(0, 8).toUpperCase()}`;
         
         return (
