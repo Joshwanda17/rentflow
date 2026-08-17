@@ -4,15 +4,21 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import {
   ShieldQuestion, CheckCircle2, XCircle, Phone, Loader2, UserCircle,
   MapPin, Home, Banknote, Smartphone, Calendar, Search, Building2,
-  FilterX, Clock, RotateCcw, AlertTriangle,
+  FilterX, Clock, RotateCcw, AlertTriangle, FileDown, BarChart3, Ban,
 } from 'lucide-react';
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend,
+} from 'recharts';
+import { format as fmtDay, subDays } from 'date-fns';
 import { notifyVerificationResolved } from '@/lib/landlordVerificationNotify';
 import { setLandlordVerification } from '@/lib/landlord-ops/verification';
+import { generateLandlordVerificationQueuePdf } from '@/lib/landlordVerificationQueuePdf';
 
 interface VerificationRequest {
   id: string;
@@ -82,6 +88,27 @@ interface PriorRejection {
   reason: string | null;
   at: string;
 }
+
+/**
+ * Decided (historical) request row — read-only. Kept in a separate shape from
+ * the live pending queue so none of the existing pending logic changes.
+ */
+interface DecidedRequest extends VerificationRequest {
+  status: string;
+  reject_comment: string | null;
+  resolved_at: string | null;
+}
+
+type QueueTab = 'pending' | 'resubmitted' | 'verified' | 'rejected' | 'cancelled' | 'all';
+
+const TAB_LABEL: Record<QueueTab, string> = {
+  pending: 'Pending',
+  resubmitted: 'Resubmitted',
+  verified: 'Verified',
+  rejected: 'Rejected',
+  cancelled: 'Cancelled',
+  all: 'All requests',
+};
 
 const fmtUgx = (n?: number | null) =>
   n == null ? '—' : `UGX ${Number(n).toLocaleString()}`;
