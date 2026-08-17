@@ -836,6 +836,11 @@ export default function MerchandiseStore() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
+            <img
+              src={smartphonePromoAsset.url}
+              alt="Welile Smartphone selection"
+              className="w-full h-40 object-cover rounded-lg border border-border"
+            />
             <p className="text-xs text-muted-foreground">
               Marketing sets the final phone price. Enter the amount you're comfortable having recovered
               from your wallet toward the smartphone.
