@@ -2747,6 +2747,21 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
               phone: cleanLc1Phone,
               village: lc1Village.trim(),
               registered_by: user?.id ?? null,
+              // Inherit the location already captured on this rent request so
+              // the new LC1 is registered against the same official village.
+              ...(() => {
+                const unit = lc1LocationUnit ?? ugLocation;
+                if (!unit || unit.village.trim().toLowerCase() !== lc1Village.trim().toLowerCase()) return {};
+                return {
+                  ug_village_id: unit.villageId,
+                  parish: unit.parish,
+                  sub_county: unit.subcounty,
+                  county: unit.county,
+                  district: normalizeDistrict(unit.district) || unit.district,
+                  region: unit.region,
+                  country: 'Uganda',
+                };
+              })(),
             })
             .select('id')
             .maybeSingle();
