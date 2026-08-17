@@ -9,9 +9,8 @@ import {
 } from '@/components/ui/carousel';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { formatDynamic } from '@/lib/currencyFormat';
-import { Home, MapPin, ShieldCheck } from 'lucide-react';
+import { Home, MapPin, Phone, ShieldCheck, User } from 'lucide-react';
 import tenantPhotoPlaceholder from '@/assets/tenant-photo-placeholder.jpg';
-import { PlanGpsChip } from './PlanGpsChip';
 
 export interface PlanDetail {
   rent_request_id: string;
