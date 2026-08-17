@@ -401,9 +401,9 @@ export function AgentWelileHomesSheet({ open, onOpenChange }: AgentWelileHomesSh
                           {s.landlord_uses_wallet ? 'Landlord: Welile wallet' : `Landlord float${s.landlord_name ? ` · ${s.landlord_name}` : ''}`}
                         </Badge>
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-3 gap-2">
                         {!s.tenant_verified && (
-                          <Button size="sm" className="gap-1.5 col-span-2"
+                          <Button size="sm" className="gap-1.5 col-span-3"
                             onClick={() => setVerifyFor(s)}>
                             <ShieldCheck className="h-3.5 w-3.5" /> Verify
                           </Button>
@@ -416,6 +416,10 @@ export function AgentWelileHomesSheet({ open, onOpenChange }: AgentWelileHomesSh
                           disabled={s.outstanding_balance <= 0}
                           onClick={() => setAllocFor(s)}>
                           <Banknote className="h-3.5 w-3.5" /> Allocate
+                        </Button>
+                        <Button size="sm" variant="outline" className="gap-1.5 text-destructive hover:bg-destructive/10 border-destructive/30"
+                          onClick={() => setDeleteFor(s)}>
+                          <Trash2 className="h-3.5 w-3.5" /> Delete
                         </Button>
                       </div>
                     </CardContent>
