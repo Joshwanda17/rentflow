@@ -53,10 +53,23 @@ export function MerchantReconcileDialog({
 
   const truth = variances?.find((v) => v.deskId === position.deskId);
   const numericAmount = Number(amount.replace(/[^\d.-]/g, ''));
-  const ledgerMode = type === 'opening_balance' && postToLedger;
+  // "Starting balance" is a TARGET, not an addition. The CFO types the figure
+  // the agent actually holds and we post only the difference — up through the
+  // opening-balance path, down through the evidenced write-down path. Typing
+  // the same figure twice can no longer stack float.
+  const targetMode = type === 'opening_balance' && postToLedger;
+  const currentFloat = Math.max(position.companyCashWithAgent, 0);
+  const targetDelta = targetMode ? Math.round(numericAmount) - currentFloat : 0;
+  const ledgerMode = targetMode && targetDelta > 0;
   const writedownMode = type === 'evidenced_writedown';
   const evidenceOk = evidence.trim().length >= 20;
-  const valid =
+  const valid = targetMode
+    ? Number.isFinite(numericAmount) &&
+      numericAmount >= 0 &&
+      targetDelta !== 0 &&
+      reason.trim().length >= 10 &&
+      (targetDelta > 0 || evidenceOk)
+    :
     Number.isFinite(numericAmount) &&
     (ledgerMode || writedownMode ? numericAmount > 0 : numericAmount !== 0) &&
     reason.trim().length >= 10 &&
@@ -74,6 +87,42 @@ export function MerchantReconcileDialog({
 
   const submit = async () => {
     try {
+      if (targetMode) {
+        if (targetDelta < 0) {
+          const res = await postWritedown.mutateAsync({
+            deskId: position.deskId,
+            agentId: position.agentId,
+            adjustmentType: 'evidenced_writedown',
+            amount: Math.abs(targetDelta),
+            reason,
+            evidenceNote: evidence,
+          });
+          toast.success('Float set on the books', {
+            description: `Float is now ${formatUGX(Number(res.float_after))} (was ${formatUGX(
+              Number(res.float_before),
+            )}). We took off ${formatUGX(Math.abs(targetDelta))}.`,
+          });
+        } else {
+          await postLedger.mutateAsync({
+            deskId: position.deskId,
+            agentId: position.agentId,
+            adjustmentType: 'opening_balance',
+            amount: targetDelta,
+            reason,
+            evidenceNote: evidence,
+          });
+          toast.success('Float set on the books', {
+            description: `Float is now ${formatUGX(currentFloat + targetDelta)} (was ${formatUGX(
+              currentFloat,
+            )}). We added ${formatUGX(targetDelta)}.`,
+          });
+        }
+        setAmount('');
+        setReason('');
+        setEvidence('');
+        onOpenChange(false);
+        return;
+      }
       if (writedownMode) {
         const res = await postWritedown.mutateAsync({
           deskId: position.deskId,
@@ -91,29 +140,6 @@ export function MerchantReconcileDialog({
         setAmount('');
         setReason('');
         setEvidence('');
-        onOpenChange(false);
-        return;
-      }
-      if (ledgerMode) {
-        const res = await postLedger.mutateAsync({
-          deskId: position.deskId,
-          agentId: position.agentId,
-          adjustmentType: 'opening_balance',
-          amount: numericAmount,
-          reason,
-          evidenceNote: evidence,
-        });
-        toast.success('Recorded on the books', {
-          description: `Balanced legs posted. "They're holding our money" is now ${formatUGX(
-            position.companyCashWithAgent + Math.round(numericAmount),
-          )} (was ${formatUGX(position.companyCashWithAgent)}). Ledger group ${String(
-            res.ledger_group_id,
-          ).slice(0, 8)}.`,
-        });
-        setAmount('');
-        setReason('');
-        setEvidence('');
-        setPostToLedger(true);
         onOpenChange(false);
         return;
       }
