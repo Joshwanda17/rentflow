@@ -1173,6 +1173,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     if (hit.village) setLc1Village(hit.village);
     setLc1Selected(true);
     setLc1Results([]);
+    setLc1AutoMatched(false);
   }, []);
   const clearLc1Selection = useCallback(() => {
     setLc1Selected(false);
@@ -1182,6 +1183,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setLc1Mode('search');
     setLc1SearchedOnce(false);
     setLc1Results([]);
+    setLc1AutoMatched(false);
+    setLc1LocationUnit(null);
+    // The agent is choosing the LC1 themselves for this village — stop the
+    // village lookup from re-applying its match on top of their choice.
+    lc1AutoOptOutRef.current = autoLc1VillageKeyRef.current;
   }, []);
   const startRegisterLc1 = useCallback(() => {
     // Carry a typed name (not a phone) into the manual form for convenience.
@@ -1189,7 +1195,55 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     if (q && !/^[0-9+]/.test(q)) setLc1Name(formatNameInput(q));
     setLc1Mode('register');
     setLc1Selected(false);
+    setLc1AutoMatched(false);
+    lc1AutoOptOutRef.current = autoLc1VillageKeyRef.current;
   }, [lc1Query]);
+
+  // ===== Village → LC1 chairperson auto-identification =====
+  // As soon as the agent has captured the tenant's official village (and GPS)
+  // in the property step, look up the LC1 chairperson already registered for
+  // that village and preselect them when the LC1 step is reached. When no LC1
+  // exists for the village the flow drops straight into "register a new LC1"
+  // with the village + administrative chain inherited from what was entered.
+  const autoLc1VillageKey = ugLocation ? `${ugLocation.villageId}:${ugLocation.village}` : null;
+  const autoLc1VillageKeyRef = useRef<string | null>(null);
+  autoLc1VillageKeyRef.current = autoLc1VillageKey;
+  const lc1Auto = useLc1ForVillage({
+    villageId: ugLocation?.villageId ?? null,
+    villageName: ugLocation?.village ?? null,
+    districtName: ugLocation?.district ?? null,
+    enabled: Boolean(ugLocation),
+  });
+  const lc1AutoBestId = lc1Auto.best?.id ?? null;
+  useEffect(() => {
+    if (!ugLocation || !autoLc1VillageKey) return;
+    if (lc1AutoOptOutRef.current === autoLc1VillageKey) return;
+    if (lc1Auto.isLoading) return;
+    const best = lc1Auto.best;
+    if (best) {
+      // Never overwrite an LC1 the agent picked or typed themselves.
+      if (lc1Selected && !lc1AutoMatched) return;
+      if (!lc1Selected && (lc1Name.trim() || lc1Phone.trim())) return;
+      setLc1NameParts(splitPersonName(best.name));
+      setLc1Phone(formatPhoneInput(best.phone || ''));
+      setLc1Village(best.village || ugLocation.village);
+      setLc1LocationUnit(ugLocation);
+      setLc1Mode('search');
+      setLc1Results([]);
+      setLc1Selected(true);
+      setLc1AutoMatched(true);
+      return;
+    }
+    if (!lc1Auto.isEmpty) return;
+    // No LC1 on file for this village — open the register form with the
+    // location already inherited from the rent request.
+    if (lc1Selected || lc1Name.trim() || lc1Phone.trim()) return;
+    setLc1Mode('register');
+    setLc1Village((current) => current || ugLocation.village);
+    setLc1LocationUnit((current) => current || ugLocation);
+    setLc1AutoMatched(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoLc1VillageKey, lc1AutoBestId, lc1Auto.isLoading, lc1Auto.isEmpty]);
   const LL_MODE_KEY = `welile:rentReq:landlordMode:${user?.id || 'anon'}`;
   const [landlordMode, setLandlordModeState] = useState<'search' | 'register'>(() => {
     try { return (sessionStorage.getItem(LL_MODE_KEY) as 'search' | 'register') || 'search'; }
