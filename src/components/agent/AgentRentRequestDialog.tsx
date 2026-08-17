@@ -20,6 +20,7 @@ import { UgLocationPicker } from '@/components/location/UgLocationPicker';
 import { Lc1VillagePicker } from '@/components/location/Lc1VillagePicker';
 import { UgDistrictSelect, type UgDistrictValue } from '@/components/location/UgDistrictSelect';
 import type { UgLocationSelection } from '@/hooks/useUgLocations';
+import { useLc1ForVillage } from '@/hooks/useLc1ForVillage';
 
 import { useAuth } from '@/hooks/useAuth';
 import { useAgentCapacityMap, DAILY_ELIGIBILITY_THRESHOLD, NEW_AGENT_TENANT_THRESHOLD, NEW_AGENT_RENT_CAP_UGX } from '@/hooks/useAgentCapacityMap';
@@ -1130,6 +1131,16 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [lc1Results, setLc1Results] = useState<Lc1Hit[]>([]);
   const [lc1Searching, setLc1Searching] = useState(false);
   const [lc1SearchedOnce, setLc1SearchedOnce] = useState(false);
+  // Official village unit behind the LC1's village (dataset-backed capture),
+  // used to stamp the full administrative chain when registering a new LC1.
+  const [lc1LocationUnit, setLc1LocationUnit] = useState<UgLocationSelection | null>(null);
+  // Village-driven auto-match: the LC1 already registered for the tenant's
+  // village is preselected so the agent never searches. Set to true only when
+  // the preselection came from the automatic lookup (not a manual pick).
+  const [lc1AutoMatched, setLc1AutoMatched] = useState(false);
+  // Village the agent explicitly opted out of auto-matching for (they tapped
+  // "Change" or chose to register a new LC1) — never re-apply for that village.
+  const lc1AutoOptOutRef = useRef<string | null>(null);
   const searchLc1 = useCallback(async () => {
     const q = lc1Query.trim();
     if (q.length < 2) {
@@ -1162,6 +1173,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     if (hit.village) setLc1Village(hit.village);
     setLc1Selected(true);
     setLc1Results([]);
+    setLc1AutoMatched(false);
   }, []);
   const clearLc1Selection = useCallback(() => {
     setLc1Selected(false);
@@ -1171,6 +1183,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setLc1Mode('search');
     setLc1SearchedOnce(false);
     setLc1Results([]);
+    setLc1AutoMatched(false);
+    setLc1LocationUnit(null);
+    // The agent is choosing the LC1 themselves for this village — stop the
+    // village lookup from re-applying its match on top of their choice.
+    lc1AutoOptOutRef.current = autoLc1VillageKeyRef.current;
   }, []);
   const startRegisterLc1 = useCallback(() => {
     // Carry a typed name (not a phone) into the manual form for convenience.
@@ -1178,7 +1195,55 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     if (q && !/^[0-9+]/.test(q)) setLc1Name(formatNameInput(q));
     setLc1Mode('register');
     setLc1Selected(false);
+    setLc1AutoMatched(false);
+    lc1AutoOptOutRef.current = autoLc1VillageKeyRef.current;
   }, [lc1Query]);
+
+  // ===== Village → LC1 chairperson auto-identification =====
+  // As soon as the agent has captured the tenant's official village (and GPS)
+  // in the property step, look up the LC1 chairperson already registered for
+  // that village and preselect them when the LC1 step is reached. When no LC1
+  // exists for the village the flow drops straight into "register a new LC1"
+  // with the village + administrative chain inherited from what was entered.
+  const autoLc1VillageKey = ugLocation ? `${ugLocation.villageId}:${ugLocation.village}` : null;
+  const autoLc1VillageKeyRef = useRef<string | null>(null);
+  autoLc1VillageKeyRef.current = autoLc1VillageKey;
+  const lc1Auto = useLc1ForVillage({
+    villageId: ugLocation?.villageId ?? null,
+    villageName: ugLocation?.village ?? null,
+    districtName: ugLocation?.district ?? null,
+    enabled: Boolean(ugLocation),
+  });
+  const lc1AutoBestId = lc1Auto.best?.id ?? null;
+  useEffect(() => {
+    if (!ugLocation || !autoLc1VillageKey) return;
+    if (lc1AutoOptOutRef.current === autoLc1VillageKey) return;
+    if (lc1Auto.isLoading) return;
+    const best = lc1Auto.best;
+    if (best) {
+      // Never overwrite an LC1 the agent picked or typed themselves.
+      if (lc1Selected && !lc1AutoMatched) return;
+      if (!lc1Selected && (lc1Name.trim() || lc1Phone.trim())) return;
+      setLc1NameParts(splitPersonName(best.name));
+      setLc1Phone(formatPhoneInput(best.phone || ''));
+      setLc1Village(best.village || ugLocation.village);
+      setLc1LocationUnit(ugLocation);
+      setLc1Mode('search');
+      setLc1Results([]);
+      setLc1Selected(true);
+      setLc1AutoMatched(true);
+      return;
+    }
+    if (!lc1Auto.isEmpty) return;
+    // No LC1 on file for this village — open the register form with the
+    // location already inherited from the rent request.
+    if (lc1Selected || lc1Name.trim() || lc1Phone.trim()) return;
+    setLc1Mode('register');
+    setLc1Village((current) => current || ugLocation.village);
+    setLc1LocationUnit((current) => current || ugLocation);
+    setLc1AutoMatched(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoLc1VillageKey, lc1AutoBestId, lc1Auto.isLoading, lc1Auto.isEmpty]);
   const LL_MODE_KEY = `welile:rentReq:landlordMode:${user?.id || 'anon'}`;
   const [landlordMode, setLandlordModeState] = useState<'search' | 'register'>(() => {
     try { return (sessionStorage.getItem(LL_MODE_KEY) as 'search' | 'register') || 'search'; }
@@ -2682,6 +2747,21 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
               phone: cleanLc1Phone,
               village: lc1Village.trim(),
               registered_by: user?.id ?? null,
+              // Inherit the location already captured on this rent request so
+              // the new LC1 is registered against the same official village.
+              ...(() => {
+                const unit = lc1LocationUnit ?? ugLocation;
+                if (!unit || unit.village.trim().toLowerCase() !== lc1Village.trim().toLowerCase()) return {};
+                return {
+                  ug_village_id: unit.villageId,
+                  parish: unit.parish,
+                  sub_county: unit.subcounty,
+                  county: unit.county,
+                  district: normalizeDistrict(unit.district) || unit.district,
+                  region: unit.region,
+                  country: 'Uganda',
+                };
+              })(),
             })
             .select('id')
             .maybeSingle();
@@ -4724,6 +4804,12 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 </h4>
                 <div className="space-y-3">
                   {/* ===== Search-first: find an LC1 already in the system ===== */}
+                  {ugLocation && !lc1Selected && lc1Auto.isLoading && (
+                    <p className="text-[11px] text-muted-foreground inline-flex items-center gap-1.5">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Finding the LC1 chairperson registered for {ugLocation.village}…
+                    </p>
+                  )}
                   {!lc1Selected && lc1Mode === 'search' && (
                     <div className="space-y-2 p-3 rounded-xl bg-primary/5 border border-primary/20">
                       <p className="text-xs text-muted-foreground leading-snug">
@@ -4780,6 +4866,12 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   {/* ===== Selected existing LC1 ===== */}
                   {lc1Selected && (
                     <div className="p-3 rounded-xl border border-success/40 bg-success/5">
+                      {lc1AutoMatched && (
+                        <p className="mb-1.5 text-[11px] font-semibold text-success inline-flex items-center gap-1">
+                          <ShieldCheck className="h-3.5 w-3.5" />
+                          Matched automatically from {ugLocation?.village || lc1Village}
+                        </p>
+                      )}
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <p className="font-medium text-sm truncate">{lc1Name}</p>
@@ -4802,6 +4894,14 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       ← Back to search
                     </Button>
                   </div>
+                  {ugLocation && lc1Auto.isEmpty && (
+                    <div className="rounded-lg border border-amber-300/60 bg-amber-50 p-2.5">
+                      <p className="text-[11px] font-semibold text-amber-800 leading-snug">
+                        No LC1 chairperson is registered for {ugLocation.village} yet — add them here.
+                        Their village and district are inherited from the location you captured for this house.
+                      </p>
+                    </div>
+                  )}
                   <div className="space-y-1">
                     <Label >Name *</Label>
                     <p className="text-xs text-muted-foreground leading-snug">The local council (LC1) chairperson for that area.</p>
@@ -4837,7 +4937,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       value={lc1Village}
                       error={hasFieldError('lc1Village') ? getFieldError('lc1Village') : null}
                       districtName={propertyDistrict || null}
-                      onChange={(name) => setLc1Village(name)}
+                      onChange={(name, selection) => {
+                        setLc1Village(name);
+                        setLc1LocationUnit(selection);
+                      }}
                     />
                     <FieldError message={vPlace(lc1Village, 'Kira Zone A') || getFieldError('lc1Village')} />
                   </div>
