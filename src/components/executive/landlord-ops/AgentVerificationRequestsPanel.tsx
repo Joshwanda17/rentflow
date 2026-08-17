@@ -503,7 +503,19 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
                         </div>
                       </div>
                     ) : (
-                      <div className="flex gap-2 pt-1">
+                      <div className="space-y-2 pt-1">
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                            Verification comment <span className="normal-case font-normal">(optional — appears in reports)</span>
+                          </p>
+                          <Textarea
+                            value={verifyComment}
+                            onChange={(e) => setVerifyComment(e.target.value)}
+                            placeholder="What did you check before verifying this landlord? Leave blank to verify without a comment."
+                            className="min-h-[56px] text-sm"
+                          />
+                        </div>
+                        <div className="flex gap-2">
                         <Button size="sm" className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white" disabled={busyId === req.id} onClick={() => handleVerify(req)}>
                           {busyId === req.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1" />}
                           Verify landlord
@@ -512,6 +524,7 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
                           <XCircle className="h-3.5 w-3.5 mr-1" />
                           Reject
                         </Button>
+                        </div>
                       </div>
                     )}
                   </div>
