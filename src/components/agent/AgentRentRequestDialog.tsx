@@ -20,6 +20,7 @@ import { UgLocationPicker } from '@/components/location/UgLocationPicker';
 import { Lc1VillagePicker } from '@/components/location/Lc1VillagePicker';
 import { UgDistrictSelect, type UgDistrictValue } from '@/components/location/UgDistrictSelect';
 import type { UgLocationSelection } from '@/hooks/useUgLocations';
+import { useLc1ForVillage } from '@/hooks/useLc1ForVillage';
 
 import { useAuth } from '@/hooks/useAuth';
 import { useAgentCapacityMap, DAILY_ELIGIBILITY_THRESHOLD, NEW_AGENT_TENANT_THRESHOLD, NEW_AGENT_RENT_CAP_UGX } from '@/hooks/useAgentCapacityMap';
