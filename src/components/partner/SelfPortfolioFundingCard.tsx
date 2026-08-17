@@ -7,7 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDynamic } from '@/lib/currencyFormat';
 import { toast } from 'sonner';
-import { CalendarClock, ChevronLeft, ChevronRight, Home, Loader2, MapPin, RefreshCw, ShieldCheck, Wallet } from 'lucide-react';
+import { CalendarClock, ChevronLeft, ChevronRight, Home, Info, Loader2, MapPin, RefreshCw, ShieldCheck, Wallet } from 'lucide-react';
 
 import { SelfPortfolioDeployDialog } from './SelfPortfolioDeployDialog';
 import { SelfPortfolioPlanDetailSheet } from './SelfPortfolioPlanDetailSheet';
@@ -380,11 +380,23 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
               <p className="truncate text-[11px] text-muted-foreground">
                 Landlord: {plan.landlord_name ?? 'Landlord'}
               </p>
-              <div className="mt-1">
+              <div className="mt-1 flex flex-wrap items-center gap-1.5">
                 <PlanGpsChip
                   latitude={plan.request_latitude}
                   longitude={plan.request_longitude}
                 />
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDetailPlan(plan);
+                  }}
+                  className="inline-flex min-h-[28px] items-center gap-1 rounded-full border border-border bg-muted/60 px-2 py-1 text-[11px] font-semibold text-foreground transition-colors hover:bg-muted"
+                  aria-label="View plan details"
+                >
+                  <Info className="h-3 w-3" />
+                  Details
+                </button>
               </div>
               {metrics.length > 0 && (
                 <p className="mt-0.5 text-[11px] font-semibold text-foreground/80">
