@@ -137,6 +137,15 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
   // Landlord -> latest recorded rejection (from the append-only event log).
   const [priorByLandlord, setPriorByLandlord] = useState<Record<string, PriorRejection>>({});
   const [onlyResubmitted, setOnlyResubmitted] = useState(false);
+  // ── Tabs / analytics layer (read-only, additive) ──────────────────────────
+  const [tab, setTab] = useState<QueueTab>('pending');
+  const [decided, setDecided] = useState<DecidedRequest[]>([]);
+  const [decidedLoading, setDecidedLoading] = useState(false);
+  const [districtByLandlordAll, setDistrictByLandlordAll] = useState<Record<string, string>>({});
+  const [showChart, setShowChart] = useState(true);
+  const [exporting, setExporting] = useState(false);
+  const [fromDate, setFromDate] = useState<string>(() => fmtDay(subDays(new Date(), 29), 'yyyy-MM-dd'));
+  const [toDate, setToDate] = useState<string>(() => fmtDay(new Date(), 'yyyy-MM-dd'));
 
   const load = useCallback(async () => {
     const { data, error } = await supabase
@@ -183,6 +192,43 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
     }
     setLoading(false);
   }, []);
+
+  /**
+   * Decided requests (verified / rejected / cancelled) in the selected window.
+   * Read-only — used only for the extra tabs, charts and the PDF export.
+   */
+  const loadDecided = useCallback(async () => {
+    setDecidedLoading(true);
+    try {
+      const startIso = new Date(`${fromDate}T00:00:00`).toISOString();
+      const endIso = new Date(`${toDate}T23:59:59.999`).toISOString();
+      const { data } = await supabase
+        .from('landlord_verification_requests')
+        .select('id, landlord_id, landlord_name, landlord_phone, requested_by, agent_name, agent_phone, note, created_at, status, reject_comment, resolved_at')
+        .in('status', ['verified', 'rejected', 'cancelled'])
+        .gte('created_at', startIso)
+        .lte('created_at', endIso)
+        .order('created_at', { ascending: false })
+        .limit(1000);
+      const rows = (data ?? []) as DecidedRequest[];
+      setDecided(rows);
+      const ids = Array.from(new Set(rows.map((r) => r.landlord_id).filter(Boolean)));
+      if (ids.length > 0) {
+        const { data: locs } = await supabase.from('landlords').select('id, district').in('id', ids);
+        setDistrictByLandlordAll(
+          Object.fromEntries(
+            ((locs ?? []) as { id: string; district: string | null }[]).map((l) => [l.id, l.district || '']),
+          ),
+        );
+      } else {
+        setDistrictByLandlordAll({});
+      }
+    } finally {
+      setDecidedLoading(false);
+    }
+  }, [fromDate, toDate]);
+
+  useEffect(() => { void loadDecided(); }, [loadDecided]);
 
   useEffect(() => {
     load();
