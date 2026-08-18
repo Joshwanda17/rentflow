@@ -47,6 +47,33 @@ function useSourceTransactions(category: string | null, page: number) {
     queryKey: ['cfo-cash-source-transactions', category, page],
     enabled: !!category,
     queryFn: async () => {
+      // Recorded partner funding drills into the portfolio records themselves —
+      // the same rows the Partnership Dashboard reports from.
+      if (category === 'partner_capital_recorded') {
+        const { data, count, error } = await supabase
+          .from('investor_portfolios')
+          .select(
+            'id, portfolio_code, account_name, investment_amount, status, created_at, payment_method',
+            { count: 'exact' }
+          )
+          .eq('status', 'active')
+          .order('created_at', { ascending: false })
+          .range(page * PAGE, page * PAGE + PAGE - 1);
+        if (error) throw error;
+        const rows: TxRow[] = ((data as any[]) || []).map((p) => ({
+          id: p.id,
+          transaction_date: p.created_at,
+          reference: p.portfolio_code || '—',
+          description: 'Recorded partner funding',
+          amount: Number(p.investment_amount || 0),
+          direction: 'in',
+          status: p.status,
+          linked_party: p.account_name || '—',
+          account_code: p.payment_method || 'portfolio',
+        }));
+        return { rows, totalCount: Number(count ?? rows.length), netAmount: 0 };
+      }
+
       const { data, error } = await supabase.rpc('get_treasury_cash_transactions' as any, {
         p_category: category,
         p_limit: PAGE,
