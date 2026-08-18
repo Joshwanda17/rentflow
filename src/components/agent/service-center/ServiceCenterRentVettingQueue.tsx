@@ -94,31 +94,34 @@ export function ServiceCenterRentVettingQueue() {
       ) : (
         pending.map((req) => (
           <Card key={req.id}>
-            <CardContent className="space-y-2 p-3">
-              <div className="flex items-start justify-between gap-2">
+            <CardContent className="space-y-3 p-3">
+
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-foreground">{req.tenant_name ?? 'Tenant'}</p>
-                  <p className="truncate text-xs text-muted-foreground">
+                  <p className="break-words text-sm font-semibold leading-tight text-foreground">{req.tenant_name ?? 'Tenant'}</p>
+                  <p className="break-words text-[11px] text-muted-foreground">
                     Submitted by {req.agent_name ?? 'sub-agent'}
                   </p>
                 </div>
-                <Badge variant="outline" className="shrink-0 text-[10px]">Service Center review</Badge>
+                <Badge variant="outline" className="w-fit shrink-0 text-[10px]">Service Center review</Badge>
               </div>
 
-              <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                <span>Rent: <strong className="text-foreground">{formatUGX(Number(req.rent_amount || 0))}</strong></span>
-                <span>Daily: <strong className="text-foreground">{formatUGX(Number(req.daily_repayment || 0))}</strong></span>
-                <span>Duration: <strong className="text-foreground">{req.duration_days ?? '—'} days</strong></span>
-                <span className="inline-flex items-center gap-1 truncate">
-                  <MapPin className="h-3 w-3" /> {req.request_city ?? '—'}
+
+              <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] leading-tight text-muted-foreground">
+                <span className="break-words">Rent: <strong className="text-foreground">{formatUGX(Number(req.rent_amount || 0))}</strong></span>
+                <span className="break-words">Daily: <strong className="text-foreground">{formatUGX(Number(req.daily_repayment || 0))}</strong></span>
+                <span className="break-words">Duration: <strong className="text-foreground">{req.duration_days ?? '—'} days</strong></span>
+                <span className="inline-flex items-center gap-1 break-words">
+                  <MapPin className="h-3 w-3 shrink-0" /> <span className="break-words">{req.request_city ?? '—'}</span>
                 </span>
                 {req.tenant_phone && (
-                  <span className="inline-flex items-center gap-1 truncate">
-                    <Phone className="h-3 w-3" /> {req.tenant_phone}
+                  <span className="inline-flex items-center gap-1 break-words">
+                    <Phone className="h-3 w-3 shrink-0" /> <span className="break-words">{req.tenant_phone}</span>
                   </span>
                 )}
-                {req.landlord_name && <span className="truncate">Landlord: {req.landlord_name}</span>}
+                {req.landlord_name && <span className="break-words">Landlord: {req.landlord_name}</span>}
               </div>
+
 
               <button type="button" onClick={() => setDetailsReq(req)} className="w-full text-left">
                 {!!req.house_image_urls?.length && (
@@ -146,17 +149,17 @@ export function ServiceCenterRentVettingQueue() {
                   onChange={(e) => setComments((prev) => ({ ...prev, [req.id]: e.target.value }))}
                   placeholder="Your comment (required) — what you checked, or what the agent must fix. Agent Ops will read this."
                   rows={2}
-                  className="text-sm"
+                  className="text-xs"
                 />
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-[10px] text-muted-foreground">
                   {commentFor(req.id).length < MIN_COMMENT
                     ? `Write at least ${MIN_COMMENT} characters to verify or decline (${commentFor(req.id).length}/${MIN_COMMENT}).`
                     : 'Comment saved with your decision for Agent Ops.'}
                 </p>
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row">
                   <Button
                     size="sm"
-                    className="flex-1"
+                    className="flex-1 text-xs"
                     disabled={busyId === req.id || commentFor(req.id).length < MIN_COMMENT}
                     onClick={() => act(req, 'verify', commentFor(req.id))}
                   >
@@ -166,6 +169,7 @@ export function ServiceCenterRentVettingQueue() {
                   <Button
                     size="sm"
                     variant="outline"
+                    className="flex-1 text-xs"
                     disabled={busyId === req.id || commentFor(req.id).length < MIN_COMMENT}
                     onClick={() => act(req, 'reject', commentFor(req.id))}
                   >
@@ -173,6 +177,7 @@ export function ServiceCenterRentVettingQueue() {
                   </Button>
                 </div>
               </div>
+
             </CardContent>
           </Card>
         ))
