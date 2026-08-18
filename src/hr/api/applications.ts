@@ -192,3 +192,56 @@ export async function markApplicationContacted(
   if (error) throw new Error(error.message);
   return data as unknown as JobApplicationRow;
 }
+
+export interface CareersEmailResult {
+  requested: number;
+  sent: number;
+  suppressed: number;
+  failed: number;
+  missing_email: number;
+  from: string;
+  used_careers_from: boolean;
+  failures: { applicant: string; reason: string }[];
+}
+
+/**
+ * Send one individual email per selected applicant.
+ *
+ * The recipient list is handed over as application ids only. The edge function
+ * expands it into one enqueued message per person, each addressed to exactly one
+ * address and personalised with that person's own name and reference. Nothing in
+ * this path can place two addresses in one message: there is no `to` array, no
+ * `cc` and no `bcc` anywhere in the call.
+ *
+ * This never touches an insert into `job_applications`, so live applications
+ * arriving from the public form are unaffected.
+ */
+export async function sendCareersEmails(args: {
+  applicationIds: string[];
+  subject: string;
+  body: string;
+}): Promise<CareersEmailResult> {
+  await actingUserId();
+
+  const { data, error } = await supabase.functions.invoke('hr-careers-bulk-email', {
+    body: {
+      applicationIds: args.applicationIds,
+      subject: args.subject,
+      body: args.body,
+    },
+  });
+
+  if (error) {
+    const detail = (error as any)?.context?.text
+      ? await (error as any).context.text().catch(() => '')
+      : '';
+    let message = error.message;
+    try {
+      const parsed = detail ? JSON.parse(detail) : null;
+      if (parsed?.error) message = parsed.error;
+    } catch { /* keep the original message */ }
+    throw new Error(message);
+  }
+
+  return data as CareersEmailResult;
+}
