@@ -305,6 +305,31 @@ function ApplicationsTab() {
     },
   });
 
+  const { data: removedCount = 0, refetch: refetchRemovedCount } = useQuery({
+    queryKey: ['job-applications', 'purged-count'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('job_applications')
+        .select('*', { count: 'exact', head: true })
+        .not('purged_at', 'is', null);
+      if (error) throw new Error(error.message);
+      return count ?? 0;
+    },
+  });
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('job-applications-purged-count')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'job_applications' },
+        () => { void refetchRemovedCount(); },
+      )
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [refetchRemovedCount]);
+
+
   const statuses = useMemo(() => {
     const set = new Set<string>();
     rows.forEach((r) => set.add(r.status ?? '—'));
@@ -523,7 +548,7 @@ function ApplicationsTab() {
           className="h-9 text-xs whitespace-nowrap"
           onClick={() => setShowRemoved((v) => !v)}
         >
-          {showRemoved ? 'Back to applications' : 'Removed bin'}
+          {showRemoved ? 'Back to applications' : `Removed bin (${fmtCount(removedCount)})`}
         </Button>
       </div>
 
