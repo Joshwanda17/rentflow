@@ -5843,6 +5843,18 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         Confirm and select landlord
       </Button>
     </EntityDetailSheet>
+
+    {/* Duplicate blocked → resubmit the existing rejected request instead */}
+    <AgentEditRentRequestDialog
+      request={resubmitTarget}
+      open={!!resubmitTarget}
+      onOpenChange={(o) => { if (!o) setResubmitTarget(null); }}
+      onResubmitted={() => {
+        setResubmitTarget(null);
+        onSuccess?.();
+        onOpenChange(false);
+      }}
+    />
     </>
   );
 }
