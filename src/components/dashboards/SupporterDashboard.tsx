@@ -561,6 +561,10 @@ export default function SupporterDashboard({
           </div>
 
           {/* ═══ SECTION: YOUR PORTFOLIO ═══ */}
+          <WidgetErrorBoundary label="Partner card">
+            <PartnerVirtualCard userId={user.id} partnerName={displayFullName} />
+          </WidgetErrorBoundary>
+
           <WidgetErrorBoundary label="Your portfolio">
             <PartnerPortfolioSection
               onViewPortfolios={(portfolioId) => {
