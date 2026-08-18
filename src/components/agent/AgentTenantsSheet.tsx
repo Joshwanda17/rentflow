@@ -2192,7 +2192,7 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
 
         {/* ───── Body ───── */}
         {simpleMode ? (
-          <div className={`px-4 py-3 space-y-3 ${bulkSelectMode ? 'pb-28' : ''}`}>
+          <div className={`px-3 py-2 space-y-2 ${bulkSelectMode ? 'pb-28' : ''}`}>
             {loading ? (
               <div className="flex items-center justify-center py-20">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -2215,7 +2215,7 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
                 return (
                   <div
                     key={tenant.id}
-                    className={`rounded-3xl border bg-card p-4 shadow-sm transition-colors ${
+                    className={`rounded-2xl border bg-card p-3 shadow-sm transition-colors ${
                       selected ? 'border-emerald-500 ring-2 ring-emerald-500/50 bg-emerald-50/40' : 'border-border/60'
                     } ${bulkSelectMode && !hasDebt ? 'opacity-50' : ''}`}
                   >
@@ -2226,34 +2226,34 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
                         if (bulkSelectMode) { if (hasDebt) toggleBulkSelect(tenant.id); }
                         else setProfileTenantId(tenant.id);
                       }}
-                      className="flex items-center gap-3 w-full text-left active:opacity-80"
+                      className="flex items-center gap-2.5 w-full text-left active:opacity-80"
                       style={{ touchAction: 'manipulation' }}
                     >
                       {bulkSelectMode ? (
-                        <div className={`w-16 h-16 rounded-full flex items-center justify-center shrink-0 border-2 ${
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 border-2 ${
                           selected ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-muted-foreground/30 text-muted-foreground/40'
                         }`}>
-                          {selected ? <CheckCircle2 className="h-9 w-9" strokeWidth={2.5} /> : <CheckSquare className="h-8 w-8" strokeWidth={2} />}
+                          {selected ? <CheckCircle2 className="h-7 w-7" strokeWidth={2.5} /> : <CheckSquare className="h-6 w-6" strokeWidth={2} />}
                         </div>
                       ) : (
-                      <div className={`w-16 h-16 rounded-full flex items-center justify-center shrink-0 text-2xl font-bold ${
+                      <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 text-lg font-bold ${
                         hasDebt ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'
                       }`}>
                         {(tenant.full_name?.trim()?.charAt(0) || tenant.phone?.charAt(0) || '?').toUpperCase()}
                       </div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <p className="font-bold text-lg leading-tight truncate">
+                        <p className="font-bold text-sm sm:text-base leading-tight truncate">
                           {tenant.full_name?.trim() || 'Tenant'}
                         </p>
                         {propertyAddress ? (
-                          <p className="text-sm text-muted-foreground truncate flex items-center gap-1 mt-0.5">
-                            <MapPin className="h-3.5 w-3.5 shrink-0" />
+                          <p className="text-xs text-muted-foreground truncate flex items-center gap-1 mt-0.5">
+                            <MapPin className="h-3 w-3 shrink-0" />
                             {propertyAddress}
                           </p>
                         ) : tenant.phone ? (
-                          <p className="text-sm text-muted-foreground truncate flex items-center gap-1 mt-0.5">
-                            <Phone className="h-3.5 w-3.5 shrink-0" />
+                          <p className="text-xs text-muted-foreground truncate flex items-center gap-1 mt-0.5">
+                            <Phone className="h-3 w-3 shrink-0" />
                             {tenant.phone}
                           </p>
                         ) : null}
@@ -2261,32 +2261,32 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
                     </button>
 
                     {/* Big, unmissable amount */}
-                    <div className={`mt-3 rounded-2xl px-4 py-3 text-center ${hasDebt ? 'bg-rose-50' : 'bg-emerald-50'}`}>
-                      <p className={`text-[11px] uppercase tracking-wide font-bold ${hasDebt ? 'text-rose-600' : 'text-emerald-600'}`}>
+                    <div className={`mt-2 rounded-xl px-3 py-2 text-center ${hasDebt ? 'bg-rose-50' : 'bg-emerald-50'}`}>
+                      <p className={`text-[10px] uppercase tracking-wide font-bold ${hasDebt ? 'text-rose-600' : 'text-emerald-600'}`}>
                         {hasDebt ? tr('toCollect') : tr('allPaid')}
                       </p>
-                      <p className={`text-3xl font-extrabold font-mono leading-none mt-1 ${hasDebt ? 'text-rose-600' : 'text-emerald-600'}`}>
+                      <p className={`text-xl sm:text-2xl font-extrabold font-mono leading-none mt-1 ${hasDebt ? 'text-rose-600' : 'text-emerald-600'}`}>
                         {hasDebt ? formatUGX(balance) : 'UGX 0'}
                       </p>
                     </div>
 
                     {/* Two big actions — hidden while picking many tenants */}
                     {!bulkSelectMode && (
-                    <div className="grid grid-cols-2 gap-2.5 mt-3">
+                    <div className="grid grid-cols-2 gap-2 mt-2">
                       <Button
                         onClick={() => setFieldCollectTarget(tenant)}
-                        className="h-14 text-base font-bold rounded-2xl gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+                        className="h-10 sm:h-11 text-xs sm:text-sm font-bold rounded-xl gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
                       >
-                        <Banknote className="h-5 w-5" />
+                        <Banknote className="h-4 w-4" />
                         {tr('collect')}
                       </Button>
                       <Button
                         variant="outline"
                         onClick={() => { if (tenant.phone) window.open(`tel:${tenant.phone.replace(/\s/g, '')}`); }}
                         disabled={!tenant.phone}
-                        className="h-14 text-base font-bold rounded-2xl gap-2"
+                        className="h-10 sm:h-11 text-xs sm:text-sm font-bold rounded-xl gap-1.5"
                       >
-                        <PhoneCall className="h-5 w-5" />
+                        <PhoneCall className="h-4 w-4" />
                         {tr('call')}
                       </Button>
                     </div>
@@ -2295,6 +2295,7 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
                 );
               })
             )}
+
             {/* Sticky bulk-collect bar — appears while picking many tenants */}
             {bulkSelectMode && (
               <div className="fixed inset-x-0 bottom-0 z-40 px-4 pb-[calc(env(safe-area-inset-bottom)+12px)] pt-3 bg-background/95 backdrop-blur border-t">
