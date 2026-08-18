@@ -125,8 +125,19 @@ serve(async (req) => {
       if (revokeAuthErr) {
         console.error("failed to revoke auth phone for", dup.id, revokeAuthErr);
       }
-      // Clear the mirrored profile phone.
-      await adminClient.from("profiles").update({ phone: null }).eq("id", dup.id);
+      // Clear the mirrored profile phone ONLY when it is the same number.
+      // A stale auth-level holder can have a legitimately different profile
+      // phone, which must be left intact. Mobile money / withdrawal details
+      // are never touched here.
+      const { data: dupProfile } = await adminClient
+        .from("profiles")
+        .select("phone")
+        .eq("id", dup.id)
+        .maybeSingle();
+      const dupLast9 = (dupProfile?.phone ?? "").replace(/\D/g, "").slice(-9);
+      if (dupLast9 && dupLast9 === last9) {
+        await adminClient.from("profiles").update({ phone: null }).eq("id", dup.id);
+      }
       // Audit the revocation against the previous owner.
       await adminClient.from("audit_logs").insert({
         actor_id: caller.id,
