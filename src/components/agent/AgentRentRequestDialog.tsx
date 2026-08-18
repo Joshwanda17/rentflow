@@ -3129,6 +3129,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         setSubmissionError(friendly);
         toast.error('Duplicate blocked — resubmit instead', { description: friendly });
         try {
+          if (!existingId) throw new Error('no request id in error');
           const { data: existing } = await supabase
             .from('rent_requests')
             .select('*')
