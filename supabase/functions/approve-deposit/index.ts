@@ -4,6 +4,7 @@ import { logSystemEvent } from "../_shared/eventLogger.ts";
 import { checkTreasuryGuard } from "../_shared/treasuryGuard.ts";
 import { logDepositDecision } from "../_shared/depositDecisionAudit.ts";
 import { attemptYoolaPrimary } from "../_shared/yoolaPrimary.ts";
+import { resolveOwnedRecipientEmail } from "../_shared/ownedRecipientEmail.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
