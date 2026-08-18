@@ -19054,6 +19054,36 @@ export type Database = {
         }
         Relationships: []
       }
+      merchant_float_morning_reports: {
+        Row: {
+          created_at: string
+          emailed_at: string | null
+          generated_at: string
+          id: string
+          pdf_path: string | null
+          report_date: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          emailed_at?: string | null
+          generated_at?: string
+          id?: string
+          pdf_path?: string | null
+          report_date: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          emailed_at?: string | null
+          generated_at?: string
+          id?: string
+          pdf_path?: string | null
+          report_date?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       merchant_float_reconciliations: {
         Row: {
           adjustment_type: string
@@ -37496,6 +37526,23 @@ export type Database = {
           transaction_reference: string
         }[]
       }
+      get_all_merchant_float_positions: {
+        Args: never
+        Returns: {
+          agent_id: string
+          agent_name: string
+          agent_phone: string
+          desk_id: string
+          float_balance_raw: number
+          float_credits_recorded: number
+          is_active: boolean
+          label: string
+          last_payout_at: string
+          ledger_float_held: number
+          owed_to_agent: number
+          paid_out_total: number
+        }[]
+      }
       get_approximate_user_count: { Args: never; Returns: number }
       get_authoritative_wallet: { Args: { p_user_id: string }; Returns: Json }
       get_budget_consolidation: { Args: { p_call_id: string }; Returns: Json }
@@ -37539,6 +37586,7 @@ export type Database = {
         }[]
       }
       get_cash_at_hand_total: { Args: never; Returns: Json }
+      get_cash_at_hand_total_system: { Args: never; Returns: Json }
       get_cashflow_forecast_series: {
         Args: { p_bucket?: string; p_end: string; p_start: string }
         Returns: Json
