@@ -371,7 +371,7 @@ export function AgentRentCapacityPanel({
           <div className="h-8 w-8 rounded-xl bg-primary/15 flex items-center justify-center">
             <Gauge className="h-4 w-4 text-primary" />
           </div>
-        <div className="min-w-0 flex-1">
+          <div className="min-w-0 flex-1">
             <h3 className="text-sm sm:text-base font-bold text-foreground leading-tight">
               Agent Rent-Request Capacity
             </h3>
@@ -387,10 +387,25 @@ export function AgentRentCapacityPanel({
               />
             </div>
           </div>
-          <DailyRatingThresholdPopover />
+          <div className="flex items-center gap-1 shrink-0">
+            <DailyRatingThresholdPopover />
+            <button
+              type="button"
+              onClick={() => setIsSectionCollapsed((v) => !v)}
+              className="inline-flex items-center justify-center h-8 w-8 rounded-lg border border-border bg-background hover:bg-muted transition-colors"
+              aria-label={isSectionCollapsed ? 'Expand section' : 'Collapse section'}
+              title={isSectionCollapsed ? 'Expand' : 'Collapse'}
+            >
+              {isSectionCollapsed ? (
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <ChevronUp className="h-4 w-4 text-muted-foreground" />
+              )}
+            </button>
+          </div>
         </div>
 
-        {!compact && (
+        {!compact && !isSectionCollapsed && (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 mt-3">
             <Kpi
               icon={<TrendingUp className="h-3.5 w-3.5" />}
