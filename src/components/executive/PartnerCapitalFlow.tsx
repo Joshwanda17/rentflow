@@ -6,9 +6,11 @@ import { DollarSign, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, LineChart, Line, BarChart, Bar, Legend, CartesianGrid } from 'recharts';
 import { format, subDays, startOfDay, startOfMonth, addMonths, isBefore } from 'date-fns';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { ProjectedReturnsChart, PartnerPortfolioTable } from './PartnerPortfolioProjections';
+import { useState } from 'react';
+import { ProjectedReturnsChart, PartnerPortfolioTable, HORIZON_PRESETS, type Horizon } from './PartnerPortfolioProjections';
 
 export function PartnerCapitalFlow() {
+  const [horizon, setHorizon] = useState<Horizon>(HORIZON_PRESETS.find(p => p.days === 180)!);
   const { data } = useQuery({
     queryKey: ['partner-capital-flow'],
     queryFn: async () => {
@@ -182,7 +184,7 @@ export function PartnerCapitalFlow() {
           </TabsContent>
 
           <TabsContent value="forward" className="mt-3 space-y-4">
-        <ProjectedReturnsChart months={6} />
+        <ProjectedReturnsChart horizon={horizon} onHorizonChange={setHorizon} />
 
         <div className="border-t pt-3">
           <div className="flex items-center justify-between mb-1">
@@ -209,7 +211,7 @@ export function PartnerCapitalFlow() {
           </TabsContent>
 
           <TabsContent value="partners" className="mt-3">
-            <PartnerPortfolioTable months={6} />
+            <PartnerPortfolioTable horizon={horizon} />
           </TabsContent>
         </Tabs>
       </CardContent>
