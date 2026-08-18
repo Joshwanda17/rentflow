@@ -6,7 +6,7 @@ import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
 } from 'recharts';
 import {
-  ArrowDownRight, ArrowUpRight, CalendarIcon, FileText, Loader2, Minus, RefreshCw, Search,
+  ArrowDownRight, ArrowUpRight, CalendarIcon, ChevronDown, FileText, Loader2, Minus, RefreshCw, Search,
 } from 'lucide-react';
 
 import { supabase } from '@/integrations/supabase/client';
@@ -17,6 +17,9 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -163,6 +166,7 @@ export function AgentProductsServicesReport() {
   const { user } = useAuth();
   // `day` is the cumulative window START. Every window runs from `day` up to today.
   const [day, setDay] = useState<Date>(() => new Date());
+  const [activePreset, setActivePreset] = useState<string>('today');
   const [exporting, setExporting] = useState(false);
   const [actorName, setActorName] = useState('');
 
@@ -280,9 +284,9 @@ export function AgentProductsServicesReport() {
     }
   };
 
-  const setPreset = (
-    kind: 'today' | 'yesterday' | 'd7' | 'd14' | 'd30' | 'd90' | 'y1' | 'month' | 'year' | 'all',
-  ) => {
+  type PresetKind = 'today' | 'yesterday' | 'd7' | 'd14' | 'd30' | 'd90' | 'y1' | 'month' | 'year' | 'all';
+  const setPreset = (kind: PresetKind) => {
+    setActivePreset(kind);
     const now = new Date();
     if (kind === 'today') setDay(now);
     if (kind === 'yesterday') setDay(subDays(now, 1));
@@ -295,6 +299,18 @@ export function AgentProductsServicesReport() {
     if (kind === 'year') setDay(startOfYear(now));
     if (kind === 'all') setDay(new Date(2015, 0, 1));
   };
+
+  const longPresets = [
+    ['d7', 'Last 7 days'],
+    ['d14', 'Last 14 days'],
+    ['d30', 'Last 30 days'],
+    ['d90', 'Last 90 days'],
+    ['y1', 'Last 1 year'],
+    ['month', 'This month'],
+    ['year', 'This year'],
+    ['all', 'All time'],
+  ] as const;
+  const activeLongLabel = longPresets.find(([k]) => k === activePreset)?.[1];
 
   const bikes = report?.bikes;
   const phones = report?.phones;
@@ -329,20 +345,28 @@ export function AgentProductsServicesReport() {
         </CardHeader>
         <CardContent className="p-3 pt-0">
           <div className="flex flex-wrap items-center gap-1.5">
-            {([
-              ['today', 'Today'],
-              ['yesterday', 'Yesterday'],
-              ['d7', '7 Days Ago'],
-              ['d14', 'Last 14 Days'],
-              ['d30', '30 Days Ago'],
-              ['d90', '90 Days Ago'],
-              ['y1', '1 Year Ago'],
-              ['month', 'This Month'],
-              ['year', 'This Year'],
-              ['all', 'All Time'],
-            ] as const).map(([k, l]) => (
-              <Button key={k} size="sm" variant="secondary" className="h-7 text-[11px]" onClick={() => setPreset(k)}>{l}</Button>
+            {([['today', 'Today'], ['yesterday', 'Yesterday']] as const).map(([k, l]) => (
+              <Button
+                key={k}
+                size="sm"
+                variant={activePreset === k ? 'default' : 'secondary'}
+                className="h-7 text-[11px]"
+                onClick={() => setPreset(k)}
+              >{l}</Button>
             ))}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" variant={activeLongLabel ? 'default' : 'secondary'} className="h-7 text-[11px]">
+                  {activeLongLabel || 'Select Period'}
+                  <ChevronDown className="h-3.5 w-3.5 ml-1" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="z-[200]">
+                {longPresets.map(([k, l]) => (
+                  <DropdownMenuItem key={k} className="text-[12px]" onClick={() => setPreset(k)}>{l}</DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Popover>
               <PopoverTrigger asChild>
                 <Button size="sm" variant="outline" className="h-7 text-[11px]">
