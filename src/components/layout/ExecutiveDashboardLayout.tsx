@@ -225,7 +225,7 @@ export default function ExecutiveDashboardLayout({
   };
 
   const SidebarContent = ({ onItemClick }: { onItemClick?: () => void }) => (
-    <nav className="flex-1 overflow-y-auto py-4 space-y-5" style={{ touchAction: 'manipulation' }}>
+    <nav className="flex-1 overflow-y-auto py-5 space-y-6" style={{ touchAction: 'manipulation' }}>
       {/* Quick filter — type to jump to any section on a phone */}
       <div className="px-3">
         <div className="relative">
@@ -236,14 +236,14 @@ export default function ExecutiveDashboardLayout({
             value={navQuery}
             onChange={(e) => setNavQuery(e.target.value)}
             placeholder="Search menu…"
-            className="w-full h-11 pl-9 pr-9 rounded-xl bg-muted/60 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+            className="w-full h-11 pl-9 pr-9 rounded-xl bg-card border border-border/60 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/30 transition-all"
             style={{ fontSize: 16 }}
           />
           {navQuery && (
             <button
               type="button"
               onClick={() => setNavQuery('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-muted"
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-muted transition-colors"
               aria-label="Clear search"
             >
               <X className="h-4 w-4 text-muted-foreground" />
@@ -269,29 +269,29 @@ export default function ExecutiveDashboardLayout({
                 onClick={() =>
                   setOpenGroups((prev) => ({ ...prev, [section.title]: !prev[section.title] }))
                 }
-                className="w-full flex items-center justify-between gap-2 px-4 mb-2 group"
+                className="w-full flex items-center justify-between gap-2 px-4 mb-2.5 group"
                 aria-expanded={sectionOpen}
                 style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
               >
                 <span className="flex items-center gap-2">
                   {SectionIcon && <SectionIcon className="h-3.5 w-3.5 text-muted-foreground" />}
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground group-hover:text-foreground transition-colors">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground group-hover:text-foreground transition-colors">
                     {section.title}
                   </span>
                 </span>
                 {sectionOpen ? (
-                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground transition-transform" />
                 ) : (
-                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground transition-transform" />
                 )}
               </button>
             ) : (
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2 px-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2.5 px-4">
                 {section.title}
               </p>
             )}
             {sectionOpen && (
-              <div className="space-y-0.5 px-2">
+              <div className="space-y-1 px-2">
                 {visibleItems.map((item) => (
                   <button
                     key={item.id}
@@ -302,11 +302,11 @@ export default function ExecutiveDashboardLayout({
                       onItemClick?.();
                     }}
                     className={cn(
-                      'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors select-none',
-                      'active:scale-[0.98] active:bg-primary/15',
+                      'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all select-none relative',
+                      'active:scale-[0.98]',
                       isItemActive(item)
-                        ? 'bg-primary/10 text-primary font-semibold'
-                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                        ? 'bg-primary/15 text-primary font-semibold shadow-[0_0_0_1px_hsl(var(--primary)/0.12)] before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-5 before:w-[3px] before:rounded-r-full before:bg-primary'
+                        : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground'
                     )}
                     style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
                   >
