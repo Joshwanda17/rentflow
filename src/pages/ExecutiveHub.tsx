@@ -106,38 +106,42 @@ export default function ExecutiveHub() {
   const DashboardComponent = current.component;
   const fullWidth = tab === 'agent-ops' || tab === 'partners-ops';
 
+  const showHeader = tab !== 'partners-ops';
+
   return (
     <div className="flex flex-col h-[100dvh] bg-background overflow-hidden">
-      <header className="shrink-0 z-30 bg-card/95 backdrop-blur border-b border-border px-4 py-3">
-        <div className="max-w-7xl mx-auto flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard/tenant')} className="shrink-0">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div className="min-w-0 flex-1">
-            <h1 className="text-lg font-bold truncate">{current.title}</h1>
-            <p className="text-xs text-muted-foreground">Executive &amp; Operations Hub</p>
+      {showHeader && (
+        <header className="shrink-0 z-30 bg-card/95 backdrop-blur border-b border-border px-4 py-3">
+          <div className="max-w-7xl mx-auto flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard/tenant')} className="shrink-0">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-lg font-bold truncate">{current.title}</h1>
+              <p className="text-xs text-muted-foreground">Executive &amp; Operations Hub</p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="shrink-0 gap-1.5"
+              onClick={async () => {
+                const res = await fetch('/EXECUTIVE_HUB_GUIDE.md');
+                const text = await res.text();
+                const blob = new Blob([text], { type: 'text/markdown' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'Executive_Hub_Guide.md';
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+            >
+              <Download className="h-4 w-4" />
+              <span className="hidden sm:inline">Guide</span>
+            </Button>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="shrink-0 gap-1.5"
-            onClick={async () => {
-              const res = await fetch('/EXECUTIVE_HUB_GUIDE.md');
-              const text = await res.text();
-              const blob = new Blob([text], { type: 'text/markdown' });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = 'Executive_Hub_Guide.md';
-              a.click();
-              URL.revokeObjectURL(url);
-            }}
-          >
-            <Download className="h-4 w-4" />
-            <span className="hidden sm:inline">Guide</span>
-          </Button>
-        </div>
-      </header>
+        </header>
+      )}
       <div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
         <div className={`${fullWidth ? 'max-w-none' : 'max-w-7xl'} mx-auto p-4 pb-24`}>
           {current.missionRole && <MissionBanner dashboardRole={current.missionRole} className="mb-4" />}
