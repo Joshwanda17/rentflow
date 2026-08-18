@@ -3116,7 +3116,44 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       const isNetworkError =
         !navigator.onLine ||
         /failed to fetch|network ?error|networkrequestfailed|load failed|err_internet|err_network|fetch failed/i.test(msg);
-      if (isNetworkError) {
+      // The tenant already has a rejected request that is still fixable. Never
+      // let the agent create a second row — send them into the resubmit path so
+      // the rejection reason and history stay attached.
+      const duplicateMatch = /DUPLICATE_AFTER_REJECTION[^]*?([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i.exec(msg)
+        || /DUPLICATE_AFTER_REJECTION/i.test(msg) && /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i.exec(error?.hint || '') || null;
+      if (duplicateMatch) {
+        const existingId = duplicateMatch[1];
+        const friendly = 'This tenant already has a rejected rent request. Fix the flagged detail on that request and resubmit it — creating a new one would duplicate the tenant.';
+        setSubmissionError(friendly);
+        toast.error('Duplicate blocked — resubmit instead', { description: friendly });
+        try {
+          const { data: existing } = await supabase
+            .from('rent_requests')
+            .select('*')
+            .eq('id', existingId)
+            .maybeSingle();
+          if (existing) {
+            const [{ data: tenantProfile }, { data: landlordRow }] = await Promise.all([
+              supabase.from('profiles').select('full_name, phone').eq('id', (existing as any).tenant_id).maybeSingle(),
+              (existing as any).landlord_id
+                ? supabase.from('landlords').select('name, address').eq('id', (existing as any).landlord_id).maybeSingle()
+                : Promise.resolve({ data: null } as any),
+            ]);
+            setResubmitTarget({
+              ...(existing as any),
+              reopen_count: Number((existing as any).reopen_count || 0),
+              tenant_name: tenantProfile?.full_name ?? 'Tenant',
+              tenant_phone: tenantProfile?.phone ?? undefined,
+              landlord_name: (landlordRow as any)?.name ?? '—',
+              landlord_address: (landlordRow as any)?.address ?? undefined,
+              reviewer_name: 'Reviewer',
+              stage_label: STAGE_LABEL[(existing as any).rejected_at_stage ?? 'pending'] ?? 'Reviewer',
+            } as AgentRejectedRequest);
+          }
+        } catch (loadErr) {
+          console.error('[rent-request] could not load rejected row for resubmit', loadErr);
+        }
+      } else if (isNetworkError) {
         const friendly = 'Connection dropped before we could send it. Don\'t worry — your draft is saved. Reconnect and tap Submit again.';
         setSubmissionError(friendly);
         toast.warning('Connection lost', { description: 'Your draft is saved. Try again when you\'re back online.' });
