@@ -23,6 +23,11 @@ import {
   getTaskEventActorNames,
 } from '../api';
 import type { Department, Employee, Task, TaskEvent } from '../types';
+import {
+  TRANSITION_NOTE_LABELS,
+  charsStillNeeded,
+  isValidTransitionNote,
+} from './TransitionNoteDialog';
 
 /** Buttons available per current task status. */
 const ACTIONS: { key: string; label: string; event: string }[] = [
@@ -127,6 +132,7 @@ export default function TaskDetail() {
 
   async function confirmAction() {
     if (!pendingAction || !id) return;
+    if (noteRequired && !isValidTransitionNote(note)) return;
     setSaving(true);
     try {
       // Append-only: a database trigger moves hr_tasks.status.
@@ -169,6 +175,10 @@ export default function TaskDetail() {
     task.due_at &&
     new Date(task.due_at) < new Date() &&
     !['completed', 'cancelled'].includes(task.status);
+
+  // The required set is the label map's keys — never a second list.
+  const noteRequired = !!pendingAction && pendingAction.event in TRANSITION_NOTE_LABELS;
+  const noteMissing = charsStillNeeded(note);
 
   return (
     <div className="space-y-6">
@@ -284,7 +294,11 @@ export default function TaskDetail() {
             <DialogTitle>{pendingAction?.label}</DialogTitle>
           </DialogHeader>
           <div className="space-y-2">
-            <Label htmlFor="task-event-note">Note (optional)</Label>
+            <Label htmlFor="task-event-note">
+              {noteRequired
+                ? TRANSITION_NOTE_LABELS[pendingAction!.event]
+                : 'Note (optional)'}
+            </Label>
             <Textarea
               id="task-event-note"
               value={note}
@@ -292,12 +306,20 @@ export default function TaskDetail() {
               placeholder="Add context for this action"
               rows={4}
             />
+            {noteRequired && !isValidTransitionNote(note) && (
+              <p className="text-[11px] text-muted-foreground">
+                {noteMissing} more character{noteMissing === 1 ? '' : 's'} needed
+              </p>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setPendingAction(null)} disabled={saving}>
               Cancel
             </Button>
-            <Button onClick={confirmAction} disabled={saving}>
+            <Button
+              onClick={confirmAction}
+              disabled={saving || (noteRequired && !isValidTransitionNote(note))}
+            >
               {saving ? 'Saving…' : 'Confirm'}
             </Button>
           </DialogFooter>
