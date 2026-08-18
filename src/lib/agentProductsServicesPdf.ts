@@ -56,6 +56,7 @@ export interface ApsFloatRow {
 }
 export interface ApsReport {
   day: string; timezone: string; generated_at: string;
+  from_date?: string | null; to_date?: string | null; range_days?: number | null;
   agents: ApsAgents; rent: ApsRent; advances: ApsAdvances; service_centres: ApsServiceCentres;
   bikes: ApsProduct; phones: ApsProduct;
   trend: ApsTrendPoint[];
