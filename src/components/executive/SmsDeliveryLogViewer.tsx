@@ -73,10 +73,9 @@ export function SmsDeliveryLogViewer() {
   // 'current' = this month; otherwise a 'yyyy-MM' key for a past month.
   const [monthFilter, setMonthFilter] = useState('current');
 
-  // Test SMS that FORCES the WELILE sender id on BOTH providers — only this
-  // button applies it; the production SMS channels still omit the sender
-  // (registered default). Fires one message per provider so we can compare
-  // which gateway actually delivers WELILE end-to-end.
+  // Test SMS that sends with the WELILE sender id on BOTH providers. All
+  // production SMS channels now set WELILE explicitly. Fires one message per
+  // provider so we can compare which gateway actually delivers WELILE end-to-end.
   const TEST_SMS_PHONE = '0701355245';
   const TEST_SMS_SENDER = 'WELILE';
   const TEST_PROVIDERS: { id: 'yoola' | 'africastalking'; label: string }[] = [
