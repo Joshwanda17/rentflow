@@ -9,7 +9,7 @@ import { useProfile } from '@/hooks/useProfile';
 const welileLogo = '/welile-colored.png';
 
 const NOTCH_PATH =
-  'M 20,0 L 334,0 A 20,20 0 0 1 354,20 L 354,144 A 8,8 0 0 1 346,152 L 241,152 A 8,8 0 0 0 233,160 L 233,170 A 20,20 0 0 1 213,190 L 20,190 A 20,20 0 0 1 0,170 L 0,20 A 20,20 0 0 1 20,0 Z';
+  'M 20,0 L 334,0 A 20,20 0 0 1 354,20 L 354,119 A 8,8 0 0 1 346,127 L 241,127 A 8,8 0 0 0 233,135 L 233,145 A 20,20 0 0 1 213,165 L 20,165 A 20,20 0 0 1 0,145 L 0,20 A 20,20 0 0 1 20,0 Z';
 
 interface Props {
   onAddCard?: () => void;
