@@ -209,27 +209,6 @@ export function CashSourcesSheet({ open, onOpenChange, totalCash, a1, a5, increa
 
         {!selected && (
           <div className="space-y-6 pb-6">
-            {/* Total hero */}
-            <div className="relative overflow-hidden rounded-2xl border border-primary/10 bg-gradient-to-br from-primary/90 to-primary/70 p-5 text-primary-foreground shadow-sm">
-              <div className="relative z-10">
-                <p className="text-xs font-semibold uppercase tracking-wider text-primary-foreground/80">
-                  Total Money We Have
-                </p>
-                <p className="mt-2 text-3xl sm:text-4xl font-bold font-mono tracking-tight">
-                  {formatUGX(totalCash)}
-                </p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <Badge variant="secondary" className="bg-primary-foreground/15 text-primary-foreground border-0 text-[11px] font-medium">
-                    Bank &amp; Cash (A1): {formatUGX(a1)}
-                  </Badge>
-                  <Badge variant="secondary" className="bg-primary-foreground/15 text-primary-foreground border-0 text-[11px] font-medium">
-                    In Transit (A5): {formatUGX(a5)}
-                  </Badge>
-                </div>
-              </div>
-              <ShieldCheck className="absolute -bottom-4 -right-4 h-28 w-28 text-primary-foreground/10 rotate-12" />
-            </div>
-
             {/* Sources of money in */}
             <section className="space-y-3">
               <div className="flex items-center justify-between">
