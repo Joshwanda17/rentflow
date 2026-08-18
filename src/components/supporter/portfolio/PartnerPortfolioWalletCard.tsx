@@ -9,7 +9,7 @@ import { useProfile } from '@/hooks/useProfile';
 const welileLogo = '/welile-colored.png';
 
 const NOTCH_PATH =
-  'M 20,0 L 334,0 A 20,20 0 0 1 354,20 L 354,144 A 8,8 0 0 1 346,152 L 241,152 A 8,8 0 0 0 233,160 L 233,170 A 20,20 0 0 1 213,190 L 20,190 A 20,20 0 0 1 0,170 L 0,20 A 20,20 0 0 1 20,0 Z';
+  'M 20,0 L 334,0 A 20,20 0 0 1 354,20 L 354,119 A 8,8 0 0 1 346,127 L 241,127 A 8,8 0 0 0 233,135 L 233,145 A 20,20 0 0 1 213,165 L 20,165 A 20,20 0 0 1 0,145 L 0,20 A 20,20 0 0 1 20,0 Z';
 
 interface Props {
   onAddCard?: () => void;
@@ -66,14 +66,14 @@ export function PartnerPortfolioWalletCard({ onAddCard, onSend, onRequest, onTop
   const name = (profile?.full_name || '').trim().toUpperCase();
 
   if (loading) {
-    return <div className="w-full aspect-[354/190] rounded-[20px] bg-muted animate-pulse" />;
+    return <div className="w-full aspect-[354/165] rounded-[20px] bg-muted animate-pulse" />;
   }
 
   return (
-    <div className="w-full space-y-4">
+    <div className="w-full space-y-3">
       {/* CARD */}
       <div
-        className="relative w-full aspect-[354/190]"
+        className="relative w-full aspect-[354/165]"
         style={{ filter: 'drop-shadow(0px 8px 22px rgba(99, 26, 186, 0.30))', containerType: 'inline-size' }}
       >
         <svg
@@ -97,24 +97,24 @@ export function PartnerPortfolioWalletCard({ onAddCard, onSend, onRequest, onTop
         {/* CONTENT */}
         <div
           className="relative z-10 w-full h-full flex flex-col justify-between text-white select-none"
-          style={{ padding: '1.7cqw 4.5cqw 4.5cqw', paddingTop: '1.7cqw' }}
+          style={{ padding: '1.4cqw 4.5cqw 3.8cqw' }}
         >
           <div className="flex items-center justify-between">
             <img
               src={welileLogo}
               alt="Welile"
               className="w-auto brightness-0 invert object-contain block"
-              style={{ height: '3.2cqw' }}
+              style={{ height: '3cqw' }}
             />
             <span
               className="font-medium tracking-widest text-white/80 uppercase whitespace-nowrap"
-              style={{ fontSize: '2.4cqw', paddingRight: '0.5cqw' }}
+              style={{ fontSize: '2.2cqw', paddingRight: '0.5cqw' }}
             >
               {aiId}
             </span>
           </div>
 
-          <div className="flex items-end justify-between my-auto" style={{ paddingTop: '1cqw' }}>
+          <div className="flex items-end justify-between" style={{ marginTop: '-0.5cqw' }}>
             <div className="flex flex-col">
               <span
                 className="font-medium tracking-wider text-white/70 uppercase whitespace-nowrap"
@@ -145,17 +145,17 @@ export function PartnerPortfolioWalletCard({ onAddCard, onSend, onRequest, onTop
             </div>
           </div>
 
-          <div className="flex items-end justify-between">
+          <div className="flex items-end justify-between" style={{ marginTop: '-0.5cqw' }}>
             <div className="flex flex-col">
               <span
                 className="font-medium tracking-wider text-white/70 uppercase whitespace-nowrap"
-                style={{ fontSize: '2.1cqw', marginBottom: '0.6cqw' }}
+                style={{ fontSize: '2cqw', marginBottom: '0.4cqw' }}
               >
                 PARTNER NAME
               </span>
               <span
                 className="font-bold tracking-wide text-white uppercase truncate whitespace-nowrap"
-                style={{ fontSize: '3.1cqw', maxWidth: '52cqw' }}
+                style={{ fontSize: '2.9cqw', maxWidth: '52cqw' }}
               >
                 {name || '—'}
               </span>
