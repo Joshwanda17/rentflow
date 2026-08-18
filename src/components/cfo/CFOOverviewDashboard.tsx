@@ -172,8 +172,93 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
     { label: 'Total Wallet Balances', value: liabilities?.tenantFunds ?? 0, icon: <Wallet className="h-4 w-4" /> },
   ];
 
+  /* ── presentation-only derivations (no new data sources) ── */
+  const firstName = (() => {
+    const raw = (user?.user_metadata as any)?.full_name || user?.email || '';
+    const first = String(raw).split(/[\s@.]+/)[0] || '';
+    return first ? first.charAt(0).toUpperCase() + first.slice(1) : 'there';
+  })();
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  const todayLabel = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+  const actionTrail = [
+    {
+      label: 'Payouts Awaiting Approval',
+      severity: (pendingApprovals?.count ?? 0) > 0 ? 'High' : 'Low',
+      count: pendingApprovals?.count ?? 0,
+      amount: pendingApprovals?.totalAmount ?? 0,
+      tab: 'withdrawals',
+    },
+    {
+      label: 'Reconciliation Exceptions',
+      severity: (integrityChecks?.missingGroupCount ?? 0) > 0 ? 'High' : 'Low',
+      count: integrityChecks?.missingGroupCount ?? 0,
+      amount: null as number | null,
+      tab: 'reconciliation',
+    },
+    {
+      label: 'Wallet Drift',
+      severity: (integrityChecks?.walletDriftCount ?? 0) > 0 ? 'Medium' : 'Low',
+      count: integrityChecks?.walletDriftCount ?? 0,
+      amount: null as number | null,
+      tab: 'ledger-health',
+    },
+    {
+      label: 'Negative Balances',
+      severity: (integrityChecks?.negativeLedgerCount ?? 0) > 0 ? 'High' : 'Low',
+      count: integrityChecks?.negativeLedgerCount ?? 0,
+      amount: null as number | null,
+      tab: 'ledger-health',
+    },
+    {
+      label: 'Advances Outstanding',
+      severity: 'Medium',
+      count: null as number | null,
+      amount: advancesOutstandingAll,
+      tab: 'advances',
+    },
+  ];
+
+  const trendChartData = trend.map((t) => ({
+    label: t.date.slice(5),
+    revenue: t.amount,
+  }));
+
+  const advancesChartData = [
+    { label: 'Issued', disbursed: advancesIssued, recovered: 0 },
+    { label: 'Recovered', disbursed: 0, recovered: receivables?.advancesRecovered ?? 0 },
+    { label: 'Outstanding', disbursed: advancesOutstandingAll, recovered: 0 },
+  ];
+
   return (
-    <div className="space-y-5 max-w-5xl mx-auto">
+    <div className="space-y-5 max-w-7xl mx-auto">
+
+      {/* ══════════════ GREETING HEADER ══════════════ */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
+            {greeting}, {firstName} <span aria-hidden>👋</span>
+          </h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Here's what's happening with Welile today.</p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 h-9 px-3 rounded-xl border border-border bg-card text-xs font-medium">
+            <CalendarDays className="h-4 w-4 text-muted-foreground" />
+            {todayLabel}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 rounded-xl gap-2 text-xs"
+            onClick={handleExportCommissions}
+            disabled={exportingCommissions}
+          >
+            {exportingCommissions ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            Export
+          </Button>
+        </div>
+      </div>
 
       {/* ── PAY TO WALLET ── */}
       {onTabChange && (
@@ -191,6 +276,154 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
           <ArrowUpRight className="h-5 w-5 opacity-60 shrink-0" />
         </button>
       )}
+
+      {/* ══════════════ THREE HEADLINE CARDS ══════════════ */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <HeroCard
+          icon={<PiggyBank className="h-5 w-5 text-emerald-600" />}
+          iconBg="bg-emerald-50 dark:bg-emerald-950/40"
+          title="Money We Have"
+          value={fmt(totalCash)}
+          valueColor="text-emerald-600"
+          items={[
+            { dot: 'bg-emerald-500', label: 'Platform / Treasury Balance', value: fmt(platformCash?.a1 ?? 0) },
+            { dot: 'bg-emerald-500', label: 'Cash in Transit (A5)', value: fmt(platformCash?.a5 ?? 0) },
+          ]}
+          footer="Total available across all accounts"
+          footerTone="bg-emerald-50/70 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400"
+          onClick={() => setActiveBreakdown('cash')}
+        />
+        <HeroCard
+          icon={<Package className="h-5 w-5 text-orange-600" />}
+          iconBg="bg-orange-50 dark:bg-orange-950/40"
+          title="Money We Owe"
+          value={fmt(walletTotal)}
+          valueColor="text-orange-600"
+          items={[
+            { dot: 'bg-orange-500', label: 'Withdrawable User Wallets', value: fmt(walletTotal) },
+            { dot: 'bg-orange-500', label: 'All Recorded Liabilities', value: fmt(totalLiabilities) },
+          ]}
+          footer="Commitments not yet paid out"
+          footerTone="bg-orange-50/70 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400"
+          onClick={() => setActiveBreakdown('wallets')}
+        />
+        <HeroCard
+          icon={<BarChart3 className="h-5 w-5 text-blue-600" />}
+          iconBg="bg-blue-50 dark:bg-blue-950/40"
+          title="Money We Can Use"
+          value={fmt(moneyWeCanUse)}
+          valueColor={moneyWeCanUse >= 0 ? 'text-blue-600' : 'text-destructive'}
+          items={[
+            { dot: 'bg-blue-500', label: 'Available for Operations', value: fmt(moneyWeCanUse) },
+          ]}
+          footer="After obligations and restrictions"
+          footerTone="bg-blue-50/70 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400"
+          onClick={() => setActiveBreakdown('earnings')}
+        />
+      </div>
+
+      {/* ══════════════ CFO ACTION TRAIL ══════════════ */}
+      <Card className="rounded-2xl">
+        <CardContent className="p-4 sm:p-5">
+          <div className="flex items-start justify-between gap-3 mb-4">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                <ClipboardCheck className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="font-semibold text-sm">CFO Action Trail</p>
+                <p className="text-xs text-muted-foreground">Items that need your attention</p>
+              </div>
+            </div>
+            {onTabChange && (
+              <button
+                onClick={() => onTabChange('reconciliation')}
+                className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline shrink-0"
+              >
+                View all <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 divide-y xl:divide-y-0 xl:divide-x divide-border">
+            {actionTrail.map((item) => (
+              <TrailItem
+                key={item.label}
+                label={item.label}
+                severity={item.severity}
+                count={item.count}
+                amount={item.amount}
+                amountLabel={item.amount === null ? null : fmt(item.amount)}
+                onClick={onTabChange ? () => onTabChange(item.tab) : undefined}
+              />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ══════════════ KPI STRIP ══════════════ */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-3">
+        <KpiTile icon={<Banknote className="h-4 w-4 text-emerald-600" />} iconBg="bg-emerald-50 dark:bg-emerald-950/40" label="Cash Balance" value={fmt(totalCash)} caption="Bank + in transit" />
+        <KpiTile icon={<Flame className="h-4 w-4 text-destructive" />} iconBg="bg-red-50 dark:bg-red-950/40" label="Daily Burn" value={fmt(dailyBurn)} caption="30-day average" />
+        <KpiTile icon={<TrendingUp className="h-4 w-4 text-emerald-600" />} iconBg="bg-emerald-50 dark:bg-emerald-950/40" label="Revenue" value={fmt(revenueTotal)} caption="Life to date" />
+        <KpiTile icon={<Receipt className="h-4 w-4 text-orange-600" />} iconBg="bg-orange-50 dark:bg-orange-950/40" label="Total Expenses" value={fmt(expenseTotal)} caption="Life to date" />
+        <KpiTile icon={<Scale className="h-4 w-4 text-blue-600" />} iconBg="bg-blue-50 dark:bg-blue-950/40" label="Net Working Capital" value={fmt(netWorkingCapital)} caption="Cash + receivables − debt" valueColor={netWorkingCapital >= 0 ? undefined : 'text-destructive'} />
+        <KpiTile icon={<Banknote className="h-4 w-4 text-emerald-600" />} iconBg="bg-emerald-50 dark:bg-emerald-950/40" label="Net Result" value={fmt(netProfit)} caption="Revenue − expenses" valueColor={netProfit >= 0 ? 'text-emerald-600' : 'text-destructive'} />
+        <KpiTile icon={<Percent className="h-4 w-4 text-purple-600" />} iconBg="bg-purple-50 dark:bg-purple-950/40" label="Net Margin" value={`${netMargin.toFixed(1)}%`} caption="Net ÷ revenue" valueColor={netMargin >= 0 ? undefined : 'text-destructive'} />
+        <KpiTile icon={<Users className="h-4 w-4 text-amber-600" />} iconBg="bg-amber-50 dark:bg-amber-950/40" label="Receivables" value={fmt(totalReceivables)} caption="Tenant + advances" />
+      </div>
+
+      {/* ══════════════ CHARTS ══════════════ */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card className="rounded-2xl">
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex items-center justify-between gap-2 mb-4">
+              <p className="font-semibold text-sm">Revenue — Last 7 Days</p>
+              <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                <LineChartIcon className="h-3.5 w-3.5" /> UGX
+              </span>
+            </div>
+            {trendChartData.length > 0 ? (
+              <div className="h-[260px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={trendChartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                    <XAxis dataKey="label" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                    <YAxis tickFormatter={(v: number) => fmtShort(v)} tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" width={52} />
+                    <Tooltip formatter={(v: number) => fmt(v)} contentStyle={{ borderRadius: 12, fontSize: 12 }} />
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    <Bar name="Revenue (UGX)" dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} barSize={22} />
+                    <Line name="Trend" type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={2} dot={{ r: 3 }} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground py-10 text-center">No revenue recorded in the last 7 days.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-2xl">
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex items-center justify-between gap-2 mb-4">
+              <p className="font-semibold text-sm">Advances — Disbursed vs Recovered</p>
+              <span className="text-[11px] text-muted-foreground">{recoveryRate.toFixed(0)}% recovered</span>
+            </div>
+            <div className="h-[260px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={advancesChartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                  <XAxis dataKey="label" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                  <YAxis tickFormatter={(v: number) => fmtShort(v)} tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" width={52} />
+                  <Tooltip formatter={(v: number) => fmt(v)} contentStyle={{ borderRadius: 12, fontSize: 12 }} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Bar name="Disbursed (UGX)" dataKey="disbursed" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={30} />
+                  <Bar name="Recovered (UGX)" dataKey="recovered" fill="#10b981" radius={[4, 4, 0, 0]} barSize={30} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* ══════════════ CFO COMMAND DECK ══════════════ */}
 
