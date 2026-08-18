@@ -1043,13 +1043,12 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
                   </Button>
                 </div>
               ) : !landlordOtp.otpSent ? (
+                <div className="space-y-2">
                 <Button
                   type="button"
                   onClick={() => handleSendOtp('manual')}
                   disabled={
                     landlordOtp.otpLoading ||
-                    !phoneValid ||
-                    !amountValid ||
                     (!!selectedRequest && sentLandlordsRef.current.has(String(selectedRequest.landlord_id)))
                   }
                   className="w-full gap-2 h-12 rounded-xl"
@@ -1063,15 +1062,17 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
                     ? 'OTP already sent to landlord'
                     : `Send OTP to Landlord (${landlordPhone || '—'})`}
                 </Button>
-              )}
-
-              {!landlordOtp.otpSent && !challengeVerified && !challengeTerminalFailed && (sendOtpError || sendBlockedReason) && (
-                <p className="text-[11px] text-destructive text-center">
-                  {sendOtpError || sendBlockedReason}
-                </p>
-              )}
-              {false && (
-                <span />
+                {(sendOtpError || sendBlockedReason) && (
+                  <p className="text-[11px] text-destructive text-center">
+                    {sendOtpError || sendBlockedReason}
+                  </p>
+                )}
+                {landlordOtp.cooldownSeconds > 0 && (
+                  <p className="text-[11px] text-muted-foreground text-center">
+                    Next code can be requested in {landlordOtp.cooldownSeconds}s.
+                  </p>
+                )}
+                </div>
               ) : (
                 <div className="space-y-3 p-3 rounded-xl border-2 border-chart-4/30 bg-chart-4/5">
                   <div className="text-center space-y-1">
