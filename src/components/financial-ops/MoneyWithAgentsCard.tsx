@@ -484,6 +484,12 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
         onOpenChange={(v) => !v && setStatementFor(null)}
       />
 
+      <MerchantDebtSettlementDialog
+        open={debtsOpen}
+        onOpenChange={setDebtsOpen}
+        headlineOwed={owedTotal}
+      />
+
       <div className="mt-4">
         <MerchantOwnMoneyReviewPanel />
       </div>
