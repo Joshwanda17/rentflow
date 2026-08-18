@@ -92,6 +92,8 @@ import { normalizeDistrict, districtWarning } from '@/lib/ugandaDistricts';
 import { validateUgandaPhone } from '@/lib/ugandaPhone';
 import { generateRentRequestFormPdf } from '@/lib/rentRequestFormPdf';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { AgentEditRentRequestDialog } from '@/components/agent/AgentEditRentRequestDialog';
+import { STAGE_LABEL, type AgentRejectedRequest } from '@/hooks/useAgentRejectedRequests';
 
 interface AgentRentRequestDialogProps {
   open: boolean;
@@ -1074,6 +1076,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submissionError, setSubmissionError] = useState<string | null>(null);
+  // When the DB guard blocks a duplicate because the tenant already has an open
+  // rejection, we route the agent straight into the resubmit dialog for that row.
+  const [resubmitTarget, setResubmitTarget] = useState<AgentRejectedRequest | null>(null);
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
   // Ref to the "things still needed" banner so we can scroll the agent
   // straight to it — ordinary agents on small phones often miss a toast.
@@ -3111,7 +3116,47 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       const isNetworkError =
         !navigator.onLine ||
         /failed to fetch|network ?error|networkrequestfailed|load failed|err_internet|err_network|fetch failed/i.test(msg);
-      if (isNetworkError) {
+      // The tenant already has a rejected request that is still fixable. Never
+      // let the agent create a second row — send them into the resubmit path so
+      // the rejection reason and history stay attached.
+      const isDuplicateAfterRejection = /DUPLICATE_AFTER_REJECTION/i.test(`${msg} ${error?.hint ?? ''} ${error?.details ?? ''}`);
+      const uuidRe = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+      const existingId = isDuplicateAfterRejection
+        ? (uuidRe.exec(error?.hint || '')?.[0] ?? uuidRe.exec(msg)?.[0] ?? null)
+        : null;
+      if (isDuplicateAfterRejection) {
+        const friendly = 'This tenant already has a rejected rent request. Fix the flagged detail on that request and resubmit it — creating a new one would duplicate the tenant.';
+        setSubmissionError(friendly);
+        toast.error('Duplicate blocked — resubmit instead', { description: friendly });
+        try {
+          if (!existingId) throw new Error('no request id in error');
+          const { data: existing } = await supabase
+            .from('rent_requests')
+            .select('*')
+            .eq('id', existingId)
+            .maybeSingle();
+          if (existing) {
+            const [{ data: tenantProfile }, { data: landlordRow }] = await Promise.all([
+              supabase.from('profiles').select('full_name, phone').eq('id', (existing as any).tenant_id).maybeSingle(),
+              (existing as any).landlord_id
+                ? supabase.from('landlords').select('name, address').eq('id', (existing as any).landlord_id).maybeSingle()
+                : Promise.resolve({ data: null } as any),
+            ]);
+            setResubmitTarget({
+              ...(existing as any),
+              reopen_count: Number((existing as any).reopen_count || 0),
+              tenant_name: tenantProfile?.full_name ?? 'Tenant',
+              tenant_phone: tenantProfile?.phone ?? undefined,
+              landlord_name: (landlordRow as any)?.name ?? '—',
+              landlord_address: (landlordRow as any)?.address ?? undefined,
+              reviewer_name: 'Reviewer',
+              stage_label: STAGE_LABEL[(existing as any).rejected_at_stage ?? 'pending'] ?? 'Reviewer',
+            } as AgentRejectedRequest);
+          }
+        } catch (loadErr) {
+          console.error('[rent-request] could not load rejected row for resubmit', loadErr);
+        }
+      } else if (isNetworkError) {
         const friendly = 'Connection dropped before we could send it. Don\'t worry — your draft is saved. Reconnect and tap Submit again.';
         setSubmissionError(friendly);
         toast.warning('Connection lost', { description: 'Your draft is saved. Try again when you\'re back online.' });
@@ -5798,6 +5843,18 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         Confirm and select landlord
       </Button>
     </EntityDetailSheet>
+
+    {/* Duplicate blocked → resubmit the existing rejected request instead */}
+    <AgentEditRentRequestDialog
+      request={resubmitTarget}
+      open={!!resubmitTarget}
+      onOpenChange={(o) => { if (!o) setResubmitTarget(null); }}
+      onResubmitted={() => {
+        setResubmitTarget(null);
+        onSuccess?.();
+        onOpenChange(false);
+      }}
+    />
     </>
   );
 }
