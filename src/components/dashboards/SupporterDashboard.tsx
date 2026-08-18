@@ -562,13 +562,13 @@ export default function SupporterDashboard({
           </div>
 
 
+          <WidgetErrorBoundary label="Portfolio card">
+            <PartnerPortfolioWalletCard />
+          </WidgetErrorBoundary>
+
           <WidgetErrorBoundary label="Your portfolio">
             <PartnerPortfolioSection
               onViewPortfolios={(portfolioId) => {
-                setInvestmentsTab('accounts');
-                setFocusPortfolioId(portfolioId ?? null);
-                setShowInvestments(true);
-              }}
                 setInvestmentsTab('accounts');
                 setFocusPortfolioId(portfolioId ?? null);
                 setShowInvestments(true);
