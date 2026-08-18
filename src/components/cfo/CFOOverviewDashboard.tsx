@@ -818,6 +818,103 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
 
 /* ── Sub-components ── */
 
+function HeroCard({ icon, iconBg, title, value, valueColor, items, footer, footerTone, onClick }: {
+  icon: React.ReactNode;
+  iconBg: string;
+  title: string;
+  value: string;
+  valueColor: string;
+  items: { dot: string; label: string; value: string }[];
+  footer: string;
+  footerTone: string;
+  onClick?: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full text-left rounded-2xl border border-border bg-card overflow-hidden hover:shadow-md active:scale-[0.995] transition-all"
+    >
+      <div className="p-4 sm:p-5">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}>{icon}</div>
+            <p className="font-semibold text-sm truncate">{title}</p>
+          </div>
+          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+        </div>
+        <p className={`mt-4 text-xl sm:text-2xl font-bold font-mono tabular-nums tracking-tight ${valueColor}`}>{value}</p>
+        <div className="mt-4 pt-4 border-t border-border space-y-2.5">
+          {items.map((it) => (
+            <div key={it.label} className="flex items-center justify-between gap-2 text-xs">
+              <span className="flex items-center gap-2 min-w-0 text-muted-foreground">
+                <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${it.dot}`} />
+                <span className="truncate">{it.label}</span>
+              </span>
+              <span className="font-mono tabular-nums font-medium shrink-0">{it.value}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className={`flex items-center justify-between gap-2 px-4 sm:px-5 py-2.5 text-[11px] font-medium ${footerTone}`}>
+        <span className="truncate">{footer}</span>
+        <Info className="h-3.5 w-3.5 shrink-0 opacity-70" />
+      </div>
+    </button>
+  );
+}
+
+function TrailItem({ label, severity, count, amount, amountLabel, onClick }: {
+  label: string;
+  severity: string;
+  count: number | null;
+  amount: number | null;
+  amountLabel: string | null;
+  onClick?: () => void;
+}) {
+  const tone =
+    severity === 'High'
+      ? 'bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400'
+      : severity === 'Medium'
+        ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400'
+        : 'bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400';
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="text-left px-0 xl:px-4 py-3 xl:py-0 hover:bg-muted/30 transition-colors min-w-0"
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full shrink-0 ${tone}`}>{severity}</span>
+          <span className="text-xs font-medium truncate">{label}</span>
+        </div>
+        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+      </div>
+      <p className="mt-1.5 text-[11px] text-muted-foreground font-mono tabular-nums">
+        {count !== null && <>{count} item{count === 1 ? '' : 's'}</>}
+        {count !== null && amountLabel ? ' · ' : ''}
+        {amountLabel}
+      </p>
+    </button>
+  );
+}
+
+function KpiTile({ icon, iconBg, label, value, caption, valueColor }: {
+  icon: React.ReactNode; iconBg: string; label: string; value: string; caption: string; valueColor?: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-border bg-card p-3 min-w-0">
+      <div className="flex items-center gap-2 mb-2">
+        <div className={`h-7 w-7 rounded-lg flex items-center justify-center shrink-0 ${iconBg}`}>{icon}</div>
+        <p className="text-[11px] font-medium text-muted-foreground truncate">{label}</p>
+      </div>
+      <p className={`text-sm font-bold font-mono tabular-nums leading-tight break-words ${valueColor || ''}`}>{value}</p>
+      <p className="text-[10px] text-muted-foreground mt-1 leading-tight">{caption}</p>
+    </div>
+  );
+}
+
 function DeckStat({ icon, label, value, caption, tone }: {
   icon: React.ReactNode; label: string; value: string; caption: string; tone?: string;
 }) {
