@@ -35288,6 +35288,10 @@ export type Database = {
         Returns: Json
       }
       agent_ops_report_authorized: { Args: never; Returns: boolean }
+      agent_ops_set_agent_frozen: {
+        Args: { p_agent_id: string; p_frozen: boolean; p_reason?: string }
+        Returns: Json
+      }
       agent_ops_strict_agent_ids: {
         Args: never
         Returns: {

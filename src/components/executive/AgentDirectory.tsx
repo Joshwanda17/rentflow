@@ -1,13 +1,19 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useQuery, keepPreviousData } from '@tanstack/react-query';
+import { useQuery, keepPreviousData, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
+} from '@/components/ui/alert-dialog';
+import { toast } from 'sonner';
+import {
   Search, Users, Phone, X, Loader2, UserPlus, Activity,
   ChevronLeft, ChevronRight, LayoutList, Map, ChevronRight as Chevron,
-  MapPin, Mail, BadgeCheck, Home, Network, CalendarClock,
+  MapPin, Mail, BadgeCheck, Home, Network, CalendarClock, ShieldAlert, ShieldOff,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AgentAvatar } from './AgentAvatar';
@@ -83,6 +89,7 @@ const GRID_LG =
   'lg:grid-cols-[minmax(0,2.2fr)_minmax(0,1.1fr)_minmax(0,0.9fr)_minmax(0,1.4fr)_minmax(0,1fr)_92px_20px]';
 
 export function AgentDirectory() {
+  const queryClient = useQueryClient();
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [type, setType] = useState<'all' | 'agent' | 'sub_agent'>('all');
@@ -90,6 +97,38 @@ export function AgentDirectory() {
   const [page, setPage] = useState(0);
   const [openAgentId, setOpenAgentId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'region'>('list');
+  const [freezeTarget, setFreezeTarget] = useState<DirectoryRow | null>(null);
+  const [freezeReason, setFreezeReason] = useState('');
+  const [freezing, setFreezing] = useState(false);
+
+  const submitFreeze = async () => {
+    if (!freezeTarget) return;
+    const willFreeze = freezeTarget.status !== 'frozen';
+    if (willFreeze && freezeReason.trim().length < 10) {
+      toast.error('Reason must be at least 10 characters');
+      return;
+    }
+    setFreezing(true);
+    try {
+      const { error } = await supabase.rpc('agent_ops_set_agent_frozen' as any, {
+        p_agent_id: freezeTarget.id,
+        p_frozen: willFreeze,
+        p_reason: willFreeze ? freezeReason.trim() : null,
+      });
+      if (error) throw error;
+      toast.success(
+        `${freezeTarget.full_name || 'Agent'} ${willFreeze ? 'has been frozen' : 'has been unfrozen'}`,
+      );
+      setFreezeTarget(null);
+      setFreezeReason('');
+      await queryClient.invalidateQueries({ queryKey: ['agent-directory-v2'] });
+    } catch (err: any) {
+      console.error('Agent freeze toggle failed', err);
+      toast.error(err?.message || 'Failed to update agent status');
+    } finally {
+      setFreezing(false);
+    }
+  };
 
   useEffect(() => {
     const t = setTimeout(() => { setSearch(searchInput.trim()); setPage(0); }, 300);
@@ -284,10 +323,13 @@ export function AgentDirectory() {
                 const pct = target > 0 ? Math.min(100, Math.round((today / target) * 100)) : 0;
                 const place = [a.district, a.region].filter(Boolean).join(', ') || a.territory || null;
                 return (
-                <button
+                <div
                   key={a.id}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => setOpenAgentId(a.id)}
-                  className={cn('w-full text-left grid grid-cols-1 sm:grid-cols-2 gap-3 lg:items-center px-3 py-3 hover:bg-muted/50 transition-colors', GRID_LG)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenAgentId(a.id); } }}
+                  className={cn('w-full text-left grid grid-cols-1 sm:grid-cols-2 gap-3 lg:items-center px-3 py-3 hover:bg-muted/50 transition-colors cursor-pointer', GRID_LG)}
                 >
                   {/* Identity */}
                   <div className="flex items-center gap-3 min-w-0">
@@ -366,14 +408,24 @@ export function AgentDirectory() {
                   </div>
 
                   {/* Status */}
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className={cn('text-[10px] px-2 py-0.5 rounded-full border capitalize w-fit', STATUS_STYLE[a.status])}>
                       {a.status}
                     </span>
+                    <Button
+                      variant={a.status === 'frozen' ? 'outline' : 'ghost'}
+                      size="sm"
+                      className={cn('h-6 px-2 text-[10px]', a.status !== 'frozen' && 'text-destructive hover:text-destructive')}
+                      onClick={(e) => { e.stopPropagation(); setFreezeReason(''); setFreezeTarget(a); }}
+                    >
+                      {a.status === 'frozen'
+                        ? <><ShieldOff className="h-3 w-3 mr-1" />Unfreeze</>
+                        : <><ShieldAlert className="h-3 w-3 mr-1" />Freeze</>}
+                    </Button>
                   </div>
 
                   <Chevron className="hidden lg:block h-4 w-4 text-muted-foreground shrink-0 justify-self-end" />
-                </button>
+                </div>
                 );
               })}
             </div>
@@ -396,6 +448,43 @@ export function AgentDirectory() {
       )}
       </>
       )}
+
+      <AlertDialog open={!!freezeTarget} onOpenChange={(o) => { if (!o) { setFreezeTarget(null); setFreezeReason(''); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {freezeTarget?.status === 'frozen' ? 'Unfreeze agent account?' : 'Freeze agent account?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {freezeTarget?.status === 'frozen'
+                ? `${freezeTarget?.full_name || 'This agent'} will regain full access to the agent app.`
+                : `${freezeTarget?.full_name || 'This agent'} will be blocked from all transactions until unfrozen.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {freezeTarget?.status !== 'frozen' && (
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium">Reason (min 10 characters)</label>
+              <Textarea
+                value={freezeReason}
+                onChange={(e) => setFreezeReason(e.target.value)}
+                placeholder="Why is this agent being frozen?"
+                rows={3}
+              />
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={freezing}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); submitFreeze(); }}
+              disabled={freezing}
+              className={freezeTarget?.status === 'frozen' ? '' : 'bg-destructive text-destructive-foreground hover:bg-destructive/90'}
+            >
+              {freezing && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
+              {freezeTarget?.status === 'frozen' ? 'Unfreeze' : 'Freeze account'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
