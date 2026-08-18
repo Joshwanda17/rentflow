@@ -754,7 +754,7 @@ export default function MyWork({ embedded = false }: MyWorkProps) {
                             variant="outline"
                             className="h-6 px-2 text-[10px]"
                             disabled={busyTaskId === task.id}
-                            onClick={() => act(task.id, 'submitted')}
+                            onClick={() => setNotePrompt({ taskId: task.id, eventType: 'submitted' })}
                           >
                             Submit
                           </Button>
@@ -765,7 +765,7 @@ export default function MyWork({ embedded = false }: MyWorkProps) {
                             variant="outline"
                             className="h-6 px-2 text-[10px]"
                             disabled={busyTaskId === task.id}
-                            onClick={() => act(task.id, 'completed')}
+                            onClick={() => setNotePrompt({ taskId: task.id, eventType: 'completed' })}
                           >
                             Complete
                           </Button>
@@ -783,7 +783,7 @@ export default function MyWork({ embedded = false }: MyWorkProps) {
       <Card>
         <CardHeader className="pb-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <CardTitle className="text-sm">Completion trend · last 30 days</CardTitle>
+            <CardTitle className="text-sm">Tasks created and completed · last 30 days</CardTitle>
             <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
               <span className="inline-flex items-center gap-1.5">
                 <span
@@ -812,20 +812,25 @@ export default function MyWork({ embedded = false }: MyWorkProps) {
             <LineChart data={trend} margin={{ top: 8, right: 12, bottom: 0, left: -18 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
               <XAxis dataKey="label" tick={{ fontSize: 10 }} interval="preserveStartEnd" minTickGap={16} />
-              <YAxis domain={[0, 100]} tick={{ fontSize: 10 }} unit="%" />
+              <YAxis allowDecimals={false} tick={{ fontSize: 10 }} />
               <Tooltip
-                formatter={(v: number, _n, item: any) =>
-                  [
-                    `${v}% — ${item?.payload?.completed ?? 0} of ${item?.payload?.created ?? 0} completed`,
-                    'Completion rate',
-                  ]
-                }
+                formatter={(v: number, name) => [
+                  `${v}`,
+                  name === 'created' ? 'Tasks created' : 'Tasks completed',
+                ]}
                 labelFormatter={(l) => `${l}`}
               />
               <Line
                 type="monotone"
-                dataKey="rate"
+                dataKey="created"
                 stroke="hsl(var(--primary))"
+                strokeWidth={2}
+                dot={{ r: 3 }}
+              />
+              <Line
+                type="monotone"
+                dataKey="completed"
+                stroke="hsl(var(--muted-foreground))"
                 strokeWidth={2}
                 dot={{ r: 3 }}
               />
@@ -844,6 +849,20 @@ export default function MyWork({ embedded = false }: MyWorkProps) {
         defaultDepartmentId={staff.current_assignment?.department_id ?? null}
         onCreated={() => void load()}
       />
+
+      {notePrompt && (
+        <TransitionNoteDialog
+          eventType={notePrompt.eventType}
+          open
+          busy={busyTaskId === notePrompt.taskId}
+          onClose={() => setNotePrompt(null)}
+          onConfirm={(note) => {
+            const target = notePrompt;
+            setNotePrompt(null);
+            void act(target.taskId, target.eventType, note);
+          }}
+        />
+      )}
     </div>
   );
 }
