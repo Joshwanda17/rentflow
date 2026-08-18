@@ -295,6 +295,22 @@ export function generateAgentProductsServicesPdf(opts: {
     ['Active agents (collected today)', num(report.agents.active_today), '—', '—'],
   ], a4);
 
+  if (report.new_agent_rows.length) {
+    drawTable(
+      `NEW AGENTS TODAY — ${num(report.new_agent_rows.length)} registered`,
+      ['Agent', 'Phone', 'Location', 'Type', 'Parent agent'],
+      [50, 34, 42, 28, 50],
+      report.new_agent_rows.map(r => [
+        r.name || '—',
+        r.phone || '—',
+        r.location || '—',
+        title(r.agent_type),
+        r.parent_name || '—',
+      ]),
+      ['left', 'left', 'left', 'left', 'left'],
+    );
+  }
+
   // ===== 2. Rent receivables =====
   drawTable('2. RENT RECEIVABLES', ['Metric', 'Today', 'Previous day', 'Change'], w4, [
     ['Rent collected', apsUgx(report.rent.collected_today), apsUgx(report.rent.collected_prev), apsPctLabel(report.rent.collected_today, report.rent.collected_prev)],
