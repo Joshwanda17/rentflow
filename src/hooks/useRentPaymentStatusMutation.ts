@@ -34,7 +34,6 @@ export function useRentPaymentStatusMutation(agentId?: string) {
           ? 'Tenant marked as Not Paying — excluded from your daily target.'
           : 'Tenant marked as Paying — re-included in your daily target.'
       );
-      );
       qc.invalidateQueries({ queryKey: ['priority-collection-queue', agentId] });
       qc.invalidateQueries({ queryKey: ['agent-daily-eligibility'] });
       qc.invalidateQueries({ queryKey: ['agent-capacity'] });
