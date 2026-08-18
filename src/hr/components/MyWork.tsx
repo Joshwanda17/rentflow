@@ -285,6 +285,9 @@ export default function MyWork({ embedded = false }: MyWorkProps) {
   const [thresholds, setThresholds] = useState<Record<string, MetricThreshold>>({});
   const [tasks, setTasks] = useState<Task[]>([]);
   const [busyTaskId, setBusyTaskId] = useState<string | null>(null);
+  const [notePrompt, setNotePrompt] = useState<
+    { taskId: string; eventType: 'submitted' | 'completed' } | null
+  >(null);
   const [attention, setAttention] = useState<AttentionItem[]>([]);
   const [busyEventId, setBusyEventId] = useState<string | null>(null);
   const [departments, setDepartments] = useState<Department[]>([]);
