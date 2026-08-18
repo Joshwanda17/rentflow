@@ -163,11 +163,14 @@ export async function recordApplicationDecision(
  * removal is not written here. Nothing in this module deletes.
  */
 export async function purgeApplication(applicationId: string): Promise<void> {
-  await actingUserId();
+  const purgedBy = await actingUserId();
 
   const { error } = await supabase
     .from('job_applications')
-    .update({ purged_at: new Date().toISOString() })
+    .update({
+      purged_at: new Date().toISOString(),
+      purged_by: purgedBy,
+    })
     .eq('id', applicationId);
 
   if (error) throw new Error(error.message);
