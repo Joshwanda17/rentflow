@@ -55,13 +55,13 @@ export function FindAHouseCTA({ onClick }: FindAHouseCTAProps) {
         active:scale-[0.99] transition-transform duration-200 touch-manipulation overflow-hidden"
     >
       {/* Decorative depth elements matching the wallet hero card */}
-      <div className="absolute -top-20 -right-20 w-56 h-56 rounded-full bg-primary-foreground/[0.06] pointer-events-none" />
-      <div className="absolute -bottom-16 -left-16 w-44 h-44 rounded-full bg-primary-foreground/[0.04] pointer-events-none" />
+      <div className="absolute -top-20 -right-20 w-56 h-56 rounded-full bg-white/[0.06] pointer-events-none" />
+      <div className="absolute -bottom-16 -left-16 w-44 h-44 rounded-full bg-white/[0.04] pointer-events-none" />
 
       {/* Icon container — larger, more contrast */}
       <div className="relative z-10 shrink-0">
-        <div className="p-1.5 rounded-lg bg-primary-foreground/15 backdrop-blur-sm">
-          <Home className="h-3.5 w-3.5 text-primary-foreground/90" strokeWidth={2.5} />
+        <div className="p-1.5 rounded-lg bg-white/15 backdrop-blur-sm">
+          <Home className="h-3.5 w-3.5 text-white/90" strokeWidth={2.5} />
         </div>
         {/* Pulsing dot for new listings */}
         <AnimatePresence>
@@ -81,14 +81,14 @@ export function FindAHouseCTA({ onClick }: FindAHouseCTAProps) {
 
       <div className="flex-1 text-left min-w-0 relative z-10">
         <div className="flex items-center gap-1.5">
-          <p className="text-[10px] font-semibold text-primary-foreground/70 uppercase tracking-[0.12em] truncate">Find a House Nearby</p>
+          <p className="text-[10px] font-semibold text-white/70 uppercase tracking-[0.12em] truncate">Find a House Nearby</p>
           {newCount > 0 && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary-foreground/15 text-[9px] font-bold uppercase tracking-wider shrink-0">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/15 text-[9px] font-bold uppercase tracking-wider shrink-0">
               <Sparkles className="h-2.5 w-2.5" /> {newCount} new
             </span>
           )}
         </div>
-        <p className="block text-[15px] font-black leading-tight text-primary-foreground truncate">
+        <p className="block text-[15px] font-black leading-tight text-white truncate">
           {totalCount !== null ? (
             <>{totalCount} house{totalCount !== 1 ? 's' : ''} available · Pay daily</>
           ) : (
@@ -97,7 +97,7 @@ export function FindAHouseCTA({ onClick }: FindAHouseCTAProps) {
         </p>
       </div>
 
-      <ChevronRight className="h-4 w-4 text-primary-foreground/60 shrink-0 relative z-10" />
+      <ChevronRight className="h-4 w-4 text-white/60 shrink-0 relative z-10" />
     </motion.button>
   );
 }
