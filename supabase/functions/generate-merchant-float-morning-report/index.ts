@@ -110,7 +110,7 @@ Deno.serve(async (req) => {
     const [{ data: phoneRecon, error: phoneErr }, { data: cashRow, error: cashErr }] =
       await Promise.all([
         supabase.rpc('get_phone_platform_reconciliation'),
-        supabase.rpc('get_cash_at_hand_total'),
+        supabase.rpc('get_cash_at_hand_total_system'),
       ]);
     if (phoneErr) throw phoneErr;
     if (cashErr) throw cashErr;
