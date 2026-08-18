@@ -56,6 +56,7 @@ export interface ApsFloatRow {
 }
 export interface ApsReport {
   day: string; timezone: string; generated_at: string;
+  from_date?: string | null; to_date?: string | null; range_days?: number | null;
   agents: ApsAgents; rent: ApsRent; advances: ApsAdvances; service_centres: ApsServiceCentres;
   bikes: ApsProduct; phones: ApsProduct;
   trend: ApsTrendPoint[];
@@ -128,6 +129,11 @@ export function generateAgentProductsServicesPdf(opts: {
     try { return format(new Date(d.length <= 10 ? `${d}T00:00:00` : d), 'dd MMM yyyy'); } catch { return String(d); }
   };
   const dayLabel = fmtDay(report.day);
+  const rangeDays = Number(report.range_days) || 1;
+  const isRange = rangeDays > 1 && !!report.from_date;
+  const periodLabel = isRange
+    ? `${fmtDay(report.from_date)} – ${dayLabel} (${rangeDays} days cumulative)`
+    : dayLabel;
 
   const newPage = () => { doc.addPage(); y = 16; };
   const ensure = (h: number) => { if (y + h > pageHeight - 16) newPage(); };
@@ -143,12 +149,12 @@ export function generateAgentProductsServicesPdf(opts: {
   doc.text('AGENT PRODUCTS & SERVICES — DAILY REPORT', margin, 16.5);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
-  doc.text(`Reporting day: ${dayLabel}  ·  ${report.timezone}`, margin, 21.5);
+  doc.text(`${isRange ? 'Reporting period' : 'Reporting day'}: ${periodLabel}  ·  ${report.timezone}`, margin, 21.5);
   y = 31;
 
   doc.setTextColor(90, 90, 100);
   doc.setFontSize(7.5);
-  doc.text('Compared with the previous day', margin, y);
+  doc.text(isRange ? `Cumulative totals · compared with the preceding ${rangeDays} days` : 'Compared with the previous day', margin, y);
   doc.text(`Reported by: ${actor}`, pageWidth - margin, y, { align: 'right' });
   y += 6;
 

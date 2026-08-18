@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { format, subDays } from 'date-fns';
+import { format, subDays, startOfMonth, startOfYear, differenceInCalendarDays } from 'date-fns';
 import { toast } from 'sonner';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
@@ -156,6 +156,7 @@ function PagedTable<T extends Record<string, any>>({
 
 export function AgentProductsServicesReport() {
   const { user } = useAuth();
+  // `day` is the cumulative window START. Every window runs from `day` up to today.
   const [day, setDay] = useState<Date>(() => new Date());
   const [exporting, setExporting] = useState(false);
   const [actorName, setActorName] = useState('');
@@ -171,11 +172,21 @@ export function AgentProductsServicesReport() {
   }, [user?.id, user?.email]);
 
   const dayKey = toDateKey(day);
+  const today = useMemo(() => new Date(), []);
+  const todayKey = toDateKey(today);
+  const rangeDays = Math.max(1, differenceInCalendarDays(today, day) + 1);
+  const isRange = rangeDays > 1;
+  const periodLabel = isRange
+    ? `${format(day, 'dd MMM yyyy')} – ${format(today, 'dd MMM yyyy')} · ${num(rangeDays)} days cumulative`
+    : format(today, 'dd MMM yyyy');
 
   const reportQuery = useQuery({
-    queryKey: ['agent-products-services-report', dayKey],
+    queryKey: ['agent-products-services-report', dayKey, todayKey],
     queryFn: async (): Promise<ApsReport> => {
-      const { data, error } = await supabase.rpc('get_agent_products_services_report' as any, { p_date: dayKey });
+      const { data, error } = await supabase.rpc('get_agent_products_services_report' as any, {
+        p_date: todayKey,
+        p_from: dayKey,
+      });
       if (error) throw error;
       return data as unknown as ApsReport;
     },
@@ -185,9 +196,9 @@ export function AgentProductsServicesReport() {
   const report = reportQuery.data;
 
   const cumulativeQuery = useQuery({
-    queryKey: ['agent-products-cumulative', dayKey],
+    queryKey: ['agent-products-cumulative', todayKey],
     queryFn: async (): Promise<ApsCumulative> => {
-      const { data, error } = await supabase.rpc('get_agent_products_cumulative' as any, { p_date: dayKey });
+      const { data, error } = await supabase.rpc('get_agent_products_cumulative' as any, { p_date: todayKey });
       if (error) throw error;
       return data as unknown as ApsCumulative;
     },
@@ -212,8 +223,8 @@ export function AgentProductsServicesReport() {
         actor: actorName || 'Agent Ops user',
         cumulative,
       });
-      downloadBlob(blob, `agent-products-services-${dayKey}.pdf`);
-      toast.success('Daily report downloaded');
+      downloadBlob(blob, isRange ? `agent-products-services-${dayKey}_to_${todayKey}.pdf` : `agent-products-services-${todayKey}.pdf`);
+      toast.success(isRange ? 'Cumulative report downloaded' : 'Daily report downloaded');
     } catch (err: any) {
       toast.error(err?.message || 'Could not generate the report');
     } finally {
@@ -221,14 +232,20 @@ export function AgentProductsServicesReport() {
     }
   };
 
-  const setPreset = (kind: 'today' | 'yesterday' | 'd7' | 'd30' | 'd90' | 'y1') => {
+  const setPreset = (
+    kind: 'today' | 'yesterday' | 'd7' | 'd14' | 'd30' | 'd90' | 'y1' | 'month' | 'year' | 'all',
+  ) => {
     const now = new Date();
     if (kind === 'today') setDay(now);
     if (kind === 'yesterday') setDay(subDays(now, 1));
     if (kind === 'd7') setDay(subDays(now, 7));
+    if (kind === 'd14') setDay(subDays(now, 14));
     if (kind === 'd30') setDay(subDays(now, 30));
     if (kind === 'd90') setDay(subDays(now, 90));
     if (kind === 'y1') setDay(subDays(now, 365));
+    if (kind === 'month') setDay(startOfMonth(now));
+    if (kind === 'year') setDay(startOfYear(now));
+    if (kind === 'all') setDay(new Date(2015, 0, 1));
   };
 
   const bikes = report?.bikes;
@@ -242,9 +259,12 @@ export function AgentProductsServicesReport() {
         <CardHeader className="p-3 pb-2">
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div>
-              <CardTitle className="text-sm font-bold">Agent Products &amp; Services — Daily Report</CardTitle>
+              <CardTitle className="text-sm font-bold">
+                Agent Products &amp; Services — {isRange ? 'Cumulative Report' : 'Daily Report'}
+              </CardTitle>
               <p className="text-[11px] text-muted-foreground mt-0.5">
-                {format(day, 'dd MMM yyyy')} · {report?.timezone || 'Africa/Kampala'} · compared with the previous day
+                {periodLabel} · {report?.timezone || 'Africa/Kampala'} ·{' '}
+                {isRange ? `compared with the preceding ${num(rangeDays)} days` : 'compared with the previous day'}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
@@ -254,7 +274,7 @@ export function AgentProductsServicesReport() {
               </Button>
               <Button size="sm" className="h-8 text-[11px]" disabled={!report || exporting} onClick={handlePdf}>
                 {exporting ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <FileText className="h-3.5 w-3.5 mr-1" />}
-                Generate Daily Report (PDF)
+                {isRange ? 'Generate Cumulative Report (PDF)' : 'Generate Daily Report (PDF)'}
               </Button>
             </div>
           </div>
@@ -265,22 +285,29 @@ export function AgentProductsServicesReport() {
               ['today', 'Today'],
               ['yesterday', 'Yesterday'],
               ['d7', '7 Days Ago'],
+              ['d14', 'Last 14 Days'],
               ['d30', '30 Days Ago'],
               ['d90', '90 Days Ago'],
               ['y1', '1 Year Ago'],
+              ['month', 'This Month'],
+              ['year', 'This Year'],
+              ['all', 'All Time'],
             ] as const).map(([k, l]) => (
               <Button key={k} size="sm" variant="secondary" className="h-7 text-[11px]" onClick={() => setPreset(k)}>{l}</Button>
             ))}
             <Popover>
               <PopoverTrigger asChild>
                 <Button size="sm" variant="outline" className="h-7 text-[11px]">
-                  <CalendarIcon className="h-3.5 w-3.5 mr-1" />{format(day, 'dd MMM yyyy')}
+                  <CalendarIcon className="h-3.5 w-3.5 mr-1" />From {format(day, 'dd MMM yyyy')}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0 z-[200]" align="start">
-                <Calendar mode="single" selected={day} onSelect={(d) => d && setDay(d)} initialFocus className="p-3 pointer-events-auto" />
+                <Calendar mode="single" selected={day} onSelect={(d) => d && setDay(d)} disabled={(d) => d > today} initialFocus className="p-3 pointer-events-auto" />
               </PopoverContent>
             </Popover>
+            <span className="text-[10px] text-muted-foreground">
+              {isRange ? `Totals accumulate from ${format(day, 'dd MMM yyyy')} to today` : 'Showing today only'}
+            </span>
           </div>
         </CardContent>
       </Card>
@@ -330,7 +357,7 @@ export function AgentProductsServicesReport() {
           <Card>
             <CardHeader className="p-3 pb-1">
               <CardTitle className="text-xs font-bold">
-                Cumulative build-up to {format(day, 'dd MMM yyyy')}
+                Cumulative build-up to {format(today, 'dd MMM yyyy')}
               </CardTitle>
               <p className="text-[10px] text-muted-foreground">
                 Totals accumulated from 7, 30, 90 and 365 days ago up to the reporting date
