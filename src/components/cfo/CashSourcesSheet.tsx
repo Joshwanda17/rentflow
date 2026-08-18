@@ -25,7 +25,6 @@ import {
   Box,
   CreditCard,
   Truck,
-  ShieldCheck,
   Activity,
   type LucideIcon,
 } from 'lucide-react';
