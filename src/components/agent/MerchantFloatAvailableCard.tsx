@@ -141,9 +141,27 @@ export function MerchantFloatAvailableCard() {
         )
       )}
 
+      {hiddenDeficit > 0 && (
+        <div className="mt-3 rounded-2xl border-2 border-destructive/50 bg-destructive/10 p-4">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+            <p className="text-[11px] font-bold uppercase tracking-wider text-destructive">
+              Your desk is short
+            </p>
+          </div>
+          <p className="mt-1 font-mono text-xl font-bold tabular-nums text-destructive break-all">
+            −{formatUGX(hiddenDeficit)}
+          </p>
+          <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+            You have paid out more than the company money you were given, so your true float position
+            is below zero by this much. The figure above is floored at zero — this is the real gap.
+            Finance is looking at it; nothing here is silent.
+          </p>
+        </div>
+      )}
+
       {(offledger !== 0 || unbacked > 0) && (
         <div className="mt-3 rounded-2xl border border-border/60 bg-muted/20 p-3">
-          {hiddenDeficit > 0 && null}
           <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
             Kept separate on purpose
           </p>
