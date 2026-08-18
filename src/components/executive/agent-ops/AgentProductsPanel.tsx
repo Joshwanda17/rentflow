@@ -31,15 +31,32 @@ const PRODUCT_SUGGESTIONS = [
   'Company ID', 'Signage (Shop Board)', 'Banner / Poster', 'Umbrella', 'Branded Bag',
 ];
 
-export function AgentProductsPanel() {
+export type AgentProductCategory = 'motor_bike' | 'smart_phone' | 'signage' | 'boutique';
+
+const CATEGORY_LABELS: Record<AgentProductCategory, string> = {
+  motor_bike: 'Motor bikes',
+  smart_phone: 'Smart phones',
+  signage: 'Signages',
+  boutique: 'Boutique',
+};
+
+const CATEGORY_SUGGESTIONS: Record<AgentProductCategory, string[]> = {
+  motor_bike: ['Welile Spiro Bike'],
+  smart_phone: ['Welile Smartphone'],
+  signage: ['Signage (Shop Board)', 'Banner / Poster'],
+  boutique: ['Welile Jumper', 'Welile Jacket', 'Welile Polo', 'Welile T-Shirt', 'Welile Cap', 'Company ID', 'Umbrella', 'Branded Bag'],
+};
+
+export function AgentProductsPanel({ category }: { category?: AgentProductCategory } = {}) {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [addOpen, setAddOpen] = useState(false);
+  const scopeLabel = category ? CATEGORY_LABELS[category] : null;
 
   const { data, isLoading, isFetching, refetch } = useQuery({
-    queryKey: ['agent-products-overview'],
+    queryKey: ['agent-products-overview', category ?? 'all'],
     queryFn: async (): Promise<Overview> => {
-      const { data, error } = await supabase.rpc('get_agent_products_overview' as any);
+      const { data, error } = await supabase.rpc('get_agent_products_overview' as any, { p_category: category ?? null });
       if (error) throw error;
       const payload = (data ?? {}) as any;
       return {
@@ -82,12 +99,13 @@ export function AgentProductsPanel() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
+        {scopeLabel && <Badge variant="secondary" className="text-[11px]">{scopeLabel}</Badge>}
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search agent, location or product"
+            placeholder={scopeLabel ? `Search agent, location or ${scopeLabel.toLowerCase()}` : 'Search agent, location or product'}
             className="pl-8"
           />
         </div>
@@ -109,9 +127,10 @@ export function AgentProductsPanel() {
           <IssueProductDialog
             catalog={data?.catalog ?? []}
             centres={data?.centres ?? []}
+            category={category}
             onDone={() => {
               setAddOpen(false);
-              queryClient.invalidateQueries({ queryKey: ['agent-products-overview'] });
+              queryClient.invalidateQueries({ queryKey: ['agent-products-overview'], exact: false });
             }}
           />
         </Dialog>
@@ -122,7 +141,7 @@ export function AgentProductsPanel() {
           Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-[110px] rounded-2xl" />)
         ) : (
           <>
-            <MetricCard label="Total products" value={String(kpis.total_products ?? 0)} icon={Package} variant="primary" />
+            <MetricCard label={scopeLabel ? `${scopeLabel} in catalog` : 'Total products'} value={String(kpis.total_products ?? 0)} icon={Package} variant="primary" />
             <MetricCard
               label={`In field · ${kpis.in_field_agents ?? 0} agents`}
               value={String(kpis.in_field_items ?? 0)}
@@ -154,7 +173,9 @@ export function AgentProductsPanel() {
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold">Products in the field ({rows.length})</CardTitle>
+          <CardTitle className="text-sm font-semibold">
+            {scopeLabel ? `${scopeLabel} in the field` : 'Products in the field'} ({rows.length})
+          </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
@@ -163,7 +184,9 @@ export function AgentProductsPanel() {
             </div>
           ) : rows.length === 0 ? (
             <p className="p-6 text-sm text-muted-foreground text-center">
-              No products issued to agents yet. Use “New entry” to record one.
+              {scopeLabel
+                ? `No ${scopeLabel.toLowerCase()} issued to agents yet. Use “New entry” to record one.`
+                : 'No products issued to agents yet. Use “New entry” to record one.'}
             </p>
           ) : (
             <div className="divide-y divide-border">
@@ -198,8 +221,8 @@ export function AgentProductsPanel() {
 }
 
 function IssueProductDialog({
-  catalog, centres, onDone,
-}: { catalog: CatalogItem[]; centres: CentreItem[]; onDone: () => void }) {
+  catalog, centres, onDone, category,
+}: { catalog: CatalogItem[]; centres: CentreItem[]; onDone: () => void; category?: AgentProductCategory }) {
   const [agentTerm, setAgentTerm] = useState('');
   const [agent, setAgent] = useState<{ id: string; full_name: string } | null>(null);
   const [itemName, setItemName] = useState('');
@@ -223,10 +246,10 @@ function IssueProductDialog({
   });
 
   const productOptions = useMemo(() => {
-    const names = new Set<string>(PRODUCT_SUGGESTIONS);
+    const names = new Set<string>(category ? CATEGORY_SUGGESTIONS[category] : PRODUCT_SUGGESTIONS);
     catalog.forEach((c) => names.add(c.item_name));
     return Array.from(names).sort();
-  }, [catalog]);
+  }, [catalog, category]);
 
   const total = (Number(quantity) || 0) * (Number(unitPrice) || 0);
 
