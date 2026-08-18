@@ -1593,7 +1593,6 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                 { icon: Sparkles, label: 'Proxy Agents', onClick: () => navigate('/agent/proxy-agents') },
                 { icon: UserPlus, label: 'Invite & Earn', onClick: () => navigate('/referrals') },
                 { icon: Menu, label: 'All Menu', onClick: handleOpenMenu },
-                { icon: FileText, label: 'Promissory Note', onClick: () => setPromissoryNoteOpen(true) },
               ].map((a) => (
                 <button
                   key={a.label}
