@@ -71,7 +71,7 @@ const statusStyles: Record<string, string> = {
   rejected: 'bg-red-500/10 text-red-600 border-red-500/20',
 };
 
-const rankAccent = ['text-amber-500', 'text-slate-400', 'text-orange-600'];
+const rankAccent = ['text-amber-500', 'text-muted-foreground', 'text-orange-600'];
 
 export function AgentLeaderboardPanel() {
   const [period, setPeriod] = useState<Period>('monthly');

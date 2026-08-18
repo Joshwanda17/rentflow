@@ -37,7 +37,7 @@ const purposes = [
   { value: 'buying_home', label: 'Buying a Home', icon: Home, color: 'text-blue-600' },
   { value: 'building_house', label: 'Building a House', icon: Hammer, color: 'text-amber-600' },
   { value: 'mortgage_down_payment', label: 'Mortgage Down Payment', icon: CreditCard, color: 'text-purple-600' },
-  { value: 'other_after_24_months', label: 'Other (After 24 Months)', icon: Clock, color: 'text-gray-600' },
+  { value: 'other_after_24_months', label: 'Other (After 24 Months)', icon: Clock, color: 'text-muted-foreground' },
 ];
 
 export function WithdrawalRequestDialog({

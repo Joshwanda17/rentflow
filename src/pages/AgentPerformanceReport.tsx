@@ -51,11 +51,11 @@ const statusGuide = [
 // ============= REUSABLE COMPONENTS =============
 function SectionCard({ index, title, right, children }: { index: number; title: string; right?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-      <header className="flex items-center justify-between gap-3 px-4 sm:px-6 py-3 border-b border-slate-100 bg-slate-50/60">
+    <section className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+      <header className="flex items-center justify-between gap-3 px-4 sm:px-6 py-3 border-b border-border bg-slate-50/60">
         <div className="flex items-center gap-2.5 min-w-0">
           <span className="inline-flex items-center justify-center h-7 w-7 rounded-md bg-blue-600 text-white text-xs font-bold shrink-0">{index}</span>
-          <h2 className="text-sm sm:text-base font-bold tracking-wide text-slate-800 uppercase truncate">{title}</h2>
+          <h2 className="text-sm sm:text-base font-bold tracking-wide text-foreground uppercase truncate">{title}</h2>
         </div>
         {right}
       </header>
@@ -66,7 +66,7 @@ function SectionCard({ index, title, right, children }: { index: number; title: 
 
 function KpiCard({ icon: Icon, label, value, tone = 'blue', sub }: { icon?: any; label: string; value: string; tone?: string; sub?: string }) {
   return (
-    <div className="group rounded-xl border border-slate-200 bg-white p-3.5 hover:shadow-md hover:border-slate-300 transition-all min-w-0">
+    <div className="group rounded-xl border border-border bg-card p-3.5 hover:shadow-md hover:border-border transition-all min-w-0">
       <div className="flex items-start gap-2.5">
         {Icon && (
           <div className={cn('h-8 w-8 rounded-lg flex items-center justify-center shrink-0', toneBg[tone])}>
@@ -74,9 +74,9 @@ function KpiCard({ icon: Icon, label, value, tone = 'blue', sub }: { icon?: any;
           </div>
         )}
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-medium text-slate-500 leading-tight uppercase tracking-wide">{label}</p>
+          <p className="text-[11px] font-medium text-muted-foreground leading-tight uppercase tracking-wide">{label}</p>
           <p className={cn('text-lg sm:text-xl font-bold mt-1 leading-tight truncate', toneText[tone])}>{value}</p>
-          {sub && <p className="text-[11px] text-slate-500 mt-0.5">{sub}</p>}
+          {sub && <p className="text-[11px] text-muted-foreground mt-0.5">{sub}</p>}
         </div>
       </div>
     </div>
@@ -85,8 +85,8 @@ function KpiCard({ icon: Icon, label, value, tone = 'blue', sub }: { icon?: any;
 
 function MiniMetric({ label, value, tone = 'blue' }: { label: string; value: string; tone?: string }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3 hover:shadow-sm transition-all">
-      <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wide leading-tight">{label}</p>
+    <div className="rounded-xl border border-border bg-card p-3 hover:shadow-sm transition-all">
+      <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide leading-tight">{label}</p>
       <p className={cn('text-lg sm:text-xl font-bold mt-0.5 leading-tight', toneText[tone])}>{value}</p>
     </div>
   );
@@ -99,7 +99,7 @@ function StatusBadge({ s }: { s: string }) {
     Partial: 'bg-amber-100 text-amber-700 border-amber-200',
   };
   return (
-    <span className={cn('inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold border', map[s] || 'bg-slate-100 text-slate-700')}>
+    <span className={cn('inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold border', map[s] || 'bg-muted text-muted-foreground')}>
       {s}
     </span>
   );
@@ -134,7 +134,7 @@ function PerformanceGauge({ score }: { score: number }) {
         <circle cx={cx} cy={cy} r="6" fill="#0f172a" />
       </svg>
       <div className="text-center mt-1">
-        <p className="text-3xl font-bold text-slate-900">{score}<span className="text-base text-slate-500"> / 100</span></p>
+        <p className="text-3xl font-bold text-foreground">{score}<span className="text-base text-muted-foreground"> / 100</span></p>
         <p className={cn('text-sm font-bold tracking-wider mt-1', statusColor)}>{status}</p>
       </div>
     </div>
@@ -529,22 +529,22 @@ export default function AgentPerformanceReport() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50/60 print:bg-white">
+    <div className="min-h-screen bg-slate-50/60 print:bg-card">
       {/* ===== STICKY HEADER ===== */}
-      <header className="sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-slate-200 shadow-sm print:static print:shadow-none">
+      <header className="sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-border shadow-sm print:static print:shadow-none">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0 print:hidden">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <img src={welileLogo} alt="Welile" className="h-9 w-auto shrink-0" />
           <div className="hidden md:block flex-1 text-center min-w-0">
-            <h1 className="text-lg lg:text-2xl font-bold tracking-tight text-slate-900 truncate">AGENT PERFORMANCE REPORT</h1>
-            <p className="text-xs text-slate-500">Performance Overview and Collection Intelligence</p>
+            <h1 className="text-lg lg:text-2xl font-bold tracking-tight text-foreground truncate">AGENT PERFORMANCE REPORT</h1>
+            <p className="text-xs text-muted-foreground">Performance Overview and Collection Intelligence</p>
           </div>
           <div className="hidden sm:block text-right shrink-0">
-            <p className="text-[10px] uppercase font-semibold text-slate-500 tracking-wider">Report Period</p>
+            <p className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">Report Period</p>
             <p className="text-sm font-bold text-blue-600">{period.range}</p>
-            <p className="text-[10px] text-slate-500 mt-0.5">Generated: {period.generated}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Generated: {period.generated}</p>
           </div>
           <div className="flex items-center gap-2 shrink-0 print:hidden">
             <Button variant="outline" size="sm" onClick={() => window.print()} className="gap-1.5">
@@ -556,8 +556,8 @@ export default function AgentPerformanceReport() {
           </div>
         </div>
         <div className="md:hidden text-center pb-2 px-4">
-          <h1 className="text-base font-bold tracking-tight text-slate-900">AGENT PERFORMANCE REPORT</h1>
-          <p className="text-[11px] text-slate-500">{period.range}</p>
+          <h1 className="text-base font-bold tracking-tight text-foreground">AGENT PERFORMANCE REPORT</h1>
+          <p className="text-[11px] text-muted-foreground">{period.range}</p>
         </div>
       </header>
 
@@ -579,15 +579,15 @@ export default function AgentPerformanceReport() {
               <span className="inline-flex items-center justify-center h-7 w-7 rounded-md bg-blue-600 text-white">
                 <ListChecks className="h-4 w-4" />
               </span>
-              <h2 className="text-sm sm:text-base font-bold text-slate-900 uppercase tracking-wide">What to do now</h2>
+              <h2 className="text-sm sm:text-base font-bold text-foreground uppercase tracking-wide">What to do now</h2>
             </div>
             <ul className="space-y-2">
               {computed.actionChecklist.map((a, i) => (
-                <li key={i} className={cn('flex items-start gap-3 p-3 rounded-xl border', toneBg[a.tone], 'border-slate-200')}>
-                  <span className={cn('h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 bg-white border', toneText[a.tone])}>{i + 1}</span>
+                <li key={i} className={cn('flex items-start gap-3 p-3 rounded-xl border', toneBg[a.tone], 'border-border')}>
+                  <span className={cn('h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 bg-card border', toneText[a.tone])}>{i + 1}</span>
                   <div className="min-w-0 flex-1">
                     <p className={cn('text-sm font-bold', toneText[a.tone])}>{a.title}</p>
-                    <p className="text-xs text-slate-600 mt-0.5">{a.detail}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{a.detail}</p>
                   </div>
                 </li>
               ))}
@@ -598,18 +598,18 @@ export default function AgentPerformanceReport() {
         {/* ===== SECTION 1: AGENT SUMMARY ===== */}
         <SectionCard index={1} title="Agent Summary">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-            <div className="lg:col-span-4 rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-4 flex flex-col sm:flex-row lg:flex-col items-center sm:items-start lg:items-center gap-4 text-center sm:text-left lg:text-center">
+            <div className="lg:col-span-4 rounded-xl border border-border bg-gradient-to-br from-slate-50 to-white p-4 flex flex-col sm:flex-row lg:flex-col items-center sm:items-start lg:items-center gap-4 text-center sm:text-left lg:text-center">
               <div className="h-24 w-24 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center text-3xl font-bold shrink-0 ring-4 ring-blue-100">
                 {displayName.split(' ').map(n => n[0]).slice(0, 2).join('')}
               </div>
               <div className="min-w-0 flex-1">
-                <h3 className="text-lg font-bold text-slate-900">{displayName}</h3>
-                <p className="text-sm text-slate-500">Agent ID: <span className="text-blue-600 font-semibold">{agentId.slice(0, 8).toUpperCase()}</span></p>
-                <ul className="mt-3 space-y-1.5 text-sm text-slate-600 text-left">
-                  <li className="flex items-center gap-2"><MapPin className="h-3.5 w-3.5 text-slate-400" /> Branch: {computed?.profile?.city || '—'}</li>
-                  <li className="flex items-center gap-2"><Phone className="h-3.5 w-3.5 text-slate-400" /> {computed?.profile?.phone || '—'}</li>
-                  <li className="flex items-center gap-2"><Calendar className="h-3.5 w-3.5 text-slate-400" /> Joined: {computed?.profile?.created_at ? format(new Date(computed.profile.created_at), 'd MMM yyyy') : '—'}</li>
-                  <li className="flex items-center gap-2"><UserCog className="h-3.5 w-3.5 text-slate-400" /> Country: {computed?.profile?.country || '—'}</li>
+                <h3 className="text-lg font-bold text-foreground">{displayName}</h3>
+                <p className="text-sm text-muted-foreground">Agent ID: <span className="text-blue-600 font-semibold">{agentId.slice(0, 8).toUpperCase()}</span></p>
+                <ul className="mt-3 space-y-1.5 text-sm text-muted-foreground text-left">
+                  <li className="flex items-center gap-2"><MapPin className="h-3.5 w-3.5 text-muted-foreground" /> Branch: {computed?.profile?.city || '—'}</li>
+                  <li className="flex items-center gap-2"><Phone className="h-3.5 w-3.5 text-muted-foreground" /> {computed?.profile?.phone || '—'}</li>
+                  <li className="flex items-center gap-2"><Calendar className="h-3.5 w-3.5 text-muted-foreground" /> Joined: {computed?.profile?.created_at ? format(new Date(computed.profile.created_at), 'd MMM yyyy') : '—'}</li>
+                  <li className="flex items-center gap-2"><UserCog className="h-3.5 w-3.5 text-muted-foreground" /> Country: {computed?.profile?.country || '—'}</li>
                 </ul>
               </div>
             </div>
@@ -624,17 +624,17 @@ export default function AgentPerformanceReport() {
             </div>
           </div>
 
-          <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-slate-100">
+          <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-border">
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs font-semibold text-slate-700">Recovery Score</span>
+                <span className="text-xs font-semibold text-muted-foreground">Recovery Score</span>
                 <span className="text-xs font-bold text-red-600">{recoveryScore}/100</span>
               </div>
               <Progress value={recoveryScore} className="h-2 [&>div]:bg-red-500" />
             </div>
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs font-semibold text-slate-700">Performance Score</span>
+                <span className="text-xs font-semibold text-muted-foreground">Performance Score</span>
                 <span className="text-xs font-bold text-amber-600">{totalScore}/100</span>
               </div>
               <Progress value={totalScore} className="h-2 [&>div]:bg-amber-500" />
@@ -644,7 +644,7 @@ export default function AgentPerformanceReport() {
 
         {/* ===== SECTIONS 2 & 3 ===== */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
-          <SectionCard index={2} title="Daily Performance" right={<span className="text-xs text-slate-500 hidden sm:inline">Date: {format(new Date(), 'MMM d, yyyy')} (Today)</span>}>
+          <SectionCard index={2} title="Daily Performance" right={<span className="text-xs text-muted-foreground hidden sm:inline">Date: {format(new Date(), 'MMM d, yyyy')} (Today)</span>}>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {isLoading || !computed
                 ? Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-[68px] rounded-xl" />)
@@ -652,10 +652,10 @@ export default function AgentPerformanceReport() {
             </div>
 
             <div className="mt-5">
-              <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide mb-2">Daily Tenant Breakdown</h4>
-              <div className="rounded-xl border border-slate-200 overflow-hidden max-h-[320px] overflow-y-auto">
+              <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2">Daily Tenant Breakdown</h4>
+              <div className="rounded-xl border border-border overflow-hidden max-h-[320px] overflow-y-auto">
                 <Table>
-                  <TableHeader className="bg-slate-50 sticky top-0 z-10">
+                  <TableHeader className="bg-muted sticky top-0 z-10">
                     <TableRow>
                       <TableHead className="text-xs">Tenant</TableHead>
                       <TableHead className="text-xs">Phone</TableHead>
@@ -675,9 +675,9 @@ export default function AgentPerformanceReport() {
                             <a href={`tel:${t.phone}`} className="inline-flex items-center gap-1 text-blue-600 hover:underline">
                               <Phone className="h-3 w-3" />{t.phone}
                             </a>
-                          ) : <span className="text-slate-400">—</span>}
+                          ) : <span className="text-muted-foreground">—</span>}
                         </TableCell>
-                        <TableCell className="text-sm text-slate-600">{t.unit}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{t.unit}</TableCell>
                         <TableCell className="text-right text-sm tabular-nums">{Math.round(t.expected).toLocaleString()}</TableCell>
                         <TableCell className="text-right text-sm tabular-nums">{Math.round(t.paid).toLocaleString()}</TableCell>
                         <TableCell className="text-right text-sm tabular-nums font-semibold">{Math.round(t.balance).toLocaleString()}</TableCell>
@@ -694,7 +694,7 @@ export default function AgentPerformanceReport() {
                       </TableRow>
                     )}
                     {computed && computed.dailyTenants.length === 0 && (
-                      <TableRow><TableCell colSpan={7} className="text-center text-sm text-slate-500 py-6">No active tenants for this agent.</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-6">No active tenants for this agent.</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
@@ -702,7 +702,7 @@ export default function AgentPerformanceReport() {
             </div>
           </SectionCard>
 
-          <SectionCard index={3} title="Weekly Performance" right={<span className="text-xs text-slate-500 hidden sm:inline">{period.range}</span>}>
+          <SectionCard index={3} title="Weekly Performance" right={<span className="text-xs text-muted-foreground hidden sm:inline">{period.range}</span>}>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {isLoading || !computed
                 ? Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-[68px] rounded-xl" />)
@@ -710,8 +710,8 @@ export default function AgentPerformanceReport() {
             </div>
 
             <div className="mt-5">
-              <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide mb-2">Money you collected each day (last 7 days)</h4>
-              <div className="rounded-xl border border-slate-200 bg-white p-3">
+              <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2">Money you collected each day (last 7 days)</h4>
+              <div className="rounded-xl border border-border bg-card p-3">
                 <ResponsiveContainer width="100%" height={260}>
                   <BarChart data={computed?.weeklyTrend || []} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
@@ -722,9 +722,9 @@ export default function AgentPerformanceReport() {
                   </BarChart>
                 </ResponsiveContainer>
                 {computed && (
-                  <div className="flex flex-wrap items-center gap-x-5 gap-y-1 pt-2 px-2 text-xs border-t border-slate-100 mt-2">
-                    <span className="text-slate-500">Total this week: <span className="font-bold text-emerald-600">{fmtUGX(computed.weeklyCollected)}</span></span>
-                    <span className="text-slate-500">% of money owed: <span className="font-bold text-amber-600">{computed.weeklyEfficiency.toFixed(1)}%</span></span>
+                  <div className="flex flex-wrap items-center gap-x-5 gap-y-1 pt-2 px-2 text-xs border-t border-border mt-2">
+                    <span className="text-muted-foreground">Total this week: <span className="font-bold text-emerald-600">{fmtUGX(computed.weeklyCollected)}</span></span>
+                    <span className="text-muted-foreground">% of money owed: <span className="font-bold text-amber-600">{computed.weeklyEfficiency.toFixed(1)}%</span></span>
                   </div>
                 )}
               </div>
@@ -737,19 +737,19 @@ export default function AgentPerformanceReport() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
             <div className="lg:col-span-4 space-y-2.5">
               {(computed?.debtSummary || []).map(d => (
-                <div key={d.label} className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 bg-white hover:shadow-sm transition-all">
+                <div key={d.label} className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card hover:shadow-sm transition-all">
                   <div className={cn('h-9 w-9 rounded-lg flex items-center justify-center shrink-0', toneBg[d.tone])}>
                     <d.icon className={cn('h-4 w-4', toneText[d.tone])} />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs text-slate-500">{d.label}</p>
+                    <p className="text-xs text-muted-foreground">{d.label}</p>
                   </div>
                   <p className={cn('text-sm font-bold tabular-nums shrink-0', toneText[d.tone])}>{d.value}</p>
                 </div>
               ))}
             </div>
             <div className="lg:col-span-4">
-              <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide mb-2 text-center">Debt Aging Analysis</h4>
+              <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2 text-center">Debt Aging Analysis</h4>
               <div className="relative">
                 <ResponsiveContainer width="100%" height={240}>
                   <PieChart>
@@ -760,8 +760,8 @@ export default function AgentPerformanceReport() {
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <p className="text-xl font-bold text-slate-900">{(totalDebt / 1_000_000).toFixed(2)}M</p>
-                  <p className="text-[10px] text-slate-500 uppercase tracking-wider">Total Debt</p>
+                  <p className="text-xl font-bold text-foreground">{(totalDebt / 1_000_000).toFixed(2)}M</p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Total Debt</p>
                 </div>
               </div>
               <ul className="mt-2 space-y-1">
@@ -770,17 +770,17 @@ export default function AgentPerformanceReport() {
                   return (
                     <li key={d.name} className="flex items-center justify-between text-xs">
                       <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full" style={{ background: d.color }} />{d.name}</span>
-                      <span className="tabular-nums text-slate-600"><span className="font-semibold text-slate-900">{Math.round(d.value).toLocaleString()}</span> ({pct}%)</span>
+                      <span className="tabular-nums text-muted-foreground"><span className="font-semibold text-foreground">{Math.round(d.value).toLocaleString()}</span> ({pct}%)</span>
                     </li>
                   );
                 })}
               </ul>
             </div>
             <div className="lg:col-span-4">
-              <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide mb-2">Top Defaulters</h4>
-              <div className="rounded-xl border border-slate-200 overflow-hidden">
+              <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2">Top Defaulters</h4>
+              <div className="rounded-xl border border-border overflow-hidden">
                 <Table>
-                  <TableHeader className="bg-slate-50">
+                  <TableHeader className="bg-muted">
                     <TableRow>
                       <TableHead className="text-xs">Tenant</TableHead>
                       <TableHead className="text-xs">Phone</TableHead>
@@ -798,17 +798,17 @@ export default function AgentPerformanceReport() {
                             <a href={`tel:${t.phone}`} className="inline-flex items-center gap-1 text-blue-600 hover:underline">
                               <Phone className="h-3 w-3" />{t.phone}
                             </a>
-                          ) : <span className="text-slate-400">—</span>}
+                          ) : <span className="text-muted-foreground">—</span>}
                         </TableCell>
                         <TableCell className="text-right text-sm tabular-nums font-semibold">{Math.round(t.debt).toLocaleString()}</TableCell>
                         <TableCell className="text-right text-sm tabular-nums">
                           <span className={cn('font-bold', t.daysLate >= 40 ? 'text-red-600' : t.daysLate >= 30 ? 'text-orange-600' : 'text-amber-600')}>{t.daysLate}</span>
                         </TableCell>
-                        <TableCell className="text-xs text-slate-600">{t.last}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{t.last}</TableCell>
                       </TableRow>
                     ))}
                     {computed && computed.topDefaulters.length === 0 && (
-                      <TableRow><TableCell colSpan={5} className="text-center text-sm text-slate-500 py-6">No defaulters.</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-6">No defaulters.</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
@@ -816,7 +816,7 @@ export default function AgentPerformanceReport() {
             </div>
           </div>
 
-          <div className="mt-5 pt-5 border-t border-slate-100 grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="mt-5 pt-5 border-t border-border grid grid-cols-2 lg:grid-cols-4 gap-3">
             {(computed?.debtKpiStrip || []).map(k => (
               <KpiCard key={k.label} icon={k.icon} label={k.label} value={k.value} tone={k.tone} sub={k.sub} />
             ))}
@@ -827,10 +827,10 @@ export default function AgentPerformanceReport() {
         <SectionCard index={5} title="Performance Scoring">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
             <div>
-              <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide mb-2">KPI Scorecard</h4>
-              <div className="rounded-xl border border-slate-200 overflow-hidden">
+              <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2">KPI Scorecard</h4>
+              <div className="rounded-xl border border-border overflow-hidden">
                 <Table>
-                  <TableHeader className="bg-slate-50">
+                  <TableHeader className="bg-muted">
                     <TableRow>
                       <TableHead className="text-xs">KPI</TableHead>
                       <TableHead className="text-xs text-right">Weight</TableHead>
@@ -855,17 +855,17 @@ export default function AgentPerformanceReport() {
                 </Table>
               </div>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-4">
-              <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide mb-2 text-center flex items-center justify-center gap-1.5">
+            <div className="rounded-xl border border-border bg-gradient-to-br from-slate-50 to-white p-4">
+              <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2 text-center flex items-center justify-center gap-1.5">
                 <Gauge className="h-3.5 w-3.5" /> Performance Gauge
               </h4>
               <PerformanceGauge score={totalScore} />
             </div>
             <div>
-              <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide mb-2">Performance Status Guide</h4>
-              <div className="rounded-xl border border-slate-200 overflow-hidden">
+              <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2">Performance Status Guide</h4>
+              <div className="rounded-xl border border-border overflow-hidden">
                 <Table>
-                  <TableHeader className="bg-slate-50">
+                  <TableHeader className="bg-muted">
                     <TableRow>
                       <TableHead className="text-xs">Score Range</TableHead>
                       <TableHead className="text-xs">Status</TableHead>
@@ -877,7 +877,7 @@ export default function AgentPerformanceReport() {
                       <TableRow key={i} className="hover:bg-slate-50/60">
                         <TableCell className="text-sm tabular-nums">{s.range}</TableCell>
                         <TableCell className={cn('text-sm font-bold', s.color)}>{s.status}</TableCell>
-                        <TableCell className="text-xs text-slate-600">{s.desc}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{s.desc}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -892,7 +892,7 @@ export default function AgentPerformanceReport() {
           <SectionCard
             index={6}
             title="Your field activity (last 30 days)"
-            right={<span className="text-xs text-slate-500 hidden sm:inline">Visits, deposits & commissions you actually recorded</span>}
+            right={<span className="text-xs text-muted-foreground hidden sm:inline">Visits, deposits & commissions you actually recorded</span>}
           >
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
               <MiniMetric label="Visits today" value={String(computed.visitsToday)} tone="blue" />
@@ -900,9 +900,9 @@ export default function AgentPerformanceReport() {
               <MiniMetric label="Deposits taken (30d)" value={String(computed.collections30d)} tone="green" />
               <MiniMetric label="My commission (30d)" value={fmtUGX(computed.earnings30d)} tone="amber" />
             </div>
-            <div className="rounded-xl border border-slate-200 overflow-hidden">
+            <div className="rounded-xl border border-border overflow-hidden">
               <Table>
-                <TableHeader className="bg-slate-50">
+                <TableHeader className="bg-muted">
                   <TableRow>
                     <TableHead className="text-xs">When</TableHead>
                     <TableHead className="text-xs">What</TableHead>
@@ -912,11 +912,11 @@ export default function AgentPerformanceReport() {
                 </TableHeader>
                 <TableBody>
                   {computed.activityFeed.length === 0 && (
-                    <TableRow><TableCell colSpan={4} className="text-center text-sm text-slate-500 py-6">No visits or deposits recorded in the last 30 days. Start a field visit to build your trust score.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={4} className="text-center text-sm text-muted-foreground py-6">No visits or deposits recorded in the last 30 days. Start a field visit to build your trust score.</TableCell></TableRow>
                   )}
                   {computed.activityFeed.map((a, i) => (
                     <TableRow key={i} className="hover:bg-slate-50/60">
-                      <TableCell className="text-xs text-slate-600 whitespace-nowrap">{format(new Date(a.when), 'MMM d, HH:mm')}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{format(new Date(a.when), 'MMM d, HH:mm')}</TableCell>
                       <TableCell>
                         <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border',
                           a.kind === 'Visit' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200')}>
@@ -924,7 +924,7 @@ export default function AgentPerformanceReport() {
                         </span>
                       </TableCell>
                       <TableCell className="text-sm font-medium">{a.label}</TableCell>
-                      <TableCell className="text-xs text-slate-600">{a.meta || '—'}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{a.meta || '—'}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -945,7 +945,7 @@ export default function AgentPerformanceReport() {
           </div>
         )}
 
-        <footer className="flex items-center justify-between text-[11px] text-slate-500 pt-2 pb-6">
+        <footer className="flex items-center justify-between text-[11px] text-muted-foreground pt-2 pb-6">
           <span>Generated by Welile</span>
           <span>Page 1 of 1</span>
         </footer>
@@ -1001,15 +1001,15 @@ function AgentPicker({ onPick, onBack }: { onPick: (id: string) => void; onBack:
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-xl font-bold text-slate-900">Select an Agent</h1>
-            <p className="text-sm text-slate-500">Pick an agent to view their performance report.</p>
+            <h1 className="text-xl font-bold text-foreground">Select an Agent</h1>
+            <p className="text-sm text-muted-foreground">Pick an agent to view their performance report.</p>
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-          <div className="p-3 border-b border-slate-100 bg-slate-50/60">
+        <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+          <div className="p-3 border-b border-border bg-slate-50/60">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -1027,9 +1027,9 @@ function AgentPicker({ onPick, onBack }: { onPick: (id: string) => void; onBack:
                 ))}
               </div>
             ) : filtered.length === 0 ? (
-              <p className="text-sm text-slate-500 text-center py-10">No agents found.</p>
+              <p className="text-sm text-muted-foreground text-center py-10">No agents found.</p>
             ) : (
-              <ul className="divide-y divide-slate-100">
+              <ul className="divide-y divide-border">
                 {filtered.map((a) => (
                   <li key={a.id}>
                     <button
@@ -1041,8 +1041,8 @@ function AgentPicker({ onPick, onBack }: { onPick: (id: string) => void; onBack:
                         {(a.full_name || '?').split(' ').map((n: string) => n[0]).slice(0, 2).join('')}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-slate-900 truncate">{a.full_name || 'Unnamed'}</p>
-                        <p className="text-xs text-slate-500 truncate">{a.phone || '—'} {a.city ? `· ${a.city}` : ''}</p>
+                        <p className="text-sm font-semibold text-foreground truncate">{a.full_name || 'Unnamed'}</p>
+                        <p className="text-xs text-muted-foreground truncate">{a.phone || '—'} {a.city ? `· ${a.city}` : ''}</p>
                       </div>
                       <span className="text-xs text-blue-600 font-semibold shrink-0">Open →</span>
                     </button>
@@ -1051,7 +1051,7 @@ function AgentPicker({ onPick, onBack }: { onPick: (id: string) => void; onBack:
               </ul>
             )}
           </div>
-          <div className="px-4 py-2 border-t border-slate-100 text-[11px] text-slate-500">
+          <div className="px-4 py-2 border-t border-border text-[11px] text-muted-foreground">
             {filtered.length} agent{filtered.length === 1 ? '' : 's'}
           </div>
         </div>

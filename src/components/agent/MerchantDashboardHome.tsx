@@ -183,7 +183,7 @@ export function MerchantDashboardHome({
                   <>
                     <span className="relative flex h-2 w-2">
                       <span className="absolute inset-0 animate-ping rounded-full bg-white/80" />
-                      <span className="relative inline-flex h-2 w-2 rounded-full bg-white" />
+                      <span className="relative inline-flex h-2 w-2 rounded-full bg-card" />
                     </span>
                     <p className="truncate text-xs text-white/90">
                       {pendingCount} {pendingCount === 1 ? 'person is' : 'people are'} waiting to be paid

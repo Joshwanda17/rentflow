@@ -916,10 +916,10 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
                 </div>
 
                 {/* Ledger entries preview — exactly what create_ledger_transaction will post */}
-                <div className="rounded-lg border-2 border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40 p-3 space-y-2">
+                <div className="rounded-lg border-2 border-border dark:border-slate-700 bg-muted dark:bg-slate-900/40 p-3 space-y-2">
                   <div className="flex items-center gap-2">
-                    <FileText className="h-3.5 w-3.5 text-slate-700 dark:text-slate-300" />
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                    <FileText className="h-3.5 w-3.5 text-muted-foreground dark:text-slate-300" />
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground dark:text-slate-300">
                       Ledger entries to be posted
                     </p>
                     <Badge variant="outline" className="text-[9px] uppercase tracking-wider">

@@ -146,7 +146,7 @@ export default function Install() {
               <div className="text-center space-y-4">
                 <p className="text-sm font-medium text-muted-foreground">Scan to install on any device</p>
                 
-                <div className="bg-white p-4 rounded-2xl inline-block shadow-inner">
+                <div className="bg-card p-4 rounded-2xl inline-block shadow-inner">
                   <QRCodeSVG 
                     value={installUrl}
                     size={180}

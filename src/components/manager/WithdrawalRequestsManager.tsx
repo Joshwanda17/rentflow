@@ -86,7 +86,7 @@ interface WithdrawalRequest {
 }
 
 const SUB_CATEGORY_LABELS: Record<string, { label: string; color: string; icon: any }> = {
-  general: { label: 'General', color: 'bg-slate-100 text-slate-700 border-slate-300', icon: null },
+  general: { label: 'General', color: 'bg-muted text-muted-foreground border-border', icon: null },
   repair: { label: 'Repair', color: 'bg-amber-100 text-amber-700 border-amber-300', icon: Wrench },
   rent: { label: 'Rent', color: 'bg-blue-100 text-blue-700 border-blue-300', icon: null },
   commission: { label: 'Commission', color: 'bg-emerald-100 text-emerald-700 border-emerald-300', icon: null },
@@ -1032,7 +1032,7 @@ export function WithdrawalRequestsManager({ subCategoryFilter: propSubCategoryFi
                               {request.sub_category && request.sub_category !== 'general' && (
                                 <Badge 
                                   variant="outline" 
-                                  className={`gap-1 text-xs ${SUB_CATEGORY_LABELS[request.sub_category]?.color || 'bg-slate-100 text-slate-700'}`}
+                                  className={`gap-1 text-xs ${SUB_CATEGORY_LABELS[request.sub_category]?.color || 'bg-muted text-muted-foreground'}`}
                                 >
                                   {SUB_CATEGORY_LABELS[request.sub_category]?.icon && (
                                     <span className="h-3 w-3 flex items-center justify-center">
@@ -1448,7 +1448,7 @@ export function WithdrawalRequestsManager({ subCategoryFilter: propSubCategoryFi
                             {request.sub_category && request.sub_category !== 'general' && (
                               <Badge 
                                 variant="outline" 
-                                className={`gap-1 text-xs ${SUB_CATEGORY_LABELS[request.sub_category]?.color || 'bg-slate-100 text-slate-700'}`}
+                                className={`gap-1 text-xs ${SUB_CATEGORY_LABELS[request.sub_category]?.color || 'bg-muted text-muted-foreground'}`}
                               >
                                 {SUB_CATEGORY_LABELS[request.sub_category]?.icon && (
                                   <span className="h-3 w-3 flex items-center justify-center">

@@ -298,7 +298,7 @@ export default function RepaymentSection({
                   <Button 
                     size="lg"
                     onClick={() => setShowPaymentDialog(true)}
-                    className="bg-white text-primary hover:bg-white/90 font-bold shadow-lg"
+                    className="bg-card text-primary hover:bg-white/90 font-bold shadow-lg"
                   >
                     <Smartphone className="h-4 w-4 mr-2" />
                     Pay Now

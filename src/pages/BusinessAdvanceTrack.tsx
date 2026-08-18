@@ -260,8 +260,8 @@ export default function BusinessAdvanceTrack() {
         {/* Marketing hero — modern, professional, business-owner focused */}
         <Card className="relative overflow-hidden border-primary/20 shadow-xl bg-gradient-to-br from-primary via-primary to-primary/80 text-primary-foreground">
           <div className="absolute inset-0 opacity-10 pointer-events-none" aria-hidden>
-            <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-white blur-3xl" />
-            <div className="absolute bottom-0 left-0 h-32 w-32 rounded-full bg-white blur-2xl" />
+            <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-card blur-3xl" />
+            <div className="absolute bottom-0 left-0 h-32 w-32 rounded-full bg-card blur-2xl" />
           </div>
           <CardContent className="relative p-5 space-y-3">
             <div className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider bg-white/15 backdrop-blur px-2.5 py-1 rounded-full">

@@ -126,7 +126,7 @@ export default function NotificationsScreen() {
               onClick={() => setTab(t)}
               className={cn(
                 'px-3 py-1.5 rounded-full text-xs font-semibold transition-colors touch-manipulation',
-                tab === t ? 'bg-white text-primary' : 'bg-white/10 text-primary-foreground/80',
+                tab === t ? 'bg-card text-primary' : 'bg-white/10 text-primary-foreground/80',
               )}
             >
               {t === 'unread' ? `Unread${unreadCount ? ` (${unreadCount})` : ''}` : 'All'}

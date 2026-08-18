@@ -265,7 +265,7 @@ export function AlreadyFundedLandlordsPanel() {
   };
 
   const allocBadge = (status: string | null) => {
-    if (!status) return 'bg-gray-100 text-gray-600 border-gray-200';
+    if (!status) return 'bg-muted text-muted-foreground border-border';
     switch (status) {
       case 'fully_paid':
         return 'bg-emerald-100 text-emerald-700 border-emerald-200';

@@ -90,7 +90,7 @@ export default function ShareChatLinkButton({
 
         <div className="space-y-4 py-4">
           {/* QR Code */}
-          <div className="flex justify-center p-4 bg-white rounded-lg">
+          <div className="flex justify-center p-4 bg-card rounded-lg">
             <QRCodeSVG 
               value={chatInviteUrl} 
               size={160} 

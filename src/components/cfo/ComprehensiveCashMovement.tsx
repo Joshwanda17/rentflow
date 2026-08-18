@@ -322,7 +322,7 @@ const COMPANY_TO_WALLETS_GROUPS: { label: string; categories: Set<string>; color
   { label: 'Advances disbursed to user wallets (especially agents)', categories: COMPANY_TO_WALLETS_GROUP_3, color: 'bg-rose-500/10 text-rose-600 border-rose-500/20' },
   { label: 'Agent commissions & all other agent earnings (auto + manual)', categories: COMPANY_TO_WALLETS_GROUP_4, color: 'bg-amber-500/10 text-amber-600 border-amber-500/20' },
   { label: 'Marketing expenses sent to wallets by CFO', categories: COMPANY_TO_WALLETS_GROUP_5, color: 'bg-pink-500/10 text-pink-600 border-pink-500/20' },
-  { label: 'Operational expenses paid by CFO to wallets', categories: COMPANY_TO_WALLETS_GROUP_6, color: 'bg-slate-500/10 text-slate-600 border-slate-500/20' },
+  { label: 'Operational expenses paid by CFO to wallets', categories: COMPANY_TO_WALLETS_GROUP_6, color: 'bg-slate-500/10 text-muted-foreground border-slate-500/20' },
   { label: 'Payroll paid to employee wallets', categories: COMPANY_TO_WALLETS_GROUP_7, color: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20' },
   { label: 'Tax payments paid to wallets', categories: COMPANY_TO_WALLETS_GROUP_8, color: 'bg-orange-500/10 text-orange-600 border-orange-500/20' },
   { label: 'Research & Development paid to wallets', categories: COMPANY_TO_WALLETS_GROUP_9, color: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20' },

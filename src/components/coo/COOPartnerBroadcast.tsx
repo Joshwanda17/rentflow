@@ -218,7 +218,7 @@ export function COOPartnerBroadcast() {
                 <iframe
                   title="Partner email preview"
                   srcDoc={previewHtml}
-                  className="w-full h-[640px] bg-white"
+                  className="w-full h-[640px] bg-card"
                   sandbox=""
                 />
               </div>

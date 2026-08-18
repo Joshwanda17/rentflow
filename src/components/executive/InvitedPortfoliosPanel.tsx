@@ -759,7 +759,7 @@ function ReviewSubmissionDialog({
                 <section className="space-y-2">
                   <p className="text-xs font-semibold text-foreground">Signature</p>
                   {signature ? (
-                    <div className="bg-white rounded border p-2 flex items-center justify-center">
+                    <div className="bg-card rounded border p-2 flex items-center justify-center">
                       <img src={signature} alt="Partner signature" className="max-h-24 object-contain" />
                     </div>
                   ) : (
@@ -830,7 +830,7 @@ function ReviewSubmissionDialog({
                         </label>
                       </Button>
                       {(sigDataUrl || defaultSigUrl) ? (
-                        <img src={sigDataUrl || defaultSigUrl} alt="Signature" className="h-8 max-w-[120px] object-contain border rounded bg-white" />
+                        <img src={sigDataUrl || defaultSigUrl} alt="Signature" className="h-8 max-w-[120px] object-contain border rounded bg-card" />
                       ) : (
                         <span className="text-[10px] text-amber-600">No signature yet</span>
                       )}
@@ -907,8 +907,8 @@ function ReviewSubmissionDialog({
           </div>
 
           {/* RIGHT — live agreement preview */}
-          <div className="overflow-y-auto bg-slate-100 p-3 sm:p-6">
-            <div className="mx-auto max-w-[760px] bg-white shadow-lg rounded-sm">
+          <div className="overflow-y-auto bg-muted p-3 sm:p-6">
+            <div className="mx-auto max-w-[760px] bg-card shadow-lg rounded-sm">
               {previewData ? (
                 <AgreementHtmlPreview data={previewData} />
               ) : (

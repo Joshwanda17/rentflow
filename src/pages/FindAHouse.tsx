@@ -178,7 +178,7 @@ function HouseImageCarousel({ images, title, onImageClick, layout = 'vertical' }
           <div className="absolute top-1/2 right-16 -translate-y-1/2 hidden" aria-hidden="true" />
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5">
             {images.map((_, i) => (
-              <span key={i} className={`h-2 rounded-full transition-all ${i === idx ? 'bg-white w-5' : 'bg-white/50 w-2'}`} />
+              <span key={i} className={`h-2 rounded-full transition-all ${i === idx ? 'bg-card w-5' : 'bg-white/50 w-2'}`} />
             ))}
           </div>
         </>

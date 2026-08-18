@@ -493,7 +493,7 @@ const services = [
         icon: Receipt,
         title: "Transaction History",
         description: "Complete record of all your transactions. Export reports for personal or business use.",
-        color: "bg-slate-500/10 text-slate-500"
+        color: "bg-slate-500/10 text-muted-foreground"
       },
       {
         icon: Clock,

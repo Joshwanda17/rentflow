@@ -22,13 +22,13 @@ const COLOR_MAP: Record<string, { bg: string; text: string; ring: string }> = {
   rose:    { bg: 'bg-rose-500/10',    text: 'text-rose-600',    ring: 'ring-rose-500/30' },
   emerald: { bg: 'bg-emerald-500/10', text: 'text-emerald-600', ring: 'ring-emerald-500/30' },
   amber:   { bg: 'bg-amber-500/10',   text: 'text-amber-600',   ring: 'ring-amber-500/30' },
-  slate:   { bg: 'bg-slate-500/10',   text: 'text-slate-600',   ring: 'ring-slate-500/30' },
+  slate:   { bg: 'bg-slate-500/10',   text: 'text-muted-foreground',   ring: 'ring-slate-500/30' },
 };
 
 const TIER_META: Record<string, { label: string; icon: any; color: string }> = {
   starter: { label: 'Starter', icon: Sparkles, color: 'text-muted-foreground' },
   bronze:  { label: 'Bronze',  icon: Medal,    color: 'text-amber-700' },
-  silver:  { label: 'Silver',  icon: Medal,    color: 'text-slate-400' },
+  silver:  { label: 'Silver',  icon: Medal,    color: 'text-muted-foreground' },
   gold:    { label: 'Gold',    icon: Trophy,   color: 'text-yellow-500' },
   diamond: { label: 'Diamond', icon: Crown,    color: 'text-cyan-500' },
 };
@@ -371,7 +371,7 @@ export function AgentDailyMissions({ onCaptureClick }: Props) {
                     <div className={cn(
                       'h-8 w-8 rounded-full flex items-center justify-center font-bold text-sm shrink-0',
                       row.rank === 1 && 'bg-yellow-500/20 text-yellow-700',
-                      row.rank === 2 && 'bg-slate-400/20 text-slate-600',
+                      row.rank === 2 && 'bg-slate-400/20 text-muted-foreground',
                       row.rank === 3 && 'bg-amber-700/20 text-amber-800',
                       row.rank > 3 && 'bg-muted text-muted-foreground',
                     )}>

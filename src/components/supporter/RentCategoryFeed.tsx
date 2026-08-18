@@ -283,7 +283,7 @@ function ViewDetailsDialog({
               </div>
             </div>
             <div className="w-10 h-5 rounded-full bg-emerald-500 relative">
-              <div className="absolute right-0.5 top-0.5 w-4 h-4 rounded-full bg-white shadow-sm" />
+              <div className="absolute right-0.5 top-0.5 w-4 h-4 rounded-full bg-card shadow-sm" />
             </div>
           </div>
         </div>

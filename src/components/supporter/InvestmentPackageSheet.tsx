@@ -404,10 +404,10 @@ export function InvestmentPackageSheet({ open, onOpenChange, category, onAcceptA
                     {category.category}
                   </DialogTitle>
                 </DialogHeader>
-                <p className="text-slate-400 text-xs mt-0.5">Welile Supporters Program</p>
+                <p className="text-muted-foreground text-xs mt-0.5">Welile Supporters Program</p>
                 <div className="mt-4 flex items-end justify-between">
                   <div>
-                    <p className="text-[10px] text-slate-400 uppercase tracking-wider">Facilitation Amount</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Facilitation Amount</p>
                     <p className="text-2xl font-black mt-0.5">{formatAmount(rentAmount)}</p>
                   </div>
                   <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30 text-xs">

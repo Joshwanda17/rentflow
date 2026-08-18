@@ -91,7 +91,7 @@ export function AgentFrozenGate({ children }: { children: React.ReactNode }) {
 
         <Button
           variant="outline"
-          className="mt-6 w-full border-white/40 bg-white text-red-700 hover:bg-white/90 hover:text-red-800"
+          className="mt-6 w-full border-white/40 bg-card text-red-700 hover:bg-white/90 hover:text-red-800"
           onClick={() => window.open('tel:+256777607640', '_self')}
         >
           <Phone className="mr-2 h-4 w-4" />

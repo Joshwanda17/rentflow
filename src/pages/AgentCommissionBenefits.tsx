@@ -118,7 +118,7 @@ Bring an investor who funds rent → earn *2%* of their investment (1% on Angel 
           <img
             src={WelileLogo}
             alt="Welile"
-            className="h-9 w-9 rounded-lg object-cover bg-white p-0.5 shrink-0"
+            className="h-9 w-9 rounded-lg object-cover bg-card p-0.5 shrink-0"
           />
           <h1 className="text-lg font-bold text-primary-foreground flex-1 leading-tight">How You Earn 💰</h1>
           <DropdownMenu>
@@ -758,7 +758,7 @@ Bring an investor who funds rent → earn *2%* of their investment (1% on Angel 
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-md border bg-white" />
+                            <div className="w-6 h-6 rounded-md border bg-card" />
                             <div>
                               <p className="text-xs font-bold text-foreground">White</p>
                               <p className="text-xs font-mono">#FFFFFF</p>

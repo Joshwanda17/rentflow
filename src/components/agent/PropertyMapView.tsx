@@ -295,7 +295,7 @@ export function PropertyMapView({
                   <div className="space-y-2">
                     <div>
                       <p className="font-bold text-sm leading-tight">{n ? `Stop ${n}: ` : ''}{m.addr}</p>
-                      <p className="text-[11px] text-gray-500 mt-0.5">
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
                         {m.tenants.length} tenant{m.tenants.length !== 1 ? 's' : ''}
                         {' · '}
                         <span className={hasDebt ? 'text-rose-600 font-semibold' : 'text-emerald-600 font-semibold'}>
@@ -303,7 +303,7 @@ export function PropertyMapView({
                         </span>
                       </p>
                       {m.daily > 0 && (
-                        <p className="text-[11px] text-gray-500">{formatUGX(m.daily)}/day expected</p>
+                        <p className="text-[11px] text-muted-foreground">{formatUGX(m.daily)}/day expected</p>
                       )}
                     </div>
                     <div className="max-h-44 overflow-y-auto -mx-1 px-1 space-y-1 border-t pt-1.5">
@@ -313,13 +313,13 @@ export function PropertyMapView({
                           <button
                             key={t.id}
                             onClick={() => onSelectTenant(t.id)}
-                            className="w-full flex items-center justify-between gap-2 text-left p-1.5 rounded hover:bg-gray-100 active:bg-gray-200"
+                            className="w-full flex items-center justify-between gap-2 text-left p-1.5 rounded hover:bg-muted active:bg-gray-200"
                           >
                             <div className="min-w-0">
-                              <p className="text-xs font-semibold truncate text-gray-900">
+                              <p className="text-xs font-semibold truncate text-foreground">
                                 {t.full_name?.trim() || 'Unnamed tenant'}
                               </p>
-                              <p className="text-[10px] text-gray-500 truncate">{t.phone}</p>
+                              <p className="text-[10px] text-muted-foreground truncate">{t.phone}</p>
                             </div>
                             <span className={`text-[11px] font-mono font-bold shrink-0 ${bal > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
                               {bal > 0 ? formatUGX(bal) : '✓'}

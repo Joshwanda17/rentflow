@@ -218,7 +218,7 @@ export default function EncouragementMessageDialog({ tenant, trigger }: Encourag
           {message && (
             <div className="p-3 rounded-lg border bg-purple-50/50">
               <p className="text-xs text-muted-foreground mb-2">Preview:</p>
-              <div className="bg-white rounded-lg p-3 shadow-sm border">
+              <div className="bg-card rounded-lg p-3 shadow-sm border">
                 <p className="text-sm whitespace-pre-wrap">{message}</p>
               </div>
             </div>

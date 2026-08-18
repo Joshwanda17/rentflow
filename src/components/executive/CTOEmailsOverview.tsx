@@ -543,7 +543,7 @@ export function CTOEmailsOverview() {
               <span className="font-mono">{previewRow?.template_name}</span>
             </DialogDescription>
           </DialogHeader>
-          <div className="flex-1 min-h-[400px] border border-border rounded-lg overflow-hidden bg-white">
+          <div className="flex-1 min-h-[400px] border border-border rounded-lg overflow-hidden bg-card">
             {previewLoading ? (
               <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />

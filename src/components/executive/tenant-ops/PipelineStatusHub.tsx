@@ -883,7 +883,7 @@ export function PipelineStatusHub({ onOpenTenant, initialStatusKey }: Props) {
                 <KPICard title="Completed" value={snapshot.completed} icon={CheckCircle2} color="bg-emerald-500/10 text-emerald-600" subtitle="current book" onClick={() => { setStatusKey('completed'); setTab('tenants'); }} />
                 <KPICard title="Defaulted" value={snapshot.defaulted} icon={AlertTriangle} color="bg-destructive/10 text-destructive" subtitle="current book" onClick={() => { setStatusKey('defaulted'); setTab('tenants'); }} />
                 <KPICard title="Rejected" value={snapshot.rejected} icon={XCircle} color="bg-rose-500/10 text-rose-600" subtitle="current book" onClick={() => { setStatusKey('rejected'); setTab('tenants'); }} />
-                <KPICard title="Cancelled / withdrawn" value={snapshot.cancelled} icon={X} color="bg-slate-500/10 text-slate-600" subtitle="current book" onClick={() => { setStatusKey('cancelled'); setTab('tenants'); }} />
+                <KPICard title="Cancelled / withdrawn" value={snapshot.cancelled} icon={X} color="bg-slate-500/10 text-muted-foreground" subtitle="current book" onClick={() => { setStatusKey('cancelled'); setTab('tenants'); }} />
               </div>
 
               <Card>

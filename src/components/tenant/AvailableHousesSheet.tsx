@@ -118,7 +118,7 @@ function HouseImageCarousel({ images, title, houseId }: { images: string[] | nul
           </button>
           <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex gap-1">
             {images.map((_, i) => (
-              <span key={i} className={`w-1.5 h-1.5 rounded-full ${i === idx ? 'bg-white' : 'bg-white/50'}`} />
+              <span key={i} className={`w-1.5 h-1.5 rounded-full ${i === idx ? 'bg-card' : 'bg-white/50'}`} />
             ))}
           </div>
         </>

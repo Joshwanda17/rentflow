@@ -1182,12 +1182,12 @@ export default function UserProfilesTable() {
       {/* Hidden container for selected users PDF export */}
       {selectedUserIds.size > 0 && (
         <div className="fixed -left-[9999px] top-0" aria-hidden="true">
-          <div ref={selectedUsersRef} className="bg-white p-4 space-y-2 w-[600px]">
+          <div ref={selectedUsersRef} className="bg-card p-4 space-y-2 w-[600px]">
             {getSelectedUsers().map(user => (
-              <div key={user.id} className="border-b border-gray-200 pb-2 mb-2">
+              <div key={user.id} className="border-b border-border pb-2 mb-2">
                 <div className="font-semibold">{user.full_name}</div>
-                <div className="text-sm text-gray-600">{user.email} • {user.phone}</div>
-                <div className="text-xs text-gray-500">
+                <div className="text-sm text-muted-foreground">{user.email} • {user.phone}</div>
+                <div className="text-xs text-muted-foreground">
                   Roles: {user.roles.join(', ') || 'None'} | 
                   Rating: {user.average_rating?.toFixed(1) || 'N/A'} | 
                   Joined: {formatDateForExport(user.created_at)}

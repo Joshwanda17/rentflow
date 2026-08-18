@@ -37,8 +37,8 @@ const STATUS_TONE: Record<string, string> = {
   repaying: 'bg-emerald-100 text-emerald-700',
   overdue: 'bg-rose-100 text-rose-700',
   pending: 'bg-amber-100 text-amber-700',
-  completed: 'bg-slate-100 text-slate-600',
-  cancelled: 'bg-slate-100 text-slate-500',
+  completed: 'bg-muted text-muted-foreground',
+  cancelled: 'bg-muted text-muted-foreground',
 };
 
 export function ActiveAdvancesPanel() {
@@ -188,7 +188,7 @@ export function ActiveAdvancesPanel() {
                       <TableCell className="text-xs">{r.expires_at ? format(new Date(r.expires_at), 'dd MMM yy') : '—'}</TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-1">
-                          <Badge className={STATUS_TONE[r.status] || 'bg-slate-100 text-slate-600'} variant="secondary">
+                          <Badge className={STATUS_TONE[r.status] || 'bg-muted text-muted-foreground'} variant="secondary">
                             {r.status}
                           </Badge>
                           {isBehind && (

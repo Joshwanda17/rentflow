@@ -172,7 +172,7 @@ export function CEORevenueGrowth() {
           <KPICard title="Rent History Records" value={num(dataAsset?.rentHistory || 0)} icon={FileText} loading={loadingData}
             color="bg-orange-500/10 text-orange-600" subtitle="The proprietary credit dataset" />
           <KPICard title="Rent Journeys Tracked" value={num(dataAsset?.rentRequests || 0)} icon={Layers} loading={loadingData}
-            color="bg-slate-500/10 text-slate-600" subtitle="End-to-end financed journeys" />
+            color="bg-slate-500/10 text-muted-foreground" subtitle="End-to-end financed journeys" />
         </div>
         <div className="mt-2 sm:mt-3">
           <DataCompletenessScorecard />

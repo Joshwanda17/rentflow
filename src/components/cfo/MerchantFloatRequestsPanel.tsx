@@ -847,7 +847,7 @@ export function MerchantFloatRequestsPanel() {
                                         <p className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
                                           {isVirtual ? (
                                             <>
-                                              <ArrowDownRight className="h-3 w-3 text-slate-500" />
+                                              <ArrowDownRight className="h-3 w-3 text-muted-foreground" />
                                               Activity before first tracked top-up
                                             </>
                                           ) : (

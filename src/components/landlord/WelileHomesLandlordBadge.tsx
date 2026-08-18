@@ -8,9 +8,9 @@ import { Home, Trophy, Star, Crown, Gem } from 'lucide-react';
 
 // Tier thresholds based on total tenant savings generated
 const TIERS = {
-  starter: { min: 0, label: 'Starter', icon: Home, color: 'text-slate-500', bg: 'bg-slate-100', border: 'border-slate-300' },
+  starter: { min: 0, label: 'Starter', icon: Home, color: 'text-muted-foreground', bg: 'bg-muted', border: 'border-border' },
   bronze: { min: 100000, label: 'Bronze', icon: Trophy, color: 'text-amber-700', bg: 'bg-amber-100', border: 'border-amber-400' },
-  silver: { min: 500000, label: 'Silver', icon: Star, color: 'text-slate-400', bg: 'bg-slate-100', border: 'border-slate-400' },
+  silver: { min: 500000, label: 'Silver', icon: Star, color: 'text-muted-foreground', bg: 'bg-muted', border: 'border-slate-400' },
   gold: { min: 2000000, label: 'Gold', icon: Crown, color: 'text-yellow-500', bg: 'bg-yellow-50', border: 'border-yellow-400' },
   platinum: { min: 10000000, label: 'Platinum', icon: Gem, color: 'text-purple-600', bg: 'bg-purple-100', border: 'border-purple-400' },
 } as const;

@@ -20,7 +20,7 @@ interface AgentScore {
 
 const TIER_CONFIG: Record<Tier, { label: string; icon: any; color: string; bg: string }> = {
   gold:     { label: '🥇 Gold',   icon: Trophy,       color: 'text-amber-600',  bg: 'bg-amber-500/10' },
-  silver:   { label: '🥈 Silver', icon: Medal,        color: 'text-slate-500',  bg: 'bg-slate-500/10' },
+  silver:   { label: '🥈 Silver', icon: Medal,        color: 'text-muted-foreground',  bg: 'bg-slate-500/10' },
   bronze:   { label: '🥉 Bronze', icon: Award,        color: 'text-orange-600', bg: 'bg-orange-500/10' },
   inactive: { label: '⚠️ Inactive', icon: AlertTriangle, color: 'text-destructive', bg: 'bg-destructive/10' },
 };

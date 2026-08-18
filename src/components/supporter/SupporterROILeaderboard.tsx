@@ -53,7 +53,7 @@ export function SupporterROILeaderboard({ limit = 10, compact = false }: Support
       case 1:
         return <Crown className="h-5 w-5 text-yellow-500" />;
       case 2:
-        return <Medal className="h-5 w-5 text-slate-400" />;
+        return <Medal className="h-5 w-5 text-muted-foreground" />;
       case 3:
         return <Award className="h-5 w-5 text-amber-600" />;
       default:

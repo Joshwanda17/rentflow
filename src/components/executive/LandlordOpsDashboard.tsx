@@ -369,7 +369,7 @@ const navItems: { id: View; label: string; icon: typeof Building2; color: string
   { id: 'landlords-tenants', label: 'Landlords & Tenants', icon: Users, color: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/30', description: 'All landlords with their tenants & paid/pending status', priority: true },
   { id: 'houses-by-landlord', label: 'Houses by Landlord', icon: Home, color: 'bg-primary/10 text-primary border-primary/30', description: 'Bind / swap / remove tenants on each house · reassign agents', priority: true },
   { id: 'landlords-paid', label: 'Landlords Paid', icon: Banknote, color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30', description: 'Disbursements from tenant rent', priority: true },
-  { id: 'all-requests', label: 'All Requests', icon: Table2, color: 'bg-slate-500/10 text-slate-600 border-slate-500/30', description: 'Full table of every rent request (landlord lens)', priority: true },
+  { id: 'all-requests', label: 'All Requests', icon: Table2, color: 'bg-slate-500/10 text-muted-foreground border-slate-500/30', description: 'Full table of every rent request (landlord lens)', priority: true },
   { id: 'locations', label: 'Locations', icon: MapPin, color: 'bg-purple-500/10 text-purple-600 border-purple-500/30', description: 'Regions, districts & house counts', priority: true },
   { id: 'lc1-requests', label: 'Agents requesting LC1 verification', icon: ShieldQuestion, color: 'bg-amber-500/10 text-amber-600 border-amber-500/30', description: 'Single inbox — approve or reject every LC1 chairperson', priority: true },
   { id: 'lc1', label: 'LC1 Chairpersons', icon: ShieldCheck, color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30', description: 'Approved & rejected LC1 chairpersons · reports', priority: true },
@@ -412,7 +412,7 @@ function TenantStatusFilter({
     pending: 'bg-amber-100 text-amber-700 border-amber-300 hover:bg-amber-200',
     verified: 'bg-emerald-100 text-emerald-700 border-emerald-300 hover:bg-emerald-200',
     listed: 'bg-sky-100 text-sky-700 border-sky-300 hover:bg-sky-200',
-    hidden: 'bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200',
+    hidden: 'bg-muted text-muted-foreground border-border hover:bg-slate-200',
     rejected: 'bg-rose-100 text-rose-700 border-rose-300 hover:bg-rose-200',
     default: 'bg-muted text-muted-foreground border-border hover:bg-accent',
   };
@@ -3765,7 +3765,7 @@ export function LandlordOpsDashboard() {
             const colorMap: Record<string, string> = {
               amber: active ? 'bg-amber-500 text-white border-amber-500' : 'bg-background text-amber-700 border-amber-300 hover:bg-amber-50',
               emerald: active ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-background text-emerald-700 border-emerald-300 hover:bg-emerald-50',
-              slate: active ? 'bg-slate-500 text-white border-slate-500' : 'bg-background text-slate-700 border-slate-300 hover:bg-slate-50',
+              slate: active ? 'bg-slate-500 text-white border-slate-500' : 'bg-background text-muted-foreground border-border hover:bg-muted',
               rose: active ? 'bg-rose-500 text-white border-rose-500' : 'bg-background text-rose-700 border-rose-300 hover:bg-rose-50',
               primary: active ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-primary border-primary/30 hover:bg-primary/5',
             };
@@ -4004,7 +4004,7 @@ export function LandlordOpsDashboard() {
                         <Badge className="bg-emerald-100 text-emerald-700 border-0 text-[10px] h-5 px-1.5 font-bold"><CheckCircle2 className="h-3 w-3 mr-0.5" />Verified</Badge>
                       )}
                       {house.is_hidden && (
-                        <Badge className="bg-slate-200 text-slate-700 border-0 text-[10px] h-5 px-1.5 font-bold"><EyeOff className="h-3 w-3 mr-0.5" />Hidden</Badge>
+                        <Badge className="bg-slate-200 text-muted-foreground border-0 text-[10px] h-5 px-1.5 font-bold"><EyeOff className="h-3 w-3 mr-0.5" />Hidden</Badge>
                       )}
                     </div>
                   </div>

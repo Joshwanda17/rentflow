@@ -73,7 +73,7 @@ export function MonthlyRewardsTrigger() {
             <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-yellow-500/10 text-yellow-600">
               🥇 1st: UGX 5,000
             </div>
-            <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-gray-400/10 text-gray-500">
+            <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-gray-400/10 text-muted-foreground">
               🥈 2nd: UGX 3,000
             </div>
             <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-amber-600/10 text-amber-600">
