@@ -20,6 +20,17 @@ import {
 
 const MIN_REASON = 10;
 
+/** Server errors from PostgREST/RPC are plain objects, not Error instances.
+ * Read the message off whatever shape arrives so the agent sees the real reason
+ * (e.g. "Only funded or repaying rent plans can be transferred") instead of a generic failure. */
+function serverMessage(e: unknown, fallback: string): string {
+  const raw = e as { message?: unknown; details?: unknown; hint?: unknown } | null;
+  const msg = [raw?.message, raw?.details, raw?.hint].find(
+    (v) => typeof v === 'string' && v.trim().length > 0,
+  ) as string | undefined;
+  return msg?.trim() || fallback;
+}
+
 function reasonError(reason: string) {
   return reason.trim().length < MIN_REASON
     ? `Please give at least ${MIN_REASON} characters so this action is auditable.`
@@ -60,7 +71,7 @@ export function SuspendSubAgentDialog({
       setReason('');
       onOpenChange(false);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Action failed');
+      toast.error(serverMessage(e, 'Action failed'));
     }
   };
 
@@ -168,7 +179,7 @@ export function TransferTenantDialog({
       setRentRequestId(''); setToId(''); setReason('');
       onOpenChange(false);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not submit transfer');
+      toast.error(serverMessage(e, 'Could not submit transfer'));
     }
   };
 
@@ -276,7 +287,7 @@ export function UnlinkSubAgentDialog({
       setReason('');
       onOpenChange(false);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not unlink this sub-agent');
+      toast.error(serverMessage(e, 'Could not unlink this sub-agent'));
     }
   };
 

@@ -5173,6 +5173,7 @@ export type Database = {
           created_at: string | null
           id: string
           metadata: Json | null
+          reason: string | null
           record_id: string | null
           table_name: string | null
           user_id: string | null
@@ -5183,6 +5184,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           metadata?: Json | null
+          reason?: string | null
           record_id?: string | null
           table_name?: string | null
           user_id?: string | null
@@ -5193,6 +5195,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           metadata?: Json | null
+          reason?: string | null
           record_id?: string | null
           table_name?: string | null
           user_id?: string | null
