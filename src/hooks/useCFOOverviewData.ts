@@ -253,7 +253,65 @@ export function useCFOOverviewData() {
       const totalIn = increases.reduce((s: number, e: any) => s + e.value, 0);
       const totalOut = decreases.reduce((s: number, e: any) => s + e.value, 0);
 
-      return { totalCash, a1, a5, increases, decreases, totalIn, totalOut };
+      // ── Where the cash physically sits (position view, not a source view) ──
+      // A1 "Cash and Bank" is split using the same ledger legs already summed
+      // above: the banking categories net to the bank balance, and whatever is
+      // left of A1 is cash held by treasury / the platform. These are positions,
+      // so they are NOT added to the sources total and cannot double-count.
+      const BANK_CATEGORIES = ['treasury_bank_deposit', 'cash_at_bank_reclass'];
+      const A1_CATEGORIES = [
+        'agent_float_deposit',
+        'agent_float_funding',
+        'agent_float_settlement',
+        'agent_float_topup',
+        'agent_landlord_payout',
+        'cash_at_bank_reclass',
+        'partner_capital_cash_received',
+        'rent_disbursement',
+        'treasury_bank_deposit',
+        'wallet_deposit',
+        'wallet_transfer',
+        'wallet_withdrawal',
+      ];
+
+      const lineFor = (cat: string) => cashLines.find((l: any) => String(l.category) === cat);
+      const netOf = (cats: string[]) =>
+        cats.reduce((s, c) => s + Number(lineFor(c)?.net ?? 0), 0);
+      const countOf = (cats: string[]) =>
+        cats.reduce((s, c) => s + Number(lineFor(c)?.entry_count ?? 0), 0);
+      const childrenFor = (cats: string[]) =>
+        cats
+          .map((c) => ({
+            category: c,
+            label: labelFor(c),
+            value: Number(lineFor(c)?.net ?? 0),
+            count: Number(lineFor(c)?.entry_count ?? 0),
+          }))
+          .filter((c) => Math.round(c.value) !== 0)
+          .sort((a, b) => Math.abs(b.value) - Math.abs(a.value));
+
+      const bankCash = netOf(BANK_CATEGORIES);
+      const treasuryOnlyCategories = A1_CATEGORIES.filter((c) => !BANK_CATEGORIES.includes(c));
+      const treasuryCash = a1 - bankCash;
+
+      const positions = [
+        {
+          category: 'treasury_platform_cash',
+          label: 'Money in Treasury / Platform',
+          value: treasuryCash,
+          count: countOf(treasuryOnlyCategories),
+          children: childrenFor(treasuryOnlyCategories),
+        },
+        {
+          category: 'bank_cash',
+          label: 'Money in Bank',
+          value: bankCash,
+          count: countOf(BANK_CATEGORIES),
+          children: childrenFor(BANK_CATEGORIES),
+        },
+      ];
+
+      return { totalCash, a1, a5, increases, decreases, totalIn, totalOut, positions };
     },
     staleTime: STALE_TIME,
   });
