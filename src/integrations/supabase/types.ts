@@ -39121,6 +39121,14 @@ export type Database = {
           role: string
         }[]
       }
+      get_user_signup_windows: {
+        Args: never
+        Returns: {
+          current_count: number
+          previous_count: number
+          window_days: number
+        }[]
+      }
       get_user_trust_profile: { Args: { p_ai_id: string }; Returns: Json }
       get_user_wallet_holds: {
         Args: { p_user_id: string }
