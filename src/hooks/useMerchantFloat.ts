@@ -712,7 +712,7 @@ export function useLatestMerchantFloatMovements(agentIds: string[], enabled = tr
         .select('user_id, transaction_date, created_at, description, category, direction, amount')
         .in('user_id', ids)
         .eq('wallet_bucket', 'float')
-        .neq('classification', 'admin_correction')
+
         .order('transaction_date', { ascending: false })
         .limit(1000);
       if (error) throw error;
@@ -759,7 +759,7 @@ export function useRecentMerchantFloatMovements(
         .select('user_id, transaction_date, created_at, description, category, direction, amount')
         .in('user_id', ids)
         .eq('wallet_bucket', 'float')
-        .neq('classification', 'admin_correction')
+
         .order('transaction_date', { ascending: false })
         .limit(1000);
       if (error) throw error;
