@@ -335,6 +335,26 @@ export function generateAgentProductsServicesPdf(opts: {
     );
   }
 
+  // ===== 1b. Cumulative build-up to the reporting date =====
+  const cumWindows = opts.cumulative?.windows ?? [];
+  if (cumWindows.length) {
+    drawTable(
+      `CUMULATIVE BUILD-UP TO ${dayLabel}`,
+      ['Window', 'From', 'Rent collected', 'Collections', 'New agents', 'Advances issued', 'Advances recovered'],
+      [34, 22, 34, 20, 20, 34, 34],
+      cumWindows.map(w => [
+        apsWindowLabel(w.days),
+        fmtDay(w.from_date),
+        apsUgx(w.rent_collected),
+        `${num(w.collections_count)} (${num(w.collecting_agents)} agents)`,
+        num(w.new_agents),
+        `${apsUgx(w.advances_issued)} · ${num(w.advances_count)}`,
+        apsUgx(w.advances_recovered),
+      ]),
+      ['left', 'left', 'right', 'right', 'right', 'right', 'right'],
+    );
+  }
+
   // ===== 2. Rent receivables =====
   drawTable('2. RENT RECEIVABLES', ['Metric', 'Today', 'Previous day', 'Change'], w4, [
     ['Rent collected', apsUgx(report.rent.collected_today), apsUgx(report.rent.collected_prev), apsPctLabel(report.rent.collected_today, report.rent.collected_prev)],
