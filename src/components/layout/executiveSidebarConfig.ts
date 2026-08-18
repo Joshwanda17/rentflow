@@ -289,7 +289,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'Leave Management', icon: ClipboardList, id: 'leave', access: HR_ACCESS },
         { label: 'Disciplinary', icon: AlertTriangle, id: 'disciplinary', access: HR_ACCESS },
         { label: 'Audit Trail', icon: FileText, id: 'audit', access: HR_ACCESS },
-        { label: 'Internship Applications', icon: GraduationCap, id: 'internships', access: HR_ACCESS },
+        
         { label: 'Requisitions', icon: ClipboardList, id: 'requisitions', access: HR_ACCESS },
         { label: 'Contracts', icon: FileText, id: 'hr-contracts', route: '/hr/contracts', access: HR_ACCESS },
       ],
@@ -339,7 +339,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'User Management', icon: Users, id: 'users' },
         { label: 'Deposits', icon: Banknote, id: 'deposits' },
         { label: 'Financial Ops', icon: Wallet, id: 'financial-ops' },
-        { label: 'Internship Applications', icon: GraduationCap, id: 'internships' },
+        
         { label: 'Audit Log', icon: ClipboardList, id: 'audit' },
       ],
     },
