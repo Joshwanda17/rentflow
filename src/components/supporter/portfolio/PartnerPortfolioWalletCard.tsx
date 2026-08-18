@@ -126,8 +126,11 @@ export function PartnerPortfolioWalletCard({ onAddCard, onSend, onRequest, onTop
                 TOTAL PORTFOLIO PRINCIPAL
               </span>
               <div
-                className="font-extrabold text-white tracking-tight leading-none whitespace-nowrap"
-                style={{ fontSize: 'clamp(20px, 6.8cqw, 40px)' }}
+                className="font-black text-white tracking-tight leading-none whitespace-nowrap"
+                style={{
+                  fontSize: 'clamp(20px, 6.8cqw, 40px)',
+                  fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro", "Segoe UI", Roboto, sans-serif',
+                }}
               >
                 {formatUGX(totalPrincipal)}
               </div>
