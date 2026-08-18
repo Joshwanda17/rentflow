@@ -433,6 +433,17 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse, vacantOnly
 
   const hasActiveFilter = q.length > 0 || statusFilter !== 'all' || regionFilter !== 'all' || sortBy !== 'newest' || minPrice.trim() !== '' || maxPrice.trim() !== '';
 
+  // Pagination over landlord groups
+  const GROUPS_PER_PAGE = 5;
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(filteredGrouped.length / GROUPS_PER_PAGE));
+  useEffect(() => { setPage(1); }, [search, statusFilter, regionFilter, sortBy, minPrice, maxPrice, open]);
+  useEffect(() => { if (page > totalPages) setPage(totalPages); }, [page, totalPages]);
+  const pagedGrouped = useMemo(
+    () => filteredGrouped.slice((page - 1) * GROUPS_PER_PAGE, page * GROUPS_PER_PAGE),
+    [filteredGrouped, page]
+  );
+
   const searchRef = useRef<HTMLInputElement>(null);
   const clearAll = () => { setSearch(''); setStatusFilter('all'); setRegionFilter('all'); setSortBy('newest'); setMinPrice(''); setMaxPrice(''); };
   useFilterKeyboardShortcuts({ inputRef: searchRef, onClear: clearAll, hasActiveFilter, enabled: open });
