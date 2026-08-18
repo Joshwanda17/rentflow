@@ -293,8 +293,27 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
       // Send failed — release the lock so the agent can legitimately retry.
       sentLandlordsRef.current.delete(landlordKey);
       forceLockRender((n) => n + 1);
+      // NEVER fail silently: read the reason from the hook's ref (state is
+      // still stale at this point) and show it both as a toast and inline.
+      const reason =
+        landlordOtp.getLastError() ||
+        'Could not send the OTP. Check your connection and tap Send OTP again.';
+      setSendOtpError(reason);
+      toast.error(reason);
     }
   };
+
+  // Inline, always-visible reason the Send OTP button is blocked or failed.
+  const [sendOtpError, setSendOtpError] = useState<string | null>(null);
+  const sendBlockedReason = !phoneValid
+    ? 'Enter a valid landlord phone number to enable the OTP.'
+    : effectiveAmount <= 0
+      ? 'Enter an amount greater than 0.'
+      : !withinRent
+        ? `Amount cannot exceed rent due (${formatUGX(rentDue)}).`
+        : !withinFloat
+          ? `Amount exceeds your available Landlord Payout Float (${formatUGX(availablePayoutFloat)}).`
+          : null;
 
   // Auto-send the landlord OTP the moment the agent taps a request to
   // withdraw float — the landlord receives the code immediately, without the
