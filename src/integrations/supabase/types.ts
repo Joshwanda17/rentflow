@@ -38363,6 +38363,10 @@ export type Database = {
         Args: { p_bucket?: string; p_days?: number; p_months?: number }
         Returns: Json
       }
+      get_partner_forward_schedule: {
+        Args: { p_days?: number; p_streams?: string[] }
+        Returns: Json
+      }
       get_partner_ops_brief_report: {
         Args: { p_end: string; p_start: string }
         Returns: Json
