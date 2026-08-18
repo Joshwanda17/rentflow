@@ -7,6 +7,7 @@ import {
   buildWithdrawalPaidReceiptRequest,
 } from "../_shared/partnership-emails.ts";
 import { sendWhatsApp } from "../_shared/whatsapp.ts";
+import { resolveOwnedRecipientEmail } from "../_shared/ownedRecipientEmail.ts";
 import {
   logSmsDelivery,
   reserveSmsIdempotency,
@@ -3461,14 +3462,17 @@ Deno.serve(async (req) => {
 
       // Resolve the recipient email so the Financial Ops notification log
       // shows who was alerted.
+      // Ownership guard: `profiles.email` is NOT unique — one gmail can be
+      // attached to many accounts (agents registering tenants/sub-accounts).
+      // Only send the payout receipt to an address that provably belongs to
+      // the beneficiary; otherwise skip email (SMS/WhatsApp still notify).
       let recipientEmailForLog: string | null = null;
       try {
-        const { data: rp } = await admin
-          .from("profiles")
-          .select("email")
-          .eq("id", beneficiaryUserId)
-          .maybeSingle();
-        recipientEmailForLog = (rp as any)?.email ?? null;
+        recipientEmailForLog = await resolveOwnedRecipientEmail(
+          admin,
+          beneficiaryUserId,
+          "approve-withdrawal",
+        );
       } catch { /* non-fatal */ }
 
       // Multi-channel proof of payment. The customer now receives the SAME

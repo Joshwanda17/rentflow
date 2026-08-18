@@ -8,6 +8,7 @@
 // Fire-and-forget. Failure here MUST NEVER block the allocation flow.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { resolveOwnedRecipientEmail } from "../_shared/ownedRecipientEmail.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -139,12 +140,27 @@ Deno.serve(async (req) => {
       : 0;
     const daily_for_tenant = Number(rentReq?.daily_repayment || 0);
 
+    // Ownership guard: only email the receipt to an address that provably
+    // belongs to this agent (see _shared/ownedRecipientEmail.ts). Shared
+    // gmail addresses across accounts caused receipt cross-delivery.
+    const ownedAgentEmail = await resolveOwnedRecipientEmail(
+      admin,
+      body.agent_id,
+      "send-agent-payment-receipt-email",
+    );
+    if (!ownedAgentEmail) {
+      return new Response(
+        JSON.stringify({ success: false, reason: "no_owned_recipient_email" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     const idempotencyKey = `agent-pay-receipt-${body.allocation_id || `${body.agent_id}-${body.tenant_id}-${Date.now()}`}`;
 
     const { error: invokeErr } = await admin.functions.invoke("send-transactional-email", {
       body: {
         templateName: "agent-tenant-payment-receipt",
-        recipientEmail: agent.email,
+        recipientEmail: ownedAgentEmail,
         idempotencyKey,
         templateData: {
           agent_name: agent.full_name?.split(" ")[0] || "there",
