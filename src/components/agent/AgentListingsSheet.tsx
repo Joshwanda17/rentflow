@@ -4,7 +4,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Home, MapPin, DoorOpen, CheckCircle, Clock, AlertTriangle, RotateCcw, Building2, ChevronDown, ChevronRight, ChevronUp, User, UserCog, Pencil, Search, X, MoreVertical, Eye, Trash2, Loader2, MessageCircle, Trophy, Sparkles } from 'lucide-react';
+import { Home, MapPin, DoorOpen, CheckCircle, Clock, AlertTriangle, RotateCcw, Building2, ChevronDown, ChevronRight, ChevronLeft, ChevronUp, User, UserCog, Pencil, Search, X, MoreVertical, Eye, Trash2, Loader2, MessageCircle, Trophy, Sparkles } from 'lucide-react';
 import { UserMinus, Repeat } from 'lucide-react';
 import { Plus } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -433,6 +433,17 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse, vacantOnly
 
   const hasActiveFilter = q.length > 0 || statusFilter !== 'all' || regionFilter !== 'all' || sortBy !== 'newest' || minPrice.trim() !== '' || maxPrice.trim() !== '';
 
+  // Pagination over landlord groups
+  const GROUPS_PER_PAGE = 5;
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(filteredGrouped.length / GROUPS_PER_PAGE));
+  useEffect(() => { setPage(1); }, [search, statusFilter, regionFilter, sortBy, minPrice, maxPrice, open]);
+  useEffect(() => { if (page > totalPages) setPage(totalPages); }, [page, totalPages]);
+  const pagedGrouped = useMemo(
+    () => filteredGrouped.slice((page - 1) * GROUPS_PER_PAGE, page * GROUPS_PER_PAGE),
+    [filteredGrouped, page]
+  );
+
   const searchRef = useRef<HTMLInputElement>(null);
   const clearAll = () => { setSearch(''); setStatusFilter('all'); setRegionFilter('all'); setSortBy('newest'); setMinPrice(''); setMaxPrice(''); };
   useFilterKeyboardShortcuts({ inputRef: searchRef, onClear: clearAll, hasActiveFilter, enabled: open });
@@ -850,7 +861,7 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse, vacantOnly
               )}
 
               {/* Houses grouped by landlord */}
-              {filteredGrouped.map(g => {
+              {pagedGrouped.map(g => {
                 const key = g.landlord_id ?? '__none__';
                 const isOpen = expanded[key] !== false; // default open
                 return (
@@ -1053,6 +1064,31 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse, vacantOnly
                   </div>
                 );
               })}
+
+              {filteredGrouped.length > GROUPS_PER_PAGE && (
+                <div className="flex items-center justify-between gap-2 pt-1">
+                  <p className="text-[11px] text-muted-foreground">
+                    Landlords {(page - 1) * GROUPS_PER_PAGE + 1}–{Math.min(page * GROUPS_PER_PAGE, filteredGrouped.length)} of {filteredGrouped.length}
+                  </p>
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      size="sm" variant="outline" className="h-8 px-2 text-xs"
+                      disabled={page === 1}
+                      onClick={() => setPage(p => Math.max(1, p - 1))}
+                    >
+                      <ChevronLeft className="h-3.5 w-3.5" /> Prev
+                    </Button>
+                    <span className="text-[11px] text-muted-foreground px-1">{page} / {totalPages}</span>
+                    <Button
+                      size="sm" variant="outline" className="h-8 px-2 text-xs"
+                      disabled={page >= totalPages}
+                      onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    >
+                      Next <ChevronRight className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>
