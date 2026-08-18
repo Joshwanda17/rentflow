@@ -900,3 +900,128 @@ export function useRecentMerchantFloatMovements(
     },
   });
 }
+
+// ---------------------------------------------------------------------------
+// Settlement debts — what the company genuinely owes each merchant agent.
+//
+// ACCURACY RULE: the board headline (`owed_to_agent`) is a lifetime
+// paid-out-minus-float differential and is therefore contaminated by legacy
+// payouts, off-ledger reimbursements and unposted float credits. It must never
+// be used to pay anyone. The only clean debt is a merchant out-of-pocket
+// advance that has been CONFIRMED (status `pending_reimbursement`) and not yet
+// reimbursed — see the merchant own-money evidence gate. Rows still in
+// `needs_review` are reported separately and never added to the payable total.
+// Read only: nothing here writes wallets or the ledger.
+// ---------------------------------------------------------------------------
+
+export interface MerchantDebtLine {
+  id: string;
+  agentId: string;
+  withdrawalId: string | null;
+  kind: 'payout' | 'telecom' | string;
+  payoutAmount: number;
+  telecomCharge: number;
+  floatUsed: number;
+  amount: number;
+  status: string;
+  note: string | null;
+  createdAt: string;
+  attestedAt: string | null;
+  reviewedAt: string | null;
+}
+
+export interface MerchantDebtGroup {
+  agentId: string;
+  agentName: string;
+  agentPhone: string | null;
+  /** Payable now — confirmed, unreimbursed advances only. */
+  payable: number;
+  /** Filed but unconfirmed — excluded from `payable`. */
+  underReview: number;
+  payableLines: MerchantDebtLine[];
+  reviewLines: MerchantDebtLine[];
+  oldestAt: string | null;
+}
+
+const DEBT_STATUS_PAYABLE = 'pending_reimbursement';
+const DEBT_STATUS_REVIEW = 'needs_review';
+
+export function useMerchantSettlementDebts(enabled = true) {
+  return useQuery({
+    queryKey: ['merchant-settlement-debts'],
+    enabled,
+    retry: false,
+    staleTime: 20_000,
+    refetchInterval: 60_000,
+    queryFn: async (): Promise<MerchantDebtGroup[]> => {
+      const { data, error } = await supabase
+        .from('merchant_out_of_pocket_advances' as any)
+        .select(
+          'id, agent_id, withdrawal_id, kind, payout_amount, telecom_charge, float_used, shortfall_amount, status, note, created_at, attested_at, reviewed_at',
+        )
+        .in('status', [DEBT_STATUS_PAYABLE, DEBT_STATUS_REVIEW])
+        .is('reimbursed_at', null)
+        .order('created_at', { ascending: false })
+        .limit(2000);
+      if (error) throw error;
+      const rows = (data ?? []) as any[];
+
+      const ids = Array.from(new Set(rows.map((r) => r.agent_id).filter(Boolean).map(String)));
+      const people = new Map<string, { name: string; phone: string | null }>();
+      if (ids.length) {
+        const { data: profs } = await supabase
+          .from('profiles')
+          .select('id, full_name, phone')
+          .in('id', ids);
+        (profs ?? []).forEach((p: any) =>
+          people.set(String(p.id), { name: p.full_name ?? 'Unknown agent', phone: p.phone ?? null }),
+        );
+      }
+
+      const groups = new Map<string, MerchantDebtGroup>();
+      for (const r of rows) {
+        const agentId = String(r.agent_id ?? '');
+        if (!agentId) continue;
+        const line: MerchantDebtLine = {
+          id: String(r.id),
+          agentId,
+          withdrawalId: r.withdrawal_id ?? null,
+          kind: r.kind,
+          payoutAmount: Number(r.payout_amount ?? 0),
+          telecomCharge: Number(r.telecom_charge ?? 0),
+          floatUsed: Number(r.float_used ?? 0),
+          amount: Number(r.shortfall_amount ?? 0),
+          status: String(r.status),
+          note: r.note ?? null,
+          createdAt: String(r.created_at),
+          attestedAt: r.attested_at ?? null,
+          reviewedAt: r.reviewed_at ?? null,
+        };
+        const who = people.get(agentId);
+        let g = groups.get(agentId);
+        if (!g) {
+          g = {
+            agentId,
+            agentName: who?.name ?? 'Unknown agent',
+            agentPhone: who?.phone ?? null,
+            payable: 0,
+            underReview: 0,
+            payableLines: [],
+            reviewLines: [],
+            oldestAt: null,
+          };
+          groups.set(agentId, g);
+        }
+        if (line.status === DEBT_STATUS_PAYABLE) {
+          g.payable += line.amount;
+          g.payableLines.push(line);
+          if (!g.oldestAt || line.createdAt < g.oldestAt) g.oldestAt = line.createdAt;
+        } else {
+          g.underReview += line.amount;
+          g.reviewLines.push(line);
+        }
+      }
+      return Array.from(groups.values()).sort((a, b) => b.payable - a.payable || b.underReview - a.underReview);
+    },
+  });
+}

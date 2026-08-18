@@ -15,6 +15,7 @@ import { MerchantReconcileDialog } from './MerchantReconcileDialog';
 import { useFinancialOpsEditAccess } from '@/hooks/useFinancialOpsEditAccess';
 import { MerchantFloatStatementDialog } from './MerchantFloatStatementDialog';
 import { MerchantOwnMoneyReviewPanel } from './MerchantOwnMoneyReviewPanel';
+import { MerchantDebtSettlementDialog } from './MerchantDebtSettlementDialog';
 
 /**
  * Money With Agents — shows how much company money is still sitting with each
@@ -35,6 +36,7 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
   const [statementFor, setStatementFor] = useState<MerchantFloatPosition | null>(null);
   const qc = useQueryClient();
   const [sweeping, setSweeping] = useState(false);
+  const [debtsOpen, setDebtsOpen] = useState(false);
   const { canEdit: canEditFloat, readOnlyReason } = useFinancialOpsEditAccess();
 
   // Payout float guard repair: any payout that completed WITHOUT a float debit
@@ -188,7 +190,12 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
             Money we sent them that they have not used yet — evidenced portion only
           </p>
         </div>
-        <div className="rounded-xl border border-border bg-muted/30 p-3">
+        <button
+          type="button"
+          onClick={() => setDebtsOpen(true)}
+          className="rounded-xl border border-border bg-muted/30 p-3 text-left transition-colors hover:border-primary/50 hover:bg-muted/60"
+          title="See what each agent is owed, the transactions behind it, and download a settlement PDF"
+        >
           <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
             Money we must send back to them
           </p>
@@ -198,7 +205,10 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
           <p className="text-[10px] text-muted-foreground mt-1">
             They used their own phone money to pay our customers. We have not refunded them yet.
           </p>
-        </div>
+          <p className="mt-1 text-[10px] font-medium text-primary">
+            Tap for the per-agent settlement schedule →
+          </p>
+        </button>
       </div>
 
       {deficitTotal > 0 && (
@@ -472,6 +482,12 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
         position={statementFor}
         open={!!statementFor}
         onOpenChange={(v) => !v && setStatementFor(null)}
+      />
+
+      <MerchantDebtSettlementDialog
+        open={debtsOpen}
+        onOpenChange={setDebtsOpen}
+        headlineOwed={owedTotal}
       />
 
       <div className="mt-4">
