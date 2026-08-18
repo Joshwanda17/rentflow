@@ -123,7 +123,7 @@ export function PartnerPortfolioWalletCard({ onAddCard, onSend, onRequest, onTop
                 className="font-medium tracking-wider text-white/70 uppercase whitespace-nowrap"
                 style={{ fontSize: 'clamp(8px, 2.25cqw, 13px)', marginBottom: 'min(0.6cqw, 4px)' }}
               >
-                TOTAL PORTFOLIO PRINCIPAL
+                ACTIVE RENT PRINCIPAL
               </span>
               <div
                 className="font-black text-white tracking-tight leading-none whitespace-nowrap"
