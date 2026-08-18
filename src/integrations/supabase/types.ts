@@ -40363,6 +40363,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      merchant_float_fix_authorized: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
       merchant_float_visible_net: {
         Args: { p_agent_id: string }
         Returns: number
