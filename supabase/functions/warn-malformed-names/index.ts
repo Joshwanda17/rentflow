@@ -65,11 +65,11 @@ async function sendViaYoola(phone: string, message: string) {
   const apiKey = Deno.env.get('YOOLA_SMS_API_KEY')?.trim();
   if (!apiKey) return { accepted: false, reason: 'yoola_not_configured' };
   try {
-    // Omit sender per SMS sender ID rule — WELILE is unregistered on Yoola.
+    // WELILE is the registered sender ID on Yoola and must be set explicitly.
     const res = await fetch('https://yoolasms.com/api/v1/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ phone: toBareDigits(phone), message, api_key: apiKey , sender: "WELILE" }),
+      body: JSON.stringify({ phone: toBareDigits(phone), message, api_key: apiKey, sender: "WELILE" }),
     });
     const text = await res.text();
     let data: any = {}; try { data = JSON.parse(text); } catch { /* */ }
