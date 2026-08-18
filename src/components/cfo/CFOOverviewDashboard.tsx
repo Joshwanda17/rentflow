@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import {
   Loader2, ArrowDownRight, ArrowUpRight, Scale, Wallet, Users, TrendingUp,
   Banknote, Percent, Receipt, ClipboardCheck, ChevronRight, Info, CalendarDays, Download,
-  PiggyBank, Flame, BarChart3, Package, LineChart as LineChartIcon,
+  PiggyBank, Flame, BarChart3, Package, LineChart as LineChartIcon, ChevronDown,
 } from 'lucide-react';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -38,6 +38,10 @@ const fmtShort = (n: number) => {
 export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps) {
   const [exportingCommissions, setExportingCommissions] = useState(false);
   const [activeBreakdown, setActiveBreakdown] = useState<string | null>(null);
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
+  const isOpen = (key: string) => openSections[key] === true;
+  const toggleSection = (key: string) =>
+    setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
   const { user } = useAuth();
   const {
     platformCash, liabilities, revenue, receivables, moneyFlow,
