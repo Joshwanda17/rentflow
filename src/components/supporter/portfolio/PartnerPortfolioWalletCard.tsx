@@ -66,14 +66,14 @@ export function PartnerPortfolioWalletCard({ onAddCard, onSend, onRequest, onTop
   const name = (profile?.full_name || '').trim().toUpperCase();
 
   if (loading) {
-    return <div className="w-full aspect-[354/190] rounded-[20px] bg-muted animate-pulse" />;
+    return <div className="w-full aspect-[354/165] rounded-[20px] bg-muted animate-pulse" />;
   }
 
   return (
-    <div className="w-full space-y-4">
+    <div className="w-full space-y-3">
       {/* CARD */}
       <div
-        className="relative w-full aspect-[354/190]"
+        className="relative w-full aspect-[354/165]"
         style={{ filter: 'drop-shadow(0px 8px 22px rgba(99, 26, 186, 0.30))', containerType: 'inline-size' }}
       >
         <svg
