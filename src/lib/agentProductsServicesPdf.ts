@@ -111,6 +111,7 @@ export function generateAgentProductsServicesPdf(opts: {
   report: ApsReport;
   actor: string;
   exportType?: string;
+  cumulative?: ApsCumulative | null;
 }): Blob {
   const { report, actor } = opts;
   const exportType = opts.exportType || 'PDF';
