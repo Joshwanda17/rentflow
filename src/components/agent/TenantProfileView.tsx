@@ -781,6 +781,102 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
   const visibleRepayments = showAllRepayments ? repayments : repayments.slice(0, PAGE_SIZE);
   const visibleRequests = showAllRequests ? requests : requests.slice(0, PAGE_SIZE);
 
+  /**
+   * Repayment history aggregated per rent plan.
+   *
+   * Accuracy rules:
+   * - only `repayments` rows whose `rent_request_id` matches the plan count towards
+   *   that plan (the repayments ledger is the source of truth for cash received);
+   * - the running balance is computed oldest-first as
+   *   `total_repayment − cumulative paid`, floored at 0, so each row shows the
+   *   balance that was left immediately after that payment;
+   * - when `amount_repaid` on the plan exceeds the sum of its repayment rows
+   *   (offline top-ups, system adjustments that never wrote a repayment row) the
+   *   difference is surfaced as an "other sources" note instead of being silently
+   *   folded into a payment row.
+   */
+  const planRepaymentHistory = useMemo(() => {
+    const map = new Map<string, {
+      rows: { id: string; date: string; amount: number; remaining: number }[];
+      ledgerPaid: number;
+      otherSources: number;
+      remaining: number;
+    }>();
+
+    for (const req of requests) {
+      const totalDue = Number(req.total_repayment) || 0;
+      const planRows = repayments
+        .filter((r) => r.rent_request_id === req.id)
+        .slice()
+        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+      let cumulative = 0;
+      const rows = planRows.map((r) => {
+        const amount = Number(r.amount) || 0;
+        cumulative += amount;
+        return {
+          id: String(r.id),
+          date: r.created_at,
+          amount,
+          remaining: Math.max(0, totalDue - cumulative),
+        };
+      });
+
+      const amountRepaid = Number(req.amount_repaid) || 0;
+      map.set(req.id, {
+        // newest-first for display
+        rows: rows.reverse(),
+        ledgerPaid: cumulative,
+        otherSources: Math.max(0, amountRepaid - cumulative),
+        remaining: Math.max(0, totalDue - Math.max(cumulative, amountRepaid)),
+      });
+    }
+    return map;
+  }, [requests, repayments]);
+
+  /** Export the full per-plan repayment history (all rows, not just loaded ones). */
+  const handleExportRepaymentReport = async () => {
+    if (!profile) return;
+    setExportingRepayReport(true);
+    try {
+      const plans: TenantRepaymentPlanBlock[] = requests.map((req) => {
+        const agg = planRepaymentHistory.get(req.id);
+        return {
+          planDate: req.created_at,
+          status: req.status || 'unknown',
+          rentAmount: Number(req.rent_amount) || 0,
+          totalRepayment: Number(req.total_repayment) || 0,
+          totalRepaid: Math.max(agg?.ledgerPaid ?? 0, Number(req.amount_repaid) || 0),
+          remaining: agg?.remaining ?? Math.max(0, (Number(req.total_repayment) || 0) - (Number(req.amount_repaid) || 0)),
+          landlordName: req.landlord?.name ?? null,
+          propertyAddress: req.landlord?.property_address ?? null,
+          rows: (agg?.rows ?? []).map((r) => ({ date: r.date, amount: r.amount, remaining: r.remaining })),
+        };
+      });
+
+      const blob = await generateTenantRepaymentReportPdf({
+        tenantName: profile.full_name,
+        phone: profile.phone,
+        aiId,
+        generatedBy: (user?.user_metadata?.full_name as string) || (user?.email as string) || null,
+        plans,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = buildTenantRepaymentReportFilename(profile.full_name);
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      toast({ title: '📄 Repayment report downloaded' });
+    } catch (err: any) {
+      toast({ title: 'Export failed', description: err?.message, variant: 'destructive' });
+    } finally {
+      setExportingRepayReport(false);
+    }
+  };
+
   // Build the repayment-sheet payload (shared by the download + open actions).
   // Includes the agent's day-by-day float allocations with exact date & time.
   const buildSheetData = (opts?: { allTime?: boolean }): RepaymentSheetData | null => {
