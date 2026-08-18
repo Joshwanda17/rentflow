@@ -42,6 +42,11 @@ import { SelfManagedNearingPayouts } from './SelfManagedNearingPayouts';
 import { PartnerOpsSidebar } from './partner-ops/PartnerOpsSidebar';
 import { PartnerOpsTopBar } from './partner-ops/PartnerOpsTopBar';
 import { PartnerOpsSummaryCards } from './partner-ops/PartnerOpsSummaryCards';
+import {
+  PartnerRoiProjectionChart,
+  PartnerRecentWithdrawals,
+  PartnerNewTrend,
+} from './partner-ops/PartnerOpsOverviewInsights';
 import type { PartnerOpsViewKey } from './partner-ops/partnerOpsNav';
 
 type Tab = 'portfolios' | 'invited' | 'capital' | 'roi' | 'topups' | 'activity' | 'promissory' | 'maturity' | 'renewals' | 'withdrawals' | 'proxy-agents';
@@ -202,6 +207,9 @@ export function PartnersOpsDashboard() {
       case 'overview': return (
         <div className="space-y-4">
           <PartnerOpsSummaryCards onNavigate={setView} />
+          <PartnerRoiProjectionChart />
+          <PartnerRecentWithdrawals />
+          <PartnerNewTrend />
           <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}>
             <Card
               className="border-primary/30 bg-primary/5 cursor-pointer hover:bg-primary/10 transition-colors"
@@ -331,13 +339,13 @@ export function PartnersOpsDashboard() {
       />
 
       {/* ═══ BODY: SIDEBAR + CONTENT ═══ */}
-      <div className="flex min-h-[calc(100vh-4rem)] gap-4 pt-3">
+      <div className="-ml-4 flex min-h-[calc(100vh-4rem)] gap-4 pt-3">
         <aside className="hidden w-56 shrink-0 lg:block">
-          <div className="sticky top-16 flex h-[calc(100vh-4rem)] flex-col rounded-xl border bg-card">
+          <div className="sticky top-0 flex h-[calc(100vh-4rem)] flex-col rounded-l-none rounded-r-xl border border-l-0 bg-card">
             <PartnerOpsSidebar active={view} onSelect={setView} badges={badges} className="flex-1" />
           </div>
         </aside>
-        <div className="min-w-0 flex-1 space-y-4">
+        <div className="min-w-0 flex-1 space-y-4 pl-4 lg:pl-0">
           <div className="min-h-[200px]">{renderView()}</div>
         </div>
       </div>

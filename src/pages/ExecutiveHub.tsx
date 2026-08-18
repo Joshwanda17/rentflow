@@ -104,7 +104,7 @@ export default function ExecutiveHub() {
 
   const current = dashboards[tab];
   const DashboardComponent = current.component;
-  const fullWidth = tab === 'agent-ops';
+  const fullWidth = tab === 'agent-ops' || tab === 'partners-ops';
 
   return (
     <div className="flex flex-col h-[100dvh] bg-background overflow-hidden">

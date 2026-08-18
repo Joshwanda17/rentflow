@@ -38425,6 +38425,7 @@ export type Database = {
         Args: { p_days?: number; p_streams?: string[] }
         Returns: Json
       }
+      get_partner_new_trend: { Args: { p_days?: number }; Returns: Json }
       get_partner_ops_brief_report: {
         Args: { p_end: string; p_start: string }
         Returns: Json
@@ -38436,6 +38437,10 @@ export type Database = {
       }
       get_partner_ops_range_report: {
         Args: { p_end: string; p_start: string }
+        Returns: Json
+      }
+      get_partner_ops_recent_withdrawals: {
+        Args: { p_limit?: number }
         Returns: Json
       }
       get_payout_delivery_audit: {
