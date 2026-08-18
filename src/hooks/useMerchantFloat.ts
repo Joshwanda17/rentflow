@@ -324,30 +324,34 @@ export function usePostMerchantAdjustment() {
       if (!auth?.user) throw new Error('You must be signed in.');
       if (input.reason.trim().length < 10) throw new Error('Reason must be at least 10 characters.');
       if (!Number.isFinite(input.amount) || input.amount === 0) throw new Error('Enter a non-zero amount.');
-      const { data, error } = await supabase
-        .from('merchant_float_reconciliations' as any)
-        .insert({
-        desk_id: input.deskId,
-        agent_id: input.agentId,
-        adjustment_type: input.adjustmentType,
-        amount: Math.round(input.amount),
-        reason: input.reason.trim(),
-        evidence_note: input.evidenceNote?.trim() || null,
-        created_by: auth.user.id,
-        })
-        // Read the row back so a blocked / silently dropped write can never be
-        // reported to the operator as a success.
-        .select('id, adjustment_type, amount, created_at')
-        .maybeSingle();
+      // Financial Ops ONLY. The gateway RPC enforces the role in the database,
+      // logs any unauthorized attempt (name, phone, role, IP, device) and fires
+      // the security notification — the UI can never be the enforcement point.
+      const { data: res, error } = await supabase.rpc('post_merchant_float_adjustment' as any, {
+        p_desk_id: input.deskId,
+        p_agent_id: input.agentId,
+        p_adjustment_type: input.adjustmentType,
+        p_amount: Math.round(input.amount),
+        p_reason: input.reason.trim(),
+        p_evidence_note: input.evidenceNote?.trim() || null,
+      });
       if (error) throw error;
-      if (!data) {
+      const row = (res ?? {}) as any;
+      if (!row?.ok) {
         throw new Error(
-          'The fix was not saved — the database did not return the record. Check your finance role and try again.',
+          row?.reason ||
+            'The fix was not saved — the database rejected the write. Check your Financial Ops role and try again.',
         );
       }
+      const data = {
+        id: row.id,
+        adjustment_type: row.adjustment_type,
+        amount: row.amount,
+        created_at: row.created_at,
+      };
       // Any fix must leave the board showing exactly what the books say — reseed
       // the cached float to the ledger figure so stale cache warnings clear.
-      await supabase.rpc('sync_merchant_desk_float_cache' as any, {
+      await supabase.rpc('finops_sync_merchant_desk_float_cache' as any, {
         p_desk_id: input.deskId,
         p_reason: `${input.adjustmentType} fix ${(data as any).id}`,
       });
@@ -376,7 +380,7 @@ export function usePostMerchantOpeningFloatLedger() {
       if (!Number.isFinite(input.amount) || input.amount <= 0) {
         throw new Error('Enter a positive amount. Use CFO Direct Debit to reduce float.');
       }
-      const { data, error } = await supabase.rpc('post_merchant_opening_float_ledger' as any, {
+      const { data, error } = await supabase.rpc('finops_post_merchant_opening_float_ledger' as any, {
         p_desk_id: input.deskId,
         p_agent_id: input.agentId,
         p_amount: Math.round(input.amount),
@@ -428,7 +432,7 @@ export function usePostMerchantFloatWritedown() {
       if (!Number.isFinite(input.amount) || input.amount <= 0) {
         throw new Error('Enter a positive amount. It is applied as a reduction of the float.');
       }
-      const { data, error } = await supabase.rpc('post_merchant_evidenced_writedown' as any, {
+      const { data, error } = await supabase.rpc('finops_post_merchant_evidenced_writedown' as any, {
         p_desk_id: input.deskId,
         p_agent_id: input.agentId,
         p_amount: Math.round(input.amount),
@@ -477,7 +481,7 @@ export function useSetMerchantDeskFloat() {
       if (!Number.isFinite(input.target) || input.target < 0) {
         throw new Error('Enter the float the agent actually holds. It cannot be negative.');
       }
-      const { data, error } = await supabase.rpc('set_merchant_desk_float_to' as any, {
+      const { data, error } = await supabase.rpc('finops_set_merchant_desk_float_to' as any, {
         p_desk_id: input.deskId,
         p_agent_id: input.agentId,
         p_target: Math.round(input.target),

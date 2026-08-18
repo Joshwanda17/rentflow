@@ -19,6 +19,7 @@ import {
   useSetMerchantDeskFloat,
   usePostMerchantFloatWritedown,
 } from '@/hooks/useMerchantFloat';
+import { useFinancialOpsEditAccess } from '@/hooks/useFinancialOpsEditAccess';
 
 /**
  * Professional correction path for a single merchant agent's settlement
@@ -50,6 +51,7 @@ export function MerchantReconcileDialog({
   const postLedger = usePostMerchantOpeningFloatLedger();
   const postWritedown = usePostMerchantFloatWritedown();
   const setFloat = useSetMerchantDeskFloat();
+  const { canEdit: canEditFloat, readOnlyReason } = useFinancialOpsEditAccess();
 
   if (!position) return null;
 
@@ -175,6 +177,13 @@ export function MerchantReconcileDialog({
             change their wallet. The books stay the truth.
           </DialogDescription>
         </DialogHeader>
+
+        {!canEditFloat && (
+          <div className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2">
+            <p className="text-[11px] font-semibold text-destructive">Read-only</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">{readOnlyReason}</p>
+          </div>
+        )}
 
         {truth && (
           <div
@@ -343,7 +352,7 @@ export function MerchantReconcileDialog({
             )}
           </div>
 
-          <Button onClick={submit} disabled={!valid || busy} className="w-full">
+          <Button onClick={submit} disabled={!valid || busy || !canEditFloat} className="w-full">
             {busy
               ? 'Saving…'
               : targetMode

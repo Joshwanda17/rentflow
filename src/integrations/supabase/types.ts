@@ -10935,6 +10935,48 @@ export type Database = {
           },
         ]
       }
+      financial_ops_security_violations: {
+        Row: {
+          attempted_action: string
+          context: Json
+          created_at: string
+          full_name: string | null
+          id: string
+          ip_address: string | null
+          notified: boolean
+          phone: string | null
+          roles: string[]
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          attempted_action: string
+          context?: Json
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          ip_address?: string | null
+          notified?: boolean
+          phone?: string | null
+          roles?: string[]
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          attempted_action?: string
+          context?: Json
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          ip_address?: string | null
+          notified?: boolean
+          phone?: string | null
+          roles?: string[]
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       float_promise_alerts: {
         Row: {
           acknowledged_at: string | null
@@ -36868,6 +36910,10 @@ export type Database = {
           village: string
         }[]
       }
+      finops_edit_authorized: {
+        Args: { p_action: string; p_context?: Json }
+        Returns: boolean
+      }
       finops_manual_float_credit: {
         Args: {
           p_amount: number
@@ -36877,6 +36923,40 @@ export type Database = {
           p_tid: string
           p_user_id: string
         }
+        Returns: Json
+      }
+      finops_post_merchant_evidenced_writedown: {
+        Args: {
+          p_agent_id: string
+          p_amount: number
+          p_desk_id: string
+          p_evidence_note: string
+          p_reason: string
+        }
+        Returns: Json
+      }
+      finops_post_merchant_opening_float_ledger: {
+        Args: {
+          p_agent_id: string
+          p_amount: number
+          p_desk_id: string
+          p_evidence_note?: string
+          p_reason: string
+        }
+        Returns: Json
+      }
+      finops_set_merchant_desk_float_to: {
+        Args: {
+          p_agent_id: string
+          p_desk_id: string
+          p_evidence_note?: string
+          p_reason: string
+          p_target: number
+        }
+        Returns: Json
+      }
+      finops_sync_merchant_desk_float_cache: {
+        Args: { p_desk_id: string; p_reason: string }
         Returns: Json
       }
       force_approve_rejected_rent_request: {
@@ -39746,6 +39826,10 @@ export type Database = {
         }
         Returns: string
       }
+      log_financial_ops_violation: {
+        Args: { p_action: string; p_context?: Json }
+        Returns: string
+      }
       log_finops_provider_mismatch: {
         Args: {
           _attempted_amount?: number
@@ -40823,6 +40907,17 @@ export type Database = {
           p_amount: number
           p_desk_id: string
           p_evidence_note: string
+          p_reason: string
+        }
+        Returns: Json
+      }
+      post_merchant_float_adjustment: {
+        Args: {
+          p_adjustment_type: string
+          p_agent_id: string
+          p_amount: number
+          p_desk_id: string
+          p_evidence_note?: string
           p_reason: string
         }
         Returns: Json
