@@ -49,7 +49,7 @@ export function PartnerOpsSidebar({ active, onSelect, badges = {}, className }: 
                   </button>
                 ) : (
                   <div className="space-y-1">
-                    <div className="flex items-center gap-2 px-2.5 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    <div className="flex items-center gap-2 px-2.5 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-primary">
                       <Icon className="h-4 w-4 shrink-0" />
                       <span className="truncate">{item.label}</span>
                     </div>
@@ -67,7 +67,7 @@ export function PartnerOpsSidebar({ active, onSelect, badges = {}, className }: 
                                 'flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs transition-colors',
                                 isActive
                                   ? 'bg-primary/10 font-semibold text-primary'
-                                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                                  : 'text-muted-foreground hover:bg-primary/10 hover:text-primary'
                               )}
                             >
                               <ChildIcon className="h-3.5 w-3.5 shrink-0" />
