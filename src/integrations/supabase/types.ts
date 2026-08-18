@@ -37302,6 +37302,10 @@ export type Database = {
           with_withdrawable: number
         }[]
       }
+      get_agent_products_cumulative: {
+        Args: { p_date?: string }
+        Returns: Json
+      }
       get_agent_products_overview: { Args: never; Returns: Json }
       get_agent_products_services_report: {
         Args: { p_date?: string }

@@ -22,6 +22,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import {
   generateAgentProductsServicesPdf, apsPctChange, apsPctLabel, apsUgx, type ApsReport,
+  apsWindowLabel, type ApsCumulative,
 } from '@/lib/agentProductsServicesPdf';
 
 const PAGE_SIZE = 15;
@@ -183,6 +184,18 @@ export function AgentProductsServicesReport() {
 
   const report = reportQuery.data;
 
+  const cumulativeQuery = useQuery({
+    queryKey: ['agent-products-cumulative', dayKey],
+    queryFn: async (): Promise<ApsCumulative> => {
+      const { data, error } = await supabase.rpc('get_agent_products_cumulative' as any, { p_date: dayKey });
+      if (error) throw error;
+      return data as unknown as ApsCumulative;
+    },
+    staleTime: 60_000,
+  });
+
+  const cumulative = cumulativeQuery.data ?? null;
+
   const trend = useMemo(
     () => [...(report?.trend || [])]
       .sort((a, b) => a.day.localeCompare(b.day))
@@ -194,7 +207,11 @@ export function AgentProductsServicesReport() {
     if (!report) return;
     setExporting(true);
     try {
-      const blob = generateAgentProductsServicesPdf({ report, actor: actorName || 'Agent Ops user' });
+      const blob = generateAgentProductsServicesPdf({
+        report,
+        actor: actorName || 'Agent Ops user',
+        cumulative,
+      });
       downloadBlob(blob, `agent-products-services-${dayKey}.pdf`);
       toast.success('Daily report downloaded');
     } catch (err: any) {
@@ -204,11 +221,14 @@ export function AgentProductsServicesReport() {
     }
   };
 
-  const setPreset = (kind: 'today' | 'yesterday' | 'last7') => {
+  const setPreset = (kind: 'today' | 'yesterday' | 'd7' | 'd30' | 'd90' | 'y1') => {
     const now = new Date();
     if (kind === 'today') setDay(now);
     if (kind === 'yesterday') setDay(subDays(now, 1));
-    if (kind === 'last7') setDay(subDays(now, 6));
+    if (kind === 'd7') setDay(subDays(now, 7));
+    if (kind === 'd30') setDay(subDays(now, 30));
+    if (kind === 'd90') setDay(subDays(now, 90));
+    if (kind === 'y1') setDay(subDays(now, 365));
   };
 
   const bikes = report?.bikes;
@@ -241,7 +261,14 @@ export function AgentProductsServicesReport() {
         </CardHeader>
         <CardContent className="p-3 pt-0">
           <div className="flex flex-wrap items-center gap-1.5">
-            {([['today', 'Today'], ['yesterday', 'Yesterday'], ['last7', '7 days ago']] as const).map(([k, l]) => (
+            {([
+              ['today', 'Today'],
+              ['yesterday', 'Yesterday'],
+              ['d7', '7 Days Ago'],
+              ['d30', '30 Days Ago'],
+              ['d90', '90 Days Ago'],
+              ['y1', '1 Year Ago'],
+            ] as const).map(([k, l]) => (
               <Button key={k} size="sm" variant="secondary" className="h-7 text-[11px]" onClick={() => setPreset(k)}>{l}</Button>
             ))}
             <Popover>
@@ -298,6 +325,67 @@ export function AgentProductsServicesReport() {
             <Kpi label="Requests approved / rejected" value={`${num(report.advances.approved)} / ${num(report.advances.rejected)}`} hint="advance decisions today" />
             <Kpi label="Pending service centres" value={num(report.service_centres.pending_total)} hint="awaiting verification" />
           </div>
+
+          {/* Cumulative build-up */}
+          <Card>
+            <CardHeader className="p-3 pb-1">
+              <CardTitle className="text-xs font-bold">
+                Cumulative build-up to {format(day, 'dd MMM yyyy')}
+              </CardTitle>
+              <p className="text-[10px] text-muted-foreground">
+                Totals accumulated from 7, 30, 90 and 365 days ago up to the reporting date
+              </p>
+            </CardHeader>
+            <CardContent className="p-3 pt-1">
+              {cumulativeQuery.isLoading ? (
+                <Skeleton className="h-28 rounded-lg" />
+              ) : cumulativeQuery.error ? (
+                <p className="text-xs text-destructive">
+                  {(cumulativeQuery.error as any)?.message || 'Could not load the cumulative comparison'}
+                </p>
+              ) : (
+                <div className="overflow-x-auto rounded-lg border">
+                  <table className="w-full text-xs">
+                    <thead className="bg-muted/50">
+                      <tr>
+                        <th className="px-2 py-2 text-left font-semibold whitespace-nowrap">Window</th>
+                        <th className="px-2 py-2 text-left font-semibold whitespace-nowrap">From</th>
+                        <th className="px-2 py-2 text-right font-semibold whitespace-nowrap">Rent collected</th>
+                        <th className="px-2 py-2 text-right font-semibold whitespace-nowrap">Collections</th>
+                        <th className="px-2 py-2 text-right font-semibold whitespace-nowrap">New agents</th>
+                        <th className="px-2 py-2 text-right font-semibold whitespace-nowrap">Advances issued</th>
+                        <th className="px-2 py-2 text-right font-semibold whitespace-nowrap">Advances recovered</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(cumulative?.windows ?? []).length === 0 && (
+                        <tr><td colSpan={7} className="px-2 py-6 text-center text-muted-foreground">No cumulative data</td></tr>
+                      )}
+                      {(cumulative?.windows ?? []).map(w => (
+                        <tr key={w.days} className="border-t">
+                          <td className="px-2 py-1.5 whitespace-nowrap font-medium">{apsWindowLabel(w.days)}</td>
+                          <td className="px-2 py-1.5 whitespace-nowrap text-muted-foreground">
+                            {format(new Date(`${w.from_date}T00:00:00`), 'dd MMM yyyy')}
+                          </td>
+                          <td className="px-2 py-1.5 text-right whitespace-nowrap">{apsUgx(w.rent_collected)}</td>
+                          <td className="px-2 py-1.5 text-right whitespace-nowrap">
+                            {num(w.collections_count)}
+                            <span className="text-muted-foreground"> · {num(w.collecting_agents)} agents</span>
+                          </td>
+                          <td className="px-2 py-1.5 text-right whitespace-nowrap">{num(w.new_agents)}</td>
+                          <td className="px-2 py-1.5 text-right whitespace-nowrap">
+                            {apsUgx(w.advances_issued)}
+                            <span className="text-muted-foreground"> · {num(w.advances_count)}</span>
+                          </td>
+                          <td className="px-2 py-1.5 text-right whitespace-nowrap">{apsUgx(w.advances_recovered)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Trend */}
           <Card>

@@ -67,6 +67,29 @@ export interface ApsReport {
   agent_float_rows: ApsFloatRow[];
 }
 
+/** One cumulative window: everything from `from_date` up to the reporting date. */
+export interface ApsCumulativeWindow {
+  days: number;
+  from_date: string;
+  to_date: string;
+  rent_collected: number;
+  collections_count: number;
+  collecting_agents: number;
+  new_agents: number;
+  advances_issued: number;
+  advances_count: number;
+  advances_recovered: number;
+}
+
+export interface ApsCumulative {
+  as_of: string;
+  timezone: string;
+  windows: ApsCumulativeWindow[];
+}
+
+export const apsWindowLabel = (days: number) =>
+  days === 365 ? 'Last 1 year (365 days)' : `Last ${days} days`;
+
 export function apsPctChange(current: number, previous: number): number | null {
   const c = Number(current) || 0;
   const p = Number(previous) || 0;
@@ -88,6 +111,7 @@ export function generateAgentProductsServicesPdf(opts: {
   report: ApsReport;
   actor: string;
   exportType?: string;
+  cumulative?: ApsCumulative | null;
 }): Blob {
   const { report, actor } = opts;
   const exportType = opts.exportType || 'PDF';
@@ -308,6 +332,26 @@ export function generateAgentProductsServicesPdf(opts: {
         r.parent_name || '—',
       ]),
       ['left', 'left', 'left', 'left', 'left'],
+    );
+  }
+
+  // ===== 1b. Cumulative build-up to the reporting date =====
+  const cumWindows = opts.cumulative?.windows ?? [];
+  if (cumWindows.length) {
+    drawTable(
+      `CUMULATIVE BUILD-UP TO ${dayLabel}`,
+      ['Window', 'From', 'Rent collected', 'Collections', 'New agents', 'Advances issued', 'Advances recovered'],
+      [34, 22, 34, 20, 20, 34, 34],
+      cumWindows.map(w => [
+        apsWindowLabel(w.days),
+        fmtDay(w.from_date),
+        apsUgx(w.rent_collected),
+        `${num(w.collections_count)} (${num(w.collecting_agents)} agents)`,
+        num(w.new_agents),
+        `${apsUgx(w.advances_issued)} · ${num(w.advances_count)}`,
+        apsUgx(w.advances_recovered),
+      ]),
+      ['left', 'left', 'right', 'right', 'right', 'right', 'right'],
     );
   }
 
