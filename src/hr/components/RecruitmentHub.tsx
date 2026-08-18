@@ -311,6 +311,14 @@ function ApplicationsTab() {
         subject: emailSubject,
         body: emailBody,
       });
+      const unknown = (result as { unknownPlaceholders?: string[] }).unknownPlaceholders ?? [];
+      if (unknown.length) {
+        toast.error(
+          `Nothing was sent — unrecognised placeholder${unknown.length === 1 ? '' : 's'}: ${unknown.join(', ')}. Use {{name}}, {{role}} or {{reference}}.`,
+        );
+        setConfirmSend(false);
+        return;
+      }
       toast.success(
         `${fmtCount(result.sent)} email${result.sent === 1 ? '' : 's'} queued · ` +
           `${fmtCount(result.suppressed)} skipped (suppressed) · ` +
@@ -709,11 +717,13 @@ function ApplicationsTab() {
                 value={emailBody}
                 onChange={(e) => setEmailBody(e.target.value)}
                 rows={10}
-                placeholder={'Write your message. Use {{name}} for the recipient\'s own name and {{reference}} for their own application reference.'}
+                placeholder={'Write your message. Use {{name}} for the recipient\'s own name, {{role}} for the role they applied for and {{reference}} for their own application reference.'}
               />
               <p className="text-[11px] text-muted-foreground">
-                {'{{name}}'} and {'{{reference}}'} are replaced with each recipient's own details.
-                Their reference is also printed at the foot of every message.
+                Supported placeholders: {'{{name}}'}, {'{{role}}'}, {'{{reference}}'} — each is
+                replaced with that recipient's own details. If no role was recorded, {'{{role}}'}
+                becomes "the role you applied for". Their reference is also printed at the foot of
+                every message. Any other {'{{token}}'} stops the send.
               </p>
             </div>
 
