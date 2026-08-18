@@ -99,6 +99,20 @@ Deno.serve(async (req) => {
       .eq("id", verificationId);
     if (upErr) return json(400, { error: "reissue_failed", message: upErr.message });
 
+    // Reviving a code session must also revive the deposit request itself.
+    // A previously expired window auto-rejects the deposit; if we leave it
+    // rejected, the new code verifies but `approve-deposit` refuses to credit
+    // it (and Financial Ops later cannot mark it as banked).
+    await admin
+      .from("deposit_requests")
+      .update({
+        status: "pending",
+        rejection_reason: null,
+        rejected_at: null,
+      } as any)
+      .eq("id", (ver as any).deposit_request_id)
+      .eq("status", "rejected");
+
     const amount = Number((ver as any).amount ?? 0);
     const message =
       `Welile cash deposit code: ${code}. ` +
