@@ -843,6 +843,7 @@ input, textarea, select, button {
 .dark .portfolio-hero-card {
   background-color: hsl(271 81% 28%);
   background-image: linear-gradient(145deg, hsl(271 81% 36%), hsl(271 81% 28%), hsl(260 70% 22%));
+  color: hsl(0 0% 100%);
   box-shadow: 
     0 20px 40px -15px hsl(271 81% 20% / 0.5),
     0 0 0 1px hsl(271 81% 50% / 0.1) inset;
