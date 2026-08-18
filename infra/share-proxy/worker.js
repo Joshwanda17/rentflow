@@ -2,8 +2,8 @@
  * Welile share proxy (Cloudflare Worker).
  *
  * Purpose: let shared links read as
- *   https://s.welileapp.com/m/<code>   (merchandise)
- *   https://s.welileapp.com/s/<code>   (rent plans)
+ *   https://welileapp.com/m/<code>   (merchandise)
+ *   https://welileapp.com/s/<code>   (rent plans)
  * while WhatsApp still receives the Open Graph tags (and item/photo) produced
  * by the upstream edge functions.
  *
@@ -12,7 +12,10 @@
  *
  * Deploy (one time, outside this repo):
  *   1. Create the Worker (dashboard or `npx wrangler deploy worker.js`).
- *   2. Add a route for  s.welileapp.com/*  to this Worker.
+ *   2. Add routes for  welileapp.com/s/*  and  welileapp.com/m/*  (preferred —
+ *      shares then read as https://welileapp.com/s/<code>), and optionally
+ *      s.welileapp.com/*  as well. Routing is path-based, so the same Worker
+ *      serves either host.
  *   3. Add a CNAME for  s  ->  the Worker/Cloudflare host, proxied (orange cloud).
  *   4. Set the UPSTREAM constants below if the project ref ever changes.
  */
