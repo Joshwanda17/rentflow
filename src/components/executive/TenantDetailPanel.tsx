@@ -1361,6 +1361,42 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
           </Card>
 
           {/* Recent collections */}
+          {/* Tenant migration history */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Migration History</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {!transferHistory || transferHistory.length === 0 ? (
+                <p className="p-4 text-sm text-muted-foreground text-center">
+                  No agent transfers recorded for this tenant
+                </p>
+              ) : (
+                <div className="divide-y divide-border">
+                  {transferHistory.map((t) => (
+                    <div key={t.id} className="px-4 py-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-medium">
+                          {t.from_agent_name || 'Unassigned'} → {t.to_agent_name || 'Unassigned'}
+                        </p>
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">
+                          {format(new Date(t.occurred_at), 'dd MMM yyyy, HH:mm')}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        {t.source.replace(/_/g, ' ')}
+                        {t.actor_name ? ` · by ${t.actor_name}` : ''}
+                      </p>
+                      {t.reason && (
+                        <p className="text-[11px] text-muted-foreground mt-0.5">Reason: {t.reason}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {data?.collections && data.collections.length > 0 && (
             <Card>
               <CardHeader className="pb-2">
