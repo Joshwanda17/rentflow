@@ -225,7 +225,7 @@ export default function ExecutiveDashboardLayout({
   };
 
   const SidebarContent = ({ onItemClick }: { onItemClick?: () => void }) => (
-    <nav className="flex-1 overflow-y-auto py-4 space-y-5" style={{ touchAction: 'manipulation' }}>
+    <nav className="flex-1 overflow-y-auto py-5 space-y-6" style={{ touchAction: 'manipulation' }}>
       {/* Quick filter — type to jump to any section on a phone */}
       <div className="px-3">
         <div className="relative">
@@ -236,14 +236,14 @@ export default function ExecutiveDashboardLayout({
             value={navQuery}
             onChange={(e) => setNavQuery(e.target.value)}
             placeholder="Search menu…"
-            className="w-full h-11 pl-9 pr-9 rounded-xl bg-muted/60 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+            className="w-full h-11 pl-9 pr-9 rounded-xl bg-card border border-border/60 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/30 transition-all"
             style={{ fontSize: 16 }}
           />
           {navQuery && (
             <button
               type="button"
               onClick={() => setNavQuery('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-muted"
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-muted transition-colors"
               aria-label="Clear search"
             >
               <X className="h-4 w-4 text-muted-foreground" />
