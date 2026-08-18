@@ -323,6 +323,14 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
       });
       return;
     }
+    // Backend only accepts these plan lengths — block early with a clear message
+    // instead of failing after the photos have already uploaded.
+    if (![7, 14, 21, 30, 60, 90, 120].includes(durNum)) {
+      toast.error('Unsupported plan length', {
+        description: `Duration must be 7, 14, 21, 30, 60, 90 or 120 days (you set ${durNum}).`,
+      });
+      return;
+    }
     const npNum = Number(numberOfPayments) || 0;
     if (npNum < 1 || npNum > durNum) {
       toast.error('Invalid number of payments', {
