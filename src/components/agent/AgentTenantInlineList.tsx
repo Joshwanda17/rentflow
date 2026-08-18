@@ -317,12 +317,20 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
           <>
           {visible.map((tenant) => {
             const balance = tenantBalances[tenant.id] || 0;
-            const hasDebt = balance > 0;
-            const isInReview = !hasDebt && inReviewIds.has(tenant.id);
-            const toneText = hasDebt
-              ? 'text-rose-600'
-              : isInReview
-                ? 'text-amber-600'
+            const isNotPaying = notPayingIds.has(tenant.id);
+            const hasDebt = balance > 0 && !isNotPaying;
+            const isCompleted = !isNotPaying && balance <= 0 && completedTenantIds.has(tenant.id);
+            const statusBadge = isNotPaying
+              ? { label: 'Not paying', cls: 'bg-amber-100 text-amber-700' }
+              : hasDebt
+                ? { label: 'Repaying', cls: 'bg-rose-100 text-rose-700' }
+                : isCompleted
+                  ? { label: 'Completed', cls: 'bg-emerald-100 text-emerald-700' }
+                  : { label: 'Paid up', cls: 'bg-emerald-100 text-emerald-700' };
+            const toneText = isNotPaying
+              ? 'text-amber-600'
+              : hasDebt
+                ? 'text-rose-600'
                 : 'text-emerald-600';
             const initial = (tenant.full_name?.trim()?.charAt(0) || tenant.phone?.charAt(0) || '?').toUpperCase();
             const photoUrl = tenantAvatars[tenant.id];
@@ -336,10 +344,10 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
               >
                 <div
                   className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 text-base font-bold ${
-                    hasDebt
-                      ? 'bg-rose-100 text-rose-700'
-                      : isInReview
-                        ? 'bg-amber-100 text-amber-700'
+                    isNotPaying
+                      ? 'bg-amber-100 text-amber-700'
+                      : hasDebt
+                        ? 'bg-rose-100 text-rose-700'
                         : 'bg-emerald-100 text-emerald-700'
                   } overflow-hidden`}
                 >
@@ -366,6 +374,11 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
                   <p className="font-bold text-sm truncate">
                     {tenant.full_name?.trim() || 'Tenant'}
                   </p>
+                  <span
+                    className={`inline-flex items-center mt-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide ${statusBadge.cls}`}
+                  >
+                    {statusBadge.label}
+                  </span>
                   {tenant.phone && (
                     <p className="text-xs text-muted-foreground flex items-center gap-1 truncate mt-0.5">
                       <Phone className="h-3 w-3 shrink-0" />
@@ -375,10 +388,10 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
                 </div>
                 <div className="text-right shrink-0 flex flex-col items-end min-w-0 max-w-[45%]">
                   <p className={`text-[10px] font-bold uppercase tracking-wide ${toneText}`}>
-                    {hasDebt ? 'Owing' : isInReview ? 'In review' : 'Paid up'}
+                    {hasDebt ? 'Owing' : isNotPaying ? 'On hold' : 'Cleared'}
                   </p>
                   <p className={`font-bold font-mono text-sm ${toneText} truncate`}>
-                    {hasDebt ? formatUGX(balance) : isInReview ? 'Not funded' : 'UGX 0'}
+                    {balance > 0 ? formatUGX(balance) : 'UGX 0'}
                   </p>
                 </div>
               </button>
