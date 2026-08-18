@@ -36022,6 +36022,16 @@ export type Database = {
         Args: { p_category: string; p_recipient_type: string }
         Returns: undefined
       }
+      assert_wallet_correction_gate: {
+        Args: {
+          p_actor: string
+          p_evidence: string
+          p_increases_balance: boolean
+          p_reason: string
+          p_target: string
+        }
+        Returns: undefined
+      }
       attach_campaign_registration: {
         Args: { p_short_code: string; p_visitor_id?: string }
         Returns: Json
@@ -38739,6 +38749,7 @@ export type Database = {
           evidenced_amount: number
           float_credits_recorded: number
           is_active: boolean
+          is_stale: boolean
           label: string
           last_payout_at: string
           last_reimbursed_at: string
@@ -38748,6 +38759,7 @@ export type Database = {
           paid_out_total: number
           payouts_without_float_evidence: number
           reimbursed_total: number
+          stale_since: string
         }[]
       }
       get_merchant_float_positions_signed: {
@@ -41759,6 +41771,7 @@ export type Database = {
         Args: { p_reason: string; p_request_id: string }
         Returns: string
       }
+      repair_merchant_float_reads: { Args: never; Returns: Json }
       repair_merchant_float_reservations: {
         Args: { p_agent_id?: string }
         Returns: Json
