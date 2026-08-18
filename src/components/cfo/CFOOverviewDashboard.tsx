@@ -6,7 +6,7 @@ import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import {
   Loader2, ArrowDownRight, ArrowUpRight, Scale, Wallet, Users, TrendingUp,
-  Banknote, Percent, Receipt, ClipboardCheck, ChevronRight, Info, CalendarDays, Download,
+  Banknote, Percent, Receipt, ChevronRight, Info, CalendarDays, Download,
   PiggyBank, Flame, BarChart3, Package, LineChart as LineChartIcon, ChevronDown,
 } from 'lucide-react';
 import {
@@ -173,43 +173,6 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   const todayLabel = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
-  const actionTrail = [
-    {
-      label: 'Payouts Awaiting Approval',
-      severity: (pendingApprovals?.count ?? 0) > 0 ? 'High' : 'Low',
-      count: pendingApprovals?.count ?? 0,
-      amount: pendingApprovals?.totalAmount ?? 0,
-      tab: 'withdrawals',
-    },
-    {
-      label: 'Reconciliation Exceptions',
-      severity: (integrityChecks?.missingGroupCount ?? 0) > 0 ? 'High' : 'Low',
-      count: integrityChecks?.missingGroupCount ?? 0,
-      amount: null as number | null,
-      tab: 'reconciliation',
-    },
-    {
-      label: 'Wallet Drift',
-      severity: (integrityChecks?.walletDriftCount ?? 0) > 0 ? 'Medium' : 'Low',
-      count: integrityChecks?.walletDriftCount ?? 0,
-      amount: null as number | null,
-      tab: 'ledger-health',
-    },
-    {
-      label: 'Negative Balances',
-      severity: (integrityChecks?.negativeLedgerCount ?? 0) > 0 ? 'High' : 'Low',
-      count: integrityChecks?.negativeLedgerCount ?? 0,
-      amount: null as number | null,
-      tab: 'ledger-health',
-    },
-    {
-      label: 'Advances Outstanding',
-      severity: 'Medium',
-      count: null as number | null,
-      amount: advancesOutstandingAll,
-      tab: 'advances',
-    },
-  ];
 
   const trendChartData = trend.map((t) => ({
     label: t.date.slice(5),
@@ -313,46 +276,6 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
         />
       </div>
 
-      {/* ══════════════ CFO ACTION TRAIL ══════════════ */}
-      <Card className="rounded-2xl">
-        <CardContent className="p-4 sm:p-5">
-          <div className="flex items-start justify-between gap-3 mb-4">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                <ClipboardCheck className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="font-semibold text-sm">CFO Action Trail</p>
-                <p className="text-xs text-muted-foreground">Items that need your attention</p>
-              </div>
-            </div>
-            {onTabChange && (
-              <button
-                onClick={() => onTabChange('reconciliation')}
-                className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline shrink-0"
-              >
-                View all <ChevronRight className="h-3.5 w-3.5" />
-              </button>
-            )}
-            <SectionToggle open={isOpen('actionTrail')} onToggle={() => toggleSection('actionTrail')} label="CFO Action Trail" />
-          </div>
-          {isOpen('actionTrail') && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 divide-y xl:divide-y-0 xl:divide-x divide-border">
-            {actionTrail.map((item) => (
-              <TrailItem
-                key={item.label}
-                label={item.label}
-                severity={item.severity}
-                count={item.count}
-                amount={item.amount}
-                amountLabel={item.amount === null ? null : fmt(item.amount)}
-                onClick={onTabChange ? () => onTabChange(item.tab) : undefined}
-              />
-            ))}
-          </div>
-          )}
-        </CardContent>
-      </Card>
 
       {/* ══════════════ KPI STRIP ══════════════ */}
       <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-3">
@@ -681,41 +604,6 @@ function HeroCard({ icon, iconBg, title, value, valueColor, items, footer, foote
   );
 }
 
-function TrailItem({ label, severity, count, amount, amountLabel, onClick }: {
-  label: string;
-  severity: string;
-  count: number | null;
-  amount: number | null;
-  amountLabel: string | null;
-  onClick?: () => void;
-}) {
-  const tone =
-    severity === 'High'
-      ? 'bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400'
-      : severity === 'Medium'
-        ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400'
-        : 'bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400';
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="text-left px-0 xl:px-4 py-3 xl:py-0 hover:bg-muted/30 transition-colors min-w-0"
-    >
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full shrink-0 ${tone}`}>{severity}</span>
-          <span className="text-xs font-medium truncate">{label}</span>
-        </div>
-        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-      </div>
-      <p className="mt-1.5 text-[11px] text-muted-foreground font-mono tabular-nums">
-        {count !== null && <>{count} item{count === 1 ? '' : 's'}</>}
-        {count !== null && amountLabel ? ' · ' : ''}
-        {amountLabel}
-      </p>
-    </button>
-  );
-}
 
 function KpiTile({ icon, iconBg, label, value, caption, valueColor }: {
   icon: React.ReactNode; iconBg: string; label: string; value: string; caption: string; valueColor?: string;
