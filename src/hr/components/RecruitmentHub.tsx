@@ -53,6 +53,8 @@ import {
 } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Textarea } from '@/components/ui/textarea';
 import {
   getCandidates,
   getDepartments,
@@ -66,6 +68,7 @@ import {
   APPLICATION_DECISIONS,
   purgeApplication,
   recordApplicationDecision,
+  sendCareersEmails,
   type ApplicationDecision,
 } from '@/hr/api/applications';
 import type { Database } from '@/integrations/supabase/types';
@@ -184,6 +187,13 @@ function ApplicationsTab() {
   const [reason, setReason] = useState('');
   const [typed, setTyped] = useState('');
   const [busy, setBusy] = useState(false);
+  // Selection lives as a set of ids so it survives filtering and sorting.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [composeOpen, setComposeOpen] = useState(false);
+  const [emailSubject, setEmailSubject] = useState('');
+  const [emailBody, setEmailBody] = useState('');
+  const [confirmSend, setConfirmSend] = useState(false);
+  const [sending, setSending] = useState(false);
 
   const { data: rows = [], isLoading, error, refetch } = useQuery({
     queryKey: ['job-applications'],
@@ -250,6 +260,67 @@ function ApplicationsTab() {
         ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
         : { key, dir: 'asc' },
     );
+  };
+
+  /** Only the rows currently on screen can be selected or select-all'd. */
+  const visibleIds = useMemo(() => filteredSorted.map((r) => r.id), [filteredSorted]);
+  const selectedVisibleIds = useMemo(
+    () => visibleIds.filter((id) => selectedIds.has(id)),
+    [visibleIds, selectedIds],
+  );
+  const allVisibleSelected =
+    visibleIds.length > 0 && selectedVisibleIds.length === visibleIds.length;
+
+  const toggleRowSelected = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAllVisible = () => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allVisibleSelected) visibleIds.forEach((id) => next.delete(id));
+      else visibleIds.forEach((id) => next.add(id));
+      return next;
+    });
+  };
+
+  const recipients = useMemo(
+    () => filteredSorted.filter((r) => selectedIds.has(r.id)),
+    [filteredSorted, selectedIds],
+  );
+  const recipientsWithEmail = recipients.filter((r) => (r.email ?? '').trim().length > 0);
+
+  const runSend = async () => {
+    setSending(true);
+    try {
+      // One id per person. The server expands this into one message per address;
+      // no address is ever grouped with another.
+      const result = await sendCareersEmails({
+        applicationIds: recipientsWithEmail.map((r) => r.id),
+        subject: emailSubject,
+        body: emailBody,
+      });
+      toast.success(
+        `${fmtCount(result.sent)} email${result.sent === 1 ? '' : 's'} queued · ` +
+          `${fmtCount(result.suppressed)} skipped (suppressed) · ` +
+          `${fmtCount(result.failed)} failed`,
+      );
+      setConfirmSend(false);
+      setComposeOpen(false);
+      setEmailSubject('');
+      setEmailBody('');
+      setSelectedIds(new Set());
+      await refetch();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not send these emails');
+    } finally {
+      setSending(false);
+    }
   };
 
   const closeConfirm = () => {
@@ -345,6 +416,29 @@ function ApplicationsTab() {
         {isLoading ? '—' : fmtCount(rows.length)} applications
       </p>
 
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-medium">
+          {isLoading ? '—' : fmtCount(selectedVisibleIds.length)} selected
+        </span>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 text-xs"
+          onClick={toggleSelectAllVisible}
+          disabled={visibleIds.length === 0}
+        >
+          {allVisibleSelected ? 'Clear selection' : 'Select all shown'}
+        </Button>
+        <Button
+          size="sm"
+          className="h-7 text-xs"
+          onClick={() => setComposeOpen(true)}
+          disabled={selectedVisibleIds.length === 0}
+        >
+          Email selected
+        </Button>
+      </div>
+
       {filteredSorted.length === 0 ? (
         <div className="text-center py-10 text-muted-foreground">
           <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
@@ -355,6 +449,13 @@ function ApplicationsTab() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={allVisibleSelected}
+                    onCheckedChange={toggleSelectAllVisible}
+                    aria-label="Select all shown applications"
+                  />
+                </TableHead>
                 <TableHead className="w-12">#</TableHead>
                 <TableHead
                   className="cursor-pointer select-none"
@@ -398,6 +499,13 @@ function ApplicationsTab() {
                   className="cursor-pointer"
                   onClick={() => setSelected(row)}
                 >
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={selectedIds.has(row.id)}
+                      onCheckedChange={() => toggleRowSelected(row.id)}
+                      aria-label={`Select ${row.full_name || 'application'}`}
+                    />
+                  </TableCell>
                   <TableCell>{idx + 1}</TableCell>
                   <TableCell>{row.full_name || '—'}</TableCell>
                   <TableCell>{row.role_interest || '—'}</TableCell>
@@ -537,6 +645,100 @@ function ApplicationsTab() {
               className={pending?.kind === 'remove' ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : undefined}
             >
               {busy ? 'Working…' : pending?.kind === 'remove' ? 'Remove' : 'Confirm'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Compose panel. Each selected applicant receives their own separate
+          message — there is no cc or bcc field here by design. */}
+      <Sheet open={composeOpen} onOpenChange={(open) => !sending && setComposeOpen(open)}>
+        <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Email selected applicants</SheetTitle>
+          </SheetHeader>
+
+          <div className="space-y-4 mt-4">
+            <div className="rounded-lg border p-3 text-xs space-y-1">
+              <p>
+                <span className="font-semibold">{fmtCount(recipientsWithEmail.length)}</span>{' '}
+                individual email{recipientsWithEmail.length === 1 ? '' : 's'} will be sent — one per
+                person, each addressed only to that person.
+              </p>
+              {recipients.length !== recipientsWithEmail.length && (
+                <p className="text-muted-foreground">
+                  {fmtCount(recipients.length - recipientsWithEmail.length)} selected applicant(s)
+                  have no email address on file and will be skipped.
+                </p>
+              )}
+              <p className="text-muted-foreground">
+                Suppressed and unsubscribed addresses are skipped automatically.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs">Subject</Label>
+              <Input
+                value={emailSubject}
+                onChange={(e) => setEmailSubject(e.target.value)}
+                placeholder="Update on your Welile application"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs">Message</Label>
+              <Textarea
+                value={emailBody}
+                onChange={(e) => setEmailBody(e.target.value)}
+                rows={10}
+                placeholder={'Write your message. Use {{name}} for the recipient\'s own name and {{reference}} for their own application reference.'}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                {'{{name}}'} and {'{{reference}}'} are replaced with each recipient's own details.
+                Their reference is also printed at the foot of every message.
+              </p>
+            </div>
+
+            <Button
+              className="w-full"
+              disabled={
+                sending ||
+                recipientsWithEmail.length === 0 ||
+                emailSubject.trim().length === 0 ||
+                emailBody.trim().length < 10
+              }
+              onClick={() => setConfirmSend(true)}
+            >
+              Review and send
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <AlertDialog open={confirmSend} onOpenChange={(open) => !sending && setConfirmSend(open)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Send {fmtCount(recipientsWithEmail.length)} individual email
+              {recipientsWithEmail.length === 1 ? '' : 's'}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Exactly {fmtCount(recipientsWithEmail.length)} separate message
+              {recipientsWithEmail.length === 1 ? '' : 's'} will be queued, one per recipient. No
+              recipient can see any other. Suppressed addresses are skipped and every send is
+              logged against the applicant.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={sending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={sending}
+              onClick={(e) => {
+                e.preventDefault();
+                void runSend();
+              }}
+            >
+              {sending ? 'Sending…' : `Send ${fmtCount(recipientsWithEmail.length)}`}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
