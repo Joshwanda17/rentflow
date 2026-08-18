@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useMemo } from 'react';
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
 /**
@@ -94,34 +94,57 @@ export interface MerchantFloatPosition {
   clampedShortfall: number;
 }
 
+// ---------------------------------------------------------------------------
+// Ref-counted realtime channels for merchant float projections.
+//
+// Each channel is filtered by user_id on `wallet_balances_projection`, so a
+// payout settlement on desk A only broadcasts to sessions that are actually
+// watching desk A — not to every open Financial Ops board. Because the same
+// hook is used by both the board and the merchant's own card, they share the
+// channel for that user_id and both invalidate together.
+// ---------------------------------------------------------------------------
+
+type FloatProjectionChannelEntry = {
+  channel: ReturnType<typeof supabase.channel>;
+  refCount: number;
+};
+const floatProjectionChannels = new Map<string, FloatProjectionChannelEntry>();
+
+function acquireFloatProjectionChannel(userId: string, qc: QueryClient) {
+  const existing = floatProjectionChannels.get(userId);
+  if (existing) {
+    existing.refCount += 1;
+    return;
+  }
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ['merchant-float-positions'] });
+    qc.invalidateQueries({ queryKey: ['merchant-payout-float'] });
+  };
+  const channel = supabase
+    .channel(`merchant-float-projection-${userId}`)
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'wallet_balances_projection', filter: `user_id=eq.${userId}` },
+      invalidate,
+    )
+    .subscribe();
+  floatProjectionChannels.set(userId, { channel, refCount: 1 });
+}
+
+function releaseFloatProjectionChannel(userId: string) {
+  const entry = floatProjectionChannels.get(userId);
+  if (!entry) return;
+  entry.refCount -= 1;
+  if (entry.refCount <= 0) {
+    supabase.removeChannel(entry.channel);
+    floatProjectionChannels.delete(userId);
+  }
+}
+
 export function useMerchantFloatPositions(enabled = true) {
   const qc = useQueryClient();
 
-  // Payout claims + settlements move merchant float, so this board follows the
-  // same events live instead of waiting for the next poll.
-  useEffect(() => {
-    if (!enabled) return;
-    const invalidate = () => {
-      qc.invalidateQueries({ queryKey: ['merchant-float-positions'] });
-      qc.invalidateQueries({ queryKey: ['merchant-payout-float'] });
-    };
-    const channel = supabase
-      .channel('merchant-float-live')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'withdrawal_requests' }, invalidate)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'merchant_payout_funding' }, invalidate)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'merchant_out_of_pocket_advances' }, invalidate)
-      // The float figure itself lives in the wallet projection: a settlement
-      // refreshes that row synchronously (trg_wallet_projection_ledger), so
-      // following it makes the merchant dashboard and the Financial Ops board
-      // move within the same second instead of on the next poll.
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'wallet_balances_projection' }, invalidate)
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [enabled, qc]);
-
-  return useQuery({
+  const query = useQuery({
     queryKey: ['merchant-float-positions'],
     enabled,
     retry: false,
@@ -157,6 +180,46 @@ export function useMerchantFloatPositions(enabled = true) {
       }));
     },
   });
+
+  const agentIds = useMemo(() => {
+    const ids = new Set<string>();
+    query.data?.forEach((p) => {
+      if (p.agentId) ids.add(p.agentId);
+    });
+    return Array.from(ids);
+  }, [query.data]);
+
+  // Global realtime subscriptions for tables without a single user_id filter.
+  useEffect(() => {
+    if (!enabled) return;
+    const invalidate = () => {
+      qc.invalidateQueries({ queryKey: ['merchant-float-positions'] });
+      qc.invalidateQueries({ queryKey: ['merchant-payout-float'] });
+    };
+    const channel = supabase
+      .channel('merchant-float-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'withdrawal_requests' }, invalidate)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'merchant_payout_funding' }, invalidate)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'merchant_out_of_pocket_advances' }, invalidate)
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [enabled, qc]);
+
+  // Filtered per-user projection subscriptions. The projection row is what
+  // both the merchant's own card and the Financial Ops board read for float, so
+  // following it by user_id makes the number move on both sides at the same
+  // instant after Phase 2's synchronous refresh.
+  useEffect(() => {
+    if (!enabled || agentIds.length === 0) return;
+    agentIds.forEach((id) => acquireFloatProjectionChannel(id, qc));
+    return () => {
+      agentIds.forEach((id) => releaseFloatProjectionChannel(id));
+    };
+  }, [enabled, agentIds, qc]);
+
+  return query;
 }
 
 /**
