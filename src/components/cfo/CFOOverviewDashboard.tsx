@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import {
   Loader2, ArrowDownRight, ArrowUpRight, Scale, Wallet, Users, TrendingUp,
   Banknote, Percent, Receipt, ClipboardCheck, ChevronRight, Info, CalendarDays, Download,
-  PiggyBank, Flame, BarChart3, Package, LineChart as LineChartIcon,
+  PiggyBank, Flame, BarChart3, Package, LineChart as LineChartIcon, ChevronDown,
 } from 'lucide-react';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -38,6 +38,10 @@ const fmtShort = (n: number) => {
 export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps) {
   const [exportingCommissions, setExportingCommissions] = useState(false);
   const [activeBreakdown, setActiveBreakdown] = useState<string | null>(null);
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
+  const isOpen = (key: string) => openSections[key] === true;
+  const toggleSection = (key: string) =>
+    setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
   const { user } = useAuth();
   const {
     platformCash, liabilities, revenue, receivables, moneyFlow,
@@ -330,7 +334,9 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
                 View all <ChevronRight className="h-3.5 w-3.5" />
               </button>
             )}
+            <SectionToggle open={isOpen('actionTrail')} onToggle={() => toggleSection('actionTrail')} label="CFO Action Trail" />
           </div>
+          {isOpen('actionTrail') && (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 divide-y xl:divide-y-0 xl:divide-x divide-border">
             {actionTrail.map((item) => (
               <TrailItem
@@ -344,6 +350,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
               />
             ))}
           </div>
+          )}
         </CardContent>
       </Card>
 
@@ -415,9 +422,11 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
       {/* ── TODAY'S MOVEMENT ── */}
       <Card className="rounded-2xl overflow-hidden">
         <CardContent className="p-0">
-          <div className="px-5 pt-4 pb-2">
+          <div className="px-5 pt-4 pb-2 flex items-center justify-between gap-3">
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Today's Money Flow</p>
+            <SectionToggle open={isOpen('todayFlow')} onToggle={() => toggleSection('todayFlow')} label="Today's Money Flow" />
           </div>
+          {isOpen('todayFlow') && (
           <div className="grid grid-cols-3 divide-x divide-border">
             <FlowCell
               label="Came In"
@@ -441,22 +450,32 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
               onClick={() => setActiveBreakdown('netCash')}
             />
           </div>
+          )}
         </CardContent>
       </Card>
 
       {/* ── ROI PAYABLE FORECAST ── */}
-      <ROIPayableForecast />
+      <CollapsibleBlock title="ROI Payable Forecast" open={isOpen('roiForecast')} onToggle={() => toggleSection('roiForecast')}>
+        <ROIPayableForecast />
+      </CollapsibleBlock>
 
       {/* ── CFO ACTIONS LOG ── */}
       <CFOActionsLog />
 
       {/* ── LEDGER MAINTENANCE WINDOW ── */}
-      <LedgerMaintenancePanel />
+      <CollapsibleBlock title="Ledger Maintenance" open={isOpen('ledgerMaintenance')} onToggle={() => toggleSection('ledgerMaintenance')}>
+        <LedgerMaintenancePanel />
+      </CollapsibleBlock>
 
       {/* ── SOURCES OF CASH (replaces channel breakdown) ── */}
       <Card className="rounded-2xl">
         <CardContent className="p-4">
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">Where Our Money Comes From</p>
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Where Our Money Comes From</p>
+            <SectionToggle open={isOpen('cashSources')} onToggle={() => toggleSection('cashSources')} label="Where Our Money Comes From" />
+          </div>
+          {isOpen('cashSources') && (
+          <>
           <div className="space-y-1.5">
             {(platformCash?.increases ?? []).slice(0, 6).map((item, i) => (
               <div key={i} className="flex items-center justify-between text-xs gap-2">
@@ -473,6 +492,8 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
             <button onClick={() => setActiveBreakdown('cash')} className="text-xs text-primary mt-2 hover:underline">
               View all sources →
             </button>
+          )}
+          </>
           )}
         </CardContent>
       </Card>
@@ -573,12 +594,46 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
       )}
 
       {/* ── AGENT ADVANCES — FULL PORTFOLIO STATS & CHART (bottom) ── */}
-      <AgentAdvancesStatsCard />
+      <CollapsibleBlock title="Agent Advances — Full Portfolio" open={isOpen('agentAdvances')} onToggle={() => toggleSection('agentAdvances')}>
+        <AgentAdvancesStatsCard />
+      </CollapsibleBlock>
     </div>
   );
 }
 
 /* ── Sub-components ── */
+
+function SectionToggle({ open, onToggle, label }: { open: boolean; onToggle: () => void; label: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={open}
+      aria-label={`${open ? 'Collapse' : 'Expand'} ${label}`}
+      className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground shrink-0"
+    >
+      {open ? 'Hide' : 'Show'}
+      <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
+    </button>
+  );
+}
+
+function CollapsibleBlock({ title, open, onToggle, children }: {
+  title: string;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card px-4 py-2.5">
+        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{title}</p>
+        <SectionToggle open={open} onToggle={onToggle} label={title} />
+      </div>
+      {open && children}
+    </div>
+  );
+}
 
 function HeroCard({ icon, iconBg, title, value, valueColor, items, footer, footerTone, onClick }: {
   icon: React.ReactNode;
