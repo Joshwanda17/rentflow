@@ -563,6 +563,10 @@ export interface MerchantFloatStatementRow {
   amount: number;
   referenceId: string | null;
   runningBalance: number;
+  /** Ledger partition of the leg (`production`, `admin_correction`, ...). */
+  classification: string;
+  /** True when the leg is a finance/admin correction — always shown, badged. */
+  isCorrection: boolean;
   /**
    * Customer/user who actually received the payout this float leg settled.
    * Resolved through: float ledger leg → withdrawal_requests.id → profiles.
