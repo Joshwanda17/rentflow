@@ -386,9 +386,12 @@ export function CFOActionsLog() {
           </div>
         </div>
 
+        {open && (
+        <>
         <p className="text-[10px] text-muted-foreground mb-3">
           Derived directly from the general ledger — every posted cash movement appears automatically.
         </p>
+
 
         <div className="flex gap-2 mb-3 flex-wrap">
           <div className="relative flex-1 min-w-[120px]">
@@ -563,6 +566,9 @@ export function CFOActionsLog() {
           </div>
           </>
         )}
+        </>
+        )}
+
       </CardContent>
     </Card>
   );
