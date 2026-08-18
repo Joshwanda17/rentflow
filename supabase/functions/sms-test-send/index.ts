@@ -193,8 +193,8 @@ Deno.serve(async (req) => {
     let message =
       "[Welile Test] Background SMS API test successful. If you received this, the SMS pipeline is healthy. — Welile Ops";
     let provider = "auto"; // 'auto' = AT then Twilio fallback | 'twilio' = force Twilio | 'africastalking' = force AT
-    let no_sender = false; // when true (+ provider=yoola), omit the sender id
-    let sender: string | undefined = undefined; // when set (+ provider=yoola), force this sender id
+    let no_sender = false; // legacy flag; ignored because WELILE is always sent
+    let sender: string | undefined = undefined; // when set (+ provider=yoola), override the default WELILE sender id
 
     if (req.method === "POST") {
       const body = await req.json().catch(() => ({}));
