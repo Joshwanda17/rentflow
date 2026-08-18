@@ -39499,6 +39499,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      invoke_hr_careers_acknowledge: { Args: never; Returns: undefined }
       is_active_cashout_agent: { Args: { _user_id: string }; Returns: boolean }
       is_agent_frozen: { Args: { p_agent_id: string }; Returns: boolean }
       is_agent_in_service_center_team: {
