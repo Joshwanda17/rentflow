@@ -959,6 +959,50 @@ export default function RecruitmentHub() {
   useEffect(() => {
     window.localStorage.setItem('welile-recruitment-active-tab', tab);
   }, [tab]);
+
+  // ── Internships "new application" beacon ────────────────────────────────
+  const INTERNSHIP_SEEN_KEY = 'welile-internships-last-seen';
+  const [internshipSeenAt, setInternshipSeenAt] = useState<string>(() => {
+    if (typeof window === 'undefined') return new Date(0).toISOString();
+    return window.localStorage.getItem(INTERNSHIP_SEEN_KEY) ?? new Date(0).toISOString();
+  });
+  const { data: latestInternshipAt, refetch: refetchLatestInternship } = useQuery({
+    queryKey: ['internships-latest-created-at'],
+    refetchInterval: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('internship_applications')
+        .select('created_at')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      return (data?.created_at as string | undefined) ?? null;
+    },
+  });
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('recruitment-internship-beacon')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'internship_applications' },
+        () => { void refetchLatestInternship(); },
+      )
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [refetchLatestInternship]);
+
+  const hasNewInternships = Boolean(
+    latestInternshipAt && new Date(latestInternshipAt) > new Date(internshipSeenAt),
+  );
+
+  useEffect(() => {
+    if (tab !== 'internships') return;
+    const stamp = latestInternshipAt ?? new Date().toISOString();
+    window.localStorage.setItem(INTERNSHIP_SEEN_KEY, stamp);
+    setInternshipSeenAt(stamp);
+  }, [tab, latestInternshipAt]);
   const [reqStatus, setReqStatus] = useState<ReqStatus>('pending');
   const [openTrail, setOpenTrail] = useState<Record<string, boolean>>({});
 
@@ -1117,7 +1161,15 @@ export default function RecruitmentHub() {
         <TabsTrigger value="applications">
           Applications {applicationCount ? `(${fmtCount(applicationCount)})` : ''}
         </TabsTrigger>
-        <TabsTrigger value="internships">Internships</TabsTrigger>
+        <TabsTrigger value="internships" className="relative">
+          Internships
+          {hasNewInternships && (
+            <span className="absolute top-1 right-1 flex h-2 w-2" aria-label="New internship application">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+            </span>
+          )}
+        </TabsTrigger>
         <TabsTrigger value="postings">Postings</TabsTrigger>
         <TabsTrigger value="requisitions">Requisitions</TabsTrigger>
         <TabsTrigger value="pool">Talent Pool</TabsTrigger>
