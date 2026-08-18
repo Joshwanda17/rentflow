@@ -62,6 +62,12 @@ import {
   setJobPostingStatus,
 } from '@/hr/api';
 import { getResumeUrl } from '@/hr/api/resumes';
+import {
+  APPLICATION_DECISIONS,
+  purgeApplication,
+  recordApplicationDecision,
+  type ApplicationDecision,
+} from '@/hr/api/applications';
 import type { Database } from '@/integrations/supabase/types';
 import type {
   Application,
@@ -154,15 +160,32 @@ function isAlwaysOpen(posting: JobPosting): boolean {
 
 type JobApplicationRow = Database['public']['Tables']['job_applications']['Row'];
 
+/** Labels for the decision vocabulary. Keyed by the constant, so no status is invented here. */
+const DECISION_LABELS: Record<ApplicationDecision, string> = {
+  shortlisted: 'Shortlist',
+  hold: 'Hold',
+  rejected: 'Decline',
+};
+
+const REMOVE_PHRASE = 'REMOVE';
+
+const fmtCount = (n: number) => Math.round(n).toLocaleString();
+
 function ApplicationsTab() {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<JobApplicationRow | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>(ALL);
   const [sortConfig, setSortConfig] = useState<
-    { key: 'status' | 'created'; dir: 'asc' | 'desc' }
+    { key: 'name' | 'status' | 'created'; dir: 'asc' | 'desc' }
   >({ key: 'created', dir: 'desc' });
+  const [pending, setPending] = useState<
+    { row: JobApplicationRow; kind: ApplicationDecision | 'remove' } | null
+  >(null);
+  const [reason, setReason] = useState('');
+  const [typed, setTyped] = useState('');
+  const [busy, setBusy] = useState(false);
 
-  const { data: rows = [], isLoading, error } = useQuery({
+  const { data: rows = [], isLoading, error, refetch } = useQuery({
     queryKey: ['job-applications'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -199,7 +222,13 @@ function ApplicationsTab() {
     }
 
     const sorted = [...data];
-    if (sortConfig.key === 'status') {
+    if (sortConfig.key === 'name') {
+      sorted.sort((a, b) => {
+        const av = (a.full_name ?? '').toLowerCase();
+        const bv = (b.full_name ?? '').toLowerCase();
+        return av.localeCompare(bv) * (sortConfig.dir === 'asc' ? 1 : -1);
+      });
+    } else if (sortConfig.key === 'status') {
       sorted.sort((a, b) => {
         const av = (a.status ?? '').toLowerCase();
         const bv = (b.status ?? '').toLowerCase();
@@ -215,12 +244,43 @@ function ApplicationsTab() {
     return sorted;
   }, [rows, search, statusFilter, sortConfig]);
 
-  const toggleSort = (key: 'status' | 'created') => {
+  const toggleSort = (key: 'name' | 'status' | 'created') => {
     setSortConfig((prev) =>
       prev.key === key
         ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
         : { key, dir: 'asc' },
     );
+  };
+
+  const closeConfirm = () => {
+    setPending(null);
+    setReason('');
+    setTyped('');
+  };
+
+  const runPending = async () => {
+    if (!pending) return;
+    setBusy(true);
+    try {
+      if (pending.kind === 'remove') {
+        await purgeApplication(pending.row.id);
+        toast.success(`${pending.row.full_name || 'Application'} removed from the list`);
+        setSelected(null);
+      } else {
+        await recordApplicationDecision(pending.row.id, pending.kind, reason);
+        toast.success(
+          `${DECISION_LABELS[pending.kind]} recorded for ${pending.row.full_name || 'applicant'}`,
+        );
+      }
+      closeConfirm();
+      const fresh = await refetch();
+      const next = (fresh.data ?? []).find((r) => r.id === pending.row.id) ?? null;
+      setSelected((prev) => (prev && prev.id === pending.row.id ? next : prev));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not record this');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const openCv = async (path: string) => {
