@@ -210,6 +210,9 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
   const [copied, setCopied] = useState(false);
   const [showAllRepayments, setShowAllRepayments] = useState(false);
   const [showAllRequests, setShowAllRequests] = useState(false);
+  /** Per-plan "load more" counters for the in-plan repayment history (10 per load). */
+  const [planRepayVisible, setPlanRepayVisible] = useState<Record<string, number>>({});
+  const [exportingRepayReport, setExportingRepayReport] = useState(false);
 
   const [collectDialogOpen, setCollectDialogOpen] = useState(false);
 
