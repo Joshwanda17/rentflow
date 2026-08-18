@@ -238,6 +238,12 @@ function ApplicationsTab() {
         const bv = (b.full_name ?? '').toLowerCase();
         return av.localeCompare(bv) * (sortConfig.dir === 'asc' ? 1 : -1);
       });
+    } else if (sortConfig.key === 'role_interest') {
+      sorted.sort((a, b) => {
+        const av = (a.role_interest ?? '').toLowerCase();
+        const bv = (b.role_interest ?? '').toLowerCase();
+        return av.localeCompare(bv) * (sortConfig.dir === 'asc' ? 1 : -1);
+      });
     } else if (sortConfig.key === 'status') {
       sorted.sort((a, b) => {
         const av = (a.status ?? '').toLowerCase();
@@ -254,7 +260,7 @@ function ApplicationsTab() {
     return sorted;
   }, [rows, search, statusFilter, sortConfig]);
 
-  const toggleSort = (key: 'name' | 'status' | 'created') => {
+  const toggleSort = (key: 'name' | 'role_interest' | 'status' | 'created') => {
     setSortConfig((prev) =>
       prev.key === key
         ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
