@@ -68,7 +68,6 @@ export function MerchantReconcileDialog({
   const valid = targetMode
     ? Number.isFinite(numericAmount) &&
       numericAmount >= 0 &&
-      targetDelta !== 0 &&
       reason.trim().length >= 10 &&
       evidenceOk
     :
@@ -98,13 +97,20 @@ export function MerchantReconcileDialog({
           reason,
           evidenceNote: evidence,
         });
-        toast.success('Float set to the evidenced figure', {
-          description: `Float is now exactly ${formatUGX(Number(res.float_after))} (was ${formatUGX(
-            Number(res.float_before),
-          )}). The books moved by ${formatUGX(Math.abs(Number(res.delta)))} ${
-            Number(res.delta) >= 0 ? 'up' : 'down'
-          } and the shown balance was cleared to match.`,
-        });
+        toast.success(
+          res.no_op ? 'Float confirmed as evidenced' : 'Float set to the evidenced figure',
+          {
+            description: res.no_op
+              ? `Float stays at ${formatUGX(
+                  Number(res.float_after),
+                )} — already what the books support. It is now recorded as evidenced, so no legacy or unverified float remains on this desk.`
+              : `Float is now exactly ${formatUGX(Number(res.float_after))} (was ${formatUGX(
+                  Number(res.float_before),
+                )}). Balanced entries of ${formatUGX(
+                  Math.abs(Number(res.delta)),
+                )} were posted (money in and money out) and the agent's float cache was re-seeded to match.`,
+          },
+        );
         setAmount('');
         setReason('');
         setEvidence('');
@@ -252,7 +258,8 @@ export function MerchantReconcileDialog({
             </p>
             {targetMode && targetDelta === 0 && numericAmount >= 0 && amount.trim() !== '' && (
               <p className="mt-1 text-[10px] font-medium text-muted-foreground">
-                Already {formatUGX(currentFloat)} on the books — nothing to change.
+                Already {formatUGX(currentFloat)} on the books — submitting still confirms this
+                figure as evidenced and clears any legacy / unverified float on this desk.
               </p>
             )}
             {targetMode && !evidenceOk && (
