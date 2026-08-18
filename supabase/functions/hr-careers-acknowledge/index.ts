@@ -173,10 +173,11 @@ Deno.serve(async (req) => {
 
     const name = (applicant.full_name || 'there').trim();
     const publicRef = applicant.public_ref || '—';
+    const role = (applicant as any).role_interest ?? null;
     const address = (applicant.email || '').trim().toLowerCase();
     if (!address) continue;
 
-    const bodyText = buildBody(publicRef);
+    const bodyText = buildBody(name, role, publicRef);
 
     try {
       // Suppression: fail-closed, same table and semantics as hr-careers-bulk-email.
