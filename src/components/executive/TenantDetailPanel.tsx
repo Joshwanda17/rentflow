@@ -979,7 +979,9 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
                       </button>
                     )}
                   </div>
-                  <p className="text-[10px] text-muted-foreground">Outstanding</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    Outstanding{liveReqs.length > 0 ? ` · ${liveReqs.length} active plan${liveReqs.length > 1 ? 's' : ''}` : ' · no active plan'}
+                  </p>
                 </>
               )}
             </CardContent></Card>
