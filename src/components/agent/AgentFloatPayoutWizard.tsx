@@ -58,6 +58,8 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
   const [resendCooldown, setResendCooldown] = useState(0);
   const [amountInput, setAmountInput] = useState<string>('');
   const [phoneOverride, setPhoneOverride] = useState<string>('');
+  // Inline, always-visible reason the "Send OTP to Landlord" step failed.
+  const [sendOtpError, setSendOtpError] = useState<string | null>(null);
   // Landlord-Ops-verified landlords lock the phone number; agents request a
   // change via Landlord Ops instead of editing it inline.
   const [showPhoneChangeReq, setShowPhoneChangeReq] = useState(false);
@@ -232,21 +234,29 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
   const phoneValid = /^(?:\+?256|0)?\d{9}$/.test(landlordPhone.replace(/\s+/g, ''));
 
   const handleSendOtp = async (source: 'auto' | 'manual' = 'manual') => {
+    setSendOtpError(null);
     if (!phoneValid) {
       toast.error('Enter a valid landlord phone number');
+      setSendOtpError('Enter a valid landlord phone number');
       return;
     }
     if (!amountValid) {
-      toast.error(
+      const msg =
         effectiveAmount <= 0
           ? 'Enter an amount greater than 0'
           : !withinRent
             ? `Amount cannot exceed rent due (${formatUGX(rentDue)})`
-            : `Amount exceeds your Landlord Payout Float (${formatUGX(availablePayoutFloat)}). Reduce the amount or request Landlord Payout Float first.`,
-      );
+            : `Amount exceeds your Landlord Payout Float (${formatUGX(availablePayoutFloat)}). Reduce the amount or request Landlord Payout Float first.`;
+      toast.error(msg);
+      setSendOtpError(msg);
       return;
     }
-    if (!user || !selectedRequest) return;
+    if (!user || !selectedRequest) {
+      const msg = 'This payout is still loading. Close and reopen it, then try again.';
+      toast.error(msg);
+      setSendOtpError(msg);
+      return;
+    }
 
     // Hard per-landlord lock — reserve synchronously BEFORE any await so two
     // rapid taps (or auto-send racing a manual tap) cannot both reach the SMS.
@@ -293,8 +303,25 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
       // Send failed — release the lock so the agent can legitimately retry.
       sentLandlordsRef.current.delete(landlordKey);
       forceLockRender((n) => n + 1);
+      // NEVER fail silently: read the reason from the hook's ref (state is
+      // still stale at this point) and show it both as a toast and inline.
+      const reason =
+        landlordOtp.getLastError() ||
+        'Could not send the OTP. Check your connection and tap Send OTP again.';
+      setSendOtpError(reason);
+      toast.error(reason);
     }
   };
+
+  const sendBlockedReason = !phoneValid
+    ? 'Enter a valid landlord phone number to enable the OTP.'
+    : effectiveAmount <= 0
+      ? 'Enter an amount greater than 0.'
+      : !withinRent
+        ? `Amount cannot exceed rent due (${formatUGX(rentDue)}).`
+        : !withinFloat
+          ? `Amount exceeds your available Landlord Payout Float (${formatUGX(availablePayoutFloat)}).`
+          : null;
 
   // Auto-send the landlord OTP the moment the agent taps a request to
   // withdraw float — the landlord receives the code immediately, without the
@@ -1016,13 +1043,12 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
                   </Button>
                 </div>
               ) : !landlordOtp.otpSent ? (
+                <div className="space-y-2">
                 <Button
                   type="button"
                   onClick={() => handleSendOtp('manual')}
                   disabled={
                     landlordOtp.otpLoading ||
-                    !phoneValid ||
-                    !amountValid ||
                     (!!selectedRequest && sentLandlordsRef.current.has(String(selectedRequest.landlord_id)))
                   }
                   className="w-full gap-2 h-12 rounded-xl"
@@ -1036,6 +1062,17 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
                     ? 'OTP already sent to landlord'
                     : `Send OTP to Landlord (${landlordPhone || '—'})`}
                 </Button>
+                {(sendOtpError || sendBlockedReason) && (
+                  <p className="text-[11px] text-destructive text-center">
+                    {sendOtpError || sendBlockedReason}
+                  </p>
+                )}
+                {landlordOtp.cooldownSeconds > 0 && (
+                  <p className="text-[11px] text-muted-foreground text-center">
+                    Next code can be requested in {landlordOtp.cooldownSeconds}s.
+                  </p>
+                )}
+                </div>
               ) : (
                 <div className="space-y-3 p-3 rounded-xl border-2 border-chart-4/30 bg-chart-4/5">
                   <div className="text-center space-y-1">

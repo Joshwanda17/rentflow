@@ -75,6 +75,17 @@ export function useLandlordOtp() {
   // Synchronous in-flight lock — prevents rapid double-taps from firing two
   // SMS sends before the async `otpLoading` state has had a chance to update.
   const inFlightRef = useRef(false);
+  // Last failure reason, kept in a ref so callers can read it IMMEDIATELY after
+  // an await (React state would still be stale) and surface a real message
+  // instead of failing silently.
+  const lastErrorRef = useRef<string | null>(null);
+
+  const fail = useCallback((message: string) => {
+    lastErrorRef.current = message;
+    setOtpError(message);
+  }, []);
+
+  const getLastError = useCallback(() => lastErrorRef.current, []);
 
   useEffect(() => {
     return () => {
@@ -205,10 +216,18 @@ export function useLandlordOtp() {
 
   // Payout-specific OTP (challenge-based)
   const sendPayoutOtp = useCallback(async (payload: PayoutOtpPayload) => {
-    if (inFlightRef.current || cooldownSeconds > 0 || otpLoading) return null;
+    if (inFlightRef.current || otpLoading) {
+      lastErrorRef.current = 'An OTP request is already being sent — please wait a moment.';
+      return null;
+    }
+    if (cooldownSeconds > 0) {
+      lastErrorRef.current = `Please wait ${cooldownSeconds}s before requesting another code.`;
+      return null;
+    }
     inFlightRef.current = true;
     setOtpLoading(true);
     setOtpError(null);
+    lastErrorRef.current = null;
     setSendStatus('idle');
     pollTokenRef.current += 1;
     try {
@@ -222,13 +241,18 @@ export function useLandlordOtp() {
         if (typeof payload?.retry_after === 'number') {
           startCooldown(payload.retry_after);
         }
-        setOtpError(errMsg || 'Failed to send OTP');
+        fail(friendlyOtpError(errMsg, 'Failed to send OTP'));
         setSendStatus('failed');
         return null;
       }
       if (data?.error) {
         if (typeof data?.retry_after === 'number') startCooldown(data.retry_after);
-        setOtpError(data.error);
+        fail(data.error);
+        setSendStatus('failed');
+        return null;
+      }
+      if (!data?.challenge_id) {
+        fail('The server did not return an OTP challenge. Please try again.');
         setSendStatus('failed');
         return null;
       }
@@ -240,24 +264,32 @@ export function useLandlordOtp() {
       setSendStatus('accepted');
       return data?.challenge_id as string | null;
     } catch (e: any) {
-      setOtpError(e?.message || 'Failed to send OTP');
+      fail(friendlyOtpError(e?.message, 'Failed to send OTP'));
       setSendStatus('failed');
       return null;
     } finally {
       inFlightRef.current = false;
       setOtpLoading(false);
     }
-  }, [startCooldown, cooldownSeconds, otpLoading]);
+  }, [startCooldown, cooldownSeconds, otpLoading, fail]);
 
   const resendPayoutOtp = useCallback(async () => {
     if (!challengeId) {
-      setOtpError('No active challenge to resend');
+      fail('No active challenge to resend');
       return false;
     }
-    if (inFlightRef.current || cooldownSeconds > 0 || otpLoading) return false;
+    if (inFlightRef.current || otpLoading) {
+      lastErrorRef.current = 'An OTP request is already being sent — please wait a moment.';
+      return false;
+    }
+    if (cooldownSeconds > 0) {
+      lastErrorRef.current = `Please wait ${cooldownSeconds}s before resending.`;
+      return false;
+    }
     inFlightRef.current = true;
     setOtpLoading(true);
     setOtpError(null);
+    lastErrorRef.current = null;
     setSendStatus('idle');
     pollTokenRef.current += 1;
     try {
@@ -271,13 +303,13 @@ export function useLandlordOtp() {
         if (typeof payload?.retry_after === 'number') {
           startCooldown(payload.retry_after);
         }
-        setOtpError(errMsg || 'Failed to resend OTP');
+        fail(friendlyOtpError(errMsg, 'Failed to resend OTP'));
         setSendStatus('failed');
         return false;
       }
       if (data?.error) {
         if (typeof data?.retry_after === 'number') startCooldown(data.retry_after);
-        setOtpError(data.error);
+        fail(data.error);
         setSendStatus('failed');
         return false;
       }
@@ -287,14 +319,14 @@ export function useLandlordOtp() {
       setSendStatus('accepted');
       return true;
     } catch (e: any) {
-      setOtpError(e?.message || 'Failed to resend OTP');
+      fail(friendlyOtpError(e?.message, 'Failed to resend OTP'));
       setSendStatus('failed');
       return false;
     } finally {
       inFlightRef.current = false;
       setOtpLoading(false);
     }
-  }, [challengeId, startCooldown, cooldownSeconds, otpLoading]);
+  }, [challengeId, startCooldown, cooldownSeconds, otpLoading, fail]);
 
   const verifyPayoutOtp = useCallback(async (otp: string) => {
     if (!challengeId) {
@@ -338,6 +370,7 @@ export function useLandlordOtp() {
     setOtpSent(false);
     setOtpVerified(false);
     setOtpError(null);
+    lastErrorRef.current = null;
     setVerifiedPhone(null);
     setSendStatus('idle');
     pollTokenRef.current += 1;
@@ -359,6 +392,7 @@ export function useLandlordOtp() {
     cooldownSeconds,
     challengeId,
     expiresAt,
+    getLastError,
     sendOtp,
     verifyOtp,
     sendPayoutOtp,
