@@ -37000,6 +37000,10 @@ export type Database = {
         Args: { p_payout_id: string }
         Returns: Json
       }
+      defer_email: {
+        Args: { delay_seconds?: number; message_id: number; queue_name: string }
+        Returns: boolean
+      }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
