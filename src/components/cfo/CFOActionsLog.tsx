@@ -142,7 +142,9 @@ export function CFOActionsLog() {
   const [searchInput, setSearchInput] = useState('');
   const [page, setPage] = useState(0);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  const [open, setOpen] = useState(true);
   const search = useDebouncedValue(searchInput.trim(), 350);
+
 
   const fromISO = dateRange?.from ? startOfDay(dateRange.from).toISOString() : null;
   const toISO = dateRange?.to ? endOfDay(dateRange.to).toISOString() : (dateRange?.from ? endOfDay(dateRange.from).toISOString() : null);
