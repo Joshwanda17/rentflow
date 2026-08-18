@@ -27,6 +27,11 @@ import { Undo2 } from 'lucide-react';
 import { shareTenantProfileWhatsApp, type TenantProfilePdfData } from '@/lib/tenantProfilePdf';
 import { shareOrDownloadRepaymentSheet, openRepaymentSheetPdf, type RepaymentSheetData, type DailyScheduleRow } from '@/lib/agentRepaymentSheetPdf';
 import { shareOrDownloadFloatAllocations, shareFloatAllocationsWhatsApp } from '@/lib/floatAllocationsPdf';
+import {
+  generateTenantRepaymentReportPdf,
+  buildTenantRepaymentReportFilename,
+  type TenantRepaymentPlanBlock,
+} from '@/lib/tenantRepaymentReportPdf';
 import { UserAvatar } from '@/components/UserAvatar';
 import { RegisterSubAgentDialog } from './RegisterSubAgentDialog';
 import { EditTenantDialog } from './EditTenantDialog';
@@ -205,6 +210,9 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
   const [copied, setCopied] = useState(false);
   const [showAllRepayments, setShowAllRepayments] = useState(false);
   const [showAllRequests, setShowAllRequests] = useState(false);
+  /** Per-plan "load more" counters for the in-plan repayment history (10 per load). */
+  const [planRepayVisible, setPlanRepayVisible] = useState<Record<string, number>>({});
+  const [exportingRepayReport, setExportingRepayReport] = useState(false);
 
   const [collectDialogOpen, setCollectDialogOpen] = useState(false);
 
@@ -772,6 +780,102 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
 
   const visibleRepayments = showAllRepayments ? repayments : repayments.slice(0, PAGE_SIZE);
   const visibleRequests = showAllRequests ? requests : requests.slice(0, PAGE_SIZE);
+
+  /**
+   * Repayment history aggregated per rent plan.
+   *
+   * Accuracy rules:
+   * - only `repayments` rows whose `rent_request_id` matches the plan count towards
+   *   that plan (the repayments ledger is the source of truth for cash received);
+   * - the running balance is computed oldest-first as
+   *   `total_repayment − cumulative paid`, floored at 0, so each row shows the
+   *   balance that was left immediately after that payment;
+   * - when `amount_repaid` on the plan exceeds the sum of its repayment rows
+   *   (offline top-ups, system adjustments that never wrote a repayment row) the
+   *   difference is surfaced as an "other sources" note instead of being silently
+   *   folded into a payment row.
+   */
+  const planRepaymentHistory = useMemo(() => {
+    const map = new Map<string, {
+      rows: { id: string; date: string; amount: number; remaining: number }[];
+      ledgerPaid: number;
+      otherSources: number;
+      remaining: number;
+    }>();
+
+    for (const req of requests) {
+      const totalDue = Number(req.total_repayment) || 0;
+      const planRows = repayments
+        .filter((r) => r.rent_request_id === req.id)
+        .slice()
+        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+      let cumulative = 0;
+      const rows = planRows.map((r) => {
+        const amount = Number(r.amount) || 0;
+        cumulative += amount;
+        return {
+          id: String(r.id),
+          date: r.created_at,
+          amount,
+          remaining: Math.max(0, totalDue - cumulative),
+        };
+      });
+
+      const amountRepaid = Number(req.amount_repaid) || 0;
+      map.set(req.id, {
+        // newest-first for display
+        rows: rows.reverse(),
+        ledgerPaid: cumulative,
+        otherSources: Math.max(0, amountRepaid - cumulative),
+        remaining: Math.max(0, totalDue - Math.max(cumulative, amountRepaid)),
+      });
+    }
+    return map;
+  }, [requests, repayments]);
+
+  /** Export the full per-plan repayment history (all rows, not just loaded ones). */
+  const handleExportRepaymentReport = async () => {
+    if (!profile) return;
+    setExportingRepayReport(true);
+    try {
+      const plans: TenantRepaymentPlanBlock[] = requests.map((req) => {
+        const agg = planRepaymentHistory.get(req.id);
+        return {
+          planDate: req.created_at,
+          status: req.status || 'unknown',
+          rentAmount: Number(req.rent_amount) || 0,
+          totalRepayment: Number(req.total_repayment) || 0,
+          totalRepaid: Math.max(agg?.ledgerPaid ?? 0, Number(req.amount_repaid) || 0),
+          remaining: agg?.remaining ?? Math.max(0, (Number(req.total_repayment) || 0) - (Number(req.amount_repaid) || 0)),
+          landlordName: req.landlord?.name ?? null,
+          propertyAddress: req.landlord?.property_address ?? null,
+          rows: (agg?.rows ?? []).map((r) => ({ date: r.date, amount: r.amount, remaining: r.remaining })),
+        };
+      });
+
+      const blob = await generateTenantRepaymentReportPdf({
+        tenantName: profile.full_name,
+        phone: profile.phone,
+        aiId,
+        generatedBy: (user?.user_metadata?.full_name as string) || (user?.email as string) || null,
+        plans,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = buildTenantRepaymentReportFilename(profile.full_name);
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      toast({ title: '📄 Repayment report downloaded' });
+    } catch (err: any) {
+      toast({ title: 'Export failed', description: err?.message, variant: 'destructive' });
+    } finally {
+      setExportingRepayReport(false);
+    }
+  };
 
   // Build the repayment-sheet payload (shared by the download + open actions).
   // Includes the agent's day-by-day float allocations with exact date & time.
@@ -1897,10 +2001,24 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
             title="Rent Plan History"
             badge={<Badge variant="outline" className="text-xs">{requests.length}</Badge>}
           >
+            <Button
+              variant="soft"
+              className="w-full h-10 gap-2 text-sm"
+              onClick={handleExportRepaymentReport}
+              disabled={exportingRepayReport}
+            >
+              {exportingRepayReport
+                ? <><Loader2 className="h-4 w-4 animate-spin" /> Building report…</>
+                : <><FileText className="h-4 w-4" /> Export repayment report (PDF)</>}
+            </Button>
             <div className="space-y-2">
               {visibleRequests.map(req => {
                 const owing = Math.max(0, req.total_repayment - req.amount_repaid);
                 const pct = req.total_repayment > 0 ? Math.round((req.amount_repaid / req.total_repayment) * 100) : 0;
+                const agg = planRepaymentHistory.get(req.id);
+                const planRows = agg?.rows ?? [];
+                const shown = planRepayVisible[req.id] ?? 10;
+                const visiblePlanRows = planRows.slice(0, shown);
                 return (
                   <div key={req.id} className="bg-muted/40 rounded-xl p-3 space-y-2">
                     <div className="flex items-center justify-between gap-2">
@@ -1917,6 +2035,60 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
                     {req.landlord?.name && (
                       <p className="text-xs sm:text-sm text-muted-foreground">📍 {req.landlord.name} — {req.landlord.property_address || 'N/A'}</p>
                     )}
+
+                    {/* ── Repayment history for this plan (date & time, amount, balance left) ── */}
+                    <div className="pt-2 border-t border-border/50 space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Repayment history
+                        </p>
+                        <Badge variant="outline" className="text-[10px]">
+                          {planRows.length} payment{planRows.length === 1 ? '' : 's'} · {formatUGX(agg?.ledgerPaid ?? 0)}
+                        </Badge>
+                      </div>
+
+                      {planRows.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">No repayments recorded on this plan yet.</p>
+                      ) : (
+                        <>
+                          <div className="space-y-1">
+                            {visiblePlanRows.map((r) => (
+                              <div key={r.id} className="flex items-center justify-between gap-2 rounded-lg bg-background/70 px-2.5 py-2">
+                                <div className="min-w-0">
+                                  <p className="text-xs font-mono text-muted-foreground">
+                                    [{format(new Date(r.date), 'dd/MM/yy')}] {format(new Date(r.date), 'HH:mm')}
+                                  </p>
+                                  <p className="text-sm font-bold font-mono text-success">{formatUGX(r.amount)}</p>
+                                </div>
+                                <div className="text-right shrink-0">
+                                  <p className="text-[10px] text-muted-foreground">Balance left</p>
+                                  <p className={`text-sm font-bold font-mono ${r.remaining > 0 ? 'text-destructive' : 'text-success'}`}>
+                                    {r.remaining > 0 ? formatUGX(r.remaining) : 'Cleared'}
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          {planRows.length > shown && (
+                            <Button
+                              variant="ghost"
+                              className="w-full h-9 gap-1 text-xs"
+                              onClick={() => setPlanRepayVisible((prev) => ({ ...prev, [req.id]: shown + 10 }))}
+                            >
+                              <ChevronDown className="h-4 w-4" />
+                              Load more ({planRows.length - shown} left)
+                            </Button>
+                          )}
+                        </>
+                      )}
+
+                      {(agg?.otherSources ?? 0) > 0 && (
+                        <p className="text-[11px] text-muted-foreground">
+                          + {formatUGX(agg!.otherSources)} recorded on this plan from other sources (offline top-ups or
+                          adjustments without an itemised payment record).
+                        </p>
+                      )}
+                    </div>
                   </div>
                 );
               })}
