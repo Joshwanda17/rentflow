@@ -66,8 +66,10 @@ import {
 import { getResumeUrl } from '@/hr/api/resumes';
 import {
   APPLICATION_DECISIONS,
+  listPurgedApplications,
   purgeApplication,
   recordApplicationDecision,
+  restoreApplication,
   sendCareersEmails,
   type ApplicationDecision,
 } from '@/hr/api/applications';
@@ -173,8 +175,93 @@ const DECISION_LABELS: Record<ApplicationDecision, string> = {
 
 const fmtCount = (n: number) => Math.round(n).toLocaleString();
 
+/**
+ * Removal bin. `Remove` only stamps `purged_at`, so nothing is destroyed —
+ * removed applications are held here and can be put back unchanged.
+ */
+function RemovedApplicationsPanel() {
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const { data: rows = [], isLoading, error, refetch } = useQuery({
+    queryKey: ['job-applications', 'purged'],
+    queryFn: listPurgedApplications,
+  });
+
+  const restore = async (id: string, name: string) => {
+    setBusyId(id);
+    try {
+      await restoreApplication(id);
+      toast.success(`${name || 'Application'} put back on the list`);
+      await refetch();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not restore this application');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  if (isLoading) return <Skeleton className="h-24 w-full" />;
+  if (error) {
+    return (
+      <Card className="p-4 border-destructive/40 text-xs text-muted-foreground">
+        Could not load removed applications: {error.message}
+      </Card>
+    );
+  }
+  if (rows.length === 0) {
+    return (
+      <Card className="p-6 text-center text-sm text-muted-foreground">
+        Nothing has been removed. Removed applications are kept here, not deleted.
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="overflow-hidden">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-12">#</TableHead>
+            <TableHead>Full name</TableHead>
+            <TableHead>Role interest</TableHead>
+            <TableHead>Location</TableHead>
+            <TableHead>Status when removed</TableHead>
+            <TableHead>Removed</TableHead>
+            <TableHead>Reference</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((row, idx) => (
+            <TableRow key={row.id} className="bg-muted/40">
+              <TableCell>{idx + 1}</TableCell>
+              <TableCell>{row.full_name || '—'}</TableCell>
+              <TableCell>{row.role_interest || '—'}</TableCell>
+              <TableCell>{row.location || '—'}</TableCell>
+              <TableCell>{row.status || '—'}</TableCell>
+              <TableCell>{fmtDateTime(row.purged_at)}</TableCell>
+              <TableCell>{row.public_ref || '—'}</TableCell>
+              <TableCell className="text-right whitespace-nowrap">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 px-2 text-xs"
+                  disabled={busyId === row.id}
+                  onClick={() => void restore(row.id, row.full_name)}
+                >
+                  {busyId === row.id ? 'Restoring…' : 'Put back'}
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </Card>
+  );
+}
+
 function ApplicationsTab() {
   const [search, setSearch] = useState('');
+  const [showRemoved, setShowRemoved] = useState(false);
   const [selected, setSelected] = useState<JobApplicationRow | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>(ALL);
   const [sortConfig, setSortConfig] = useState<
