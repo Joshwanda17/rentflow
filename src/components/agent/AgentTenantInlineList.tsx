@@ -57,15 +57,6 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
       if (seq !== fetchSeqRef.current) return;
 
       const rows = (data || []) as any[];
-      const tenantList: Tenant[] = rows.map((row) => ({
-        id: row.id,
-        full_name: row.full_name || 'Tenant',
-        phone: row.phone || '',
-        email: row.email || '',
-        created_at: row.created_at,
-      }));
-      setTenants(tenantList);
-
       const balances: Record<string, number> = {};
       const activeIds = new Set<string>();
       const completedIds = new Set<string>();
