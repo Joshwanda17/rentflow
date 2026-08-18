@@ -20,7 +20,7 @@ import { roleToSlug } from '@/lib/roleRoutes';
 import { supabase } from '@/integrations/supabase/client';
 import { invokeEdgeFunction } from '@/lib/invokeEdgeFunction';
 import { toast } from 'sonner';
-import { ThemeToggle } from '@/components/ThemeToggle';
+import { ThemeModeSelector } from '@/components/settings/ThemeModeSelector';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useFontSize, fontSizeOptions } from '@/hooks/useFontSize';
@@ -674,7 +674,7 @@ export default function Settings() {
                     </CollapsibleTrigger>
                     <CollapsibleContent className="space-y-2 pt-1">
                       <p className="text-[11px] text-muted-foreground">Change the look of the app across light and dark modes.</p>
-                      <ThemeToggle />
+                      <ThemeModeSelector />
                     </CollapsibleContent>
                   </Collapsible>
 

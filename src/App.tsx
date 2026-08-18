@@ -810,7 +810,7 @@ const App = () => {
   return (
   <HelmetProvider>
   <ChunkErrorBoundary>
-    <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+    <ThemeProvider attribute="class" defaultTheme="light" enableSystem storageKey="theme" disableTransitionOnChange>
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
           <CombinedSettingsProvider>
