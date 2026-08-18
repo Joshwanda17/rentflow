@@ -38359,6 +38359,10 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_partner_capital_projections: {
+        Args: { p_months?: number }
+        Returns: Json
+      }
       get_partner_ops_brief_report: {
         Args: { p_end: string; p_start: string }
         Returns: Json
