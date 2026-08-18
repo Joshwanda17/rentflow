@@ -91,7 +91,9 @@ export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialo
         phone_number: phoneNumber.trim() || null,
         email: email.trim() || null,
         amount: Number(amount),
-        contribution_type: contributionType,
+        // DB validation trigger only accepts 'monthly' | 'once_off'.
+        // "Compounding" is the UI label for the once-off (lump-sum) note.
+        contribution_type: contributionType === 'monthly' ? 'monthly' : 'once_off',
       };
 
       if (contributionType === 'monthly') {
