@@ -92,13 +92,12 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
     {
       title: 'Quick Actions',
       items: [
+        { label: 'Home', icon: Home, id: 'overview' },
         { label: 'Payroll Release', icon: Banknote, id: 'payroll-release' },
-        { label: 'Home', icon: BarChart3, id: 'overview' },
         { label: 'Send Money', icon: Wallet, id: 'wallet-payout' },
         { label: 'Wallet Activities', icon: ClipboardList, id: 'wallet-activities' },
         { label: 'How Did They Earn?', icon: ClipboardList, id: 'earnings-explainer' },
         { label: 'Platform Impact', icon: Globe, id: 'platform-impact' },
-        
         { label: 'Request Funding (Director)', icon: HandCoins, id: 'requisitions' },
         { label: 'My Work', icon: ClipboardList, id: 'my-work' },
       ],
