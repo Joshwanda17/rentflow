@@ -173,43 +173,6 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   const todayLabel = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
-  const actionTrail = [
-    {
-      label: 'Payouts Awaiting Approval',
-      severity: (pendingApprovals?.count ?? 0) > 0 ? 'High' : 'Low',
-      count: pendingApprovals?.count ?? 0,
-      amount: pendingApprovals?.totalAmount ?? 0,
-      tab: 'withdrawals',
-    },
-    {
-      label: 'Reconciliation Exceptions',
-      severity: (integrityChecks?.missingGroupCount ?? 0) > 0 ? 'High' : 'Low',
-      count: integrityChecks?.missingGroupCount ?? 0,
-      amount: null as number | null,
-      tab: 'reconciliation',
-    },
-    {
-      label: 'Wallet Drift',
-      severity: (integrityChecks?.walletDriftCount ?? 0) > 0 ? 'Medium' : 'Low',
-      count: integrityChecks?.walletDriftCount ?? 0,
-      amount: null as number | null,
-      tab: 'ledger-health',
-    },
-    {
-      label: 'Negative Balances',
-      severity: (integrityChecks?.negativeLedgerCount ?? 0) > 0 ? 'High' : 'Low',
-      count: integrityChecks?.negativeLedgerCount ?? 0,
-      amount: null as number | null,
-      tab: 'ledger-health',
-    },
-    {
-      label: 'Advances Outstanding',
-      severity: 'Medium',
-      count: null as number | null,
-      amount: advancesOutstandingAll,
-      tab: 'advances',
-    },
-  ];
 
   const trendChartData = trend.map((t) => ({
     label: t.date.slice(5),
