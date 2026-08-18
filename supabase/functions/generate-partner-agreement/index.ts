@@ -211,7 +211,7 @@ Deno.serve(async (req) => {
     }
 
     // ── Email the partner a download link ──
-    if (row.email) {
+    if (row.email && sendEmail) {
       const amountNum = Math.max(0, Math.floor(Number(row.partnership_amount) || 0));
       const isBank = row.payout_mode !== 'momo';
       const payoutSummary = isBank
