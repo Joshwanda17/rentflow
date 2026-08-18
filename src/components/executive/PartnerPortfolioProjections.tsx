@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useMemo, useState } from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from 'recharts';
-import { TrendingUp, Repeat, FileText, Users } from 'lucide-react';
+import { TrendingUp, Repeat, FileText, Users, ChevronRight } from 'lucide-react';
+import { ForwardBreakdownSheet, type ForwardStream } from './ForwardBreakdownSheet';
 
 interface PartnerRow {
   partner_id: string;
@@ -144,27 +145,31 @@ export function ProjectedReturnsChart({ months = 6, horizon, onHorizonChange }: 
   const setActive = (h: Horizon) => { setInternal(h); onHorizonChange?.(h); };
 
   const { data, isLoading } = usePartnerCapitalProjections(active);
+  const [stream, setStream] = useState<ForwardStream | null>(null);
 
   const t = data?.totals || {};
   return (
     <div className="space-y-3">
       <HorizonPicker value={active} onChange={setActive} />
+      <ForwardBreakdownSheet stream={stream} horizon={active} onOpenChange={o => !o && setStream(null)} />
       {isLoading || !data ? <div className="h-[240px] rounded-lg bg-muted/40 animate-pulse" /> : (
       <>
       <div className="grid grid-cols-3 gap-2">
-        <div className="rounded-lg bg-blue-500/10 p-2.5">
-          <p className="text-[10px] text-muted-foreground flex items-center gap-1"><TrendingUp className="h-3 w-3" />Projected ROI / month</p>
+        <button type="button" onClick={() => setStream('roi')} className="text-left rounded-lg bg-blue-500/10 p-2.5 hover:bg-blue-500/20 transition-colors">
+          <p className="text-[10px] text-muted-foreground flex items-center gap-1"><TrendingUp className="h-3 w-3" />Projected ROI / month<ChevronRight className="h-3 w-3 ml-auto" /></p>
           <p className="text-base font-bold text-blue-600">UGX {fmt(Number(t.projected_monthly_payout || 0))}</p>
           <p className="text-[9px] text-muted-foreground">Horizon total: UGX {fmt(Number(t.projected_horizon_payout || 0))}</p>
-        </div>
-        <div className="rounded-lg bg-violet-500/10 p-2.5">
-          <p className="text-[10px] text-muted-foreground flex items-center gap-1"><Repeat className="h-3 w-3" />Compounding ({active.label || `${active.days}d`})</p>
+        </button>
+        <button type="button" onClick={() => setStream('compounding')} className="text-left rounded-lg bg-violet-500/10 p-2.5 hover:bg-violet-500/20 transition-colors">
+          <p className="text-[10px] text-muted-foreground flex items-center gap-1"><Repeat className="h-3 w-3" />Compounding ({active.label || `${active.days}d`})<ChevronRight className="h-3 w-3 ml-auto" /></p>
           <p className="text-base font-bold text-violet-600">UGX {fmt(Number(t.projected_compound_growth || 0))}</p>
-        </div>
-        <div className="rounded-lg bg-amber-500/10 p-2.5">
-          <p className="text-[10px] text-muted-foreground flex items-center gap-1"><FileText className="h-3 w-3" />Notes receivable</p>
+          <p className="text-[9px] text-muted-foreground">Tap for partner detail</p>
+        </button>
+        <button type="button" onClick={() => setStream('notes')} className="text-left rounded-lg bg-amber-500/10 p-2.5 hover:bg-amber-500/20 transition-colors">
+          <p className="text-[10px] text-muted-foreground flex items-center gap-1"><FileText className="h-3 w-3" />Notes receivable<ChevronRight className="h-3 w-3 ml-auto" /></p>
           <p className="text-base font-bold text-amber-600">UGX {fmt(Number(t.promissory_expected || 0))}</p>
-        </div>
+          <p className="text-[9px] text-muted-foreground">Tap for who owes what</p>
+        </button>
       </div>
 
       <div>
