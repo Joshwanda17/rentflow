@@ -235,9 +235,9 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
       )}
 
       {/* ══════════════ THREE HEADLINE CARDS ══════════════ */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         <HeroCard
-          icon={<PiggyBank className="h-5 w-5 text-emerald-600" />}
+          icon={<PiggyBank className="h-4 w-4 text-emerald-600" />}
           iconBg="bg-emerald-50 dark:bg-emerald-950/40"
           title="Money We Have"
           value={fmt(totalCash)}
@@ -251,7 +251,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
           onClick={() => setActiveBreakdown('cash')}
         />
         <HeroCard
-          icon={<Package className="h-5 w-5 text-orange-600" />}
+          icon={<Package className="h-4 w-4 text-orange-600" />}
           iconBg="bg-orange-50 dark:bg-orange-950/40"
           title="Money We Owe"
           value={fmt(walletTotal)}
@@ -265,7 +265,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
           onClick={() => setActiveBreakdown('wallets')}
         />
         <HeroCard
-          icon={<BarChart3 className="h-5 w-5 text-blue-600" />}
+          icon={<BarChart3 className="h-4 w-4 text-blue-600" />}
           iconBg="bg-blue-50 dark:bg-blue-950/40"
           title="Money We Can Use"
           value={fmt(moneyWeCanUse)}
@@ -280,9 +280,9 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
       </div>
 
       {/* ══════════════ WHERE THE MONEY SITS ══════════════ */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <HeroCard
-          icon={<Vault className="h-5 w-5 text-indigo-600" />}
+          icon={<Vault className="h-4 w-4 text-indigo-600" />}
           iconBg="bg-indigo-50 dark:bg-indigo-950/40"
           title="Money in Treasury / Platform"
           value={fmt(treasuryPosition?.value ?? 0)}
@@ -296,7 +296,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
           onClick={() => setActiveBreakdown('cash')}
         />
         <HeroCard
-          icon={<Landmark className="h-5 w-5 text-sky-600" />}
+          icon={<Landmark className="h-4 w-4 text-sky-600" />}
           iconBg="bg-sky-50 dark:bg-sky-950/40"
           title="Money in Bank"
           value={fmt(bankPosition?.value ?? 0)}
