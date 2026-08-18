@@ -163,6 +163,25 @@
       /* Data saver mode */
       @media(prefers-reduced-data:reduce){img[save-data-hidden],video,.decorative{display:none!important}}
     </style>
+
+    <!-- Apply saved theme before first paint (no white flash in dark mode) -->
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem('theme');
+          var dark =
+            stored === 'dark' ||
+            ((!stored || stored === 'system') &&
+              window.matchMedia('(prefers-color-scheme: dark)').matches && stored === 'system');
+          if (dark) {
+            document.documentElement.classList.add('dark');
+            document.documentElement.style.background = '#0f172a';
+          }
+          var m = document.getElementById('theme-color-meta');
+          if (m) m.setAttribute('content', dark ? '#5b21b6' : '#7c3aed');
+        } catch (e) {}
+      })();
+    </script>
   </head>
 
   <body>
