@@ -117,6 +117,14 @@ const NAV_ITEMS: { key: ActiveView; icon: any; label: string; color: string; pri
   { key: 'locked-transfers', icon: Lock, label: 'Idle Tenants', color: 'bg-rose-600', priority: true },
   { key: 'advance-requests', icon: Banknote, label: 'Advances', color: 'bg-purple-600', priority: true },
   { key: 'active-advances', icon: Activity, label: 'Active Advances', color: 'bg-purple-500', priority: true },
+  { key: 'agent-service-centres', icon: Store, label: 'Agent Service Centres', color: 'bg-orange-600' },
+  { key: 'agent-motor-bikes', icon: Bike, label: 'Agent Motor Bikes', color: 'bg-amber-600' },
+  { key: 'agent-boutique', icon: ShoppingBag, label: 'Agent Boutique', color: 'bg-pink-600' },
+  { key: 'agent-signages', icon: Signpost, label: 'Signages', color: 'bg-lime-600' },
+  { key: 'agent-smart-phones', icon: Smartphone, label: 'Agent Smart Phones', color: 'bg-indigo-600' },
+  { key: 'agent-advances', icon: HandCoins, label: 'Agent Advances', color: 'bg-purple-600' },
+  { key: 'agent-personal-rent-request', icon: Briefcase, label: 'Agent Personal Rent Request', color: 'bg-cyan-600' },
+  { key: 'agent-transfer-wallet', icon: Wallet, label: 'Transfer / Wallet', color: 'bg-emerald-600' },
 ];
 
 export function AgentOpsDashboard() {
