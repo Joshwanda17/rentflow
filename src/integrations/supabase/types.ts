@@ -13892,6 +13892,86 @@ export type Database = {
           },
         ]
       }
+      hr_perf_assessments: {
+        Row: {
+          assessed_at: string
+          assessed_by: string | null
+          band_code: string
+          id: string
+          is_regression: boolean
+          multiplier_resolved: number
+          note: string | null
+          points_resolved: number
+          quality_code: string
+          regression_flagged_by: string | null
+          staff_id: string
+          task_id: string
+          task_points: number | null
+          week_ending: string
+        }
+        Insert: {
+          assessed_at?: string
+          assessed_by?: string | null
+          band_code: string
+          id?: string
+          is_regression?: boolean
+          multiplier_resolved: number
+          note?: string | null
+          points_resolved: number
+          quality_code: string
+          regression_flagged_by?: string | null
+          staff_id: string
+          task_id: string
+          task_points?: number | null
+          week_ending?: string
+        }
+        Update: {
+          assessed_at?: string
+          assessed_by?: string | null
+          band_code?: string
+          id?: string
+          is_regression?: boolean
+          multiplier_resolved?: number
+          note?: string | null
+          points_resolved?: number
+          quality_code?: string
+          regression_flagged_by?: string | null
+          staff_id?: string
+          task_id?: string
+          task_points?: number | null
+          week_ending?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_perf_assessments_band_code_fkey"
+            columns: ["band_code"]
+            isOneToOne: false
+            referencedRelation: "hr_perf_bands"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "hr_perf_assessments_quality_code_fkey"
+            columns: ["quality_code"]
+            isOneToOne: false
+            referencedRelation: "hr_perf_quality"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "hr_perf_assessments_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "hr_staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_perf_assessments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "hr_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_perf_authorities: {
         Row: {
           changed_by: string | null
@@ -13993,6 +14073,106 @@ export type Database = {
         }
         Relationships: []
       }
+      hr_perf_month_awards: {
+        Row: {
+          adjusted: number
+          amount: number
+          approved_at: string
+          approved_by: string | null
+          ceiling_amount: number
+          id: string
+          participants: number
+          pct: number
+          penalty: number
+          period_code: string
+          pool_amount: number
+          regressions: number
+          staff_id: string
+          sum_scores: number
+          weeks_in_period: number
+        }
+        Insert: {
+          adjusted: number
+          amount: number
+          approved_at?: string
+          approved_by?: string | null
+          ceiling_amount: number
+          id?: string
+          participants: number
+          pct: number
+          penalty?: number
+          period_code: string
+          pool_amount: number
+          regressions?: number
+          staff_id: string
+          sum_scores: number
+          weeks_in_period: number
+        }
+        Update: {
+          adjusted?: number
+          amount?: number
+          approved_at?: string
+          approved_by?: string | null
+          ceiling_amount?: number
+          id?: string
+          participants?: number
+          pct?: number
+          penalty?: number
+          period_code?: string
+          pool_amount?: number
+          regressions?: number
+          staff_id?: string
+          sum_scores?: number
+          weeks_in_period?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_perf_month_awards_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "hr_staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_perf_participants: {
+        Row: {
+          changed_by: string | null
+          created_at: string
+          effective_from: string
+          effective_to: string | null
+          id: string
+          reason: string | null
+          staff_id: string
+        }
+        Insert: {
+          changed_by?: string | null
+          created_at?: string
+          effective_from?: string
+          effective_to?: string | null
+          id?: string
+          reason?: string | null
+          staff_id: string
+        }
+        Update: {
+          changed_by?: string | null
+          created_at?: string
+          effective_from?: string
+          effective_to?: string | null
+          id?: string
+          reason?: string | null
+          staff_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_perf_participants_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "hr_staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_perf_quality: {
         Row: {
           active: boolean
@@ -14019,6 +14199,53 @@ export type Database = {
           sort_order?: number
         }
         Relationships: []
+      }
+      hr_perf_week_scores: {
+        Row: {
+          finalised_at: string
+          finalised_by: string | null
+          id: string
+          k_used: number
+          regressions: number
+          score: number
+          staff_id: string
+          task_count: number
+          total_points: number
+          week_ending: string
+        }
+        Insert: {
+          finalised_at?: string
+          finalised_by?: string | null
+          id?: string
+          k_used: number
+          regressions?: number
+          score: number
+          staff_id: string
+          task_count?: number
+          total_points: number
+          week_ending: string
+        }
+        Update: {
+          finalised_at?: string
+          finalised_by?: string | null
+          id?: string
+          k_used?: number
+          regressions?: number
+          score?: number
+          staff_id?: string
+          task_count?: number
+          total_points?: number
+          week_ending?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_perf_week_scores_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "hr_staff"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       hr_position_access: {
         Row: {
@@ -39733,10 +39960,43 @@ export type Database = {
           taken_at: string
         }[]
       }
+      hr_perf_award_month: { Args: { _period_code: string }; Returns: number }
+      hr_perf_ceiling_at: { Args: { _on: string }; Returns: number }
+      hr_perf_finalise_week: {
+        Args: { _staff_id: string; _week_ending: string }
+        Returns: {
+          finalised_at: string
+          finalised_by: string | null
+          id: string
+          k_used: number
+          regressions: number
+          score: number
+          staff_id: string
+          task_count: number
+          total_points: number
+          week_ending: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "hr_perf_week_scores"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       hr_perf_has_authority: { Args: { _fn: string }; Returns: boolean }
       hr_perf_k_at: { Args: { _on: string }; Returns: number }
       hr_perf_my_positions: { Args: never; Returns: string[] }
+      hr_perf_participant_count: { Args: { _on?: string }; Returns: number }
+      hr_perf_pool_at: { Args: { _on: string }; Returns: number }
       hr_perf_position_for: { Args: { _fn: string }; Returns: string }
+      hr_perf_set_constant: {
+        Args: { _key: string; _reason: string; _value: number }
+        Returns: string
+      }
+      hr_perf_set_participant: {
+        Args: { _in_pool: boolean; _reason: string; _staff_ref: string }
+        Returns: string
+      }
       hr_perf_week_ending: { Args: { _d?: string }; Returns: string }
       hr_perf_week_score: {
         Args: { _staff_id: string; _week_ending: string }
@@ -39744,6 +40004,10 @@ export type Database = {
       }
       hr_perf_week_total: {
         Args: { _staff_id: string; _week_ending: string }
+        Returns: number
+      }
+      hr_perf_weeks_in_month: {
+        Args: { _period_code: string }
         Returns: number
       }
       hr_transfer_position: {
