@@ -309,6 +309,9 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
     },
     {
       title: 'Performance & Hiring',
+      icon: TrendingUp,
+      collapsible: true,
+      defaultOpen: false,
       items: [
         { label: 'Executive Brief', icon: Gauge, id: 'hr-executive-brief', route: '/hr/dashboard/executive-brief', access: HR_ACCESS },
         { label: 'My Work', icon: LayoutDashboard, id: 'hr-my-work', route: '/hr/dashboard/my-work', access: 'signed-in' },
