@@ -23,7 +23,7 @@ const FROM = 'Welile Reports <reports@welile.com>';
 const DEFAULT_RECIPIENTS = [
   'joshwanda17@gmail.com',
   'benjaminmuhanguzi29@gmail.com',
-  'weliletenants@gmail.com',
+  'benjamin@welile.com',
 ];
 
 // Operational-float funding categories. Confirmed from BOTH credit paths:

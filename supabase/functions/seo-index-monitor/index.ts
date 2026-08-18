@@ -233,7 +233,7 @@ Deno.serve(async (req) => {
       .select("alert_email, alerts_enabled, sample_cursor")
       .eq("id", true)
       .maybeSingle();
-    const alertEmail = settings?.alert_email || "weliletenants@gmail.com";
+    const alertEmail = settings?.alert_email || "benjamin@welile.com";
     const alertsEnabled = settings?.alerts_enabled ?? true;
     const cursor = Number(settings?.sample_cursor ?? 0) || 0;
 
