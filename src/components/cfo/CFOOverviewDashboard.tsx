@@ -39,6 +39,7 @@ const fmtShort = (n: number) => {
 export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps) {
   const [exportingCommissions, setExportingCommissions] = useState(false);
   const [activeBreakdown, setActiveBreakdown] = useState<string | null>(null);
+  const { user } = useAuth();
   const {
     platformCash, liabilities, revenue, receivables, moneyFlow,
     todayCashFlow, integrityChecks, pendingApprovals, treasuryControls, refetchControls,
