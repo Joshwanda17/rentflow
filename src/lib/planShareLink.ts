@@ -47,11 +47,21 @@ export function planShareDescription(plan: SharePlanInput): string {
 /**
  * Share host for plan links. Set to "https://s.welileapp.com" once the
  * Cloudflare Worker in infra/share-proxy/ is deployed and the CNAME is live.
- * While empty, links fall back to the SPA route (works, but WhatsApp/Facebook
- * crawlers only see the generic Welile OG image because the SPA cannot emit
- * dynamic server-side HTML).
+ * While empty, links are minted directly on the `og-plan` preview endpoint,
+ * which DOES emit per-plan server-side head tags (house photo, rent, returns),
+ * so WhatsApp/Facebook/X show the house image instead of the generic Welile
+ * logo. The SPA `/s/<code>` route cannot do this — a static host serves the
+ * same index.html to every crawler.
  */
 export const SHARE_LINK_HOST = '';
+
+/** Crawler-readable preview endpoint used while SHARE_LINK_HOST is unset. */
+const OG_PLAN_ENDPOINT = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/og-plan`;
+
+/** Build the public share URL for a short-link code. */
+export function planShareUrl(code: string): string {
+  return SHARE_LINK_HOST ? `${SHARE_LINK_HOST}/s/${code}` : `${OG_PLAN_ENDPOINT}/${code}`;
+}
 
 /**
  * Create (or reuse) a trackable short link for a fundable rent plan.
@@ -68,11 +78,10 @@ export async function createPlanShareLink(
 ): Promise<{ code: string; shortUrl: string; shareUrl: string }> {
   const targetPath = '/funder-onboarding';
   const targetParams = { plan: planId, ref: userId } as Record<string, string>;
-  const shareOrigin = SHARE_LINK_HOST || getPublicOrigin();
   const build = (code: string) => ({
     code,
-    shortUrl: `${shareOrigin}/s/${code}`,
-    shareUrl: `${shareOrigin}/s/${code}`,
+    shortUrl: planShareUrl(code),
+    shareUrl: planShareUrl(code),
   });
 
   const findExisting = async () => {
