@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback } from 'react';
 import { useCFOOverviewData } from '@/hooks/useCFOOverviewData';
 import { Card, CardContent } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
@@ -11,7 +11,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { KPIBreakdownSheet } from '@/components/cfo/KPIBreakdownSheet';
-import { GroupedKPIBreakdownSheet } from '@/components/cfo/GroupedKPIBreakdownSheet';
+import { CashSourcesSheet } from '@/components/cfo/CashSourcesSheet';
 import { ROIPayableForecast } from '@/components/cfo/ROIPayableForecast';
 import { CFOActionsLog } from '@/components/cfo/CFOActionsLog';
 import { LedgerMaintenancePanel } from '@/components/cfo/LedgerMaintenancePanel';
@@ -114,84 +114,6 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
     }
   }, []);
 
-  // Build 7-tier priority groups for "Money We Have — Sources" (must be before early returns)
-  const cashSourceGroups = useMemo(() => {
-    const increases = platformCash?.increases ?? [];
-    type Inc = typeof increases[number];
-
-    const PRIORITY_MAP: Record<string, number> = {
-      share_capital: 1, angel_pool_investment: 1, angel_pool_commission: 1,
-      partner_funding: 2,
-      rent_principal_collected: 3, access_fee_collected: 3, registration_fee_collected: 3,
-      salary_advance_repayment: 4,
-      system_balance_correction: 6, orphan_reassignment: 6, orphan_reversal: 6,
-      penalty_fee: 7, late_payment_penalty: 7,
-    };
-
-    const GROUP_META: Record<number, { label: string; emoji: string }> = {
-      1: { label: 'Shareholders Capital (Angel Pool)', emoji: '🏦' },
-      2: { label: 'Supporter Partner Funding', emoji: '🤝' },
-      3: { label: 'Rent Collections & Fees', emoji: '🏠' },
-      4: { label: 'Salary Advance Repayments', emoji: '💼' },
-      5: { label: 'Other Sources', emoji: '📦' },
-      6: { label: 'Corrections', emoji: '🔄' },
-      7: { label: 'Penalties', emoji: '⚠️' },
-    };
-
-    // Extract raw category from label (reverse the SOURCE_LABELS mapping)
-    const LABEL_TO_CAT: Record<string, string> = {
-      '🏦 Share Capital (Funders)': 'share_capital',
-      '🤝 Partner Funding': 'partner_funding',
-      '💰 Tenant Repayments': 'tenant_repayment',
-      '💰 Agent Repayments': 'agent_repayment',
-      '🏠 Rent Collections': 'rent_principal_collected',
-      '📥 Wallet Deposits': 'wallet_deposit',
-      '🔄 Wallet Deductions / Retractions': 'wallet_deduction',
-      '🎫 Access Fees': 'access_fee_collected',
-      '📋 Registration Fees': 'registration_fee_collected',
-      '🔧 Corrections': 'system_balance_correction',
-      '👤 Agent Commissions (Expense)': 'agent_commission_earned',
-      '📈 ROI Payouts (Expense)': 'roi_expense',
-      '📈 ROI Wallet Credits (Expense)': 'roi_wallet_credit',
-      '🏠 Rent Disbursements (Expense)': 'rent_disbursement',
-      '💸 Wallet Withdrawals (Expense)': 'wallet_withdrawal',
-      '🔀 Wallet Transfers': 'wallet_transfer',
-      '🔄 Orphan Reassignments': 'orphan_reassignment',
-      '🔄 Orphan Reversals': 'orphan_reversal',
-      '💼 Agent Float Deposits': 'agent_float_deposit',
-      '💸 Commission Withdrawals': 'agent_commission_withdrawal',
-      '🏠 Commission Used for Rent': 'agent_commission_used_for_rent',
-      '🏠 Float Used for Rent': 'agent_float_used_for_rent',
-      '📈 ROI Reinvestments': 'roi_reinvestment',
-      '📊 Portfolio Top-ups': 'pending_portfolio_topup',
-      '📋 Rent Receivables Created': 'rent_receivable_created',
-    };
-
-    const buckets: Record<number, { label: string; value: number; count?: number }[]> = {};
-
-    increases.forEach((inc: Inc) => {
-      const cat = LABEL_TO_CAT[inc.label] || inc.label.replace(/[^\w]/g, '_').toLowerCase();
-      const tier = PRIORITY_MAP[cat] ?? 5;
-      if (!buckets[tier]) buckets[tier] = [];
-      buckets[tier].push({ label: inc.label.replace(/^[^\w]*\s*/, ''), value: inc.value, count: inc.count });
-    });
-
-    const groups: import('@/components/cfo/GroupedKPIBreakdownSheet').GroupedBreakdownGroup[] = [];
-    [1, 2, 3, 4, 5, 6, 7].forEach(tier => {
-      const items = buckets[tier];
-      if (items && items.length > 0) {
-        const meta = GROUP_META[tier];
-        groups.push({
-          label: meta.label,
-          emoji: meta.emoji,
-          items,
-          total: items.reduce((s, i) => s + i.value, 0),
-        });
-      }
-    });
-
-    return groups;
-  }, [platformCash?.increases]);
 
   if (isLoading) {
     return (
@@ -581,12 +503,14 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
       </Card>
 
       {/* ── BREAKDOWNS ── */}
-      <GroupedKPIBreakdownSheet
+      <CashSourcesSheet
         open={activeBreakdown === 'cash'}
         onOpenChange={(o) => !o && setActiveBreakdown(null)}
-        title="💰 Money We Have — Sources"
-        total={totalCash}
-        groups={cashSourceGroups}
+        totalCash={totalCash}
+        a1={platformCash?.a1 ?? 0}
+        a5={platformCash?.a5 ?? 0}
+        increases={platformCash?.increases ?? []}
+        decreases={platformCash?.decreases ?? []}
       />
       <KPIBreakdownSheet
         open={activeBreakdown === 'wallets'}
