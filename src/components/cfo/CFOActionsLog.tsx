@@ -142,7 +142,7 @@ export function CFOActionsLog() {
   const [searchInput, setSearchInput] = useState('');
   const [page, setPage] = useState(0);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const search = useDebouncedValue(searchInput.trim(), 350);
 
 
@@ -351,38 +351,44 @@ export function CFOActionsLog() {
     <Card className="rounded-2xl">
       <CardContent className="p-4">
         <div className="flex items-center justify-between gap-2 mb-1 flex-wrap">
-          <button
-            type="button"
-            onClick={() => setOpen((o) => !o)}
-            aria-expanded={open}
-            className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors"
-          >
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
             <span>CFO Actions Trail</span>
             {total > 0 && (
               <Badge variant="secondary" className="text-[10px]">{total.toLocaleString()}</Badge>
             )}
-            <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
-          </button>
-          <div className={`flex items-center gap-1 ${open ? '' : 'hidden'}`}>
-            {isFetching && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
-            <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={() => refetch()} disabled={isFetching}>
-              <RefreshCw className={`h-3 w-3 ${isFetching ? 'animate-spin' : ''}`} /> Refresh
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" disabled={!total || !!exporting}>
-                  {exporting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />} Export
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={handleExportCSV} disabled={!!exporting} className="text-xs gap-2">
-                  <FileSpreadsheet className="h-3.5 w-3.5" /> Export CSV
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleExportPDF} disabled={!!exporting} className="text-xs gap-2">
-                  <FileText className="h-3.5 w-3.5" /> Export PDF
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className={`flex items-center gap-1 ${open ? '' : 'hidden'}`}>
+              {isFetching && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+              <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={() => refetch()} disabled={isFetching}>
+                <RefreshCw className={`h-3 w-3 ${isFetching ? 'animate-spin' : ''}`} /> Refresh
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" disabled={!total || !!exporting}>
+                    {exporting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />} Export
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleExportCSV} disabled={!!exporting} className="text-xs gap-2">
+                    <FileSpreadsheet className="h-3.5 w-3.5" /> Export CSV
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleExportPDF} disabled={!!exporting} className="text-xs gap-2">
+                    <FileText className="h-3.5 w-3.5" /> Export PDF
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            <button
+              type="button"
+              onClick={() => setOpen((o) => !o)}
+              aria-expanded={open}
+              aria-label={`${open ? 'Collapse' : 'Expand'} CFO Actions Trail`}
+              className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground shrink-0"
+            >
+              {open ? 'Hide' : 'Show'}
+              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
+            </button>
           </div>
         </div>
 
