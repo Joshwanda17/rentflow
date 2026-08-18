@@ -26,12 +26,14 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'owing'>('all');
+  // Tenants whose plan is live and being paid (status `repaying`, marked paying).
   const [activeTenantIds, setActiveTenantIds] = useState<Set<string>>(new Set());
+  // Tenants who finished their rent plan.
+  const [completedTenantIds, setCompletedTenantIds] = useState<Set<string>>(new Set());
+  // Tenants the agent flagged as not paying — kept out of Active / Owing.
+  const [notPayingIds, setNotPayingIds] = useState<Set<string>>(new Set());
+  // Owing = repaying-only outstanding (landlord already paid via float disbursement).
   const [tenantBalances, setTenantBalances] = useState<Record<string, number>>({});
-  // Tenants whose only rent requests are still pre-funding (pending / approved /
-  // returned for correction). They have no plan running yet, so a zero balance
-  // must NOT be shown as "Paid up".
-  const [inReviewIds, setInReviewIds] = useState<Set<string>>(new Set());
   const [tenantAvatars, setTenantAvatars] = useState<Record<string, string>>({});
   const [failedAvatars, setFailedAvatars] = useState<Set<string>>(new Set());
   const fetchSeqRef = useRef(0);
