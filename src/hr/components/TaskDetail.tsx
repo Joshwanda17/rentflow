@@ -26,6 +26,7 @@ import type { Department, Employee, Task, TaskEvent } from '../types';
 import {
   TRANSITION_NOTE_LABELS,
   charsStillNeeded,
+  isNoteRequired,
   isValidTransitionNote,
 } from './TransitionNoteDialog';
 
@@ -130,18 +131,24 @@ export default function TaskDetail() {
     return ACTIONS.filter((a) => allowed.includes(a.key));
   }, [task]);
 
-  async function confirmAction() {
-    if (!pendingAction || !id) return;
-    if (noteRequired && !isValidTransitionNote(note)) return;
+  async function recordEvent(
+    action: (typeof ACTIONS)[number],
+    noteValue: string,
+  ) {
+    if (!id) return;
+    if (isNoteRequired(action.event) && !isValidTransitionNote(noteValue)) {
+      toast.error('A note is required for this action');
+      return;
+    }
     setSaving(true);
     try {
       // Append-only: a database trigger moves hr_tasks.status.
       await addTaskEvent({
         taskId: id,
-        eventType: pendingAction.event,
-        note: note.trim() ? note.trim() : null,
+        eventType: action.event,
+        note: noteValue.trim() ? noteValue.trim() : null,
       });
-      toast.success(`${pendingAction.label} recorded`);
+      toast.success(`${action.label} recorded`);
       setPendingAction(null);
       setNote('');
       await load();
@@ -150,6 +157,11 @@ export default function TaskDetail() {
     } finally {
       setSaving(false);
     }
+  }
+
+  function confirmAction() {
+    if (!pendingAction) return;
+    void recordEvent(pendingAction, note);
   }
 
   if (loading) {
@@ -177,7 +189,7 @@ export default function TaskDetail() {
     !['completed', 'cancelled'].includes(task.status);
 
   // The required set is the label map's keys — never a second list.
-  const noteRequired = !!pendingAction && pendingAction.event in TRANSITION_NOTE_LABELS;
+  const noteRequired = !!pendingAction && isNoteRequired(pendingAction.event);
   const noteMissing = charsStillNeeded(note);
 
   return (
@@ -250,9 +262,14 @@ export default function TaskDetail() {
                 key={action.key}
                 variant={action.key === 'cancel' ? 'destructive' : 'default'}
                 size="sm"
+                disabled={saving}
                 onClick={() => {
                   setNote('');
-                  setPendingAction(action);
+                  if (isNoteRequired(action.event)) {
+                    setPendingAction(action);
+                  } else {
+                    void recordEvent(action, '');
+                  }
                 }}
               >
                 {action.label}

@@ -37,7 +37,7 @@ import { setMyWorkBadge } from '@/hr/lib/myWorkBadge';
 import type { Department, Employee, MetricDefinition, MetricSnapshot, Task } from '@/hr/types';
 import TaskFormDialog from './TaskFormDialog';
 import TransitionNoteDialog, {
-  TRANSITION_NOTE_LABELS,
+  isNoteRequired,
   isValidTransitionNote,
 } from './TransitionNoteDialog';
 import MyLeaveRequests from './MyLeaveRequests';
@@ -290,7 +290,7 @@ export default function MyWork({ embedded = false }: MyWorkProps) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [busyTaskId, setBusyTaskId] = useState<string | null>(null);
   const [notePrompt, setNotePrompt] = useState<
-    { taskId: string; eventType: 'submitted' | 'completed' } | null
+    { taskId: string; eventType: 'completed' } | null
   >(null);
   const [attention, setAttention] = useState<AttentionItem[]>([]);
   const [busyEventId, setBusyEventId] = useState<string | null>(null);
@@ -524,7 +524,7 @@ export default function MyWork({ embedded = false }: MyWorkProps) {
   ) => {
     setBusyTaskId(taskId);
     try {
-      if (eventType in TRANSITION_NOTE_LABELS && !isValidTransitionNote(note || '')) {
+      if (isNoteRequired(eventType) && !isValidTransitionNote(note || '')) {
         toast.error('A note is required for this action');
         return;
       }
@@ -766,7 +766,7 @@ export default function MyWork({ embedded = false }: MyWorkProps) {
                             variant="outline"
                             className="h-6 px-2 text-[10px]"
                             disabled={busyTaskId === task.id}
-                            onClick={() => setNotePrompt({ taskId: task.id, eventType: 'submitted' })}
+                            onClick={() => act(task.id, 'submitted')}
                           >
                             Submit
                           </Button>
