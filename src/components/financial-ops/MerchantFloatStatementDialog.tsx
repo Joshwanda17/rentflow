@@ -188,6 +188,27 @@ export function MerchantFloatStatementDialog({
           </div>
         </div>
 
+        <div
+          className={`rounded-xl border p-3 ${
+            tallies ? 'border-success/40 bg-success/5' : 'border-destructive/40 bg-destructive/5'
+          }`}
+        >
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+            Statement vs books (wallet float)
+          </p>
+          <p className="mt-1 text-xs font-semibold text-foreground">
+            Statement close {formatUGX(balance)} · Books {formatUGX(booksBalance)}{' '}
+            <span className={tallies ? 'text-success' : 'text-destructive'}>
+              {tallies ? '· tallies' : `· variance ${formatUGX(variance)}`}
+            </span>
+          </p>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            {correctionRows.length > 0
+              ? `Includes ${correctionRows.length} admin correction leg${correctionRows.length === 1 ? '' : 's'} (net ${formatUGX(correctionNet)}) — always shown.`
+              : 'No admin correction legs on this float line.'}
+          </p>
+        </div>
+
         <div className="mt-2 divide-y divide-border rounded-xl border border-border overflow-hidden">
           {isLoading && <p className="p-4 text-xs text-muted-foreground">Loading statement…</p>}
           {error && (
@@ -212,7 +233,14 @@ export function MerchantFloatStatementDialog({
                 )}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-foreground truncate">{label(r)}</p>
+                <p className="text-sm font-medium text-foreground truncate">
+                  {label(r)}
+                  {r.isCorrection && (
+                    <span className="ml-2 rounded-full bg-warning/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-warning">
+                      Admin correction
+                    </span>
+                  )}
+                </p>
                 {isCustomerPayout(r) && (
                   <p
                     className={`text-[11px] font-semibold truncate ${
