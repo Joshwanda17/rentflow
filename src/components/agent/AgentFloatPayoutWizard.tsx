@@ -58,6 +58,8 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
   const [resendCooldown, setResendCooldown] = useState(0);
   const [amountInput, setAmountInput] = useState<string>('');
   const [phoneOverride, setPhoneOverride] = useState<string>('');
+  // Inline, always-visible reason the "Send OTP to Landlord" step failed.
+  const [sendOtpError, setSendOtpError] = useState<string | null>(null);
   // Landlord-Ops-verified landlords lock the phone number; agents request a
   // change via Landlord Ops instead of editing it inline.
   const [showPhoneChangeReq, setShowPhoneChangeReq] = useState(false);
@@ -303,8 +305,6 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
     }
   };
 
-  // Inline, always-visible reason the Send OTP button is blocked or failed.
-  const [sendOtpError, setSendOtpError] = useState<string | null>(null);
   const sendBlockedReason = !phoneValid
     ? 'Enter a valid landlord phone number to enable the OTP.'
     : effectiveAmount <= 0
