@@ -24,6 +24,9 @@ export interface MerchantFloatStatementInput {
   booksBalance?: number;
   /** Opening balance the running balance starts from. */
   openingBalance?: number;
+  /** Optional period filter shown on the statement (yyyy-MM-dd). */
+  periodFrom?: string | null;
+  periodTo?: string | null;
   rows: MerchantFloatStatementRow[];
 }
 
@@ -104,6 +107,18 @@ export async function generateMerchantFloatStatementPdf(
     pdf.text(input.agentPhone, margin, y + 5);
   }
   y += 12;
+
+  if (input.periodFrom || input.periodTo) {
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(9);
+    pdf.setTextColor(90, 90, 90);
+    pdf.text(
+      `Period: ${input.periodFrom || 'earliest'} to ${input.periodTo || 'today'}`,
+      margin,
+      y - 4,
+    );
+    y += 4;
+  }
 
   // Headline card — float left
   pdf.setFillColor(245, 240, 255);
@@ -238,8 +253,15 @@ export async function generateMerchantFloatStatementPdf(
   return blob;
 }
 
-export function buildMerchantFloatStatementFilename(name: string, phone?: string | null) {
+export function buildMerchantFloatStatementFilename(
+  name: string,
+  phone?: string | null,
+  period?: { from?: string | null; to?: string | null },
+) {
   const slug = (name || phone || 'merchant').replace(/[^\w]+/g, '_').slice(0, 40);
+  if (period && (period.from || period.to)) {
+    return `Welile_Float_Statement_${slug}_${period.from || 'start'}_to_${period.to || new Date().toISOString().slice(0, 10)}.pdf`;
+  }
   return `Welile_Float_Statement_${slug}_${new Date().toISOString().slice(0, 10)}.pdf`;
 }
 
