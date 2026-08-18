@@ -91,12 +91,10 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
           ? 'no independent evidence'
           : 'evidenced';
 
-  // Show every merchant desk that finance can act on — an agent with no
-  // activity yet (or a fully settled one) must still be visible here so this
-  // board matches the merchant agent roster.
-  const visible = (data ?? []).filter(
-    (r) => r.isActive || r.paidOut > 0 || r.reimbursed > 0 || r.companyCashWithAgent > 0,
-  );
+  // ONLY active merchant / cash-out desks belong on this board. A deactivated
+  // desk is not part of the payout roster, so its historical movements must not
+  // appear here (or in any total) even when it still has residual figures.
+  const visible = (data ?? []).filter((r) => r.isActive);
 
   // Up to two most recent movements on each agent's attached mobile money line —
   // display + sort key only, never used to compute any balance on this board.
