@@ -22,6 +22,10 @@ export interface ApsTrendPoint {
   day: string; collected: number; advances_issued: number; advances_deducted: number;
   service_centres_added: number; new_agents: number;
 }
+export interface ApsNewAgentRow {
+  id: string; name: string; phone: string | null; location: string | null;
+  created_at: string; agent_type: 'main agent' | 'sub-agent'; parent_name: string | null;
+}
 export interface ApsRentRow {
   agent_id: string; agent_name: string; phone: string | null; location: string | null;
   live_plans: number; outstanding: number; daily_receivable: number; repaid_to_date: number;
