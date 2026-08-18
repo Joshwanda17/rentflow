@@ -552,35 +552,6 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
         </CardContent>
       </Card>
 
-      {/* ── 3 KEY NUMBERS ── */}
-      <div className="grid grid-cols-1 gap-3">
-        <MetricCard
-          icon={<div className="h-10 w-10 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center"><Banknote className="h-5 w-5 text-blue-600" /></div>}
-          label="Money We Have"
-          sublabel="Cash and Bank (A1) + Cash in Transit (A5) — Balance Sheet basis"
-          value={fmt(totalCash)}
-          detail={`Bank: ${fmtShort(platformCash?.a1 ?? 0)} · In transit: ${fmtShort(platformCash?.a5 ?? 0)}`}
-          onClick={() => setActiveBreakdown('cash')}
-        />
-        <MetricCard
-          icon={<div className="h-10 w-10 rounded-xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center"><Wallet className="h-5 w-5 text-amber-600" /></div>}
-          label="Money We Owe"
-          sublabel="What users can withdraw anytime"
-          value={fmt(walletTotal)}
-          detail={`All debts: ${fmtShort(totalLiabilities)}`}
-          onClick={() => setActiveBreakdown('wallets')}
-        />
-        <MetricCard
-          icon={<div className="h-10 w-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center"><TrendingUp className="h-5 w-5 text-emerald-600" /></div>}
-          label="Money We Can Use"
-          sublabel="Cash available for operations"
-          value={fmt(moneyWeCanUse)}
-          detail={`Cash: ${fmtShort(totalCash)} − Wallets: ${fmtShort(walletTotal)}`}
-          valueColor={moneyWeCanUse >= 0 ? 'text-emerald-600' : 'text-destructive'}
-          onClick={() => setActiveBreakdown('earnings')}
-        />
-      </div>
-
       {/* ── AGENT ADVANCES ── */}
       {(receivables?.advancesPrincipal ?? 0) > 0 && (
         <div className="rounded-2xl border border-border bg-card p-4">
@@ -938,35 +909,6 @@ function DeckLink({ label, onClick }: { label: string; onClick: () => void }) {
       className="px-3 py-1.5 rounded-full border border-border bg-muted/50 text-xs font-semibold hover:bg-muted transition-colors"
     >
       {label} →
-    </button>
-  );
-}
-
-function MetricCard({ icon, label, sublabel, value, detail, valueColor, onClick }: {
-  icon: React.ReactNode;
-  label: string;
-  sublabel: string;
-  value: string;
-  detail: string;
-  valueColor?: string;
-  onClick?: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="w-full rounded-2xl border bg-card p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-left active:scale-[0.98] transition-all hover:shadow-md"
-    >
-      <div className="flex items-center gap-3 sm:gap-4">
-        <div className="shrink-0">{icon}</div>
-        <div className="min-w-0 flex-1 sm:flex-initial">
-          <p className="text-sm font-semibold">{label}</p>
-          <p className="text-[11px] text-muted-foreground leading-tight">{sublabel}</p>
-        </div>
-      </div>
-      <div className="text-left sm:text-right sm:ml-auto shrink-0 pl-[52px] sm:pl-0">
-        <p className={`text-base sm:text-lg font-bold font-mono tabular-nums ${valueColor || ''}`}>{value}</p>
-        <p className="text-[10px] text-muted-foreground">{detail}</p>
-      </div>
     </button>
   );
 }
