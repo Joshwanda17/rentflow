@@ -59,6 +59,7 @@ export interface ApsReport {
   agents: ApsAgents; rent: ApsRent; advances: ApsAdvances; service_centres: ApsServiceCentres;
   bikes: ApsProduct; phones: ApsProduct;
   trend: ApsTrendPoint[];
+  new_agent_rows: ApsNewAgentRow[];
   rent_rows: ApsRentRow[];
   advance_rows: ApsAdvanceRow[];
   service_centre_rows: ApsServiceCentreRow[];
