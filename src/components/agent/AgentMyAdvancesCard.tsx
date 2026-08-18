@@ -157,21 +157,21 @@ export function AgentMyAdvancesCard() {
   return (
     <Card className="border-border/60">
       <CardContent className="p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2">
             <div className="rounded-full bg-primary/15 p-1.5">
               <Banknote className="h-4 w-4 text-primary" />
             </div>
-            <div>
-              <p className="text-sm font-bold leading-none">My Advances</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Funds advanced to you</p>
+            <div className="min-w-0">
+              <p className="text-sm font-bold leading-none truncate">My Advances</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5 truncate">Funds advanced to you</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             {totalOutstanding > 0 && (
               <div className="text-right">
-                <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Outstanding</p>
-                <p className="text-base font-black tabular-nums text-amber-600">{formatUGX(totalOutstanding)}</p>
+                <p className="text-[9px] uppercase tracking-wide font-bold text-muted-foreground leading-none">Outstanding</p>
+                <p className="text-xs sm:text-sm font-black tabular-nums text-amber-600 whitespace-nowrap leading-tight">{formatUGX(totalOutstanding)}</p>
               </div>
             )}
             {!isLoading && advances.length > 0 && (
