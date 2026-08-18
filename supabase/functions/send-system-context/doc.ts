@@ -187,7 +187,7 @@ Roles live in \`user_roles\` (never on \`profiles\`), checked via SECURITY DEFIN
 
 ## 2.15 Notifications
 
-SMS (\`sms_delivery_log\`, \`sms_opt_outs\`, \`sms_message_exceptions\`, \`sms_broadcast_*\`), email (\`email_send_log\`, \`email_send_state\`, \`suppressed_emails\`, \`email_unsubscribe_tokens\`), push (\`push_subscriptions\`, \`send-push-notification\`), in-app (\`notifications\` — writes deliberately suppressed by the lean-DB policy). Every outbound SMS passes the footer interceptor and opt-out check. **Never force sender ID \`WELILE\`** — it is unregistered and carriers drop it; omit the field so Yoola uses its registered default.
+SMS (\`sms_delivery_log\`, \`sms_opt_outs\`, \`sms_message_exceptions\`, \`sms_broadcast_*\`), email (\`email_send_log\`, \`email_send_state\`, \`suppressed_emails\`, \`email_unsubscribe_tokens\`), push (\`push_subscriptions\`, \`send-push-notification\`), in-app (\`notifications\` — writes deliberately suppressed by the lean-DB policy). Every outbound SMS passes the footer interceptor and opt-out check. **Sender ID \`WELILE\` is registered on all providers** and must be set explicitly on every outbound SMS call site.
 
 ## 2.16 Reporting
 
