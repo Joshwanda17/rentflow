@@ -4,6 +4,7 @@ import { logSystemEvent } from "../_shared/eventLogger.ts";
 import { checkTreasuryGuard } from "../_shared/treasuryGuard.ts";
 import { logDepositDecision } from "../_shared/depositDecisionAudit.ts";
 import { attemptYoolaPrimary } from "../_shared/yoolaPrimary.ts";
+import { resolveOwnedRecipientEmail } from "../_shared/ownedRecipientEmail.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -978,12 +979,17 @@ Deno.serve(async (req) => {
                 .select('email, full_name, phone')
                 .eq('id', depositRequest.user_id)
                 .maybeSingle();
-              // Treat placeholder emails (e.g. "0712345678@welile.user")
-              // as missing — they won't deliver and just clutter the queue.
+              // Ownership guard: `profiles.email` is not unique (agents often
+              // register other people with their own gmail), so a deposit
+              // receipt must only go to an address that provably belongs to
+              // this user. Placeholder logins and shared addresses resolve to
+              // null and the email is skipped (SMS still notifies).
               const rawEmail = (depProfile?.email ?? '').trim();
-              const isPlaceholderEmail =
-                !rawEmail || /@welile\.user$/i.test(rawEmail);
-              const recipientEmail = isPlaceholderEmail ? null : rawEmail;
+              const recipientEmail = await resolveOwnedRecipientEmail(
+                supabaseAdmin,
+                depositRequest.user_id,
+                'approve-deposit',
+              );
 
               // Pull the freshly-credited bucket balance so the user sees
               // it in both the SMS and email receipt.
