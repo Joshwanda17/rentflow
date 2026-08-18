@@ -36,7 +36,10 @@ import { supabase } from '@/hr/api/client';
 import { setMyWorkBadge } from '@/hr/lib/myWorkBadge';
 import type { Department, Employee, MetricDefinition, MetricSnapshot, Task } from '@/hr/types';
 import TaskFormDialog from './TaskFormDialog';
-import TransitionNoteDialog from './TransitionNoteDialog';
+import TransitionNoteDialog, {
+  TRANSITION_NOTE_LABELS,
+  isValidTransitionNote,
+} from './TransitionNoteDialog';
 import MyLeaveRequests from './MyLeaveRequests';
 
 
