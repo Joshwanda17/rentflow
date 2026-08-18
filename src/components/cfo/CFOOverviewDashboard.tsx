@@ -325,19 +325,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
               <p className="font-semibold text-sm">Advances — Disbursed vs Recovered</p>
               <span className="text-[11px] text-muted-foreground">{recoveryRate.toFixed(0)}% recovered</span>
             </div>
-            <div className="h-[260px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={advancesChartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                  <XAxis dataKey="label" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
-                  <YAxis tickFormatter={(v: number) => fmtShort(v)} tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" width={52} />
-                  <Tooltip formatter={(v: number) => fmt(v)} contentStyle={{ borderRadius: 12, fontSize: 12 }} />
-                  <Legend wrapperStyle={{ fontSize: 11 }} />
-                  <Bar name="Disbursed (UGX)" dataKey="disbursed" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={30} />
-                  <Bar name="Recovered (UGX)" dataKey="recovered" fill="#10b981" radius={[4, 4, 0, 0]} barSize={30} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            <AgentAdvancesTrendChart />
           </CardContent>
         </Card>
       </div>
