@@ -275,10 +275,10 @@ export function AgentOpsDashboard() {
       case 'sc-operating-model': return <ServiceCentreOperatingModel />;
       case 'sc-products': return <AgentProductsPanel />;
       case 'agent-service-centres': return <ServiceCentreOverview />;
-      case 'agent-motor-bikes': return <AgentProductsPanel />;
-      case 'agent-boutique': return <AgentProductsPanel />;
-      case 'agent-signages': return <AgentProductsPanel />;
-      case 'agent-smart-phones': return <AgentProductsPanel />;
+      case 'agent-motor-bikes': return <AgentProductsPanel category="motor_bike" />;
+      case 'agent-boutique': return <AgentProductsPanel category="boutique" />;
+      case 'agent-signages': return <AgentProductsPanel category="signage" />;
+      case 'agent-smart-phones': return <AgentProductsPanel category="smart_phone" />;
       case 'agent-advances': return (
         <div className="space-y-6">
           <AdvanceAnalyticsPanel />
