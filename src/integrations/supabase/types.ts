@@ -13892,6 +13892,86 @@ export type Database = {
           },
         ]
       }
+      hr_perf_assessments: {
+        Row: {
+          assessed_at: string
+          assessed_by: string | null
+          band_code: string
+          id: string
+          is_regression: boolean
+          multiplier_resolved: number
+          note: string | null
+          points_resolved: number
+          quality_code: string
+          regression_flagged_by: string | null
+          staff_id: string
+          task_id: string
+          task_points: number | null
+          week_ending: string
+        }
+        Insert: {
+          assessed_at?: string
+          assessed_by?: string | null
+          band_code: string
+          id?: string
+          is_regression?: boolean
+          multiplier_resolved: number
+          note?: string | null
+          points_resolved: number
+          quality_code: string
+          regression_flagged_by?: string | null
+          staff_id: string
+          task_id: string
+          task_points?: number | null
+          week_ending?: string
+        }
+        Update: {
+          assessed_at?: string
+          assessed_by?: string | null
+          band_code?: string
+          id?: string
+          is_regression?: boolean
+          multiplier_resolved?: number
+          note?: string | null
+          points_resolved?: number
+          quality_code?: string
+          regression_flagged_by?: string | null
+          staff_id?: string
+          task_id?: string
+          task_points?: number | null
+          week_ending?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_perf_assessments_band_code_fkey"
+            columns: ["band_code"]
+            isOneToOne: false
+            referencedRelation: "hr_perf_bands"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "hr_perf_assessments_quality_code_fkey"
+            columns: ["quality_code"]
+            isOneToOne: false
+            referencedRelation: "hr_perf_quality"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "hr_perf_assessments_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "hr_staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_perf_assessments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "hr_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_perf_authorities: {
         Row: {
           changed_by: string | null
@@ -13993,6 +14073,44 @@ export type Database = {
         }
         Relationships: []
       }
+      hr_perf_participants: {
+        Row: {
+          changed_by: string | null
+          created_at: string
+          effective_from: string
+          effective_to: string | null
+          id: string
+          reason: string | null
+          staff_id: string
+        }
+        Insert: {
+          changed_by?: string | null
+          created_at?: string
+          effective_from?: string
+          effective_to?: string | null
+          id?: string
+          reason?: string | null
+          staff_id: string
+        }
+        Update: {
+          changed_by?: string | null
+          created_at?: string
+          effective_from?: string
+          effective_to?: string | null
+          id?: string
+          reason?: string | null
+          staff_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_perf_participants_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "hr_staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_perf_quality: {
         Row: {
           active: boolean
@@ -14019,6 +14137,53 @@ export type Database = {
           sort_order?: number
         }
         Relationships: []
+      }
+      hr_perf_week_scores: {
+        Row: {
+          finalised_at: string
+          finalised_by: string | null
+          id: string
+          k_used: number
+          regressions: number
+          score: number
+          staff_id: string
+          task_count: number
+          total_points: number
+          week_ending: string
+        }
+        Insert: {
+          finalised_at?: string
+          finalised_by?: string | null
+          id?: string
+          k_used: number
+          regressions?: number
+          score: number
+          staff_id: string
+          task_count?: number
+          total_points: number
+          week_ending: string
+        }
+        Update: {
+          finalised_at?: string
+          finalised_by?: string | null
+          id?: string
+          k_used?: number
+          regressions?: number
+          score?: number
+          staff_id?: string
+          task_count?: number
+          total_points?: number
+          week_ending?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_perf_week_scores_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "hr_staff"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       hr_position_access: {
         Row: {
