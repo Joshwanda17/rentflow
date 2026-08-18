@@ -275,7 +275,8 @@ export function AgentProductsServicesReport() {
           {/* KPI strip */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
             <Kpi label="New agents added" value={num(report.agents.new_today)}
-              current={report.agents.new_today} previous={report.agents.new_prev} hint="vs prev day" />
+              current={report.agents.new_today} previous={report.agents.new_prev}
+              hint={`${num(report.new_agent_rows.filter(r => r.agent_type === 'main agent').length)} main · ${num(report.new_agent_rows.filter(r => r.agent_type === 'sub-agent').length)} sub vs prev day`} />
             <Kpi label="Total agents" value={num(report.agents.total)} hint={`${num(report.agents.active_today)} active today`} />
             <Kpi label="Rent collected" value={apsUgx(report.rent.collected_today)}
               current={report.rent.collected_today} previous={report.rent.collected_prev} hint="vs prev day" />
@@ -320,6 +321,7 @@ export function AgentProductsServicesReport() {
               <Tabs defaultValue="agents">
                 <TabsList className="flex flex-wrap h-auto gap-1">
                   <TabsTrigger value="agents" className="text-[11px]">Agent performance</TabsTrigger>
+                  <TabsTrigger value="new" className="text-[11px]">New agents</TabsTrigger>
                   <TabsTrigger value="rent" className="text-[11px]">Rent receivables</TabsTrigger>
                   <TabsTrigger value="advances" className="text-[11px]">Advances</TabsTrigger>
                   <TabsTrigger value="sc" className="text-[11px]">Service centres</TabsTrigger>
@@ -342,6 +344,26 @@ export function AgentProductsServicesReport() {
                       { key: 'commission_balance', label: 'Commission', align: 'right', render: r => apsUgx(r.commission_balance) },
                       { key: 'collections_amount', label: 'Collected', align: 'right', render: r => apsUgx(r.collections_amount) },
                       { key: 'collections_count', label: 'Txns', align: 'right', render: r => num(r.collections_count) },
+                    ]}
+                  />
+                </TabsContent>
+
+                <TabsContent value="new" className="mt-3">
+                  <PagedTable
+                    rows={report.new_agent_rows}
+                    searchKeys={['name', 'phone', 'location', 'agent_type', 'parent_name']}
+                    emptyLabel="No new agents registered today"
+                    columns={[
+                      { key: 'name', label: 'Agent' },
+                      { key: 'phone', label: 'Phone' },
+                      { key: 'location', label: 'Location' },
+                      { key: 'agent_type', label: 'Type', render: r => (
+                        <Badge variant="outline" className={cn('text-[10px]', r.agent_type === 'sub-agent' && 'border-purple-400 text-purple-600')}>
+                          {title(r.agent_type)}
+                        </Badge>
+                      ) },
+                      { key: 'parent_name', label: 'Parent agent' },
+                      { key: 'created_at', label: 'Added', render: r => r.created_at ? format(new Date(r.created_at), 'dd MMM yy HH:mm') : '—' },
                     ]}
                   />
                 </TabsContent>

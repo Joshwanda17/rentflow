@@ -22,6 +22,10 @@ export interface ApsTrendPoint {
   day: string; collected: number; advances_issued: number; advances_deducted: number;
   service_centres_added: number; new_agents: number;
 }
+export interface ApsNewAgentRow {
+  id: string; name: string; phone: string | null; location: string | null;
+  created_at: string; agent_type: 'main agent' | 'sub-agent'; parent_name: string | null;
+}
 export interface ApsRentRow {
   agent_id: string; agent_name: string; phone: string | null; location: string | null;
   live_plans: number; outstanding: number; daily_receivable: number; repaid_to_date: number;
@@ -55,6 +59,7 @@ export interface ApsReport {
   agents: ApsAgents; rent: ApsRent; advances: ApsAdvances; service_centres: ApsServiceCentres;
   bikes: ApsProduct; phones: ApsProduct;
   trend: ApsTrendPoint[];
+  new_agent_rows: ApsNewAgentRow[];
   rent_rows: ApsRentRow[];
   advance_rows: ApsAdvanceRow[];
   service_centre_rows: ApsServiceCentreRow[];
@@ -289,6 +294,22 @@ export function generateAgentProductsServicesPdf(opts: {
     ['Total agents (register)', num(report.agents.total), num(report.agents.base), apsPctLabel(report.agents.total, report.agents.base)],
     ['Active agents (collected today)', num(report.agents.active_today), '—', '—'],
   ], a4);
+
+  if (report.new_agent_rows.length) {
+    drawTable(
+      `NEW AGENTS TODAY — ${num(report.new_agent_rows.length)} registered`,
+      ['Agent', 'Phone', 'Location', 'Type', 'Parent agent'],
+      [50, 34, 42, 28, 50],
+      report.new_agent_rows.map(r => [
+        r.name || '—',
+        r.phone || '—',
+        r.location || '—',
+        title(r.agent_type),
+        r.parent_name || '—',
+      ]),
+      ['left', 'left', 'left', 'left', 'left'],
+    );
+  }
 
   // ===== 2. Rent receivables =====
   drawTable('2. RENT RECEIVABLES', ['Metric', 'Today', 'Previous day', 'Change'], w4, [
