@@ -34,12 +34,6 @@ export function useRentPaymentStatusMutation(agentId?: string) {
           ? 'Tenant marked as Not Paying — excluded from your daily target.'
           : 'Tenant marked as Paying — re-included in your daily target.'
       );
-      // Fan out tenant-inactive alerts (in-app + email) to Tenant Ops — best effort.
-      if (vars.status === 'not_paying') {
-        supabase.functions
-          .invoke('notify-tenant-inactive', { body: { rentRequestId: vars.rentRequestId } })
-          .catch((e) => console.warn('[notify-tenant-inactive] invoke failed', e?.message));
-      }
       qc.invalidateQueries({ queryKey: ['priority-collection-queue', agentId] });
       qc.invalidateQueries({ queryKey: ['agent-daily-eligibility'] });
       qc.invalidateQueries({ queryKey: ['agent-capacity'] });
