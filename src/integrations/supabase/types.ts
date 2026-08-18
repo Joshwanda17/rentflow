@@ -37392,8 +37392,10 @@ export type Database = {
           latitude: number
           longitude: number
           monthly_rent: number
+          payment_states: string[]
           phone: string
           property_address: string
+          repaying_balance: number
           request_count: number
           statuses: string[]
           today_paid_amount: number
