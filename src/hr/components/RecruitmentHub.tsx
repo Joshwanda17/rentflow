@@ -548,7 +548,7 @@ function ApplicationsTab() {
           className="h-9 text-xs whitespace-nowrap"
           onClick={() => setShowRemoved((v) => !v)}
         >
-          {showRemoved ? 'Back to applications' : 'Removed bin'}
+          {showRemoved ? 'Back to applications' : `Removed bin (${fmtCount(removedCount)})`}
         </Button>
       </div>
 
