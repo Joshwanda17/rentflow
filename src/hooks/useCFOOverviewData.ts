@@ -179,14 +179,73 @@ export function useCFOOverviewData() {
 
       const grouped = Array.from(buckets.values()).filter((b) => Math.round(b.net) !== 0);
 
+      // ── Partner Capital: recorded partner funding is the source of truth ──
+      // The Partnership Dashboard reports partner funding straight from the
+      // recorded portfolios (investor_portfolios, active). The CFO card used to
+      // show only the partner cash legs that happen to sit in A1/A5, which is a
+      // different (smaller) figure. We display the recorded value here so both
+      // screens agree, and carry the difference as an explicit reconciling line
+      // so the sum of sources still equals Money We Have exactly.
+      // No accounting records are touched — presentation only.
+      const partnerBucket = buckets.get('partner_capital');
+      const partnerLedgerNet = partnerBucket?.net ?? 0;
+
+      let recordedPartnerFunding = 0;
+      let recordedPartnerCount = 0;
+      for (let from = 0; from < 5000; from += 1000) {
+        const { data: page } = await supabase
+          .from('investor_portfolios')
+          .select('investment_amount')
+          .eq('status', 'active')
+          .range(from, from + 999);
+        const rows = (page as any[]) || [];
+        rows.forEach((p) => {
+          recordedPartnerFunding += Number(p.investment_amount || 0);
+        });
+        recordedPartnerCount += rows.length;
+        if (rows.length < 1000) break;
+      }
+
+      const withPartnerTruth = grouped
+        .map((b) =>
+          b.key === 'partner_capital'
+            ? {
+                ...b,
+                label: '🤝 Partner Capital (recorded funding)',
+                net: recordedPartnerFunding,
+                count: recordedPartnerCount,
+                children: [
+                  {
+                    category: 'partner_capital_recorded',
+                    label: 'Recorded partner funding · active portfolios',
+                    value: recordedPartnerFunding,
+                    count: recordedPartnerCount,
+                  },
+                ],
+              }
+            : b
+        )
+        .filter((b) => Math.round(b.net) !== 0);
+
+      const partnerReconcile = partnerLedgerNet - recordedPartnerFunding;
+      if (Math.round(partnerReconcile) !== 0) {
+        withPartnerTruth.push({
+          key: 'partner_capital_applied',
+          label: '🔁 Partner capital already applied (non-cash)',
+          net: partnerReconcile,
+          count: 0,
+          children: (partnerBucket?.children ?? []).map((c) => ({ ...c })),
+        });
+      }
+
       // Every group is a signed net of the A1 + A5 cash legs, so
       // sum(increases) − sum(decreases) equals Money We Have exactly.
-      const increases = grouped
+      const increases = withPartnerTruth
         .filter((b) => b.net > 0)
         .map(toLine)
         .sort((a, b) => b.value - a.value);
 
-      const decreases = grouped
+      const decreases = withPartnerTruth
         .filter((b) => b.net < 0)
         .map(toLine)
         .sort((a, b) => b.value - a.value);
