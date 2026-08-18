@@ -63,11 +63,12 @@ Deno.serve(async (req) => {
   const planId = params.plan ?? "";
   const ref = params.ref ?? "";
 
-  const destination = new URL(`${SITE_URL}${link?.target_path ?? "/funder-onboarding"}`);
-  for (const [k, v] of Object.entries(params)) {
-    if (v) destination.searchParams.set(k, v);
-  }
-  const target = destination.toString();
+  // Public, branded identity of this share (never the function URL).
+  const publicShareUrl = `${SITE_URL}/s/${code}`;
+  // Humans land back in the existing SPA, which resolves ?share=<code>,
+  // scrolls to the matching card and opens its details sheet.
+  const target = `${SITE_URL}/?share=${encodeURIComponent(code)}`;
+  const fallbackPath = link?.target_path ?? "/funder-onboarding";
 
   let plan: {
     funding_amount: number | null;
@@ -147,7 +148,7 @@ Deno.serve(async (req) => {
   <meta name="description" content="${esc(description)}" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Welile" />
-  <meta property="og:url" content="${esc(target)}" />
+  <meta property="og:url" content="${esc(publicShareUrl)}" />
   <meta property="og:title" content="${esc(title)}" />
   <meta property="og:description" content="${esc(description)}" />
   <meta property="og:image" content="${esc(image)}" />
@@ -160,10 +161,10 @@ Deno.serve(async (req) => {
   <meta name="twitter:description" content="${esc(description)}" />
   <meta name="twitter:image" content="${esc(image)}" />
   <meta http-equiv="refresh" content="0;url=${esc(target)}" />
-  <link rel="canonical" href="${esc(target)}" />
+  <link rel="canonical" href="${esc(publicShareUrl)}" />
 </head>
 <body>
-  <p>Redirecting to <a href="${esc(target)}">${esc(title)}</a>…${ref ? "" : ""}</p>
+  <p>Redirecting to <a href="${esc(target)}">${esc(title)}</a>…${ref || planId || fallbackPath ? "" : ""}</p>
 </body>
 </html>`;
 

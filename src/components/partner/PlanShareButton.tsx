@@ -51,10 +51,12 @@ export function PlanShareButton({
   const start = async () => {
     setBusy(true);
     try {
-      const { shareUrl: url } = await buildLink(plan);
-      setLink(url);
+      // publicShareUrl — the branded welileapp.com short link. The internal
+      // Open Graph endpoint is never exposed to the share surfaces.
+      const { share_url: publicShareUrl } = await buildLink(plan);
+      setLink(publicShareUrl);
 
-      const payload: ShareData = { title, text: message, url };
+      const payload: ShareData = { title, text: description, url: publicShareUrl };
       const canNative =
         typeof navigator !== 'undefined' &&
         typeof navigator.share === 'function' &&

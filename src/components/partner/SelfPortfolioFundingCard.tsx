@@ -70,6 +70,8 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
   const [deployOpen, setDeployOpen] = useState(false);
   const [detailPlan, setDetailPlan] = useState<FundablePlan | null>(null);
   const [page, setPage] = useState(0);
+  // Short code arriving from a branded /s/<code> share link (?share=<code>).
+  const [sharedPlanId, setSharedPlanId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -129,6 +131,39 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
     void load();
     void loadFunded();
   }, [load, loadFunded]);
+
+  // Resolve ?share=<code> to the plan it points at, then clean the URL.
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get('share');
+    if (!code || !/^[A-Za-z0-9]{4,12}$/.test(code)) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase.rpc('resolve_short_link', { p_code: code }).maybeSingle();
+      const planId = ((data as any)?.target_params ?? {})?.plan;
+      if (!cancelled && planId) setSharedPlanId(String(planId));
+      const url = new URL(window.location.href);
+      url.searchParams.delete('share');
+      window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Bring the shared plan into view on its page and open its details sheet.
+  useEffect(() => {
+    if (!sharedPlanId || plans.length === 0) return;
+    const index = plans.findIndex((p) => p.rent_request_id === sharedPlanId);
+    if (index < 0) return;
+    setPage(Math.floor(index / PLANS_PER_PAGE));
+    setDetailPlan(plans[index]);
+    setSharedPlanId(null);
+    window.setTimeout(() => {
+      document
+        .querySelector(`[data-plan-id="${sharedPlanId}"]`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 250);
+  }, [sharedPlanId, plans]);
 
   const total = useMemo(
     () =>
@@ -308,6 +343,7 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
         return (
           <Card
             key={plan.rent_request_id}
+            data-plan-id={plan.rent_request_id}
             role="button"
             tabIndex={0}
             onClick={() => setDetailPlan(plan)}
