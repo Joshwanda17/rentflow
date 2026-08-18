@@ -274,6 +274,26 @@ export function AgentOpsDashboard() {
       case 'sc-requests': return <ServiceCenterRequestsQueue />;
       case 'sc-operating-model': return <ServiceCentreOperatingModel />;
       case 'sc-products': return <AgentProductsPanel />;
+      case 'agent-service-centres': return <ServiceCentreOverview />;
+      case 'agent-motor-bikes': return <AgentProductsPanel />;
+      case 'agent-boutique': return <AgentProductsPanel />;
+      case 'agent-signages': return <AgentProductsPanel />;
+      case 'agent-smart-phones': return <AgentProductsPanel />;
+      case 'agent-advances': return (
+        <div className="space-y-6">
+          <AdvanceAnalyticsPanel />
+          <AdvanceRequestsQueue stage="agent_ops" />
+          <AdvanceRequestsReviewed />
+          <BusinessAdvanceQueue stage="agent_ops" />
+          <RentHistoryVerificationQueue dept="agent_ops" />
+        </div>
+      );
+      case 'agent-personal-rent-request': return <AgentOpsPipelineHub />;
+      case 'agent-transfer-wallet': return (
+        <div className="rounded-2xl border border-border bg-card p-3">
+          <TenantTransferPanel />
+        </div>
+      );
       case 'sub-agents': return <SubAgentVerificationQueue />;
       case 'promote-tenant': return <TenantToSubAgentPanel />;
       case 'float-payouts': return <AgentOpsFloatPayoutReview />;
