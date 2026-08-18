@@ -177,9 +177,9 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
     () =>
       tenants.reduce((sum, t) => {
         const bal = tenantBalances[t.id] || 0;
-        return bal > 0 ? sum + bal : sum;
+        return bal > 0 && !notPayingIds.has(t.id) ? sum + bal : sum;
       }, 0),
-    [tenants, tenantBalances]
+    [tenants, tenantBalances, notPayingIds]
   );
 
   return (
