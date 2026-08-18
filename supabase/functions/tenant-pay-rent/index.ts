@@ -284,7 +284,7 @@ Deno.serve(async (req) => {
             apiKey,
             Accept: "application/json",
           },
-          body: new URLSearchParams({ username, to, message }).toString(),
+          body: new URLSearchParams({ username, from: "WELILE", to, message }).toString(),
         });
         const raw = await res.text();
         console.log(`[tenant-pay-rent] SMS to=${to} status=${res.status} body=${raw}`);
