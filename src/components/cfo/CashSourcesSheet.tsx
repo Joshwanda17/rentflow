@@ -49,6 +49,8 @@ interface Props {
   a5: number;
   increases: CashSourceLine[];
   decreases: CashSourceLine[];
+  /** Where the cash physically sits (position view — not added to source totals). */
+  positions?: CashSourceLine[];
 }
 
 interface TxRow {
@@ -90,6 +92,8 @@ const SOURCE_ICONS: Record<string, LucideIcon> = {
   refunds: ArrowUpRight,
   operational_expenses: Box,
   merchant_settlements: Truck,
+  treasury_platform_cash: Landmark,
+  bank_cash: Banknote,
   default: Landmark,
 };
 
@@ -151,7 +155,7 @@ function formatPercent(n: number) {
   return `${n.toFixed(1)}%`;
 }
 
-export function CashSourcesSheet({ open, onOpenChange, totalCash, a1, a5, increases, decreases }: Props) {
+export function CashSourcesSheet({ open, onOpenChange, totalCash, a1, a5, increases, decreases, positions = [] }: Props) {
   const [selected, setSelected] = useState<CashSourceLine | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [page, setPage] = useState(0);
@@ -208,6 +212,65 @@ export function CashSourcesSheet({ open, onOpenChange, totalCash, a1, a5, increa
 
         {!selected && (
           <div className="space-y-6 pb-6">
+            {/* Where the money sits — position cards (A1 split + in-transit) */}
+            {positions.length > 0 && (
+              <section className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="rounded-lg bg-primary/10 p-1.5">
+                      <Landmark className="h-4 w-4 text-primary" />
+                    </div>
+                    <h3 className="text-sm font-semibold">Where The Money Sits</h3>
+                  </div>
+                  <span className="text-sm font-mono font-semibold">{formatUGX(a1 + a5)}</span>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {positions.map((line) => {
+                    const Icon = getSourceIcon(line.category);
+                    const pct = a1 + a5 > 0 ? (line.value / (a1 + a5)) * 100 : 0;
+                    const canDrill = (line.children?.length ?? 0) > 0;
+                    return (
+                      <button
+                        key={line.category}
+                        disabled={!canDrill}
+                        onClick={() => canDrill && openLine(line)}
+                        className={cn(
+                          'rounded-2xl border border-border bg-card p-4 text-left shadow-sm transition-colors',
+                          canDrill && 'hover:bg-muted/40'
+                        )}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="rounded-xl bg-primary/10 p-2.5 text-primary">
+                            <Icon className="h-5 w-5" />
+                          </div>
+                          {canDrill && <ChevronRight className="h-4 w-4 text-muted-foreground mt-2" />}
+                        </div>
+                        <p className="mt-3 text-[11px] uppercase tracking-wider text-muted-foreground">
+                          {line.label}
+                        </p>
+                        <p className="mt-1 font-mono text-lg font-bold">{formatUGX(line.value)}</p>
+                        <div className="mt-2 flex items-center gap-2">
+                          <Progress value={Math.min(100, Math.max(0, pct))} className="h-1.5 flex-1" />
+                          <span className="text-[10px] font-medium text-muted-foreground w-9 text-right">
+                            {formatPercent(pct)}
+                          </span>
+                        </div>
+                        {line.count != null && (
+                          <p className="mt-1.5 text-[11px] text-muted-foreground">
+                            {line.count.toLocaleString()} entries
+                          </p>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Position view of the same ledger cash — shown alongside, never added to, the sources below.
+                </p>
+              </section>
+            )}
+
             {/* Sources of money in */}
             <section className="space-y-3">
               <div className="flex items-center justify-between">
