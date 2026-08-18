@@ -1403,9 +1403,13 @@ export default function FunderOnboarding() {
             } catch (e) {
               console.warn('partnership PDF render failed — email will still be sent:', e);
             }
+            // sendEmail:false — signup confirmation is the
+            // `partner-account-created` template fired server-side by
+            // create-funder-onboarding-account. The
+            // `tenant-partnership-agreement` email must NOT go out here.
             try {
               await supabase.functions.invoke('generate-partner-agreement', {
-                body: { partnerId: newUserId, countersign: false, pdfBase64: pdfBase64 || null },
+                body: { partnerId: newUserId, countersign: false, pdfBase64: pdfBase64 || null, sendEmail: false },
               });
             } catch (e) {
               console.warn('generate-partner-agreement invoke failed:', e);
@@ -1414,7 +1418,7 @@ export default function FunderOnboarding() {
               // from their dashboard.
               try {
                 await supabase.functions.invoke('generate-partner-agreement', {
-                  body: { partnerId: newUserId, countersign: false, pdfBase64: null },
+                  body: { partnerId: newUserId, countersign: false, pdfBase64: null, sendEmail: false },
                 });
               } catch (e2) {
                 console.warn('generate-partner-agreement retry failed:', e2);
