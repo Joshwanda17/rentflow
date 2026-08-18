@@ -319,7 +319,7 @@ export function CashDepositCodesPanel({
     setBanking(null);
     if (error) {
       const msg = /deposit_not_verified/i.test(error.message)
-        ? 'Only a verified (approved) deposit can be marked as banked.'
+        ? 'This deposit was never credited (its first code window expired, so it was auto-rejected). Resend the code and have the depositor read it back — then you can bank it.'
         : /invalid_deposit_amount/i.test(error.message)
           ? 'This deposit has no valid amount to bank.'
           : /not_authorized/i.test(error.message)
