@@ -35305,6 +35305,7 @@ export type Database = {
       agent_order_smartphone: { Args: { p_amount: number }; Returns: Json }
       agent_order_spiro_bike: { Args: { p_amount: number }; Returns: Json }
       agent_per_tenant_max: { Args: { _agent_id: string }; Returns: number }
+      agent_product_category: { Args: { p_item_name: string }; Returns: string }
       agent_purchase_merchandise: {
         Args: {
           p_catalog_id: string
@@ -37313,7 +37314,10 @@ export type Database = {
         Args: { p_date?: string }
         Returns: Json
       }
-      get_agent_products_overview: { Args: never; Returns: Json }
+      get_agent_products_overview: {
+        Args: { p_category?: string }
+        Returns: Json
+      }
       get_agent_products_services_report:
         | { Args: { p_date?: string }; Returns: Json }
         | { Args: { p_date?: string; p_from?: string }; Returns: Json }
