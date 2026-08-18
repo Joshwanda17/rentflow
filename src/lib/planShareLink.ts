@@ -83,6 +83,14 @@ export async function createPlanShareLink(
     shareUrl: planShareUrl(code),
   });
 
+  // Preferred path: the DB does an authoritative, idempotent get-or-create and
+  // refreshes only the preview metadata that changed. The short code, row id and
+  // attribution (user_id) are never rotated.
+  const { data: rpc, error: rpcError } = await supabase
+    .rpc('get_or_create_plan_share_link', { p_plan_id: planId })
+    .maybeSingle();
+  if (!rpcError && (rpc as any)?.code) return build((rpc as any).code as string);
+
   const findExisting = async () => {
     const { data } = await supabase
       .from('short_links')

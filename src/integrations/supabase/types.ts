@@ -27714,8 +27714,16 @@ export type Database = {
           click_count: number
           code: string
           created_at: string
+          destination_path: string | null
           id: string
           last_clicked_at: string | null
+          og_description: string | null
+          og_image_fingerprint: string | null
+          og_image_url: string | null
+          og_title: string | null
+          og_updated_at: string | null
+          resource_id: string | null
+          resource_type: string | null
           target_params: Json
           target_path: string
           user_id: string
@@ -27724,8 +27732,16 @@ export type Database = {
           click_count?: number
           code?: string
           created_at?: string
+          destination_path?: string | null
           id?: string
           last_clicked_at?: string | null
+          og_description?: string | null
+          og_image_fingerprint?: string | null
+          og_image_url?: string | null
+          og_title?: string | null
+          og_updated_at?: string | null
+          resource_id?: string | null
+          resource_type?: string | null
           target_params?: Json
           target_path: string
           user_id: string
@@ -27734,8 +27750,16 @@ export type Database = {
           click_count?: number
           code?: string
           created_at?: string
+          destination_path?: string | null
           id?: string
           last_clicked_at?: string | null
+          og_description?: string | null
+          og_image_fingerprint?: string | null
+          og_image_url?: string | null
+          og_title?: string | null
+          og_updated_at?: string | null
+          resource_id?: string | null
+          resource_type?: string | null
           target_params?: Json
           target_path?: string
           user_id?: string
@@ -38330,6 +38354,17 @@ export type Database = {
           provider: string
           redirected: number
           successes: number
+        }[]
+      }
+      get_or_create_plan_share_link: {
+        Args: { p_plan_id: string }
+        Returns: {
+          code: string
+          created: boolean
+          destination_path: string
+          og_description: string
+          og_image_url: string
+          og_title: string
         }[]
       }
       get_outstanding_agent_float: {
