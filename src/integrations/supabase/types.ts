@@ -36925,6 +36925,36 @@ export type Database = {
         }
         Returns: Json
       }
+      finops_post_merchant_evidenced_writedown: {
+        Args: {
+          p_agent_id: string
+          p_amount: number
+          p_desk_id: string
+          p_evidence_note: string
+          p_reason: string
+        }
+        Returns: Json
+      }
+      finops_post_merchant_opening_float_ledger: {
+        Args: {
+          p_agent_id: string
+          p_amount: number
+          p_desk_id: string
+          p_evidence_note?: string
+          p_reason: string
+        }
+        Returns: Json
+      }
+      finops_set_merchant_desk_float_to: {
+        Args: {
+          p_agent_id: string
+          p_desk_id: string
+          p_evidence_note?: string
+          p_reason: string
+          p_target: number
+        }
+        Returns: Json
+      }
       finops_sync_merchant_desk_float_cache: {
         Args: { p_desk_id: string; p_reason: string }
         Returns: Json
