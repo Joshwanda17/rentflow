@@ -42,6 +42,11 @@ import { SelfManagedNearingPayouts } from './SelfManagedNearingPayouts';
 import { PartnerOpsSidebar } from './partner-ops/PartnerOpsSidebar';
 import { PartnerOpsTopBar } from './partner-ops/PartnerOpsTopBar';
 import { PartnerOpsSummaryCards } from './partner-ops/PartnerOpsSummaryCards';
+import {
+  PartnerRoiProjectionChart,
+  PartnerRecentWithdrawals,
+  PartnerNewTrend,
+} from './partner-ops/PartnerOpsOverviewInsights';
 import type { PartnerOpsViewKey } from './partner-ops/partnerOpsNav';
 
 type Tab = 'portfolios' | 'invited' | 'capital' | 'roi' | 'topups' | 'activity' | 'promissory' | 'maturity' | 'renewals' | 'withdrawals' | 'proxy-agents';
@@ -202,6 +207,9 @@ export function PartnersOpsDashboard() {
       case 'overview': return (
         <div className="space-y-4">
           <PartnerOpsSummaryCards onNavigate={setView} />
+          <PartnerRoiProjectionChart />
+          <PartnerRecentWithdrawals />
+          <PartnerNewTrend />
           <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}>
             <Card
               className="border-primary/30 bg-primary/5 cursor-pointer hover:bg-primary/10 transition-colors"
