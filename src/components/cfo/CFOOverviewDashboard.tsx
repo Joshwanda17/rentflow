@@ -1,13 +1,19 @@
 import { useState, useCallback } from 'react';
 import { useCFOOverviewData } from '@/hooks/useCFOOverviewData';
+import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import {
   Loader2, ArrowDownRight, ArrowUpRight, Scale, Wallet, HandCoins, Users, TrendingUp,
   Banknote, FileSpreadsheet, ShieldCheck, AlertTriangle, Timer, Percent, Landmark,
-  Receipt, Activity, ClipboardCheck,
+  Receipt, Activity, ClipboardCheck, ChevronRight, Info, CalendarDays, Download,
+  PiggyBank, Flame, BarChart3, Package, LineChart as LineChartIcon,
 } from 'lucide-react';
+import {
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  Line, ComposedChart,
+} from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { KPIBreakdownSheet } from '@/components/cfo/KPIBreakdownSheet';
