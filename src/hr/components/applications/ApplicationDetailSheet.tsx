@@ -157,8 +157,9 @@ export function ApplicationDetailSheet({
 
             <div>
               <h4 className="mb-2 text-sm font-medium">In their words</h4>
-              <p className="whitespace-pre-wrap text-sm">{application.cover_note || '—'}</p>
+              <CoverNoteSections text={application.cover_note} />
             </div>
+
 
             <div className="space-y-2">
               <h4 className="text-sm font-medium">CV</h4>
