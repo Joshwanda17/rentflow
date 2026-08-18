@@ -39734,9 +39734,18 @@ export type Database = {
         }[]
       }
       hr_perf_has_authority: { Args: { _fn: string }; Returns: boolean }
+      hr_perf_k_at: { Args: { _on: string }; Returns: number }
       hr_perf_my_positions: { Args: never; Returns: string[] }
       hr_perf_position_for: { Args: { _fn: string }; Returns: string }
       hr_perf_week_ending: { Args: { _d?: string }; Returns: string }
+      hr_perf_week_score: {
+        Args: { _staff_id: string; _week_ending: string }
+        Returns: number
+      }
+      hr_perf_week_total: {
+        Args: { _staff_id: string; _week_ending: string }
+        Returns: number
+      }
       hr_transfer_position: {
         Args: {
           p_from_assignment: string

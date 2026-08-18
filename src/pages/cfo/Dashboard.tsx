@@ -30,7 +30,6 @@ import { SupporterROITrigger } from '@/components/manager/SupporterROITrigger';
 import { AgentCommissionPayoutsManager } from '@/components/manager/AgentCommissionPayoutsManager';
 import { WithdrawalRequestsManager } from '@/components/manager/WithdrawalRequestsManager';
 import { GeneralLedger } from '@/components/manager/GeneralLedger';
-import { FinancialOverview } from '@/components/manager/FinancialOverview';
 import { CFOPartnerPayoutProcessing } from '@/components/cfo/CFOPartnerPayoutProcessing';
 import { RentDisbursementQueue } from '@/components/cfo/RentDisbursementQueue';
 import { BatchPayoutProcessor } from '@/components/cfo/BatchPayoutProcessor';
