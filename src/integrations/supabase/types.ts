@@ -35586,6 +35586,7 @@ export type Database = {
         Args: { p_withdrawal_id: string }
         Returns: Json
       }
+      acceptance_correction_paths_ungated: { Args: never; Returns: number }
       accrue_partner_self_returns: { Args: { p_as_of?: string }; Returns: Json }
       acknowledge_error_correction_alert: {
         Args: { p_alert_id: string }
@@ -42008,6 +42009,10 @@ export type Database = {
           status: string
           title: string
         }[]
+      }
+      run_payout_acceptance_scan: {
+        Args: { p_trigger_source?: string; p_window_days?: number }
+        Returns: Json
       }
       run_phantom_clamp_pass: {
         Args: { p_dry_run?: boolean }
