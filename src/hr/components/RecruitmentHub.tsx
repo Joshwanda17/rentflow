@@ -679,6 +679,8 @@ function ApplicationsTab() {
           </Table>
         </Card>
       )}
+      </>
+      )}
 
       <Sheet open={!!selected} onOpenChange={(open) => !open && setSelected(null)}>
         <SheetContent className="w-full sm:max-w-md overflow-y-auto">
