@@ -1275,22 +1275,22 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
               </AnimatePresence>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="h-8 w-8 rounded-xl bg-white/15 backdrop-blur flex items-center justify-center ring-1 ring-white/25">
-                    <Sparkles className="h-4 w-4" />
+                  <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-xl bg-white/15 backdrop-blur flex items-center justify-center ring-1 ring-white/25">
+                    <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   </div>
-                  <div className="text-[11px] uppercase tracking-[0.18em] font-bold text-purple-100/90">
+                  <div className="text-[10px] sm:text-[11px] uppercase tracking-[0.18em] font-bold text-purple-100/90">
                     Welile Agent Advance
                   </div>
                 </div>
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-400/20 ring-1 ring-emerald-300/40 px-2 py-0.5 text-[10px] font-semibold text-emerald-50">
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-400/20 ring-1 ring-emerald-300/40 px-2 py-0.5 text-[9px] sm:text-[10px] font-semibold text-emerald-50">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 animate-pulse" />
                   Live
                 </span>
               </div>
 
               {/* BIG live number */}
-              <div className="mt-3">
-                <div className="text-[11px] font-medium text-purple-100/85">
+              <div className="mt-2.5 sm:mt-3">
+                <div className="text-[10px] sm:text-[11px] font-medium text-purple-100/85">
                   Money you can borrow today
                 </div>
                 <AnimatePresence mode="popLayout" initial={false}>
@@ -1300,14 +1300,14 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -6, scale: 0.98 }}
                     transition={{ type: 'spring', stiffness: 260, damping: 22 }}
-                    className="text-4xl sm:text-5xl font-extrabold tracking-tight leading-none mt-1 tabular-nums whitespace-pre-line"
+                    className="text-3xl sm:text-4xl font-extrabold tracking-tight leading-none mt-1 tabular-nums whitespace-pre-line"
                   >
                     {advanceLoading && !advanceLimit.totalLimit
                       ? '—'
                       : formatCreditAmount(advanceLimit.totalLimit)}
                   </motion.div>
                 </AnimatePresence>
-                <div className="text-[11px] text-purple-100/85 mt-1.5 leading-snug">
+                <div className="text-[10px] sm:text-[11px] text-purple-100/85 mt-1 leading-snug">
                   Pay 1,000 for a tenant, you can borrow <span className="font-extrabold text-white">2,000</span>. Pay more, borrow more.
                 </div>
               </div>
@@ -1332,13 +1332,13 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
                       <div className="mt-1 flex items-baseline justify-between gap-2">
                         <div>
                           <div className="text-[10px] font-semibold text-emerald-800/80">You unlocked</div>
-                          <div className="text-xl font-extrabold tabular-nums text-emerald-700">
+                          <div className="text-lg sm:text-xl font-extrabold tabular-nums text-emerald-700">
                             + {formatCreditAmount(limitBump.amount)}
                           </div>
                         </div>
                         <div className="text-right">
                           <div className="text-[10px] font-semibold text-emerald-800/80">New borrow limit</div>
-                          <div className="text-xl font-extrabold tabular-nums text-emerald-900">
+                          <div className="text-lg sm:text-xl font-extrabold tabular-nums text-emerald-900">
                             {formatCreditAmount(limitBump.next)}
                           </div>
                         </div>
@@ -1354,7 +1354,7 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
               </AnimatePresence>
 
               {/* Progress to cap */}
-              <div className="mt-3">
+              <div className="mt-2.5 sm:mt-3">
                 <div className="h-1.5 w-full rounded-full bg-white/15 overflow-hidden">
                   <motion.div
                     initial={false}
@@ -1363,38 +1363,38 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
                     className="h-full bg-gradient-to-r from-amber-300 via-yellow-200 to-emerald-300"
                   />
                 </div>
-                <div className="flex items-center justify-between mt-1 text-[10px] text-purple-100/80 font-medium">
+                <div className="flex items-center justify-between mt-1 text-[9px] sm:text-[10px] text-purple-100/80 font-medium">
                   <span>Start UGX 30,000</span>
                   <span>Up to UGX 30M</span>
                 </div>
               </div>
 
               {/* Live mini-stats */}
-              <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-                <div className="rounded-lg bg-white/10 px-2 py-1.5 ring-1 ring-white/10">
-                  <div className="text-[10px] text-purple-100/80 font-medium">You paid for tenants</div>
-                  <div className="text-xs font-bold tabular-nums">{formatCreditAmount(allocatedTotal)}</div>
+              <div className="mt-2.5 sm:mt-3 grid grid-cols-3 gap-1.5 sm:gap-2 text-center">
+                <div className="rounded-lg bg-white/10 px-1.5 sm:px-2 py-1.5 ring-1 ring-white/10">
+                  <div className="text-[9px] text-purple-100/80 font-medium leading-tight">You paid for tenants</div>
+                  <div className="text-[10px] sm:text-xs font-bold tabular-nums">{formatCreditAmount(allocatedTotal)}</div>
                 </div>
-                <div className="rounded-lg bg-white/10 px-2 py-1.5 ring-1 ring-white/10">
-                  <div className="text-[10px] text-purple-100/80 font-medium">Added to your borrow</div>
-                  <div className="text-xs font-bold tabular-nums text-emerald-100">+ {formatCreditAmount(bonusFromAlloc)}</div>
+                <div className="rounded-lg bg-white/10 px-1.5 sm:px-2 py-1.5 ring-1 ring-white/10">
+                  <div className="text-[9px] text-purple-100/80 font-medium leading-tight">Added to your borrow</div>
+                  <div className="text-[10px] sm:text-xs font-bold tabular-nums text-emerald-100">+ {formatCreditAmount(bonusFromAlloc)}</div>
                 </div>
-                <div className="rounded-lg bg-white/15 px-2 py-1.5 ring-1 ring-white/25">
-                  <div className="text-[10px] text-purple-100/80 font-medium">Every 1,000</div>
-                  <div className="text-xs font-bold">= 2,000</div>
+                <div className="rounded-lg bg-white/15 px-1.5 sm:px-2 py-1.5 ring-1 ring-white/25">
+                  <div className="text-[9px] text-purple-100/80 font-medium leading-tight">Every 1,000</div>
+                  <div className="text-[10px] sm:text-xs font-bold">= 2,000</div>
                 </div>
               </div>
 
               {/* CTA */}
               <button
                 onClick={() => setApplyAdvanceOpen(true)}
-                className="mt-3 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-white text-purple-800 font-bold text-sm px-4 py-3 shadow-lg shadow-purple-950/20 ring-1 ring-white/60 hover:bg-white/95 active:scale-[0.99] transition"
-                style={{ touchAction: 'manipulation', minHeight: 48 }}
+                className="mt-2.5 sm:mt-3 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-white text-purple-800 font-bold text-xs sm:text-sm px-4 py-2.5 sm:py-3 shadow-lg shadow-purple-950/20 ring-1 ring-white/60 hover:bg-white/95 active:scale-[0.99] transition"
+                style={{ touchAction: 'manipulation', minHeight: 44 }}
               >
                 <Zap className="h-4 w-4" />
                 Get Money Now
               </button>
-              <div className="text-[10px] text-purple-100/70 text-center mt-1.5">
+              <div className="text-[9px] sm:text-[10px] text-purple-100/70 text-center mt-1">
                 Money goes straight to your wallet. Fast. No long forms.
               </div>
             </div>
@@ -1534,15 +1534,15 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
                 });
                 return (
                   <div className="grid grid-cols-2 gap-2">
-                    <div className="rounded-2xl bg-rose-50 border border-rose-200 p-3 text-center">
-                      <p className="text-[10px] uppercase tracking-wide font-bold text-rose-700">{tr('toCollect')}</p>
-                      <p className="text-xl font-extrabold font-mono text-rose-700 leading-tight mt-0.5">
+                    <div className="rounded-2xl bg-rose-50 border border-rose-200 p-2.5 sm:p-3 text-center">
+                      <p className="text-[9px] sm:text-[10px] uppercase tracking-wide font-bold text-rose-700">{tr('toCollect')}</p>
+                      <p className="text-base sm:text-lg font-extrabold font-mono text-rose-700 leading-tight mt-0.5">
                         {formatUGX(totalToCollect)}
                       </p>
                     </div>
-                    <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-3 text-center">
-                      <p className="text-[10px] uppercase tracking-wide font-bold text-emerald-700">{tr('paid')}</p>
-                      <p className="text-xl font-extrabold font-mono text-emerald-700 leading-tight mt-0.5">
+                    <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-2.5 sm:p-3 text-center">
+                      <p className="text-[9px] sm:text-[10px] uppercase tracking-wide font-bold text-emerald-700">{tr('paid')}</p>
+                      <p className="text-base sm:text-lg font-extrabold font-mono text-emerald-700 leading-tight mt-0.5">
                         {formatUGX(totalPaid)}
                       </p>
                     </div>
@@ -1554,11 +1554,11 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
                 onClick={handleShareAllocationReport}
                 disabled={reportSharing}
                 aria-label={simpleLang === 'lg' ? 'Sindika lipoota ya leero' : 'Share daily report'}
-                className="w-full h-14 rounded-2xl bg-primary text-primary-foreground font-bold text-base flex items-center justify-center gap-2 disabled:opacity-60 active:scale-[0.99] transition-transform"
+                className="w-full h-12 sm:h-14 rounded-2xl bg-primary text-primary-foreground font-bold text-sm sm:text-base flex items-center justify-center gap-2 disabled:opacity-60 active:scale-[0.99] transition-transform"
               >
                 {reportSharing
-                  ? <Loader2 className="h-6 w-6 animate-spin" />
-                  : <FileDown className="h-6 w-6" strokeWidth={2.4} />}
+                  ? <Loader2 className="h-5 w-5 sm:h-6 sm:w-6 animate-spin" />
+                  : <FileDown className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={2.4} />}
                 <span>{simpleLang === 'lg' ? 'Sindika lipoota' : 'Share daily report'}</span>
               </button>
               <div className="relative">
@@ -1567,7 +1567,7 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
                   placeholder={tr('searchTenant')}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="pl-11 h-14 rounded-2xl bg-muted/40 border-2 border-primary/40 text-lg"
+                  className="pl-11 h-12 sm:h-14 rounded-2xl bg-muted/40 border-2 border-primary/40 text-base sm:text-lg"
                   style={{ fontSize: '16px' }}
                   aria-label={tr('searchTenant')}
                   inputMode="search"
