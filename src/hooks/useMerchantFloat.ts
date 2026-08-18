@@ -94,6 +94,53 @@ export interface MerchantFloatPosition {
   clampedShortfall: number;
 }
 
+// ---------------------------------------------------------------------------
+// Ref-counted realtime channels for merchant float projections.
+//
+// Each channel is filtered by user_id on `wallet_balances_projection`, so a
+// payout settlement on desk A only broadcasts to sessions that are actually
+// watching desk A — not to every open Financial Ops board. Because the same
+// hook is used by both the board and the merchant's own card, they share the
+// channel for that user_id and both invalidate together.
+// ---------------------------------------------------------------------------
+
+type FloatProjectionChannelEntry = {
+  channel: ReturnType<typeof supabase.channel>;
+  refCount: number;
+};
+const floatProjectionChannels = new Map<string, FloatProjectionChannelEntry>();
+
+function acquireFloatProjectionChannel(userId: string, qc: QueryClient) {
+  const existing = floatProjectionChannels.get(userId);
+  if (existing) {
+    existing.refCount += 1;
+    return;
+  }
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ['merchant-float-positions'] });
+    qc.invalidateQueries({ queryKey: ['merchant-payout-float'] });
+  };
+  const channel = supabase
+    .channel(`merchant-float-projection-${userId}`)
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'wallet_balances_projection', filter: `user_id=eq.${userId}` },
+      invalidate,
+    )
+    .subscribe();
+  floatProjectionChannels.set(userId, { channel, refCount: 1 });
+}
+
+function releaseFloatProjectionChannel(userId: string) {
+  const entry = floatProjectionChannels.get(userId);
+  if (!entry) return;
+  entry.refCount -= 1;
+  if (entry.refCount <= 0) {
+    supabase.removeChannel(entry.channel);
+    floatProjectionChannels.delete(userId);
+  }
+}
+
 export function useMerchantFloatPositions(enabled = true) {
   const qc = useQueryClient();
 
