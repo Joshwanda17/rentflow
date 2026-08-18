@@ -452,6 +452,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
         a5={platformCash?.a5 ?? 0}
         increases={platformCash?.increases ?? []}
         decreases={platformCash?.decreases ?? []}
+        positions={platformCash?.positions ?? []}
       />
       <KPIBreakdownSheet
         open={activeBreakdown === 'wallets'}
