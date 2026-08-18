@@ -491,7 +491,13 @@ Deno.serve(async (req) => {
           failedAttemptsByMessageId.set(payload.message_id, failedAttempts + 1)
         }
 
-        // Non-429 errors: message stays invisible until VT expires, then retried
+        // Failed sends are never resent: retire the message to the DLQ right away.
+        await moveToDlq(
+          supabase,
+          queue,
+          msg,
+          `Send failed — no resend: ${errorMsg.slice(0, 300)}`
+        )
       }
 
       // Small delay between sends to smooth bursts
