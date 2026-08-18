@@ -234,14 +234,15 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
       {/* ══════════════ THREE HEADLINE CARDS ══════════════ */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <HeroCard
-          icon={<PiggyBank className="h-5 w-5 text-emerald-600" />}
-          iconBg="bg-emerald-50 dark:bg-emerald-950/40"
+          variant="executive"
+          icon={<Wallet className="h-5 w-5 text-primary" />}
+          iconBg="bg-primary/10 dark:bg-primary/20"
           title="Money We Have"
           value={fmt(totalCash)}
-          valueColor="text-emerald-600"
+          valueColor="text-success"
           items={[
-            { dot: 'bg-emerald-500', label: 'Platform / Treasury Balance', value: fmt(platformCash?.a1 ?? 0) },
-            { dot: 'bg-emerald-500', label: 'Cash in Transit (A5)', value: fmt(platformCash?.a5 ?? 0) },
+            { dot: 'bg-primary', label: 'Platform / Treasury Balance', value: fmt(platformCash?.a1 ?? 0) },
+            { dot: 'bg-muted-foreground/60', label: 'Cash in Transit (A5)', value: fmt(platformCash?.a5 ?? 0) },
           ]}
           footer="Total available across all accounts"
           footerTone="bg-emerald-50/70 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400"
