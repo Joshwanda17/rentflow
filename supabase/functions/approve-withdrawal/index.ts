@@ -2865,6 +2865,11 @@ Deno.serve(async (req) => {
           );
         } else {
           merchantFloatConsumed = merchantFloatForPrincipal;
+          try {
+            await admin.rpc("refresh_wallet_projection_for", { p_user_id: user.id });
+          } catch (refreshErr) {
+            console.error("[approve-withdrawal] refresh_wallet_projection_for failed after merchant float consume:", refreshErr);
+          }
         }
       } catch (e) {
         console.error("[approve-withdrawal] Merchant float consume exception:", e);
