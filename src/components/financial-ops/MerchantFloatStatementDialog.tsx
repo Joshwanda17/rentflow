@@ -64,6 +64,17 @@ export function MerchantFloatStatementDialog({
   const inTotal = rows.filter((r) => r.direction === 'cash_in').reduce((s, r) => s + r.amount, 0);
   const outTotal = rows.filter((r) => r.direction === 'cash_out').reduce((s, r) => s + r.amount, 0);
   const balance = rows.length ? rows[0].runningBalance : 0;
+  // Books float = the wallet's ledger-backed float bucket. The statement now
+  // carries EVERY leg (admin corrections included), so the closing running
+  // balance must equal it; any residue is surfaced, never hidden.
+  const booksBalance = position.ledgerFloatHeld ?? 0;
+  const variance = balance - booksBalance;
+  const tallies = Math.abs(variance) < 1;
+  const correctionRows = rows.filter((r) => r.isCorrection);
+  const correctionNet = correctionRows.reduce(
+    (s, r) => s + (r.direction === 'cash_in' ? r.amount : -r.amount),
+    0,
+  );
 
   const agentName = position.agentName || position.label || 'Merchant agent';
 
@@ -74,10 +85,12 @@ export function MerchantFloatStatementDialog({
       totalIn: inTotal,
       totalOut: outTotal,
       balance,
+      booksBalance,
       rows: rows.map((r) => ({
         date: r.date,
         category: r.category,
         label: label(r),
+        isCorrection: r.isCorrection,
         description: isCustomerPayout(r)
           ? `Paid to ${r.payeeName || 'Unknown customer'} · ${r.description || r.referenceId || ''}`.trim()
           : r.description || r.referenceId || null,
