@@ -13892,6 +13892,134 @@ export type Database = {
           },
         ]
       }
+      hr_perf_authorities: {
+        Row: {
+          changed_by: string | null
+          created_at: string
+          effective_from: string
+          effective_to: string | null
+          function_code: string
+          id: string
+          position_id: string
+          reason: string | null
+        }
+        Insert: {
+          changed_by?: string | null
+          created_at?: string
+          effective_from?: string
+          effective_to?: string | null
+          function_code: string
+          id?: string
+          position_id: string
+          reason?: string | null
+        }
+        Update: {
+          changed_by?: string | null
+          created_at?: string
+          effective_from?: string
+          effective_to?: string | null
+          function_code?: string
+          id?: string
+          position_id?: string
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_perf_authorities_position_id_fkey"
+            columns: ["position_id"]
+            isOneToOne: false
+            referencedRelation: "hr_positions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_perf_bands: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          label: string
+          points: number
+          sort_order: number
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          label: string
+          points: number
+          sort_order: number
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          label?: string
+          points?: number
+          sort_order?: number
+        }
+        Relationships: []
+      }
+      hr_perf_constants: {
+        Row: {
+          changed_by: string | null
+          created_at: string
+          effective_from: string
+          effective_to: string | null
+          id: string
+          key: string
+          numeric_value: number
+          reason: string
+        }
+        Insert: {
+          changed_by?: string | null
+          created_at?: string
+          effective_from?: string
+          effective_to?: string | null
+          id?: string
+          key: string
+          numeric_value: number
+          reason: string
+        }
+        Update: {
+          changed_by?: string | null
+          created_at?: string
+          effective_from?: string
+          effective_to?: string | null
+          id?: string
+          key?: string
+          numeric_value?: number
+          reason?: string
+        }
+        Relationships: []
+      }
+      hr_perf_quality: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          label: string
+          multiplier: number
+          sort_order: number
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          label: string
+          multiplier: number
+          sort_order: number
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          label?: string
+          multiplier?: number
+          sort_order?: number
+        }
+        Relationships: []
+      }
       hr_position_access: {
         Row: {
           created_at: string
@@ -39605,6 +39733,10 @@ export type Database = {
           taken_at: string
         }[]
       }
+      hr_perf_has_authority: { Args: { _fn: string }; Returns: boolean }
+      hr_perf_my_positions: { Args: never; Returns: string[] }
+      hr_perf_position_for: { Args: { _fn: string }; Returns: string }
+      hr_perf_week_ending: { Args: { _d?: string }; Returns: string }
       hr_transfer_position: {
         Args: {
           p_from_assignment: string
