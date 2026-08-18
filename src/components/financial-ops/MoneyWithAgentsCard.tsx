@@ -122,6 +122,8 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
   const floatTotal = rows.reduce((s, r) => s + Math.max(0, r.evidencedAmount), 0);
   const excludedRows = rows.filter((r) => excludedFloat(r) > 0);
   const excludedTotal = excludedRows.reduce((s, r) => s + excludedFloat(r), 0);
+  const deficitRows = rows.filter((r) => r.clampedShortfall > 0);
+  const deficitTotal = deficitRows.reduce((s, r) => s + r.clampedShortfall, 0);
 
   return (
     <div className="rounded-2xl border border-border bg-card p-5 min-w-0">
@@ -310,6 +312,11 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
                   {booksProveLess && (
                     <p className="text-[10px] text-muted-foreground">
                       (shown on their phone {formatUGX(Math.max(0, r.ledgerFloatHeld))} — books prove less)
+                    </p>
+                  )}
+                  {r.clampedShortfall > 0 && (
+                    <p className="text-[10px] font-semibold text-destructive">
+                      hides a UGX {formatUGX(r.clampedShortfall)} deficit
                     </p>
                   )}
                   <button
