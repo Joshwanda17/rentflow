@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { evaluateRenewalPayoutGate } from "../_shared/renewalPayoutGate.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -34,7 +35,7 @@ Deno.serve(async (req) => {
       .select(
         `id, portfolio_code, account_name, investor_id, investment_amount,
          roi_percentage, duration_months, maturity_date, pending_renewal_effective_date,
-         pending_renewal_request_id,
+         pending_renewal_request_id, next_roi_date, created_at, payout_day,
          investor:profiles!investor_portfolios_investor_id_fkey(email, full_name)`,
       )
       .not("pending_renewal_effective_date", "is", null)
@@ -51,7 +52,7 @@ Deno.serve(async (req) => {
       .select(
         `id, portfolio_code, account_name, investor_id, investment_amount,
          roi_percentage, duration_months, maturity_date, pending_renewal_effective_date,
-         pending_renewal_request_id,
+         pending_renewal_request_id, next_roi_date, created_at, payout_day,
          investor:profiles!investor_portfolios_investor_id_fkey(email, full_name)`,
       )
       .eq("status", "active")
@@ -68,7 +69,7 @@ Deno.serve(async (req) => {
       .select(
         `id, portfolio_code, account_name, investor_id, investment_amount,
          roi_percentage, duration_months, maturity_date, pending_renewal_effective_date,
-         pending_renewal_request_id,
+         pending_renewal_request_id, next_roi_date, created_at, payout_day,
          investor:profiles!investor_portfolios_investor_id_fkey(email, full_name)`,
       )
       .eq("status", "matured")
@@ -109,10 +110,31 @@ Deno.serve(async (req) => {
     let renewed = 0;
     let emailed = 0;
     let skipped = 0;
+    let deferredForPayout = 0;
+    const deferred: Array<{ portfolio_id: string; reason: string; cycle_date: string }> = [];
     const errors: Array<{ portfolio_id: string; error: string }> = [];
 
     for (const row of due ?? []) {
       try {
+        // Payout-completion gate: never renew ahead of a due ROI payout.
+        // Renewal resets next_roi_date/total_roi_earned, so renewing first makes
+        // the 09:00 EAT payout run read the portfolio as "not due" and skip the
+        // final-cycle ROI. Defer instead — the payout run renews it afterwards.
+        const gate = await evaluateRenewalPayoutGate(admin, {
+          id: row.id,
+          next_roi_date: (row as any).next_roi_date ?? null,
+          created_at: (row as any).created_at,
+          payout_day: (row as any).payout_day ?? null,
+        });
+        if (!gate.allowed) {
+          deferredForPayout++;
+          deferred.push({ portfolio_id: row.id, reason: gate.reason, cycle_date: gate.cycleDate });
+          console.log(
+            `[apply-scheduled-portfolio-renewals] Deferred ${row.portfolio_code} — ${gate.reason} (cycle ${gate.cycleDate})`,
+          );
+          continue;
+        }
+
         const { data: res, error: renewErr } = await admin.rpc(
           "apply_portfolio_renewal",
           {
@@ -189,6 +211,8 @@ Deno.serve(async (req) => {
       due_count: due?.length ?? 0,
       renewed,
       skipped,
+      deferred_for_payout: deferredForPayout,
+      deferred,
       emailed,
       errors,
     });
