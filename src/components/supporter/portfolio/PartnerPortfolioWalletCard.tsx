@@ -94,7 +94,7 @@ export function PartnerPortfolioWalletCard({ onAddCard, onSend, onRequest, onTop
               <stop offset="100%" stopColor="#500fa3" />
             </linearGradient>
           </defs>
-          <path d={NOTCH_PATH} fill="url(#welilePurpleCardGrad)" />
+          <path d={NOTCH_PATH} fill="url(#welilePurpleCardGrad)" stroke="rgba(255,255,255,0.45)" strokeWidth="8" strokeLinejoin="round" />
         </svg>
 
         {/* CONTENT */}
