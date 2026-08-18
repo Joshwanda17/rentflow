@@ -58,6 +58,7 @@ import { InvestmentPackageSheet } from '@/components/supporter/InvestmentPackage
 import { FunderCapitalOpportunities } from '@/components/supporter/FunderCapitalOpportunities';
 import { SupportedTenantsSection } from '@/components/supporter/SupportedTenantsSection';
 import { PartnerPortfolioSection } from '@/components/supporter/portfolio/PartnerPortfolioSection';
+import { PartnerPortfolioWalletCard } from '@/components/supporter/portfolio/PartnerPortfolioWalletCard';
 
 import { useSupportedTenants } from '@/hooks/useSupportedTenants';
 
@@ -561,6 +562,16 @@ export default function SupporterDashboard({
 
           </div>
 
+
+          <WidgetErrorBoundary label="Your portfolio">
+            <PartnerPortfolioWalletCard
+              onAddCard={() => { hapticTap(); setShowPaymentPartners(true); }}
+              onSend={() => { hapticTap(); setShowWallet(true); }}
+              onRequest={() => { hapticTap(); setInvestmentsTab('accounts'); setShowInvestments(true); }}
+              onTopUp={() => { hapticTap(); setShowPaymentPartners(true); }}
+              onMore={() => { hapticTap(); setShowWallet(true); }}
+            />
+          </WidgetErrorBoundary>
 
           <WidgetErrorBoundary label="Your portfolio">
             <PartnerPortfolioSection
