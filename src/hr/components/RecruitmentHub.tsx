@@ -1091,12 +1091,12 @@ export default function RecruitmentHub() {
     <>
       <Tabs value={tab} onValueChange={setTab} className="space-y-4">
         <TabsList className="grid grid-cols-5 w-full">
-        <TabsTrigger value="internships">Internships</TabsTrigger>
-        <TabsTrigger value="requisitions">Requisitions</TabsTrigger>
-        <TabsTrigger value="postings">Postings</TabsTrigger>
         <TabsTrigger value="applications">
           Applications {applicationCount ? `(${fmtCount(applicationCount)})` : ''}
         </TabsTrigger>
+        <TabsTrigger value="internships">Internships</TabsTrigger>
+        <TabsTrigger value="postings">Postings</TabsTrigger>
+        <TabsTrigger value="requisitions">Requisitions</TabsTrigger>
         <TabsTrigger value="pool">Talent Pool</TabsTrigger>
       </TabsList>
 
