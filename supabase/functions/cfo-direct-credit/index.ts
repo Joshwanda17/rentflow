@@ -158,7 +158,7 @@ Deno.serve(async (req) => {
       const { data: actor } = await adminClient
         .from("user_roles")
         .select("user_id")
-        .in("role", ["cfo", "super_admin", "manager"])
+        .in("role", ["cfo", "financial_ops", "super_admin"])
         .limit(1)
         .maybeSingle();
       if (!actor?.user_id) {
@@ -190,7 +190,7 @@ Deno.serve(async (req) => {
         .from("user_roles")
         .select("role")
         .eq("user_id", authedUser.id)
-        .in("role", ["cfo", "manager", "super_admin", "cto"]);
+        .in("role", ["cfo", "financial_ops", "super_admin"]);
 
       if (!roles?.length) {
         return new Response(JSON.stringify({ error: "Insufficient permissions" }), {
@@ -450,12 +450,12 @@ Deno.serve(async (req) => {
       }
       throw new Error(`Invalid amount: received '${rawAmount}' (typeof ${typeof rawAmount}). Allowed range 1 - 500,000,000.`);
     }
-    if (!reason || typeof reason !== "string" || reason.length < 10) {
+    if (!reason || typeof reason !== "string" || reason.trim().length < 20) {
       if (shouldSample(shadowConfig)) {
         runShadowAudit('cfo-direct-credit', { target_user_id, amount, reason, operation }, false,
           () => shadowValidateCfoAdjustment({ targetUserId: target_user_id, amount, reason, operation: op, callerRoles }), adminClient);
       }
-      throw new Error("Reason must be at least 10 characters");
+      throw new Error("Reason must be at least 20 characters");
     }
 
     // Phase 5: Shadow audit on success path — sampled
@@ -581,6 +581,40 @@ Deno.serve(async (req) => {
 
     // Generate trackable PAY- reference (same format COO uses) for every CFO direct credit/debit
     const refId = `PAY-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+
+    // ── Phase 6: evidenced, authorized correction record (DB-enforced) ─────
+    // `general_ledger` refuses any `cfo_direct_credit` leg whose reference_id
+    // has no matching row here. The row itself is role-gated, self-authorship
+    // blocked, evidence-floored (>= 20 chars) and immutable at the DB level —
+    // the identical shape used for merchant_float_reconciliations.
+    {
+      const { error: corrErr } = await adminClient
+        .from("platform_wallet_corrections")
+        .insert({
+          tool: "cfo_direct_credit",
+          operation: op === "debit" ? "debit" : "credit",
+          target_user_id,
+          amount,
+          evidence: `CFO Direct ${op === "debit" ? "Debit" : "Credit"} [${category_label || wallet_category || ""}]: ${reason}`.trim(),
+          reference_id: refId,
+          created_by: userId,
+          system_authored: isSystemAuthored,
+          metadata: {
+            wallet_category,
+            platform_category,
+            category_label: category_label || null,
+            sub_category: sub_category || null,
+            recipient_type,
+            caller_roles: callerRoles,
+          },
+        });
+      if (corrErr) {
+        console.error("[cfo-direct-credit] correction record insert failed:", corrErr.message);
+        return new Response(JSON.stringify({ error: corrErr.message }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
 
     // ── Server-side idempotency guard for email-origin credits ────────────
     // For any credit that carries a gmail_message_id or email_tid we INSERT

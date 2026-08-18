@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
       .from("user_roles")
       .select("role")
       .eq("user_id", authedUser.id)
-      .in("role", ["cfo", "manager", "super_admin", "cto"]);
+      .in("role", ["cfo", "financial_ops", "super_admin"]);
     if (!roles?.length) return json({ error: "Insufficient permissions" }, 403);
     const callerRoles = (roles || []).map((r: { role: string }) => r.role);
 
@@ -83,8 +83,8 @@ Deno.serve(async (req) => {
     if (!Number.isInteger(amount)) {
       return json({ error: "Amount must be a whole number of UGX." }, 400);
     }
-    if (reason.length < 10) {
-      return json({ error: "A reason of at least 10 characters is required." }, 400);
+    if (reason.length < 20) {
+      return json({ error: "A reason of at least 20 characters is required." }, 400);
     }
 
     // ── Confirm the user actually has enough float to move ─────────────────
@@ -117,6 +117,22 @@ Deno.serve(async (req) => {
     // reference_id ties both legs + the audit row together for traceability.
     const refId = `FLT2WDR-${crypto.randomUUID()}`;
     const nowIso = new Date().toISOString();
+
+    // Phase 6: evidenced, authorized, immutable correction record. The ledger
+    // trigger `enforce_wallet_correction_evidence` refuses these legs without it.
+    const { error: corrErr } = await adminClient
+      .from("platform_wallet_corrections")
+      .insert({
+        tool: "admin_float_to_withdrawable",
+        operation: "reclass",
+        target_user_id: targetUserId,
+        amount,
+        evidence: `Float → Withdrawable reclass for ${targetName}: ${reason}`,
+        reference_id: refId,
+        created_by: authedUser.id,
+        metadata: { float_before: floatBefore, withdrawable_before: withdrawableBefore, caller_roles: callerRoles },
+      });
+    if (corrErr) return json({ error: corrErr.message }, 403);
 
     const { data: groupId, error: rpcErr } = await adminClient.rpc(
       "create_ledger_transaction",
