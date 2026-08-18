@@ -945,6 +945,17 @@ export default function RecruitmentHub() {
       return count ?? 0;
     },
   });
+  const { data: internshipCount } = useQuery({
+    queryKey: ['internship-applications-count'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('internship_applications')
+        .select('*', { count: 'exact', head: true })
+        .is('purged_at', null);
+      if (error) throw new Error(error.message);
+      return count ?? 0;
+    },
+  });
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -1159,10 +1170,10 @@ export default function RecruitmentHub() {
       <Tabs value={tab} onValueChange={setTab} className="space-y-4">
         <TabsList className="grid grid-cols-5 w-full">
         <TabsTrigger value="applications">
-          Applications {applicationCount ? `(${fmtCount(applicationCount)})` : ''}
+          Applications {typeof applicationCount === 'number' ? `(${fmtCount(applicationCount)})` : ''}
         </TabsTrigger>
         <TabsTrigger value="internships" className="relative">
-          Internships
+          Internships {typeof internshipCount === 'number' ? `(${fmtCount(internshipCount)})` : ''}
           {hasNewInternships && (
             <span className="absolute top-1 right-1 flex h-2 w-2" aria-label="New internship application">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75" />
@@ -1170,9 +1181,9 @@ export default function RecruitmentHub() {
             </span>
           )}
         </TabsTrigger>
-        <TabsTrigger value="postings">Postings</TabsTrigger>
-        <TabsTrigger value="requisitions">Requisitions</TabsTrigger>
-        <TabsTrigger value="pool">Talent Pool</TabsTrigger>
+        <TabsTrigger value="postings">Postings {postings.length > 0 ? `(${fmtCount(postings.length)})` : ''}</TabsTrigger>
+        <TabsTrigger value="requisitions">Requisitions {requisitions.length > 0 ? `(${fmtCount(requisitions.length)})` : ''}</TabsTrigger>
+        <TabsTrigger value="pool">Talent Pool {candidates.length > 0 ? `(${fmtCount(candidates.length)})` : ''}</TabsTrigger>
       </TabsList>
 
       {/* ---------------- Applications ---------------- */}
