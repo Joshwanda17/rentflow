@@ -20,7 +20,7 @@ import { CashSourcesSheet } from '@/components/cfo/CashSourcesSheet';
 import { ROIPayableForecast } from '@/components/cfo/ROIPayableForecast';
 import { CFOActionsLog } from '@/components/cfo/CFOActionsLog';
 import { LedgerMaintenancePanel } from '@/components/cfo/LedgerMaintenancePanel';
-import { AgentAdvancesStatsCard } from '@/components/cfo/AgentAdvancesStatsCard';
+import { AgentAdvancesStatsCard, AgentAdvancesTrendChart } from '@/components/cfo/AgentAdvancesStatsCard';
 
 interface CFOOverviewDashboardProps {
   onTabChange?: (tab: string) => void;
