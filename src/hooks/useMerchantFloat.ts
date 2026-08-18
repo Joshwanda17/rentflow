@@ -638,18 +638,31 @@ export function useMerchantFloatStatement(agentId?: string | null, enabled = tru
     retry: false,
     staleTime: 20_000,
     queryFn: async (): Promise<MerchantFloatStatementRow[]> => {
-      const { data, error } = await supabase
-        .from('general_ledger')
-        .select('id, transaction_date, created_at, description, category, direction, amount, reference_id')
-        .eq('user_id', agentId!)
-        .eq('wallet_bucket', 'float')
-        .neq('classification', 'admin_correction')
-        .order('transaction_date', { ascending: true })
-        .limit(500);
-      if (error) throw error;
+      // Ops statement: EVERY float leg is shown, including `admin_correction`
+      // partitions, so the closing running balance tallies with the books
+      // (`wallets.float_balance`). Paged so long histories are never truncated.
+      const PAGE = 1000;
+      const legs: any[] = [];
+      for (let from = 0; ; from += PAGE) {
+        const { data, error } = await supabase
+          .from('general_ledger')
+          .select(
+            'id, transaction_date, created_at, description, category, direction, amount, reference_id, classification',
+          )
+          .eq('user_id', agentId!)
+          .eq('wallet_bucket', 'float')
+          .order('transaction_date', { ascending: true })
+          .order('created_at', { ascending: true })
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        const page = (data ?? []) as any[];
+        legs.push(...page);
+        if (page.length < PAGE || legs.length >= 20_000) break;
+      }
       let bal = 0;
-      const rows = ((data ?? []) as any[]).map((r) => {
+      const rows = legs.map((r) => {
         const amount = Number(r.amount ?? 0);
+        const classification = String(r.classification ?? 'production');
         bal += r.direction === 'cash_in' ? amount : -amount;
         return {
           id: String(r.id),
@@ -660,6 +673,8 @@ export function useMerchantFloatStatement(agentId?: string | null, enabled = tru
           amount,
           referenceId: r.reference_id ?? null,
           runningBalance: bal,
+          classification,
+          isCorrection: classification === 'admin_correction',
         };
       });
       return resolveFloatPayees(rows.reverse());
