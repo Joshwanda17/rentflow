@@ -15,11 +15,7 @@ import {
  * set of event types for which a note is REQUIRED — never keep a second list.
  */
 export const TRANSITION_NOTE_LABELS: Record<string, string> = {
-  submitted: 'What are you submitting? Summarise what was done.',
   completed: 'What was the outcome?',
-  blocked: 'What is blocking this?',
-  reopened: 'Why is this being reopened?',
-  cancelled: 'Why is this being cancelled?',
 };
 
 const MIN_NOTE_LENGTH = 10;
@@ -33,6 +29,8 @@ export function isValidTransitionNote(note: string): boolean {
 export function charsStillNeeded(note: string): number {
   return Math.max(0, MIN_NOTE_LENGTH - note.trim().length);
 }
+
+export const isNoteRequired = (action: string) => action in TRANSITION_NOTE_LABELS;
 
 interface TransitionNoteDialogProps {
   eventType: string;
