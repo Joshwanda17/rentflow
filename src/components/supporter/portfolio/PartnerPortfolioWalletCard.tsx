@@ -66,25 +66,28 @@ export function PartnerPortfolioWalletCard({ onAddCard, onSend, onRequest, onTop
   const name = (profile?.full_name || '').trim().toUpperCase();
 
   if (loading) {
-    return <div className="w-full aspect-[354/165] rounded-[20px] bg-muted animate-pulse" />;
+    return <div className="w-full aspect-[354/165] max-h-[240px] rounded-[20px] bg-muted animate-pulse" />;
   }
 
   return (
     <div className="w-full space-y-3">
       {/* CARD */}
       <div
-        className="relative w-full aspect-[354/165]"
-        style={{ filter: 'drop-shadow(0px 8px 22px rgba(99, 26, 186, 0.30))', containerType: 'inline-size' }}
+        className="relative w-full aspect-[354/165] min-h-[150px] max-h-[240px] mx-auto"
+        style={{
+          filter: 'drop-shadow(0px 8px 22px rgba(99, 26, 186, 0.30))',
+          containerType: 'inline-size',
+        }}
       >
         <svg
           className="absolute inset-0 w-full h-full"
-          viewBox="0 0 354 190"
+          viewBox="0 0 354 165"
           preserveAspectRatio="none"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
         >
           <defs>
-            <linearGradient id="welilePurpleCardGrad" x1="0" y1="0" x2="354" y2="190" gradientUnits="userSpaceOnUse">
+            <linearGradient id="welilePurpleCardGrad" x1="0" y1="0" x2="354" y2="165" gradientUnits="userSpaceOnUse">
               <stop offset="0%" stopColor="#7321d4" />
               <stop offset="45%" stopColor="#631aba" />
               <stop offset="85%" stopColor="#6219bb" />
@@ -97,65 +100,65 @@ export function PartnerPortfolioWalletCard({ onAddCard, onSend, onRequest, onTop
         {/* CONTENT */}
         <div
           className="relative z-10 w-full h-full flex flex-col justify-between text-white select-none"
-          style={{ padding: '1.4cqw 4.5cqw 3.8cqw' }}
+          style={{ padding: 'min(1.4cqw, 8px) min(4.5cqw, 26px) min(3.8cqw, 22px)' }}
         >
           <div className="flex items-center justify-between">
             <img
               src={welileLogo}
               alt="Welile"
               className="w-auto brightness-0 invert object-contain block"
-              style={{ height: '3cqw' }}
+              style={{ height: 'clamp(12px, 3cqw, 20px)' }}
             />
             <span
               className="font-medium tracking-widest text-white/80 uppercase whitespace-nowrap"
-              style={{ fontSize: '2.2cqw', paddingRight: '0.5cqw' }}
+              style={{ fontSize: 'clamp(9px, 2.2cqw, 14px)', paddingRight: 'min(0.5cqw, 4px)' }}
             >
               {aiId}
             </span>
           </div>
 
-          <div className="flex items-end justify-between" style={{ marginTop: '-0.5cqw' }}>
+          <div className="flex items-end justify-between gap-2" style={{ marginTop: 'min(-0.5cqw, -2px)' }}>
             <div className="flex flex-col">
               <span
                 className="font-medium tracking-wider text-white/70 uppercase whitespace-nowrap"
-                style={{ fontSize: '2.25cqw', marginBottom: '0.6cqw' }}
+                style={{ fontSize: 'clamp(8px, 2.25cqw, 13px)', marginBottom: 'min(0.6cqw, 4px)' }}
               >
                 TOTAL PORTFOLIO PRINCIPAL
               </span>
               <div
                 className="font-extrabold text-white tracking-tight leading-none whitespace-nowrap"
-                style={{ fontSize: '6.8cqw' }}
+                style={{ fontSize: 'clamp(20px, 6.8cqw, 40px)' }}
               >
                 {formatUGX(totalPrincipal)}
               </div>
             </div>
-            <div className="flex flex-col items-end shrink-0" style={{ paddingLeft: '2cqw', paddingRight: '0.5cqw' }}>
+            <div className="flex flex-col items-end shrink-0" style={{ paddingRight: 'min(0.5cqw, 4px)' }}>
               <span
                 className="font-medium tracking-wider text-white/70 uppercase text-right whitespace-nowrap"
-                style={{ fontSize: '2.25cqw', marginBottom: '0.6cqw' }}
+                style={{ fontSize: 'clamp(8px, 2.25cqw, 13px)', marginBottom: 'min(0.6cqw, 4px)' }}
               >
                 NEXT PAYOUT
               </span>
               <div
                 className="font-bold text-white/90 leading-none whitespace-nowrap"
-                style={{ fontSize: '2.9cqw' }}
+                style={{ fontSize: 'clamp(11px, 2.9cqw, 17px)' }}
               >
                 {payoutLabel}
               </div>
             </div>
           </div>
 
-          <div className="flex items-end justify-between" style={{ marginTop: '-0.5cqw' }}>
+          <div className="flex items-end justify-between" style={{ marginTop: 'min(-0.5cqw, -2px)' }}>
             <div className="flex flex-col">
               <span
                 className="font-medium tracking-wider text-white/70 uppercase whitespace-nowrap"
-                style={{ fontSize: '2cqw', marginBottom: '0.4cqw' }}
+                style={{ fontSize: 'clamp(8px, 2cqw, 12px)', marginBottom: 'min(0.4cqw, 3px)' }}
               >
                 PARTNER NAME
               </span>
               <span
                 className="font-bold tracking-wide text-white uppercase truncate whitespace-nowrap"
-                style={{ fontSize: '2.9cqw', maxWidth: '52cqw' }}
+                style={{ fontSize: 'clamp(11px, 2.9cqw, 17px)', maxWidth: '52cqw' }}
               >
                 {name || '—'}
               </span>
@@ -169,23 +172,23 @@ export function PartnerPortfolioWalletCard({ onAddCard, onSend, onRequest, onTop
           onClick={onAddCard}
           className="absolute z-20 bg-black hover:bg-neutral-900 rounded-full flex items-center justify-center border border-white/10 shadow-sm transition active:scale-95"
           style={{
-            bottom: '0.8cqw',
-            right: '1.1cqw',
-            width: '30cqw',
-            height: '8.6cqw',
-            gap: '1.4cqw',
-            paddingInline: '2cqw',
+            bottom: 'min(0.8cqw, 6px)',
+            right: 'min(1.1cqw, 8px)',
+            width: 'clamp(96px, 30cqw, 172px)',
+            height: 'clamp(30px, 8.6cqw, 48px)',
+            gap: 'min(1.4cqw, 8px)',
+            paddingInline: 'min(2cqw, 12px)',
           }}
         >
           <span
             className="rounded-full bg-white flex items-center justify-center shrink-0"
-            style={{ width: '5.4cqw', height: '5.4cqw' }}
+            style={{ width: 'clamp(18px, 5.4cqw, 28px)', height: 'clamp(18px, 5.4cqw, 28px)' }}
           >
-            <Plus className="text-black" strokeWidth={3.5} style={{ width: '3.4cqw', height: '3.4cqw' }} />
+            <Plus className="text-black" strokeWidth={3.5} style={{ width: 'clamp(11px, 3.4cqw, 18px)', height: 'clamp(11px, 3.4cqw, 18px)' }} />
           </span>
           <span
             className="tracking-tight text-white font-bold whitespace-nowrap"
-            style={{ fontSize: '3.4cqw' }}
+            style={{ fontSize: 'clamp(12px, 3.4cqw, 18px)' }}
           >
             Add Card
           </span>
