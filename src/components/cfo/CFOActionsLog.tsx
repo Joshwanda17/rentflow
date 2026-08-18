@@ -142,7 +142,7 @@ export function CFOActionsLog() {
   const [searchInput, setSearchInput] = useState('');
   const [page, setPage] = useState(0);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const search = useDebouncedValue(searchInput.trim(), 350);
 
 
