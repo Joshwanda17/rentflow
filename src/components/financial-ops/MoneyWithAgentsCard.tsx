@@ -205,7 +205,13 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
         <div className="mt-4 flex items-start gap-2 rounded-xl border border-border bg-muted/30 p-3">
           <AlertTriangle className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
           <p className="text-[11px] text-muted-foreground">
-            This board is only visible to finance roles.
+            {/(not authorized|forbidden|permission)/i.test(
+              (error as { message?: string })?.message ?? '',
+            )
+              ? 'This board is only visible to finance roles.'
+              : `This board could not load: ${
+                  (error as { message?: string })?.message ?? 'unknown error'
+                }`}
           </p>
         </div>
       )}
