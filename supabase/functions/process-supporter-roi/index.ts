@@ -14,6 +14,7 @@ import {
   effectiveNextRoiDateOnly,
   isPortfolioRoiDue,
 } from "./roiDateGate.ts";
+import { evaluateRenewalPayoutGate } from "../_shared/renewalPayoutGate.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -54,6 +55,8 @@ Deno.serve(async (req) => {
       topupsMerged: 0,
       topupsMergedAmount: 0,
       topupsSkippedNotDue: 0,
+      renewalsApplied: 0,
+      renewalsDeferred: 0,
       errors: [] as string[],
     };
 
