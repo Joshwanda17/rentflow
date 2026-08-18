@@ -14725,6 +14725,7 @@ export type Database = {
           portfolio_url: string | null
           public_ref: string | null
           purged_at: string | null
+          purged_by: string | null
           resume_filename: string | null
           resume_url: string | null
           role_interest: string | null
@@ -14762,6 +14763,7 @@ export type Database = {
           portfolio_url?: string | null
           public_ref?: string | null
           purged_at?: string | null
+          purged_by?: string | null
           resume_filename?: string | null
           resume_url?: string | null
           role_interest?: string | null
@@ -14799,6 +14801,7 @@ export type Database = {
           portfolio_url?: string | null
           public_ref?: string | null
           purged_at?: string | null
+          purged_by?: string | null
           resume_filename?: string | null
           resume_url?: string | null
           role_interest?: string | null
