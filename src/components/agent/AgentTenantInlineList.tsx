@@ -139,9 +139,11 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
       );
     });
     if (activeFilter === 'active') {
+      // Actively paying or already completed — never a tenant flagged not paying.
       list = list.filter((t) => activeTenantIds.has(t.id));
     } else if (activeFilter === 'owing') {
-      list = list.filter((t) => (tenantBalances[t.id] || 0) > 0);
+      // Landlord already paid (repaying) with money still outstanding.
+      list = list.filter((t) => (tenantBalances[t.id] || 0) > 0 && !notPayingIds.has(t.id));
     }
     list.sort((a, b) => {
       const ba = tenantBalances[a.id] || 0;
@@ -150,7 +152,7 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
       return a.full_name.localeCompare(b.full_name);
     });
     return list;
-  }, [tenants, search, activeFilter, tenantBalances, activeTenantIds]);
+  }, [tenants, search, activeFilter, tenantBalances, activeTenantIds, notPayingIds]);
 
   // Reset pagination whenever the filtered result set changes.
   useEffect(() => {
@@ -164,8 +166,8 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
     [tenants, activeTenantIds]
   );
   const owingCount = useMemo(
-    () => tenants.filter((t) => (tenantBalances[t.id] || 0) > 0).length,
-    [tenants, tenantBalances]
+    () => tenants.filter((t) => (tenantBalances[t.id] || 0) > 0 && !notPayingIds.has(t.id)).length,
+    [tenants, tenantBalances, notPayingIds]
   );
 
   // Source-of-truth total outstanding: sum of per-tenant (deduped) balances
