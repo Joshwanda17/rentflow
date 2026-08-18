@@ -540,6 +540,7 @@ function AgentOpsSideNav({
     { title: 'Agents', defaultOpen: true, keys: ['directory', 'performance', 'sub-agents', 'bulk-ops'] },
     { title: 'Field Operations', defaultOpen: true, keys: ['pipeline', 'rent-capacity', 'daily-collections-report', 'tasks', 'escalations', 'connector'] },
     { title: 'Service Centers', keys: ['sc-overview', 'service-centres', 'sc-directory', 'sc-payouts', 'sc-requests', 'sc-operating-model', 'sc-products'] },
+    { title: 'AGENT PRODUCTS & SERVICES', keys: ['agent-service-centres', 'agent-motor-bikes', 'agent-boutique', 'agent-signages', 'agent-smart-phones', 'agent-advances', 'agent-personal-rent-request', 'agent-transfer-wallet'] },
     { title: 'Financials', keys: ['balances', 'float-payouts', 'earnings', 'locked-transfers', 'allocation-report', 'lending-agents'] },
     { title: 'Advances', keys: ['advances-analytics', 'advance-requests', 'active-advances', 'advance-potential', 'advance-limits', 'advance-repayments', 'advance-activity-correlation'] },
     { title: 'Reports', keys: ['products-services-report', 'performance-report', 'allocation-report'] },
