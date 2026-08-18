@@ -97,24 +97,24 @@ export function PartnerPortfolioWalletCard({ onAddCard, onSend, onRequest, onTop
         {/* CONTENT */}
         <div
           className="relative z-10 w-full h-full flex flex-col justify-between text-white select-none"
-          style={{ padding: '1.7cqw 4.5cqw 4.5cqw', paddingTop: '1.7cqw' }}
+          style={{ padding: '1.4cqw 4.5cqw 3.8cqw' }}
         >
           <div className="flex items-center justify-between">
             <img
               src={welileLogo}
               alt="Welile"
               className="w-auto brightness-0 invert object-contain block"
-              style={{ height: '3.2cqw' }}
+              style={{ height: '3cqw' }}
             />
             <span
               className="font-medium tracking-widest text-white/80 uppercase whitespace-nowrap"
-              style={{ fontSize: '2.4cqw', paddingRight: '0.5cqw' }}
+              style={{ fontSize: '2.2cqw', paddingRight: '0.5cqw' }}
             >
               {aiId}
             </span>
           </div>
 
-          <div className="flex items-end justify-between my-auto" style={{ paddingTop: '1cqw' }}>
+          <div className="flex items-end justify-between" style={{ marginTop: '-0.5cqw' }}>
             <div className="flex flex-col">
               <span
                 className="font-medium tracking-wider text-white/70 uppercase whitespace-nowrap"
