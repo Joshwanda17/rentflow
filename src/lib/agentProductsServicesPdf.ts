@@ -452,15 +452,15 @@ export function generateAgentProductsServicesPdf(opts: {
   ], a4);
 
   // ===== 5. Motor bikes / 6. Smartphones =====
-  const productBlock = (label: string, p: ApsProduct) => [
-    [`${label} — issued today`, num(p.issued_today), `${num(p.issued_total)} total`, '—'],
+  const productBlock = (label: string, p: ApsProduct, pp?: ApsProduct | null) => [
+    [`${label} — issued in period`, num(p.issued_today), cell(pp ? num(pp.issued_today) : `${num(p.issued_total)} total`), pct(p.issued_today, Number(pp?.issued_today) || 0, !!pp)],
     [`${label} — total value`, apsUgx(p.total_value), '—', '—'],
     [`${label} — repaid to date`, apsUgx(p.paid), `${p.total_value > 0 ? ((Number(p.paid) / Number(p.total_value)) * 100).toFixed(1) : '0.0'}%`, '—'],
-    [`${label} — outstanding`, apsUgx(p.outstanding), '—', '—'],
+    [`${label} — outstanding`, apsUgx(p.outstanding), cell(pp ? apsUgx(pp.outstanding) : ''), pct(p.outstanding, Number(pp?.outstanding) || 0, !!pp)],
     [`${label} — daily recovery due`, apsUgx(p.daily_receivable), '—', '—'],
   ];
-  drawTable('5. MOTOR BIKES', ['Metric', 'Value', 'Detail', 'Change'], w4, productBlock('Bikes', report.bikes), a4);
-  drawTable('6. SMARTPHONES', ['Metric', 'Value', 'Detail', 'Change'], w4, productBlock('Smartphones', report.phones), a4);
+  drawTable('5. MOTOR BIKES', ['Metric', 'Current period', prevCol, 'Change'], w4, productBlock('Bikes', report.bikes, prev?.bikes ?? null), a4);
+  drawTable('6. SMARTPHONES', ['Metric', 'Current period', prevCol, 'Change'], w4, productBlock('Smartphones', report.phones, prev?.phones ?? null), a4);
 
   // ===== 14-day trend =====
   if (report.trend.length > 1) {
