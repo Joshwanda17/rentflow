@@ -569,6 +569,10 @@ export default function SupporterDashboard({
                 setFocusPortfolioId(portfolioId ?? null);
                 setShowInvestments(true);
               }}
+                setInvestmentsTab('accounts');
+                setFocusPortfolioId(portfolioId ?? null);
+                setShowInvestments(true);
+              }}
               onExploreOpportunities={() => {
                 const el = document.getElementById('opportunities');
                 if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
