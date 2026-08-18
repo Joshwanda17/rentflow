@@ -1,6 +1,9 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
-const MAX_RETRIES = 5
+const MAX_RETRIES = 1
+// A suppressed recipient is not a failure — put the message back and try again
+// in 2 minutes instead of burning a retry.
+const SUPPRESSION_RETRY_SECONDS = 120
 const DEFAULT_BATCH_SIZE = 10
 const DEFAULT_SEND_DELAY_MS = 200
 const DEFAULT_AUTH_TTL_MINUTES = 15
@@ -332,6 +335,42 @@ Deno.serve(async (req) => {
         }
       }
 
+      // Suppressed recipient: do NOT fail the email. Put it back in the queue
+      // and retry in 2 minutes (the address may be un-suppressed by then).
+      // TTL above eventually retires it if suppression never clears.
+      if (payload.to) {
+        const { data: suppressedRow, error: suppressionError } = await supabase
+          .from('suppressed_emails')
+          .select('email')
+          .eq('email', String(payload.to).toLowerCase())
+          .maybeSingle()
+
+        if (suppressionError) {
+          console.error('Failed to verify suppression status', {
+            queue,
+            msg_id: msg.msg_id,
+            error: suppressionError,
+          })
+        }
+
+        if (suppressedRow) {
+          console.warn('Recipient suppressed — deferring retry by 2 minutes', {
+            queue,
+            msg_id: msg.msg_id,
+            to: payload.to,
+          })
+          const { error: deferError } = await supabase.rpc('defer_email', {
+            queue_name: queue,
+            message_id: msg.msg_id,
+            delay_seconds: SUPPRESSION_RETRY_SECONDS,
+          })
+          if (deferError) {
+            console.error('Failed to defer suppressed message', { queue, msg_id: msg.msg_id, error: deferError })
+          }
+          continue
+        }
+      }
+
       try {
         await sendViaMailgun(
           {
@@ -452,7 +491,13 @@ Deno.serve(async (req) => {
           failedAttemptsByMessageId.set(payload.message_id, failedAttempts + 1)
         }
 
-        // Non-429 errors: message stays invisible until VT expires, then retried
+        // Failed sends are never resent: retire the message to the DLQ right away.
+        await moveToDlq(
+          supabase,
+          queue,
+          msg,
+          `Send failed — no resend: ${errorMsg.slice(0, 300)}`
+        )
       }
 
       // Small delay between sends to smooth bursts
