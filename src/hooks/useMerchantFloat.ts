@@ -110,6 +110,11 @@ export function useMerchantFloatPositions(enabled = true) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'withdrawal_requests' }, invalidate)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'merchant_payout_funding' }, invalidate)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'merchant_out_of_pocket_advances' }, invalidate)
+      // The float figure itself lives in the wallet projection: a settlement
+      // refreshes that row synchronously (trg_wallet_projection_ledger), so
+      // following it makes the merchant dashboard and the Financial Ops board
+      // move within the same second instead of on the next poll.
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'wallet_balances_projection' }, invalidate)
       .subscribe();
     return () => {
       supabase.removeChannel(channel);

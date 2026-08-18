@@ -50,6 +50,9 @@ export function MerchantFloatAvailableCard() {
   const spendable = Math.max(holding - reserved, 0);
   const offledger = mine?.offledgerAdjustments ?? 0;
   const unbacked = mine?.payoutsWithoutFloatEvidence ?? 0;
+  // Real debt the zero floor hides: if the desk's true position is negative the
+  // agent must see it here, not only on the Financial Ops board.
+  const hiddenDeficit = mine?.clampedShortfall ?? 0;
   const pending = (myDisputes ?? []).filter((d) => d.status === 'open' || d.status === 'reviewing');
   const lastAnswered = (myDisputes ?? []).find((d) => d.status === 'resolved' || d.status === 'rejected');
   const reviewRows = (oopRows ?? []).filter((r) => r.status === 'needs_review');
