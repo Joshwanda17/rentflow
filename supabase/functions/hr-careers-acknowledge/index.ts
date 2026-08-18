@@ -51,15 +51,34 @@ function generateToken(): string {
  * Promises no timeline and no decision date. Mentions no other role and
  * nothing promotional.
  */
-function buildBody(publicRef: string): string {
-  return [
-    `We have received your application. Your reference is ${publicRef}.`,
-    'Applications are reviewed on a rolling basis. We contact the applicants we wish to speak to, and we are not able to reply to everyone individually.',
-    'Please keep your reference for any correspondence about this application.',
-  ].join('\n\n');
+const BODY_TEMPLATE = `Hello {{name}},
+
+We have received your application for {{role}}. Your reference is {{reference}}.
+
+Applications are reviewed on a rolling basis. We contact the applicants we wish to speak to, and we are not able to reply to everyone individually.
+
+Please keep your reference for any correspondence about this application.
+
+Welile — Talent & Recruitment`;
+
+function personalise(template: string, name: string, role: string | null, reference: string): string {
+  const roleValue = role?.trim() ? role.trim() : '';
+  let result = template
+    .replace(/\{\{\s*name\s*\}\}/gi, name)
+    .replace(/\{\{\s*reference\s*\}\}/gi, reference);
+  if (roleValue) {
+    result = result.replace(/\{\{\s*role\s*\}\}/gi, roleValue);
+  } else {
+    result = result.replace(/\s+for\s+\{\{\s*role\s*\}\}/gi, '');
+  }
+  return result;
 }
 
-function buildHtml(opts: { greetingName: string; bodyText: string; publicRef: string }): string {
+function buildBody(name: string, role: string | null, reference: string): string {
+  return personalise(BODY_TEMPLATE, name, role, reference);
+}
+
+function buildHtml(opts: { bodyText: string }): string {
   const paragraphs = opts.bodyText
     .split(/\n{2,}/)
     .map((p) => `<p style="margin:0 0 14px;line-height:1.6">${escapeHtml(p).replace(/\n/g, '<br/>')}</p>`)
@@ -67,15 +86,12 @@ function buildHtml(opts: { greetingName: string; bodyText: string; publicRef: st
 
   return `<!doctype html><html><body style="margin:0;background:#f6f7f9;padding:24px;font-family:Helvetica,Arial,sans-serif;color:#1f2933">
 <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:12px;padding:28px">
-<p style="margin:0 0 18px;font-size:15px">Hello ${escapeHtml(opts.greetingName)},</p>
 ${paragraphs}
-<p style="margin:22px 0 0;font-size:12px;color:#6b7280">Your application reference: <strong>${escapeHtml(opts.publicRef)}</strong></p>
-<p style="margin:8px 0 0;font-size:12px;color:#6b7280">${SITE_NAME} — Talent &amp; Recruitment</p>
 </div></body></html>`;
 }
 
-function buildText(opts: { greetingName: string; bodyText: string; publicRef: string }) {
-  return `Hello ${opts.greetingName},\n\n${opts.bodyText}\n\nYour application reference: ${opts.publicRef}\n\n${SITE_NAME} — Talent & Recruitment`;
+function buildText(opts: { bodyText: string }) {
+  return opts.bodyText;
 }
 
 Deno.serve(async (req) => {
@@ -124,7 +140,7 @@ Deno.serve(async (req) => {
   // ── Candidates: new, un-purged, with an email, created at/after the cutoff.
   const { data: candidates, error: fetchError } = await adminClient
     .from('job_applications')
-    .select('id, full_name, email, public_ref, created_at')
+    .select('id, full_name, email, public_ref, role_interest, created_at')
     .is('purged_at', null)
     .not('email', 'is', null)
     .eq('status', 'new')
@@ -162,10 +178,11 @@ Deno.serve(async (req) => {
 
     const name = (applicant.full_name || 'there').trim();
     const publicRef = applicant.public_ref || '—';
+    const role = (applicant as any).role_interest ?? null;
     const address = (applicant.email || '').trim().toLowerCase();
     if (!address) continue;
 
-    const bodyText = buildBody(publicRef);
+    const bodyText = buildBody(name, role, publicRef);
 
     try {
       // Suppression: fail-closed, same table and semantics as hr-careers-bulk-email.
@@ -206,8 +223,8 @@ Deno.serve(async (req) => {
       }
 
       const messageId = crypto.randomUUID();
-      const html = buildHtml({ greetingName: name, bodyText, publicRef });
-      const text = buildText({ greetingName: name, bodyText, publicRef });
+      const html = buildHtml({ bodyText });
+      const text = buildText({ bodyText });
 
       await adminClient.from('email_send_log').insert({
         message_id: messageId,
