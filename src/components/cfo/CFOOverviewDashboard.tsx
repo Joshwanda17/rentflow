@@ -1,13 +1,19 @@
 import { useState, useCallback } from 'react';
 import { useCFOOverviewData } from '@/hooks/useCFOOverviewData';
+import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import {
   Loader2, ArrowDownRight, ArrowUpRight, Scale, Wallet, HandCoins, Users, TrendingUp,
   Banknote, FileSpreadsheet, ShieldCheck, AlertTriangle, Timer, Percent, Landmark,
-  Receipt, Activity, ClipboardCheck,
+  Receipt, Activity, ClipboardCheck, ChevronRight, Info, CalendarDays, Download,
+  PiggyBank, Flame, BarChart3, Package, LineChart as LineChartIcon,
 } from 'lucide-react';
+import {
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  Line, ComposedChart,
+} from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { KPIBreakdownSheet } from '@/components/cfo/KPIBreakdownSheet';
@@ -33,6 +39,7 @@ const fmtShort = (n: number) => {
 export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps) {
   const [exportingCommissions, setExportingCommissions] = useState(false);
   const [activeBreakdown, setActiveBreakdown] = useState<string | null>(null);
+  const { user } = useAuth();
   const {
     platformCash, liabilities, revenue, receivables, moneyFlow,
     todayCashFlow, integrityChecks, pendingApprovals, treasuryControls, refetchControls,
@@ -165,8 +172,93 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
     { label: 'Total Wallet Balances', value: liabilities?.tenantFunds ?? 0, icon: <Wallet className="h-4 w-4" /> },
   ];
 
+  /* ── presentation-only derivations (no new data sources) ── */
+  const firstName = (() => {
+    const raw = (user?.user_metadata as any)?.full_name || user?.email || '';
+    const first = String(raw).split(/[\s@.]+/)[0] || '';
+    return first ? first.charAt(0).toUpperCase() + first.slice(1) : 'there';
+  })();
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  const todayLabel = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+  const actionTrail = [
+    {
+      label: 'Payouts Awaiting Approval',
+      severity: (pendingApprovals?.count ?? 0) > 0 ? 'High' : 'Low',
+      count: pendingApprovals?.count ?? 0,
+      amount: pendingApprovals?.totalAmount ?? 0,
+      tab: 'withdrawals',
+    },
+    {
+      label: 'Reconciliation Exceptions',
+      severity: (integrityChecks?.missingGroupCount ?? 0) > 0 ? 'High' : 'Low',
+      count: integrityChecks?.missingGroupCount ?? 0,
+      amount: null as number | null,
+      tab: 'reconciliation',
+    },
+    {
+      label: 'Wallet Drift',
+      severity: (integrityChecks?.walletDriftCount ?? 0) > 0 ? 'Medium' : 'Low',
+      count: integrityChecks?.walletDriftCount ?? 0,
+      amount: null as number | null,
+      tab: 'ledger-health',
+    },
+    {
+      label: 'Negative Balances',
+      severity: (integrityChecks?.negativeLedgerCount ?? 0) > 0 ? 'High' : 'Low',
+      count: integrityChecks?.negativeLedgerCount ?? 0,
+      amount: null as number | null,
+      tab: 'ledger-health',
+    },
+    {
+      label: 'Advances Outstanding',
+      severity: 'Medium',
+      count: null as number | null,
+      amount: advancesOutstandingAll,
+      tab: 'advances',
+    },
+  ];
+
+  const trendChartData = trend.map((t) => ({
+    label: t.date.slice(5),
+    revenue: t.amount,
+  }));
+
+  const advancesChartData = [
+    { label: 'Issued', disbursed: advancesIssued, recovered: 0 },
+    { label: 'Recovered', disbursed: 0, recovered: receivables?.advancesRecovered ?? 0 },
+    { label: 'Outstanding', disbursed: advancesOutstandingAll, recovered: 0 },
+  ];
+
   return (
-    <div className="space-y-5 max-w-5xl mx-auto">
+    <div className="space-y-5 max-w-7xl mx-auto">
+
+      {/* ══════════════ GREETING HEADER ══════════════ */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
+            {greeting}, {firstName} <span aria-hidden>👋</span>
+          </h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Here's what's happening with Welile today.</p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 h-9 px-3 rounded-xl border border-border bg-card text-xs font-medium">
+            <CalendarDays className="h-4 w-4 text-muted-foreground" />
+            {todayLabel}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 rounded-xl gap-2 text-xs"
+            onClick={handleExportCommissions}
+            disabled={exportingCommissions}
+          >
+            {exportingCommissions ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            Export
+          </Button>
+        </div>
+      </div>
 
       {/* ── PAY TO WALLET ── */}
       {onTabChange && (
@@ -184,6 +276,154 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
           <ArrowUpRight className="h-5 w-5 opacity-60 shrink-0" />
         </button>
       )}
+
+      {/* ══════════════ THREE HEADLINE CARDS ══════════════ */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <HeroCard
+          icon={<PiggyBank className="h-5 w-5 text-emerald-600" />}
+          iconBg="bg-emerald-50 dark:bg-emerald-950/40"
+          title="Money We Have"
+          value={fmt(totalCash)}
+          valueColor="text-emerald-600"
+          items={[
+            { dot: 'bg-emerald-500', label: 'Platform / Treasury Balance', value: fmt(platformCash?.a1 ?? 0) },
+            { dot: 'bg-emerald-500', label: 'Cash in Transit (A5)', value: fmt(platformCash?.a5 ?? 0) },
+          ]}
+          footer="Total available across all accounts"
+          footerTone="bg-emerald-50/70 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400"
+          onClick={() => setActiveBreakdown('cash')}
+        />
+        <HeroCard
+          icon={<Package className="h-5 w-5 text-orange-600" />}
+          iconBg="bg-orange-50 dark:bg-orange-950/40"
+          title="Money We Owe"
+          value={fmt(walletTotal)}
+          valueColor="text-orange-600"
+          items={[
+            { dot: 'bg-orange-500', label: 'Withdrawable User Wallets', value: fmt(walletTotal) },
+            { dot: 'bg-orange-500', label: 'All Recorded Liabilities', value: fmt(totalLiabilities) },
+          ]}
+          footer="Commitments not yet paid out"
+          footerTone="bg-orange-50/70 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400"
+          onClick={() => setActiveBreakdown('wallets')}
+        />
+        <HeroCard
+          icon={<BarChart3 className="h-5 w-5 text-blue-600" />}
+          iconBg="bg-blue-50 dark:bg-blue-950/40"
+          title="Money We Can Use"
+          value={fmt(moneyWeCanUse)}
+          valueColor={moneyWeCanUse >= 0 ? 'text-blue-600' : 'text-destructive'}
+          items={[
+            { dot: 'bg-blue-500', label: 'Available for Operations', value: fmt(moneyWeCanUse) },
+          ]}
+          footer="After obligations and restrictions"
+          footerTone="bg-blue-50/70 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400"
+          onClick={() => setActiveBreakdown('earnings')}
+        />
+      </div>
+
+      {/* ══════════════ CFO ACTION TRAIL ══════════════ */}
+      <Card className="rounded-2xl">
+        <CardContent className="p-4 sm:p-5">
+          <div className="flex items-start justify-between gap-3 mb-4">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                <ClipboardCheck className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="font-semibold text-sm">CFO Action Trail</p>
+                <p className="text-xs text-muted-foreground">Items that need your attention</p>
+              </div>
+            </div>
+            {onTabChange && (
+              <button
+                onClick={() => onTabChange('reconciliation')}
+                className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline shrink-0"
+              >
+                View all <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 divide-y xl:divide-y-0 xl:divide-x divide-border">
+            {actionTrail.map((item) => (
+              <TrailItem
+                key={item.label}
+                label={item.label}
+                severity={item.severity}
+                count={item.count}
+                amount={item.amount}
+                amountLabel={item.amount === null ? null : fmt(item.amount)}
+                onClick={onTabChange ? () => onTabChange(item.tab) : undefined}
+              />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ══════════════ KPI STRIP ══════════════ */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-3">
+        <KpiTile icon={<Banknote className="h-4 w-4 text-emerald-600" />} iconBg="bg-emerald-50 dark:bg-emerald-950/40" label="Cash Balance" value={fmt(totalCash)} caption="Bank + in transit" />
+        <KpiTile icon={<Flame className="h-4 w-4 text-destructive" />} iconBg="bg-red-50 dark:bg-red-950/40" label="Daily Burn" value={fmt(dailyBurn)} caption="30-day average" />
+        <KpiTile icon={<TrendingUp className="h-4 w-4 text-emerald-600" />} iconBg="bg-emerald-50 dark:bg-emerald-950/40" label="Revenue" value={fmt(revenueTotal)} caption="Life to date" />
+        <KpiTile icon={<Receipt className="h-4 w-4 text-orange-600" />} iconBg="bg-orange-50 dark:bg-orange-950/40" label="Total Expenses" value={fmt(expenseTotal)} caption="Life to date" />
+        <KpiTile icon={<Scale className="h-4 w-4 text-blue-600" />} iconBg="bg-blue-50 dark:bg-blue-950/40" label="Net Working Capital" value={fmt(netWorkingCapital)} caption="Cash + receivables − debt" valueColor={netWorkingCapital >= 0 ? undefined : 'text-destructive'} />
+        <KpiTile icon={<Banknote className="h-4 w-4 text-emerald-600" />} iconBg="bg-emerald-50 dark:bg-emerald-950/40" label="Net Result" value={fmt(netProfit)} caption="Revenue − expenses" valueColor={netProfit >= 0 ? 'text-emerald-600' : 'text-destructive'} />
+        <KpiTile icon={<Percent className="h-4 w-4 text-purple-600" />} iconBg="bg-purple-50 dark:bg-purple-950/40" label="Net Margin" value={`${netMargin.toFixed(1)}%`} caption="Net ÷ revenue" valueColor={netMargin >= 0 ? undefined : 'text-destructive'} />
+        <KpiTile icon={<Users className="h-4 w-4 text-amber-600" />} iconBg="bg-amber-50 dark:bg-amber-950/40" label="Receivables" value={fmt(totalReceivables)} caption="Tenant + advances" />
+      </div>
+
+      {/* ══════════════ CHARTS ══════════════ */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card className="rounded-2xl">
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex items-center justify-between gap-2 mb-4">
+              <p className="font-semibold text-sm">Revenue — Last 7 Days</p>
+              <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                <LineChartIcon className="h-3.5 w-3.5" /> UGX
+              </span>
+            </div>
+            {trendChartData.length > 0 ? (
+              <div className="h-[260px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={trendChartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                    <XAxis dataKey="label" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                    <YAxis tickFormatter={(v: number) => fmtShort(v)} tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" width={52} />
+                    <Tooltip formatter={(v: number) => fmt(v)} contentStyle={{ borderRadius: 12, fontSize: 12 }} />
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    <Bar name="Revenue (UGX)" dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} barSize={22} />
+                    <Line name="Trend" type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={2} dot={{ r: 3 }} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground py-10 text-center">No revenue recorded in the last 7 days.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-2xl">
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex items-center justify-between gap-2 mb-4">
+              <p className="font-semibold text-sm">Advances — Disbursed vs Recovered</p>
+              <span className="text-[11px] text-muted-foreground">{recoveryRate.toFixed(0)}% recovered</span>
+            </div>
+            <div className="h-[260px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={advancesChartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                  <XAxis dataKey="label" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                  <YAxis tickFormatter={(v: number) => fmtShort(v)} tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" width={52} />
+                  <Tooltip formatter={(v: number) => fmt(v)} contentStyle={{ borderRadius: 12, fontSize: 12 }} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Bar name="Disbursed (UGX)" dataKey="disbursed" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={30} />
+                  <Bar name="Recovered (UGX)" dataKey="recovered" fill="#10b981" radius={[4, 4, 0, 0]} barSize={30} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* ══════════════ CFO COMMAND DECK ══════════════ */}
 
@@ -311,35 +551,6 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
           )}
         </CardContent>
       </Card>
-
-      {/* ── 3 KEY NUMBERS ── */}
-      <div className="grid grid-cols-1 gap-3">
-        <MetricCard
-          icon={<div className="h-10 w-10 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center"><Banknote className="h-5 w-5 text-blue-600" /></div>}
-          label="Money We Have"
-          sublabel="Cash and Bank (A1) + Cash in Transit (A5) — Balance Sheet basis"
-          value={fmt(totalCash)}
-          detail={`Bank: ${fmtShort(platformCash?.a1 ?? 0)} · In transit: ${fmtShort(platformCash?.a5 ?? 0)}`}
-          onClick={() => setActiveBreakdown('cash')}
-        />
-        <MetricCard
-          icon={<div className="h-10 w-10 rounded-xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center"><Wallet className="h-5 w-5 text-amber-600" /></div>}
-          label="Money We Owe"
-          sublabel="What users can withdraw anytime"
-          value={fmt(walletTotal)}
-          detail={`All debts: ${fmtShort(totalLiabilities)}`}
-          onClick={() => setActiveBreakdown('wallets')}
-        />
-        <MetricCard
-          icon={<div className="h-10 w-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center"><TrendingUp className="h-5 w-5 text-emerald-600" /></div>}
-          label="Money We Can Use"
-          sublabel="Cash available for operations"
-          value={fmt(moneyWeCanUse)}
-          detail={`Cash: ${fmtShort(totalCash)} − Wallets: ${fmtShort(walletTotal)}`}
-          valueColor={moneyWeCanUse >= 0 ? 'text-emerald-600' : 'text-destructive'}
-          onClick={() => setActiveBreakdown('earnings')}
-        />
-      </div>
 
       {/* ── AGENT ADVANCES ── */}
       {(receivables?.advancesPrincipal ?? 0) > 0 && (
@@ -578,6 +789,103 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
 
 /* ── Sub-components ── */
 
+function HeroCard({ icon, iconBg, title, value, valueColor, items, footer, footerTone, onClick }: {
+  icon: React.ReactNode;
+  iconBg: string;
+  title: string;
+  value: string;
+  valueColor: string;
+  items: { dot: string; label: string; value: string }[];
+  footer: string;
+  footerTone: string;
+  onClick?: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full text-left rounded-2xl border border-border bg-card overflow-hidden hover:shadow-md active:scale-[0.995] transition-all"
+    >
+      <div className="p-4 sm:p-5">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}>{icon}</div>
+            <p className="font-semibold text-sm truncate">{title}</p>
+          </div>
+          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+        </div>
+        <p className={`mt-4 text-xl sm:text-2xl font-bold font-mono tabular-nums tracking-tight ${valueColor}`}>{value}</p>
+        <div className="mt-4 pt-4 border-t border-border space-y-2.5">
+          {items.map((it) => (
+            <div key={it.label} className="flex items-center justify-between gap-2 text-xs">
+              <span className="flex items-center gap-2 min-w-0 text-muted-foreground">
+                <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${it.dot}`} />
+                <span className="truncate">{it.label}</span>
+              </span>
+              <span className="font-mono tabular-nums font-medium shrink-0">{it.value}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className={`flex items-center justify-between gap-2 px-4 sm:px-5 py-2.5 text-[11px] font-medium ${footerTone}`}>
+        <span className="truncate">{footer}</span>
+        <Info className="h-3.5 w-3.5 shrink-0 opacity-70" />
+      </div>
+    </button>
+  );
+}
+
+function TrailItem({ label, severity, count, amount, amountLabel, onClick }: {
+  label: string;
+  severity: string;
+  count: number | null;
+  amount: number | null;
+  amountLabel: string | null;
+  onClick?: () => void;
+}) {
+  const tone =
+    severity === 'High'
+      ? 'bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400'
+      : severity === 'Medium'
+        ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400'
+        : 'bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400';
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="text-left px-0 xl:px-4 py-3 xl:py-0 hover:bg-muted/30 transition-colors min-w-0"
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full shrink-0 ${tone}`}>{severity}</span>
+          <span className="text-xs font-medium truncate">{label}</span>
+        </div>
+        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+      </div>
+      <p className="mt-1.5 text-[11px] text-muted-foreground font-mono tabular-nums">
+        {count !== null && <>{count} item{count === 1 ? '' : 's'}</>}
+        {count !== null && amountLabel ? ' · ' : ''}
+        {amountLabel}
+      </p>
+    </button>
+  );
+}
+
+function KpiTile({ icon, iconBg, label, value, caption, valueColor }: {
+  icon: React.ReactNode; iconBg: string; label: string; value: string; caption: string; valueColor?: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-border bg-card p-3 min-w-0">
+      <div className="flex items-center gap-2 mb-2">
+        <div className={`h-7 w-7 rounded-lg flex items-center justify-center shrink-0 ${iconBg}`}>{icon}</div>
+        <p className="text-[11px] font-medium text-muted-foreground truncate">{label}</p>
+      </div>
+      <p className={`text-sm font-bold font-mono tabular-nums leading-tight break-words ${valueColor || ''}`}>{value}</p>
+      <p className="text-[10px] text-muted-foreground mt-1 leading-tight">{caption}</p>
+    </div>
+  );
+}
+
 function DeckStat({ icon, label, value, caption, tone }: {
   icon: React.ReactNode; label: string; value: string; caption: string; tone?: string;
 }) {
@@ -601,35 +909,6 @@ function DeckLink({ label, onClick }: { label: string; onClick: () => void }) {
       className="px-3 py-1.5 rounded-full border border-border bg-muted/50 text-xs font-semibold hover:bg-muted transition-colors"
     >
       {label} →
-    </button>
-  );
-}
-
-function MetricCard({ icon, label, sublabel, value, detail, valueColor, onClick }: {
-  icon: React.ReactNode;
-  label: string;
-  sublabel: string;
-  value: string;
-  detail: string;
-  valueColor?: string;
-  onClick?: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="w-full rounded-2xl border bg-card p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-left active:scale-[0.98] transition-all hover:shadow-md"
-    >
-      <div className="flex items-center gap-3 sm:gap-4">
-        <div className="shrink-0">{icon}</div>
-        <div className="min-w-0 flex-1 sm:flex-initial">
-          <p className="text-sm font-semibold">{label}</p>
-          <p className="text-[11px] text-muted-foreground leading-tight">{sublabel}</p>
-        </div>
-      </div>
-      <div className="text-left sm:text-right sm:ml-auto shrink-0 pl-[52px] sm:pl-0">
-        <p className={`text-base sm:text-lg font-bold font-mono tabular-nums ${valueColor || ''}`}>{value}</p>
-        <p className="text-[10px] text-muted-foreground">{detail}</p>
-      </div>
     </button>
   );
 }
