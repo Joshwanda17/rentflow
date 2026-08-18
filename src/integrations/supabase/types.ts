@@ -37123,6 +37123,16 @@ export type Database = {
         }
         Returns: Json
       }
+      dispatch_tenant_transfer_notice: {
+        Args: {
+          p_from_agent_id: string
+          p_reason: string
+          p_source: string
+          p_tenant_id: string
+          p_to_agent_id: string
+        }
+        Returns: undefined
+      }
       drain_withdrawable_buckets: {
         Args: { p_amount: number; p_user_id: string }
         Returns: {
@@ -39573,6 +39583,21 @@ export type Database = {
       get_tenant_repayment_reliability: {
         Args: { p_band?: string; p_limit?: number; p_offset?: number }
         Returns: Json
+      }
+      get_tenant_transfer_history: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          actor_id: string
+          actor_name: string
+          from_agent_id: string
+          from_agent_name: string
+          id: string
+          occurred_at: string
+          reason: string
+          source: string
+          to_agent_id: string
+          to_agent_name: string
+        }[]
       }
       get_tenants_at_leaf:
         | {
