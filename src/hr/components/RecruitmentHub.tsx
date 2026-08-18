@@ -172,6 +172,18 @@ const DECISION_LABELS: Record<ApplicationDecision, string> = {
   rejected: 'Decline',
 };
 
+/**
+ * Already-shortlisted candidates sit at shortlist level 1, so their shortlist
+ * action reads "Shortlist 1" (and is tinted) instead of the plain "Shortlist".
+ */
+function decisionLabel(d: ApplicationDecision, status: string | null): string {
+  if (d === 'shortlisted' && status === 'shortlisted') return 'Shortlist 1';
+  return DECISION_LABELS[d];
+}
+
+const SHORTLIST_LEVEL_1_CLASS =
+  'border-violet-500/50 bg-violet-500/10 text-violet-700 hover:bg-violet-500/20';
+
 
 const fmtCount = (n: number) => Math.round(n).toLocaleString();
 
@@ -653,12 +665,16 @@ function ApplicationsTab() {
                           key={d}
                           size="sm"
                           variant="outline"
-                          className="h-7 px-2 text-xs"
+                          className={`h-7 px-2 text-xs ${
+                            d === 'shortlisted' && row.status === 'shortlisted'
+                              ? SHORTLIST_LEVEL_1_CLASS
+                              : ''
+                          }`}
                           onClick={() => {
                             setPending({ row, kind: d });
                           }}
                         >
-                          {DECISION_LABELS[d]}
+                          {decisionLabel(d, row.status)}
                         </Button>
                       ))}
                       <Button
@@ -698,11 +714,16 @@ function ApplicationsTab() {
                     key={d}
                     size="sm"
                     variant="outline"
+                    className={
+                      d === 'shortlisted' && selected.status === 'shortlisted'
+                        ? SHORTLIST_LEVEL_1_CLASS
+                        : undefined
+                    }
                     onClick={() => {
                       setPending({ row: selected, kind: d });
                     }}
                   >
-                    {DECISION_LABELS[d]}
+                    {decisionLabel(d, selected.status)}
                   </Button>
                 ))}
                 <Button
