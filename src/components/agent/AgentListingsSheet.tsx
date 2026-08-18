@@ -1064,6 +1064,31 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse, vacantOnly
                   </div>
                 );
               })}
+
+              {filteredGrouped.length > GROUPS_PER_PAGE && (
+                <div className="flex items-center justify-between gap-2 pt-1">
+                  <p className="text-[11px] text-muted-foreground">
+                    Landlords {(page - 1) * GROUPS_PER_PAGE + 1}–{Math.min(page * GROUPS_PER_PAGE, filteredGrouped.length)} of {filteredGrouped.length}
+                  </p>
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      size="sm" variant="outline" className="h-8 px-2 text-xs"
+                      disabled={page === 1}
+                      onClick={() => setPage(p => Math.max(1, p - 1))}
+                    >
+                      <ChevronLeft className="h-3.5 w-3.5" /> Prev
+                    </Button>
+                    <span className="text-[11px] text-muted-foreground px-1">{page} / {totalPages}</span>
+                    <Button
+                      size="sm" variant="outline" className="h-8 px-2 text-xs"
+                      disabled={page >= totalPages}
+                      onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    >
+                      Next <ChevronRight className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>
