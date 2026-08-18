@@ -95,15 +95,16 @@ export function ServiceCenterRentVettingQueue() {
         pending.map((req) => (
           <Card key={req.id}>
             <CardContent className="space-y-2 p-3">
-              <div className="flex items-start justify-between gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-foreground">{req.tenant_name ?? 'Tenant'}</p>
-                  <p className="truncate text-xs text-muted-foreground">
+                  <p className="break-words text-sm font-semibold leading-tight text-foreground">{req.tenant_name ?? 'Tenant'}</p>
+                  <p className="break-words text-[11px] text-muted-foreground">
                     Submitted by {req.agent_name ?? 'sub-agent'}
                   </p>
                 </div>
-                <Badge variant="outline" className="shrink-0 text-[10px]">Service Center review</Badge>
+                <Badge variant="outline" className="w-fit shrink-0 text-[10px]">Service Center review</Badge>
               </div>
+
 
               <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
                 <span>Rent: <strong className="text-foreground">{formatUGX(Number(req.rent_amount || 0))}</strong></span>
