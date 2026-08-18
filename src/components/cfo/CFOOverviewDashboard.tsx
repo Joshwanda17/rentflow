@@ -135,6 +135,8 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
   }
 
   const totalCash = platformCash?.totalCash ?? 0;
+  const treasuryPosition = (platformCash?.positions ?? []).find((p: any) => p.category === 'treasury_platform_cash');
+  const bankPosition = (platformCash?.positions ?? []).find((p: any) => p.category === 'bank_cash');
   const totalReceivables = receivables?.totalReceivables ?? 0;
   const totalLiabilities = liabilities?.totalLiabilities ?? 0;
   const walletTotal = liabilities?.tenantFunds ?? 0;
