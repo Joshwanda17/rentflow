@@ -140,7 +140,7 @@ export function AgentAdvancesTrendChart() {
 }
 
 export function AgentAdvancesStatsCard() {
-  const { stats, loading } = useAgentAdvancesPortfolioData();
+  const { stats } = useAgentAdvancesPortfolioData();
 
   return (
     <Card className="w-full rounded-2xl">
