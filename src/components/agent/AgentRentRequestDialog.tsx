@@ -3119,10 +3119,12 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       // The tenant already has a rejected request that is still fixable. Never
       // let the agent create a second row — send them into the resubmit path so
       // the rejection reason and history stay attached.
-      const duplicateMatch = /DUPLICATE_AFTER_REJECTION[^]*?([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i.exec(msg)
-        || /DUPLICATE_AFTER_REJECTION/i.test(msg) && /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i.exec(error?.hint || '') || null;
-      if (duplicateMatch) {
-        const existingId = duplicateMatch[1];
+      const isDuplicateAfterRejection = /DUPLICATE_AFTER_REJECTION/i.test(`${msg} ${error?.hint ?? ''} ${error?.details ?? ''}`);
+      const uuidRe = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+      const existingId = isDuplicateAfterRejection
+        ? (uuidRe.exec(error?.hint || '')?.[0] ?? uuidRe.exec(msg)?.[0] ?? null)
+        : null;
+      if (isDuplicateAfterRejection) {
         const friendly = 'This tenant already has a rejected rent request. Fix the flagged detail on that request and resubmit it — creating a new one would duplicate the tenant.';
         setSubmissionError(friendly);
         toast.error('Duplicate blocked — resubmit instead', { description: friendly });
