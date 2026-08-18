@@ -235,7 +235,7 @@ export function MerchantDispatchListener() {
               <div className="flex items-center gap-2">
                 <span className="relative flex h-2.5 w-2.5">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white/70" />
-                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-white" />
+                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-card" />
                 </span>
                 <span className="text-sm font-bold uppercase tracking-wide">
                   {card.kind === 'partner_returns'

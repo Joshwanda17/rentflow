@@ -1418,7 +1418,7 @@ export function AgentCashPayoutsTab() {
             </div>
             <div className="text-right">
               <p className="text-xs text-emerald-700">Payouts</p>
-              <p className="text-lg font-bold tabular-nums text-slate-900">{commissionBreakdown?.grandCount ?? 0}</p>
+              <p className="text-lg font-bold tabular-nums text-foreground">{commissionBreakdown?.grandCount ?? 0}</p>
             </div>
           </div>
 
@@ -1689,7 +1689,7 @@ export function AgentCashPayoutsTab() {
           <button
             type="button"
             onClick={() => setAuditOpen(true)}
-            className="shrink-0 rounded-lg border border-orange-500/30 bg-white/70 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-orange-700 hover:bg-white dark:bg-orange-500/10 dark:text-orange-300"
+            className="shrink-0 rounded-lg border border-orange-500/30 bg-white/70 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-orange-700 hover:bg-card dark:bg-orange-500/10 dark:text-orange-300"
           >
             View audit
           </button>

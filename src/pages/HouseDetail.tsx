@@ -480,7 +480,7 @@ export default function HouseDetail() {
                     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5">
                       {images.map((_, i) => (
                         <button key={i} onClick={(e) => { e.stopPropagation(); setImgIdx(i); }}
-                          className={`w-2 h-2 rounded-full transition-all ${i === imgIdx ? 'bg-white w-5' : 'bg-white/50'}`} />
+                          className={`w-2 h-2 rounded-full transition-all ${i === imgIdx ? 'bg-card w-5' : 'bg-white/50'}`} />
                       ))}
                     </div>
                   </>

@@ -122,8 +122,8 @@ export function CFOImpactKPIStrip() {
             label="Dormant Landlords"
             value={fmtCount(data?.landlordsDormant ?? 0)}
             sublabel="no rent in 90+ days"
-            iconBg="bg-slate-100 dark:bg-slate-900/30"
-            iconColor="text-slate-600"
+            iconBg="bg-muted dark:bg-slate-900/30"
+            iconColor="text-muted-foreground"
             loading={isLoading}
             onClick={() => setDrilldown('landlords_dormant')}
           />

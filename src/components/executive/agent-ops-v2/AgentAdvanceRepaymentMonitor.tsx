@@ -294,7 +294,7 @@ export function AgentAdvanceRepaymentMonitor() {
         <KPICard title="Interest today" value={formatUGX(revenue.interestToday)} icon={Sparkles} color="bg-indigo-100 text-indigo-700" subtitle={format(new Date(), 'EEE, d MMM')} />
         <KPICard title="Interest this month" value={formatUGX(revenue.interestMTD)} icon={CalendarDays} color="bg-indigo-100 text-indigo-700" subtitle={`Avg ${formatUGX(revenue.dailyAvgInterest)}/day`} />
         <KPICard title="Collected this month" value={formatUGX(revenue.collectedMTD)} icon={Banknote} color="bg-emerald-100 text-emerald-700" subtitle={format(new Date(), 'MMMM yyyy')} />
-        <KPICard title="Principal this month" value={formatUGX(Math.max(0, revenue.collectedMTD - revenue.interestMTD))} icon={TrendingDown} color="bg-slate-100 text-slate-700" subtitle="Collected − interest" />
+        <KPICard title="Principal this month" value={formatUGX(Math.max(0, revenue.collectedMTD - revenue.interestMTD))} icon={TrendingDown} color="bg-muted text-muted-foreground" subtitle="Collected − interest" />
       </div>
 
       {/* Trend chart */}

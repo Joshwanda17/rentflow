@@ -230,7 +230,7 @@ Let's build a better future together! 🏡`;
                 </p>
                 
                 {/* Summary Card */}
-                <Card className="bg-white border-purple-200">
+                <Card className="bg-card border-purple-200">
                   <CardContent className="p-4 space-y-3">
                     <h3 className="font-semibold text-sm">What You'll Get:</h3>
                     <div className="space-y-2 text-left">

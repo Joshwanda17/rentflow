@@ -4664,7 +4664,7 @@ function ExpiringPortfoliosDialog({ open, onOpenChange, portfolios }: {
                 ['Queued', progress.queued, 'text-muted-foreground'],
                 ['Sent', progress.sent, 'text-emerald-600'],
                 ['Skipped', progress.skipped, 'text-amber-600'],
-                ['Suppressed', progress.suppressed, 'text-slate-500'],
+                ['Suppressed', progress.suppressed, 'text-muted-foreground'],
                 ['Rate-limited', progress.rateLimited, 'text-orange-600'],
                 ['Failed', progress.failed, 'text-rose-600'],
               ] as const).map(([label, value, tone]) => (

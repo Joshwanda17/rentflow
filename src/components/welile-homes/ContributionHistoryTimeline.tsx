@@ -139,7 +139,7 @@ export function ContributionHistoryTimeline({
             <History className="h-4 w-4 text-purple-600" />
             Contribution History
           </CardTitle>
-          <Badge variant="outline" className="text-[10px] bg-white">
+          <Badge variant="outline" className="text-[10px] bg-card">
             {contributions.length} entries
           </Badge>
         </div>
@@ -181,7 +181,7 @@ export function ContributionHistoryTimeline({
                   className="relative pl-10"
                 >
                   {/* Timeline dot */}
-                  <div className={`absolute left-2 top-3 w-4 h-4 rounded-full border-2 bg-white flex items-center justify-center ${
+                  <div className={`absolute left-2 top-3 w-4 h-4 rounded-full border-2 bg-card flex items-center justify-center ${
                     contribution.contribution_type === 'interest' ? 'border-purple-400' : 'border-emerald-400'
                   }`}>
                     <div className={`w-2 h-2 rounded-full ${

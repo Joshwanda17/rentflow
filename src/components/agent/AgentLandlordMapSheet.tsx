@@ -206,7 +206,7 @@ export function AgentLandlordMapSheet({ open, onOpenChange }: AgentLandlordMapSh
                                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-orange-100 text-orange-700">Pending</span>
                               )}
                             </div>
-                            <div className="space-y-1 text-xs text-gray-600">
+                            <div className="space-y-1 text-xs text-muted-foreground">
                               <p className="flex items-center gap-1"><Phone className="h-3 w-3" />{l.phone}</p>
                               <p className="flex items-start gap-1">
                                 <MapPin className="h-3 w-3 mt-0.5 shrink-0" />

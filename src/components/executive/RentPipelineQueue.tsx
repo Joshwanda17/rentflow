@@ -1496,7 +1496,7 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
                     <img
                       src={selectedRequest.latest_rent_receipt_url}
                       alt="Tenant's latest rent receipt"
-                      className="w-full max-h-96 rounded-lg object-contain border-2 border-amber-300 bg-white hover:ring-2 hover:ring-amber-500 transition-all cursor-zoom-in"
+                      className="w-full max-h-96 rounded-lg object-contain border-2 border-amber-300 bg-card hover:ring-2 hover:ring-amber-500 transition-all cursor-zoom-in"
                       loading="lazy"
                     />
                   </a>

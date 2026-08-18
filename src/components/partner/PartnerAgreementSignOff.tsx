@@ -373,7 +373,7 @@ export default function PartnerAgreementSignOff({
                         </label>
                       </Button>
                       {(sigDataUrl || repSigUrl) ? (
-                        <img src={sigDataUrl || repSigUrl} alt="Signature" className="h-8 max-w-[120px] object-contain border rounded bg-white" />
+                        <img src={sigDataUrl || repSigUrl} alt="Signature" className="h-8 max-w-[120px] object-contain border rounded bg-card" />
                       ) : (
                         <span className="text-[10px] text-amber-600">No signature yet</span>
                       )}
@@ -418,8 +418,8 @@ export default function PartnerAgreementSignOff({
           </div>
 
           {/* RIGHT — live preview */}
-          <div className="overflow-y-auto bg-slate-100 p-3 sm:p-6">
-            <div className="mx-auto max-w-[760px] bg-white shadow-lg rounded-sm">
+          <div className="overflow-y-auto bg-muted p-3 sm:p-6">
+            <div className="mx-auto max-w-[760px] bg-card shadow-lg rounded-sm">
               {previewData ? (
                 <AgreementHtmlPreview data={previewData} />
               ) : (

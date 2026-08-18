@@ -76,8 +76,7 @@
 
     <!-- PWA -->
     <link rel="manifest" href="/manifest.webmanifest" />
-    <meta name="theme-color" content="#7c3aed" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#5b21b6" media="(prefers-color-scheme: dark)" />
+    <meta id="theme-color-meta" name="theme-color" content="#7c3aed" />
 
     <!-- iOS PWA -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -158,12 +157,31 @@
       html{font-family:'Plus Jakarta Sans',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;background:#f8fafc;-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%;text-size-adjust:100%}
       body{min-height:100vh;min-height:100dvh;overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch}
       #root{min-height:100vh;min-height:100dvh}
-      @media(prefers-color-scheme:dark){html{background:#0f172a}}
+      html.dark{background:#0f172a}
       /* Reduce motion for low-end devices */
       @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:0.01ms!important;animation-iteration-count:1!important;transition-duration:0.01ms!important;scroll-behavior:auto!important}}
       /* Data saver mode */
       @media(prefers-reduced-data:reduce){img[save-data-hidden],video,.decorative{display:none!important}}
     </style>
+
+    <!-- Apply saved theme before first paint (no white flash in dark mode) -->
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem('theme');
+          var dark =
+            stored === 'dark' ||
+            ((!stored || stored === 'system') &&
+              window.matchMedia('(prefers-color-scheme: dark)').matches && stored === 'system');
+          if (dark) {
+            document.documentElement.classList.add('dark');
+            document.documentElement.style.background = '#0f172a';
+          }
+          var m = document.getElementById('theme-color-meta');
+          if (m) m.setAttribute('content', dark ? '#5b21b6' : '#7c3aed');
+        } catch (e) {}
+      })();
+    </script>
   </head>
 
   <body>

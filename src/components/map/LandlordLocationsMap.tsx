@@ -184,7 +184,7 @@
                            </span>
                          )}
                        </div>
-                       <div className="space-y-1 text-xs text-gray-600">
+                       <div className="space-y-1 text-xs text-muted-foreground">
                          <p className="flex items-center gap-1">
                            <Phone className="h-3 w-3" />
                            {landlord.phone}

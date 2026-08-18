@@ -69,7 +69,7 @@ const categoryConfig: Record<string, { icon: typeof Package; color: string; bgCo
   clothing: { icon: Shirt, color: 'text-pink-500', bgColor: 'bg-pink-500/10' },
   electronics: { icon: Smartphone, color: 'text-purple-500', bgColor: 'bg-purple-500/10' },
   home: { icon: HomeIcon, color: 'text-amber-500', bgColor: 'bg-amber-500/10' },
-  general: { icon: Package, color: 'text-gray-500', bgColor: 'bg-gray-500/10' },
+  general: { icon: Package, color: 'text-muted-foreground', bgColor: 'bg-gray-500/10' },
 };
 
 const getIconForCategory = (category: string) => {

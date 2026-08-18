@@ -238,22 +238,22 @@ export function PartnerSMSBroadcast() {
                 <div className="h-1.5 w-16 rounded-full bg-slate-700" />
               </div>
               <div className="bg-gradient-to-b from-slate-100 to-slate-50 min-h-[420px] px-3 py-3">
-                <div className="flex items-center justify-between text-[10px] text-slate-500 font-medium px-1 mb-3">
+                <div className="flex items-center justify-between text-[10px] text-muted-foreground font-medium px-1 mb-3">
                   <span>9:41</span>
                   <span>WELILE</span>
                   <span>5G</span>
                 </div>
-                <div className="text-center text-[10px] text-slate-500 mb-2">Today, just now</div>
+                <div className="text-center text-[10px] text-muted-foreground mb-2">Today, just now</div>
                 <div className="flex items-start gap-2">
                   <div className="h-8 w-8 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-600 flex items-center justify-center text-white text-[10px] font-bold shrink-0">
                     W
                   </div>
-                  <div className="max-w-[210px] rounded-2xl rounded-tl-sm bg-white border border-slate-200 px-3 py-2 shadow-sm">
-                    <div className="text-[9px] uppercase tracking-wide text-slate-400 mb-1 font-semibold">WELILE</div>
-                    <p className="text-[12.5px] leading-snug text-slate-800 whitespace-pre-wrap break-words">
+                  <div className="max-w-[210px] rounded-2xl rounded-tl-sm bg-card border border-border px-3 py-2 shadow-sm">
+                    <div className="text-[9px] uppercase tracking-wide text-muted-foreground mb-1 font-semibold">WELILE</div>
+                    <p className="text-[12.5px] leading-snug text-foreground whitespace-pre-wrap break-words">
                       {previewBody}
                     </p>
-                    <div className="text-[9px] text-slate-400 mt-1 text-right">{segments} SMS</div>
+                    <div className="text-[9px] text-muted-foreground mt-1 text-right">{segments} SMS</div>
                   </div>
                 </div>
               </div>

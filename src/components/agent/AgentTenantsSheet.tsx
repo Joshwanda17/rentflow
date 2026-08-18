@@ -1398,7 +1398,7 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
               {/* CTA */}
               <button
                 onClick={() => setApplyAdvanceOpen(true)}
-                className="mt-2.5 sm:mt-3 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-white text-purple-800 font-bold text-xs sm:text-sm px-4 py-2.5 sm:py-3 shadow-lg shadow-purple-950/20 ring-1 ring-white/60 hover:bg-white/95 active:scale-[0.99] transition"
+                className="mt-2.5 sm:mt-3 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-card text-purple-800 font-bold text-xs sm:text-sm px-4 py-2.5 sm:py-3 shadow-lg shadow-purple-950/20 ring-1 ring-white/60 hover:bg-white/95 active:scale-[0.99] transition"
                 style={{ touchAction: 'manipulation', minHeight: 44 }}
               >
                 <Zap className="h-4 w-4" />
@@ -1733,7 +1733,7 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
                   Today's Collection
                 </span>
               </div>
-              <Badge variant="outline" className="text-[10px] font-mono px-2 py-0.5 border-emerald-300 text-emerald-700 bg-white">
+              <Badge variant="outline" className="text-[10px] font-mono px-2 py-0.5 border-emerald-300 text-emerald-700 bg-card">
                 {todayStats.rate}% of expected
               </Badge>
             </div>

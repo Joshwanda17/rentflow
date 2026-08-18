@@ -277,11 +277,11 @@ export default function LandlordWelileHomesPage() {
 
                       {/* Savings Display */}
                       <div className="grid grid-cols-2 gap-3 mb-3">
-                        <div className="p-2 bg-white rounded-lg border">
+                        <div className="p-2 bg-card rounded-lg border">
                           <p className="text-xs text-muted-foreground">Current Savings</p>
                           <p className="font-bold text-emerald-600">{formatUGX(tenant.total_savings)}</p>
                         </div>
-                        <div className="p-2 bg-white rounded-lg border">
+                        <div className="p-2 bg-card rounded-lg border">
                           <p className="text-xs text-muted-foreground">Monthly Contribution</p>
                           <p className="font-bold text-purple-600">{formatUGX(monthlyContribution)}</p>
                         </div>

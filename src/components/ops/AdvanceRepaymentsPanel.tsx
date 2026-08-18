@@ -52,7 +52,7 @@ const STATUS_TONE: Record<string, string> = {
   active: 'bg-emerald-100 text-emerald-700',
   repaying: 'bg-emerald-100 text-emerald-700',
   overdue: 'bg-rose-100 text-rose-700',
-  completed: 'bg-slate-100 text-slate-600',
+  completed: 'bg-muted text-muted-foreground',
 };
 
 const CHART_COLORS = ['#7c3aed', '#059669', '#f59e0b', '#ef4444', '#0ea5e9', '#ec4899'];
@@ -491,7 +491,7 @@ function RepaymentDetailDialog({
                               <Badge className={`text-[8px] px-1 py-0 h-4 border-0 ${
                                 r.deduction_status === 'full' ? 'bg-emerald-100 text-emerald-700'
                                 : r.deduction_status === 'partial' ? 'bg-amber-100 text-amber-700'
-                                : 'bg-slate-100 text-slate-500'}`}>
+                                : 'bg-muted text-muted-foreground'}`}>
                                 {r.deduction_status}
                               </Badge>
                             </td>

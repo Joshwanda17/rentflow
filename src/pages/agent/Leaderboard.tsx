@@ -166,7 +166,7 @@ export default function AgentLeaderboard() {
       <div className="mx-auto w-full max-w-3xl px-4 pb-24">
         {/* Period toggle */}
         <div className="-mt-5 relative z-20 mb-6 flex justify-center">
-          <div className="inline-flex rounded-full bg-white p-1 shadow-lg" style={{ boxShadow: '0 10px 30px -12px rgba(109,40,217,0.4)' }}>
+          <div className="inline-flex rounded-full bg-card p-1 shadow-lg" style={{ boxShadow: '0 10px 30px -12px rgba(109,40,217,0.4)' }}>
             {(['weekly', 'monthly'] as Period[]).map((p) => (
               <button
                 key={p}
@@ -226,7 +226,7 @@ export default function AgentLeaderboard() {
                           <RankIcon className="h-3.5 w-3.5" />
                         </div>
                       </motion.div>
-                      <p className="mt-2 max-w-[92px] truncate text-center text-xs font-bold text-slate-800 sm:text-sm">
+                      <p className="mt-2 max-w-[92px] truncate text-center text-xs font-bold text-foreground sm:text-sm">
                         {agent.agent_name}
                       </p>
                       {/* Bar */}
@@ -283,7 +283,7 @@ export default function AgentLeaderboard() {
             {/* Rankings table */}
             {tableRows.length > 0 && (
               <Card className="mb-6 overflow-hidden rounded-3xl border-none shadow-sm">
-                <div className="grid grid-cols-[44px_1fr_auto] items-center gap-3 border-b bg-slate-50 px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                <div className="grid grid-cols-[44px_1fr_auto] items-center gap-3 border-b bg-muted px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                   <span>Rank</span>
                   <span>Agent</span>
                   <span className="text-right">Active / Rate</span>
@@ -296,20 +296,20 @@ export default function AgentLeaderboard() {
                       initial={{ opacity: 0, x: -8 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: Math.min(i * 0.03, 0.4) }}
-                      className="grid grid-cols-[44px_1fr_auto] items-center gap-3 border-b px-4 py-3 last:border-b-0 transition-colors hover:bg-slate-50"
+                      className="grid grid-cols-[44px_1fr_auto] items-center gap-3 border-b px-4 py-3 last:border-b-0 transition-colors hover:bg-muted"
                       style={isMe ? { background: 'rgba(147,52,235,0.1)' } : undefined}
                     >
                       <span className="text-sm font-bold" style={{ color: isMe ? '#6D28D9' : '#64748b' }}>#{r.rank}</span>
                       <div className="flex min-w-0 items-center gap-2.5">
                         <UserAvatar avatarUrl={r.avatar_url} fullName={r.agent_name} size="sm" />
-                        <span className="truncate text-sm font-semibold text-slate-800">
+                        <span className="truncate text-sm font-semibold text-foreground">
                           {isMe
                             ? <><span style={{ color: '#6D28D9' }}>You</span> ({r.agent_name})</>
                             : r.agent_name}
                         </span>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-bold text-slate-800">{r.active_count} active</p>
+                        <p className="text-sm font-bold text-foreground">{r.active_count} active</p>
                         <p className="text-xs font-medium" style={{ color: '#6D28D9' }}>{r.active_rate}% of {r.total_subagents}</p>
                       </div>
                     </motion.div>
@@ -318,7 +318,7 @@ export default function AgentLeaderboard() {
                 {/* Pin the logged-in user as the last row when they're outside the top 20 */}
                 {myRank && !rows.some((r) => r.agent_id === user?.id) && (
                   <>
-                    <div className="flex items-center justify-center gap-1.5 border-t bg-slate-50 py-2 text-slate-400">
+                    <div className="flex items-center justify-center gap-1.5 border-t bg-muted py-2 text-muted-foreground">
                       <span className="h-1 w-1 rounded-full bg-slate-300" />
                       <span className="h-1 w-1 rounded-full bg-slate-300" />
                       <span className="h-1 w-1 rounded-full bg-slate-300" />
@@ -330,12 +330,12 @@ export default function AgentLeaderboard() {
                       <span className="text-sm font-bold" style={{ color: '#6D28D9' }}>#{myRank.rank}</span>
                       <div className="flex min-w-0 items-center gap-2.5">
                         <UserAvatar avatarUrl={myRank.avatar_url} fullName={myRank.agent_name} size="sm" />
-                        <span className="truncate text-sm font-semibold text-slate-800">
+                        <span className="truncate text-sm font-semibold text-foreground">
                           <span style={{ color: '#6D28D9' }}>You</span> ({myRank.agent_name})
                         </span>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-bold text-slate-800">{myRank.active_count} active</p>
+                        <p className="text-sm font-bold text-foreground">{myRank.active_count} active</p>
                         <p className="text-xs font-medium" style={{ color: '#6D28D9' }}>{myRank.active_rate}% of {myRank.total_subagents}</p>
                       </div>
                     </div>
@@ -352,9 +352,9 @@ export default function AgentLeaderboard() {
             <div className="flex h-9 w-9 items-center justify-center rounded-full" style={{ background: 'rgba(147,52,235,0.12)' }}>
               <Info className="h-4.5 w-4.5" style={{ color: '#9334EB' }} />
             </div>
-            <h2 className="text-base font-bold text-slate-800">How Rankings Work</h2>
+            <h2 className="text-base font-bold text-foreground">How Rankings Work</h2>
           </div>
-          <ul className="space-y-2 text-sm text-slate-600">
+          <ul className="space-y-2 text-sm text-muted-foreground">
             {[
               'Rankings are based on how many of your sub-agents are ACTIVE this period.',
               'A sub-agent is active when they list at least one empty house, submit a rent request, or allocate a rent amount during the period.',
@@ -380,13 +380,13 @@ function EmptyState({ onInvite }: { onInvite: () => void }) {
     <motion.div
       initial={{ opacity: 0, scale: 0.96 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="flex flex-col items-center rounded-3xl bg-white px-6 py-14 text-center shadow-sm"
+      className="flex flex-col items-center rounded-3xl bg-card px-6 py-14 text-center shadow-sm"
     >
       <div className="flex h-20 w-20 items-center justify-center rounded-full" style={{ background: 'rgba(147,52,235,0.1)' }}>
         <Trophy className="h-10 w-10" style={{ color: '#9334EB' }} />
       </div>
-      <h3 className="mt-5 text-lg font-bold text-slate-800">No recruitment activity yet.</h3>
-      <p className="mt-1 max-w-xs text-sm text-slate-500">
+      <h3 className="mt-5 text-lg font-bold text-foreground">No recruitment activity yet.</h3>
+      <p className="mt-1 max-w-xs text-sm text-muted-foreground">
         Be the first to invite a sub-agent and claim the #1 position.
       </p>
       <Button

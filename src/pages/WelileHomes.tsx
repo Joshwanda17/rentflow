@@ -300,7 +300,7 @@ Let's build a better future together! 🏡`;
               </div>
               <Button 
                 onClick={handleInviteLandlord}
-                className="w-full bg-white text-purple-700 hover:bg-purple-50"
+                className="w-full bg-card text-purple-700 hover:bg-purple-50"
               >
                 <MessageCircle className="h-4 w-4 mr-2" />
                 Invite My Landlord

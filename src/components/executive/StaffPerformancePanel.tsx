@@ -257,7 +257,7 @@ export function StaffPerformancePanel() {
                     <span className={cn(
                       "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0",
                       i === 0 ? 'bg-amber-500/20 text-amber-600' :
-                      i === 1 ? 'bg-slate-300/30 text-slate-600' :
+                      i === 1 ? 'bg-slate-300/30 text-muted-foreground' :
                       i === 2 ? 'bg-orange-400/20 text-orange-600' :
                       'bg-muted text-muted-foreground'
                     )}>

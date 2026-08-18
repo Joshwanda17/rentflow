@@ -139,7 +139,7 @@ Let's become homeowners together! 💪🏡`;
               <div className="flex gap-2">
                 <Button
                   onClick={handleNativeShare}
-                  className="flex-1 h-10 rounded-xl bg-white text-emerald-600 font-bold text-sm hover:bg-white/95 active:scale-[0.98] transition-all gap-2"
+                  className="flex-1 h-10 rounded-xl bg-card text-emerald-600 font-bold text-sm hover:bg-white/95 active:scale-[0.98] transition-all gap-2"
                 >
                   <Share2 className="h-4 w-4" />
                   Share Link

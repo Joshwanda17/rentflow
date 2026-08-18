@@ -59,7 +59,7 @@ export default function WhatsAppInstallBanner({ force, className }: WhatsAppInst
               </span>
               <span className="flex items-center gap-1.5">
                 Tap
-                <span className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-white dark:bg-black/40 border border-emerald-500/40 shadow-sm">
+                <span className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-card dark:bg-black/40 border border-emerald-500/40 shadow-sm">
                   <MoreHorizontal className="h-4 w-4" />
                 </span>
                 at the bottom-right of WhatsApp
@@ -71,7 +71,7 @@ export default function WhatsAppInstallBanner({ force, className }: WhatsAppInst
               </span>
               <span className="flex items-center gap-1.5">
                 Choose
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white dark:bg-black/40 border border-emerald-500/40 shadow-sm font-medium">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-card dark:bg-black/40 border border-emerald-500/40 shadow-sm font-medium">
                   <Compass className="h-3.5 w-3.5" />
                   Open in Safari
                 </span>

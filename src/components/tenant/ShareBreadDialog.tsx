@@ -777,7 +777,7 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
                         placeholder="e.g. RCT-9821"
                         value={receiptNumber}
                         onChange={(e) => setReceiptNumber(e.target.value)}
-                        className="h-9 mt-1 bg-white dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700"
+                        className="h-9 mt-1 bg-card dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700"
                         disabled={sending}
                       />
                     </div>
@@ -793,7 +793,7 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
                         placeholder="e.g. 10000"
                         value={receiptAmountInput}
                         onChange={(e) => setReceiptAmountInput(e.target.value)}
-                        className="h-9 mt-1 bg-white dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700 tabular-nums"
+                        className="h-9 mt-1 bg-card dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700 tabular-nums"
                         disabled={sending}
                       />
                     </div>

@@ -415,7 +415,7 @@ export function WelileHomesSubscriptionsManager() {
                 id="landlord_registered"
                 checked={editForm.landlord_registered}
                 onChange={(e) => setEditForm({ ...editForm, landlord_registered: e.target.checked })}
-                className="h-4 w-4 rounded border-gray-300"
+                className="h-4 w-4 rounded border-border"
               />
               <label htmlFor="landlord_registered" className="text-sm font-medium">
                 Landlord Registered

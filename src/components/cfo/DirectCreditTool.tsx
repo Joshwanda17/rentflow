@@ -1198,8 +1198,8 @@ export function DirectCreditTool() {
                       onClick={() => setPayoutMethod('cash')}
                       className={`rounded-lg border p-2 text-xs font-medium transition flex flex-col items-center gap-1 ${
                         payoutMethod === 'cash'
-                          ? 'border-orange-500 bg-white ring-2 ring-orange-200'
-                          : 'border-border bg-white hover:border-orange-300'
+                          ? 'border-orange-500 bg-card ring-2 ring-orange-200'
+                          : 'border-border bg-card hover:border-orange-300'
                       }`}
                     >
                       <Banknote className="h-4 w-4" />
@@ -1210,8 +1210,8 @@ export function DirectCreditTool() {
                       onClick={() => setPayoutMethod('mobile_money')}
                       className={`rounded-lg border p-2 text-xs font-medium transition flex flex-col items-center gap-1 ${
                         payoutMethod === 'mobile_money'
-                          ? 'border-orange-500 bg-white ring-2 ring-orange-200'
-                          : 'border-border bg-white hover:border-orange-300'
+                          ? 'border-orange-500 bg-card ring-2 ring-orange-200'
+                          : 'border-border bg-card hover:border-orange-300'
                       }`}
                     >
                       <Phone className="h-4 w-4" />
@@ -1222,8 +1222,8 @@ export function DirectCreditTool() {
                       onClick={() => setPayoutMethod('bank_transfer')}
                       className={`rounded-lg border p-2 text-xs font-medium transition flex flex-col items-center gap-1 ${
                         payoutMethod === 'bank_transfer'
-                          ? 'border-orange-500 bg-white ring-2 ring-orange-200'
-                          : 'border-border bg-white hover:border-orange-300'
+                          ? 'border-orange-500 bg-card ring-2 ring-orange-200'
+                          : 'border-border bg-card hover:border-orange-300'
                       }`}
                     >
                       <Building2 className="h-4 w-4" />

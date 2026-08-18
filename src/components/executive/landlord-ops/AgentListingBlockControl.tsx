@@ -173,7 +173,7 @@ export function AgentListingBlockControl({ agentId, agentName, preloadedStatus }
           )}
           {!block && recentRejections > 0 && (
             <Badge
-              className={`border-0 text-[10px] h-5 px-1.5 font-bold ${recentRejections >= 2 ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}`}
+              className={`border-0 text-[10px] h-5 px-1.5 font-bold ${recentRejections >= 2 ? 'bg-amber-100 text-amber-700' : 'bg-muted text-muted-foreground'}`}
             >
               <AlertTriangle className="h-3 w-3 mr-0.5" />
               {recentRejections} rejection{recentRejections === 1 ? '' : 's'}{recentRejections >= 2 ? ' — 1 more = auto-block' : ''}

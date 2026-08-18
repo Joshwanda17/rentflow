@@ -183,7 +183,7 @@ function ChoiceCard({
       onClick={onClick}
       whileTap={{ scale: 0.985 }}
       className={`w-full text-left p-4 rounded-2xl border-2 transition-all duration-200 relative overflow-hidden ${
-        selected ? 'border-[#6c11d4] bg-[#F3F0FF]' : 'border-gray-100 bg-white hover:border-purple-200'
+        selected ? 'border-[#6c11d4] bg-[#F3F0FF]' : 'border-border bg-card hover:border-purple-200'
       }`}
     >
       {selected && (
@@ -200,12 +200,12 @@ function ChoiceCard({
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2 mb-0.5">
-            <h4 className="font-bold text-gray-900 text-[13px]">{title}</h4>
+            <h4 className="font-bold text-foreground text-[13px]">{title}</h4>
             <span className={`text-[9px] font-black px-2 py-0.5 rounded-full shrink-0 ${
               selected ? 'bg-[#6c11d4] text-white' : 'bg-purple-100 text-[#6c11d4]'
             }`}>{badge}</span>
           </div>
-          <p className="text-[11px] text-gray-500 leading-relaxed">{body}</p>
+          <p className="text-[11px] text-muted-foreground leading-relaxed">{body}</p>
         </div>
       </div>
       {selected && (
@@ -242,7 +242,7 @@ function CountUp({ to, suffix = '', duration = 1400 }: { to: number; suffix?: st
   }, [inView, to, duration]);
 
   return (
-    <p ref={ref} className="text-base font-black text-gray-900 leading-none">
+    <p ref={ref} className="text-base font-black text-foreground leading-none">
       {count.toLocaleString()}{suffix}
     </p>
   );
@@ -340,11 +340,11 @@ function SupportGraph({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 8 }}
       transition={{ duration: 0.35, ease: 'easeOut' }}
-      className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm"
+      className="bg-card border border-border rounded-2xl p-4 shadow-sm"
     >
       <div className="flex items-start justify-between mb-3 gap-3">
         <div className="flex-1 min-w-0">
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
             {mode === 'tenant' ? 'Monthly rewards · 12 months' : 'Compounding growth · 12 months'}
           </p>
           <div
@@ -375,7 +375,7 @@ function SupportGraph({
               Please enter the amount you'd like to support (min {currency.symbol} {MIN_SUPPORT.toLocaleString()}) to continue.
             </p>
           ) : (
-            <p className="text-[10px] text-gray-400 mt-1">
+            <p className="text-[10px] text-muted-foreground mt-1">
               Enter the amount you're willing to support — required to continue (min {currency.symbol} {MIN_SUPPORT.toLocaleString()}).
             </p>
           )}
@@ -429,10 +429,10 @@ function SupportGraph({
         {breakdown.map(({ label, value, accent }) => (
           <div
             key={label}
-            className={`rounded-xl px-3 py-2 ${accent ? 'bg-[#F3F0FF] border border-[#E0D2FA]' : 'bg-gray-50'}`}
+            className={`rounded-xl px-3 py-2 ${accent ? 'bg-[#F3F0FF] border border-[#E0D2FA]' : 'bg-muted'}`}
           >
-            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">{label}</p>
-            <p className={`text-[13px] font-black mt-0.5 ${accent ? 'text-[#6c11d4]' : 'text-gray-900'}`}>{value}</p>
+            <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">{label}</p>
+            <p className={`text-[13px] font-black mt-0.5 ${accent ? 'text-[#6c11d4]' : 'text-foreground'}`}>{value}</p>
           </div>
         ))}
       </div>
@@ -472,11 +472,11 @@ function Step1({ form, setForm }: { form: FormState; setForm: React.Dispatch<Rea
           </div>
           <span className="text-xs font-bold text-[#6c11d4] tracking-wide uppercase">Welile Housing Partner</span>
         </div>
-        <h2 className="text-2xl font-black text-gray-900 tracking-tight leading-[1.15]">
+        <h2 className="text-2xl font-black text-foreground tracking-tight leading-[1.15]">
           Put Your Money<br />
           <span className="text-[#6c11d4]">to Work for Families.</span>
         </h2>
-        <p className="text-xs text-gray-500 mt-2 leading-relaxed">
+        <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
           You contribute capital. Welile pays rent for verified tenants, manages collections, and credits your wallet every 30 days. You don't manage anything.
         </p>
       </motion.div>
@@ -488,7 +488,7 @@ function Step1({ form, setForm }: { form: FormState; setForm: React.Dispatch<Rea
             className={`relative flex items-start gap-3 rounded-xl p-3 border transition-all ${
               highlight
                 ? 'bg-[#F3F0FF] border-[#6c11d4]/25 shadow-sm shadow-purple-100'
-                : 'bg-white border-gray-100 shadow-sm'
+                : 'bg-card border-border shadow-sm'
             }`}
           >
             {highlight && (
@@ -506,8 +506,8 @@ function Step1({ form, setForm }: { form: FormState; setForm: React.Dispatch<Rea
               <Icon size={14} strokeWidth={1.75} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className={`text-[13px] font-bold ${highlight ? 'text-[#6c11d4]' : 'text-gray-800'}`}>{title}</p>
-              <p className="text-[11px] text-gray-500 leading-relaxed">{body}</p>
+              <p className={`text-[13px] font-bold ${highlight ? 'text-[#6c11d4]' : 'text-foreground'}`}>{title}</p>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">{body}</p>
             </div>
           </div>
         ))}
@@ -519,29 +519,29 @@ function Step1({ form, setForm }: { form: FormState; setForm: React.Dispatch<Rea
           { icon: Banknote, to: 15,   suffix: '%', label: 'Average ROI'     },
           { icon: Shield,   to: 30,   suffix: 'd', label: 'Payout Cycle'    },
         ].map(({ icon: Icon, to, suffix, label }) => (
-          <div key={label} className="flex flex-col items-center gap-1.5 bg-white border border-gray-100 rounded-2xl py-3 px-2 shadow-sm">
+          <div key={label} className="flex flex-col items-center gap-1.5 bg-card border border-border rounded-2xl py-3 px-2 shadow-sm">
             <div className="w-7 h-7 rounded-xl bg-purple-50 flex items-center justify-center text-[#6c11d4]">
               <Icon size={14} strokeWidth={1.75} />
             </div>
             <CountUp to={to} suffix={suffix} />
-            <p className="text-[10px] text-gray-400 font-medium text-center leading-tight">{label}</p>
+            <p className="text-[10px] text-muted-foreground font-medium text-center leading-tight">{label}</p>
           </div>
         ))}
       </motion.div>
 
       <motion.label
         variants={fadeUp}
-        className="flex items-start gap-3 bg-gray-50 border border-gray-100 rounded-xl p-4 cursor-pointer"
+        className="flex items-start gap-3 bg-muted border border-border rounded-xl p-4 cursor-pointer"
       >
         <div
           className={`w-5 h-5 rounded border-2 shrink-0 mt-0.5 flex items-center justify-center transition-colors ${
-            form.understoodRole ? 'bg-[#6c11d4] border-[#6c11d4]' : 'border-gray-300'
+            form.understoodRole ? 'bg-[#6c11d4] border-[#6c11d4]' : 'border-border'
           }`}
           onClick={() => setForm(p => ({ ...p, understoodRole: !p.understoodRole }))}
         >
           {form.understoodRole && <Check size={11} className="text-white" strokeWidth={3} />}
         </div>
-        <p className="text-[12.5px] text-gray-500 leading-snug">
+        <p className="text-[12.5px] text-muted-foreground leading-snug">
           I understand I am a capital facilitator, not a lender.{' '}
           Welile manages tenant relationships, collections, and monthly payouts.
         </p>
@@ -555,10 +555,10 @@ function Step2({ form, setForm, showError }: { form: FormState; setForm: React.D
   return (
     <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-6">
       <motion.div variants={fadeUp}>
-        <h2 className="text-[22px] font-black text-gray-900 tracking-tight leading-tight">
+        <h2 className="text-[22px] font-black text-foreground tracking-tight leading-tight">
           How Would You Like<br />to Contribute?
         </h2>
-        <p className="text-xs text-gray-400 mt-1.5">Choose your contribution style — you can always adjust later.</p>
+        <p className="text-xs text-muted-foreground mt-1.5">Choose your contribution style — you can always adjust later.</p>
       </motion.div>
 
       <motion.div variants={fadeUp} className="space-y-3">
@@ -606,7 +606,7 @@ function Step3({ form, setForm }: { form: FormState; setForm: React.Dispatch<Rea
 // ─── Step (Banking & Next of Kin) ─────────────────────────────────────────────
 function StepBankKin({ form, setForm }: { form: FormState; setForm: React.Dispatch<React.SetStateAction<FormState>> }) {
   const fieldClass =
-    'w-full bg-gray-50 border border-gray-200 rounded-xl pl-9 pr-4 py-3 text-sm text-gray-900 placeholder:text-gray-300 outline-none focus:bg-white focus:border-[#6c11d4] focus:ring-2 focus:ring-[#6c11d4]/10 transition-all';
+    'w-full bg-muted border border-border rounded-xl pl-9 pr-4 py-3 text-sm text-foreground placeholder:text-gray-300 outline-none focus:bg-card focus:border-[#6c11d4] focus:ring-2 focus:ring-[#6c11d4]/10 transition-all';
   const set = (key: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(p => ({ ...p, [key]: e.target.value }));
 
@@ -619,23 +619,23 @@ function StepBankKin({ form, setForm }: { form: FormState; setForm: React.Dispat
           </div>
           <span className="text-xs font-bold text-[#6c11d4] tracking-wide uppercase">Agreement Details</span>
         </div>
-        <h2 className="text-[22px] font-black text-gray-900 tracking-tight leading-tight">
+        <h2 className="text-[22px] font-black text-foreground tracking-tight leading-tight">
           Banking &amp; Next of Kin
         </h2>
-        <p className="text-xs text-gray-400 mt-1.5">
+        <p className="text-xs text-muted-foreground mt-1.5">
           These details complete your Welile Partnership Agreement and route your payouts.
         </p>
       </motion.div>
 
       {/* Bank details */}
-      <motion.div variants={fadeUp} className="bg-white border border-gray-100 rounded-2xl p-4 space-y-3">
+      <motion.div variants={fadeUp} className="bg-card border border-border rounded-2xl p-4 space-y-3">
         <p className="text-[10px] font-black text-[#6c11d4] uppercase tracking-widest">Payout Details</p>
 
         {/* Payout method selector */}
         <div className="space-y-1">
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Payout Method</label>
+          <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest pl-1">Payout Method</label>
           <div className="relative">
-            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"><Wallet size={15} strokeWidth={1.75} /></div>
+            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"><Wallet size={15} strokeWidth={1.75} /></div>
             <select
               value={form.payoutMode}
               onChange={(e) => setForm(p => ({ ...p, payoutMode: e.target.value as 'bank' | 'momo' }))}
@@ -644,32 +644,32 @@ function StepBankKin({ form, setForm }: { form: FormState; setForm: React.Dispat
               <option value="bank">Bank Account</option>
               <option value="momo">Mobile Money</option>
             </select>
-            <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"><ChevronDown size={15} strokeWidth={1.75} /></div>
+            <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"><ChevronDown size={15} strokeWidth={1.75} /></div>
           </div>
         </div>
 
         {form.payoutMode === 'bank' ? (
           <>
             <div className="space-y-1">
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Bank Name</label>
+              <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest pl-1">Bank Name</label>
               <div className="relative">
-                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"><Building2 size={15} strokeWidth={1.75} /></div>
+                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"><Building2 size={15} strokeWidth={1.75} /></div>
                 <input type="text" placeholder="e.g. Stanbic Bank" value={form.bankName} onChange={set('bankName')} className={fieldClass} />
               </div>
             </div>
 
             <div className="space-y-1">
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Account Name</label>
+              <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest pl-1">Account Name</label>
               <div className="relative">
-                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"><User size={15} strokeWidth={1.75} /></div>
+                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"><User size={15} strokeWidth={1.75} /></div>
                 <input type="text" placeholder="Name on the account" value={form.bankAccountName} onChange={set('bankAccountName')} className={fieldClass} />
               </div>
             </div>
 
             <div className="space-y-1">
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Account Number</label>
+              <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest pl-1">Account Number</label>
               <div className="relative">
-                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"><CreditCard size={15} strokeWidth={1.75} /></div>
+                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"><CreditCard size={15} strokeWidth={1.75} /></div>
                 <input type="text" inputMode="numeric" placeholder="Account number" value={form.bankAccountNumber} onChange={set('bankAccountNumber')} className={fieldClass} />
               </div>
             </div>
@@ -677,9 +677,9 @@ function StepBankKin({ form, setForm }: { form: FormState; setForm: React.Dispat
         ) : (
           <>
             <div className="space-y-1">
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Mobile Money Provider</label>
+              <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest pl-1">Mobile Money Provider</label>
               <div className="relative">
-                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"><Smartphone size={15} strokeWidth={1.75} /></div>
+                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"><Smartphone size={15} strokeWidth={1.75} /></div>
                 <select
                   value={form.momoProvider}
                   onChange={(e) => setForm(p => ({ ...p, momoProvider: e.target.value }))}
@@ -689,22 +689,22 @@ function StepBankKin({ form, setForm }: { form: FormState; setForm: React.Dispat
                   <option value="MTN">MTN MoMo</option>
                   <option value="Airtel">Airtel Money</option>
                 </select>
-                <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"><ChevronDown size={15} strokeWidth={1.75} /></div>
+                <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"><ChevronDown size={15} strokeWidth={1.75} /></div>
               </div>
             </div>
 
             <div className="space-y-1">
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Mobile Money Number</label>
+              <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest pl-1">Mobile Money Number</label>
               <div className="relative">
-                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"><Phone size={15} strokeWidth={1.75} /></div>
+                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"><Phone size={15} strokeWidth={1.75} /></div>
                 <input type="tel" inputMode="tel" placeholder="+256 700 000 000" value={form.momoNumber} onChange={set('momoNumber')} className={fieldClass} />
               </div>
             </div>
 
             <div className="space-y-1">
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Registered Name</label>
+              <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest pl-1">Registered Name</label>
               <div className="relative">
-                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"><User size={15} strokeWidth={1.75} /></div>
+                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"><User size={15} strokeWidth={1.75} /></div>
                 <input type="text" placeholder="Name on the MoMo account" value={form.momoName} onChange={set('momoName')} className={fieldClass} />
               </div>
             </div>
@@ -713,21 +713,21 @@ function StepBankKin({ form, setForm }: { form: FormState; setForm: React.Dispat
       </motion.div>
 
       {/* Next of kin */}
-      <motion.div variants={fadeUp} className="bg-white border border-gray-100 rounded-2xl p-4 space-y-3">
+      <motion.div variants={fadeUp} className="bg-card border border-border rounded-2xl p-4 space-y-3">
         <p className="text-[10px] font-black text-[#6c11d4] uppercase tracking-widest">Next of Kin</p>
 
         <div className="space-y-1">
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Next of Kin Name</label>
+          <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest pl-1">Next of Kin Name</label>
           <div className="relative">
-            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"><Users size={15} strokeWidth={1.75} /></div>
+            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"><Users size={15} strokeWidth={1.75} /></div>
             <input type="text" placeholder="Full name" value={form.kinName} onChange={set('kinName')} className={fieldClass} />
           </div>
         </div>
 
         <div className="space-y-1">
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Next of Kin Contact</label>
+          <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest pl-1">Next of Kin Contact</label>
           <div className="relative">
-            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"><Phone size={15} strokeWidth={1.75} /></div>
+            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"><Phone size={15} strokeWidth={1.75} /></div>
             <input type="tel" placeholder="+256 700 000 000" value={form.kinContact} onChange={set('kinContact')} className={fieldClass} />
           </div>
         </div>
@@ -795,7 +795,7 @@ function _Step3Impl({
 
       <motion.div
         variants={fadeUp}
-        className="bg-white border border-gray-100 rounded-2xl p-4 space-y-3"
+        className="bg-card border border-border rounded-2xl p-4 space-y-3"
       >
         <PersonNameFields
           idPrefix="funder-onboarding"
@@ -806,9 +806,9 @@ function _Step3Impl({
         />
 
         <div className="space-y-1">
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Email</label>
+          <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest pl-1">Email</label>
           <div className="relative">
-            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
+            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground">
               <Mail size={15} strokeWidth={1.75} />
             </div>
             <input
@@ -816,15 +816,15 @@ function _Step3Impl({
               placeholder="you@example.com"
               value={form.email}
               onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-9 pr-4 py-3 text-sm text-gray-900 placeholder:text-gray-300 outline-none focus:bg-white focus:border-[#6c11d4] focus:ring-2 focus:ring-[#6c11d4]/10 transition-all"
+              className="w-full bg-muted border border-border rounded-xl pl-9 pr-4 py-3 text-sm text-foreground placeholder:text-gray-300 outline-none focus:bg-card focus:border-[#6c11d4] focus:ring-2 focus:ring-[#6c11d4]/10 transition-all"
             />
           </div>
         </div>
 
         <div className="space-y-1">
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Phone</label>
+          <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest pl-1">Phone</label>
           <div className="relative">
-            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
+            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground">
               <Phone size={15} strokeWidth={1.75} />
             </div>
             <input
@@ -834,15 +834,15 @@ function _Step3Impl({
               placeholder="0700 000 000"
               value={form.phone}
               onChange={e => setForm(p => ({ ...p, phone: e.target.value.replace(/\D/g, '').slice(0, 10) }))}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-9 pr-4 py-3 text-sm text-gray-900 placeholder:text-gray-300 outline-none focus:bg-white focus:border-[#6c11d4] focus:ring-2 focus:ring-[#6c11d4]/10 transition-all"
+              className="w-full bg-muted border border-border rounded-xl pl-9 pr-4 py-3 text-sm text-foreground placeholder:text-gray-300 outline-none focus:bg-card focus:border-[#6c11d4] focus:ring-2 focus:ring-[#6c11d4]/10 transition-all"
             />
           </div>
         </div>
 
         <div className="space-y-1">
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Address</label>
+          <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest pl-1">Address</label>
           <div className="relative">
-            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
+            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground">
               <MapPin size={15} strokeWidth={1.75} />
             </div>
             <input
@@ -850,15 +850,15 @@ function _Step3Impl({
               placeholder="District, town or village"
               value={form.address}
               onChange={e => setForm(p => ({ ...p, address: e.target.value }))}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-9 pr-4 py-3 text-sm text-gray-900 placeholder:text-gray-300 outline-none focus:bg-white focus:border-[#6c11d4] focus:ring-2 focus:ring-[#6c11d4]/10 transition-all"
+              className="w-full bg-muted border border-border rounded-xl pl-9 pr-4 py-3 text-sm text-foreground placeholder:text-gray-300 outline-none focus:bg-card focus:border-[#6c11d4] focus:ring-2 focus:ring-[#6c11d4]/10 transition-all"
             />
           </div>
         </div>
 
         <div className="space-y-1">
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">National ID / Passport No.</label>
+          <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest pl-1">National ID / Passport No.</label>
           <div className="relative">
-            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
+            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground">
               <CreditCard size={15} strokeWidth={1.75} />
             </div>
             <input
@@ -866,18 +866,18 @@ function _Step3Impl({
               placeholder="e.g. CM900123456XYZ"
               value={form.nationalId}
               onChange={e => setForm(p => ({ ...p, nationalId: e.target.value.toUpperCase() }))}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-9 pr-4 py-3 text-sm text-gray-900 placeholder:text-gray-300 outline-none focus:bg-white focus:border-[#6c11d4] focus:ring-2 focus:ring-[#6c11d4]/10 transition-all"
+              className="w-full bg-muted border border-border rounded-xl pl-9 pr-4 py-3 text-sm text-foreground placeholder:text-gray-300 outline-none focus:bg-card focus:border-[#6c11d4] focus:ring-2 focus:ring-[#6c11d4]/10 transition-all"
             />
           </div>
-          <p className="text-[10px] text-gray-400 pl-1">Required for your Welile Partnership Agreement.</p>
+          <p className="text-[10px] text-muted-foreground pl-1">Required for your Welile Partnership Agreement.</p>
         </div>
 
-        <div className="h-px bg-gray-100" />
+        <div className="h-px bg-muted" />
 
         <div className="space-y-1">
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Password</label>
+          <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest pl-1">Password</label>
           <div className="relative">
-            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
+            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground">
               <Lock size={15} strokeWidth={1.75} />
             </div>
             <input
@@ -885,10 +885,10 @@ function _Step3Impl({
               placeholder="Min. 8 characters"
               value={form.password}
               onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-9 pr-11 py-3 text-sm text-gray-900 placeholder:text-gray-300 outline-none focus:bg-white focus:border-[#6c11d4] focus:ring-2 focus:ring-[#6c11d4]/10 transition-all"
+              className="w-full bg-muted border border-border rounded-xl pl-9 pr-11 py-3 text-sm text-foreground placeholder:text-gray-300 outline-none focus:bg-card focus:border-[#6c11d4] focus:ring-2 focus:ring-[#6c11d4]/10 transition-all"
             />
             <button type="button" onClick={() => setShowPw(v => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors p-0.5"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground transition-colors p-0.5"
             >
               {showPw ? <EyeOff size={15} strokeWidth={1.75} /> : <Eye size={15} strokeWidth={1.75} />}
             </button>
@@ -906,7 +906,7 @@ function _Step3Impl({
                 </div>
                 <p className="text-[10px] font-bold" style={{ color: strength.color }}>
                   {strength.label}
-                  {strength.score < 4 && <span className="text-gray-400 font-normal"> — use uppercase, numbers &amp; symbols</span>}
+                  {strength.score < 4 && <span className="text-muted-foreground font-normal"> — use uppercase, numbers &amp; symbols</span>}
                 </p>
               </motion.div>
             )}
@@ -914,9 +914,9 @@ function _Step3Impl({
         </div>
 
         <div className="space-y-1">
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Confirm Password</label>
+          <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest pl-1">Confirm Password</label>
           <div className="relative">
-            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
+            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground">
               <Lock size={15} strokeWidth={1.75} />
             </div>
             <input
@@ -924,16 +924,16 @@ function _Step3Impl({
               placeholder="Re-enter password"
               value={form.confirmPassword}
               onChange={e => setForm(p => ({ ...p, confirmPassword: e.target.value }))}
-              className={`w-full bg-gray-50 border rounded-xl pl-9 pr-11 py-3 text-sm text-gray-900 placeholder:text-gray-300 outline-none focus:bg-white transition-all focus:ring-2 ${
+              className={`w-full bg-muted border rounded-xl pl-9 pr-11 py-3 text-sm text-foreground placeholder:text-gray-300 outline-none focus:bg-card transition-all focus:ring-2 ${
                 form.confirmPassword.length > 0
                   ? passwordsMatch
                     ? 'border-emerald-400 focus:border-emerald-400 focus:ring-emerald-100'
                     : 'border-red-400 focus:border-red-400 focus:ring-red-100'
-                  : 'border-gray-200 focus:border-[#6c11d4] focus:ring-[#6c11d4]/10'
+                  : 'border-border focus:border-[#6c11d4] focus:ring-[#6c11d4]/10'
               }`}
             />
             <button type="button" onClick={() => setShowConfirm(v => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors p-0.5"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground transition-colors p-0.5"
             >
               {showConfirm ? <EyeOff size={15} strokeWidth={1.75} /> : <Eye size={15} strokeWidth={1.75} />}
             </button>
@@ -961,12 +961,12 @@ function _Step3Impl({
       </motion.div>
 
       <motion.div variants={fadeUp}>
-        <div className="rounded-xl border border-gray-100 bg-white p-3">
+        <div className="rounded-xl border border-border bg-card p-3">
           <SignaturePad
             label="Sign your Partnership Agreement"
             onChange={(dataUrl) => setForm(p => ({ ...p, signatureDataUrl: dataUrl }))}
           />
-          <p className="text-[10px] text-gray-400 mt-1.5 pl-1">
+          <p className="text-[10px] text-muted-foreground mt-1.5 pl-1">
             Your handwritten signature is attached to your Welile Partnership Agreement.
           </p>
         </div>
@@ -976,23 +976,23 @@ function _Step3Impl({
         <button
           type="button"
           onClick={() => setForm(p => ({ ...p, agreedToTerms: !p.agreedToTerms }))}
-          className="w-full flex items-start gap-3 cursor-pointer bg-gray-50 border border-gray-100 rounded-xl p-3 text-left touch-manipulation active:bg-gray-100 transition-colors"
+          className="w-full flex items-start gap-3 cursor-pointer bg-muted border border-border rounded-xl p-3 text-left touch-manipulation active:bg-muted transition-colors"
           style={{ WebkitTapHighlightColor: 'transparent' }}
           aria-pressed={form.agreedToTerms}
         >
           <div
             className={`w-5 h-5 rounded-md border-2 shrink-0 mt-0.5 flex items-center justify-center transition-all ${
-              form.agreedToTerms ? 'bg-[#6c11d4] border-[#6c11d4] scale-100' : 'border-gray-300'
+              form.agreedToTerms ? 'bg-[#6c11d4] border-[#6c11d4] scale-100' : 'border-border'
             }`}
           >
             {form.agreedToTerms && <Check size={11} className="text-white" strokeWidth={3} />}
           </div>
-          <p className="text-[12px] text-gray-500 leading-snug">
+          <p className="text-[12px] text-muted-foreground leading-snug">
             I agree to Welile's{' '}
             <span className="text-[#6c11d4] font-semibold">Terms of Service</span>
             {' '}and{' '}
             <span className="text-[#6c11d4] font-semibold">Privacy Policy</span>.
-            {' '}<span className="text-gray-400">Your data is encrypted and never Exchanged.</span>
+            {' '}<span className="text-muted-foreground">Your data is encrypted and never Exchanged.</span>
           </p>
         </button>
       </motion.div>
@@ -1225,7 +1225,7 @@ export default function FunderOnboarding() {
     return (
       <div className="fixed inset-0 flex flex-col items-center justify-center bg-[#FAFAFA] gap-3">
         <div className="w-6 h-6 border-2 border-[#6c11d4] border-t-transparent rounded-full animate-spin" />
-        <p className="text-[12px] font-bold text-gray-500 tracking-wide uppercase">
+        <p className="text-[12px] font-bold text-muted-foreground tracking-wide uppercase">
           {user ? 'Redirecting…' : 'Loading…'}
         </p>
       </div>
@@ -1485,7 +1485,7 @@ export default function FunderOnboarding() {
       </div>
 
       {/* RIGHT COLUMN (WIZARD) */}
-      <div className="relative w-full lg:w-1/2 lg:shrink-0 flex flex-col h-full overflow-hidden shadow-2xl z-20 bg-white">
+      <div className="relative w-full lg:w-1/2 lg:shrink-0 flex flex-col h-full overflow-hidden shadow-2xl z-20 bg-card">
         {/* Ambient grid only (gradient & color blobs removed per request) */}
         <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
           <div
@@ -1498,18 +1498,18 @@ export default function FunderOnboarding() {
           />
         </div>
         <div className="relative z-10 flex flex-col h-full overflow-hidden">
-        <div className="bg-white/90 backdrop-blur-sm border-b border-gray-100 shrink-0 sticky top-0 z-20">
+        <div className="bg-white/90 backdrop-blur-sm border-b border-border shrink-0 sticky top-0 z-20">
           <div className="flex items-center justify-center pt-5 pb-2">
             <StepDots total={TOTAL} current={step} />
           </div>
           <div className="px-6 lg:px-[18px] pb-3 flex items-center justify-between">
             <button
               onClick={handleBack}
-              className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-600 hover:bg-gray-100 transition"
+              className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:bg-muted transition"
             >
               <ArrowLeft size={16} />
             </button>
-            <p className="text-[11px] font-black text-gray-800 tracking-widest uppercase">
+            <p className="text-[11px] font-black text-foreground tracking-widest uppercase">
               {STEP_LABELS[step - 1]}
             </p>
             <div className="w-8" />
@@ -1539,7 +1539,7 @@ export default function FunderOnboarding() {
           </AnimatePresence>
         </div>
 
-        <div className="px-6 pb-5 pt-3 bg-white border-t border-gray-100 shrink-0 lg:px-[18px]">
+        <div className="px-6 pb-5 pt-3 bg-card border-t border-border shrink-0 lg:px-[18px]">
           <div className="max-w-md mx-auto w-full">
             {stepErrorMessage && (
               <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2 animate-in fade-in slide-in-from-top-1">
@@ -1565,7 +1565,7 @@ export default function FunderOnboarding() {
               transition={{ duration: 0.2 }}
               className={`w-full py-3 rounded-xl font-bold text-[14px] flex items-center justify-center gap-2 transition-all duration-200 ${
                 !valid
-                  ? 'bg-gray-200 text-gray-400'
+                  ? 'bg-gray-200 text-muted-foreground'
                   : step === TOTAL
                     ? isSubmitting
                       ? 'bg-emerald-400 text-white cursor-not-allowed'
@@ -1609,7 +1609,7 @@ export default function FunderOnboarding() {
               )}
             </motion.button>
 
-            <p className="text-center text-[10px] font-bold text-gray-400 tracking-wider uppercase mt-2">
+            <p className="text-center text-[10px] font-bold text-muted-foreground tracking-wider uppercase mt-2">
               Step {step} / {TOTAL}
             </p>
           </div>
@@ -1631,7 +1631,7 @@ export default function FunderOnboarding() {
               animate={{ scale: 1, y: 0, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               transition={{ type: 'spring', damping: 22, stiffness: 240 }}
-              className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl p-8 text-center"
+              className="relative w-full max-w-sm bg-card rounded-2xl shadow-2xl p-8 text-center"
               role="dialog"
               aria-live="polite"
             >
@@ -1646,14 +1646,14 @@ export default function FunderOnboarding() {
                 </div>
               </motion.div>
 
-              <h2 className="text-xl font-black text-gray-900 mb-2 tracking-tight">
+              <h2 className="text-xl font-black text-foreground mb-2 tracking-tight">
                 Account created successfully
               </h2>
-              <p className="text-[14px] text-gray-600 leading-relaxed mb-5">
+              <p className="text-[14px] text-muted-foreground leading-relaxed mb-5">
                 Please check your email to activate your account.
               </p>
 
-              <div className="flex items-center justify-center gap-2 text-[12px] font-bold text-gray-400 tracking-wider uppercase">
+              <div className="flex items-center justify-center gap-2 text-[12px] font-bold text-muted-foreground tracking-wider uppercase">
                 <svg className="animate-spin h-3.5 w-3.5 text-[#6c11d4]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
                   <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />

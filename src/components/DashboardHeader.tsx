@@ -201,7 +201,7 @@ const DashboardHeader = memo(function DashboardHeader({
               {opportunityCount !== undefined && opportunityCount > 0 && (
                 <button
                   onClick={onOpportunityBadgeClick}
-                  className="min-w-[18px] h-[18px] flex items-center justify-center text-[10px] font-bold bg-white text-primary rounded-full px-1 shadow-sm animate-pulse touch-manipulation"
+                  className="min-w-[18px] h-[18px] flex items-center justify-center text-[10px] font-bold bg-card text-primary rounded-full px-1 shadow-sm animate-pulse touch-manipulation"
                 >
                   {opportunityCount > 99 ? '99+' : opportunityCount}
                 </button>

@@ -509,7 +509,7 @@ export default function PortfolioCompletion() {
           {existingSig && useExistingSig ? (
             <Card>
               <CardContent className="p-3 space-y-3">
-                <div className="border rounded-md p-2 bg-white grid place-items-center min-h-24">
+                <div className="border rounded-md p-2 bg-card grid place-items-center min-h-24">
                   <img src={existingSig} alt="Signature on file" className="max-h-20 object-contain" />
                 </div>
                 <Button variant="outline" size="sm" onClick={() => setUseExistingSig(false)} className="w-full">
@@ -654,7 +654,7 @@ function SignaturePad({ value, onChange, onRestoreExisting }: {
   return (
     <Card>
       <CardContent className="p-3 space-y-2">
-        <div className="border-2 border-dashed rounded-md bg-white relative">
+        <div className="border-2 border-dashed rounded-md bg-card relative">
           <canvas
             ref={canvasRef}
             className="w-full h-36 touch-none block"

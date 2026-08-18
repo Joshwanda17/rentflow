@@ -58,7 +58,7 @@ export function ReferralLeaderboard({ limit = 10 }: ReferralLeaderboardProps) {
       case 1:
         return <Crown className="h-5 w-5 text-yellow-500" />;
       case 2:
-        return <Medal className="h-5 w-5 text-slate-400" />;
+        return <Medal className="h-5 w-5 text-muted-foreground" />;
       case 3:
         return <Award className="h-5 w-5 text-amber-600" />;
       default:
@@ -213,7 +213,7 @@ export function ReferralLeaderboard({ limit = 10 }: ReferralLeaderboardProps) {
               <p className="text-xs text-success font-semibold">{formatUGX(5000)}</p>
             </div>
             <div className="p-2 rounded-lg bg-slate-400/10">
-              <Medal className="h-4 w-4 text-slate-400 mx-auto mb-1" />
+              <Medal className="h-4 w-4 text-muted-foreground mx-auto mb-1" />
               <p className="text-xs font-bold">2nd Place</p>
               <p className="text-xs text-success font-semibold">{formatUGX(3000)}</p>
             </div>
