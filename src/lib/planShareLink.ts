@@ -1,5 +1,4 @@
 import { supabase } from '@/integrations/supabase/client';
-import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import { formatDynamic } from '@/lib/currencyFormat';
 
 export const SHARE_ROI_RATE = 15;
