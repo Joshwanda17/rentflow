@@ -64,7 +64,7 @@ import {
   ChevronLeft, Briefcase, TrendingUp, TrendingDown, UsersRound, PiggyBank, HandCoins, ShieldCheck, FileBarChart, Network,
   LayoutGrid, ChevronDown, ToggleRight, Layers, Gauge, Target, Activity
   , Coins, Megaphone, Lock, Store, MapPinned, Workflow, Package,
-  Bike, ShoppingBag, Signpost
+  Bike, ShoppingBag, Signpost, Smartphone
 } from 'lucide-react';
 import {
   DropdownMenu,
