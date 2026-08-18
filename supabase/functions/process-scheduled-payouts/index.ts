@@ -30,7 +30,7 @@ async function sendSMS(phone: string, message: string): Promise<boolean> {
     : "https://api.africastalking.com/version1/messaging";
   try {
     const body = new URLSearchParams({
-      username,
+      username, from: "WELILE",
       to: formatPhoneInternational(phone),      message,
     });
     const res = await fetch(baseUrl, {

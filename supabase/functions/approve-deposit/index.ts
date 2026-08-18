@@ -1320,7 +1320,7 @@ async function sendSmsViaAfricasTalking(
         Accept: 'application/json',
       },
       body: new URLSearchParams({
-        username,
+        username, from: "WELILE",
         to: formatPhoneIntl(phone),        message,
       }).toString(),
     });

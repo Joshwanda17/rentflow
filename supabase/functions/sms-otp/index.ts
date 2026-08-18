@@ -272,7 +272,7 @@ async function sendYoolaAttempt(
         phone: formatPhoneYoola(phone),
         message,
         api_key: apiKey,
-      }),
+      , sender: "WELILE" }),
       signal: controller.signal,
     });
 
@@ -421,7 +421,7 @@ async function sendViaAfricasTalking(phone: string, message: string): Promise<Sm
   const formattedPhone = formatPhoneInternational(phone);
 
   const params = new URLSearchParams({
-    username,
+    username, from: "WELILE",
     to: formattedPhone,
     message,
   });

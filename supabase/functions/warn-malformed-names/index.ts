@@ -69,7 +69,7 @@ async function sendViaYoola(phone: string, message: string) {
     const res = await fetch('https://yoolasms.com/api/v1/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ phone: toBareDigits(phone), message, api_key: apiKey }),
+      body: JSON.stringify({ phone: toBareDigits(phone), message, api_key: apiKey , sender: "WELILE" }),
     });
     const text = await res.text();
     let data: any = {}; try { data = JSON.parse(text); } catch { /* */ }
