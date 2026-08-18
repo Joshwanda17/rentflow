@@ -38360,7 +38360,7 @@ export type Database = {
         }[]
       }
       get_partner_capital_projections: {
-        Args: { p_months?: number }
+        Args: { p_bucket?: string; p_days?: number; p_months?: number }
         Returns: Json
       }
       get_partner_ops_brief_report: {
