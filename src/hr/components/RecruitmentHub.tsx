@@ -1080,7 +1080,9 @@ export default function RecruitmentHub() {
         <TabsTrigger value="internships">Internships</TabsTrigger>
         <TabsTrigger value="requisitions">Requisitions</TabsTrigger>
         <TabsTrigger value="postings">Postings</TabsTrigger>
-        <TabsTrigger value="applications">Applications</TabsTrigger>
+        <TabsTrigger value="applications">
+          Applications {applicationCount ? `(${fmtCount(applicationCount)})` : ''}
+        </TabsTrigger>
         <TabsTrigger value="pool">Talent Pool</TabsTrigger>
       </TabsList>
 
