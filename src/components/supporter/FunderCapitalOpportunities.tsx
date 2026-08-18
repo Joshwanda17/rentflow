@@ -248,10 +248,10 @@ function OptionCard({
           </div>
         )}
         <div className={`relative flex flex-col items-center justify-end gap-1 min-h-0 sm:flex-none sm:justify-start sm:mt-2 ${image ? 'mt-auto sm:mt-2' : ''} ${featured ? 'pb-1 flex-[0.42] sm:flex-none' : ''}`}>
-          <p className={`font-bold leading-tight ${featured ? 'text-base sm:text-lg' : 'text-lg'} ${light ? 'text-foreground' : 'text-white'}`}>{title}</p>
-          <p className={`font-medium leading-snug sm:line-clamp-none ${featured ? 'line-clamp-3 text-xs sm:text-[13px]' : 'line-clamp-3 text-[13px]'} ${light ? 'text-foreground/70' : 'text-white/80'}`}>{description}</p>
+          <p className={`font-bold leading-tight ${featured ? 'text-base sm:text-lg' : 'text-lg'} ${light ? 'text-slate-900' : 'text-white'}`}>{title}</p>
+          <p className={`font-medium leading-snug sm:line-clamp-none ${featured ? 'line-clamp-3 text-xs sm:text-[13px]' : 'line-clamp-3 text-[13px]'} ${light ? 'text-slate-700' : 'text-white/80'}`}>{description}</p>
         </div>
-        <ChevronRight className={`relative h-5 w-5 shrink-0 sm:mt-3 group-hover:translate-x-1 group-focus-visible:translate-x-1 transition-transform duration-200 ${light ? 'text-foreground/60' : 'text-white/80'}`} />
+        <ChevronRight className={`relative h-5 w-5 shrink-0 sm:mt-3 group-hover:translate-x-1 group-focus-visible:translate-x-1 transition-transform duration-200 ${light ? 'text-slate-600' : 'text-white/80'}`} />
       </div>
     </motion.button>
   );
