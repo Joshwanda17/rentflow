@@ -46,7 +46,7 @@ function groupOf(status: string): StatusGroup {
 async function fetchTopUpRows(): Promise<TopUpRow[]> {
   const { data: ops, error } = await supabase
     .from('pending_wallet_operations')
-    .select('id, source_id, amount, status, created_at, description, metadata')
+    .select('id, source_id, user_id, amount, status, created_at, description, metadata')
     .eq('operation_type', 'portfolio_topup')
     .eq('source_table', 'investor_portfolios')
     .in('status', ['pending', 'awaiting_verification', 'approved', 'completed'])
@@ -67,7 +67,10 @@ async function fetchTopUpRows(): Promise<TopUpRow[]> {
     });
   }
 
-  const investorIds = Array.from(new Set(Object.values(portfolioMap).map(p => p.investor_id).filter(Boolean) as string[]));
+  const investorIds = Array.from(new Set([
+    ...Object.values(portfolioMap).map(p => p.investor_id),
+    ...list.map((o: any) => o.user_id),
+  ].filter(Boolean) as string[]));
   const nameMap: Record<string, string> = {};
   if (investorIds.length > 0) {
     const { data: profiles } = await supabase
@@ -81,11 +84,16 @@ async function fetchTopUpRows(): Promise<TopUpRow[]> {
     const portfolio = portfolioMap[o.source_id] || { account_name: null, portfolio_code: null, investor_id: null };
     const meta = (o.metadata && typeof o.metadata === 'object') ? o.metadata : {};
     const reason = meta.reason || meta.agent_name ? (meta.reason || `via ${meta.agent_name}`) : (o.description || '');
+    const code = portfolio.portfolio_code || meta.portfolio_code || '—';
     return {
       id: o.id,
-      partnerName: (portfolio.investor_id && nameMap[portfolio.investor_id]) || meta.source_wallet_owner || '—',
-      portfolioName: portfolio.account_name || portfolio.portfolio_code || meta.portfolio_code || '—',
-      portfolioCode: portfolio.portfolio_code || meta.portfolio_code || '—',
+      partnerName:
+        (portfolio.investor_id && nameMap[portfolio.investor_id]) ||
+        (o.user_id && nameMap[o.user_id]) ||
+        meta.source_wallet_owner ||
+        '—',
+      portfolioName: portfolio.account_name || code,
+      portfolioCode: code,
       portfolioId: o.source_id,
       amount: Number(o.amount) || 0,
       createdAt: o.created_at,
