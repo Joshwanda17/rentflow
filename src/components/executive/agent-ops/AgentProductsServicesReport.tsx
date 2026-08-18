@@ -259,9 +259,12 @@ export function AgentProductsServicesReport() {
         <CardHeader className="p-3 pb-2">
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div>
-              <CardTitle className="text-sm font-bold">Agent Products &amp; Services — Daily Report</CardTitle>
+              <CardTitle className="text-sm font-bold">
+                Agent Products &amp; Services — {isRange ? 'Cumulative Report' : 'Daily Report'}
+              </CardTitle>
               <p className="text-[11px] text-muted-foreground mt-0.5">
-                {format(day, 'dd MMM yyyy')} · {report?.timezone || 'Africa/Kampala'} · compared with the previous day
+                {periodLabel} · {report?.timezone || 'Africa/Kampala'} ·{' '}
+                {isRange ? `compared with the preceding ${num(rangeDays)} days` : 'compared with the previous day'}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
@@ -271,7 +274,7 @@ export function AgentProductsServicesReport() {
               </Button>
               <Button size="sm" className="h-8 text-[11px]" disabled={!report || exporting} onClick={handlePdf}>
                 {exporting ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <FileText className="h-3.5 w-3.5 mr-1" />}
-                Generate Daily Report (PDF)
+                {isRange ? 'Generate Cumulative Report (PDF)' : 'Generate Daily Report (PDF)'}
               </Button>
             </div>
           </div>
@@ -282,22 +285,29 @@ export function AgentProductsServicesReport() {
               ['today', 'Today'],
               ['yesterday', 'Yesterday'],
               ['d7', '7 Days Ago'],
+              ['d14', 'Last 14 Days'],
               ['d30', '30 Days Ago'],
               ['d90', '90 Days Ago'],
               ['y1', '1 Year Ago'],
+              ['month', 'This Month'],
+              ['year', 'This Year'],
+              ['all', 'All Time'],
             ] as const).map(([k, l]) => (
               <Button key={k} size="sm" variant="secondary" className="h-7 text-[11px]" onClick={() => setPreset(k)}>{l}</Button>
             ))}
             <Popover>
               <PopoverTrigger asChild>
                 <Button size="sm" variant="outline" className="h-7 text-[11px]">
-                  <CalendarIcon className="h-3.5 w-3.5 mr-1" />{format(day, 'dd MMM yyyy')}
+                  <CalendarIcon className="h-3.5 w-3.5 mr-1" />From {format(day, 'dd MMM yyyy')}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0 z-[200]" align="start">
-                <Calendar mode="single" selected={day} onSelect={(d) => d && setDay(d)} initialFocus className="p-3 pointer-events-auto" />
+                <Calendar mode="single" selected={day} onSelect={(d) => d && setDay(d)} disabled={(d) => d > today} initialFocus className="p-3 pointer-events-auto" />
               </PopoverContent>
             </Popover>
+            <span className="text-[10px] text-muted-foreground">
+              {isRange ? `Totals accumulate from ${format(day, 'dd MMM yyyy')} to today` : 'Showing today only'}
+            </span>
           </div>
         </CardContent>
       </Card>
