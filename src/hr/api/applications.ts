@@ -130,13 +130,11 @@ async function actingUserId(): Promise<string> {
 export async function recordApplicationDecision(
   applicationId: string,
   decision: ApplicationDecision,
-  reason: string,
+  reason?: string,
 ): Promise<JobApplicationRow> {
-  const trimmedReason = (reason ?? '').trim();
-  if (trimmedReason.length < 3) {
-    throw new Error('Add a short reason before recording this decision.');
-  }
-
+  // A reason is optional: HR records these decisions in bulk from the list, so
+  // the action must go through with a single click.
+  const trimmedReason = (reason ?? '').trim() || null;
   const decidedBy = await actingUserId();
 
   const { data, error } = await supabase
