@@ -201,6 +201,25 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
         </div>
       </div>
 
+      {deficitTotal > 0 && (
+        <div className="mt-4 rounded-2xl border-2 border-dashed border-destructive/60 bg-destructive/10 p-3">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-destructive">
+                Hidden deficit across desks
+              </p>
+              <p className="mt-1 font-mono text-lg font-bold tabular-nums text-destructive">
+                {formatUGX(deficitTotal)}
+              </p>
+              <p className="mt-1 text-[10px] text-muted-foreground">
+                {deficitRows.length} desk{deficitRows.length === 1 ? '' : 's'} true position is negative by this amount — it can't show as a negative number, but this is real, not spendable float.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {error && (
         <div className="mt-4 flex items-start gap-2 rounded-xl border border-border bg-muted/30 p-3">
           <AlertTriangle className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
