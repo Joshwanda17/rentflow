@@ -348,6 +348,26 @@ export function AgentProductsServicesReport() {
                   />
                 </TabsContent>
 
+                <TabsContent value="new" className="mt-3">
+                  <PagedTable
+                    rows={report.new_agent_rows}
+                    searchKeys={['name', 'phone', 'location', 'agent_type', 'parent_name']}
+                    emptyLabel="No new agents registered today"
+                    columns={[
+                      { key: 'name', label: 'Agent' },
+                      { key: 'phone', label: 'Phone' },
+                      { key: 'location', label: 'Location' },
+                      { key: 'agent_type', label: 'Type', render: r => (
+                        <Badge variant="outline" className={cn('text-[10px]', r.agent_type === 'sub-agent' && 'border-purple-400 text-purple-600')}>
+                          {title(r.agent_type)}
+                        </Badge>
+                      ) },
+                      { key: 'parent_name', label: 'Parent agent' },
+                      { key: 'created_at', label: 'Added', render: r => r.created_at ? format(new Date(r.created_at), 'dd MMM yy HH:mm') : '—' },
+                    ]}
+                  />
+                </TabsContent>
+
                 <TabsContent value="rent" className="mt-3">
                   <PagedTable
                     rows={report.rent_rows}
