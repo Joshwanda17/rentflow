@@ -39,14 +39,33 @@ import { MaturityRequestsQueue } from './MaturityRequestsQueue';
 import { InvitedPortfoliosPanel } from './InvitedPortfoliosPanel';
 import { PortfolioRenewalsPanel } from './PortfolioRenewalsPanel';
 import { SelfManagedNearingPayouts } from './SelfManagedNearingPayouts';
+import { PartnerOpsSidebar } from './partner-ops/PartnerOpsSidebar';
+import { PartnerOpsTopBar } from './partner-ops/PartnerOpsTopBar';
+import type { PartnerOpsViewKey } from './partner-ops/partnerOpsNav';
 
 type Tab = 'portfolios' | 'invited' | 'capital' | 'roi' | 'topups' | 'activity' | 'promissory' | 'maturity' | 'renewals' | 'withdrawals' | 'proxy-agents';
+
+/** Legacy tab keys (used by PartnerOpsBrief navigation) → new sidebar views. */
+const LEGACY_TAB_TO_VIEW: Record<string, PartnerOpsViewKey> = {
+  portfolios: 'directory',
+  invited: 'portfolios.invited',
+  capital: 'financial.capital',
+  roi: 'financial.payouts',
+  topups: 'financial.topups',
+  activity: 'financial.wallets',
+  promissory: 'proxy.promissory',
+  maturity: 'maturity',
+  renewals: 'portfolios.renewed',
+  withdrawals: 'financial.withdrawals',
+  'proxy-agents': 'proxy.overview',
+};
 
 export function PartnersOpsDashboard() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [tab, setTab] = useState<Tab>('portfolios');
+  const [view, setView] = useState<PartnerOpsViewKey>('overview');
+  const setTab = (t: string) => setView(LEGACY_TAB_TO_VIEW[t] ?? 'overview');
   const [editAccount, setEditAccount] = useState<any>(null);
   const [fundAccount, setFundAccount] = useState<any>(null);
   const [createOpen, setCreateOpen] = useState(false);
