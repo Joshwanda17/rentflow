@@ -604,41 +604,6 @@ function HeroCard({ icon, iconBg, title, value, valueColor, items, footer, foote
   );
 }
 
-function TrailItem({ label, severity, count, amount, amountLabel, onClick }: {
-  label: string;
-  severity: string;
-  count: number | null;
-  amount: number | null;
-  amountLabel: string | null;
-  onClick?: () => void;
-}) {
-  const tone =
-    severity === 'High'
-      ? 'bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400'
-      : severity === 'Medium'
-        ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400'
-        : 'bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400';
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="text-left px-0 xl:px-4 py-3 xl:py-0 hover:bg-muted/30 transition-colors min-w-0"
-    >
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full shrink-0 ${tone}`}>{severity}</span>
-          <span className="text-xs font-medium truncate">{label}</span>
-        </div>
-        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-      </div>
-      <p className="mt-1.5 text-[11px] text-muted-foreground font-mono tabular-nums">
-        {count !== null && <>{count} item{count === 1 ? '' : 's'}</>}
-        {count !== null && amountLabel ? ' · ' : ''}
-        {amountLabel}
-      </p>
-    </button>
-  );
-}
 
 function KpiTile({ icon, iconBg, label, value, caption, valueColor }: {
   icon: React.ReactNode; iconBg: string; label: string; value: string; caption: string; valueColor?: string;
