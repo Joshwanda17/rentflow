@@ -14,7 +14,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Loader2, Clock, Download, Search, Filter, RefreshCw, ChevronLeft, ChevronRight, X, CalendarIcon, FileText, FileSpreadsheet } from 'lucide-react';
+import { Loader2, Clock, Download, Search, Filter, RefreshCw, ChevronLeft, ChevronRight, X, CalendarIcon, FileText, FileSpreadsheet, ChevronDown } from 'lucide-react';
 import { format, startOfDay, endOfDay, subDays, startOfMonth } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
