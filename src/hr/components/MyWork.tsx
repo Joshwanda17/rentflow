@@ -868,10 +868,10 @@ export default function MyWork({ embedded = false }: MyWorkProps) {
           open
           busy={busyTaskId === notePrompt.taskId}
           onClose={() => setNotePrompt(null)}
-          onConfirm={(note) => {
+          onConfirm={async (note) => {
             const target = notePrompt;
+            await act(target.taskId, target.eventType, note);
             setNotePrompt(null);
-            void act(target.taskId, target.eventType, note);
           }}
         />
       )}
