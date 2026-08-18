@@ -1,6 +1,9 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
-const MAX_RETRIES = 5
+const MAX_RETRIES = 1
+// A suppressed recipient is not a failure — put the message back and try again
+// in 2 minutes instead of burning a retry.
+const SUPPRESSION_RETRY_SECONDS = 120
 const DEFAULT_BATCH_SIZE = 10
 const DEFAULT_SEND_DELAY_MS = 200
 const DEFAULT_AUTH_TTL_MINUTES = 15
