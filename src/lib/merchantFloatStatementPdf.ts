@@ -22,6 +22,8 @@ export interface MerchantFloatStatementInput {
   balance: number;
   /** Float balance per the books (wallets.float_balance) for the tally line. */
   booksBalance?: number;
+  /** Opening balance the running balance starts from. */
+  openingBalance?: number;
   rows: MerchantFloatStatementRow[];
 }
 
@@ -134,6 +136,18 @@ export async function generateMerchantFloatStatementPdf(
       y,
     );
     y += 8;
+  }
+
+  if (typeof input.openingBalance === 'number' && Math.abs(input.openingBalance) >= 1) {
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(8);
+    pdf.setTextColor(110, 110, 110);
+    pdf.text(
+      `Opening balance before the first movement: ${formatUGX(input.openingBalance)} (anchored baseline from past float resets)`,
+      margin,
+      y,
+    );
+    y += 7;
   }
 
   // In / Out tiles
