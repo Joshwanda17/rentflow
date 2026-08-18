@@ -393,6 +393,12 @@ export function usePostMerchantOpeningFloatLedger() {
       qc.invalidateQueries({ queryKey: ['merchant-payout-float'] });
       qc.invalidateQueries({ queryKey: ['merchant-float-adjustments', v.deskId] });
       qc.invalidateQueries({ queryKey: ['merchant-float-ledger-variance'] });
+      // The correction is ledger-posted and the wallet float cache is re-seeded
+      // from the ledger server-side, so the merchant agent's own float bucket
+      // must be refetched too — both sides must show the same figure.
+      qc.invalidateQueries({ queryKey: ['wallet'] });
+      qc.invalidateQueries({ queryKey: ['agent-split-balances'] });
+      qc.invalidateQueries({ queryKey: ['agent-commission-net'] });
     },
   });
 }
