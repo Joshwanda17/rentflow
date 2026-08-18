@@ -26,6 +26,7 @@ import type { Department, Employee, Task, TaskEvent } from '../types';
 import {
   TRANSITION_NOTE_LABELS,
   charsStillNeeded,
+  isNoteRequired,
   isValidTransitionNote,
 } from './TransitionNoteDialog';
 
