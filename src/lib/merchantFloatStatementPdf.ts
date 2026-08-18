@@ -10,6 +10,8 @@ export interface MerchantFloatStatementRow {
   direction: 'cash_in' | 'cash_out';
   amount: number;
   runningBalance: number;
+  /** True for admin/finance correction legs — badged, never hidden. */
+  isCorrection?: boolean;
 }
 
 export interface MerchantFloatStatementInput {
@@ -18,6 +20,10 @@ export interface MerchantFloatStatementInput {
   totalIn: number;
   totalOut: number;
   balance: number;
+  /** Float balance per the books (wallets.float_balance) for the tally line. */
+  booksBalance?: number;
+  /** Opening balance the running balance starts from. */
+  openingBalance?: number;
   rows: MerchantFloatStatementRow[];
 }
 
@@ -115,6 +121,35 @@ export async function generateMerchantFloatStatementPdf(
   pdf.text('Company money this agent still holds', margin + 5, y + 25);
   y += 36;
 
+  // Books tally line — statement close vs wallet books, corrections included.
+  if (typeof input.booksBalance === 'number') {
+    const variance = input.balance - input.booksBalance;
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(9);
+    if (Math.abs(variance) < 1) pdf.setTextColor(35, 130, 80);
+    else pdf.setTextColor(170, 60, 60);
+    pdf.text(
+      Math.abs(variance) < 1
+        ? `Tallies with the books: ${formatUGX(input.booksBalance)}`
+        : `Books say ${formatUGX(input.booksBalance)} — variance ${formatUGX(variance)}`,
+      margin,
+      y,
+    );
+    y += 8;
+  }
+
+  if (typeof input.openingBalance === 'number' && Math.abs(input.openingBalance) >= 1) {
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(8);
+    pdf.setTextColor(110, 110, 110);
+    pdf.text(
+      `Opening balance before the first movement: ${formatUGX(input.openingBalance)} (anchored baseline from past float resets)`,
+      margin,
+      y,
+    );
+    y += 7;
+  }
+
   // In / Out tiles
   const colW = (pw - margin * 2 - 4) / 2;
   pdf.setFillColor(232, 250, 240);
@@ -170,7 +205,7 @@ export async function generateMerchantFloatStatementPdf(
       pdf.setTextColor(20, 20, 20);
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(10);
-      pdf.text(r.label, margin, y);
+      pdf.text(r.isCorrection ? `[ADMIN CORRECTION] ${r.label}` : r.label, margin, y);
 
       if (r.direction === 'cash_in') pdf.setTextColor(35, 130, 80);
       else pdf.setTextColor(170, 60, 60);

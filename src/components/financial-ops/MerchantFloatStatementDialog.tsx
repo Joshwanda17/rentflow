@@ -60,10 +60,18 @@ export function MerchantFloatStatementDialog({
 
   if (!position) return null;
 
-  const rows = data ?? [];
+  const rows = data?.rows ?? [];
   const inTotal = rows.filter((r) => r.direction === 'cash_in').reduce((s, r) => s + r.amount, 0);
   const outTotal = rows.filter((r) => r.direction === 'cash_out').reduce((s, r) => s + r.amount, 0);
-  const balance = rows.length ? rows[0].runningBalance : 0;
+  // The statement carries EVERY leg (admin corrections included) and starts from
+  // an explicit opening balance, so the closing figure equals the books float.
+  const booksBalance = data?.booksBalance ?? 0;
+  const openingBalance = data?.openingBalance ?? 0;
+  const balance = rows.length ? rows[0].runningBalance : booksBalance;
+  const variance = balance - booksBalance;
+  const tallies = Math.abs(variance) < 1;
+  const correctionRows = rows.filter((r) => r.isCorrection);
+  const correctionNet = data?.correctionNet ?? 0;
 
   const agentName = position.agentName || position.label || 'Merchant agent';
 
@@ -74,10 +82,13 @@ export function MerchantFloatStatementDialog({
       totalIn: inTotal,
       totalOut: outTotal,
       balance,
+      booksBalance,
+      openingBalance,
       rows: rows.map((r) => ({
         date: r.date,
         category: r.category,
         label: label(r),
+        isCorrection: r.isCorrection,
         description: isCustomerPayout(r)
           ? `Paid to ${r.payeeName || 'Unknown customer'} · ${r.description || r.referenceId || ''}`.trim()
           : r.description || r.referenceId || null,
@@ -175,6 +186,33 @@ export function MerchantFloatStatementDialog({
           </div>
         </div>
 
+        <div
+          className={`rounded-xl border p-3 ${
+            tallies ? 'border-success/40 bg-success/5' : 'border-destructive/40 bg-destructive/5'
+          }`}
+        >
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+            Statement vs books (wallet float)
+          </p>
+          <p className="mt-1 text-xs font-semibold text-foreground">
+            Statement close {formatUGX(balance)} · Books {formatUGX(booksBalance)}{' '}
+            <span className={tallies ? 'text-success' : 'text-destructive'}>
+              {tallies ? '· tallies' : `· variance ${formatUGX(variance)}`}
+            </span>
+          </p>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            {correctionRows.length > 0
+              ? `Includes ${correctionRows.length} admin correction leg${correctionRows.length === 1 ? '' : 's'} (net ${formatUGX(correctionNet)}) — always shown.`
+              : 'No admin correction legs on this float line.'}
+          </p>
+          {Math.abs(openingBalance) >= 1 && (
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Opening balance before the first leg below: {formatUGX(openingBalance)} (anchored baseline from
+              past float resets).
+            </p>
+          )}
+        </div>
+
         <div className="mt-2 divide-y divide-border rounded-xl border border-border overflow-hidden">
           {isLoading && <p className="p-4 text-xs text-muted-foreground">Loading statement…</p>}
           {error && (
@@ -199,7 +237,14 @@ export function MerchantFloatStatementDialog({
                 )}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-foreground truncate">{label(r)}</p>
+                <p className="text-sm font-medium text-foreground truncate">
+                  {label(r)}
+                  {r.isCorrection && (
+                    <span className="ml-2 rounded-full bg-warning/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-warning">
+                      Admin correction
+                    </span>
+                  )}
+                </p>
                 {isCustomerPayout(r) && (
                   <p
                     className={`text-[11px] font-semibold truncate ${

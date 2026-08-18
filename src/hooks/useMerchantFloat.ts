@@ -563,6 +563,10 @@ export interface MerchantFloatStatementRow {
   amount: number;
   referenceId: string | null;
   runningBalance: number;
+  /** Ledger partition of the leg (`production`, `admin_correction`, ...). */
+  classification: string;
+  /** True when the leg is a finance/admin correction — always shown, badged. */
+  isCorrection: boolean;
   /**
    * Customer/user who actually received the payout this float leg settled.
    * Resolved through: float ledger leg → withdrawal_requests.id → profiles.
@@ -572,6 +576,23 @@ export interface MerchantFloatStatementRow {
   payeeId?: string | null;
   /** Withdrawal request id extracted from the leg reference, for audit. */
   payoutRequestId?: string | null;
+}
+
+export interface MerchantFloatStatement {
+  rows: MerchantFloatStatementRow[];
+  /**
+   * Opening balance the running balance starts from: books float minus the net
+   * of every visible leg. It exists because clamped/anchored resets in the past
+   * left the wallet cache above the raw ledger net; showing it as an explicit
+   * opening line makes the statement close on the books instead of hiding legs.
+   */
+  openingBalance: number;
+  /** Float balance per the books (`wallets.float_balance`). */
+  booksBalance: number;
+  /** Net effect of `admin_correction` legs, included in the statement. */
+  correctionNet: number;
+  /** Net of all visible legs (in − out). */
+  movementNet: number;
 }
 
 const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
@@ -633,19 +654,48 @@ export function useMerchantFloatStatement(agentId?: string | null, enabled = tru
     enabled: !!agentId && enabled,
     retry: false,
     staleTime: 20_000,
-    queryFn: async (): Promise<MerchantFloatStatementRow[]> => {
-      const { data, error } = await supabase
-        .from('general_ledger')
-        .select('id, transaction_date, created_at, description, category, direction, amount, reference_id')
+    queryFn: async (): Promise<MerchantFloatStatement> => {
+      // Ops statement: EVERY float leg is shown, including `admin_correction`
+      // partitions, so the closing running balance tallies with the books
+      // (`wallets.float_balance`). Paged so long histories are never truncated.
+      const PAGE = 1000;
+      const legs: any[] = [];
+      for (let from = 0; ; from += PAGE) {
+        const { data, error } = await supabase
+          .from('general_ledger')
+          .select(
+            'id, transaction_date, created_at, description, category, direction, amount, reference_id, classification',
+          )
+          .eq('user_id', agentId!)
+          .eq('wallet_bucket', 'float')
+          .order('transaction_date', { ascending: true })
+          .order('created_at', { ascending: true })
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        const page = (data ?? []) as any[];
+        legs.push(...page);
+        if (page.length < PAGE || legs.length >= 20_000) break;
+      }
+      const { data: wallet } = await supabase
+        .from('wallets')
+        .select('float_balance')
         .eq('user_id', agentId!)
-        .eq('wallet_bucket', 'float')
-        .neq('classification', 'admin_correction')
-        .order('transaction_date', { ascending: true })
-        .limit(500);
-      if (error) throw error;
-      let bal = 0;
-      const rows = ((data ?? []) as any[]).map((r) => {
+        .maybeSingle();
+      const booksBalance = Number((wallet as any)?.float_balance ?? 0);
+
+      let movementNet = 0;
+      let correctionNet = 0;
+      for (const r of legs) {
+        const signed = (r.direction === 'cash_in' ? 1 : -1) * Number(r.amount ?? 0);
+        movementNet += signed;
+        if (String(r.classification ?? '') === 'admin_correction') correctionNet += signed;
+      }
+      const openingBalance = booksBalance - movementNet;
+
+      let bal = openingBalance;
+      const rows = legs.map((r) => {
         const amount = Number(r.amount ?? 0);
+        const classification = String(r.classification ?? 'production');
         bal += r.direction === 'cash_in' ? amount : -amount;
         return {
           id: String(r.id),
@@ -656,9 +706,12 @@ export function useMerchantFloatStatement(agentId?: string | null, enabled = tru
           amount,
           referenceId: r.reference_id ?? null,
           runningBalance: bal,
+          classification,
+          isCorrection: classification === 'admin_correction',
         };
       });
-      return resolveFloatPayees(rows.reverse());
+      const resolved = await resolveFloatPayees(rows.reverse());
+      return { rows: resolved, openingBalance, booksBalance, correctionNet, movementNet };
     },
   });
 }
@@ -693,7 +746,7 @@ export function useLatestMerchantFloatMovements(agentIds: string[], enabled = tr
         .select('user_id, transaction_date, created_at, description, category, direction, amount')
         .in('user_id', ids)
         .eq('wallet_bucket', 'float')
-        .neq('classification', 'admin_correction')
+
         .order('transaction_date', { ascending: false })
         .limit(1000);
       if (error) throw error;
@@ -740,7 +793,7 @@ export function useRecentMerchantFloatMovements(
         .select('user_id, transaction_date, created_at, description, category, direction, amount')
         .in('user_id', ids)
         .eq('wallet_bucket', 'float')
-        .neq('classification', 'admin_correction')
+
         .order('transaction_date', { ascending: false })
         .limit(1000);
       if (error) throw error;
