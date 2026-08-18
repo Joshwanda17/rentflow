@@ -1076,6 +1076,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submissionError, setSubmissionError] = useState<string | null>(null);
+  // When the DB guard blocks a duplicate because the tenant already has an open
+  // rejection, we route the agent straight into the resubmit dialog for that row.
+  const [resubmitTarget, setResubmitTarget] = useState<AgentRejectedRequest | null>(null);
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
   // Ref to the "things still needed" banner so we can scroll the agent
   // straight to it — ordinary agents on small phones often miss a toast.
