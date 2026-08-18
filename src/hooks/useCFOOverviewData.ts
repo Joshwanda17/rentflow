@@ -22,6 +22,102 @@ export function useCFOOverviewData() {
       const totalCash = Number(treasury?.total_cash ?? a1 + a5);
       const cashLines = (treasury?.lines as any[]) || [];
 
+      const CATEGORY_LABELS: Record<string, string> = {
+        partner_capital_cash_received: 'Partner Capital Received',
+        partner_funding: 'Partner Funding',
+        share_capital: 'Share Capital (Funders)',
+        angel_pool_investment: 'Angel Pool Investments',
+        angel_pool_commission: 'Angel Pool Commissions',
+        agent_float_deposit: 'Agent Float Issued',
+        agent_float_settlement: 'Agent Float Settled Back',
+        agent_float_topup: 'Agent Float Top-ups',
+        agent_float_funding: 'Agent Float Funding',
+        agent_float_used_for_rent: 'Float Used for Rent',
+        cash_receipt_in_transit: 'Cash Receipts In Transit',
+        cash_in_transit_banked: 'In-Transit Cash Banked',
+        treasury_bank_deposit: 'Treasury Bank Deposits',
+        cash_at_bank_reclass: 'Bank Reclassifications',
+      };
+
+      // Economic grouping: every cash-account category belongs to exactly one
+      // group, so no flow is shown twice and offsetting legs of the same
+      // movement (e.g. float issued vs float settled) net to a single figure.
+      const GROUPS: { key: string; label: string; categories: string[] }[] = [
+        {
+          key: 'partner_capital',
+          label: '🤝 Partner Capital',
+          categories: [
+            'partner_capital_cash_received',
+            'partner_funding',
+            'share_capital',
+            'angel_pool_investment',
+            'angel_pool_commission',
+            'pending_portfolio_topup',
+            'roi_reinvestment',
+          ],
+        },
+        {
+          key: 'partner_returns',
+          label: '📈 Partner Returns Paid',
+          categories: ['roi_expense', 'roi_wallet_credit', 'supporter_platform_rewards'],
+        },
+        {
+          key: 'agent_float',
+          label: '💼 Agent Float (net)',
+          categories: [
+            'agent_float_deposit',
+            'agent_float_settlement',
+            'agent_float_topup',
+            'agent_float_funding',
+            'agent_float_used_for_rent',
+          ],
+        },
+        {
+          key: 'user_wallets',
+          label: '👛 User Wallet Movements (net)',
+          categories: ['wallet_deposit', 'wallet_withdrawal', 'wallet_transfer', 'wallet_deduction'],
+        },
+        {
+          key: 'rent_operations',
+          label: '🏠 Rent Operations (net)',
+          categories: [
+            'rent_principal_collected',
+            'rent_disbursement',
+            'rent_receivable_created',
+            'tenant_repayment',
+            'agent_repayment',
+            'agent_landlord_payout',
+            'access_fee_collected',
+            'registration_fee_collected',
+          ],
+        },
+        {
+          key: 'agent_commissions',
+          label: '👤 Agent Commissions',
+          categories: [
+            'agent_commission_earned',
+            'agent_commission_withdrawal',
+            'agent_commission_payout',
+            'agent_commission_used_for_rent',
+          ],
+        },
+        {
+          key: 'treasury_transit',
+          label: '🏦 Treasury Transfers & Banking (net)',
+          categories: [
+            'cash_receipt_in_transit',
+            'cash_in_transit_banked',
+            'treasury_bank_deposit',
+            'cash_at_bank_reclass',
+          ],
+        },
+        {
+          key: 'corrections',
+          label: '🔧 Corrections',
+          categories: ['system_balance_correction', 'orphan_reassignment', 'orphan_reversal'],
+        },
+      ];
+
       const SOURCE_LABELS: Record<string, string> = {
         share_capital: '🏦 Share Capital (Funders)',
         partner_funding: '🤝 Partner Funding',
@@ -51,19 +147,49 @@ export function useCFOOverviewData() {
       };
 
       const labelFor = (cat: string) =>
-        SOURCE_LABELS[cat] || String(cat).replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
+        CATEGORY_LABELS[cat] ||
+        SOURCE_LABELS[cat] ||
+        String(cat).replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
 
-      // Increases / decreases now describe movements on the A1 + A5 cash
-      // accounts only, so they reconcile to the Money We Have figure.
-      const increases = cashLines
-        .filter((e: any) => Number(e.net) > 0)
-        .map((e: any) => ({ category: String(e.category), label: labelFor(e.category), value: Number(e.net), count: Number(e.entry_count) }))
-        .sort((a: any, b: any) => b.value - a.value);
+      const groupKeyFor = (cat: string) => GROUPS.find((g) => g.categories.includes(cat))?.key ?? 'other';
 
-      const decreases = cashLines
-        .filter((e: any) => Number(e.net) < 0)
-        .map((e: any) => ({ category: String(e.category), label: labelFor(e.category), value: Math.abs(Number(e.net)), count: Number(e.entry_count) }))
-        .sort((a: any, b: any) => b.value - a.value);
+      type Child = { category: string; label: string; value: number; count?: number };
+      const buckets = new Map<string, { key: string; label: string; net: number; count: number; children: Child[] }>();
+
+      for (const e of cashLines) {
+        const cat = String(e.category);
+        const net = Number(e.net) || 0;
+        const count = Number(e.entry_count) || 0;
+        const key = groupKeyFor(cat);
+        const label = GROUPS.find((g) => g.key === key)?.label ?? '📦 Other Movements';
+        const bucket = buckets.get(key) ?? { key, label, net: 0, count: 0, children: [] };
+        bucket.net += net;
+        bucket.count += count;
+        bucket.children.push({ category: cat, label: labelFor(cat), value: net, count });
+        buckets.set(key, bucket);
+      }
+
+      const toLine = (b: { key: string; label: string; net: number; count: number; children: Child[] }) => ({
+        category: b.key,
+        label: b.label,
+        value: Math.abs(b.net),
+        count: b.count,
+        children: [...b.children].sort((a, c) => Math.abs(c.value) - Math.abs(a.value)),
+      });
+
+      const grouped = Array.from(buckets.values()).filter((b) => Math.round(b.net) !== 0);
+
+      // Every group is a signed net of the A1 + A5 cash legs, so
+      // sum(increases) − sum(decreases) equals Money We Have exactly.
+      const increases = grouped
+        .filter((b) => b.net > 0)
+        .map(toLine)
+        .sort((a, b) => b.value - a.value);
+
+      const decreases = grouped
+        .filter((b) => b.net < 0)
+        .map(toLine)
+        .sort((a, b) => b.value - a.value);
 
       const totalIn = increases.reduce((s: number, e: any) => s + e.value, 0);
       const totalOut = decreases.reduce((s: number, e: any) => s + e.value, 0);
