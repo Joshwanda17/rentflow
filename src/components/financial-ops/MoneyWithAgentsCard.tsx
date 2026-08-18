@@ -1,5 +1,8 @@
 import { useState } from 'react';
-import { Wallet, HandCoins, ArrowRightLeft, AlertTriangle, SlidersHorizontal, ShieldAlert } from 'lucide-react';
+import { Wallet, HandCoins, ArrowRightLeft, AlertTriangle, SlidersHorizontal, ShieldAlert, RefreshCw } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { formatUGX } from '@/lib/rentCalculations';
 import {
@@ -29,6 +32,36 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
   const { data: variance } = useMerchantFloatLedgerVariance();
   const [reconciling, setReconciling] = useState<MerchantFloatPosition | null>(null);
   const [statementFor, setStatementFor] = useState<MerchantFloatPosition | null>(null);
+  const qc = useQueryClient();
+  const [sweeping, setSweeping] = useState(false);
+
+  // Payout float guard repair: any payout that completed WITHOUT a float debit
+  // (older paths, failed reservation) gets its company-float deduction posted
+  // now, so this card keeps falling as merchants complete payouts.
+  const runFloatSweep = async () => {
+    setSweeping(true);
+    try {
+      const { data: res, error: err } = await supabase.rpc('sweep_merchant_payout_float_debits' as any, {
+        p_days: 7,
+        p_dry_run: false,
+      });
+      if (err) throw err;
+      const debited = Number((res as any)?.float_debited_total ?? 0);
+      const n = Number((res as any)?.candidates ?? 0);
+      toast.success(
+        n === 0
+          ? 'All completed payouts already deducted from float'
+          : `Deducted ${formatUGX(debited)} across ${n} payout${n === 1 ? '' : 's'}`,
+      );
+      qc.invalidateQueries({ queryKey: ['merchant-float-positions'] });
+      qc.invalidateQueries({ queryKey: ['merchant-float-ledger-variance'] });
+      qc.invalidateQueries({ queryKey: ['merchant-payout-float'] });
+    } catch (e: any) {
+      toast.error(e?.message || 'Float repair failed');
+    } finally {
+      setSweeping(false);
+    }
+  };
 
   // The cached float on `wallets` can drift above what the ledger actually
   // proves. Finance must see the SPENDABLE figure, so the cache is only ever
@@ -106,15 +139,27 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
             </p>
           </div>
         </div>
-        {onOpenTimeline && (
+        <div className="flex items-center gap-3 shrink-0">
           <button
             type="button"
-            onClick={onOpenTimeline}
-            className="text-[11px] font-medium text-primary hover:underline flex items-center gap-1 shrink-0"
+            onClick={runFloatSweep}
+            disabled={sweeping}
+            className="text-[11px] font-medium text-muted-foreground hover:text-foreground hover:underline flex items-center gap-1 disabled:opacity-50"
+            title="Post the company-float deduction for any payout that completed without one (last 7 days)"
           >
-            <ArrowRightLeft className="h-3.5 w-3.5" /> Settlement timeline
+            <RefreshCw className={`h-3.5 w-3.5 ${sweeping ? 'animate-spin' : ''}`} />
+            {sweeping ? 'Repairing…' : 'Repair payout deductions'}
           </button>
-        )}
+          {onOpenTimeline && (
+            <button
+              type="button"
+              onClick={onOpenTimeline}
+              className="text-[11px] font-medium text-primary hover:underline flex items-center gap-1"
+            >
+              <ArrowRightLeft className="h-3.5 w-3.5" /> Settlement timeline
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">

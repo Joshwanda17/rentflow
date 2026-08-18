@@ -36663,6 +36663,10 @@ export type Database = {
         Returns: Json
       }
       ensure_depositor_profile: { Args: { p_user_id: string }; Returns: string }
+      ensure_merchant_payout_float_debit: {
+        Args: { p_withdrawal_id: string }
+        Returns: Json
+      }
       evaluate_kyc_activity: { Args: { p_user_id: string }; Returns: Json }
       evaluate_kyc_upgrade_eligibility: {
         Args: { p_user_id: string }
@@ -38361,6 +38365,10 @@ export type Database = {
       }
       get_partner_capital_projections: {
         Args: { p_bucket?: string; p_days?: number; p_months?: number }
+        Returns: Json
+      }
+      get_partner_forward_schedule: {
+        Args: { p_days?: number; p_streams?: string[] }
         Returns: Json
       }
       get_partner_ops_brief_report: {
@@ -41639,6 +41647,10 @@ export type Database = {
         Returns: number
       }
       sweep_agent_advance_recovery: { Args: never; Returns: Json }
+      sweep_merchant_payout_float_debits: {
+        Args: { p_days?: number; p_dry_run?: boolean }
+        Returns: Json
+      }
       sweep_withdrawal_settlement_states: {
         Args: { p_days?: number; p_limit?: number }
         Returns: Json
