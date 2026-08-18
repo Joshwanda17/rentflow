@@ -14,6 +14,8 @@ export interface CashSourceLine {
   label: string;
   value: number;
   count?: number;
+  /** Underlying ledger categories that net into this source. */
+  children?: { category: string; label: string; value: number; count?: number }[];
 }
 
 interface Props {
@@ -64,6 +66,7 @@ function useSourceTransactions(category: string | null, page: number) {
 
 export function CashSourcesSheet({ open, onOpenChange, totalCash, a1, a5, increases, decreases }: Props) {
   const [selected, setSelected] = useState<CashSourceLine | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const { data, isLoading, error } = useSourceTransactions(selected?.category ?? null, page);
 
@@ -75,9 +78,19 @@ export function CashSourcesSheet({ open, onOpenChange, totalCash, a1, a5, increa
     setPage(0);
   };
 
+  const openLine = (line: CashSourceLine) => {
+    if (line.children && line.children.length > 1) {
+      setExpanded((cur) => (cur === line.category ? null : line.category));
+      return;
+    }
+    const only = line.children?.[0];
+    pick(only ? { ...only, value: Math.abs(only.value) } : line);
+  };
+
   const close = (o: boolean) => {
     if (!o) {
       setSelected(null);
+      setExpanded(null);
       setPage(0);
     }
     onOpenChange(o);
@@ -103,8 +116,9 @@ export function CashSourcesSheet({ open, onOpenChange, totalCash, a1, a5, increa
               <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Where did the money we have come from?</p>
               <p className="text-2xl font-bold font-mono mt-1">{formatUGX(totalCash)}</p>
               <p className="text-[11px] text-muted-foreground mt-1">
-                Bank &amp; cash (A1) {formatUGX(a1)} · In transit (A5) {formatUGX(a5)}. Only cash-account legs are counted, so
-                internal wallet-to-wallet transfers are never double-counted.
+                Bank &amp; cash (A1) {formatUGX(a1)} · In transit (A5) {formatUGX(a5)}. Each source below is the net of its own
+                cash legs, counted once, so money in minus money out equals this figure exactly. Tap a source to see the
+                underlying entries.
               </p>
             </div>
 
@@ -118,10 +132,10 @@ export function CashSourcesSheet({ open, onOpenChange, totalCash, a1, a5, increa
                   const pct = grossIn > 0 ? (line.value / grossIn) * 100 : 0;
                   const pctOfTotal = totalCash > 0 ? (line.value / totalCash) * 100 : 0;
                   return (
+                    <div key={line.category} className="rounded-xl border border-border">
                     <button
-                      key={line.category}
-                      onClick={() => pick(line)}
-                      className="w-full text-left rounded-xl border border-border p-3 hover:bg-muted/60 transition-colors"
+                      onClick={() => openLine(line)}
+                      className="w-full text-left p-3 hover:bg-muted/60 transition-colors rounded-xl"
                     >
                       <div className="flex items-center justify-between gap-2">
                         <div className="min-w-0">
@@ -138,6 +152,30 @@ export function CashSourcesSheet({ open, onOpenChange, totalCash, a1, a5, increa
                       </div>
                       <Progress value={Math.min(100, pct)} className="h-1.5 mt-2" />
                     </button>
+                    {expanded === line.category && (
+                      <div className="border-t border-border divide-y divide-border">
+                        {(line.children ?? []).map((c) => (
+                          <button
+                            key={c.category}
+                            onClick={() => pick({ ...c, value: Math.abs(c.value) })}
+                            className="w-full flex items-center justify-between gap-2 px-3 py-2 text-xs hover:bg-muted/60"
+                          >
+                            <span className="text-muted-foreground truncate">
+                              {c.label}
+                              {c.count != null ? ` (${c.count})` : ''}
+                            </span>
+                            <span className="flex items-center gap-2 shrink-0">
+                              <span className={`font-mono ${c.value < 0 ? 'text-destructive' : 'text-emerald-600'}`}>
+                                {c.value < 0 ? '−' : '+'}
+                                {formatUGX(Math.abs(c.value))}
+                              </span>
+                              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    </div>
                   );
                 })}
                 {increases.length === 0 && <p className="text-sm text-muted-foreground">No cash inflows recorded.</p>}
@@ -152,9 +190,9 @@ export function CashSourcesSheet({ open, onOpenChange, totalCash, a1, a5, increa
                 </div>
                 <div className="space-y-1">
                   {decreases.map((line) => (
+                    <div key={line.category}>
                     <button
-                      key={line.category}
-                      onClick={() => pick(line)}
+                      onClick={() => openLine(line)}
                       className="w-full flex items-center justify-between gap-2 py-2 px-1 text-sm hover:bg-muted/60 rounded-lg"
                     >
                       <span className="text-muted-foreground truncate">
@@ -166,6 +204,27 @@ export function CashSourcesSheet({ open, onOpenChange, totalCash, a1, a5, increa
                         <ChevronRight className="h-4 w-4 text-muted-foreground" />
                       </span>
                     </button>
+                    {expanded === line.category && (
+                      <div className="pl-3 pb-1">
+                        {(line.children ?? []).map((c) => (
+                          <button
+                            key={c.category}
+                            onClick={() => pick({ ...c, value: Math.abs(c.value) })}
+                            className="w-full flex items-center justify-between gap-2 px-1 py-1.5 text-xs hover:bg-muted/60 rounded-md"
+                          >
+                            <span className="text-muted-foreground truncate">
+                              {c.label}
+                              {c.count != null ? ` (${c.count})` : ''}
+                            </span>
+                            <span className={`font-mono ${c.value < 0 ? 'text-destructive' : 'text-emerald-600'}`}>
+                              {c.value < 0 ? '−' : '+'}
+                              {formatUGX(Math.abs(c.value))}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    </div>
                   ))}
                 </div>
               </div>
