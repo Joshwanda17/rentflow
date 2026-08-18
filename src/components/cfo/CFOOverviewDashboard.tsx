@@ -8,6 +8,7 @@ import {
   Loader2, ArrowDownRight, ArrowUpRight, Scale, Wallet, Users, TrendingUp,
   Banknote, Percent, Receipt, ChevronRight, Info, CalendarDays, Download,
   PiggyBank, Flame, BarChart3, Package, LineChart as LineChartIcon, ChevronDown,
+  Landmark, Vault,
 } from 'lucide-react';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -134,6 +135,8 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
   }
 
   const totalCash = platformCash?.totalCash ?? 0;
+  const treasuryPosition = (platformCash?.positions ?? []).find((p: any) => p.category === 'treasury_platform_cash');
+  const bankPosition = (platformCash?.positions ?? []).find((p: any) => p.category === 'bank_cash');
   const totalReceivables = receivables?.totalReceivables ?? 0;
   const totalLiabilities = liabilities?.totalLiabilities ?? 0;
   const walletTotal = liabilities?.tenantFunds ?? 0;
@@ -273,6 +276,38 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
           footer="After obligations and restrictions"
           footerTone="bg-blue-50/70 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400"
           onClick={() => setActiveBreakdown('earnings')}
+        />
+      </div>
+
+      {/* ══════════════ WHERE THE MONEY SITS ══════════════ */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <HeroCard
+          icon={<Vault className="h-5 w-5 text-indigo-600" />}
+          iconBg="bg-indigo-50 dark:bg-indigo-950/40"
+          title="Money in Treasury / Platform"
+          value={fmt(treasuryPosition?.value ?? 0)}
+          valueColor="text-indigo-600"
+          items={[
+            { dot: 'bg-indigo-500', label: 'Cash held outside the bank', value: fmt(treasuryPosition?.value ?? 0) },
+            { dot: 'bg-indigo-500', label: 'Ledger entries', value: String(treasuryPosition?.count ?? 0) },
+          ]}
+          footer="Position view — part of Money We Have, not added to it"
+          footerTone="bg-indigo-50/70 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-400"
+          onClick={() => setActiveBreakdown('cash')}
+        />
+        <HeroCard
+          icon={<Landmark className="h-5 w-5 text-sky-600" />}
+          iconBg="bg-sky-50 dark:bg-sky-950/40"
+          title="Money in Bank"
+          value={fmt(bankPosition?.value ?? 0)}
+          valueColor="text-sky-600"
+          items={[
+            { dot: 'bg-sky-500', label: 'Net banked cash', value: fmt(bankPosition?.value ?? 0) },
+            { dot: 'bg-sky-500', label: 'Ledger entries', value: String(bankPosition?.count ?? 0) },
+          ]}
+          footer="Position view — part of Money We Have, not added to it"
+          footerTone="bg-sky-50/70 dark:bg-sky-950/30 text-sky-700 dark:text-sky-400"
+          onClick={() => setActiveBreakdown('cash')}
         />
       </div>
 
