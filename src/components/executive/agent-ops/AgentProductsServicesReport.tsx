@@ -212,6 +212,48 @@ export function AgentProductsServicesReport() {
 
   const cumulative = cumulativeQuery.data ?? null;
 
+  // ===== Dynamic period-over-period baseline: the equal-length window immediately before =====
+  const prevFrom = useMemo(() => subDays(day, rangeDays), [day, rangeDays]);
+  const prevTo = useMemo(() => subDays(day, 1), [day]);
+  const prevFromKey = toDateKey(prevFrom);
+  const prevToKey = toDateKey(prevTo);
+  const compareLabel = apsCompareLabel(rangeDays);
+
+  const prevQuery = useQuery({
+    queryKey: ['agent-products-services-report-prev', prevFromKey, prevToKey],
+    queryFn: async (): Promise<ApsReport> => {
+      const { data, error } = await supabase.rpc('get_agent_products_services_report' as any, {
+        p_date: prevToKey,
+        p_from: prevFromKey,
+      });
+      if (error) throw error;
+      return data as unknown as ApsReport;
+    },
+    staleTime: 60_000,
+  });
+
+  const prevReport = prevQuery.data ?? null;
+
+  /** Previous-period values for every KPI (falls back to the RPC's day-over-day fields). */
+  const pop = useMemo(() => {
+    const p = prevReport;
+    return {
+      newAgents: p ? Number(p.agents.new_today) : Number(report?.agents.new_prev ?? 0),
+      totalAgents: Number(report?.agents.base ?? 0),
+      activeAgents: p ? Number(p.agents.active_today) : undefined,
+      collected: p ? Number(p.rent.collected_today) : Number(report?.rent.collected_prev ?? 0),
+      dailyReceivable: p ? Number(p.rent.daily_receivable) : undefined,
+      outstanding: p ? Number(p.rent.outstanding) : undefined,
+      advIssued: p ? Number(p.advances.issued_today) : undefined,
+      advOutstanding: p ? Number(p.advances.outstanding) : undefined,
+      advApproved: p ? Number(p.advances.approved) : undefined,
+      scActive: p ? Number(p.service_centres.active_total) : undefined,
+      scPending: p ? Number(p.service_centres.pending_total) : undefined,
+      bikes: p ? Number(p.bikes?.outstanding ?? 0) : undefined,
+      phones: p ? Number(p.phones?.outstanding ?? 0) : undefined,
+    };
+  }, [prevReport, report]);
+
   const trend = useMemo(
     () => [...(report?.trend || [])]
       .sort((a, b) => a.day.localeCompare(b.day))
@@ -227,6 +269,7 @@ export function AgentProductsServicesReport() {
         report,
         actor: actorName || 'Agent Ops user',
         cumulative,
+        prev: prevReport,
       });
       downloadBlob(blob, isRange ? `agent-products-services-${dayKey}_to_${todayKey}.pdf` : `agent-products-services-${todayKey}.pdf`);
       toast.success(isRange ? 'Cumulative report downloaded' : 'Daily report downloaded');
