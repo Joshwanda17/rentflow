@@ -276,46 +276,6 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
         />
       </div>
 
-      {/* ══════════════ CFO ACTION TRAIL ══════════════ */}
-      <Card className="rounded-2xl">
-        <CardContent className="p-4 sm:p-5">
-          <div className="flex items-start justify-between gap-3 mb-4">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                <ClipboardCheck className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="font-semibold text-sm">CFO Action Trail</p>
-                <p className="text-xs text-muted-foreground">Items that need your attention</p>
-              </div>
-            </div>
-            {onTabChange && (
-              <button
-                onClick={() => onTabChange('reconciliation')}
-                className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline shrink-0"
-              >
-                View all <ChevronRight className="h-3.5 w-3.5" />
-              </button>
-            )}
-            <SectionToggle open={isOpen('actionTrail')} onToggle={() => toggleSection('actionTrail')} label="CFO Action Trail" />
-          </div>
-          {isOpen('actionTrail') && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 divide-y xl:divide-y-0 xl:divide-x divide-border">
-            {actionTrail.map((item) => (
-              <TrailItem
-                key={item.label}
-                label={item.label}
-                severity={item.severity}
-                count={item.count}
-                amount={item.amount}
-                amountLabel={item.amount === null ? null : fmt(item.amount)}
-                onClick={onTabChange ? () => onTabChange(item.tab) : undefined}
-              />
-            ))}
-          </div>
-          )}
-        </CardContent>
-      </Card>
 
       {/* ══════════════ KPI STRIP ══════════════ */}
       <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-3">
