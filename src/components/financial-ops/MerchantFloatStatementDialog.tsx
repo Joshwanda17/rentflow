@@ -4,6 +4,8 @@ import { format } from 'date-fns';
 import { formatUGX } from '@/lib/rentCalculations';
 import { MerchantFloatPosition, useMerchantFloatStatement } from '@/hooks/useMerchantFloat';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   buildMerchantFloatStatementFilename,
   generateMerchantFloatStatementPdf,
@@ -57,17 +59,35 @@ export function MerchantFloatStatementDialog({
 }) {
   const { data, isLoading, error } = useMerchantFloatStatement(position?.agentId, open);
   const [busy, setBusy] = useState<'pdf' | 'share' | null>(null);
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
 
   if (!position) return null;
 
-  const rows = data?.rows ?? [];
+  const allRows = data?.rows ?? [];
+  // Financial Ops can restrict the downloaded statement to a date window.
+  const inPeriod = (iso: string) => {
+    const d = new Date(iso).getTime();
+    if (fromDate && d < new Date(`${fromDate}T00:00:00`).getTime()) return false;
+    if (toDate && d > new Date(`${toDate}T23:59:59.999`).getTime()) return false;
+    return true;
+  };
+  const hasPeriod = Boolean(fromDate || toDate);
+  const rows = hasPeriod ? allRows.filter((r) => inPeriod(r.date)) : allRows;
   const inTotal = rows.filter((r) => r.direction === 'cash_in').reduce((s, r) => s + r.amount, 0);
   const outTotal = rows.filter((r) => r.direction === 'cash_out').reduce((s, r) => s + r.amount, 0);
   // The statement carries EVERY leg (admin corrections included) and starts from
   // an explicit opening balance, so the closing figure equals the books float.
   const booksBalance = data?.booksBalance ?? 0;
   const openingBalance = data?.openingBalance ?? 0;
-  const balance = rows.length ? rows[0].runningBalance : booksBalance;
+  const balance = rows.length ? rows[0].runningBalance : hasPeriod ? 0 : booksBalance;
+  // Opening for the selected window = balance carried by the leg just before it.
+  const periodOpening = (() => {
+    if (!hasPeriod || rows.length === 0) return openingBalance;
+    const idx = allRows.findIndex((r) => r.id === rows[rows.length - 1].id);
+    const prev = allRows[idx + 1];
+    return prev ? prev.runningBalance : openingBalance;
+  })();
   const variance = balance - booksBalance;
   const tallies = Math.abs(variance) < 1;
   const correctionRows = rows.filter((r) => r.isCorrection);
@@ -83,7 +103,9 @@ export function MerchantFloatStatementDialog({
       totalOut: outTotal,
       balance,
       booksBalance,
-      openingBalance,
+      openingBalance: periodOpening,
+      periodFrom: fromDate || null,
+      periodTo: toDate || null,
       rows: rows.map((r) => ({
         date: r.date,
         category: r.category,
@@ -98,7 +120,10 @@ export function MerchantFloatStatementDialog({
       })),
     });
 
-  const filename = buildMerchantFloatStatementFilename(agentName, position.agentPhone);
+  const filename = buildMerchantFloatStatementFilename(agentName, position.agentPhone, {
+    from: fromDate || null,
+    to: toDate || null,
+  });
 
   const handleDownloadPdf = async () => {
     try {
@@ -151,7 +176,48 @@ export function MerchantFloatStatementDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex justify-end gap-2">
+        <div className="flex flex-wrap items-end justify-end gap-2">
+          <div className="mr-auto flex flex-wrap items-end gap-2">
+            <div>
+              <Label htmlFor="float-from" className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                From
+              </Label>
+              <Input
+                id="float-from"
+                type="date"
+                value={fromDate}
+                max={toDate || undefined}
+                onChange={(e) => setFromDate(e.target.value)}
+                className="h-8 w-[9.5rem] text-xs"
+              />
+            </div>
+            <div>
+              <Label htmlFor="float-to" className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                To
+              </Label>
+              <Input
+                id="float-to"
+                type="date"
+                value={toDate}
+                min={fromDate || undefined}
+                onChange={(e) => setToDate(e.target.value)}
+                className="h-8 w-[9.5rem] text-xs"
+              />
+            </div>
+            {hasPeriod && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 text-xs"
+                onClick={() => {
+                  setFromDate('');
+                  setToDate('');
+                }}
+              >
+                Clear dates
+              </Button>
+            )}
+          </div>
           <Button
             size="sm"
             variant="outline"
