@@ -766,7 +766,7 @@ export default function MyWork({ embedded = false }: MyWorkProps) {
                             variant="outline"
                             className="h-6 px-2 text-[10px]"
                             disabled={busyTaskId === task.id}
-                            onClick={() => setNotePrompt({ taskId: task.id, eventType: 'submitted' })}
+                            onClick={() => act(task.id, 'submitted')}
                           >
                             Submit
                           </Button>
