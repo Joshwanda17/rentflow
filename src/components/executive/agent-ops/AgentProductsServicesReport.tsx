@@ -326,6 +326,67 @@ export function AgentProductsServicesReport() {
             <Kpi label="Pending service centres" value={num(report.service_centres.pending_total)} hint="awaiting verification" />
           </div>
 
+          {/* Cumulative build-up */}
+          <Card>
+            <CardHeader className="p-3 pb-1">
+              <CardTitle className="text-xs font-bold">
+                Cumulative build-up to {format(day, 'dd MMM yyyy')}
+              </CardTitle>
+              <p className="text-[10px] text-muted-foreground">
+                Totals accumulated from 7, 30, 90 and 365 days ago up to the reporting date
+              </p>
+            </CardHeader>
+            <CardContent className="p-3 pt-1">
+              {cumulativeQuery.isLoading ? (
+                <Skeleton className="h-28 rounded-lg" />
+              ) : cumulativeQuery.error ? (
+                <p className="text-xs text-destructive">
+                  {(cumulativeQuery.error as any)?.message || 'Could not load the cumulative comparison'}
+                </p>
+              ) : (
+                <div className="overflow-x-auto rounded-lg border">
+                  <table className="w-full text-xs">
+                    <thead className="bg-muted/50">
+                      <tr>
+                        <th className="px-2 py-2 text-left font-semibold whitespace-nowrap">Window</th>
+                        <th className="px-2 py-2 text-left font-semibold whitespace-nowrap">From</th>
+                        <th className="px-2 py-2 text-right font-semibold whitespace-nowrap">Rent collected</th>
+                        <th className="px-2 py-2 text-right font-semibold whitespace-nowrap">Collections</th>
+                        <th className="px-2 py-2 text-right font-semibold whitespace-nowrap">New agents</th>
+                        <th className="px-2 py-2 text-right font-semibold whitespace-nowrap">Advances issued</th>
+                        <th className="px-2 py-2 text-right font-semibold whitespace-nowrap">Advances recovered</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(cumulative?.windows ?? []).length === 0 && (
+                        <tr><td colSpan={7} className="px-2 py-6 text-center text-muted-foreground">No cumulative data</td></tr>
+                      )}
+                      {(cumulative?.windows ?? []).map(w => (
+                        <tr key={w.days} className="border-t">
+                          <td className="px-2 py-1.5 whitespace-nowrap font-medium">{apsWindowLabel(w.days)}</td>
+                          <td className="px-2 py-1.5 whitespace-nowrap text-muted-foreground">
+                            {format(new Date(`${w.from_date}T00:00:00`), 'dd MMM yyyy')}
+                          </td>
+                          <td className="px-2 py-1.5 text-right whitespace-nowrap">{apsUgx(w.rent_collected)}</td>
+                          <td className="px-2 py-1.5 text-right whitespace-nowrap">
+                            {num(w.collections_count)}
+                            <span className="text-muted-foreground"> · {num(w.collecting_agents)} agents</span>
+                          </td>
+                          <td className="px-2 py-1.5 text-right whitespace-nowrap">{num(w.new_agents)}</td>
+                          <td className="px-2 py-1.5 text-right whitespace-nowrap">
+                            {apsUgx(w.advances_issued)}
+                            <span className="text-muted-foreground"> · {num(w.advances_count)}</span>
+                          </td>
+                          <td className="px-2 py-1.5 text-right whitespace-nowrap">{apsUgx(w.advances_recovered)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Trend */}
           <Card>
             <CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-bold">Rent collected — last 14 days</CardTitle></CardHeader>
