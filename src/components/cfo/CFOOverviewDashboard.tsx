@@ -566,7 +566,7 @@ function CollapsibleBlock({ title, open, onToggle, children }: {
   );
 }
 
-function HeroCard({ icon, iconBg, title, value, valueColor, items, footer, footerTone, onClick }: {
+function HeroCard({ icon, iconBg, title, value, valueColor, items, footer, footerTone, onClick, variant = 'default' }: {
   icon: React.ReactNode;
   iconBg: string;
   title: string;
@@ -576,7 +576,49 @@ function HeroCard({ icon, iconBg, title, value, valueColor, items, footer, foote
   footer: string;
   footerTone: string;
   onClick?: () => void;
+  variant?: 'default' | 'executive';
 }) {
+  if (variant === 'executive') {
+    const [currency, ...amountParts] = value.split(' ');
+    const amount = amountParts.join(' ');
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className="w-full text-left rounded-2xl border border-border bg-card shadow-sm hover:shadow-md transition-all cursor-pointer group"
+      >
+        <div className="p-4 sm:p-5">
+          <div className="flex justify-between items-start mb-4">
+            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">{title}</h3>
+            <div className={`p-1.5 rounded-lg shrink-0 ${iconBg}`}>{icon}</div>
+          </div>
+          <div className="mb-6">
+            <div className={`flex items-baseline gap-1 ${valueColor}`}>
+              <span className="text-lg font-semibold">{currency}</span>
+              <span className="text-3xl font-bold tracking-tight">{amount}</span>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground font-medium tracking-wide uppercase">{footer}</p>
+          </div>
+          <div className="space-y-3 pt-5 border-t border-border">
+            {items.map((it) => (
+              <div key={it.label} className="flex justify-between items-center">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className={`w-2 h-2 rounded-full shrink-0 ${it.dot}`} />
+                  <span className="text-sm text-muted-foreground font-medium truncate">{it.label}</span>
+                </div>
+                <span className="text-sm font-semibold tabular-nums text-foreground shrink-0">{it.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="px-4 sm:px-5 py-3 bg-muted/40 border-t border-border flex justify-between items-center">
+          <span className="text-xs font-semibold text-primary">View Details</span>
+          <ChevronRight className="h-4 w-4 text-primary/60 group-hover:translate-x-1 transition-transform" />
+        </div>
+      </button>
+    );
+  }
+
   return (
     <button
       type="button"
