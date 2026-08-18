@@ -1,87 +1,40 @@
-# Phase 2 — Void the 15 duplicate-reversal ledger legs (UGX 32,810,000)
+# Dark mode + settings toggle
 
-Scope fence: these 15 legs only. No wallet cache write, no new correction categories, no touching the
-101 UNKNOWN_NEEDS_REVIEW legs, no change to `apply_wallet_movement`, no reporting-surface changes.
+## Feasibility: high — most of the wiring already exists
 
-## Confirmed target set (re-verified just now)
+Confirmed already in place:
+- `tailwind.config.ts` has `darkMode: ["class"]`.
+- `src/critical.css` defines a full `.dark` token block (background, card, primary, border, chart colours, glass, sidebar) alongside `:root`.
+- `next-themes` is installed and `<ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>` already wraps the app in `src/App.tsx`.
+- `src/components/ThemeToggle.tsx` exists (Light / Dark / System dropdown) and is already mounted in Settings → "Look" tab under a "Dark / Light" row, plus several marketplace pages.
 
-All 15 legs share the exact same signature: `ledger_scope='wallet'`, `wallet_bucket='float'`,
-`direction='cash_out'`, `classification='admin_correction'`, `category='system_balance_correction'`,
-`created_at = 2026-08-14 14:06:34.380038+00`, description starting
-`Balance effect: historical merchant float sweep credit settled back`.
+So dark mode technically switches today. What's missing is a clean toggle UX and, mainly, screens that ignore the tokens.
 
-They are the second wave of a reversal that had already been posted three minutes earlier at
-14:03:55 as `agent_float_deposit` cash_out. That first wave is the legitimate reversal; this second
-wave debited the same money a second time.
+The real work: 104 component files use hardcoded colours that don't flip with the theme — 699 `text-white`, 331 `bg-white`, 72 `bg-black`, plus `text-gray-*`, `bg-slate-*` and literal hexes (`#9234EA`, `#6c11d4`, `#25D366`). On those screens dark mode currently produces white-on-white or black-on-black patches.
 
-| Desk | Amount (UGX) | Leg id |
-|---|---|---|
-| Bayo Mercy | 5,000,000 | 4def02f0 |
-| Hilary Evanz | 5,000,000 | 842259c8 |
-| Tugabirwe Apophia | 5,000,000 | 9d6c61be |
-| NABBALE CLAIRE | 3,000,000 | 9281bf43 |
-| Nankambo sharimah | 3,000,000 | 5ac98738 |
-| Babrah Tusingwire | 2,000,000 | 3c820f77 |
-| Catherine Nabaggala | 2,000,000 | 7c2a6883 |
-| Hilary Evanz | 2,000,000 | 6ca49532 |
-| NABBALE CLAIRE | 2,000,000 | cd46c822 |
-| JOSHUA WANDA | 1,200,000 | def7109f |
-| JOSHUA WANDA | 1,000,000 | de4ce602 |
-| JOSHUA WANDA | 950,000 | cb65d81b |
-| Bayo Mercy | 500,000 | aad29706 |
-| Bayo Mercy | 110,000 | 87309178 |
-| Bayo Mercy | 50,000 | 34b6e86a |
-| **Total** | **32,810,000** | 15 legs, 8 desks |
+## What I'll build
 
-## Method
+### 1. Toggle UX in Settings (small)
+- Replace the dropdown row in Settings → Look with an explicit, labelled control: a Light / Dark segmented switch (System as a third option) showing the active mode, sun/moon icon, and a one-line description.
+- Enable `enableSystem` and keep `defaultTheme="system"` only if you want OS-following; otherwise default light. Persistence is automatic via next-themes `localStorage` (`theme` key).
+- Add a small no-flash inline script + `suppressHydrationWarning` so the saved theme is applied before first paint (avoids a white flash on reload in dark mode).
+- Update the `<meta name="theme-color">` handling so the mobile browser chrome matches the chosen theme rather than the OS preference.
 
-Append-only. No `UPDATE`, no `DELETE` on `general_ledger` — the ledger stays immutable.
+### 2. Token cleanup, phased by screen priority
+Convert hardcoded utilities to semantic tokens (`bg-background`, `bg-card`, `text-foreground`, `text-muted-foreground`, `border-border`, `bg-primary`/`text-primary-foreground`, `text-success`, `bg-brand`-style tokens for the purple/WhatsApp-green hexes; new tokens added to `:root` + `.dark` where none exist).
 
-For each of the 15 legs, one call to `create_ledger_transaction` posting a balanced pair:
+- Phase A — shared shells and primitives: app headers/nav, sheets/dialog wrappers, `elevated-card`/`glass-card` consumers, wallet cards, KPI cards.
+- Phase B — the dashboards you use daily: Partner/Funder, Agent, Tenant.
+- Phase C — ops/exec dashboards: CFO, FinOps, Partner Ops, Tenant Ops, HR/Recruitment.
+- Phase D — marketing/marketplace and long-tail pages.
 
-- wallet leg: `cash_in`, `wallet_bucket='float'`, `recipient_type='operational_wallet'`,
-  `category='system_balance_correction'`, `classification='admin_correction'`
-- platform leg: `cash_out`, `category='phantom_writedown_clearing'`
+Intentional exceptions kept as fixed colours: gradient hero cards that are brand-purple by design (e.g. the partner portfolio wallet card), PDF/print and share-image renderers (Canvas/PDF output must stay light), and status badges that already have `.dark` overrides in `index.css`.
 
-Idempotency key per leg: `phase2-void-<leg_id>`. Re-running the migration posts nothing.
-Description on each names the voided leg id and the reason, so the audit trail is self-explaining.
-One `audit_logs` row (`action_type='ledger_duplicate_reversal_void'`) with the reason and the 15 ids.
+### 3. Verification
+- Per phase, screenshot the touched screens in both themes headlessly and fix contrast issues.
+- Typecheck after each phase.
 
-The whole thing runs as a single transaction with `SET LOCAL lock_timeout = '5s'`.
-
-## Expected effect — raw ledger net moves to match the cache
-
-| Desk | Raw net before | Void | Raw net after | Cache shown |
-|---|---|---|---|---|
-| Tugabirwe Apophia | −4,353,043 | +5,000,000 | 646,957 | 646,957 |
-| Hilary Evanz | −5,152,101 | +7,000,000 | 1,847,899 | 1,847,899 |
-| NABBALE CLAIRE | −3,854,703 | +5,000,000 | 1,145,297 | 1,145,297 |
-| Babrah Tusingwire | −44,114 | +2,000,000 | 1,955,886 | 1,955,886 |
-| All 12 desks | −53,871,729 | +32,810,000 | −21,061,729 | — |
-
-Four desks reach exact cache identity. The residual −21,061,729 is the UNKNOWN_NEEDS_REVIEW
-population and stays untouched and visible — it is not absorbed or plugged.
-
-**The wallet cache will not move.** `v_user_wallet_strict` does not admit `admin_correction`
-`system_balance_correction` **cash_in** legs (deliberate rule — credits of that shape are filtered,
-debits pass). So this restores the books without crediting anyone. That is the intended outcome:
-the cache was already right on these desks.
-
-## The four verification checks (run after, reported back)
-
-1. **Count and sum**: exactly 15 idempotency keys `phase2-void-%` exist, 30 new rows, total
-   32,810,000 on each side.
-2. **Group balance**: every new `transaction_group_id` nets to zero (cash_in = cash_out); the
-   existing `ledger_group_balance_regression` invariant still passes globally.
-3. **Per-desk raw net**: the four desks above equal their cached float to the shilling; all 12 desks
-   reconcile to the predicted table.
-4. **Cache untouched**: `wallets` float_balance for all 12 desks is byte-identical to the
-   pre-migration snapshot, and `get_merchant_float_positions()` headline evidenced figure is
-   unchanged at UGX 15,000.
-
-## What is explicitly NOT in this phase
-
-- The silent clamp in `apply_wallet_movement` (root cause) — separate remediation step.
-- The `display_only` defect in `trg_stamp_merchant_reconciliation_truth`.
-- The 13.7M Bayo Mercy Equity account (still UNTRACED).
-- Mudumba samuel's 2,208,633 (NO INDEPENDENT EVIDENCE — needs provider confirmation).
+## Scope notes
+- No backend, ledger, RLS or business-logic changes. Presentation only.
+- Theme preference stays device-local (localStorage); no DB column unless you want it synced across devices — say so and I'll add it to profile preferences.
+- Recommend doing Phase 1 + Phase A/B first so dark mode is genuinely usable on your main screens, then Phase C/D as follow-ups.
