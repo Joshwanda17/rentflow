@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from 'recharts';
+import { ResponsiveContainer, BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -257,63 +257,117 @@ export function PartnerRecentWithdrawals() {
   );
 }
 
-/* ─────────────── 3. New partner trend ─────────────── */
+/* ─────────────── 3. Total partners trend (historical only) ─────────────── */
+type PartnerTrendPreset = 'today' | 'yesterday' | 'week' | 'monthly' | 'yearly';
+
+const PARTNER_TREND_PRESETS: { key: PartnerTrendPreset; label: string }[] = [
+  { key: 'today', label: 'Today' },
+  { key: 'yesterday', label: 'Yesterday' },
+  { key: 'week', label: 'This week' },
+  { key: 'monthly', label: 'Monthly' },
+  { key: 'yearly', label: 'Yearly' },
+];
+
+interface TotalTrendRow {
+  bucket: string;
+  new_count: number;
+  total_count: number;
+}
+
 export function PartnerNewTrend() {
-  const [range, setRange] = useState<RangeKey>('today');
-  // Backward-looking window: tomorrow/weekend fall back to their day counts.
-  const days = rangeDays(range);
+  const [preset, setPreset] = useState<PartnerTrendPreset>('today');
 
   const { data, isLoading } = useQuery({
-    queryKey: ['partner-ops-new-trend', days],
+    queryKey: ['partner-ops-total-trend', preset],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_partner_new_trend', { p_days: days });
+      const { data, error } = await supabase.rpc('get_partner_total_trend', { p_preset: preset });
       if (error) throw error;
       return data as any;
     },
     staleTime: 60_000,
   });
 
-  const rows = ((data?.rows ?? []) as { day: string; new_count: number }[]).map((r) => ({
-    day: String(r.day),
-    new_count: Number(r.new_count) || 0,
-  }));
-  const total = Number(data?.total) || 0;
-  const prev = Number(data?.prev_total) || 0;
-  const pct = prev > 0 ? Math.round(((total - prev) / prev) * 100) : total > 0 ? 100 : 0;
+  const granularity: 'hour' | 'day' | 'month' = data?.granularity ?? 'hour';
+
+  const rows = useMemo(
+    () =>
+      ((data?.rows ?? []) as TotalTrendRow[]).map((r) => ({
+        bucket: String(r.bucket),
+        new_count: Number(r.new_count) || 0,
+        total_count: Number(r.total_count) || 0,
+      })),
+    [data],
+  );
+
+  const formatBucket = (iso: string) => {
+    const d = new Date(iso);
+    if (granularity === 'hour') return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    if (granularity === 'month') return d.toLocaleDateString(undefined, { month: 'short' });
+    return d.toLocaleDateString(undefined, { day: '2-digit', month: 'short' });
+  };
+
+  const totalPartners = Number(data?.total_partners) || 0;
+  const newInWindow = Number(data?.new_in_window) || 0;
+  const opening = Number(data?.opening_total) || 0;
+  const pct = opening > 0 ? Math.round((newInWindow / opening) * 100) : newInWindow > 0 ? 100 : 0;
+  const periodLabel = PARTNER_TREND_PRESETS.find((p) => p.key === preset)?.label ?? '';
 
   return (
     <Card>
       <CardHeader className="pb-2 space-y-2">
         <div className="flex items-center justify-between gap-2">
           <CardTitle className="flex items-center gap-2 text-sm font-bold">
-            <Users className="h-4 w-4 text-primary" /> New partners trend
+            <Users className="h-4 w-4 text-primary" /> Total partners trend
           </CardTitle>
           <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
-            {Number(data?.total_partners) || 0} partners total
+            {totalPartners} partners total
           </span>
         </div>
-        <RangeFilter value={range} onChange={setRange} />
+        <div className="flex flex-wrap gap-1.5">
+          {PARTNER_TREND_PRESETS.map((p) => (
+            <Button
+              key={p.key}
+              size="sm"
+              variant={preset === p.key ? 'default' : 'outline'}
+              className="h-7 px-2.5 text-[11px]"
+              onClick={() => setPreset(p.key)}
+            >
+              {p.label}
+            </Button>
+          ))}
+        </div>
         <div className="flex items-end gap-3 pt-1">
-          <p className="text-2xl font-black tabular-nums">{total}</p>
-          <span className={cn('mb-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold',
-            pct >= 0 ? 'bg-emerald-500/10 text-emerald-600' : 'bg-destructive/10 text-destructive')}>
-            {pct >= 0 ? '+' : ''}{pct}% vs prior {days} {days === 1 ? 'day' : 'days'}
+          <p className="text-2xl font-black tabular-nums">{rows.length ? rows[rows.length - 1].total_count : totalPartners}</p>
+          <span className="mb-1 rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-600">
+            +{newInWindow} new ({pct}%) · {periodLabel}
           </span>
         </div>
       </CardHeader>
       <CardContent className="pt-0">
         {isLoading ? (
           <Skeleton className="h-40 w-full" />
+        ) : rows.length === 0 ? (
+          <p className="py-10 text-center text-xs text-muted-foreground">No partner data for this period.</p>
         ) : (
           <div className="h-40 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={rows} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+              <LineChart data={rows} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
-                <XAxis dataKey="day" tickFormatter={shortDay} tick={{ fontSize: 10 }} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 10 }} width={28} />
-                <Tooltip formatter={(v: number) => [`${v}`, 'New partners']} labelFormatter={(l) => shortDay(String(l))} />
-                <Bar dataKey="new_count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-              </BarChart>
+                <XAxis dataKey="bucket" tickFormatter={formatBucket} tick={{ fontSize: 10 }} minTickGap={16} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 10 }} width={36} domain={['dataMin', 'dataMax']} />
+                <Tooltip
+                  formatter={(v: number, n: string) => [`${v}`, n === 'total_count' ? 'Total partners' : 'New partners']}
+                  labelFormatter={(l) => formatBucket(String(l))}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="total_count"
+                  stroke="hsl(var(--primary))"
+                  strokeWidth={2.5}
+                  dot={false}
+                  activeDot={{ r: 4 }}
+                />
+              </LineChart>
             </ResponsiveContainer>
           </div>
         )}

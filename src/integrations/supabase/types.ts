@@ -38447,6 +38447,7 @@ export type Database = {
         Args: { p_limit?: number }
         Returns: Json
       }
+      get_partner_total_trend: { Args: { p_preset?: string }; Returns: Json }
       get_payout_delivery_audit: {
         Args: { p_limit?: number; p_user_id?: string }
         Returns: {
