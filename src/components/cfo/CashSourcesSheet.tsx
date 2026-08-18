@@ -1,13 +1,37 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { ChevronRight, ChevronLeft, Loader2 } from 'lucide-react';
+import {
+  ChevronRight,
+  ChevronLeft,
+  Loader2,
+  ArrowLeft,
+  ArrowDownLeft,
+  ArrowUpRight,
+  Landmark,
+  Users,
+  Briefcase,
+  TrendingUp,
+  Wallet,
+  PiggyBank,
+  Receipt,
+  Banknote,
+  CircleDollarSign,
+  Layers,
+  Box,
+  CreditCard,
+  Truck,
+  ShieldCheck,
+  Activity,
+  type LucideIcon,
+} from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
+import { cn } from '@/lib/utils';
 
 export interface CashSourceLine {
   category: string;
@@ -41,6 +65,34 @@ interface TxRow {
 }
 
 const PAGE = 50;
+
+const SOURCE_ICONS: Record<string, LucideIcon> = {
+  partner_capital: Users,
+  partner_capital_recorded: Users,
+  investor_deposits: Users,
+  agent_float: Briefcase,
+  merchant_float: CreditCard,
+  operational_float: Layers,
+  rent_collections: Banknote,
+  rent_payments: Banknote,
+  wallet_fees: Receipt,
+  platform_fees: Receipt,
+  interest_income: TrendingUp,
+  returns_accrual: PiggyBank,
+  roi_accrual: PiggyBank,
+  other_income: CircleDollarSign,
+  treasury_topups: Wallet,
+  cash_adjustments: Activity,
+  withdrawals: ArrowUpRight,
+  payouts: ArrowUpRight,
+  roi_payouts: ArrowUpRight,
+  partner_redemptions: ArrowUpRight,
+  agent_commissions: ArrowUpRight,
+  refunds: ArrowUpRight,
+  operational_expenses: Box,
+  merchant_settlements: Truck,
+  default: Landmark,
+};
 
 function useSourceTransactions(category: string | null, page: number) {
   return useQuery({
@@ -91,14 +143,23 @@ function useSourceTransactions(category: string | null, page: number) {
   });
 }
 
+function getSourceIcon(category: string) {
+  return SOURCE_ICONS[category] ?? SOURCE_ICONS.default;
+}
+
+function formatPercent(n: number) {
+  if (!Number.isFinite(n)) return '0.0%';
+  return `${n.toFixed(1)}%`;
+}
+
 export function CashSourcesSheet({ open, onOpenChange, totalCash, a1, a5, increases, decreases }: Props) {
   const [selected, setSelected] = useState<CashSourceLine | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const { data, isLoading, error } = useSourceTransactions(selected?.category ?? null, page);
 
-  const grossIn = increases.reduce((s, i) => s + i.value, 0);
-  const grossOut = decreases.reduce((s, i) => s + i.value, 0);
+  const grossIn = useMemo(() => increases.reduce((s, i) => s + i.value, 0), [increases]);
+  const grossOut = useMemo(() => decreases.reduce((s, i) => s + i.value, 0), [decreases]);
 
   const pick = (line: CashSourceLine) => {
     setSelected(line);
@@ -123,216 +184,342 @@ export function CashSourcesSheet({ open, onOpenChange, totalCash, a1, a5, increa
     onOpenChange(o);
   };
 
+  const reconciliationGap = totalCash - (grossIn - grossOut);
+
   return (
     <Sheet open={open} onOpenChange={close}>
-      <SheetContent side="bottom" className="rounded-t-2xl max-h-[88vh] overflow-y-auto">
-        <SheetHeader className="pb-3">
-          <SheetTitle className="text-base flex items-center gap-2">
+      <SheetContent side="bottom" className="rounded-t-3xl max-h-[92vh] overflow-y-auto px-4 sm:px-6">
+        <SheetHeader className="pb-4 pt-1">
+          <SheetTitle className="text-base sm:text-lg flex items-center gap-2">
             {selected && (
-              <button onClick={() => setSelected(null)} className="text-muted-foreground hover:text-foreground">
-                <ChevronLeft className="h-4 w-4" />
+              <button
+                onClick={() => setSelected(null)}
+                className="inline-flex items-center justify-center rounded-full p-1.5 -ml-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                aria-label="Back to sources"
+              >
+                <ArrowLeft className="h-4 w-4" />
               </button>
             )}
-            {selected ? `${selected.label} — transactions` : 'Money We Have → Sources of Money'}
+            <span className="truncate">
+              {selected ? selected.label : 'Money We Have'}
+            </span>
           </SheetTitle>
         </SheetHeader>
 
         {!selected && (
-          <div className="space-y-4">
-            <div className="rounded-xl border border-border bg-muted/40 p-3">
-              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Where did the money we have come from?</p>
-              <p className="text-2xl font-bold font-mono mt-1">{formatUGX(totalCash)}</p>
-              <p className="text-[11px] text-muted-foreground mt-1">
-                Bank &amp; cash (A1) {formatUGX(a1)} · In transit (A5) {formatUGX(a5)}. Each source below is the net of its own
-                cash legs, counted once, so money in minus money out equals this figure exactly. Tap a source to see the
-                underlying entries.
-              </p>
+          <div className="space-y-6 pb-6">
+            {/* Total hero */}
+            <div className="relative overflow-hidden rounded-2xl border border-primary/10 bg-gradient-to-br from-primary/90 to-primary/70 p-5 text-primary-foreground shadow-sm">
+              <div className="relative z-10">
+                <p className="text-xs font-semibold uppercase tracking-wider text-primary-foreground/80">
+                  Total Money We Have
+                </p>
+                <p className="mt-2 text-3xl sm:text-4xl font-bold font-mono tracking-tight">
+                  {formatUGX(totalCash)}
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Badge variant="secondary" className="bg-primary-foreground/15 text-primary-foreground border-0 text-[11px] font-medium">
+                    Bank &amp; Cash (A1): {formatUGX(a1)}
+                  </Badge>
+                  <Badge variant="secondary" className="bg-primary-foreground/15 text-primary-foreground border-0 text-[11px] font-medium">
+                    In Transit (A5): {formatUGX(a5)}
+                  </Badge>
+                </div>
+              </div>
+              <ShieldCheck className="absolute -bottom-4 -right-4 h-28 w-28 text-primary-foreground/10 rotate-12" />
             </div>
 
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Sources of money in</span>
-                <span className="text-xs font-mono font-bold text-emerald-600">{formatUGX(grossIn)}</span>
+            {/* Sources of money in */}
+            <section className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="rounded-lg bg-success/10 p-1.5">
+                    <ArrowDownLeft className="h-4 w-4 text-success" />
+                  </div>
+                  <h3 className="text-sm font-semibold">Sources of Money In</h3>
+                </div>
+                <span className="text-sm font-mono font-semibold text-success">{formatUGX(grossIn)}</span>
               </div>
-              <div className="space-y-2">
+
+              <div className="space-y-3">
                 {increases.map((line) => {
                   const pct = grossIn > 0 ? (line.value / grossIn) * 100 : 0;
                   const pctOfTotal = totalCash > 0 ? (line.value / totalCash) * 100 : 0;
+                  const Icon = getSourceIcon(line.category);
+                  const hasChildren = (line.children?.length ?? 0) > 1;
+                  const isExpanded = expanded === line.category;
+
                   return (
-                    <div key={line.category} className="rounded-xl border border-border">
-                    <button
-                      onClick={() => openLine(line)}
-                      className="w-full text-left p-3 hover:bg-muted/60 transition-colors rounded-xl"
+                    <div
+                      key={line.category}
+                      className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm"
                     >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium truncate">{line.label}</p>
-                          <p className="text-[11px] text-muted-foreground">
-                            {pct.toFixed(1)}% of money in · {pctOfTotal.toFixed(1)}% of Money We Have
-                            {line.count != null ? ` · ${line.count} entries` : ''}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className="font-mono text-sm font-semibold text-emerald-600">{formatUGX(line.value)}</span>
-                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                        </div>
-                      </div>
-                      <Progress value={Math.min(100, pct)} className="h-1.5 mt-2" />
-                    </button>
-                    {expanded === line.category && (
-                      <div className="border-t border-border divide-y divide-border">
-                        {(line.children ?? []).map((c) => (
-                          <button
-                            key={c.category}
-                            onClick={() => pick({ ...c, value: Math.abs(c.value) })}
-                            className="w-full flex items-center justify-between gap-2 px-3 py-2 text-xs hover:bg-muted/60"
-                          >
-                            <span className="text-muted-foreground truncate">
-                              {c.label}
-                              {c.count != null ? ` (${c.count})` : ''}
-                            </span>
-                            <span className="flex items-center gap-2 shrink-0">
-                              <span className={`font-mono ${c.value < 0 ? 'text-destructive' : 'text-emerald-600'}`}>
-                                {c.value < 0 ? '−' : '+'}
-                                {formatUGX(Math.abs(c.value))}
+                      <button
+                        onClick={() => openLine(line)}
+                        className="w-full text-left p-4 hover:bg-muted/40 transition-colors"
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="mt-0.5 rounded-xl bg-primary/10 p-2.5 text-primary shrink-0">
+                            <Icon className="h-5 w-5" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-3">
+                              <p className="text-sm font-semibold truncate">{line.label}</p>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span className="font-mono text-sm font-bold text-success">
+                                  {formatUGX(line.value)}
+                                </span>
+                                <ChevronRight
+                                  className={cn(
+                                    'h-4 w-4 text-muted-foreground transition-transform',
+                                    hasChildren && isExpanded && 'rotate-90'
+                                  )}
+                                />
+                              </div>
+                            </div>
+                            <div className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground">
+                              <span>{formatPercent(pct)} of money in</span>
+                              <span className="text-border">|</span>
+                              <span>{formatPercent(pctOfTotal)} of total</span>
+                              {line.count != null && (
+                                <>
+                                  <span className="text-border">|</span>
+                                  <span>{line.count.toLocaleString()} entries</span>
+                                </>
+                              )}
+                            </div>
+                            <div className="mt-3 flex items-center gap-2">
+                              <Progress value={Math.min(100, pct)} className="h-1.5 flex-1" />
+                              <span className="text-[10px] font-medium text-muted-foreground w-9 text-right">
+                                {formatPercent(pct)}
                               </span>
-                              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+
+                      {isExpanded && hasChildren && (
+                        <div className="border-t border-border bg-muted/20 divide-y divide-border">
+                          {(line.children ?? []).map((c) => (
+                            <button
+                              key={c.category}
+                              onClick={() => pick({ ...c, value: Math.abs(c.value) })}
+                              className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-muted/40 transition-colors"
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <div className="w-1.5 h-1.5 rounded-full bg-primary/70 shrink-0" />
+                                <span className="text-xs text-muted-foreground truncate">
+                                  {c.label}
+                                  {c.count != null ? ` (${c.count.toLocaleString()})` : ''}
+                                </span>
+                              </div>
+                              <span className="flex items-center gap-2 shrink-0">
+                                <span className={cn('font-mono text-xs font-semibold', c.value < 0 ? 'text-destructive' : 'text-success')}>
+                                  {c.value < 0 ? '−' : '+'}
+                                  {formatUGX(Math.abs(c.value))}
+                                </span>
+                                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
-                {increases.length === 0 && <p className="text-sm text-muted-foreground">No cash inflows recorded.</p>}
+                {increases.length === 0 && (
+                  <div className="rounded-2xl border border-dashed border-border p-6 text-center">
+                    <p className="text-sm text-muted-foreground">No cash inflows recorded.</p>
+                  </div>
+                )}
               </div>
-            </div>
+            </section>
 
+            {/* Money out */}
             {decreases.length > 0 && (
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Money that left again</span>
-                  <span className="text-xs font-mono font-bold text-destructive">−{formatUGX(grossOut)}</span>
-                </div>
-                <div className="space-y-1">
-                  {decreases.map((line) => (
-                    <div key={line.category}>
-                    <button
-                      onClick={() => openLine(line)}
-                      className="w-full flex items-center justify-between gap-2 py-2 px-1 text-sm hover:bg-muted/60 rounded-lg"
-                    >
-                      <span className="text-muted-foreground truncate">
-                        {line.label}
-                        {line.count != null ? ` (${line.count})` : ''}
-                      </span>
-                      <span className="flex items-center gap-2 shrink-0">
-                        <span className="font-mono text-destructive">−{formatUGX(line.value)}</span>
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                      </span>
-                    </button>
-                    {expanded === line.category && (
-                      <div className="pl-3 pb-1">
-                        {(line.children ?? []).map((c) => (
-                          <button
-                            key={c.category}
-                            onClick={() => pick({ ...c, value: Math.abs(c.value) })}
-                            className="w-full flex items-center justify-between gap-2 px-1 py-1.5 text-xs hover:bg-muted/60 rounded-md"
-                          >
-                            <span className="text-muted-foreground truncate">
-                              {c.label}
-                              {c.count != null ? ` (${c.count})` : ''}
-                            </span>
-                            <span className={`font-mono ${c.value < 0 ? 'text-destructive' : 'text-emerald-600'}`}>
-                              {c.value < 0 ? '−' : '+'}
-                              {formatUGX(Math.abs(c.value))}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
+              <section className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="rounded-lg bg-destructive/10 p-1.5">
+                      <ArrowUpRight className="h-4 w-4 text-destructive" />
                     </div>
-                  ))}
+                    <h3 className="text-sm font-semibold">Money That Left Again</h3>
+                  </div>
+                  <span className="text-sm font-mono font-semibold text-destructive">−{formatUGX(grossOut)}</span>
                 </div>
-              </div>
+
+                <div className="space-y-2">
+                  {decreases.map((line) => {
+                    const Icon = getSourceIcon(line.category);
+                    const hasChildren = (line.children?.length ?? 0) > 1;
+                    const isExpanded = expanded === line.category;
+
+                    return (
+                      <div key={line.category} className="rounded-xl border border-border bg-card overflow-hidden">
+                        <button
+                          onClick={() => openLine(line)}
+                          className="w-full flex items-center justify-between gap-3 p-3 hover:bg-muted/40 transition-colors"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="rounded-lg bg-destructive/10 p-2 text-destructive shrink-0">
+                              <Icon className="h-4 w-4" />
+                            </div>
+                            <span className="text-sm text-muted-foreground truncate">
+                              {line.label}
+                              {line.count != null ? ` (${line.count.toLocaleString()})` : ''}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="font-mono text-sm font-semibold text-destructive">
+                              −{formatUGX(line.value)}
+                            </span>
+                            <ChevronRight
+                              className={cn(
+                                'h-4 w-4 text-muted-foreground transition-transform',
+                                hasChildren && isExpanded && 'rotate-90'
+                              )}
+                            />
+                          </div>
+                        </button>
+
+                        {isExpanded && hasChildren && (
+                          <div className="border-t border-border bg-muted/20 divide-y divide-border">
+                            {(line.children ?? []).map((c) => (
+                              <button
+                                key={c.category}
+                                onClick={() => pick({ ...c, value: Math.abs(c.value) })}
+                                className="w-full flex items-center justify-between gap-2 px-4 py-2.5 text-left hover:bg-muted/40 transition-colors"
+                              >
+                                <span className="text-xs text-muted-foreground truncate pl-2">
+                                  {c.label}
+                                  {c.count != null ? ` (${c.count.toLocaleString()})` : ''}
+                                </span>
+                                <span className={cn('font-mono text-xs font-semibold', c.value < 0 ? 'text-destructive' : 'text-success')}>
+                                  {c.value < 0 ? '−' : '+'}
+                                  {formatUGX(Math.abs(c.value))}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
             )}
 
             <Separator />
 
-            <div className="space-y-1 pb-3">
+            {/* Summary footer */}
+            <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Money in</span>
-                <span className="font-mono">{formatUGX(grossIn)}</span>
+                <span className="text-muted-foreground">Total Money In</span>
+                <span className="font-mono font-medium">{formatUGX(grossIn)}</span>
               </div>
               <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Money out</span>
-                <span className="font-mono text-destructive">−{formatUGX(grossOut)}</span>
+                <span className="text-muted-foreground">Total Money Out</span>
+                <span className="font-mono font-medium text-destructive">−{formatUGX(grossOut)}</span>
               </div>
-              <div className="flex items-center justify-between pt-1 border-t border-border">
-                <span className="text-sm font-bold">Money We Have</span>
-                <span className="text-lg font-bold font-mono">{formatUGX(grossIn - grossOut)}</span>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <span className="text-base font-bold">Money We Have</span>
+                <span className="text-xl font-bold font-mono">{formatUGX(grossIn - grossOut)}</span>
               </div>
-              {Math.abs(grossIn - grossOut - totalCash) > 1 && (
-                <p className="text-[11px] text-amber-600">
-                  Reconciliation gap vs Balance Sheet cash: {formatUGX(totalCash - (grossIn - grossOut))}
+              {Math.abs(reconciliationGap) > 1 && (
+                <p className="text-[11px] text-warning bg-warning/10 rounded-lg px-3 py-2">
+                  Reconciliation gap vs Balance Sheet cash: {formatUGX(reconciliationGap)}
                 </p>
               )}
             </div>
+
+            <p className="text-[11px] text-center text-muted-foreground">
+              Tap any source amount to drill down into the underlying ledger entries.
+            </p>
           </div>
         )}
 
         {selected && (
-          <div className="space-y-3 pb-4">
-            <div className="rounded-xl border border-border bg-muted/40 p-3 flex items-center justify-between">
+          <div className="space-y-4 pb-6">
+            {/* Drill-down header card */}
+            <div className="rounded-2xl border border-border bg-card p-4 flex items-center justify-between shadow-sm">
               <div>
                 <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Net effect on cash</p>
-                <p className="text-lg font-bold font-mono">{formatUGX(data?.netAmount ?? selected.value)}</p>
+                <p className="text-xl font-bold font-mono mt-0.5">{formatUGX(data?.netAmount ?? selected.value)}</p>
               </div>
-              <p className="text-[11px] text-muted-foreground">{data?.totalCount ?? selected.count ?? 0} transactions</p>
+              <div className="text-right">
+                <p className="text-2xl font-bold text-muted-foreground/30">
+                  {data?.totalCount ?? selected.count ?? 0}
+                </p>
+                <p className="text-[11px] text-muted-foreground">transactions</p>
+              </div>
             </div>
 
             {isLoading && (
-              <div className="flex justify-center py-8">
-                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              <div className="flex flex-col items-center justify-center py-12 gap-2">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                <p className="text-xs text-muted-foreground">Loading transactions…</p>
               </div>
             )}
-            {error && <p className="text-sm text-destructive">{(error as any)?.message || 'Could not load transactions'}</p>}
+
+            {error && (
+              <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4">
+                <p className="text-sm text-destructive">{(error as any)?.message || 'Could not load transactions'}</p>
+              </div>
+            )}
 
             {!isLoading &&
               (data?.rows ?? []).map((row) => (
-                <div key={row.id} className="rounded-xl border border-border p-3 space-y-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(row.transaction_date).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}
-                    </span>
-                    <span className={`font-mono text-sm font-semibold ${row.direction === 'in' ? 'text-emerald-600' : 'text-destructive'}`}>
+                <div
+                  key={row.id}
+                  className="rounded-2xl border border-border bg-card p-4 space-y-3 hover:shadow-sm transition-shadow"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1 min-w-0">
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(row.transaction_date).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}
+                      </p>
+                      <p className="text-sm font-medium leading-snug">{row.description || '—'}</p>
+                    </div>
+                    <span
+                      className={cn(
+                        'font-mono text-base font-bold shrink-0',
+                        row.direction === 'in' ? 'text-success' : 'text-destructive'
+                      )}
+                    >
                       {row.direction === 'in' ? '' : '−'}
                       {formatUGX(Math.abs(row.amount))}
                     </span>
                   </div>
-                  <p className="text-sm">{row.description || '—'}</p>
                   <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant="outline" className="text-[10px]">
-                      Ref {row.reference ? row.reference.slice(0, 18) : row.id.slice(0, 8)}
+                    <Badge variant="outline" className="text-[10px] font-normal">
+                      Ref: {row.reference ? row.reference.slice(0, 22) : row.id.slice(0, 8)}
                     </Badge>
-                    <Badge variant="secondary" className="text-[10px] capitalize">
+                    <Badge variant="secondary" className="text-[10px] capitalize font-normal">
                       {row.status.replace(/_/g, ' ')}
                     </Badge>
-                    <Badge variant="outline" className="text-[10px]">
-                      {row.account_code === 'A1' ? 'Bank & cash' : 'In transit'}
+                    <Badge variant="outline" className="text-[10px] font-normal">
+                      {row.account_code === 'A1' ? 'Bank & Cash' : 'In Transit'}
                     </Badge>
-                    {row.linked_party && <span className="text-[11px] text-muted-foreground">{row.linked_party}</span>}
+                    {row.linked_party && (
+                      <span className="text-[11px] text-muted-foreground truncate max-w-[200px]">
+                        {row.linked_party}
+                      </span>
+                    )}
                   </div>
                 </div>
               ))}
 
             {!isLoading && (data?.rows.length ?? 0) === 0 && (
-              <p className="text-sm text-muted-foreground">No transactions found for this source.</p>
+              <div className="rounded-2xl border border-dashed border-border p-8 text-center">
+                <p className="text-sm text-muted-foreground">No transactions found for this source.</p>
+              </div>
             )}
 
             {(data?.totalCount ?? 0) > PAGE && (
-              <div className="flex items-center justify-between pt-1">
+              <div className="flex items-center justify-between pt-2">
                 <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage((p) => Math.max(0, p - 1))}>
+                  <ChevronLeft className="h-4 w-4 mr-1" />
                   Previous
                 </Button>
                 <span className="text-xs text-muted-foreground">
@@ -345,6 +532,7 @@ export function CashSourcesSheet({ open, onOpenChange, totalCash, a1, a5, increa
                   onClick={() => setPage((p) => p + 1)}
                 >
                   Next
+                  <ChevronRight className="h-4 w-4 ml-1" />
                 </Button>
               </div>
             )}
@@ -354,3 +542,4 @@ export function CashSourcesSheet({ open, onOpenChange, totalCash, a1, a5, increa
     </Sheet>
   );
 }
+
