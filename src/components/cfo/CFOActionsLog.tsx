@@ -351,13 +351,19 @@ export function CFOActionsLog() {
     <Card className="rounded-2xl">
       <CardContent className="p-4">
         <div className="flex items-center justify-between gap-2 mb-1 flex-wrap">
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            CFO Actions Trail
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            aria-expanded={open}
+            className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <span>CFO Actions Trail</span>
             {total > 0 && (
-              <Badge variant="secondary" className="ml-2 text-[10px]">{total.toLocaleString()}</Badge>
+              <Badge variant="secondary" className="text-[10px]">{total.toLocaleString()}</Badge>
             )}
-          </p>
-          <div className="flex items-center gap-1">
+            <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
+          </button>
+          <div className={`flex items-center gap-1 ${open ? '' : 'hidden'}`}>
             {isFetching && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
             <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={() => refetch()} disabled={isFetching}>
               <RefreshCw className={`h-3 w-3 ${isFetching ? 'animate-spin' : ''}`} /> Refresh
@@ -379,6 +385,7 @@ export function CFOActionsLog() {
             </DropdownMenu>
           </div>
         </div>
+
         <p className="text-[10px] text-muted-foreground mb-3">
           Derived directly from the general ledger — every posted cash movement appears automatically.
         </p>
