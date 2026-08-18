@@ -5,6 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { DollarSign, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, LineChart, Line, BarChart, Bar, Legend, CartesianGrid } from 'recharts';
 import { format, subDays, startOfDay, startOfMonth, addMonths, isBefore } from 'date-fns';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { ProjectedReturnsChart, PartnerPortfolioTable } from './PartnerPortfolioProjections';
 
 export function PartnerCapitalFlow() {
   const { data } = useQuery({
@@ -115,6 +117,15 @@ export function PartnerCapitalFlow() {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
+        <Tabs defaultValue="position">
+          <TabsList className="grid w-full grid-cols-4 h-8">
+            <TabsTrigger value="position" className="text-[10px]">Position</TabsTrigger>
+            <TabsTrigger value="flow" className="text-[10px]">Flow</TabsTrigger>
+            <TabsTrigger value="forward" className="text-[10px]">Forward</TabsTrigger>
+            <TabsTrigger value="partners" className="text-[10px]">Partners</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="position" className="mt-3 space-y-3">
         <div className="grid grid-cols-2 gap-2">
           <div className="rounded-lg bg-green-500/10 p-2.5">
             <p className="text-[10px] text-muted-foreground">Deployed Capital</p>
@@ -133,7 +144,9 @@ export function PartnerCapitalFlow() {
             <p className="text-lg font-bold text-foreground">{fmt(data.completedWithdrawals)}</p>
           </div>
         </div>
+          </TabsContent>
 
+          <TabsContent value="flow" className="mt-3 space-y-3">
         <div>
           <p className="text-[10px] text-muted-foreground mb-1">14-Day Capital Movement</p>
           <ResponsiveContainer width="100%" height={120}>
@@ -166,6 +179,10 @@ export function PartnerCapitalFlow() {
             </LineChart>
           </ResponsiveContainer>
         </div>
+          </TabsContent>
+
+          <TabsContent value="forward" className="mt-3 space-y-4">
+        <ProjectedReturnsChart months={6} />
 
         <div className="border-t pt-3">
           <div className="flex items-center justify-between mb-1">
@@ -189,6 +206,12 @@ export function PartnerCapitalFlow() {
             Collected to date: UGX {fmt(data.promissoryCollected)}
           </p>
         </div>
+          </TabsContent>
+
+          <TabsContent value="partners" className="mt-3">
+            <PartnerPortfolioTable months={6} />
+          </TabsContent>
+        </Tabs>
       </CardContent>
     </Card>
   );
