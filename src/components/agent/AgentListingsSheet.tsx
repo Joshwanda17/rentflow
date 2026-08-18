@@ -861,7 +861,7 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse, vacantOnly
               )}
 
               {/* Houses grouped by landlord */}
-              {filteredGrouped.map(g => {
+              {pagedGrouped.map(g => {
                 const key = g.landlord_id ?? '__none__';
                 const isOpen = expanded[key] !== false; // default open
                 return (
