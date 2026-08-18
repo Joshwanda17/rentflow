@@ -1458,21 +1458,21 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         {activeTab === 'tenants' && !isMerchant && (
           <div className={cn("space-y-4 pb-24", tabAnimClass)}>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <h2 className="text-lg font-bold text-foreground">My Tenants</h2>
-              <div className="flex items-center gap-2">
+              <h2 className="text-base sm:text-lg font-bold text-foreground">My Tenants</h2>
+              <div className="flex flex-wrap items-center gap-2">
                 <Button
                   variant="outline"
                   onClick={() => { hapticTap(); setWelileHomesOpen(true); }}
-                  className="h-11 px-3 text-sm font-bold rounded-xl gap-2"
+                  className="h-9 sm:h-11 px-2.5 sm:px-3 text-xs sm:text-sm font-bold rounded-xl gap-1.5"
                 >
-                  <Home className="h-4 w-4" />
+                  <Home className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   Welile Homes
                 </Button>
                 <Button
                   onClick={() => { hapticTap(); setRentRequestOpen(true); }}
-                  className="h-11 px-4 text-sm font-bold rounded-xl gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
+                  className="h-9 sm:h-11 px-3 sm:px-4 text-xs sm:text-sm font-bold rounded-xl gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
                 >
-                  <UserPlus className="h-4 w-4" />
+                  <UserPlus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   Add Tenant
                 </Button>
               </div>
