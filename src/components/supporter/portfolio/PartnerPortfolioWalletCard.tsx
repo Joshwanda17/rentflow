@@ -104,7 +104,7 @@ export function PartnerPortfolioWalletCard({ onAddCard, onSend, onRequest, onTop
               src={welileLogo}
               alt="Welile"
               className="w-auto brightness-0 invert object-contain block"
-              style={{ height: '5cqw' }}
+              style={{ height: '3.2cqw' }}
             />
             <span
               className="font-medium tracking-widest text-white/80 uppercase whitespace-nowrap"
