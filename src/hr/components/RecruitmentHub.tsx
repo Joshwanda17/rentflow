@@ -505,8 +505,26 @@ function ApplicationsTab() {
             ))}
           </SelectContent>
         </Select>
+        <Button
+          size="sm"
+          variant={showRemoved ? 'default' : 'outline'}
+          className="h-9 text-xs whitespace-nowrap"
+          onClick={() => setShowRemoved((v) => !v)}
+        >
+          {showRemoved ? 'Back to applications' : 'Removed bin'}
+        </Button>
       </div>
 
+      {showRemoved ? (
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground">
+            Removed applications are kept here indefinitely — nothing is deleted. Put one back to
+            return it to the working list.
+          </p>
+          <RemovedApplicationsPanel />
+        </div>
+      ) : (
+      <>
       <p className="text-xs text-muted-foreground">
         showing {isLoading ? '—' : fmtCount(filteredSorted.length)} of{' '}
         {isLoading ? '—' : fmtCount(rows.length)} applications
