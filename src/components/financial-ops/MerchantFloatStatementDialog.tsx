@@ -83,6 +83,7 @@ export function MerchantFloatStatementDialog({
       totalOut: outTotal,
       balance,
       booksBalance,
+      openingBalance,
       rows: rows.map((r) => ({
         date: r.date,
         category: r.category,
