@@ -57,12 +57,12 @@ export function useCFOOverviewData() {
       // accounts only, so they reconcile to the Money We Have figure.
       const increases = cashLines
         .filter((e: any) => Number(e.net) > 0)
-        .map((e: any) => ({ label: labelFor(e.category), value: Number(e.net), count: Number(e.entry_count) }))
+        .map((e: any) => ({ category: String(e.category), label: labelFor(e.category), value: Number(e.net), count: Number(e.entry_count) }))
         .sort((a: any, b: any) => b.value - a.value);
 
       const decreases = cashLines
         .filter((e: any) => Number(e.net) < 0)
-        .map((e: any) => ({ label: labelFor(e.category), value: Math.abs(Number(e.net)), count: Number(e.entry_count) }))
+        .map((e: any) => ({ category: String(e.category), label: labelFor(e.category), value: Math.abs(Number(e.net)), count: Number(e.entry_count) }))
         .sort((a: any, b: any) => b.value - a.value);
 
       const totalIn = increases.reduce((s: number, e: any) => s + e.value, 0);
