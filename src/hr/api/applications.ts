@@ -41,6 +41,7 @@ export type ApplicationDecision = (typeof APPLICATION_DECISIONS)[number];
 
 export interface JobApplicationRow {
   id: string;
+  public_ref: string | null;
   full_name: string;
   email: string | null;
   whatsapp_number: string | null;
@@ -72,6 +73,7 @@ export interface JobApplicationRow {
 
 const COLUMNS = [
   'id',
+  'public_ref',
   'full_name',
   'email',
   'whatsapp_number',
