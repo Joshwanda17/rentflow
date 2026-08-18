@@ -101,39 +101,10 @@ Deno.serve(async (req) => {
 
     console.log(`[process-supporter-roi] Found ${fundedRequests?.length || 0} funded requests to check`);
 
-    // ═══ AUTO-RENEW EXPIRED PORTFOLIOS BEFORE PAYING OUT ═══
-    // If a partner's portfolio has reached or passed its maturity date but
-    // wasn't renewed (e.g. no scheduled renewal, no user action), roll it
-    // forward automatically so the payout cycle continues cleanly.
-    try {
-      const todayStr = new Date().toISOString().slice(0, 10);
-      const { data: expired } = await supabase
-        .from('investor_portfolios')
-        .select('id, investor_id, portfolio_code, maturity_date')
-        .eq('status', 'active')
-        .not('maturity_date', 'is', null)
-        .lte('maturity_date', todayStr)
-        .is('pending_renewal_effective_date', null)
-        .limit(500);
-      const systemActor =
-        (await supabase.from('user_roles').select('user_id').eq('role', 'cfo').limit(1).maybeSingle()).data?.user_id
-        || (await supabase.from('user_roles').select('user_id').eq('role', 'manager').limit(1).maybeSingle()).data?.user_id;
-      for (const p of expired || []) {
-        try {
-          if (!systemActor) break;
-          await supabase.rpc('apply_portfolio_renewal', {
-            p_portfolio_id: p.id,
-            p_renewed_by: systemActor,
-            p_reason: 'Auto-renewed at payout — portfolio matured without scheduled renewal',
-          });
-          console.log(`[process-supporter-roi] Auto-renewed expired portfolio ${p.portfolio_code}`);
-        } catch (e) {
-          console.warn(`[process-supporter-roi] Auto-renew failed for ${p.portfolio_code}:`, e);
-        }
-      }
-    } catch (e) {
-      console.warn('[process-supporter-roi] Expired portfolio sweep failed (non-blocking):', e);
-    }
+    // NOTE: the matured-portfolio auto-renew sweep used to run HERE, before the
+    // payout loop. That ordering skipped the final-cycle ROI (renewal resets
+    // next_roi_date/total_roi_earned, so the payout gate then reads "not due").
+    // It now runs AFTER the payout leg and is gated on payout completion.
 
     for (const rr of fundedRequests || []) {
       try {
@@ -703,6 +674,52 @@ Deno.serve(async (req) => {
 
     console.log(`[process-supporter-roi] Done: ${results.credited} wallet-credited, ${results.reinvested} auto-reinvested, ${results.topupsMerged} top-ups merged (${results.topupsMergedAmount}), ${results.topupsSkippedNotDue} portfolios skipped (ROI date not due), total ROI: ${results.totalAmount}`);
 
+    // ═══ AUTO-RENEW MATURED PORTFOLIOS — AFTER THE PAYOUT LEG ═══
+    // Renewal is the LAST step and only fires when the portfolio's due ROI
+    // cycle is already settled (ledger row with the cycle idempotency key) or
+    // nothing is due. Anything still awaiting payout/approval defers to the
+    // next run, so no partner loses a final-cycle payout to a renewal reset.
+    try {
+      const todayStr = kampalaTodayDateOnly();
+      const { data: expired } = await supabase
+        .from('investor_portfolios')
+        .select('id, investor_id, portfolio_code, maturity_date, next_roi_date, created_at, payout_day')
+        .eq('status', 'active')
+        .not('maturity_date', 'is', null)
+        .lte('maturity_date', todayStr)
+        .is('pending_renewal_effective_date', null)
+        .limit(500);
+      const systemActor =
+        (await supabase.from('user_roles').select('user_id').eq('role', 'cfo').limit(1).maybeSingle()).data?.user_id
+        || (await supabase.from('user_roles').select('user_id').eq('role', 'manager').limit(1).maybeSingle()).data?.user_id;
+      for (const p of expired || []) {
+        try {
+          if (!systemActor) break;
+          const gate = await evaluateRenewalPayoutGate(supabase, {
+            id: p.id,
+            next_roi_date: (p as any).next_roi_date ?? null,
+            created_at: (p as any).created_at,
+            payout_day: (p as any).payout_day ?? null,
+          });
+          if (!gate.allowed) {
+            results.renewalsDeferred++;
+            console.log(`[process-supporter-roi] Renewal deferred for ${p.portfolio_code} — ${gate.reason} (cycle ${gate.cycleDate})`);
+            continue;
+          }
+          await supabase.rpc('apply_portfolio_renewal', {
+            p_portfolio_id: p.id,
+            p_renewed_by: systemActor,
+            p_reason: `Auto-renewed after payout leg — matured portfolio (${gate.reason})`,
+          });
+          results.renewalsApplied++;
+          console.log(`[process-supporter-roi] Auto-renewed matured portfolio ${p.portfolio_code} after payout (${gate.reason})`);
+        } catch (e) {
+          console.warn(`[process-supporter-roi] Auto-renew failed for ${p.portfolio_code}:`, e);
+        }
+      }
+    } catch (e) {
+      console.warn('[process-supporter-roi] Post-payout renewal sweep failed (non-blocking):', e);
+    }
 
     // Notify managers (fire-and-forget)
     fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
