@@ -145,17 +145,17 @@ export function PartnerPortfolioWalletCard({ onAddCard, onSend, onRequest, onTop
             </div>
           </div>
 
-          <div className="flex items-end justify-between">
+          <div className="flex items-end justify-between" style={{ marginTop: '-0.5cqw' }}>
             <div className="flex flex-col">
               <span
                 className="font-medium tracking-wider text-white/70 uppercase whitespace-nowrap"
-                style={{ fontSize: '2.1cqw', marginBottom: '0.6cqw' }}
+                style={{ fontSize: '2cqw', marginBottom: '0.4cqw' }}
               >
                 PARTNER NAME
               </span>
               <span
                 className="font-bold tracking-wide text-white uppercase truncate whitespace-nowrap"
-                style={{ fontSize: '3.1cqw', maxWidth: '52cqw' }}
+                style={{ fontSize: '2.9cqw', maxWidth: '52cqw' }}
               >
                 {name || '—'}
               </span>
