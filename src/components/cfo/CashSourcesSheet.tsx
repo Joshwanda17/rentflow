@@ -230,21 +230,32 @@ export function CashSourcesSheet({ open, onOpenChange, totalCash, a1, a5, increa
                     const Icon = getSourceIcon(line.category);
                     const pct = a1 + a5 > 0 ? (line.value / (a1 + a5)) * 100 : 0;
                     const canDrill = (line.children?.length ?? 0) > 0;
+                    const isExpanded = expanded === line.category;
                     return (
-                      <button
+                      <div
                         key={line.category}
-                        disabled={!canDrill}
-                        onClick={() => canDrill && openLine(line)}
-                        className={cn(
-                          'rounded-2xl border border-border bg-card p-4 text-left shadow-sm transition-colors',
-                          canDrill && 'hover:bg-muted/40'
-                        )}
+                        className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm"
                       >
+                        <button
+                          disabled={!canDrill}
+                          onClick={() => canDrill && openLine(line)}
+                          className={cn(
+                            'w-full p-4 text-left transition-colors',
+                            canDrill && 'hover:bg-muted/40'
+                          )}
+                        >
                         <div className="flex items-start justify-between gap-3">
                           <div className="rounded-xl bg-primary/10 p-2.5 text-primary">
                             <Icon className="h-5 w-5" />
                           </div>
-                          {canDrill && <ChevronRight className="h-4 w-4 text-muted-foreground mt-2" />}
+                          {canDrill && (
+                            <ChevronRight
+                              className={cn(
+                                'h-4 w-4 text-muted-foreground mt-2 transition-transform',
+                                isExpanded && 'rotate-90'
+                              )}
+                            />
+                          )}
                         </div>
                         <p className="mt-3 text-[11px] uppercase tracking-wider text-muted-foreground">
                           {line.label}
@@ -261,7 +272,34 @@ export function CashSourcesSheet({ open, onOpenChange, totalCash, a1, a5, increa
                             {line.count.toLocaleString()} entries
                           </p>
                         )}
-                      </button>
+                        </button>
+
+                        {isExpanded && canDrill && (
+                          <div className="border-t border-border bg-muted/20 divide-y divide-border">
+                            {(line.children ?? []).map((c) => (
+                              <button
+                                key={c.category}
+                                onClick={() => pick({ ...c, value: Math.abs(c.value) })}
+                                className="w-full flex items-center justify-between gap-3 px-4 py-2.5 text-left hover:bg-muted/40 transition-colors"
+                              >
+                                <span className="text-xs text-muted-foreground truncate">
+                                  {c.label}
+                                  {c.count != null ? ` (${c.count.toLocaleString()})` : ''}
+                                </span>
+                                <span
+                                  className={cn(
+                                    'font-mono text-xs font-semibold shrink-0',
+                                    c.value < 0 ? 'text-destructive' : 'text-success'
+                                  )}
+                                >
+                                  {c.value < 0 ? '−' : '+'}
+                                  {formatUGX(Math.abs(c.value))}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
