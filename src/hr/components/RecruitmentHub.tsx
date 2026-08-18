@@ -1100,9 +1100,115 @@ export default function RecruitmentHub() {
         <TabsTrigger value="pool">Talent Pool</TabsTrigger>
       </TabsList>
 
+      {/* ---------------- Applications ---------------- */}
+      <TabsContent value="applications" className="space-y-3">
+        <ApplicationsTab />
+      </TabsContent>
+
       {/* ---------------- Internships ---------------- */}
       <TabsContent value="internships" className="space-y-3">
         <HRInternshipApplications />
+      </TabsContent>
+
+      {/* ---------------- Postings ---------------- */}
+      <TabsContent value="postings" className="space-y-3">
+        {postings.length === 0 ? (
+          <div className="text-center py-10 text-muted-foreground">
+            <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
+            No job postings yet.
+          </div>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {postings.map((job) => {
+              const alwaysOpen = isAlwaysOpen(job);
+              return (
+                <Card
+                  key={job.id}
+                  className={
+                    alwaysOpen
+                      ? 'p-4 border-2 border-dashed border-primary/40 bg-primary/5'
+                      : 'p-4'
+                  }
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <h3 className="font-semibold truncate">{job.title}</h3>
+                      <p className="text-xs text-muted-foreground">
+                        {departmentName(job.department_id)} · {job.location}
+                      </p>
+                    </div>
+                    {alwaysOpen ? (
+                      <Badge
+                        variant="outline"
+                        className="bg-primary/10 text-primary border-primary/30 shrink-0"
+                      >
+                        Always open
+                      </Badge>
+                    ) : (
+                      <Badge
+                        variant="outline"
+                        className={`${POSTING_STATUS_CLASS[job.status]} capitalize shrink-0`}
+                      >
+                        {job.status}
+                      </Badge>
+                    )}
+                  </div>
+
+                  {alwaysOpen && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Permanent intake, not a vacancy.
+                    </p>
+                  )}
+
+                  {!alwaysOpen && (
+                    <div className="mt-3 flex items-center justify-between gap-3">
+                      <span className="text-xs text-muted-foreground">
+                        {job.status === 'open'
+                          ? 'Accepting applications'
+                          : 'Not accepting applications'}
+                      </span>
+                      <Switch
+                        checked={job.status === 'open'}
+                        disabled={job.status === 'draft' || togglingId === job.id}
+                        onCheckedChange={(checked) =>
+                          handleStatusToggle(job, checked ? 'open' : 'closed')
+                        }
+                      />
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-2 mt-3 text-xs text-muted-foreground">
+                    <div>
+                      Employment:{' '}
+                      <span className="text-foreground">
+                        {EMPLOYMENT_LABELS[job.employment_type]}
+                      </span>
+                    </div>
+                    <div>
+                      Applications:{' '}
+                      <span className="text-foreground">{job.application_count}</span>
+                    </div>
+                    <div>
+                      Closes:{' '}
+                      <span className="text-foreground">
+                        {job.closes_at ? fmtDate(job.closes_at) : 'No closing date'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <a
+                    href={`https://welile.com/careers?c=${job.public_slug}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-3 font-mono text-xs text-primary break-all hover:underline block"
+                  >
+                    welile.com/careers?c={job.public_slug}
+                  </a>
+                </Card>
+              );
+            })}
+          </div>
+        )}
       </TabsContent>
 
       {/* ---------------- Requisitions ---------------- */}
@@ -1268,112 +1374,6 @@ export default function RecruitmentHub() {
             )}
           </TabsContent>
         </Tabs>
-      </TabsContent>
-
-      {/* ---------------- Postings ---------------- */}
-      <TabsContent value="postings" className="space-y-3">
-        {postings.length === 0 ? (
-          <div className="text-center py-10 text-muted-foreground">
-            <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            No job postings yet.
-          </div>
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2">
-            {postings.map((job) => {
-              const alwaysOpen = isAlwaysOpen(job);
-              return (
-                <Card
-                  key={job.id}
-                  className={
-                    alwaysOpen
-                      ? 'p-4 border-2 border-dashed border-primary/40 bg-primary/5'
-                      : 'p-4'
-                  }
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <h3 className="font-semibold truncate">{job.title}</h3>
-                      <p className="text-xs text-muted-foreground">
-                        {departmentName(job.department_id)} · {job.location}
-                      </p>
-                    </div>
-                    {alwaysOpen ? (
-                      <Badge
-                        variant="outline"
-                        className="bg-primary/10 text-primary border-primary/30 shrink-0"
-                      >
-                        Always open
-                      </Badge>
-                    ) : (
-                      <Badge
-                        variant="outline"
-                        className={`${POSTING_STATUS_CLASS[job.status]} capitalize shrink-0`}
-                      >
-                        {job.status}
-                      </Badge>
-                    )}
-                  </div>
-
-                  {alwaysOpen && (
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Permanent intake, not a vacancy.
-                    </p>
-                  )}
-
-                  {!alwaysOpen && (
-                    <div className="mt-3 flex items-center justify-between gap-3">
-                      <span className="text-xs text-muted-foreground">
-                        {job.status === 'open'
-                          ? 'Accepting applications'
-                          : 'Not accepting applications'}
-                      </span>
-                      <Switch
-                        checked={job.status === 'open'}
-                        disabled={job.status === 'draft' || togglingId === job.id}
-                        onCheckedChange={(checked) =>
-                          handleStatusToggle(job, checked ? 'open' : 'closed')
-                        }
-                      />
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-2 gap-2 mt-3 text-xs text-muted-foreground">
-                    <div>
-                      Employment:{' '}
-                      <span className="text-foreground">
-                        {EMPLOYMENT_LABELS[job.employment_type]}
-                      </span>
-                    </div>
-                    <div>
-                      Applications:{' '}
-                      <span className="text-foreground">{job.application_count}</span>
-                    </div>
-                    <div>
-                      Closes:{' '}
-                      <span className="text-foreground">
-                        {job.closes_at ? fmtDate(job.closes_at) : 'No closing date'}
-                      </span>
-                    </div>
-                  </div>
-
-                  <a
-                    href={`https://welile.com/careers?c=${job.public_slug}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-3 font-mono text-xs text-primary break-all hover:underline block"
-                  >
-                    welile.com/careers?c={job.public_slug}
-                  </a>
-                </Card>
-              );
-            })}
-          </div>
-        )}
-      </TabsContent>
-
-      {/* ---------------- Applications ---------------- */}
-      <TabsContent value="applications" className="space-y-3">
-        <ApplicationsTab />
       </TabsContent>
 
       {/* ---------------- Talent pool ---------------- */}
