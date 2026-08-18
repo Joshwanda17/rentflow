@@ -44,41 +44,47 @@ export function planShareDescription(plan: SharePlanInput): string {
 }
 
 /**
- * Share host for plan links. Set to "https://s.welileapp.com" once the
- * Cloudflare Worker in infra/share-proxy/ is deployed and the CNAME is live.
- * While empty, links are minted directly on the `og-plan` preview endpoint,
- * which DOES emit per-plan server-side head tags (house photo, rent, returns),
- * so WhatsApp/Facebook/X show the house image instead of the generic Welile
- * logo. The SPA `/s/<code>` route cannot do this — a static host serves the
- * same index.html to every crawler.
+ * Branded host for every user-facing share link. This is the ONLY host that may
+ * appear in a WhatsApp message, native share sheet, copied link or the UI.
+ *
+ * The backend `og-plan` edge function stays internal: `welileapp.com/s/<code>`
+ * is served by the Cloudflare Worker in `infra/share-proxy/` (route
+ * `welileapp.com/s/*`), which PROXIES the function so crawlers receive the
+ * per-plan Open Graph head (house photo, rent, returns) at the branded URL.
+ * Never build a share URL from VITE_SUPABASE_URL.
  */
-export const SHARE_LINK_HOST = '';
+export const SHARE_LINK_HOST =
+  (import.meta.env.VITE_SHARE_LINK_HOST as string | undefined)?.replace(/\/+$/, '') ||
+  'https://welileapp.com';
 
-/** Crawler-readable preview endpoint used while SHARE_LINK_HOST is unset. */
-const OG_PLAN_ENDPOINT = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/og-plan`;
-
-/** Build the public share URL for a short-link code. */
+/** Public, branded share URL for a short-link code — safe to expose anywhere. */
 export function planShareUrl(code: string): string {
-  return SHARE_LINK_HOST ? `${SHARE_LINK_HOST}/s/${code}` : `${OG_PLAN_ENDPOINT}/${code}`;
+  return `${SHARE_LINK_HOST}/s/${code}`;
+}
+
+/** SPA route a human lands on after the branded link returns its metadata. */
+export function planShareDestinationUrl(code: string): string {
+  return `${SHARE_LINK_HOST}/?share=${code}`;
 }
 
 /**
  * Create (or reuse) a trackable short link for a fundable rent plan.
  *
- * Returns the branded, click-counted link for the code:
- * - `shortUrl`  https://s.welileapp.com/s/<code> when SHARE_LINK_HOST is set,
- *   proxied to the `og-plan` edge function so crawlers receive the house photo.
- * - `shareUrl`  alias of `shortUrl`, kept so callers stay unchanged. The raw
- *   `og-plan` function URL is never shared (it exposes the backend host).
+ * Returns the branded, click-counted link for the existing code:
+ * - `short_code` / `code`  the stable short code (never rotated)
+ * - `share_url` / `shortUrl` / `shareUrl`  https://welileapp.com/s/<code>
+ * The internal edge-function URL is never returned or shared.
  */
 export async function createPlanShareLink(
   userId: string,
   planId: string,
-): Promise<{ code: string; shortUrl: string; shareUrl: string }> {
+): Promise<{ code: string; short_code: string; share_url: string; shortUrl: string; shareUrl: string }> {
   const targetPath = '/funder-onboarding';
   const targetParams = { plan: planId, ref: userId } as Record<string, string>;
   const build = (code: string) => ({
     code,
+    short_code: code,
+    share_url: planShareUrl(code),
     shortUrl: planShareUrl(code),
     shareUrl: planShareUrl(code),
   });
