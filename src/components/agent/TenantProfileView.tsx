@@ -1808,76 +1808,76 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
                 <Phone className="h-5 w-5 text-muted-foreground" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-muted-foreground flex items-center gap-1.5 font-medium">
+                <p className="text-xs text-muted-foreground flex flex-wrap items-center gap-1.5 font-medium">
                   Phone
                   <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-success bg-success/10 rounded-full px-1.5 py-0.5">
                     <MessageCircle className="h-2.5 w-2.5" /> WhatsApp
                   </span>
                 </p>
-                <a href={`tel:${profile.phone}`} className="text-base sm:text-lg font-semibold text-primary break-all">{profile.phone}</a>
+                <a href={`tel:${profile.phone}`} className="text-sm sm:text-base font-semibold text-primary break-all">{profile.phone}</a>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
                 <a
                   href={`https://wa.me/${phoneIntl}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="h-11 w-11 rounded-xl bg-success/15 flex items-center justify-center active:scale-90 transition-transform"
+                  className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-success/15 flex items-center justify-center active:scale-90 transition-transform"
                   style={{ touchAction: 'manipulation' }}
                   aria-label="Open WhatsApp chat"
                 >
-                  <MessageCircle className="h-5 w-5 text-success" />
+                  <MessageCircle className="h-4 w-4 sm:h-5 sm:w-5 text-success" />
                 </a>
                 <button
                   onClick={() => setEditDialogOpen(true)}
-                  className="h-11 w-11 rounded-xl bg-warning/15 flex items-center justify-center active:scale-90 transition-transform"
+                  className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-warning/15 flex items-center justify-center active:scale-90 transition-transform"
                   style={{ touchAction: 'manipulation' }}
                   aria-label="Edit phone number"
                   title="Edit phone number"
                 >
-                  <Pencil className="h-5 w-5 text-warning" />
+                  <Pencil className="h-4 w-4 sm:h-5 sm:w-5 text-warning" />
                 </button>
               </div>
             </div>
 
             {/* Email */}
             <div className="flex items-center gap-3">
-              <div className="h-11 w-11 rounded-xl bg-muted flex items-center justify-center shrink-0">
-                <Mail className="h-5 w-5 text-muted-foreground" />
+              <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                <Mail className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs text-muted-foreground font-medium">Email</p>
-                <p className="text-base font-semibold truncate">{profile.email || 'Not set'}</p>
+                <p className="text-sm sm:text-base font-semibold truncate">{profile.email || 'Not set'}</p>
               </div>
               <button
                 onClick={() => setEditDialogOpen(true)}
-                className="h-11 w-11 rounded-xl bg-warning/15 flex items-center justify-center active:scale-90 transition-transform shrink-0"
+                className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-warning/15 flex items-center justify-center active:scale-90 transition-transform shrink-0"
                 style={{ touchAction: 'manipulation' }}
                 aria-label="Edit email address"
                 title="Edit email address"
               >
-                <Pencil className="h-5 w-5 text-warning" />
+                <Pencil className="h-4 w-4 sm:h-5 sm:w-5 text-warning" />
               </button>
             </div>
 
             {profile.national_id && (
               <div className="flex items-center gap-3">
-                <div className="h-11 w-11 rounded-xl bg-muted flex items-center justify-center shrink-0">
-                  <CreditCard className="h-5 w-5 text-muted-foreground" />
+                <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                  <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
                 </div>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="text-xs text-muted-foreground font-medium">National ID</p>
-                  <p className="text-base font-semibold font-mono break-all">{profile.national_id}</p>
+                  <p className="text-sm sm:text-base font-semibold font-mono break-all">{profile.national_id}</p>
                 </div>
               </div>
             )}
 
             <div className="flex items-center gap-3">
-              <div className="h-11 w-11 rounded-xl bg-muted flex items-center justify-center shrink-0">
-                <Calendar className="h-5 w-5 text-muted-foreground" />
+              <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
               </div>
-              <div>
+              <div className="min-w-0 flex-1">
                 <p className="text-xs text-muted-foreground font-medium">Member Since</p>
-                <p className="text-base font-semibold">{format(new Date(profile.created_at), 'dd MMM yyyy')}</p>
+                <p className="text-sm sm:text-base font-semibold">{format(new Date(profile.created_at), 'dd MMM yyyy')}</p>
               </div>
             </div>
           </div>
