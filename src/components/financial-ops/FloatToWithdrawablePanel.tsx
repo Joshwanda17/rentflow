@@ -138,7 +138,7 @@ export function FloatToWithdrawablePanel() {
   const validAmount =
     Number.isInteger(amountNum) && amountNum > 0 && amountNum <= 500_000_000;
   const enoughFloat = !!selected && amountNum <= selected.float_balance;
-  const canSubmit = !!selected && validAmount && enoughFloat && reason.trim().length >= 10;
+  const canSubmit = !!selected && validAmount && enoughFloat && reason.trim().length >= 20;
 
   const submit = async () => {
     if (!selected) return;
@@ -279,7 +279,7 @@ export function FloatToWithdrawablePanel() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="f2w-reason">Reason (min 10 characters)</Label>
+              <Label htmlFor="f2w-reason">Reason (min 20 characters)</Label>
               <Textarea
                 id="f2w-reason"
                 rows={2}

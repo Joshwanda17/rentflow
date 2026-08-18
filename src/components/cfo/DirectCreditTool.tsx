@@ -495,7 +495,7 @@ export function DirectCreditTool() {
     mutationFn: async (opts?: { allowOverdraw?: boolean }) => {
       const amt = parseFloat(amount);
       if (!amt || amt <= 0) throw new Error('Invalid amount');
-      if (!reason || reason.length < 10) throw new Error('Reason must be at least 10 characters');
+      if (!reason || reason.trim().length < 20) throw new Error('Reason must be at least 20 characters');
       if (!selectedUser) throw new Error('Select a user');
       // Recipients: either the single user picked as before, or the people
       // selected via Pay by Location/Category. Everything below is identical.
@@ -617,7 +617,7 @@ export function DirectCreditTool() {
         if (msg.includes('Insufficient permissions')) throw new Error('Your role does not have CFO privileges.');
         if (msg.includes('Target user not found')) throw new Error('The selected user could not be found.');
         if (msg.includes('Invalid amount')) throw new Error('Please enter a valid amount between 1 and 50,000,000 UGX.');
-        if (msg.includes('Reason must be')) throw new Error('Please provide a detailed reason (at least 10 characters).');
+        if (msg.includes('Reason must be')) throw new Error('Please provide a detailed reason (at least 20 characters).');
         if (msg.includes('Insufficient ledger balance')) throw new Error(msg);
         if (msg.includes('INVALID_ROUTING')) throw new Error(msg.replace(/^.*INVALID_ROUTING:\s*/, 'Routing rejected: '));
         if (msg.includes('RECIPIENT_TYPE_REQUIRED')) throw new Error('Choose a Recipient type — User (Withdrawable) or Operational Wallet (Float).');
@@ -1319,7 +1319,7 @@ export function DirectCreditTool() {
             )}
 
             <div>
-              <Label>Reason (min 10 chars)</Label>
+              <Label>Reason (min 20 chars)</Label>
               <Textarea
                 placeholder={
                   operation === 'withdraw'
@@ -1332,7 +1332,7 @@ export function DirectCreditTool() {
                 onChange={e => setReason(e.target.value)}
                 rows={2}
               />
-              <p className="text-[10px] text-muted-foreground mt-1">{reason.length}/10 characters minimum</p>
+              <p className="text-[10px] text-muted-foreground mt-1">{reason.length}/20 characters minimum</p>
             </div>
 
             {/* Automation Toggle (credit only) */}
@@ -1418,7 +1418,7 @@ export function DirectCreditTool() {
                 }
                 mutation.mutate(undefined);
               }}
-              disabled={mutation.isPending || !selectedUser || !amount || reason.length < 10 || !selectedCategoryId || !recipientType}
+              disabled={mutation.isPending || !selectedUser || !amount || reason.trim().length < 20 || !selectedCategoryId || !recipientType}
             >
               {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
               {operation === 'withdraw'

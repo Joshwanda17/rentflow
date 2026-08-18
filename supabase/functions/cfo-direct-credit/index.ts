@@ -158,7 +158,7 @@ Deno.serve(async (req) => {
       const { data: actor } = await adminClient
         .from("user_roles")
         .select("user_id")
-        .in("role", ["cfo", "super_admin", "manager"])
+        .in("role", ["cfo", "financial_ops", "super_admin"])
         .limit(1)
         .maybeSingle();
       if (!actor?.user_id) {
@@ -190,7 +190,7 @@ Deno.serve(async (req) => {
         .from("user_roles")
         .select("role")
         .eq("user_id", authedUser.id)
-        .in("role", ["cfo", "manager", "super_admin", "cto"]);
+        .in("role", ["cfo", "financial_ops", "super_admin"]);
 
       if (!roles?.length) {
         return new Response(JSON.stringify({ error: "Insufficient permissions" }), {
