@@ -8,6 +8,7 @@ import {
   Loader2, ArrowDownRight, ArrowUpRight, Scale, Wallet, Users, TrendingUp,
   Banknote, Percent, Receipt, ChevronRight, Info, CalendarDays, Download,
   PiggyBank, Flame, BarChart3, Package, LineChart as LineChartIcon, ChevronDown,
+  Landmark, Vault,
 } from 'lucide-react';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
