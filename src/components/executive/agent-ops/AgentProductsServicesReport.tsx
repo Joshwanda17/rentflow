@@ -275,7 +275,8 @@ export function AgentProductsServicesReport() {
           {/* KPI strip */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
             <Kpi label="New agents added" value={num(report.agents.new_today)}
-              current={report.agents.new_today} previous={report.agents.new_prev} hint="vs prev day" />
+              current={report.agents.new_today} previous={report.agents.new_prev}
+              hint={`${num(report.new_agent_rows.filter(r => r.agent_type === 'main agent').length)} main · ${num(report.new_agent_rows.filter(r => r.agent_type === 'sub-agent').length)} sub vs prev day`} />
             <Kpi label="Total agents" value={num(report.agents.total)} hint={`${num(report.agents.active_today)} active today`} />
             <Kpi label="Rent collected" value={apsUgx(report.rent.collected_today)}
               current={report.rent.collected_today} previous={report.rent.collected_prev} hint="vs prev day" />
