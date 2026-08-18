@@ -443,6 +443,15 @@ Deno.serve(async (req) => {
     });
 
     // Stamp the verified RCT code onto the deposit request for traceability.
+    // Safety net: a deposit auto-rejected by an earlier expired code window is
+    // revived here so the credit path below can run (otherwise the deposit
+    // shows as verified but is never credited and cannot be banked).
+    await admin
+      .from("deposit_requests")
+      .update({ status: "pending", rejection_reason: null, rejected_at: null } as any)
+      .eq("id", depositId)
+      .eq("status", "rejected");
+
     await admin
       .from("deposit_requests")
       .update({ transaction_id: enteredCode })
