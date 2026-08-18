@@ -135,7 +135,7 @@ Deno.serve(async (req) => {
   // ── Candidates: new, un-purged, with an email, created at/after the cutoff.
   const { data: candidates, error: fetchError } = await adminClient
     .from('job_applications')
-    .select('id, full_name, email, public_ref, created_at')
+    .select('id, full_name, email, public_ref, role_interest, created_at')
     .is('purged_at', null)
     .not('email', 'is', null)
     .eq('status', 'new')
