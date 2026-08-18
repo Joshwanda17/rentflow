@@ -35,6 +35,64 @@ const DECISION_LABELS: Record<ApplicationDecision, string> = {
   rejected: 'Decline',
 };
 
+/** Detects section headers like "WHAT THEY HAVE BUILT OR RUN". */
+function isSectionHeader(line: string): boolean {
+  const trimmed = line.trim();
+  if (trimmed.length < 4) return false;
+  // All caps (allow spaces); ignore trailing punctuation.
+  const letters = trimmed.replace(/[^a-zA-Z]/g, '');
+  return letters.length > 0 && letters === letters.toUpperCase();
+}
+
+function parseCoverNoteSections(text: string | null): { title: string; body: string }[] {
+  if (!text || !text.trim()) return [];
+  const lines = text.split('\n');
+  const sections: { title: string; body: string }[] = [];
+  let current: { title: string; bodyLines: string[] } | null = null;
+
+  for (const rawLine of lines) {
+    const line = rawLine.replace(/\r/g, '');
+    if (isSectionHeader(line)) {
+      if (current) {
+        sections.push({ title: current.title, body: current.bodyLines.join('\n').trim() });
+      }
+      current = { title: line.trim(), bodyLines: [] };
+    } else if (current) {
+      current.bodyLines.push(line);
+    } else {
+      // Leading free text before the first header becomes its own untitled section.
+      current = { title: '', bodyLines: [line] };
+    }
+  }
+
+  if (current) {
+    sections.push({ title: current.title, body: current.bodyLines.join('\n').trim() });
+  }
+
+  return sections;
+}
+
+function CoverNoteSections({ text }: { text: string | null }) {
+  const sections = parseCoverNoteSections(text);
+  if (sections.length === 0) return <p className="text-sm text-muted-foreground">—</p>;
+
+  return (
+    <div className="space-y-6">
+      {sections.map((section, index) => (
+        <div key={index}>
+          {section.title && (
+            <p className="mb-1 text-sm font-bold">{section.title}</p>
+          )}
+          {section.body && (
+            <p className="whitespace-pre-wrap text-sm leading-relaxed">{section.body}</p>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+
 function DetailRow({ label, value }: { label: string; value: string | null }) {
   return (
     <div className="grid grid-cols-3 gap-3 border-b py-2 last:border-b-0">
