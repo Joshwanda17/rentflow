@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    if (await isPhoneBlocked(admin, toAgent.phone)) {
+    if (await isPhoneBlocked(admin, toAgent.phone, "tenant_transfer")) {
       return new Response(JSON.stringify({ ok: false, skipped: "phone blocked" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
