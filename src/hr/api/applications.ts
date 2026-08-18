@@ -175,6 +175,37 @@ export async function purgeApplication(applicationId: string): Promise<void> {
 }
 
 /** Stamp that a person has been reached. Not a decision, so the status is untouched. */
+export interface PurgedApplicationRow extends JobApplicationRow {
+  purged_at: string | null;
+  purged_by: string | null;
+}
+
+/**
+ * The removal bin: applications whose `purged_at` is stamped. They are held
+ * here indefinitely and can be put back on the working list unchanged.
+ */
+export async function listPurgedApplications(): Promise<PurgedApplicationRow[]> {
+  const { data, error } = await supabase
+    .from('job_applications')
+    .select(`${COLUMNS}, purged_at, purged_by`)
+    .not('purged_at', 'is', null)
+    .order('purged_at', { ascending: false })
+    .limit(MAX_ROWS);
+
+  if (error) throw new Error(error.message);
+  return (data ?? []) as unknown as PurgedApplicationRow[];
+}
+
+/** Put a removed application back on the working list. Status is left as it was. */
+export async function restoreApplication(applicationId: string): Promise<void> {
+  const { error } = await supabase
+    .from('job_applications')
+    .update({ purged_at: null, purged_by: null })
+    .eq('id', applicationId);
+
+  if (error) throw new Error(error.message);
+}
+
 export async function markApplicationContacted(
   applicationId: string,
 ): Promise<JobApplicationRow> {
