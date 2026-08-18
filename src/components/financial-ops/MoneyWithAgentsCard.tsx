@@ -35,6 +35,7 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
   const [statementFor, setStatementFor] = useState<MerchantFloatPosition | null>(null);
   const qc = useQueryClient();
   const [sweeping, setSweeping] = useState(false);
+  const { canEdit: canEditFloat, readOnlyReason } = useFinancialOpsEditAccess();
 
   // Payout float guard repair: any payout that completed WITHOUT a float debit
   // (older paths, failed reservation) gets its company-float deduction posted
