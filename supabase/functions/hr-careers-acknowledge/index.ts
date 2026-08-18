@@ -218,8 +218,8 @@ Deno.serve(async (req) => {
       }
 
       const messageId = crypto.randomUUID();
-      const html = buildHtml({ greetingName: name, bodyText, publicRef });
-      const text = buildText({ greetingName: name, bodyText, publicRef });
+      const html = buildHtml({ bodyText });
+      const text = buildText({ bodyText });
 
       await adminClient.from('email_send_log').insert({
         message_id: messageId,
