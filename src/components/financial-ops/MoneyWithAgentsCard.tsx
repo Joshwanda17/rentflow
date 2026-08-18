@@ -12,6 +12,7 @@ import {
   MerchantFloatPosition,
 } from '@/hooks/useMerchantFloat';
 import { MerchantReconcileDialog } from './MerchantReconcileDialog';
+import { useFinancialOpsEditAccess } from '@/hooks/useFinancialOpsEditAccess';
 import { MerchantFloatStatementDialog } from './MerchantFloatStatementDialog';
 import { MerchantOwnMoneyReviewPanel } from './MerchantOwnMoneyReviewPanel';
 
@@ -325,13 +326,17 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
                       hides a UGX {formatUGX(r.clampedShortfall)} deficit
                     </p>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => setReconciling(r)}
-                    className="mt-1 inline-flex items-center gap-1 text-[10px] font-medium text-primary hover:underline"
-                  >
-                    <SlidersHorizontal className="h-3 w-3" /> Fix balance
-                  </button>
+                  {canEditFloat ? (
+                    <button
+                      type="button"
+                      onClick={() => setReconciling(r)}
+                      className="mt-1 inline-flex items-center gap-1 text-[10px] font-medium text-primary hover:underline"
+                    >
+                      <SlidersHorizontal className="h-3 w-3" /> Fix balance
+                    </button>
+                  ) : (
+                    <p className="mt-1 text-[10px] text-muted-foreground">{readOnlyReason}</p>
+                  )}
                 </div>
               </div>
             );
