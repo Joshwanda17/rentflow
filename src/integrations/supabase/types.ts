@@ -41923,6 +41923,10 @@ export type Database = {
         Args: { p_short_code: string }
         Returns: Json
       }
+      resolve_owned_notification_email: {
+        Args: { p_user_id: string }
+        Returns: string
+      }
       resolve_payout_commission_agent: {
         Args: { p_withdrawal_id: string }
         Returns: Json
