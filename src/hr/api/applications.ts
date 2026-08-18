@@ -153,6 +153,24 @@ export async function recordApplicationDecision(
   return data as unknown as JobApplicationRow;
 }
 
+/**
+ * Remove an application from the working list without destroying it.
+ *
+ * This is a soft removal: `purged_at` is stamped and the row stays in the
+ * table. `job_applications` has no `purged_by` column, so authorship of the
+ * removal is not written here. Nothing in this module deletes.
+ */
+export async function purgeApplication(applicationId: string): Promise<void> {
+  await actingUserId();
+
+  const { error } = await supabase
+    .from('job_applications')
+    .update({ purged_at: new Date().toISOString() })
+    .eq('id', applicationId);
+
+  if (error) throw new Error(error.message);
+}
+
 /** Stamp that a person has been reached. Not a decision, so the status is untouched. */
 export async function markApplicationContacted(
   applicationId: string,

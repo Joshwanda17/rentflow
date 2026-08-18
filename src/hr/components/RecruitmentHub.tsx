@@ -62,6 +62,12 @@ import {
   setJobPostingStatus,
 } from '@/hr/api';
 import { getResumeUrl } from '@/hr/api/resumes';
+import {
+  APPLICATION_DECISIONS,
+  purgeApplication,
+  recordApplicationDecision,
+  type ApplicationDecision,
+} from '@/hr/api/applications';
 import type { Database } from '@/integrations/supabase/types';
 import type {
   Application,
@@ -154,15 +160,32 @@ function isAlwaysOpen(posting: JobPosting): boolean {
 
 type JobApplicationRow = Database['public']['Tables']['job_applications']['Row'];
 
+/** Labels for the decision vocabulary. Keyed by the constant, so no status is invented here. */
+const DECISION_LABELS: Record<ApplicationDecision, string> = {
+  shortlisted: 'Shortlist',
+  hold: 'Hold',
+  rejected: 'Decline',
+};
+
+const REMOVE_PHRASE = 'REMOVE';
+
+const fmtCount = (n: number) => Math.round(n).toLocaleString();
+
 function ApplicationsTab() {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<JobApplicationRow | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>(ALL);
   const [sortConfig, setSortConfig] = useState<
-    { key: 'status' | 'created'; dir: 'asc' | 'desc' }
+    { key: 'name' | 'status' | 'created'; dir: 'asc' | 'desc' }
   >({ key: 'created', dir: 'desc' });
+  const [pending, setPending] = useState<
+    { row: JobApplicationRow; kind: ApplicationDecision | 'remove' } | null
+  >(null);
+  const [reason, setReason] = useState('');
+  const [typed, setTyped] = useState('');
+  const [busy, setBusy] = useState(false);
 
-  const { data: rows = [], isLoading, error } = useQuery({
+  const { data: rows = [], isLoading, error, refetch } = useQuery({
     queryKey: ['job-applications'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -199,7 +222,13 @@ function ApplicationsTab() {
     }
 
     const sorted = [...data];
-    if (sortConfig.key === 'status') {
+    if (sortConfig.key === 'name') {
+      sorted.sort((a, b) => {
+        const av = (a.full_name ?? '').toLowerCase();
+        const bv = (b.full_name ?? '').toLowerCase();
+        return av.localeCompare(bv) * (sortConfig.dir === 'asc' ? 1 : -1);
+      });
+    } else if (sortConfig.key === 'status') {
       sorted.sort((a, b) => {
         const av = (a.status ?? '').toLowerCase();
         const bv = (b.status ?? '').toLowerCase();
@@ -215,12 +244,43 @@ function ApplicationsTab() {
     return sorted;
   }, [rows, search, statusFilter, sortConfig]);
 
-  const toggleSort = (key: 'status' | 'created') => {
+  const toggleSort = (key: 'name' | 'status' | 'created') => {
     setSortConfig((prev) =>
       prev.key === key
         ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
         : { key, dir: 'asc' },
     );
+  };
+
+  const closeConfirm = () => {
+    setPending(null);
+    setReason('');
+    setTyped('');
+  };
+
+  const runPending = async () => {
+    if (!pending) return;
+    setBusy(true);
+    try {
+      if (pending.kind === 'remove') {
+        await purgeApplication(pending.row.id);
+        toast.success(`${pending.row.full_name || 'Application'} removed from the list`);
+        setSelected(null);
+      } else {
+        await recordApplicationDecision(pending.row.id, pending.kind, reason);
+        toast.success(
+          `${DECISION_LABELS[pending.kind]} recorded for ${pending.row.full_name || 'applicant'}`,
+        );
+      }
+      closeConfirm();
+      const fresh = await refetch();
+      const next = (fresh.data ?? []).find((r) => r.id === pending.row.id) ?? null;
+      setSelected((prev) => (prev && prev.id === pending.row.id ? next : prev));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not record this');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const openCv = async (path: string) => {
@@ -281,7 +341,8 @@ function ApplicationsTab() {
       </div>
 
       <p className="text-xs text-muted-foreground">
-        showing {filteredSorted.length} of {rows.length}
+        showing {isLoading ? '—' : fmtCount(filteredSorted.length)} of{' '}
+        {isLoading ? '—' : fmtCount(rows.length)} applications
       </p>
 
       {filteredSorted.length === 0 ? (
@@ -295,7 +356,15 @@ function ApplicationsTab() {
             <TableHeader>
               <TableRow>
                 <TableHead className="w-12">#</TableHead>
-                <TableHead>Full name</TableHead>
+                <TableHead
+                  className="cursor-pointer select-none"
+                  onClick={() => toggleSort('name')}
+                >
+                  Full name
+                  {sortConfig.key === 'name' && (
+                    <span className="ml-1">{sortConfig.dir === 'asc' ? '↑' : '↓'}</span>
+                  )}
+                </TableHead>
                 <TableHead>Role interest</TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead>Location</TableHead>
@@ -319,6 +388,7 @@ function ApplicationsTab() {
                   )}
                 </TableHead>
                 <TableHead>Reference</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -337,6 +407,40 @@ function ApplicationsTab() {
                   <TableCell>{row.status || '—'}</TableCell>
                   <TableCell>{fmtDateTime(row.created_at)}</TableCell>
                   <TableCell>{row.public_ref || '—'}</TableCell>
+                  <TableCell
+                    className="text-right whitespace-nowrap"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="inline-flex gap-1">
+                      {APPLICATION_DECISIONS.map((d) => (
+                        <Button
+                          key={d}
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2 text-xs"
+                          onClick={() => {
+                            setReason('');
+                            setTyped('');
+                            setPending({ row, kind: d });
+                          }}
+                        >
+                          {DECISION_LABELS[d]}
+                        </Button>
+                      ))}
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => {
+                          setReason('');
+                          setTyped('');
+                          setPending({ row, kind: 'remove' });
+                        }}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -350,8 +454,93 @@ function ApplicationsTab() {
             <SheetTitle>{selected?.full_name || 'Application'}</SheetTitle>
           </SheetHeader>
           {selected && <ApplicationDetail app={selected} onOpenCv={openCv} />}
+          {selected && (
+            <div className="pb-8 space-y-2">
+              <Separator />
+              <Label className="text-xs text-muted-foreground">Decision</Label>
+              <div className="flex flex-wrap gap-2">
+                {APPLICATION_DECISIONS.map((d) => (
+                  <Button
+                    key={d}
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setReason('');
+                      setTyped('');
+                      setPending({ row: selected, kind: d });
+                    }}
+                  >
+                    {DECISION_LABELS[d]}
+                  </Button>
+                ))}
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => {
+                    setReason('');
+                    setTyped('');
+                    setPending({ row: selected, kind: 'remove' });
+                  }}
+                >
+                  Remove
+                </Button>
+              </div>
+            </div>
+          )}
         </SheetContent>
       </Sheet>
+
+      <AlertDialog open={!!pending} onOpenChange={(open) => !open && !busy && closeConfirm()}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {pending?.kind === 'remove'
+                ? `Remove ${pending?.row.full_name || 'this application'}?`
+                : `${pending ? DECISION_LABELS[pending.kind as ApplicationDecision] : ''} ${
+                    pending?.row.full_name || 'this applicant'
+                  }?`}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {pending?.kind === 'remove'
+                ? `This hides the application from the list. The record is kept, not deleted. Type ${REMOVE_PHRASE} to confirm.`
+                : 'A recorded decision needs a short reason so it can be read back later.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {pending?.kind === 'remove' ? (
+            <Input
+              value={typed}
+              onChange={(e) => setTyped(e.target.value)}
+              placeholder={REMOVE_PHRASE}
+            />
+          ) : (
+            <Input
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Reason (at least 3 characters)"
+            />
+          )}
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={
+                busy ||
+                (pending?.kind === 'remove'
+                  ? typed.trim().toUpperCase() !== REMOVE_PHRASE
+                  : reason.trim().length < 3)
+              }
+              onClick={(e) => {
+                e.preventDefault();
+                void runPending();
+              }}
+              className={pending?.kind === 'remove' ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : undefined}
+            >
+              {busy ? 'Working…' : pending?.kind === 'remove' ? 'Remove' : 'Confirm'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
