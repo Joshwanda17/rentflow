@@ -53,7 +53,7 @@ function generateToken(): string {
  */
 const BODY_TEMPLATE = `Hello {{name}},
 
-We have received your application{{role}}. Your reference is {{reference}}.
+We have received your application for {{role}}. Your reference is {{reference}}.
 
 Applications are reviewed on a rolling basis. We contact the applicants we wish to speak to, and we are not able to reply to everyone individually.
 
@@ -62,11 +62,16 @@ Please keep your reference for any correspondence about this application.
 Welile — Talent & Recruitment`;
 
 function personalise(template: string, name: string, role: string | null, reference: string): string {
-  const rolePhrase = role?.trim() ? ` for ${role.trim()}` : '';
-  return template
+  const roleValue = role?.trim() ? role.trim() : '';
+  let result = template
     .replace(/\{\{\s*name\s*\}\}/gi, name)
-    .replace(/\{\{\s*role\s*\}\}/gi, rolePhrase)
     .replace(/\{\{\s*reference\s*\}\}/gi, reference);
+  if (roleValue) {
+    result = result.replace(/\{\{\s*role\s*\}\}/gi, roleValue);
+  } else {
+    result = result.replace(/\s+for\s+\{\{\s*role\s*\}\}/gi, '');
+  }
+  return result;
 }
 
 function buildBody(name: string, role: string | null, reference: string): string {
