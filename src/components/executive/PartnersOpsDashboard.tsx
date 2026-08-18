@@ -339,13 +339,13 @@ export function PartnersOpsDashboard() {
       />
 
       {/* ═══ BODY: SIDEBAR + CONTENT ═══ */}
-      <div className="flex min-h-[calc(100vh-4rem)] gap-4 pt-3">
+      <div className="-ml-4 flex min-h-[calc(100vh-4rem)] gap-4 pt-3">
         <aside className="hidden w-56 shrink-0 lg:block">
-          <div className="sticky top-16 flex h-[calc(100vh-4rem)] flex-col rounded-xl border bg-card">
+          <div className="sticky top-0 flex h-[calc(100vh-4rem)] flex-col rounded-l-none rounded-r-xl border border-l-0 bg-card">
             <PartnerOpsSidebar active={view} onSelect={setView} badges={badges} className="flex-1" />
           </div>
         </aside>
-        <div className="min-w-0 flex-1 space-y-4">
+        <div className="min-w-0 flex-1 space-y-4 pl-4 lg:pl-0">
           <div className="min-h-[200px]">{renderView()}</div>
         </div>
       </div>
