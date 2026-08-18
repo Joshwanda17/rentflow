@@ -157,6 +157,10 @@ type JobApplicationRow = Database['public']['Tables']['job_applications']['Row']
 function ApplicationsTab() {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<JobApplicationRow | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>(ALL);
+  const [sortConfig, setSortConfig] = useState<
+    { key: 'status' | 'created'; dir: 'asc' | 'desc' }
+  >({ key: 'created', dir: 'desc' });
 
   const { data: rows = [], isLoading, error } = useQuery({
     queryKey: ['job-applications'],
@@ -172,15 +176,52 @@ function ApplicationsTab() {
     },
   });
 
-  const filtered = useMemo(() => {
+  const statuses = useMemo(() => {
+    const set = new Set<string>();
+    rows.forEach((r) => set.add(r.status ?? '—'));
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [rows]);
+
+  const filteredSorted = useMemo(() => {
+    let data = rows;
+
     const term = search.trim().toLowerCase();
-    if (!term) return rows;
-    return rows.filter((r) =>
-      [r.full_name, r.email, r.whatsapp_number, r.public_ref].some((v) =>
-        (v ?? '').toLowerCase().includes(term),
-      ),
+    if (term) {
+      data = data.filter((r) =>
+        [r.full_name, r.email, r.whatsapp_number, r.public_ref].some((v) =>
+          (v ?? '').toLowerCase().includes(term),
+        ),
+      );
+    }
+
+    if (statusFilter !== ALL) {
+      data = data.filter((r) => (r.status ?? '—') === statusFilter);
+    }
+
+    const sorted = [...data];
+    if (sortConfig.key === 'status') {
+      sorted.sort((a, b) => {
+        const av = (a.status ?? '').toLowerCase();
+        const bv = (b.status ?? '').toLowerCase();
+        return av.localeCompare(bv) * (sortConfig.dir === 'asc' ? 1 : -1);
+      });
+    } else {
+      sorted.sort((a, b) => {
+        const av = new Date(a.created_at).getTime();
+        const bv = new Date(b.created_at).getTime();
+        return (av - bv) * (sortConfig.dir === 'asc' ? 1 : -1);
+      });
+    }
+    return sorted;
+  }, [rows, search, statusFilter, sortConfig]);
+
+  const toggleSort = (key: 'status' | 'created') => {
+    setSortConfig((prev) =>
+      prev.key === key
+        ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+        : { key, dir: 'asc' },
     );
-  }, [rows, search]);
+  };
 
   const openCv = async (path: string) => {
     try {
@@ -214,17 +255,36 @@ function ApplicationsTab() {
 
   return (
     <div className="space-y-3">
-      <div className="relative">
-        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search name, email, WhatsApp or reference"
-          className="pl-8 h-9"
-        />
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="relative flex-1">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search name, email, WhatsApp or reference"
+            className="pl-8 h-9"
+          />
+        </div>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-full sm:w-44">
+            <SelectValue placeholder="Filter by status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>all</SelectItem>
+            {statuses.map((s) => (
+              <SelectItem key={s} value={s}>
+                {s}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
-      {filtered.length === 0 ? (
+      <p className="text-xs text-muted-foreground">
+        showing {filteredSorted.length} of {rows.length}
+      </p>
+
+      {filteredSorted.length === 0 ? (
         <div className="text-center py-10 text-muted-foreground">
           <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
           No applications match these filters.
@@ -234,23 +294,41 @@ function ApplicationsTab() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-12">#</TableHead>
                 <TableHead>Full name</TableHead>
                 <TableHead>Role interest</TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead>Location</TableHead>
                 <TableHead>Experience</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Created</TableHead>
+                <TableHead
+                  className="cursor-pointer select-none"
+                  onClick={() => toggleSort('status')}
+                >
+                  Status
+                  {sortConfig.key === 'status' && (
+                    <span className="ml-1">{sortConfig.dir === 'asc' ? '↑' : '↓'}</span>
+                  )}
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer select-none"
+                  onClick={() => toggleSort('created')}
+                >
+                  Created
+                  {sortConfig.key === 'created' && (
+                    <span className="ml-1">{sortConfig.dir === 'asc' ? '↑' : '↓'}</span>
+                  )}
+                </TableHead>
                 <TableHead>Reference</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((row) => (
+              {filteredSorted.map((row, idx) => (
                 <TableRow
                   key={row.id}
                   className="cursor-pointer"
                   onClick={() => setSelected(row)}
                 >
+                  <TableCell>{idx + 1}</TableCell>
                   <TableCell>{row.full_name || '—'}</TableCell>
                   <TableCell>{row.role_interest || '—'}</TableCell>
                   <TableCell>{row.category || '—'}</TableCell>
