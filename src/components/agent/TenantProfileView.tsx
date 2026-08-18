@@ -2001,10 +2001,24 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
             title="Rent Plan History"
             badge={<Badge variant="outline" className="text-xs">{requests.length}</Badge>}
           >
+            <Button
+              variant="soft"
+              className="w-full h-10 gap-2 text-sm"
+              onClick={handleExportRepaymentReport}
+              disabled={exportingRepayReport}
+            >
+              {exportingRepayReport
+                ? <><Loader2 className="h-4 w-4 animate-spin" /> Building report…</>
+                : <><FileText className="h-4 w-4" /> Export repayment report (PDF)</>}
+            </Button>
             <div className="space-y-2">
               {visibleRequests.map(req => {
                 const owing = Math.max(0, req.total_repayment - req.amount_repaid);
                 const pct = req.total_repayment > 0 ? Math.round((req.amount_repaid / req.total_repayment) * 100) : 0;
+                const agg = planRepaymentHistory.get(req.id);
+                const planRows = agg?.rows ?? [];
+                const shown = planRepayVisible[req.id] ?? 10;
+                const visiblePlanRows = planRows.slice(0, shown);
                 return (
                   <div key={req.id} className="bg-muted/40 rounded-xl p-3 space-y-2">
                     <div className="flex items-center justify-between gap-2">
@@ -2021,6 +2035,60 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
                     {req.landlord?.name && (
                       <p className="text-xs sm:text-sm text-muted-foreground">📍 {req.landlord.name} — {req.landlord.property_address || 'N/A'}</p>
                     )}
+
+                    {/* ── Repayment history for this plan (date & time, amount, balance left) ── */}
+                    <div className="pt-2 border-t border-border/50 space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Repayment history
+                        </p>
+                        <Badge variant="outline" className="text-[10px]">
+                          {planRows.length} payment{planRows.length === 1 ? '' : 's'} · {formatUGX(agg?.ledgerPaid ?? 0)}
+                        </Badge>
+                      </div>
+
+                      {planRows.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">No repayments recorded on this plan yet.</p>
+                      ) : (
+                        <>
+                          <div className="space-y-1">
+                            {visiblePlanRows.map((r) => (
+                              <div key={r.id} className="flex items-center justify-between gap-2 rounded-lg bg-background/70 px-2.5 py-2">
+                                <div className="min-w-0">
+                                  <p className="text-xs font-mono text-muted-foreground">
+                                    [{format(new Date(r.date), 'dd/MM/yy')}] {format(new Date(r.date), 'HH:mm')}
+                                  </p>
+                                  <p className="text-sm font-bold font-mono text-success">{formatUGX(r.amount)}</p>
+                                </div>
+                                <div className="text-right shrink-0">
+                                  <p className="text-[10px] text-muted-foreground">Balance left</p>
+                                  <p className={`text-sm font-bold font-mono ${r.remaining > 0 ? 'text-destructive' : 'text-success'}`}>
+                                    {r.remaining > 0 ? formatUGX(r.remaining) : 'Cleared'}
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          {planRows.length > shown && (
+                            <Button
+                              variant="ghost"
+                              className="w-full h-9 gap-1 text-xs"
+                              onClick={() => setPlanRepayVisible((prev) => ({ ...prev, [req.id]: shown + 10 }))}
+                            >
+                              <ChevronDown className="h-4 w-4" />
+                              Load more ({planRows.length - shown} left)
+                            </Button>
+                          )}
+                        </>
+                      )}
+
+                      {(agg?.otherSources ?? 0) > 0 && (
+                        <p className="text-[11px] text-muted-foreground">
+                          + {formatUGX(agg!.otherSources)} recorded on this plan from other sources (offline top-ups or
+                          adjustments without an itemised payment record).
+                        </p>
+                      )}
+                    </div>
                   </div>
                 );
               })}
