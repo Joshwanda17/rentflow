@@ -143,6 +143,7 @@ export function MerchantFloatAvailableCard() {
 
       {(offledger !== 0 || unbacked > 0) && (
         <div className="mt-3 rounded-2xl border border-border/60 bg-muted/20 p-3">
+          {hiddenDeficit > 0 && null}
           <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
             Kept separate on purpose
           </p>
