@@ -638,34 +638,15 @@ function ApplicationsTab() {
             </AlertDialogTitle>
             <AlertDialogDescription>
               {pending?.kind === 'remove'
-                ? `This hides the application from the list. The record is kept, not deleted. Type ${REMOVE_PHRASE} to confirm.`
-                : 'A recorded decision needs a short reason so it can be read back later.'}
+                ? 'This hides the application from the list. The record is kept, not deleted.'
+                : 'The decision is recorded straight away. No reason is needed.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
-
-          {pending?.kind === 'remove' ? (
-            <Input
-              value={typed}
-              onChange={(e) => setTyped(e.target.value)}
-              placeholder={REMOVE_PHRASE}
-            />
-          ) : (
-            <Input
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="Reason (at least 3 characters)"
-            />
-          )}
 
           <AlertDialogFooter>
             <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              disabled={
-                busy ||
-                (pending?.kind === 'remove'
-                  ? typed.trim().toUpperCase() !== REMOVE_PHRASE
-                  : reason.trim().length < 3)
-              }
+              disabled={busy}
               onClick={(e) => {
                 e.preventDefault();
                 void runPending();
