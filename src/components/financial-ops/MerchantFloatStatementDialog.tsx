@@ -204,6 +204,12 @@ export function MerchantFloatStatementDialog({
               ? `Includes ${correctionRows.length} admin correction leg${correctionRows.length === 1 ? '' : 's'} (net ${formatUGX(correctionNet)}) — always shown.`
               : 'No admin correction legs on this float line.'}
           </p>
+          {Math.abs(openingBalance) >= 1 && (
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Opening balance before the first leg below: {formatUGX(openingBalance)} (anchored baseline from
+              past float resets).
+            </p>
+          )}
         </div>
 
         <div className="mt-2 divide-y divide-border rounded-xl border border-border overflow-hidden">
