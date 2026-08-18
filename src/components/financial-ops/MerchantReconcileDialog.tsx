@@ -68,7 +68,6 @@ export function MerchantReconcileDialog({
   const valid = targetMode
     ? Number.isFinite(numericAmount) &&
       numericAmount >= 0 &&
-      targetDelta !== 0 &&
       reason.trim().length >= 10 &&
       evidenceOk
     :
@@ -252,7 +251,8 @@ export function MerchantReconcileDialog({
             </p>
             {targetMode && targetDelta === 0 && numericAmount >= 0 && amount.trim() !== '' && (
               <p className="mt-1 text-[10px] font-medium text-muted-foreground">
-                Already {formatUGX(currentFloat)} on the books — nothing to change.
+                Already {formatUGX(currentFloat)} on the books — submitting still confirms this
+                figure as evidenced and clears any legacy / unverified float on this desk.
               </p>
             )}
             {targetMode && !evidenceOk && (
