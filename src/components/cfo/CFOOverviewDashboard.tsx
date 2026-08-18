@@ -6,7 +6,7 @@ import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import {
   Loader2, ArrowDownRight, ArrowUpRight, Scale, Wallet, Users, TrendingUp,
-  Banknote, Percent, Receipt, ClipboardCheck, ChevronRight, Info, CalendarDays, Download,
+  Banknote, Percent, Receipt, ChevronRight, Info, CalendarDays, Download,
   PiggyBank, Flame, BarChart3, Package, LineChart as LineChartIcon, ChevronDown,
 } from 'lucide-react';
 import {
