@@ -148,17 +148,17 @@ export function ServiceCenterRentVettingQueue() {
                   onChange={(e) => setComments((prev) => ({ ...prev, [req.id]: e.target.value }))}
                   placeholder="Your comment (required) — what you checked, or what the agent must fix. Agent Ops will read this."
                   rows={2}
-                  className="text-sm"
+                  className="text-xs"
                 />
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-[10px] text-muted-foreground">
                   {commentFor(req.id).length < MIN_COMMENT
                     ? `Write at least ${MIN_COMMENT} characters to verify or decline (${commentFor(req.id).length}/${MIN_COMMENT}).`
                     : 'Comment saved with your decision for Agent Ops.'}
                 </p>
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row">
                   <Button
                     size="sm"
-                    className="flex-1"
+                    className="flex-1 text-xs"
                     disabled={busyId === req.id || commentFor(req.id).length < MIN_COMMENT}
                     onClick={() => act(req, 'verify', commentFor(req.id))}
                   >
@@ -168,6 +168,7 @@ export function ServiceCenterRentVettingQueue() {
                   <Button
                     size="sm"
                     variant="outline"
+                    className="flex-1 text-xs"
                     disabled={busyId === req.id || commentFor(req.id).length < MIN_COMMENT}
                     onClick={() => act(req, 'reject', commentFor(req.id))}
                   >
@@ -175,6 +176,7 @@ export function ServiceCenterRentVettingQueue() {
                   </Button>
                 </div>
               </div>
+
             </CardContent>
           </Card>
         ))
