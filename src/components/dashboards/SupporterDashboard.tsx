@@ -562,10 +562,6 @@ export default function SupporterDashboard({
           </div>
 
 
-          <WidgetErrorBoundary label="Portfolio card">
-            <PartnerPortfolioWalletCard />
-          </WidgetErrorBoundary>
-
           <WidgetErrorBoundary label="Your portfolio">
             <PartnerPortfolioSection
               onViewPortfolios={(portfolioId) => {
