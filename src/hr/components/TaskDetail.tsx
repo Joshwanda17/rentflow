@@ -262,9 +262,14 @@ export default function TaskDetail() {
                 key={action.key}
                 variant={action.key === 'cancel' ? 'destructive' : 'default'}
                 size="sm"
+                disabled={saving}
                 onClick={() => {
                   setNote('');
-                  setPendingAction(action);
+                  if (isNoteRequired(action.event)) {
+                    setPendingAction(action);
+                  } else {
+                    void recordEvent(action, '');
+                  }
                 }}
               >
                 {action.label}
