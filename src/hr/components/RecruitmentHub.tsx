@@ -187,6 +187,13 @@ function ApplicationsTab() {
   const [reason, setReason] = useState('');
   const [typed, setTyped] = useState('');
   const [busy, setBusy] = useState(false);
+  // Selection lives as a set of ids so it survives filtering and sorting.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [composeOpen, setComposeOpen] = useState(false);
+  const [emailSubject, setEmailSubject] = useState('');
+  const [emailBody, setEmailBody] = useState('');
+  const [confirmSend, setConfirmSend] = useState(false);
+  const [sending, setSending] = useState(false);
 
   const { data: rows = [], isLoading, error, refetch } = useQuery({
     queryKey: ['job-applications'],
@@ -253,6 +260,67 @@ function ApplicationsTab() {
         ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
         : { key, dir: 'asc' },
     );
+  };
+
+  /** Only the rows currently on screen can be selected or select-all'd. */
+  const visibleIds = useMemo(() => filteredSorted.map((r) => r.id), [filteredSorted]);
+  const selectedVisibleIds = useMemo(
+    () => visibleIds.filter((id) => selectedIds.has(id)),
+    [visibleIds, selectedIds],
+  );
+  const allVisibleSelected =
+    visibleIds.length > 0 && selectedVisibleIds.length === visibleIds.length;
+
+  const toggleRowSelected = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAllVisible = () => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allVisibleSelected) visibleIds.forEach((id) => next.delete(id));
+      else visibleIds.forEach((id) => next.add(id));
+      return next;
+    });
+  };
+
+  const recipients = useMemo(
+    () => filteredSorted.filter((r) => selectedIds.has(r.id)),
+    [filteredSorted, selectedIds],
+  );
+  const recipientsWithEmail = recipients.filter((r) => (r.email ?? '').trim().length > 0);
+
+  const runSend = async () => {
+    setSending(true);
+    try {
+      // One id per person. The server expands this into one message per address;
+      // no address is ever grouped with another.
+      const result = await sendCareersEmails({
+        applicationIds: recipientsWithEmail.map((r) => r.id),
+        subject: emailSubject,
+        body: emailBody,
+      });
+      toast.success(
+        `${fmtCount(result.sent)} email${result.sent === 1 ? '' : 's'} queued · ` +
+          `${fmtCount(result.suppressed)} skipped (suppressed) · ` +
+          `${fmtCount(result.failed)} failed`,
+      );
+      setConfirmSend(false);
+      setComposeOpen(false);
+      setEmailSubject('');
+      setEmailBody('');
+      setSelectedIds(new Set());
+      await refetch();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not send these emails');
+    } finally {
+      setSending(false);
+    }
   };
 
   const closeConfirm = () => {
