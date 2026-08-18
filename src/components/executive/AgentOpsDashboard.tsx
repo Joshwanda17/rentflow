@@ -77,7 +77,7 @@ import {
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
-type ActiveView = null | 'products-services-report' | 'sc-products' | 'pipeline' | 'directory' | 'rent-capacity' | 'connector' | 'performance' | 'lifecycle' | 'tasks' | 'escalations' | 'service-centres' | 'sc-overview' | 'sc-directory' | 'sc-payouts' | 'sc-requests' | 'sc-operating-model' | 'sub-agents' | 'promote-tenant' | 'float-payouts' | 'leaderboard' | 'earnings' | 'transfers' | 'locked-transfers' | 'advances-analytics' | 'advance-requests' | 'active-advances' | 'advance-potential' | 'advance-limits' | 'advance-repayments' | 'balances' | 'lending-agents' | 'trust-capture' | 'performance-report' | 'allocation-report' | 'feature-flags' | 'bulk-ops' | 'listing-campaign' | 'daily-collections-report' | 'advance-activity-correlation' | 'agent-service-centres' | 'agent-motor-bikes' | 'agent-boutique' | 'agent-signages' | 'agent-smart-phones' | 'agent-advances' | 'agent-personal-rent-request' | 'agent-transfer-wallet';
+type ActiveView = null | 'products-services-report' | 'sc-products' | 'pipeline' | 'directory' | 'rent-capacity' | 'connector' | 'performance' | 'lifecycle' | 'tasks' | 'escalations' | 'service-centres' | 'sc-overview' | 'sc-directory' | 'sc-payouts' | 'sc-requests' | 'sc-operating-model' | 'sub-agents' | 'promote-tenant' | 'float-payouts' | 'leaderboard' | 'earnings' | 'transfers' | 'locked-transfers' | 'advances-analytics' | 'advance-requests' | 'active-advances' | 'advance-potential' | 'advance-limits' | 'advance-repayments' | 'balances' | 'lending-agents' | 'trust-capture' | 'performance-report' | 'allocation-report' | 'feature-flags' | 'bulk-ops' | 'listing-campaign' | 'daily-collections-report' | 'advance-activity-correlation' | 'agent-service-centres' | 'agent-motor-bikes' | 'agent-boutique' | 'agent-signages' | 'agent-smart-phones' | 'agent-advances';
 
 const NAV_ITEMS: { key: ActiveView; icon: any; label: string; color: string; priority?: boolean }[] = [
   { key: 'products-services-report', icon: FileBarChart, label: 'Products & Services Report', color: 'bg-purple-900', priority: true },
@@ -123,8 +123,6 @@ const NAV_ITEMS: { key: ActiveView; icon: any; label: string; color: string; pri
   { key: 'agent-signages', icon: Signpost, label: 'Signages', color: 'bg-lime-600' },
   { key: 'agent-smart-phones', icon: Smartphone, label: 'Agent Smart Phones', color: 'bg-indigo-600' },
   { key: 'agent-advances', icon: HandCoins, label: 'Agent Advances', color: 'bg-purple-600' },
-  { key: 'agent-personal-rent-request', icon: Briefcase, label: 'Agent Personal Rent Request', color: 'bg-cyan-600' },
-  { key: 'agent-transfer-wallet', icon: Wallet, label: 'Transfer / Wallet', color: 'bg-emerald-600' },
 ];
 
 export function AgentOpsDashboard() {
@@ -288,12 +286,6 @@ export function AgentOpsDashboard() {
           <RentHistoryVerificationQueue dept="agent_ops" />
         </div>
       );
-      case 'agent-personal-rent-request': return <AgentOpsPipelineHub />;
-      case 'agent-transfer-wallet': return (
-        <div className="rounded-2xl border border-border bg-card p-3">
-          <TenantTransferPanel />
-        </div>
-      );
       case 'sub-agents': return <SubAgentVerificationQueue />;
       case 'promote-tenant': return <TenantToSubAgentPanel />;
       case 'float-payouts': return <AgentOpsFloatPayoutReview />;
@@ -373,7 +365,7 @@ export function AgentOpsDashboard() {
     { title: 'Agents', keys: ['directory', 'performance', 'sub-agents', 'bulk-ops'] },
     { title: 'Field Operations', keys: ['pipeline', 'rent-capacity', 'daily-collections-report', 'tasks', 'escalations', 'connector'] },
     { title: 'Service Centers', keys: ['sc-overview', 'service-centres', 'sc-directory', 'sc-payouts', 'sc-requests', 'sc-operating-model', 'sc-products'] },
-    { title: 'AGENT PRODUCTS & SERVICES', keys: ['agent-motor-bikes', 'agent-boutique', 'agent-signages', 'agent-smart-phones', 'agent-advances', 'agent-personal-rent-request', 'agent-transfer-wallet'] },
+    { title: 'AGENT PRODUCTS & SERVICES', keys: ['agent-motor-bikes', 'agent-boutique', 'agent-signages', 'agent-smart-phones', 'agent-advances'] },
     { title: 'Financials', keys: ['balances', 'float-payouts', 'earnings', 'locked-transfers', 'allocation-report', 'lending-agents'] },
     { title: 'Advances', keys: ['advances-analytics', 'advance-requests', 'active-advances', 'advance-potential', 'advance-limits', 'advance-repayments', 'advance-activity-correlation'] },
     { title: 'Reports', keys: ['products-services-report', 'performance-report', 'allocation-report'] },
@@ -540,7 +532,7 @@ function AgentOpsSideNav({
     { title: 'Agents', defaultOpen: true, keys: ['directory', 'performance', 'sub-agents', 'bulk-ops'] },
     { title: 'Field Operations', defaultOpen: true, keys: ['pipeline', 'rent-capacity', 'daily-collections-report', 'tasks', 'escalations', 'connector'] },
     { title: 'Service Centers', keys: ['sc-overview', 'service-centres', 'sc-directory', 'sc-payouts', 'sc-requests', 'sc-operating-model', 'sc-products'] },
-    { title: 'AGENT PRODUCTS & SERVICES', keys: ['agent-motor-bikes', 'agent-boutique', 'agent-signages', 'agent-smart-phones', 'agent-advances', 'agent-personal-rent-request', 'agent-transfer-wallet'] },
+    { title: 'AGENT PRODUCTS & SERVICES', keys: ['agent-motor-bikes', 'agent-boutique', 'agent-signages', 'agent-smart-phones', 'agent-advances'] },
     { title: 'Financials', keys: ['balances', 'float-payouts', 'earnings', 'locked-transfers', 'allocation-report', 'lending-agents'] },
     { title: 'Advances', keys: ['advances-analytics', 'advance-requests', 'active-advances', 'advance-potential', 'advance-limits', 'advance-repayments', 'advance-activity-correlation'] },
     { title: 'Reports', keys: ['products-services-report', 'performance-report', 'allocation-report'] },
