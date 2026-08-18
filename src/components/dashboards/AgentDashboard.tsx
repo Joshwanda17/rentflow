@@ -1590,7 +1590,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             <div className="grid grid-cols-2 gap-2.5">
               {[
                 { icon: Building2, label: 'Share Landlord', onClick: handleShareLandlordSignup },
-                { icon: Sparkles, label: 'Partners', onClick: () => navigate('/agent/proxy-agents') },
+                { icon: Sparkles, label: 'Proxy Agents', onClick: () => navigate('/agent/proxy-agents') },
                 { icon: UserPlus, label: 'Invite & Earn', onClick: () => navigate('/referrals') },
                 { icon: Menu, label: 'All Menu', onClick: handleOpenMenu },
                 { icon: FileText, label: 'Promissory Note', onClick: () => setPromissoryNoteOpen(true) },
