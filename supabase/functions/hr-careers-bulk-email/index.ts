@@ -40,10 +40,35 @@ function generateToken(): string {
   return Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-/** Personalised body. Only this recipient's own name and reference appear. */
-function personalise(template: string, name: string, publicRef: string): string {
+/** Placeholders this function understands. `public_ref` is a legacy alias of `reference`. */
+const SUPPORTED_PLACEHOLDERS = ['name', 'role', 'reference', 'public_ref'];
+const ROLE_FALLBACK = 'the role you applied for';
+
+/** Any {{token}} in the text that is not supported, de-duplicated, original casing kept. */
+function findUnknownPlaceholders(...texts: string[]): string[] {
+  const unknown = new Map<string, string>();
+  for (const text of texts) {
+    for (const match of text.matchAll(/\{\{\s*([^}\s]+)\s*\}\}/g)) {
+      const token = match[1];
+      if (!SUPPORTED_PLACEHOLDERS.includes(token.toLowerCase())) {
+        unknown.set(token.toLowerCase(), `{{${token}}}`);
+      }
+    }
+  }
+  return Array.from(unknown.values());
+}
+
+/** Personalised body. Only this recipient's own name, role and reference appear. */
+function personalise(
+  template: string,
+  name: string,
+  publicRef: string,
+  roleInterest: string | null,
+): string {
+  const role = roleInterest?.trim() ? roleInterest.trim() : ROLE_FALLBACK;
   return template
     .replace(/\{\{\s*name\s*\}\}/gi, name)
+    .replace(/\{\{\s*role\s*\}\}/gi, role)
     .replace(/\{\{\s*reference\s*\}\}/gi, publicRef)
     .replace(/\{\{\s*public_ref\s*\}\}/gi, publicRef);
 }
@@ -112,9 +137,28 @@ Deno.serve(async (req) => {
   if (!ids.length) return json({ error: 'Select at least one applicant' }, 400);
   if (ids.length > 200) return json({ error: 'Select 200 applicants or fewer per send' }, 400);
 
+  // Unrecognised placeholders stop the whole batch before anything is sent.
+  const unknownPlaceholders = findUnknownPlaceholders(subject, messageTemplate);
+  if (unknownPlaceholders.length) {
+    return json(
+      {
+        success: false,
+        unknownPlaceholders,
+        supportedPlaceholders: ['{{name}}', '{{role}}', '{{reference}}'],
+        error: `Unrecognised placeholder(s): ${unknownPlaceholders.join(', ')}`,
+        requested: ids.length,
+        sent: 0,
+        suppressed: 0,
+        failed: 0,
+        missing_email: 0,
+      },
+      200,
+    );
+  }
+
   const { data: applicants, error: fetchError } = await adminClient
     .from('job_applications')
-    .select('id, full_name, email, public_ref')
+    .select('id, full_name, email, public_ref, role_interest')
     .in('id', ids)
     .is('purged_at', null);
   if (fetchError) return json({ error: `Could not load applicants: ${fetchError.message}` }, 500);
@@ -154,8 +198,9 @@ Deno.serve(async (req) => {
     if (seen.has(address)) continue;
     seen.add(address);
 
-    const personalisedBody = personalise(messageTemplate, name, publicRef);
-    const personalisedSubject = personalise(subject, name, publicRef);
+    const roleInterest = (applicant as { role_interest?: string | null }).role_interest ?? null;
+    const personalisedBody = personalise(messageTemplate, name, publicRef, roleInterest);
+    const personalisedSubject = personalise(subject, name, publicRef, roleInterest);
 
     try {
       // Suppression: fail-closed, same table and semantics as send-transactional-email.
