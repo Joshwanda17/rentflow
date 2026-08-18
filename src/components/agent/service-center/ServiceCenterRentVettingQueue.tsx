@@ -106,20 +106,21 @@ export function ServiceCenterRentVettingQueue() {
               </div>
 
 
-              <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                <span>Rent: <strong className="text-foreground">{formatUGX(Number(req.rent_amount || 0))}</strong></span>
-                <span>Daily: <strong className="text-foreground">{formatUGX(Number(req.daily_repayment || 0))}</strong></span>
-                <span>Duration: <strong className="text-foreground">{req.duration_days ?? '—'} days</strong></span>
-                <span className="inline-flex items-center gap-1 truncate">
-                  <MapPin className="h-3 w-3" /> {req.request_city ?? '—'}
+              <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] leading-tight text-muted-foreground">
+                <span className="break-words">Rent: <strong className="text-foreground">{formatUGX(Number(req.rent_amount || 0))}</strong></span>
+                <span className="break-words">Daily: <strong className="text-foreground">{formatUGX(Number(req.daily_repayment || 0))}</strong></span>
+                <span className="break-words">Duration: <strong className="text-foreground">{req.duration_days ?? '—'} days</strong></span>
+                <span className="inline-flex items-center gap-1 break-words">
+                  <MapPin className="h-3 w-3 shrink-0" /> <span className="break-words">{req.request_city ?? '—'}</span>
                 </span>
                 {req.tenant_phone && (
-                  <span className="inline-flex items-center gap-1 truncate">
-                    <Phone className="h-3 w-3" /> {req.tenant_phone}
+                  <span className="inline-flex items-center gap-1 break-words">
+                    <Phone className="h-3 w-3 shrink-0" /> <span className="break-words">{req.tenant_phone}</span>
                   </span>
                 )}
-                {req.landlord_name && <span className="truncate">Landlord: {req.landlord_name}</span>}
+                {req.landlord_name && <span className="break-words">Landlord: {req.landlord_name}</span>}
               </div>
+
 
               <button type="button" onClick={() => setDetailsReq(req)} className="w-full text-left">
                 {!!req.house_image_urls?.length && (
