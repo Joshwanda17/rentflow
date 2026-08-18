@@ -87,6 +87,11 @@ export interface MerchantFloatPosition {
   evidencedAmount: number;
   assertedOnlyAmount: number;
   evidenceStatus: 'evidenced' | 'asserted_only' | 'clamp_artifact' | 'mixed';
+  /**
+   * Real debt hidden by the zero-floor clamp — the desk's true unfloored
+   * position is negative by this much.
+   */
+  clampedShortfall: number;
 }
 
 export function useMerchantFloatPositions(enabled = true) {
@@ -143,6 +148,7 @@ export function useMerchantFloatPositions(enabled = true) {
         evidencedAmount: Number(r.evidenced_amount ?? 0),
         assertedOnlyAmount: Number(r.asserted_only_amount ?? 0),
         evidenceStatus: (r.evidence_status ?? 'evidenced') as MerchantFloatPosition['evidenceStatus'],
+        clampedShortfall: Number(r.clamped_shortfall_amount ?? 0),
       }));
     },
   });
