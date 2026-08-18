@@ -104,6 +104,23 @@ export function apsPctLabel(current: number, previous: number): string {
   return `${v > 0 ? '+' : ''}${v.toFixed(1)}%`;
 }
 
+/** Dynamic period-over-period comparison label, e.g. "vs prev day", "vs prior 7 days". */
+export function apsCompareLabel(rangeDays?: number | null): string {
+  const d = Math.max(1, Math.round(Number(rangeDays) || 1));
+  return d === 1 ? 'vs prev day' : `vs prior ${d.toLocaleString()} days`;
+}
+
+/** Column heading for the preceding equal-length period. */
+export function apsPrevColumnLabel(rangeDays?: number | null): string {
+  const d = Math.max(1, Math.round(Number(rangeDays) || 1));
+  return d === 1 ? 'Previous day' : `Prior ${d.toLocaleString()} days`;
+}
+
+/** `+X% vs prior N days` — the full dynamic PoP badge text. */
+export function apsPopLabel(current: number, previous: number, rangeDays?: number | null): string {
+  return `${apsPctLabel(current, previous)} ${apsCompareLabel(rangeDays)}`;
+}
+
 export const apsUgx = (n: any) => `UGX ${Math.round(Number(n) || 0).toLocaleString()}`;
 const num = (n: any) => Math.round(Number(n) || 0).toLocaleString();
 const title = (s: any) => String(s ?? '—').replace(/_/g, ' ');
@@ -113,8 +130,39 @@ export function generateAgentProductsServicesPdf(opts: {
   actor: string;
   exportType?: string;
   cumulative?: ApsCumulative | null;
+  /** Same report shape for the preceding equal-length period (dynamic PoP baseline). */
+  prev?: ApsReport | null;
 }): Blob {
   const { report, actor } = opts;
+  const rangeDays = Math.max(1, Math.round(Number(report.range_days) || 1));
+  const prev = opts.prev ?? null;
+  const cmpLabel = apsCompareLabel(rangeDays);
+  const prevCol = apsPrevColumnLabel(rangeDays);
+  /** Previous-period baselines: real prior-window report when available, else the RPC's day-over-day fields. */
+  const base = {
+    newAgents: prev ? Number(prev.agents.new_today) : Number(report.agents.new_prev),
+    totalAgents: prev ? Number(prev.agents.total) : Number(report.agents.base),
+    activeAgents: prev ? Number(prev.agents.active_today) : 0,
+    collected: prev ? Number(prev.rent.collected_today) : Number(report.rent.collected_prev),
+    collections: prev ? Number(prev.rent.collections_today) : 0,
+    dailyReceivable: prev ? Number(prev.rent.daily_receivable) : 0,
+    outstanding: prev ? Number(prev.rent.outstanding) : 0,
+    advSubmitted: prev ? Number(prev.advances.submitted) : 0,
+    advApproved: prev ? Number(prev.advances.approved) : 0,
+    advRejected: prev ? Number(prev.advances.rejected) : 0,
+    advIssued: prev ? Number(prev.advances.issued_today) : 0,
+    advRecovered: prev ? Number(prev.advances.deducted_today) : 0,
+    advOutstanding: prev ? Number(prev.advances.outstanding) : 0,
+    scActive: prev ? Number(prev.service_centres.active_total) : 0,
+    scNew: prev ? Number(prev.service_centres.new_today) : Number(report.service_centres.new_prev),
+    scPending: prev ? Number(prev.service_centres.pending_total) : 0,
+    bikes: prev ? Number(prev.bikes?.outstanding) : 0,
+    phones: prev ? Number(prev.phones?.outstanding) : 0,
+  };
+  const hasPrev = !!prev;
+  const cell = (v: string) => (hasPrev || v ? v : '—');
+  const pct = (current: number, previous: number, available = true) =>
+    available ? apsPctLabel(current, previous) : '—';
   const exportType = opts.exportType || 'PDF';
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -129,7 +177,6 @@ export function generateAgentProductsServicesPdf(opts: {
     try { return format(new Date(d.length <= 10 ? `${d}T00:00:00` : d), 'dd MMM yyyy'); } catch { return String(d); }
   };
   const dayLabel = fmtDay(report.day);
-  const rangeDays = Number(report.range_days) || 1;
   const isRange = rangeDays > 1 && !!report.from_date;
   const periodLabel = isRange
     ? `${fmtDay(report.from_date)} – ${dayLabel} (${rangeDays} days cumulative)`
@@ -279,7 +326,7 @@ export function generateAgentProductsServicesPdf(opts: {
     {
       label: 'Rent collected today',
       value: apsUgx(report.rent.collected_today),
-      detail: `${num(report.rent.collections_today)} entries · ${apsPctLabel(report.rent.collected_today, report.rent.collected_prev)} vs prev day`,
+      detail: `${num(report.rent.collections_today)} entries · ${apsPctLabel(report.rent.collected_today, base.collected)} ${cmpLabel}`,
     },
     {
       label: 'Collection rate vs expected',
@@ -289,40 +336,53 @@ export function generateAgentProductsServicesPdf(opts: {
     {
       label: 'Outstanding receivable',
       value: apsUgx(report.rent.outstanding),
-      detail: `${num(report.rent.live_plans)} live plans · ${num(report.rent.avg_days_outstanding)} avg days`,
+      detail: hasPrev
+        ? `${num(report.rent.live_plans)} live plans · ${apsPctLabel(report.rent.outstanding, base.outstanding)} ${cmpLabel}`
+        : `${num(report.rent.live_plans)} live plans · ${num(report.rent.avg_days_outstanding)} avg days`,
     },
     {
       label: 'Active agents today',
       value: num(report.agents.active_today),
-      detail: `${num(report.agents.total)} on register · +${num(report.agents.new_today)} new`,
+      detail: `${num(report.agents.total)} on register · ${apsPctLabel(report.agents.new_today, base.newAgents)} new ${cmpLabel}`,
     },
     {
       label: 'Advances issued today',
       value: apsUgx(report.advances.issued_today),
-      detail: `${num(report.advances.issued_count)} advance(s) · ${num(report.advances.approved)} approved`,
+      detail: hasPrev
+        ? `${num(report.advances.issued_count)} advance(s) · ${apsPctLabel(report.advances.issued_today, base.advIssued)} ${cmpLabel}`
+        : `${num(report.advances.issued_count)} advance(s) · ${num(report.advances.approved)} approved`,
     },
     {
       label: 'Advances outstanding',
       value: apsUgx(report.advances.outstanding),
-      detail: `${num(report.advances.active_count)} active · recovered ${apsUgx(report.advances.deducted_today)}`,
+      detail: hasPrev
+        ? `${num(report.advances.active_count)} active · ${apsPctLabel(report.advances.outstanding, base.advOutstanding)} ${cmpLabel}`
+        : `${num(report.advances.active_count)} active · recovered ${apsUgx(report.advances.deducted_today)}`,
     },
     {
       label: 'Service centres',
       value: num(report.service_centres.active_total),
-      detail: `+${num(report.service_centres.new_today)} today · ${num(report.service_centres.pending_total)} pending`,
+      detail: hasPrev
+        ? `+${num(report.service_centres.new_today)} new · ${apsPctLabel(report.service_centres.active_total, base.scActive)} ${cmpLabel}`
+        : `+${num(report.service_centres.new_today)} today · ${num(report.service_centres.pending_total)} pending`,
     },
     {
       label: 'Products outstanding',
       value: apsUgx(Number(report.bikes.outstanding) + Number(report.phones.outstanding)),
-      detail: `bikes ${apsUgx(report.bikes.outstanding)} · phones ${apsUgx(report.phones.outstanding)}`,
+      detail: hasPrev
+        ? `bikes ${apsUgx(report.bikes.outstanding)} · ${apsPctLabel(
+            Number(report.bikes.outstanding) + Number(report.phones.outstanding),
+            base.bikes + base.phones,
+          )} ${cmpLabel}`
+        : `bikes ${apsUgx(report.bikes.outstanding)} · phones ${apsUgx(report.phones.outstanding)}`,
     },
   ]);
 
   // ===== 1. New agents =====
-  drawTable('1. NEW AGENTS', ['Metric', 'Today', 'Previous day', 'Change'], w4, [
-    ['New agents added', num(report.agents.new_today), num(report.agents.new_prev), apsPctLabel(report.agents.new_today, report.agents.new_prev)],
+  drawTable('1. NEW AGENTS', ['Metric', 'Current period', prevCol, 'Change'], w4, [
+    ['New agents added', num(report.agents.new_today), num(base.newAgents), apsPctLabel(report.agents.new_today, base.newAgents)],
     ['Total agents (register)', num(report.agents.total), num(report.agents.base), apsPctLabel(report.agents.total, report.agents.base)],
-    ['Active agents (collected today)', num(report.agents.active_today), '—', '—'],
+    ['Active agents (collected)', num(report.agents.active_today), cell(hasPrev ? num(base.activeAgents) : ''), pct(report.agents.active_today, base.activeAgents, hasPrev)],
   ], a4);
 
   if (report.new_agent_rows.length) {
@@ -362,45 +422,45 @@ export function generateAgentProductsServicesPdf(opts: {
   }
 
   // ===== 2. Rent receivables =====
-  drawTable('2. RENT RECEIVABLES', ['Metric', 'Today', 'Previous day', 'Change'], w4, [
-    ['Rent collected', apsUgx(report.rent.collected_today), apsUgx(report.rent.collected_prev), apsPctLabel(report.rent.collected_today, report.rent.collected_prev)],
-    ['Collection entries recorded', num(report.rent.collections_today), '—', '—'],
-    ['Expected daily receivable', apsUgx(report.rent.daily_receivable), '—', '—'],
+  drawTable('2. RENT RECEIVABLES', ['Metric', 'Current period', prevCol, 'Change'], w4, [
+    ['Rent collected', apsUgx(report.rent.collected_today), apsUgx(base.collected), apsPctLabel(report.rent.collected_today, base.collected)],
+    ['Collection entries recorded', num(report.rent.collections_today), cell(hasPrev ? num(base.collections) : ''), pct(report.rent.collections_today, base.collections, hasPrev)],
+    ['Expected daily receivable', apsUgx(report.rent.daily_receivable), cell(hasPrev ? apsUgx(base.dailyReceivable) : ''), pct(report.rent.daily_receivable, base.dailyReceivable, hasPrev)],
     ['Collection rate vs expected', `${report.rent.daily_receivable > 0 ? ((Number(report.rent.collected_today) / Number(report.rent.daily_receivable)) * 100).toFixed(1) : '0.0'}%`, '—', '—'],
-    ['Total outstanding receivable', apsUgx(report.rent.outstanding), '—', '—'],
+    ['Total outstanding receivable', apsUgx(report.rent.outstanding), cell(hasPrev ? apsUgx(base.outstanding) : ''), pct(report.rent.outstanding, base.outstanding, hasPrev)],
     ['Live rent plans', num(report.rent.live_plans), '—', '—'],
     ['Average duration outstanding (days)', num(report.rent.avg_days_outstanding), '—', '—'],
   ], a4);
 
   // ===== 3. Advances =====
-  drawTable('3. ADVANCES', ['Metric', 'Value', 'Detail', 'Change'], w4, [
-    ['Requests submitted today', num(report.advances.submitted), '—', '—'],
-    ['Requests approved today', num(report.advances.approved), '—', '—'],
-    ['Requests rejected today', num(report.advances.rejected), '—', '—'],
-    ['Advance amount issued today', apsUgx(report.advances.issued_today), `${num(report.advances.issued_count)} advance(s)`, '—'],
-    ['Recovered today (deductions)', apsUgx(report.advances.deducted_today), '—', '—'],
-    ['Outstanding advance balance', apsUgx(report.advances.outstanding), `${num(report.advances.active_count)} active`, '—'],
+  drawTable('3. ADVANCES', ['Metric', 'Current period', prevCol, 'Change'], w4, [
+    ['Requests submitted', num(report.advances.submitted), cell(hasPrev ? num(base.advSubmitted) : ''), pct(report.advances.submitted, base.advSubmitted, hasPrev)],
+    ['Requests approved', num(report.advances.approved), cell(hasPrev ? num(base.advApproved) : ''), pct(report.advances.approved, base.advApproved, hasPrev)],
+    ['Requests rejected', num(report.advances.rejected), cell(hasPrev ? num(base.advRejected) : ''), pct(report.advances.rejected, base.advRejected, hasPrev)],
+    ['Advance amount issued', apsUgx(report.advances.issued_today), cell(hasPrev ? apsUgx(base.advIssued) : `${num(report.advances.issued_count)} advance(s)`), pct(report.advances.issued_today, base.advIssued, hasPrev)],
+    ['Recovered (deductions)', apsUgx(report.advances.deducted_today), cell(hasPrev ? apsUgx(base.advRecovered) : ''), pct(report.advances.deducted_today, base.advRecovered, hasPrev)],
+    ['Outstanding advance balance', apsUgx(report.advances.outstanding), cell(hasPrev ? apsUgx(base.advOutstanding) : `${num(report.advances.active_count)} active`), pct(report.advances.outstanding, base.advOutstanding, hasPrev)],
   ], a4);
 
   // ===== 4. Service centres =====
   const scTarget = Number(report.service_centres.monthly_target) || 0;
-  drawTable('4. SERVICE CENTRES', ['Metric', 'Value', 'Detail', 'Change'], w4, [
-    ['Active service centres', num(report.service_centres.active_total), '—', '—'],
-    ['New today', num(report.service_centres.new_today), `prev ${num(report.service_centres.new_prev)}`, apsPctLabel(report.service_centres.new_today, report.service_centres.new_prev)],
+  drawTable('4. SERVICE CENTRES', ['Metric', 'Current period', prevCol, 'Change'], w4, [
+    ['Active service centres', num(report.service_centres.active_total), cell(hasPrev ? num(base.scActive) : ''), pct(report.service_centres.active_total, base.scActive, hasPrev)],
+    ['New in period', num(report.service_centres.new_today), num(base.scNew), apsPctLabel(report.service_centres.new_today, base.scNew)],
     ['Added this month', num(report.service_centres.new_this_month), scTarget > 0 ? `target ${num(scTarget)}` : 'no target set', scTarget > 0 ? `${((Number(report.service_centres.new_this_month) / scTarget) * 100).toFixed(1)}% of target` : '—'],
-    ['Pending verification', num(report.service_centres.pending_total), '—', '—'],
+    ['Pending verification', num(report.service_centres.pending_total), cell(hasPrev ? num(base.scPending) : ''), pct(report.service_centres.pending_total, base.scPending, hasPrev)],
   ], a4);
 
   // ===== 5. Motor bikes / 6. Smartphones =====
-  const productBlock = (label: string, p: ApsProduct) => [
-    [`${label} — issued today`, num(p.issued_today), `${num(p.issued_total)} total`, '—'],
+  const productBlock = (label: string, p: ApsProduct, pp?: ApsProduct | null) => [
+    [`${label} — issued in period`, num(p.issued_today), cell(pp ? num(pp.issued_today) : `${num(p.issued_total)} total`), pct(p.issued_today, Number(pp?.issued_today) || 0, !!pp)],
     [`${label} — total value`, apsUgx(p.total_value), '—', '—'],
     [`${label} — repaid to date`, apsUgx(p.paid), `${p.total_value > 0 ? ((Number(p.paid) / Number(p.total_value)) * 100).toFixed(1) : '0.0'}%`, '—'],
-    [`${label} — outstanding`, apsUgx(p.outstanding), '—', '—'],
+    [`${label} — outstanding`, apsUgx(p.outstanding), cell(pp ? apsUgx(pp.outstanding) : ''), pct(p.outstanding, Number(pp?.outstanding) || 0, !!pp)],
     [`${label} — daily recovery due`, apsUgx(p.daily_receivable), '—', '—'],
   ];
-  drawTable('5. MOTOR BIKES', ['Metric', 'Value', 'Detail', 'Change'], w4, productBlock('Bikes', report.bikes), a4);
-  drawTable('6. SMARTPHONES', ['Metric', 'Value', 'Detail', 'Change'], w4, productBlock('Smartphones', report.phones), a4);
+  drawTable('5. MOTOR BIKES', ['Metric', 'Current period', prevCol, 'Change'], w4, productBlock('Bikes', report.bikes, prev?.bikes ?? null), a4);
+  drawTable('6. SMARTPHONES', ['Metric', 'Current period', prevCol, 'Change'], w4, productBlock('Smartphones', report.phones, prev?.phones ?? null), a4);
 
   // ===== 14-day trend =====
   if (report.trend.length > 1) {

@@ -22,7 +22,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import {
   generateAgentProductsServicesPdf, apsPctChange, apsPctLabel, apsUgx, type ApsReport,
-  apsWindowLabel, type ApsCumulative,
+  apsWindowLabel, apsCompareLabel, type ApsCumulative,
 } from '@/lib/agentProductsServicesPdf';
 
 const PAGE_SIZE = 15;
@@ -41,7 +41,9 @@ function downloadBlob(blob: Blob, filename: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-function TrendPill({ current, previous, invert = false }: { current: number; previous: number; invert?: boolean }) {
+function TrendPill({ current, previous, invert = false, compareLabel }: {
+  current: number; previous: number; invert?: boolean; compareLabel?: string;
+}) {
   const v = apsPctChange(current, previous);
   const up = v !== null && v > 0;
   const flat = v === null || v === 0;
@@ -51,16 +53,16 @@ function TrendPill({ current, previous, invert = false }: { current: number; pre
     <span className={cn(
       'inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold',
       flat ? 'bg-muted text-muted-foreground' : good ? 'bg-emerald-500/10 text-emerald-600' : 'bg-destructive/10 text-destructive',
-    )}>
+    )} title={compareLabel ? `${apsPctLabel(current, previous)} ${compareLabel}` : undefined}>
       <Icon className="h-3 w-3" />
       {apsPctLabel(current, previous)}
     </span>
   );
 }
 
-function Kpi({ label, value, hint, current, previous, invert }: {
+function Kpi({ label, value, hint, current, previous, invert, compareLabel }: {
   label: string; value: string; hint?: string;
-  current?: number; previous?: number; invert?: boolean;
+  current?: number; previous?: number; invert?: boolean; compareLabel?: string;
 }) {
   return (
     <Card className="border">
@@ -69,7 +71,10 @@ function Kpi({ label, value, hint, current, previous, invert }: {
         <p className="text-base sm:text-lg font-bold leading-tight break-words">{value}</p>
         <div className="flex items-center gap-1.5 flex-wrap">
           {current !== undefined && previous !== undefined && (
-            <TrendPill current={current} previous={previous} invert={invert} />
+            <TrendPill current={current} previous={previous} invert={invert} compareLabel={compareLabel} />
+          )}
+          {current !== undefined && previous !== undefined && compareLabel && (
+            <span className="text-[10px] text-muted-foreground">{compareLabel}</span>
           )}
           {hint && <span className="text-[10px] text-muted-foreground">{hint}</span>}
         </div>
@@ -207,6 +212,48 @@ export function AgentProductsServicesReport() {
 
   const cumulative = cumulativeQuery.data ?? null;
 
+  // ===== Dynamic period-over-period baseline: the equal-length window immediately before =====
+  const prevFrom = useMemo(() => subDays(day, rangeDays), [day, rangeDays]);
+  const prevTo = useMemo(() => subDays(day, 1), [day]);
+  const prevFromKey = toDateKey(prevFrom);
+  const prevToKey = toDateKey(prevTo);
+  const compareLabel = apsCompareLabel(rangeDays);
+
+  const prevQuery = useQuery({
+    queryKey: ['agent-products-services-report-prev', prevFromKey, prevToKey],
+    queryFn: async (): Promise<ApsReport> => {
+      const { data, error } = await supabase.rpc('get_agent_products_services_report' as any, {
+        p_date: prevToKey,
+        p_from: prevFromKey,
+      });
+      if (error) throw error;
+      return data as unknown as ApsReport;
+    },
+    staleTime: 60_000,
+  });
+
+  const prevReport = prevQuery.data ?? null;
+
+  /** Previous-period values for every KPI (falls back to the RPC's day-over-day fields). */
+  const pop = useMemo(() => {
+    const p = prevReport;
+    return {
+      newAgents: p ? Number(p.agents.new_today) : Number(report?.agents.new_prev ?? 0),
+      totalAgents: Number(report?.agents.base ?? 0),
+      activeAgents: p ? Number(p.agents.active_today) : undefined,
+      collected: p ? Number(p.rent.collected_today) : Number(report?.rent.collected_prev ?? 0),
+      dailyReceivable: p ? Number(p.rent.daily_receivable) : undefined,
+      outstanding: p ? Number(p.rent.outstanding) : undefined,
+      advIssued: p ? Number(p.advances.issued_today) : undefined,
+      advOutstanding: p ? Number(p.advances.outstanding) : undefined,
+      advApproved: p ? Number(p.advances.approved) : undefined,
+      scActive: p ? Number(p.service_centres.active_total) : undefined,
+      scPending: p ? Number(p.service_centres.pending_total) : undefined,
+      bikes: p ? Number(p.bikes?.outstanding ?? 0) : undefined,
+      phones: p ? Number(p.phones?.outstanding ?? 0) : undefined,
+    };
+  }, [prevReport, report]);
+
   const trend = useMemo(
     () => [...(report?.trend || [])]
       .sort((a, b) => a.day.localeCompare(b.day))
@@ -222,6 +269,7 @@ export function AgentProductsServicesReport() {
         report,
         actor: actorName || 'Agent Ops user',
         cumulative,
+        prev: prevReport,
       });
       downloadBlob(blob, isRange ? `agent-products-services-${dayKey}_to_${todayKey}.pdf` : `agent-products-services-${todayKey}.pdf`);
       toast.success(isRange ? 'Cumulative report downloaded' : 'Daily report downloaded');
@@ -329,28 +377,50 @@ export function AgentProductsServicesReport() {
           {/* KPI strip */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
             <Kpi label="New agents added" value={num(report.agents.new_today)}
-              current={report.agents.new_today} previous={report.agents.new_prev}
-              hint={`${num(report.new_agent_rows.filter(r => r.agent_type === 'main agent').length)} main · ${num(report.new_agent_rows.filter(r => r.agent_type === 'sub-agent').length)} sub vs prev day`} />
-            <Kpi label="Total agents" value={num(report.agents.total)} hint={`${num(report.agents.active_today)} active today`} />
+              current={report.agents.new_today} previous={pop.newAgents} compareLabel={compareLabel}
+              hint={`${num(report.new_agent_rows.filter(r => r.agent_type === 'main agent').length)} main · ${num(report.new_agent_rows.filter(r => r.agent_type === 'sub-agent').length)} sub`} />
+            <Kpi label="Total agents" value={num(report.agents.total)}
+              current={report.agents.total} previous={pop.totalAgents} compareLabel={compareLabel}
+              hint={`${num(report.agents.active_today)} active`} />
             <Kpi label="Rent collected" value={apsUgx(report.rent.collected_today)}
-              current={report.rent.collected_today} previous={report.rent.collected_prev} hint="vs prev day" />
+              current={report.rent.collected_today} previous={pop.collected} compareLabel={compareLabel} />
             <Kpi label="Expected daily receivable" value={apsUgx(report.rent.daily_receivable)}
+              current={pop.dailyReceivable === undefined ? undefined : report.rent.daily_receivable}
+              previous={pop.dailyReceivable} compareLabel={compareLabel}
               hint={`${num(report.rent.live_plans)} live plans`} />
             <Kpi label="Outstanding receivable" value={apsUgx(report.rent.outstanding)}
+              current={pop.outstanding === undefined ? undefined : report.rent.outstanding}
+              previous={pop.outstanding} invert compareLabel={compareLabel}
               hint={`avg ${num(report.rent.avg_days_outstanding)} days outstanding`} />
-            <Kpi label="Advances issued today" value={apsUgx(report.advances.issued_today)}
+            <Kpi label="Advances issued" value={apsUgx(report.advances.issued_today)}
+              current={pop.advIssued === undefined ? undefined : report.advances.issued_today}
+              previous={pop.advIssued} compareLabel={compareLabel}
               hint={`${num(report.advances.issued_count)} issued · ${num(report.advances.submitted)} requested`} />
             <Kpi label="Advance outstanding" value={apsUgx(report.advances.outstanding)}
-              hint={`${num(report.advances.active_count)} active · ${apsUgx(report.advances.deducted_today)} recovered today`} />
+              current={pop.advOutstanding === undefined ? undefined : report.advances.outstanding}
+              previous={pop.advOutstanding} invert compareLabel={compareLabel}
+              hint={`${num(report.advances.active_count)} active · ${apsUgx(report.advances.deducted_today)} recovered`} />
             <Kpi label="Active service centres" value={num(report.service_centres.active_total)}
-              current={report.service_centres.new_today} previous={report.service_centres.new_prev}
+              current={pop.scActive === undefined ? report.service_centres.new_today : report.service_centres.active_total}
+              previous={pop.scActive === undefined ? report.service_centres.new_prev : pop.scActive}
+              compareLabel={compareLabel}
               hint={`${num(report.service_centres.new_this_month)} this month${scTarget > 0 ? ` / target ${num(scTarget)}` : ''}`} />
             <Kpi label="Bikes outstanding" value={apsUgx(bikes?.outstanding)}
+              current={pop.bikes === undefined ? undefined : Number(bikes?.outstanding) || 0}
+              previous={pop.bikes} invert compareLabel={compareLabel}
               hint={`${num(bikes?.issued_total)} issued · ${apsUgx(bikes?.daily_receivable)} due daily`} />
             <Kpi label="Smartphones outstanding" value={apsUgx(phones?.outstanding)}
+              current={pop.phones === undefined ? undefined : Number(phones?.outstanding) || 0}
+              previous={pop.phones} invert compareLabel={compareLabel}
               hint={`${num(phones?.issued_total)} issued · ${apsUgx(phones?.daily_receivable)} due daily`} />
-            <Kpi label="Requests approved / rejected" value={`${num(report.advances.approved)} / ${num(report.advances.rejected)}`} hint="advance decisions today" />
-            <Kpi label="Pending service centres" value={num(report.service_centres.pending_total)} hint="awaiting verification" />
+            <Kpi label="Requests approved / rejected" value={`${num(report.advances.approved)} / ${num(report.advances.rejected)}`}
+              current={pop.advApproved === undefined ? undefined : report.advances.approved}
+              previous={pop.advApproved} compareLabel={compareLabel}
+              hint="advance decisions" />
+            <Kpi label="Pending service centres" value={num(report.service_centres.pending_total)}
+              current={pop.scPending === undefined ? undefined : report.service_centres.pending_total}
+              previous={pop.scPending} invert compareLabel={compareLabel}
+              hint="awaiting verification" />
           </div>
 
           {/* Cumulative build-up */}
