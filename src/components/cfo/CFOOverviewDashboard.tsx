@@ -424,7 +424,12 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
       {/* ── AUTO-PAYOUTS ── */}
       <Card className="rounded-2xl">
         <CardContent className="p-4">
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Automatic Payments</p>
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Automatic Payments</p>
+            <SectionToggle open={isOpen('autoPayments')} onToggle={() => toggleSection('autoPayments')} label="Automatic Payments" />
+          </div>
+          {isOpen('autoPayments') && (
+          <>
           <p className="text-xs text-muted-foreground mb-4">Toggle which payouts happen automatically. Each is checked against available cash first.</p>
           <div className="space-y-3">
             {[
@@ -445,6 +450,8 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
               </div>
             ))}
           </div>
+          </>
+          )}
         </CardContent>
       </Card>
 
