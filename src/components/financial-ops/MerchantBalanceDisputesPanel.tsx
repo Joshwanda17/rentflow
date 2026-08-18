@@ -12,6 +12,7 @@ import {
 } from '@/hooks/useMerchantBalanceDisputes';
 import { useMerchantFloatPositions, MerchantFloatPosition } from '@/hooks/useMerchantFloat';
 import { MerchantReconcileDialog } from './MerchantReconcileDialog';
+import { useFinancialOpsEditAccess } from '@/hooks/useFinancialOpsEditAccess';
 
 /**
  * Merchant agents flagging that a figure on their dashboard is wrong.
@@ -194,9 +195,13 @@ export function MerchantBalanceDisputesPanel() {
               ) : (
                 <>
                   <div className="mt-2 flex flex-wrap gap-2">
-                    <Button size="sm" variant="outline" className="gap-1" onClick={() => openFix(d)}>
-                      <SlidersHorizontal className="h-3.5 w-3.5" /> Fix balance
-                    </Button>
+                    {canEditFloat ? (
+                      <Button size="sm" variant="outline" className="gap-1" onClick={() => openFix(d)}>
+                        <SlidersHorizontal className="h-3.5 w-3.5" /> Fix balance
+                      </Button>
+                    ) : (
+                      <p className="text-[10px] text-muted-foreground">{readOnlyReason}</p>
+                    )}
                     {d.status === 'open' && (
                       <Button
                         size="sm"
