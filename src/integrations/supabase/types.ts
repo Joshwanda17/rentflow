@@ -19054,6 +19054,36 @@ export type Database = {
         }
         Relationships: []
       }
+      merchant_float_morning_reports: {
+        Row: {
+          created_at: string
+          emailed_at: string | null
+          generated_at: string
+          id: string
+          pdf_path: string | null
+          report_date: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          emailed_at?: string | null
+          generated_at?: string
+          id?: string
+          pdf_path?: string | null
+          report_date: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          emailed_at?: string | null
+          generated_at?: string
+          id?: string
+          pdf_path?: string | null
+          report_date?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       merchant_float_reconciliations: {
         Row: {
           adjustment_type: string
@@ -37494,6 +37524,23 @@ export type Database = {
           requested_at: string
           status: string
           transaction_reference: string
+        }[]
+      }
+      get_all_merchant_float_positions: {
+        Args: never
+        Returns: {
+          agent_id: string
+          agent_name: string
+          agent_phone: string
+          desk_id: string
+          float_balance_raw: number
+          float_credits_recorded: number
+          is_active: boolean
+          label: string
+          last_payout_at: string
+          ledger_float_held: number
+          owed_to_agent: number
+          paid_out_total: number
         }[]
       }
       get_approximate_user_count: { Args: never; Returns: number }
