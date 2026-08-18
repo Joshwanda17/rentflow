@@ -510,7 +510,11 @@ function ApplicationsTab() {
               {filteredSorted.map((row, idx) => (
                 <TableRow
                   key={row.id}
-                  className="cursor-pointer"
+                  className={`cursor-pointer ${
+                    row.status === 'shortlisted'
+                      ? 'bg-emerald-50 hover:bg-emerald-100'
+                      : ''
+                  }`}
                   onClick={() => setSelected(row)}
                 >
                   <TableCell onClick={(e) => e.stopPropagation()}>
