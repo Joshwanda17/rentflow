@@ -166,6 +166,7 @@ export function AgentProductsServicesReport() {
   const { user } = useAuth();
   // `day` is the cumulative window START. Every window runs from `day` up to today.
   const [day, setDay] = useState<Date>(() => new Date());
+  const [activePreset, setActivePreset] = useState<string>('today');
   const [exporting, setExporting] = useState(false);
   const [actorName, setActorName] = useState('');
 
