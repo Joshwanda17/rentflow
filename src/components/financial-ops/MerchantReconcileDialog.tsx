@@ -97,13 +97,20 @@ export function MerchantReconcileDialog({
           reason,
           evidenceNote: evidence,
         });
-        toast.success('Float set to the evidenced figure', {
-          description: `Float is now exactly ${formatUGX(Number(res.float_after))} (was ${formatUGX(
-            Number(res.float_before),
-          )}). The books moved by ${formatUGX(Math.abs(Number(res.delta)))} ${
-            Number(res.delta) >= 0 ? 'up' : 'down'
-          } and the shown balance was cleared to match.`,
-        });
+        toast.success(
+          res.no_op ? 'Float confirmed as evidenced' : 'Float set to the evidenced figure',
+          {
+            description: res.no_op
+              ? `Float stays at ${formatUGX(
+                  Number(res.float_after),
+                )} — already what the books support. It is now recorded as evidenced, so no legacy or unverified float remains on this desk.`
+              : `Float is now exactly ${formatUGX(Number(res.float_after))} (was ${formatUGX(
+                  Number(res.float_before),
+                )}). Balanced entries of ${formatUGX(
+                  Math.abs(Number(res.delta)),
+                )} were posted (money in and money out) and the agent's float cache was re-seeded to match.`,
+          },
+        );
         setAmount('');
         setReason('');
         setEvidence('');
