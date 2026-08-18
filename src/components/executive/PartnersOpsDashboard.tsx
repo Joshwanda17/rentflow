@@ -329,10 +329,10 @@ export function PartnersOpsDashboard() {
       />
 
       {/* ═══ BODY: SIDEBAR + CONTENT ═══ */}
-      <div className="flex gap-4 pt-3">
+      <div className="flex min-h-[calc(100vh-4rem)] gap-4 pt-3">
         <aside className="hidden w-56 shrink-0 lg:block">
-          <div className="sticky top-16 rounded-xl border bg-card">
-            <PartnerOpsSidebar active={view} onSelect={setView} badges={badges} className="max-h-[calc(100vh-6rem)]" />
+          <div className="sticky top-16 flex h-[calc(100vh-4rem)] flex-col rounded-xl border bg-card">
+            <PartnerOpsSidebar active={view} onSelect={setView} badges={badges} className="flex-1" />
           </div>
         </aside>
         <div className="min-w-0 flex-1 space-y-4">
