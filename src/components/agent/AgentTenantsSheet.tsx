@@ -1274,7 +1274,17 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
                 )}
               </AnimatePresence>
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onOpenChange(false)}
+                    className="h-8 px-2 text-xs font-semibold text-white hover:bg-white/10 gap-1"
+                    aria-label="Back"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    Back
+                  </Button>
                   <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-xl bg-white/15 backdrop-blur flex items-center justify-center ring-1 ring-white/25">
                     <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   </div>
