@@ -58,7 +58,6 @@ import { InvestmentPackageSheet } from '@/components/supporter/InvestmentPackage
 import { FunderCapitalOpportunities } from '@/components/supporter/FunderCapitalOpportunities';
 import { SupportedTenantsSection } from '@/components/supporter/SupportedTenantsSection';
 import { PartnerPortfolioSection } from '@/components/supporter/portfolio/PartnerPortfolioSection';
-import { PartnerPortfolioWalletCard } from '@/components/supporter/portfolio/PartnerPortfolioWalletCard';
 
 import { useSupportedTenants } from '@/hooks/useSupportedTenants';
 
@@ -562,10 +561,6 @@ export default function SupporterDashboard({
 
           </div>
 
-
-          <WidgetErrorBoundary label="Portfolio card">
-            <PartnerPortfolioWalletCard />
-          </WidgetErrorBoundary>
 
           <WidgetErrorBoundary label="Your portfolio">
             <PartnerPortfolioSection
