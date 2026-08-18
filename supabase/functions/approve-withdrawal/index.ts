@@ -2930,6 +2930,11 @@ Deno.serve(async (req) => {
             );
           } else {
             merchantTelecomCharge = telecomCharge;
+            try {
+              await admin.rpc("refresh_wallet_projection_for", { p_user_id: user.id });
+            } catch (refreshErr) {
+              console.error("[approve-withdrawal] refresh_wallet_projection_for failed after merchant telecom charge:", refreshErr);
+            }
           }
         } catch (e) {
           console.error("[approve-withdrawal] Merchant telecom charge exception:", e);
