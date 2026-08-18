@@ -22989,6 +22989,51 @@ export type Database = {
           },
         ]
       }
+      platform_wallet_corrections: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string
+          evidence: string
+          id: string
+          metadata: Json
+          operation: string
+          reference_id: string
+          system_authored: boolean
+          target_user_id: string
+          tool: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by: string
+          evidence: string
+          id?: string
+          metadata?: Json
+          operation: string
+          reference_id: string
+          system_authored?: boolean
+          target_user_id: string
+          tool: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string
+          evidence?: string
+          id?: string
+          metadata?: Json
+          operation?: string
+          reference_id?: string
+          system_authored?: boolean
+          target_user_id?: string
+          tool?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       portfolio_action_requests: {
         Row: {
           created_at: string
