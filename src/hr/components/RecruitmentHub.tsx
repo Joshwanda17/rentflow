@@ -939,7 +939,16 @@ export default function RecruitmentHub() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
 
-  const [tab, setTab] = useState('internships');
+  const [tab, setTab] = useState(() => {
+    if (typeof window === 'undefined') return 'applications';
+    const saved = window.localStorage.getItem('welile-recruitment-active-tab');
+    const valid = ['applications', 'internships', 'postings', 'requisitions', 'pool'];
+    return saved && valid.includes(saved) ? saved : 'applications';
+  });
+
+  useEffect(() => {
+    window.localStorage.setItem('welile-recruitment-active-tab', tab);
+  }, [tab]);
   const [reqStatus, setReqStatus] = useState<ReqStatus>('pending');
   const [openTrail, setOpenTrail] = useState<Record<string, boolean>>({});
 
