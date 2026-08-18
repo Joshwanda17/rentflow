@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
 
   const { data: link } = await supabase
     .from("short_links")
-    .select("code, target_path, target_params")
+    .select("code, target_path, target_params, og_title, og_description, og_image_url, destination_path")
     .eq("code", code)
     .maybeSingle();
 
@@ -104,14 +104,20 @@ Deno.serve(async (req) => {
     }
   }
 
-  // Click tracking stays on the same code the /s/ route records.
-  try {
-    await supabase.rpc("record_short_link_click", {
-      p_code: code,
-      p_user_agent: req.headers.get("user-agent") ?? "",
-      p_referrer: req.headers.get("referer") ?? "",
-    });
-  } catch { /* preview must never fail on analytics */ }
+  // Click tracking: social/preview crawlers must never count as human clicks.
+  const ua = req.headers.get("user-agent") ?? "";
+  const isCrawler =
+    /bot|crawler|spider|facebookexternalhit|whatsapp|telegram|slack|discord|twitter|linkedin|embed|preview|pinterest|skype|vkshare|quora|google|bing|applebot|redditbot/i
+      .test(ua);
+  if (!isCrawler) {
+    try {
+      await supabase.rpc("record_short_link_click", {
+        p_code: code,
+        p_user_agent: ua,
+        p_referrer: req.headers.get("referer") ?? "",
+      });
+    } catch { /* preview must never fail on analytics */ }
+  }
 
   const houseTitle = pretty(plan?.house_category) || "Rental Home";
   const locParts = String(plan?.tenant_location || plan?.request_city || "")
@@ -122,11 +128,16 @@ Deno.serve(async (req) => {
   const rent = Number(plan?.funding_amount ?? 0);
   const monthly = Math.round((rent * ROI_RATE) / 100);
 
-  const title = `Support a tenant in a ${houseTitle} in ${location}`;
-  const description = rent
+  // Stored preview metadata wins (it is written server-side on every share tap);
+  // live plan data is the fallback for older links and for deleted plans.
+  const title = link?.og_title || `Support a tenant in a ${houseTitle} in ${location}`;
+  const description = link?.og_description || (rent
     ? `Support this tenant for ${ugx(rent)} by paying their landlord on the platform and earn ${ugx(monthly)} per month for the next 12 months Start here today.`
-    : "Support a tenant's rent on Welile and earn monthly returns. Support today.";
-  const image = plan?.house_image_urls?.find(Boolean) || `${SITE_URL}/og-image.png`;
+    : "Support a tenant's rent on Welile and earn monthly returns. Support today.");
+  const image =
+    plan?.house_image_urls?.find(Boolean) ||
+    link?.og_image_url ||
+    `${SITE_URL}/house-listing-og.jpg`;
 
   const html = `<!DOCTYPE html>
 <html lang="en">
