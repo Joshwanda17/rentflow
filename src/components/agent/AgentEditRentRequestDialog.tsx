@@ -222,14 +222,15 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
         }
         const optimized = await optimizeImage(picked.file, { maxWidth: 1200, quality: 0.8 });
         const ext = optimized.file.name.split('.').pop() || 'webp';
-        const path = `${user.id}/${requestId}/photo_${i}.${ext}`;
+        // Unique path per attempt: overwriting the same object is an UPDATE in
+        // storage and any missing UPDATE policy silently kills the resubmit.
+        const path = `${user.id}/${requestId}/photo_${i}_${Date.now()}.${ext}`;
         const { error } = await supabase.storage
           .from('house-images')
-          .upload(path, optimized.file, { cacheControl: '86400', upsert: true });
+          .upload(path, optimized.file, { cacheControl: '86400', upsert: false });
         if (error) throw new Error(`House photo (${HOUSE_PHOTO_SLOTS[i]}) upload failed: ${error.message}`);
         const { data } = supabase.storage.from('house-images').getPublicUrl(path);
-        // Cache-bust so reviewers never see the replaced image from cache.
-        finalUrls.push(`${data.publicUrl}?v=${Date.now()}`);
+        finalUrls.push(data.publicUrl);
       }
       // Keep any extra photos beyond the four slots.
       const extras = (Array.isArray(request?.house_image_urls) ? request!.house_image_urls : []).slice(
@@ -240,12 +241,12 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
 
     if (newLcLetter) {
       const ext = (newLcLetter.file.name.split('.').pop() || 'jpg').toLowerCase();
-      const path = `${user.id}/${requestId}/lc_letter.${ext}`;
+      const path = `${user.id}/${requestId}/lc_letter_${Date.now()}.${ext}`;
       const { error } = await supabase.storage
         .from('lc-letters')
         .upload(path, newLcLetter.file, {
           cacheControl: '86400',
-          upsert: true,
+          upsert: false,
           contentType: newLcLetter.file.type,
         });
       if (error) throw new Error(`LC letter upload failed: ${error.message}`);
@@ -319,6 +320,14 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
     if (!duration.trim() || durNum < 7 || durNum > 120) {
       toast.error('Duration out of range', {
         description: `Duration must be between 7 and 120 days (you set ${durNum || '—'}).`,
+      });
+      return;
+    }
+    // Backend only accepts these plan lengths — block early with a clear message
+    // instead of failing after the photos have already uploaded.
+    if (![7, 14, 21, 30, 60, 90, 120].includes(durNum)) {
+      toast.error('Unsupported plan length', {
+        description: `Duration must be 7, 14, 21, 30, 60, 90 or 120 days (you set ${durNum}).`,
       });
       return;
     }
