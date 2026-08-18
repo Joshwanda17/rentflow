@@ -80,6 +80,12 @@ Deno.serve(async (req) => {
     const partnerId = String(body?.partnerId || '').trim();
     const countersign = body?.countersign === true;
     const pdfBase64 = typeof body?.pdfBase64 === 'string' ? body.pdfBase64 : '';
+    // Callers that own their own confirmation email (e.g. the /funder-onboarding
+    // signup, which sends `partner-account-created` from
+    // create-funder-onboarding-account) pass sendEmail:false so the
+    // `tenant-partnership-agreement` email is NOT fired on account creation.
+    // The agreement row + PDF are still stored exactly as before.
+    const sendEmail = body?.sendEmail !== false;
     // Countersigning still requires the freshly-signed bytes; the initial
     // partner-onboarding call now runs even when the client render is missing
     // so the confirmation email is guaranteed to go out.
@@ -205,7 +211,7 @@ Deno.serve(async (req) => {
     }
 
     // ── Email the partner a download link ──
-    if (row.email) {
+    if (row.email && sendEmail) {
       const amountNum = Math.max(0, Math.floor(Number(row.partnership_amount) || 0));
       const isBank = row.payout_mode !== 'momo';
       const payoutSummary = isBank
