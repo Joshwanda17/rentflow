@@ -37,6 +37,7 @@ import { setMyWorkBadge } from '@/hr/lib/myWorkBadge';
 import type { Department, Employee, MetricDefinition, MetricSnapshot, Task } from '@/hr/types';
 import TaskFormDialog from './TaskFormDialog';
 import TransitionNoteDialog from './TransitionNoteDialog';
+import MyLeaveRequests from './MyLeaveRequests';
 
 
 interface LeadScoreboardRow {
@@ -577,6 +578,7 @@ export default function MyWork({ embedded = false }: MyWorkProps) {
     <div className={embedded ? 'space-y-5' : 'space-y-5'}>
       
       <PartnerLeadProduction />
+      <MyLeaveRequests />
       {unstarted.length > 0 && (
         <Card className="border-primary/50">
           <CardHeader className="pb-2">
