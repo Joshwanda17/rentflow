@@ -37586,6 +37586,7 @@ export type Database = {
         }[]
       }
       get_cash_at_hand_total: { Args: never; Returns: Json }
+      get_cash_at_hand_total_system: { Args: never; Returns: Json }
       get_cashflow_forecast_series: {
         Args: { p_bucket?: string; p_end: string; p_start: string }
         Returns: Json
