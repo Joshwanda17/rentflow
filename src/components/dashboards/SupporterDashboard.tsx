@@ -494,7 +494,7 @@ export default function SupporterDashboard({
             <UnifiedWalletHeroCard
               balance={wallet?.balance ?? 0}
               role="supporter"
-              secondaryLabel="Invested"
+              secondaryLabel="Active Funds"
               secondaryValue={_formatUGX(totalRentContributed)}
               houses={supportedTenantCount}
               housesLabel="Tenants"
