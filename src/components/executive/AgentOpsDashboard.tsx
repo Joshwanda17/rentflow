@@ -63,7 +63,8 @@ import {
   ClipboardList, AlertTriangle, Building2, Wallet, Bell, ArrowLeftRight,
   ChevronLeft, Briefcase, TrendingUp, TrendingDown, UsersRound, PiggyBank, HandCoins, ShieldCheck, FileBarChart, Network,
   LayoutGrid, ChevronDown, ToggleRight, Layers, Gauge, Target, Activity
-  , Coins, Megaphone, Lock, Store, MapPinned, Workflow, Package
+  , Coins, Megaphone, Lock, Store, MapPinned, Workflow, Package,
+  Bike, ShoppingBag, Signpost, Smartphone
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -76,7 +77,7 @@ import {
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
-type ActiveView = null | 'products-services-report' | 'sc-products' | 'pipeline' | 'directory' | 'rent-capacity' | 'connector' | 'performance' | 'lifecycle' | 'tasks' | 'escalations' | 'service-centres' | 'sc-overview' | 'sc-directory' | 'sc-payouts' | 'sc-requests' | 'sc-operating-model' | 'sub-agents' | 'promote-tenant' | 'float-payouts' | 'leaderboard' | 'earnings' | 'transfers' | 'locked-transfers' | 'advances-analytics' | 'advance-requests' | 'active-advances' | 'advance-potential' | 'advance-limits' | 'advance-repayments' | 'balances' | 'lending-agents' | 'trust-capture' | 'performance-report' | 'allocation-report' | 'feature-flags' | 'bulk-ops' | 'listing-campaign' | 'daily-collections-report' | 'advance-activity-correlation';
+type ActiveView = null | 'products-services-report' | 'sc-products' | 'pipeline' | 'directory' | 'rent-capacity' | 'connector' | 'performance' | 'lifecycle' | 'tasks' | 'escalations' | 'service-centres' | 'sc-overview' | 'sc-directory' | 'sc-payouts' | 'sc-requests' | 'sc-operating-model' | 'sub-agents' | 'promote-tenant' | 'float-payouts' | 'leaderboard' | 'earnings' | 'transfers' | 'locked-transfers' | 'advances-analytics' | 'advance-requests' | 'active-advances' | 'advance-potential' | 'advance-limits' | 'advance-repayments' | 'balances' | 'lending-agents' | 'trust-capture' | 'performance-report' | 'allocation-report' | 'feature-flags' | 'bulk-ops' | 'listing-campaign' | 'daily-collections-report' | 'advance-activity-correlation' | 'agent-service-centres' | 'agent-motor-bikes' | 'agent-boutique' | 'agent-signages' | 'agent-smart-phones' | 'agent-advances' | 'agent-personal-rent-request' | 'agent-transfer-wallet';
 
 const NAV_ITEMS: { key: ActiveView; icon: any; label: string; color: string; priority?: boolean }[] = [
   { key: 'products-services-report', icon: FileBarChart, label: 'Products & Services Report', color: 'bg-purple-900', priority: true },
@@ -116,6 +117,14 @@ const NAV_ITEMS: { key: ActiveView; icon: any; label: string; color: string; pri
   { key: 'locked-transfers', icon: Lock, label: 'Idle Tenants', color: 'bg-rose-600', priority: true },
   { key: 'advance-requests', icon: Banknote, label: 'Advances', color: 'bg-purple-600', priority: true },
   { key: 'active-advances', icon: Activity, label: 'Active Advances', color: 'bg-purple-500', priority: true },
+  { key: 'agent-service-centres', icon: Store, label: 'Agent Service Centres', color: 'bg-orange-600' },
+  { key: 'agent-motor-bikes', icon: Bike, label: 'Agent Motor Bikes', color: 'bg-amber-600' },
+  { key: 'agent-boutique', icon: ShoppingBag, label: 'Agent Boutique', color: 'bg-pink-600' },
+  { key: 'agent-signages', icon: Signpost, label: 'Signages', color: 'bg-lime-600' },
+  { key: 'agent-smart-phones', icon: Smartphone, label: 'Agent Smart Phones', color: 'bg-indigo-600' },
+  { key: 'agent-advances', icon: HandCoins, label: 'Agent Advances', color: 'bg-purple-600' },
+  { key: 'agent-personal-rent-request', icon: Briefcase, label: 'Agent Personal Rent Request', color: 'bg-cyan-600' },
+  { key: 'agent-transfer-wallet', icon: Wallet, label: 'Transfer / Wallet', color: 'bg-emerald-600' },
 ];
 
 export function AgentOpsDashboard() {
@@ -265,6 +274,26 @@ export function AgentOpsDashboard() {
       case 'sc-requests': return <ServiceCenterRequestsQueue />;
       case 'sc-operating-model': return <ServiceCentreOperatingModel />;
       case 'sc-products': return <AgentProductsPanel />;
+      case 'agent-service-centres': return <ServiceCentreOverview />;
+      case 'agent-motor-bikes': return <AgentProductsPanel />;
+      case 'agent-boutique': return <AgentProductsPanel />;
+      case 'agent-signages': return <AgentProductsPanel />;
+      case 'agent-smart-phones': return <AgentProductsPanel />;
+      case 'agent-advances': return (
+        <div className="space-y-6">
+          <AdvanceAnalyticsPanel />
+          <AdvanceRequestsQueue stage="agent_ops" />
+          <AdvanceRequestsReviewed />
+          <BusinessAdvanceQueue stage="agent_ops" />
+          <RentHistoryVerificationQueue dept="agent_ops" />
+        </div>
+      );
+      case 'agent-personal-rent-request': return <AgentOpsPipelineHub />;
+      case 'agent-transfer-wallet': return (
+        <div className="rounded-2xl border border-border bg-card p-3">
+          <TenantTransferPanel />
+        </div>
+      );
       case 'sub-agents': return <SubAgentVerificationQueue />;
       case 'promote-tenant': return <TenantToSubAgentPanel />;
       case 'float-payouts': return <AgentOpsFloatPayoutReview />;
@@ -344,6 +373,7 @@ export function AgentOpsDashboard() {
     { title: 'Agents', keys: ['directory', 'performance', 'sub-agents', 'bulk-ops'] },
     { title: 'Field Operations', keys: ['pipeline', 'rent-capacity', 'daily-collections-report', 'tasks', 'escalations', 'connector'] },
     { title: 'Service Centers', keys: ['sc-overview', 'service-centres', 'sc-directory', 'sc-payouts', 'sc-requests', 'sc-operating-model', 'sc-products'] },
+    { title: 'AGENT PRODUCTS & SERVICES', keys: ['agent-service-centres', 'agent-motor-bikes', 'agent-boutique', 'agent-signages', 'agent-smart-phones', 'agent-advances', 'agent-personal-rent-request', 'agent-transfer-wallet'] },
     { title: 'Financials', keys: ['balances', 'float-payouts', 'earnings', 'locked-transfers', 'allocation-report', 'lending-agents'] },
     { title: 'Advances', keys: ['advances-analytics', 'advance-requests', 'active-advances', 'advance-potential', 'advance-limits', 'advance-repayments', 'advance-activity-correlation'] },
     { title: 'Reports', keys: ['products-services-report', 'performance-report', 'allocation-report'] },
@@ -510,6 +540,7 @@ function AgentOpsSideNav({
     { title: 'Agents', defaultOpen: true, keys: ['directory', 'performance', 'sub-agents', 'bulk-ops'] },
     { title: 'Field Operations', defaultOpen: true, keys: ['pipeline', 'rent-capacity', 'daily-collections-report', 'tasks', 'escalations', 'connector'] },
     { title: 'Service Centers', keys: ['sc-overview', 'service-centres', 'sc-directory', 'sc-payouts', 'sc-requests', 'sc-operating-model', 'sc-products'] },
+    { title: 'AGENT PRODUCTS & SERVICES', keys: ['agent-service-centres', 'agent-motor-bikes', 'agent-boutique', 'agent-signages', 'agent-smart-phones', 'agent-advances', 'agent-personal-rent-request', 'agent-transfer-wallet'] },
     { title: 'Financials', keys: ['balances', 'float-payouts', 'earnings', 'locked-transfers', 'allocation-report', 'lending-agents'] },
     { title: 'Advances', keys: ['advances-analytics', 'advance-requests', 'active-advances', 'advance-potential', 'advance-limits', 'advance-repayments', 'advance-activity-correlation'] },
     { title: 'Reports', keys: ['products-services-report', 'performance-report', 'allocation-report'] },
