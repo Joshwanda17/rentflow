@@ -68,22 +68,40 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
 
       const balances: Record<string, number> = {};
       const activeIds = new Set<string>();
-      const reviewIds = new Set<string>();
+      const completedIds = new Set<string>();
+      const notPaying = new Set<string>();
+      const eligibleRows: any[] = [];
       rows.forEach((row) => {
-        balances[row.id] = Number(row.balance || 0);
         const statuses = ((row.statuses || []) as string[]).filter(Boolean);
-        if (statuses.some((status) => status !== 'completed')) activeIds.add(row.id);
-        const hasLivePlan = statuses.some((status) =>
-          ['funded', 'disbursed', 'repaying', 'completed'].includes(status)
-        );
-        if (!hasLivePlan && statuses.length > 0) reviewIds.add(row.id);
+        const paymentStates = ((row.payment_states || []) as string[]).filter(Boolean);
+        const isRepaying = statuses.includes('repaying');
+        const isCompleted = statuses.includes('completed');
+        // Vetting gate: nothing shows until the plan reached `repaying`
+        // (landlord paid via float disbursement) or was completed.
+        if (!isRepaying && !isCompleted) return;
+        eligibleRows.push(row);
+        // Repaying-only outstanding — pre-funding / vetting rows never count.
+        balances[row.id] = Number(row.repaying_balance || 0);
+        const flaggedNotPaying =
+          paymentStates.length > 0 && !paymentStates.some((s) => s !== 'not_paying');
+        if (flaggedNotPaying) notPaying.add(row.id);
+        if (isCompleted) completedIds.add(row.id);
+        if (!flaggedNotPaying && (isRepaying || isCompleted)) activeIds.add(row.id);
       });
       setTenantBalances(balances);
       setActiveTenantIds(activeIds);
-      setInReviewIds(reviewIds);
+      setCompletedTenantIds(completedIds);
+      setNotPayingIds(notPaying);
+      setTenants(eligibleRows.map((row) => ({
+        id: row.id,
+        full_name: row.full_name || 'Tenant',
+        phone: row.phone || '',
+        email: row.email || '',
+        created_at: row.created_at,
+      })));
 
       // Fetch passport / avatar photos for the tenant list (fallback to initials on missing/broken).
-      const ids = tenantList.map((t) => t.id);
+      const ids = eligibleRows.map((r) => r.id as string);
       if (ids.length > 0) {
         const { data: photoRows } = await supabase
           .from('profiles')
