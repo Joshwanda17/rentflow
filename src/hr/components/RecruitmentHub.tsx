@@ -521,7 +521,9 @@ function ApplicationsTab() {
                   className={`cursor-pointer ${
                     row.status === 'shortlisted'
                       ? 'bg-emerald-50 hover:bg-emerald-100'
-                      : ''
+                      : row.status === 'hold'
+                        ? 'bg-sky-50 hover:bg-sky-100'
+                        : ''
                   }`}
                   onClick={() => setSelected(row)}
                 >
