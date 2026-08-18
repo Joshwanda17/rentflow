@@ -37310,10 +37310,9 @@ export type Database = {
         Returns: Json
       }
       get_agent_products_overview: { Args: never; Returns: Json }
-      get_agent_products_services_report: {
-        Args: { p_date?: string }
-        Returns: Json
-      }
+      get_agent_products_services_report:
+        | { Args: { p_date?: string }; Returns: Json }
+        | { Args: { p_date?: string; p_from?: string }; Returns: Json }
       get_agent_profile_360: { Args: { p_agent_id: string }; Returns: Json }
       get_agent_proxy_roi_payouts: {
         Args: { p_agent_id?: string }
