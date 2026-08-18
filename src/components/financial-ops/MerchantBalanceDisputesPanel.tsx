@@ -26,6 +26,7 @@ export function MerchantBalanceDisputesPanel() {
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [fixing, setFixing] = useState<MerchantFloatPosition | null>(null);
   const [showClosed, setShowClosed] = useState(false);
+  const { canEdit: canEditFloat, readOnlyReason } = useFinancialOpsEditAccess();
 
   const rows = (data ?? []).filter((d) =>
     showClosed ? true : d.status === 'open' || d.status === 'reviewing',
