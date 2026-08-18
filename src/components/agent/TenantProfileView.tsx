@@ -1887,22 +1887,22 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
             <Button
               variant="outline"
               size="lg"
-              className="w-full gap-2 text-base h-12 rounded-xl"
+              className="w-full gap-2 text-sm sm:text-base h-11 sm:h-12 rounded-xl"
               onClick={handleCaptureGPS}
               disabled={gpsLoading || savingGps}
             >
-              {gpsLoading || savingGps ? <Loader2 className="h-5 w-5 animate-spin" /> : <Navigation className="h-5 w-5" />}
+              {gpsLoading || savingGps ? <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" /> : <Navigation className="h-4 w-4 sm:h-5 sm:w-5" />}
               {savingGps ? 'Saving location…' : gpsLoading ? 'Reading GPS…' : 'Capture & Save GPS Location'}
             </Button>
             {gpsLocation && (
               <div className="bg-muted/40 rounded-xl p-3 flex items-center gap-2">
                 <MapPin className="h-5 w-5 text-success shrink-0" />
-                <div className="text-sm sm:text-base">
+                <div className="text-xs sm:text-sm">
                   <span className="font-mono font-semibold">{gpsLocation.latitude.toFixed(5)}</span>
                   <span className="text-muted-foreground mx-1">,</span>
                   <span className="font-mono font-semibold">{gpsLocation.longitude.toFixed(5)}</span>
                   {gpsLocation.accuracy && (
-                    <span className="text-xs text-muted-foreground ml-2">±{Math.round(gpsLocation.accuracy)}m</span>
+                    <span className="text-[10px] sm:text-xs text-muted-foreground ml-2">±{Math.round(gpsLocation.accuracy)}m</span>
                   )}
                   {gpsSavedAt && (
                     <span className="block text-xs text-success font-semibold">Saved to profile ✓</span>
