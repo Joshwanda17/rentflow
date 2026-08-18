@@ -148,6 +148,24 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
   });
 
   const profile = data?.profile;
+
+  // Tenant migration history — every recorded transfer between agents.
+  const { data: transferHistory } = useQuery({
+    queryKey: ['tenant-transfer-history', tenantId],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_tenant_transfer_history', { p_tenant_id: tenantId });
+      if (error) throw error;
+      return (data || []) as Array<{
+        id: string;
+        occurred_at: string;
+        source: string;
+        from_agent_name: string | null;
+        to_agent_name: string | null;
+        actor_name: string | null;
+        reason: string | null;
+      }>;
+    },
+  });
   const rawRequests = data?.requests || [];
   const requests = rawRequests.map((r: any) => (
     requestOverrides[r.id] ? { ...r, ...requestOverrides[r.id] } : r
