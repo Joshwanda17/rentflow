@@ -234,21 +234,29 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
   const phoneValid = /^(?:\+?256|0)?\d{9}$/.test(landlordPhone.replace(/\s+/g, ''));
 
   const handleSendOtp = async (source: 'auto' | 'manual' = 'manual') => {
+    setSendOtpError(null);
     if (!phoneValid) {
       toast.error('Enter a valid landlord phone number');
+      setSendOtpError('Enter a valid landlord phone number');
       return;
     }
     if (!amountValid) {
-      toast.error(
+      const msg =
         effectiveAmount <= 0
           ? 'Enter an amount greater than 0'
           : !withinRent
             ? `Amount cannot exceed rent due (${formatUGX(rentDue)})`
-            : `Amount exceeds your Landlord Payout Float (${formatUGX(availablePayoutFloat)}). Reduce the amount or request Landlord Payout Float first.`,
-      );
+            : `Amount exceeds your Landlord Payout Float (${formatUGX(availablePayoutFloat)}). Reduce the amount or request Landlord Payout Float first.`;
+      toast.error(msg);
+      setSendOtpError(msg);
       return;
     }
-    if (!user || !selectedRequest) return;
+    if (!user || !selectedRequest) {
+      const msg = 'This payout is still loading. Close and reopen it, then try again.';
+      toast.error(msg);
+      setSendOtpError(msg);
+      return;
+    }
 
     // Hard per-landlord lock — reserve synchronously BEFORE any await so two
     // rapid taps (or auto-send racing a manual tap) cannot both reach the SMS.
@@ -1055,6 +1063,15 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
                     ? 'OTP already sent to landlord'
                     : `Send OTP to Landlord (${landlordPhone || '—'})`}
                 </Button>
+              )}
+
+              {!landlordOtp.otpSent && !challengeVerified && !challengeTerminalFailed && (sendOtpError || sendBlockedReason) && (
+                <p className="text-[11px] text-destructive text-center">
+                  {sendOtpError || sendBlockedReason}
+                </p>
+              )}
+              {false && (
+                <span />
               ) : (
                 <div className="space-y-3 p-3 rounded-xl border-2 border-chart-4/30 bg-chart-4/5">
                   <div className="text-center space-y-1">
