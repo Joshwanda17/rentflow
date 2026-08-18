@@ -472,7 +472,15 @@ function ApplicationsTab() {
                     <span className="ml-1">{sortConfig.dir === 'asc' ? '↑' : '↓'}</span>
                   )}
                 </TableHead>
-                <TableHead>Role interest</TableHead>
+                <TableHead
+                  className="cursor-pointer select-none"
+                  onClick={() => toggleSort('role_interest')}
+                >
+                  Role interest
+                  {sortConfig.key === 'role_interest' && (
+                    <span className="ml-1">{sortConfig.dir === 'asc' ? '↑' : '↓'}</span>
+                  )}
+                </TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead>Location</TableHead>
                 <TableHead>Experience</TableHead>
