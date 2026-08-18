@@ -332,6 +332,42 @@ Deno.serve(async (req) => {
         }
       }
 
+      // Suppressed recipient: do NOT fail the email. Put it back in the queue
+      // and retry in 2 minutes (the address may be un-suppressed by then).
+      // TTL above eventually retires it if suppression never clears.
+      if (payload.to) {
+        const { data: suppressedRow, error: suppressionError } = await supabase
+          .from('suppressed_emails')
+          .select('email')
+          .eq('email', String(payload.to).toLowerCase())
+          .maybeSingle()
+
+        if (suppressionError) {
+          console.error('Failed to verify suppression status', {
+            queue,
+            msg_id: msg.msg_id,
+            error: suppressionError,
+          })
+        }
+
+        if (suppressedRow) {
+          console.warn('Recipient suppressed — deferring retry by 2 minutes', {
+            queue,
+            msg_id: msg.msg_id,
+            to: payload.to,
+          })
+          const { error: deferError } = await supabase.rpc('defer_email', {
+            queue_name: queue,
+            message_id: msg.msg_id,
+            delay_seconds: SUPPRESSION_RETRY_SECONDS,
+          })
+          if (deferError) {
+            console.error('Failed to defer suppressed message', { queue, msg_id: msg.msg_id, error: deferError })
+          }
+          continue
+        }
+      }
+
       try {
         await sendViaMailgun(
           {
