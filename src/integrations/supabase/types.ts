@@ -31402,6 +31402,7 @@ export type Database = {
         Row: {
           advance_balance: number
           float_balance: number
+          float_balance_raw: number
           ledger_version: number
           pending_holds: number
           restricted_held: number
@@ -31413,6 +31414,7 @@ export type Database = {
         Insert: {
           advance_balance?: number
           float_balance?: number
+          float_balance_raw?: number
           ledger_version?: number
           pending_holds?: number
           restricted_held?: number
@@ -31424,6 +31426,7 @@ export type Database = {
         Update: {
           advance_balance?: number
           float_balance?: number
+          float_balance_raw?: number
           ledger_version?: number
           pending_holds?: number
           restricted_held?: number
