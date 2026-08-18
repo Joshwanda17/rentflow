@@ -62,7 +62,7 @@ async function sendSMS(
     : "https://api.africastalking.com/version1/messaging";
   try {
     const body = new URLSearchParams({
-      username,
+      username, from: "WELILE",
       to: formatPhoneInternational(phone),
       message,
     });

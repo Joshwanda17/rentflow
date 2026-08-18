@@ -80,9 +80,7 @@ const TWILIO_GATEWAY_URL = "https://connector-gateway.lovable.dev/twilio";
 const TWILIO_SENDER = "WELILE";
 
 // Yoola — the PRIMARY production SMS provider. Posts JSON to /api/v1/send.
-// By default we OMIT the sender field so Yoola uses its registered default
-// (ATInfo). "WELILE" is not registered and gets silently dropped by carriers,
-// so it must only be sent when explicitly requested for testing.
+// WELILE is the registered sender ID and must be set explicitly on every call.
 function toYoolaDigits(phone: string): string {
   let d = phone.replace(/\D/g, "");
   if (d.startsWith("0")) d = "256" + d.slice(1);
@@ -93,8 +91,7 @@ async function sendYoolaSMS(phone: string, message: string, opts: { sender?: str
   const apiKey = Deno.env.get("YOOLA_SMS_API_KEY")?.trim();
   if (!apiKey) return { ok: false, reason: "Yoola not configured", provider: "yoola" };
   const bareDigits = toYoolaDigits(phone);
-  // Default: omit the sender field entirely so Yoola uses its registered default
-  // (ATInfo). Pass an explicit sender only to test a specific sender id.
+  // Default to WELILE. An explicit opts.sender can still override for testing.
   const useSender = opts.sender === undefined ? null : (opts.sender || null);
   const payload: Record<string, unknown> = { phone: bareDigits, message, api_key: apiKey, sender: "WELILE" };
   if (useSender) payload.sender = useSender;
@@ -196,8 +193,8 @@ Deno.serve(async (req) => {
     let message =
       "[Welile Test] Background SMS API test successful. If you received this, the SMS pipeline is healthy. — Welile Ops";
     let provider = "auto"; // 'auto' = AT then Twilio fallback | 'twilio' = force Twilio | 'africastalking' = force AT
-    let no_sender = false; // when true (+ provider=yoola), omit the sender id
-    let sender: string | undefined = undefined; // when set (+ provider=yoola), force this sender id
+    let no_sender = false; // legacy flag; ignored because WELILE is always sent
+    let sender: string | undefined = undefined; // when set (+ provider=yoola), override the default WELILE sender id
 
     if (req.method === "POST") {
       const body = await req.json().catch(() => ({}));

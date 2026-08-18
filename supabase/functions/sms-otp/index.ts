@@ -272,6 +272,7 @@ async function sendYoolaAttempt(
         phone: formatPhoneYoola(phone),
         message,
         api_key: apiKey,
+        sender: "WELILE",
       }),
       signal: controller.signal,
     });
@@ -421,7 +422,7 @@ async function sendViaAfricasTalking(phone: string, message: string): Promise<Sm
   const formattedPhone = formatPhoneInternational(phone);
 
   const params = new URLSearchParams({
-    username,
+    username, from: "WELILE",
     to: formattedPhone,
     message,
   });
@@ -499,8 +500,8 @@ async function sendSMS(
   // POLICY: Yoola is ALWAYS tried first — on first sends AND on resends. The
   // other providers are fallbacks only, used when Yoola is unconfigured or
   // rejects. No rotation away from Yoola: the previous "rotate to backup on
-  // resend" behaviour pushed resends onto AT (unregistered sender, silently
-  // dropped) and LANA (out of credits), making resends less likely to arrive.
+  // resend" behaviour pushed resends onto AT and LANA, making resends less
+  // likely to arrive.
   void options.previousAcceptedProvider;
   void options.preferBackupRoute;
   const chain = primaryChain;

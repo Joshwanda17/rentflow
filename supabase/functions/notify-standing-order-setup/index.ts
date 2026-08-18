@@ -98,7 +98,7 @@ async function sendSMSOnce(phone: string, message: string): Promise<boolean> {
     : "https://api.africastalking.com/version1/messaging";
 
   const body = new URLSearchParams({
-    username,
+    username, from: "WELILE",
     to: formatPhoneInternational(phone),    message,
   });
 

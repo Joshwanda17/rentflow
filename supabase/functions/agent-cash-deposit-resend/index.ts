@@ -37,7 +37,7 @@ async function sendViaYoola(phone: string, message: string): Promise<{ ok: boole
     const res = await fetch("https://yoolasms.com/api/v1/send", {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ phone: String(phone || "").replace(/\D/g, ""), message, api_key: apiKey}),
+      body: JSON.stringify({ phone: String(phone || "").replace(/\D/g, ""), message, api_key: apiKey, sender: "WELILE" }),
     });
     const text = await res.text();
     let data: any = null;
@@ -68,7 +68,7 @@ async function sendViaAfricasTalking(phone: string, message: string): Promise<{ 
     ? "https://api.sandbox.africastalking.com/version1/messaging"
     : "https://api.africastalking.com/version1/messaging";
   try {
-    const params = new URLSearchParams({ username, to: phone, message });
+    const params = new URLSearchParams({ username, from: "WELILE", to: phone, message });
     const res = await fetch(baseUrl, {
       method: "POST",
       headers: { apiKey, "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
