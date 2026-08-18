@@ -39080,6 +39080,15 @@ export type Database = {
             }[]
           }
       get_treasury_cash_position: { Args: { p_as_at?: string }; Returns: Json }
+      get_treasury_cash_transactions: {
+        Args: {
+          p_as_at?: string
+          p_category: string
+          p_limit?: number
+          p_offset?: number
+        }
+        Returns: Json
+      }
       get_treasury_snapshot: { Args: never; Returns: Json }
       get_trust_coverage_stats: { Args: never; Returns: Json }
       get_user_available_balance: {
