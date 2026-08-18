@@ -110,7 +110,7 @@ export function PartnerPortfolioWalletCard({ onAddCard, onSend, onRequest, onTop
               className="font-medium tracking-widest text-white/80 uppercase whitespace-nowrap"
               style={{ fontSize: '2.4cqw', paddingRight: '0.5cqw' }}
             >
-              WELILE AI ID {aiId}
+              {aiId}
             </span>
           </div>
 
