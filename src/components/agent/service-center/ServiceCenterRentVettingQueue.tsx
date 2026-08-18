@@ -94,7 +94,8 @@ export function ServiceCenterRentVettingQueue() {
       ) : (
         pending.map((req) => (
           <Card key={req.id}>
-            <CardContent className="space-y-2 p-3">
+            <CardContent className="space-y-3 p-3">
+
               <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
                   <p className="break-words text-sm font-semibold leading-tight text-foreground">{req.tenant_name ?? 'Tenant'}</p>
