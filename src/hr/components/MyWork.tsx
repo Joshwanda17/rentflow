@@ -524,6 +524,10 @@ export default function MyWork({ embedded = false }: MyWorkProps) {
   ) => {
     setBusyTaskId(taskId);
     try {
+      if (eventType in TRANSITION_NOTE_LABELS && !isValidTransitionNote(note || '')) {
+        toast.error('A note is required for this action');
+        return;
+      }
       await addTaskEvent({ taskId, eventType, note: note && note.trim() ? note.trim() : null });
       toast.success(`Task ${eventType}`);
       await load();
