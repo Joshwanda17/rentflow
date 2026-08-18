@@ -14,7 +14,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Loader2, Clock, Download, Search, Filter, RefreshCw, ChevronLeft, ChevronRight, X, CalendarIcon, FileText, FileSpreadsheet } from 'lucide-react';
+import { Loader2, Clock, Download, Search, Filter, RefreshCw, ChevronLeft, ChevronRight, X, CalendarIcon, FileText, FileSpreadsheet, ChevronDown } from 'lucide-react';
 import { format, startOfDay, endOfDay, subDays, startOfMonth } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
@@ -142,7 +142,9 @@ export function CFOActionsLog() {
   const [searchInput, setSearchInput] = useState('');
   const [page, setPage] = useState(0);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  const [open, setOpen] = useState(true);
   const search = useDebouncedValue(searchInput.trim(), 350);
+
 
   const fromISO = dateRange?.from ? startOfDay(dateRange.from).toISOString() : null;
   const toISO = dateRange?.to ? endOfDay(dateRange.to).toISOString() : (dateRange?.from ? endOfDay(dateRange.from).toISOString() : null);
@@ -349,13 +351,19 @@ export function CFOActionsLog() {
     <Card className="rounded-2xl">
       <CardContent className="p-4">
         <div className="flex items-center justify-between gap-2 mb-1 flex-wrap">
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            CFO Actions Trail
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            aria-expanded={open}
+            className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <span>CFO Actions Trail</span>
             {total > 0 && (
-              <Badge variant="secondary" className="ml-2 text-[10px]">{total.toLocaleString()}</Badge>
+              <Badge variant="secondary" className="text-[10px]">{total.toLocaleString()}</Badge>
             )}
-          </p>
-          <div className="flex items-center gap-1">
+            <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
+          </button>
+          <div className={`flex items-center gap-1 ${open ? '' : 'hidden'}`}>
             {isFetching && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
             <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={() => refetch()} disabled={isFetching}>
               <RefreshCw className={`h-3 w-3 ${isFetching ? 'animate-spin' : ''}`} /> Refresh
@@ -377,9 +385,13 @@ export function CFOActionsLog() {
             </DropdownMenu>
           </div>
         </div>
+
+        {open && (
+        <>
         <p className="text-[10px] text-muted-foreground mb-3">
           Derived directly from the general ledger — every posted cash movement appears automatically.
         </p>
+
 
         <div className="flex gap-2 mb-3 flex-wrap">
           <div className="relative flex-1 min-w-[120px]">
@@ -554,6 +566,9 @@ export function CFOActionsLog() {
           </div>
           </>
         )}
+        </>
+        )}
+
       </CardContent>
     </Card>
   );
