@@ -235,9 +235,9 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
       )}
 
       {/* ══════════════ THREE HEADLINE CARDS ══════════════ */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         <HeroCard
-          icon={<PiggyBank className="h-5 w-5 text-emerald-600" />}
+          icon={<PiggyBank className="h-4 w-4 text-emerald-600" />}
           iconBg="bg-emerald-50 dark:bg-emerald-950/40"
           title="Money We Have"
           value={fmt(totalCash)}
@@ -251,7 +251,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
           onClick={() => setActiveBreakdown('cash')}
         />
         <HeroCard
-          icon={<Package className="h-5 w-5 text-orange-600" />}
+          icon={<Package className="h-4 w-4 text-orange-600" />}
           iconBg="bg-orange-50 dark:bg-orange-950/40"
           title="Money We Owe"
           value={fmt(walletTotal)}
@@ -265,7 +265,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
           onClick={() => setActiveBreakdown('wallets')}
         />
         <HeroCard
-          icon={<BarChart3 className="h-5 w-5 text-blue-600" />}
+          icon={<BarChart3 className="h-4 w-4 text-blue-600" />}
           iconBg="bg-blue-50 dark:bg-blue-950/40"
           title="Money We Can Use"
           value={fmt(moneyWeCanUse)}
@@ -280,9 +280,9 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
       </div>
 
       {/* ══════════════ WHERE THE MONEY SITS ══════════════ */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <HeroCard
-          icon={<Vault className="h-5 w-5 text-indigo-600" />}
+          icon={<Vault className="h-4 w-4 text-indigo-600" />}
           iconBg="bg-indigo-50 dark:bg-indigo-950/40"
           title="Money in Treasury / Platform"
           value={fmt(treasuryPosition?.value ?? 0)}
@@ -296,7 +296,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
           onClick={() => setActiveBreakdown('cash')}
         />
         <HeroCard
-          icon={<Landmark className="h-5 w-5 text-sky-600" />}
+          icon={<Landmark className="h-4 w-4 text-sky-600" />}
           iconBg="bg-sky-50 dark:bg-sky-950/40"
           title="Money in Bank"
           value={fmt(bankPosition?.value ?? 0)}
@@ -606,19 +606,19 @@ function HeroCard({ icon, iconBg, title, value, valueColor, items, footer, foote
       onClick={onClick}
       className="w-full text-left rounded-2xl border border-border bg-card overflow-hidden hover:shadow-md active:scale-[0.995] transition-all"
     >
-      <div className="p-4 sm:p-5">
+      <div className="p-3 sm:p-4">
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}>{icon}</div>
-            <p className="font-semibold text-sm truncate">{title}</p>
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${iconBg}`}>{icon}</div>
+            <p className="font-semibold text-xs truncate">{title}</p>
           </div>
-          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
         </div>
-        <p className={`mt-4 text-xl sm:text-2xl font-bold font-mono tabular-nums tracking-tight ${valueColor}`}>{value}</p>
-        <div className="mt-4 pt-4 border-t border-border space-y-2.5">
+        <p className={`mt-2.5 text-lg sm:text-xl font-bold font-mono tabular-nums tracking-tight ${valueColor}`}>{value}</p>
+        <div className="mt-3 pt-3 border-t border-border space-y-1.5">
           {items.map((it) => (
-            <div key={it.label} className="flex items-center justify-between gap-2 text-xs">
-              <span className="flex items-center gap-2 min-w-0 text-muted-foreground">
+            <div key={it.label} className="flex items-center justify-between gap-2 text-[11px]">
+              <span className="flex items-center gap-1.5 min-w-0 text-muted-foreground">
                 <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${it.dot}`} />
                 <span className="truncate">{it.label}</span>
               </span>
@@ -627,9 +627,9 @@ function HeroCard({ icon, iconBg, title, value, valueColor, items, footer, foote
           ))}
         </div>
       </div>
-      <div className={`flex items-center justify-between gap-2 px-4 sm:px-5 py-2.5 text-[11px] font-medium ${footerTone}`}>
+      <div className={`flex items-center justify-between gap-2 px-3 sm:px-4 py-2 text-[10px] font-medium ${footerTone}`}>
         <span className="truncate">{footer}</span>
-        <Info className="h-3.5 w-3.5 shrink-0 opacity-70" />
+        <Info className="h-3 w-3 shrink-0 opacity-70" />
       </div>
     </button>
   );
