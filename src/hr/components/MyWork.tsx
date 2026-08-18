@@ -36,7 +36,10 @@ import { supabase } from '@/hr/api/client';
 import { setMyWorkBadge } from '@/hr/lib/myWorkBadge';
 import type { Department, Employee, MetricDefinition, MetricSnapshot, Task } from '@/hr/types';
 import TaskFormDialog from './TaskFormDialog';
-import TransitionNoteDialog from './TransitionNoteDialog';
+import TransitionNoteDialog, {
+  TRANSITION_NOTE_LABELS,
+  isValidTransitionNote,
+} from './TransitionNoteDialog';
 import MyLeaveRequests from './MyLeaveRequests';
 
 
@@ -521,6 +524,10 @@ export default function MyWork({ embedded = false }: MyWorkProps) {
   ) => {
     setBusyTaskId(taskId);
     try {
+      if (eventType in TRANSITION_NOTE_LABELS && !isValidTransitionNote(note || '')) {
+        toast.error('A note is required for this action');
+        return;
+      }
       await addTaskEvent({ taskId, eventType, note: note && note.trim() ? note.trim() : null });
       toast.success(`Task ${eventType}`);
       await load();
@@ -861,10 +868,10 @@ export default function MyWork({ embedded = false }: MyWorkProps) {
           open
           busy={busyTaskId === notePrompt.taskId}
           onClose={() => setNotePrompt(null)}
-          onConfirm={(note) => {
+          onConfirm={async (note) => {
             const target = notePrompt;
+            await act(target.taskId, target.eventType, note);
             setNotePrompt(null);
-            void act(target.taskId, target.eventType, note);
           }}
         />
       )}
