@@ -28,6 +28,8 @@ interface ExecutiveDashboardLayoutProps {
   children: ReactNode;
   /** Optional badge counts keyed by sidebar item id (e.g. { advances: 3 }). */
   badges?: Record<string, number>;
+  /** Sidebar item ids whose badge should beam (pulse red) until the tab is opened. */
+  pulseBadgeIds?: string[];
   /** Optional extra actions rendered in the top bar (e.g. a notification bell). */
   headerActions?: ReactNode;
 }
@@ -38,6 +40,7 @@ export default function ExecutiveDashboardLayout({
   onTabChange,
   children,
   badges,
+  pulseBadgeIds,
   headerActions,
 }: ExecutiveDashboardLayoutProps) {
   const { user, roles, signOut, switchRole, addRole } = useAuth();
@@ -324,7 +327,13 @@ export default function ExecutiveDashboardLayout({
                       </span>
                     )}
                     {badges && badges[item.id] > 0 && (
-                      <span className="ml-auto shrink-0 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold leading-none">
+                      <span
+                        className={cn(
+                          'ml-auto shrink-0 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold leading-none',
+                          pulseBadgeIds?.includes(item.id) &&
+                            'animate-pulse ring-2 ring-rose-500/40 shadow-[0_0_10px_2px_hsl(var(--destructive)/0.6)]',
+                        )}
+                      >
                         {badges[item.id] > 99 ? '99+' : badges[item.id]}
                       </span>
                     )}
