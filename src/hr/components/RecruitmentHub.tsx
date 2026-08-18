@@ -179,7 +179,7 @@ function ApplicationsTab() {
   const [selected, setSelected] = useState<JobApplicationRow | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>(ALL);
   const [sortConfig, setSortConfig] = useState<
-    { key: 'name' | 'status' | 'created'; dir: 'asc' | 'desc' }
+    { key: 'name' | 'role_interest' | 'status' | 'created'; dir: 'asc' | 'desc' }
   >({ key: 'created', dir: 'desc' });
   const [pending, setPending] = useState<
     { row: JobApplicationRow; kind: ApplicationDecision | 'remove' } | null
@@ -238,6 +238,12 @@ function ApplicationsTab() {
         const bv = (b.full_name ?? '').toLowerCase();
         return av.localeCompare(bv) * (sortConfig.dir === 'asc' ? 1 : -1);
       });
+    } else if (sortConfig.key === 'role_interest') {
+      sorted.sort((a, b) => {
+        const av = (a.role_interest ?? '').toLowerCase();
+        const bv = (b.role_interest ?? '').toLowerCase();
+        return av.localeCompare(bv) * (sortConfig.dir === 'asc' ? 1 : -1);
+      });
     } else if (sortConfig.key === 'status') {
       sorted.sort((a, b) => {
         const av = (a.status ?? '').toLowerCase();
@@ -254,7 +260,7 @@ function ApplicationsTab() {
     return sorted;
   }, [rows, search, statusFilter, sortConfig]);
 
-  const toggleSort = (key: 'name' | 'status' | 'created') => {
+  const toggleSort = (key: 'name' | 'role_interest' | 'status' | 'created') => {
     setSortConfig((prev) =>
       prev.key === key
         ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
@@ -466,7 +472,15 @@ function ApplicationsTab() {
                     <span className="ml-1">{sortConfig.dir === 'asc' ? '↑' : '↓'}</span>
                   )}
                 </TableHead>
-                <TableHead>Role interest</TableHead>
+                <TableHead
+                  className="cursor-pointer select-none"
+                  onClick={() => toggleSort('role_interest')}
+                >
+                  Role interest
+                  {sortConfig.key === 'role_interest' && (
+                    <span className="ml-1">{sortConfig.dir === 'asc' ? '↑' : '↓'}</span>
+                  )}
+                </TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead>Location</TableHead>
                 <TableHead>Experience</TableHead>
