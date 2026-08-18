@@ -189,7 +189,7 @@ export default function TaskDetail() {
     !['completed', 'cancelled'].includes(task.status);
 
   // The required set is the label map's keys — never a second list.
-  const noteRequired = !!pendingAction && pendingAction.event in TRANSITION_NOTE_LABELS;
+  const noteRequired = !!pendingAction && isNoteRequired(pendingAction.event);
   const noteMissing = charsStillNeeded(note);
 
   return (
