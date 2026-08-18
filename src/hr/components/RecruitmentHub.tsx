@@ -179,7 +179,7 @@ function ApplicationsTab() {
   const [selected, setSelected] = useState<JobApplicationRow | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>(ALL);
   const [sortConfig, setSortConfig] = useState<
-    { key: 'name' | 'status' | 'created'; dir: 'asc' | 'desc' }
+    { key: 'name' | 'role_interest' | 'status' | 'created'; dir: 'asc' | 'desc' }
   >({ key: 'created', dir: 'desc' });
   const [pending, setPending] = useState<
     { row: JobApplicationRow; kind: ApplicationDecision | 'remove' } | null
