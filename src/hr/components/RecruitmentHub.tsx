@@ -53,6 +53,8 @@ import {
 } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Textarea } from '@/components/ui/textarea';
 import {
   getCandidates,
   getDepartments,
@@ -66,6 +68,7 @@ import {
   APPLICATION_DECISIONS,
   purgeApplication,
   recordApplicationDecision,
+  sendCareersEmails,
   type ApplicationDecision,
 } from '@/hr/api/applications';
 import type { Database } from '@/integrations/supabase/types';
