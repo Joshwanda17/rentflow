@@ -92,6 +92,8 @@ import { normalizeDistrict, districtWarning } from '@/lib/ugandaDistricts';
 import { validateUgandaPhone } from '@/lib/ugandaPhone';
 import { generateRentRequestFormPdf } from '@/lib/rentRequestFormPdf';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { AgentEditRentRequestDialog } from '@/components/agent/AgentEditRentRequestDialog';
+import { STAGE_LABEL, type AgentRejectedRequest } from '@/hooks/useAgentRejectedRequests';
 
 interface AgentRentRequestDialogProps {
   open: boolean;
