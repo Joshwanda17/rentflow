@@ -665,12 +665,16 @@ function ApplicationsTab() {
                           key={d}
                           size="sm"
                           variant="outline"
-                          className="h-7 px-2 text-xs"
+                          className={`h-7 px-2 text-xs ${
+                            d === 'shortlisted' && row.status === 'shortlisted'
+                              ? SHORTLIST_LEVEL_1_CLASS
+                              : ''
+                          }`}
                           onClick={() => {
                             setPending({ row, kind: d });
                           }}
                         >
-                          {DECISION_LABELS[d]}
+                          {decisionLabel(d, row.status)}
                         </Button>
                       ))}
                       <Button
@@ -710,11 +714,16 @@ function ApplicationsTab() {
                     key={d}
                     size="sm"
                     variant="outline"
+                    className={
+                      d === 'shortlisted' && selected.status === 'shortlisted'
+                        ? SHORTLIST_LEVEL_1_CLASS
+                        : undefined
+                    }
                     onClick={() => {
                       setPending({ row: selected, kind: d });
                     }}
                   >
-                    {DECISION_LABELS[d]}
+                    {decisionLabel(d, selected.status)}
                   </Button>
                 ))}
                 <Button
