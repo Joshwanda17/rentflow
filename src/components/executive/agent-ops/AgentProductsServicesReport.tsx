@@ -321,6 +321,7 @@ export function AgentProductsServicesReport() {
               <Tabs defaultValue="agents">
                 <TabsList className="flex flex-wrap h-auto gap-1">
                   <TabsTrigger value="agents" className="text-[11px]">Agent performance</TabsTrigger>
+                  <TabsTrigger value="new" className="text-[11px]">New agents</TabsTrigger>
                   <TabsTrigger value="rent" className="text-[11px]">Rent receivables</TabsTrigger>
                   <TabsTrigger value="advances" className="text-[11px]">Advances</TabsTrigger>
                   <TabsTrigger value="sc" className="text-[11px]">Service centres</TabsTrigger>
