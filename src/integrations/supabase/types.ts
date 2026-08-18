@@ -38198,6 +38198,7 @@ export type Database = {
           agent_phone: string
           asserted_only_amount: number
           clamp_artifact_amount: number
+          clamped_shortfall_amount: number
           company_cash_with_agent: number
           desk_id: string
           email_matched_total: number
