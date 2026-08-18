@@ -649,6 +649,100 @@ function ApplicationsTab() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Compose panel. Each selected applicant receives their own separate
+          message — there is no cc or bcc field here by design. */}
+      <Sheet open={composeOpen} onOpenChange={(open) => !sending && setComposeOpen(open)}>
+        <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Email selected applicants</SheetTitle>
+          </SheetHeader>
+
+          <div className="space-y-4 mt-4">
+            <div className="rounded-lg border p-3 text-xs space-y-1">
+              <p>
+                <span className="font-semibold">{fmtCount(recipientsWithEmail.length)}</span>{' '}
+                individual email{recipientsWithEmail.length === 1 ? '' : 's'} will be sent — one per
+                person, each addressed only to that person.
+              </p>
+              {recipients.length !== recipientsWithEmail.length && (
+                <p className="text-muted-foreground">
+                  {fmtCount(recipients.length - recipientsWithEmail.length)} selected applicant(s)
+                  have no email address on file and will be skipped.
+                </p>
+              )}
+              <p className="text-muted-foreground">
+                Suppressed and unsubscribed addresses are skipped automatically.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs">Subject</Label>
+              <Input
+                value={emailSubject}
+                onChange={(e) => setEmailSubject(e.target.value)}
+                placeholder="Update on your Welile application"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs">Message</Label>
+              <Textarea
+                value={emailBody}
+                onChange={(e) => setEmailBody(e.target.value)}
+                rows={10}
+                placeholder={'Write your message. Use {{name}} for the recipient\'s own name and {{reference}} for their own application reference.'}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                {'{{name}}'} and {'{{reference}}'} are replaced with each recipient's own details.
+                Their reference is also printed at the foot of every message.
+              </p>
+            </div>
+
+            <Button
+              className="w-full"
+              disabled={
+                sending ||
+                recipientsWithEmail.length === 0 ||
+                emailSubject.trim().length === 0 ||
+                emailBody.trim().length < 10
+              }
+              onClick={() => setConfirmSend(true)}
+            >
+              Review and send
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <AlertDialog open={confirmSend} onOpenChange={(open) => !sending && setConfirmSend(open)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Send {fmtCount(recipientsWithEmail.length)} individual email
+              {recipientsWithEmail.length === 1 ? '' : 's'}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Exactly {fmtCount(recipientsWithEmail.length)} separate message
+              {recipientsWithEmail.length === 1 ? '' : 's'} will be queued, one per recipient. No
+              recipient can see any other. Suppressed addresses are skipped and every send is
+              logged against the applicant.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={sending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={sending}
+              onClick={(e) => {
+                e.preventDefault();
+                void runSend();
+              }}
+            >
+              {sending ? 'Sending…' : `Send ${fmtCount(recipientsWithEmail.length)}`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
