@@ -22,7 +22,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import {
   generateAgentProductsServicesPdf, apsPctChange, apsPctLabel, apsUgx, type ApsReport,
-  apsWindowLabel, type ApsCumulative,
+  apsWindowLabel, apsCompareLabel, type ApsCumulative,
 } from '@/lib/agentProductsServicesPdf';
 
 const PAGE_SIZE = 15;
@@ -41,7 +41,9 @@ function downloadBlob(blob: Blob, filename: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-function TrendPill({ current, previous, invert = false }: { current: number; previous: number; invert?: boolean }) {
+function TrendPill({ current, previous, invert = false, compareLabel }: {
+  current: number; previous: number; invert?: boolean; compareLabel?: string;
+}) {
   const v = apsPctChange(current, previous);
   const up = v !== null && v > 0;
   const flat = v === null || v === 0;
@@ -51,16 +53,16 @@ function TrendPill({ current, previous, invert = false }: { current: number; pre
     <span className={cn(
       'inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold',
       flat ? 'bg-muted text-muted-foreground' : good ? 'bg-emerald-500/10 text-emerald-600' : 'bg-destructive/10 text-destructive',
-    )}>
+    )} title={compareLabel ? `${apsPctLabel(current, previous)} ${compareLabel}` : undefined}>
       <Icon className="h-3 w-3" />
       {apsPctLabel(current, previous)}
     </span>
   );
 }
 
-function Kpi({ label, value, hint, current, previous, invert }: {
+function Kpi({ label, value, hint, current, previous, invert, compareLabel }: {
   label: string; value: string; hint?: string;
-  current?: number; previous?: number; invert?: boolean;
+  current?: number; previous?: number; invert?: boolean; compareLabel?: string;
 }) {
   return (
     <Card className="border">
@@ -69,7 +71,10 @@ function Kpi({ label, value, hint, current, previous, invert }: {
         <p className="text-base sm:text-lg font-bold leading-tight break-words">{value}</p>
         <div className="flex items-center gap-1.5 flex-wrap">
           {current !== undefined && previous !== undefined && (
-            <TrendPill current={current} previous={previous} invert={invert} />
+            <TrendPill current={current} previous={previous} invert={invert} compareLabel={compareLabel} />
+          )}
+          {current !== undefined && previous !== undefined && compareLabel && (
+            <span className="text-[10px] text-muted-foreground">{compareLabel}</span>
           )}
           {hint && <span className="text-[10px] text-muted-foreground">{hint}</span>}
         </div>
