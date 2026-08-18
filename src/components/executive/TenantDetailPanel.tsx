@@ -159,8 +159,17 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
     Number(r.total_repayment || 0) > 0
       ? Number(r.total_repayment || 0)
       : Number(r.rent_amount || 0);
-  const totalRent = requests.reduce((s, r) => s + obligationFor(r), 0);
-  const totalRepaid = requests.reduce((s, r) => s + Number(r.amount_repaid || 0), 0);
+  // Only LIVE rent plans create an obligation. Rejected / deleted / cancelled
+  // plans, plans still awaiting vetting or approval (no money left the company
+  // yet) and closed-out plans must never inflate what the tenant owes today —
+  // otherwise a tenant with one rejected and one funded plan (e.g. Mango
+  // Charles) shows double the real balance.
+  const LIVE_OBLIGATION_STATUSES = ['funded', 'repaying'];
+  const liveReqs = requests.filter(r =>
+    LIVE_OBLIGATION_STATUSES.includes(String((r as any).status || '').toLowerCase())
+  );
+  const totalRent = liveReqs.reduce((s, r) => s + obligationFor(r), 0);
+  const totalRepaid = liveReqs.reduce((s, r) => s + Number(r.amount_repaid || 0), 0);
   // Clamp at 0 — a fully-repaid tenant can never owe a negative amount.
   const outstandingTotal = Math.max(0, totalRent - totalRepaid);
 
@@ -176,12 +185,12 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
   // never fully repaid. Managers must be able to fix these. Fallback to all
   // requests so an over-repaid tenant (outstanding = 0) can still be corrected.
   const outstandingEditableReqs = (() => {
-    const withResidual = requests.filter(r => {
+    const withResidual = liveReqs.filter(r => {
       const repaid = Number(r.amount_repaid || 0);
       return obligationFor(r) - repaid > 0;
     });
     if (withResidual.length > 0) return withResidual;
-    return activeReqs.length > 0 ? activeReqs : requests;
+    return liveReqs.length > 0 ? liveReqs : (activeReqs.length > 0 ? activeReqs : requests);
   })();
   const editableOutstandingReq = outstandingEditableReqs[0] || null;
 
