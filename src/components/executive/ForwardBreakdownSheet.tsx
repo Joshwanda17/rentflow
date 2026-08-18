@@ -22,10 +22,26 @@ const intl = (p?: string | null) => {
   return d;
 };
 
-function ContactButtons({ phone, whatsapp }: { phone?: string | null; whatsapp?: string | null }) {
+function ContactButtons({ phone, whatsapp, size = 'sm' }: { phone?: string | null; whatsapp?: string | null; size?: 'sm' | 'lg' }) {
   const call = digits(phone) || digits(whatsapp);
   const wa = intl(whatsapp || phone);
   if (!call && !wa) return <span className="text-[10px] text-muted-foreground">No number</span>;
+  if (size === 'lg') {
+    return (
+      <div className="grid grid-cols-2 gap-2">
+        {call ? (
+          <Button asChild variant="outline" className="h-11 justify-center text-xs font-semibold">
+            <a href={`tel:${call}`}><Phone className="h-4 w-4 mr-1.5" />Call</a>
+          </Button>
+        ) : <span />}
+        {wa ? (
+          <Button asChild variant="outline" className="h-11 justify-center text-xs font-semibold text-green-600 border-green-300">
+            <a href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer"><MessageCircle className="h-4 w-4 mr-1.5" />WhatsApp</a>
+          </Button>
+        ) : <span />}
+      </div>
+    );
+  }
   return (
     <div className="flex items-center gap-1">
       {call && (
