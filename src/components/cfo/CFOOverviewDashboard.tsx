@@ -334,7 +334,9 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
                 View all <ChevronRight className="h-3.5 w-3.5" />
               </button>
             )}
+            <SectionToggle open={isOpen('actionTrail')} onToggle={() => toggleSection('actionTrail')} label="CFO Action Trail" />
           </div>
+          {isOpen('actionTrail') && (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 divide-y xl:divide-y-0 xl:divide-x divide-border">
             {actionTrail.map((item) => (
               <TrailItem
@@ -348,6 +350,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
               />
             ))}
           </div>
+          )}
         </CardContent>
       </Card>
 
