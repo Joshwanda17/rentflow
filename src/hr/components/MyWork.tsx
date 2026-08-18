@@ -37,7 +37,7 @@ import { setMyWorkBadge } from '@/hr/lib/myWorkBadge';
 import type { Department, Employee, MetricDefinition, MetricSnapshot, Task } from '@/hr/types';
 import TaskFormDialog from './TaskFormDialog';
 import TransitionNoteDialog, {
-  TRANSITION_NOTE_LABELS,
+  isNoteRequired,
   isValidTransitionNote,
 } from './TransitionNoteDialog';
 import MyLeaveRequests from './MyLeaveRequests';
