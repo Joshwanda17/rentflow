@@ -59,7 +59,7 @@ export function PartnerOpsTopBar({ active, onSelect, badges, actions }: Props) {
     .join('');
 
   return (
-    <div className="sticky top-0 z-30 -mx-1 border-b border-border/60 bg-background/95 px-1 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+    <div className="sticky top-0 z-30 -mx-4 border-b border-border/60 bg-white px-4 py-2">
       <div className="flex flex-wrap items-center gap-2">
         {/* mobile nav */}
         <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
