@@ -416,6 +416,29 @@ function ApplicationsTab() {
         {isLoading ? '—' : fmtCount(rows.length)} applications
       </p>
 
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-medium">
+          {isLoading ? '—' : fmtCount(selectedVisibleIds.length)} selected
+        </span>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 text-xs"
+          onClick={toggleSelectAllVisible}
+          disabled={visibleIds.length === 0}
+        >
+          {allVisibleSelected ? 'Clear selection' : 'Select all shown'}
+        </Button>
+        <Button
+          size="sm"
+          className="h-7 text-xs"
+          onClick={() => setComposeOpen(true)}
+          disabled={selectedVisibleIds.length === 0}
+        >
+          Email selected
+        </Button>
+      </div>
+
       {filteredSorted.length === 0 ? (
         <div className="text-center py-10 text-muted-foreground">
           <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
@@ -426,6 +449,13 @@ function ApplicationsTab() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={allVisibleSelected}
+                    onCheckedChange={toggleSelectAllVisible}
+                    aria-label="Select all shown applications"
+                  />
+                </TableHead>
                 <TableHead className="w-12">#</TableHead>
                 <TableHead
                   className="cursor-pointer select-none"
@@ -469,6 +499,13 @@ function ApplicationsTab() {
                   className="cursor-pointer"
                   onClick={() => setSelected(row)}
                 >
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={selectedIds.has(row.id)}
+                      onCheckedChange={() => toggleRowSelected(row.id)}
+                      aria-label={`Select ${row.full_name || 'application'}`}
+                    />
+                  </TableCell>
                   <TableCell>{idx + 1}</TableCell>
                   <TableCell>{row.full_name || '—'}</TableCell>
                   <TableCell>{row.role_interest || '—'}</TableCell>
