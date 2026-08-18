@@ -377,6 +377,42 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
         </div>
       )}
 
+      {!error && deficitRows.length > 0 && (
+        <div className="mt-4 rounded-xl border-2 border-dashed border-destructive/40 bg-destructive/5 p-3">
+          <div className="flex items-start gap-2">
+            <ShieldAlert className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-destructive">
+                Hidden deficit — the zero floor is hiding a shortfall
+              </p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                {formatUGX(deficitTotal)} across {deficitRows.length} desk
+                {deficitRows.length === 1 ? '' : 's'}. These agents have paid out more than they were
+                ever credited — the true position is negative, but the board can never display less
+                than UGX 0. This is money owed TO the company, not float.
+              </p>
+            </div>
+          </div>
+          <div className="mt-2 space-y-1.5">
+            {deficitRows.map((r) => (
+              <div
+                key={`deficit-${r.deskId}`}
+                className="rounded-lg border border-destructive/20 bg-background px-3 py-2 min-w-0"
+              >
+                <div className="flex items-start justify-between gap-3 flex-wrap">
+                  <p className="text-xs font-medium text-foreground truncate min-w-0">
+                    {r.agentName || r.label || 'Merchant agent'}
+                  </p>
+                  <p className="font-mono text-xs font-bold tabular-nums text-destructive shrink-0">
+                    −{formatUGX(r.clampedShortfall)}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="mt-4 rounded-xl bg-primary/5 border border-primary/10 p-3 flex gap-2">
         <Wallet className="h-4 w-4 text-primary shrink-0 mt-0.5" />
         <p className="text-[11px] leading-relaxed text-muted-foreground">
