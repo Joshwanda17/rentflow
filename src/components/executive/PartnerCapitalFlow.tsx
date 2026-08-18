@@ -3,14 +3,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { DollarSign, ArrowUpRight, ArrowDownRight } from 'lucide-react';
-import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from 'recharts';
-import { format, subDays, startOfDay } from 'date-fns';
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, LineChart, Line, BarChart, Bar, Legend, CartesianGrid } from 'recharts';
+import { format, subDays, startOfDay, startOfMonth, addMonths, isBefore } from 'date-fns';
 
 export function PartnerCapitalFlow() {
   const { data } = useQuery({
     queryKey: ['partner-capital-flow'],
     queryFn: async () => {
-      const [{ data: portfolios }, { data: withdrawals }, { data: roiPayments }] = await Promise.all([
+      const [{ data: portfolios }, { data: withdrawals }, { data: roiPayments }, { data: notes }] = await Promise.all([
         supabase.from('investor_portfolios')
           .select('investment_amount, total_roi_earned, status, created_at')
           .in('status', ['active', 'matured', 'pending_approval']),
@@ -22,6 +22,9 @@ export function PartnerCapitalFlow() {
           .select('roi_amount, due_date, status')
           .order('payment_date', { ascending: false })
           .limit(500),
+        supabase.from('promissory_notes')
+          .select('amount, total_collected, status, next_deduction_date, created_at')
+          .limit(2000),
       ]);
 
       const totalDeployed = (portfolios || []).filter(p => p.status === 'active').reduce((s, p) => s + (p.investment_amount || 0), 0);
@@ -45,7 +48,52 @@ export function PartnerCapitalFlow() {
       // Net direction
       const recentNet = days14.slice(-7).reduce((s, d) => s + d.net, 0);
 
-      return { totalDeployed, totalROIPaid, pendingWithdrawals, completedWithdrawals, trend: days14, netDirection: recentNet >= 0 ? 'positive' : 'negative', recentNet };
+      // Money vs Time — cumulative deployed capital vs cumulative outflow (90 days)
+      const start90 = startOfDay(subDays(new Date(), 89));
+      const openingIn = (portfolios || [])
+        .filter(p => p.created_at && isBefore(new Date(p.created_at), start90))
+        .reduce((s, p) => s + (p.investment_amount || 0), 0);
+      const openingOut = (withdrawals || [])
+        .filter(w => w.created_at && isBefore(new Date(w.created_at), start90))
+        .reduce((s, w) => s + (w.amount || 0), 0);
+      let cumIn = openingIn;
+      let cumOut = openingOut;
+      const moneyVsTime = Array.from({ length: 90 }, (_, i) => {
+        const day = startOfDay(subDays(new Date(), 89 - i));
+        const dayStr = format(day, 'yyyy-MM-dd');
+        cumIn += (portfolios || [])
+          .filter(p => p.created_at && format(new Date(p.created_at), 'yyyy-MM-dd') === dayStr)
+          .reduce((s, p) => s + (p.investment_amount || 0), 0);
+        cumOut += (withdrawals || [])
+          .filter(w => w.created_at && format(new Date(w.created_at), 'yyyy-MM-dd') === dayStr)
+          .reduce((s, w) => s + (w.amount || 0), 0);
+        return { day: format(day, 'dd MMM'), capitalIn: cumIn, capitalOut: cumOut, netCapital: cumIn - cumOut };
+      });
+
+      // Promissory notes expected — outstanding commitments by expected collection month
+      const outstanding = (n: any) => Math.max(0, (n.amount || 0) - (n.total_collected || 0));
+      const activeNotes = (notes || []).filter(n => ['activated', 'pending', 'approved'].includes(String(n.status)));
+      const months = Array.from({ length: 6 }, (_, i) => startOfMonth(addMonths(new Date(), i)));
+      const promissoryExpected = months.map((m, idx) => {
+        const key = format(m, 'yyyy-MM');
+        const inMonth = (d: string | null) => d && format(new Date(d), 'yyyy-MM') === key;
+        const activated = activeNotes.filter(n => n.status === 'activated' && inMonth(n.next_deduction_date)).reduce((s, n) => s + outstanding(n), 0);
+        const pending = activeNotes.filter(n => n.status !== 'activated' && inMonth(n.next_deduction_date)).reduce((s, n) => s + outstanding(n), 0);
+        // Unscheduled notes (no next deduction date) surface in the first bucket
+        const unscheduled = idx === 0
+          ? activeNotes.filter(n => !n.next_deduction_date).reduce((s, n) => s + outstanding(n), 0)
+          : 0;
+        return { month: format(m, 'MMM yy'), activated, pending: pending + unscheduled };
+      });
+      const promissoryTotalExpected = activeNotes.reduce((s, n) => s + outstanding(n), 0);
+      const promissoryCollected = activeNotes.reduce((s, n) => s + (n.total_collected || 0), 0);
+
+      return {
+        totalDeployed, totalROIPaid, pendingWithdrawals, completedWithdrawals,
+        trend: days14, netDirection: recentNet >= 0 ? 'positive' : 'negative', recentNet,
+        moneyVsTime, promissoryExpected, promissoryTotalExpected, promissoryCollected,
+        promissoryCount: activeNotes.length,
+      };
     },
     staleTime: 600000,
   });
@@ -101,6 +149,45 @@ export function PartnerCapitalFlow() {
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-primary" />Inflow</span>
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500" />Outflow</span>
           </div>
+        </div>
+
+        <div className="border-t pt-3">
+          <p className="text-[10px] text-muted-foreground mb-1">Money vs Time — Cumulative Capital (90 days, UGX)</p>
+          <ResponsiveContainer width="100%" height={160}>
+            <LineChart data={data.moneyVsTime}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+              <XAxis dataKey="day" tick={{ fontSize: 9 }} interval={14} />
+              <YAxis tick={{ fontSize: 9 }} tickFormatter={(v: number) => fmt(v)} width={38} />
+              <Tooltip contentStyle={{ fontSize: 11 }} formatter={(v: number) => `UGX ${fmt(v)}`} />
+              <Legend wrapperStyle={{ fontSize: 9 }} />
+              <Line type="monotone" dataKey="capitalIn" name="Capital In" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="capitalOut" name="Capital Out" stroke="hsl(0 84% 60%)" strokeWidth={1.5} dot={false} />
+              <Line type="monotone" dataKey="netCapital" name="Net Capital" stroke="hsl(142 71% 45%)" strokeWidth={1.5} strokeDasharray="4 3" dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="border-t pt-3">
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-[10px] text-muted-foreground">Promissory Notes Expected (next 6 months, UGX)</p>
+            <Badge variant="outline" className="text-[9px]">
+              {data.promissoryCount} notes · {fmt(data.promissoryTotalExpected)} expected
+            </Badge>
+          </div>
+          <ResponsiveContainer width="100%" height={150}>
+            <BarChart data={data.promissoryExpected}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+              <XAxis dataKey="month" tick={{ fontSize: 9 }} />
+              <YAxis tick={{ fontSize: 9 }} tickFormatter={(v: number) => fmt(v)} width={38} />
+              <Tooltip contentStyle={{ fontSize: 11 }} formatter={(v: number) => `UGX ${fmt(v)}`} />
+              <Legend wrapperStyle={{ fontSize: 9 }} />
+              <Bar dataKey="activated" name="Activated" stackId="p" fill="hsl(var(--primary))" radius={[0, 0, 0, 0]} />
+              <Bar dataKey="pending" name="Awaiting Activation" stackId="p" fill="hsl(38 92% 50%)" radius={[3, 3, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+          <p className="text-[9px] text-muted-foreground mt-1">
+            Collected to date: UGX {fmt(data.promissoryCollected)}
+          </p>
         </div>
       </CardContent>
     </Card>
