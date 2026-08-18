@@ -6,7 +6,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { generateWelileAiId } from '@/lib/welileAiId';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
-import welileLogo from '@/assets/welile-logo.png';
+const welileLogo = '/welile-colored.png';
 
 const NOTCH_PATH =
   'M 20,0 L 334,0 A 20,20 0 0 1 354,20 L 354,144 A 8,8 0 0 1 346,152 L 241,152 A 8,8 0 0 0 233,160 L 233,170 A 20,20 0 0 1 213,190 L 20,190 A 20,20 0 0 1 0,170 L 0,20 A 20,20 0 0 1 20,0 Z';
@@ -66,15 +66,15 @@ export function PartnerPortfolioWalletCard({ onAddCard, onSend, onRequest, onTop
   const name = (profile?.full_name || '').trim().toUpperCase();
 
   if (loading) {
-    return <div className="w-full max-w-[354px] min-w-[280px] mx-auto aspect-[354/190] rounded-[20px] bg-muted animate-pulse" />;
+    return <div className="w-full aspect-[354/190] rounded-[20px] bg-muted animate-pulse" />;
   }
 
   return (
-    <div className="w-full max-w-[354px] min-w-[280px] mx-auto space-y-4">
+    <div className="w-full space-y-4">
       {/* CARD */}
       <div
         className="relative w-full aspect-[354/190]"
-        style={{ filter: 'drop-shadow(0px 8px 22px rgba(99, 26, 186, 0.30))' }}
+        style={{ filter: 'drop-shadow(0px 8px 22px rgba(99, 26, 186, 0.30))', containerType: 'inline-size' }}
       >
         <svg
           className="absolute inset-0 w-full h-full"
@@ -95,28 +95,51 @@ export function PartnerPortfolioWalletCard({ onAddCard, onSend, onRequest, onTop
         </svg>
 
         {/* CONTENT */}
-        <div className="relative z-10 w-full h-full px-4 sm:px-5 pb-4 sm:pb-5 pt-[6px] flex flex-col justify-between text-white select-none">
+        <div
+          className="relative z-10 w-full h-full flex flex-col justify-between text-white select-none"
+          style={{ padding: '1.7cqw 4.5cqw 4.5cqw', paddingTop: '1.7cqw' }}
+        >
           <div className="flex items-center justify-between">
-            <img src={welileLogo} alt="Welile" className="h-4 sm:h-[18px] w-auto brightness-0 invert object-contain block" />
-            <span className="text-[8px] sm:text-[8.5px] font-medium tracking-widest text-white/80 uppercase whitespace-nowrap pr-1">
+            <img
+              src={welileLogo}
+              alt="Welile"
+              className="w-auto brightness-0 invert object-contain block"
+              style={{ height: '5cqw' }}
+            />
+            <span
+              className="font-medium tracking-widest text-white/80 uppercase whitespace-nowrap"
+              style={{ fontSize: '2.4cqw', paddingRight: '0.5cqw' }}
+            >
               WELILE AI ID {aiId}
             </span>
           </div>
 
-          <div className="flex items-end justify-between my-auto pt-1">
+          <div className="flex items-end justify-between my-auto" style={{ paddingTop: '1cqw' }}>
             <div className="flex flex-col">
-              <span className="text-[7.5px] sm:text-[8px] font-medium tracking-wider text-white/70 uppercase mb-0.5 whitespace-nowrap">
+              <span
+                className="font-medium tracking-wider text-white/70 uppercase whitespace-nowrap"
+                style={{ fontSize: '2.25cqw', marginBottom: '0.6cqw' }}
+              >
                 TOTAL PORTFOLIO PRINCIPAL
               </span>
-              <div className="text-xl sm:text-2xl font-extrabold text-white tracking-tight leading-none whitespace-nowrap">
+              <div
+                className="font-extrabold text-white tracking-tight leading-none whitespace-nowrap"
+                style={{ fontSize: '6.8cqw' }}
+              >
                 {formatUGX(totalPrincipal)}
               </div>
             </div>
-            <div className="flex flex-col items-end pl-2 pr-1 shrink-0">
-              <span className="text-[7.5px] sm:text-[8px] font-medium tracking-wider text-white/70 uppercase mb-0.5 text-right whitespace-nowrap">
+            <div className="flex flex-col items-end shrink-0" style={{ paddingLeft: '2cqw', paddingRight: '0.5cqw' }}>
+              <span
+                className="font-medium tracking-wider text-white/70 uppercase text-right whitespace-nowrap"
+                style={{ fontSize: '2.25cqw', marginBottom: '0.6cqw' }}
+              >
                 NEXT PAYOUT
               </span>
-              <div className="text-[9.5px] sm:text-[10px] font-bold text-white/90 leading-none whitespace-nowrap">
+              <div
+                className="font-bold text-white/90 leading-none whitespace-nowrap"
+                style={{ fontSize: '2.9cqw' }}
+              >
                 {payoutLabel}
               </div>
             </div>
@@ -124,10 +147,16 @@ export function PartnerPortfolioWalletCard({ onAddCard, onSend, onRequest, onTop
 
           <div className="flex items-end justify-between">
             <div className="flex flex-col">
-              <span className="text-[7px] sm:text-[7.5px] font-medium tracking-wider text-white/70 uppercase mb-0.5 whitespace-nowrap">
+              <span
+                className="font-medium tracking-wider text-white/70 uppercase whitespace-nowrap"
+                style={{ fontSize: '2.1cqw', marginBottom: '0.6cqw' }}
+              >
                 PARTNER NAME
               </span>
-              <span className="text-[10px] sm:text-[11px] font-bold tracking-wide text-white uppercase truncate max-w-[160px] sm:max-w-[185px] whitespace-nowrap">
+              <span
+                className="font-bold tracking-wide text-white uppercase truncate whitespace-nowrap"
+                style={{ fontSize: '3.1cqw', maxWidth: '52cqw' }}
+              >
                 {name || '—'}
               </span>
             </div>
@@ -138,12 +167,28 @@ export function PartnerPortfolioWalletCard({ onAddCard, onSend, onRequest, onTop
         <button
           type="button"
           onClick={onAddCard}
-          className="absolute bottom-[3px] right-[4px] z-20 w-[108px] sm:w-[114px] h-[30px] sm:h-[32px] bg-black hover:bg-neutral-900 px-2 rounded-full flex items-center justify-center gap-1.5 border border-white/10 shadow-sm transition active:scale-95"
+          className="absolute z-20 bg-black hover:bg-neutral-900 rounded-full flex items-center justify-center border border-white/10 shadow-sm transition active:scale-95"
+          style={{
+            bottom: '0.8cqw',
+            right: '1.1cqw',
+            width: '30cqw',
+            height: '8.6cqw',
+            gap: '1.4cqw',
+            paddingInline: '2cqw',
+          }}
         >
-          <span className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-white flex items-center justify-center shrink-0">
-            <Plus className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-black" strokeWidth={3.5} />
+          <span
+            className="rounded-full bg-white flex items-center justify-center shrink-0"
+            style={{ width: '5.4cqw', height: '5.4cqw' }}
+          >
+            <Plus className="text-black" strokeWidth={3.5} style={{ width: '3.4cqw', height: '3.4cqw' }} />
           </span>
-          <span className="tracking-tight text-white font-bold text-[11px] sm:text-[12px] whitespace-nowrap">Add Card</span>
+          <span
+            className="tracking-tight text-white font-bold whitespace-nowrap"
+            style={{ fontSize: '3.4cqw' }}
+          >
+            Add Card
+          </span>
         </button>
       </div>
 
