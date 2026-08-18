@@ -170,7 +170,6 @@ const DECISION_LABELS: Record<ApplicationDecision, string> = {
   rejected: 'Decline',
 };
 
-const REMOVE_PHRASE = 'REMOVE';
 
 const fmtCount = (n: number) => Math.round(n).toLocaleString();
 
@@ -184,8 +183,6 @@ function ApplicationsTab() {
   const [pending, setPending] = useState<
     { row: JobApplicationRow; kind: ApplicationDecision | 'remove' } | null
   >(null);
-  const [reason, setReason] = useState('');
-  const [typed, setTyped] = useState('');
   const [busy, setBusy] = useState(false);
   // Selection lives as a set of ids so it survives filtering and sorting.
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -339,8 +336,6 @@ function ApplicationsTab() {
 
   const closeConfirm = () => {
     setPending(null);
-    setReason('');
-    setTyped('');
   };
 
   const runPending = async () => {
@@ -352,7 +347,7 @@ function ApplicationsTab() {
         toast.success(`${pending.row.full_name || 'Application'} removed from the list`);
         setSelected(null);
       } else {
-        await recordApplicationDecision(pending.row.id, pending.kind, reason);
+        await recordApplicationDecision(pending.row.id, pending.kind);
         toast.success(
           `${DECISION_LABELS[pending.kind]} recorded for ${pending.row.full_name || 'applicant'}`,
         );
@@ -555,8 +550,6 @@ function ApplicationsTab() {
                           variant="outline"
                           className="h-7 px-2 text-xs"
                           onClick={() => {
-                            setReason('');
-                            setTyped('');
                             setPending({ row, kind: d });
                           }}
                         >
@@ -568,8 +561,6 @@ function ApplicationsTab() {
                         variant="destructive"
                         className="h-7 px-2 text-xs"
                         onClick={() => {
-                          setReason('');
-                          setTyped('');
                           setPending({ row, kind: 'remove' });
                         }}
                       >
@@ -601,8 +592,6 @@ function ApplicationsTab() {
                     size="sm"
                     variant="outline"
                     onClick={() => {
-                      setReason('');
-                      setTyped('');
                       setPending({ row: selected, kind: d });
                     }}
                   >
@@ -613,8 +602,6 @@ function ApplicationsTab() {
                   size="sm"
                   variant="destructive"
                   onClick={() => {
-                    setReason('');
-                    setTyped('');
                     setPending({ row: selected, kind: 'remove' });
                   }}
                 >
@@ -638,34 +625,15 @@ function ApplicationsTab() {
             </AlertDialogTitle>
             <AlertDialogDescription>
               {pending?.kind === 'remove'
-                ? `This hides the application from the list. The record is kept, not deleted. Type ${REMOVE_PHRASE} to confirm.`
-                : 'A recorded decision needs a short reason so it can be read back later.'}
+                ? 'This hides the application from the list. The record is kept, not deleted.'
+                : 'The decision is recorded straight away. No reason is needed.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
-
-          {pending?.kind === 'remove' ? (
-            <Input
-              value={typed}
-              onChange={(e) => setTyped(e.target.value)}
-              placeholder={REMOVE_PHRASE}
-            />
-          ) : (
-            <Input
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="Reason (at least 3 characters)"
-            />
-          )}
 
           <AlertDialogFooter>
             <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              disabled={
-                busy ||
-                (pending?.kind === 'remove'
-                  ? typed.trim().toUpperCase() !== REMOVE_PHRASE
-                  : reason.trim().length < 3)
-              }
+              disabled={busy}
               onClick={(e) => {
                 e.preventDefault();
                 void runPending();
