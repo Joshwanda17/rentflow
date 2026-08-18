@@ -905,6 +905,18 @@ export default function RecruitmentHub() {
   const [requisitions, setRequisitions] = useState<HiringRequisition[]>([]);
   const [postings, setPostings] = useState<JobPosting[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
+
+  const { data: applicationCount } = useQuery({
+    queryKey: ['job-applications-count'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('job_applications')
+        .select('*', { count: 'exact', head: true })
+        .is('purged_at', null);
+      if (error) throw new Error(error.message);
+      return count ?? 0;
+    },
+  });
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
