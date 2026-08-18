@@ -251,27 +251,27 @@ export function AgentMyAdvancesCard() {
               return (
                 <div key={adv.id} className="rounded-xl bg-muted/40 p-3 space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold tabular-nums">{formatUGX(adv.principal)}</span>
+                    <span className="text-[13px] font-semibold tabular-nums truncate">{formatUGX(adv.principal)}</span>
                     <Badge variant={meta.variant} className="gap-1 text-[10px]">
                       <Icon className="h-3 w-3" /> {meta.label}
                     </Badge>
                   </div>
-                  <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="grid grid-cols-3 gap-1.5 text-center">
                     <div>
-                      <p className="text-[9px] uppercase tracking-wider font-bold text-muted-foreground">Owed</p>
-                      <p className="text-xs font-bold tabular-nums">{formatUGX(adv.outstanding_balance)}</p>
+                      <p className="text-[8px] uppercase tracking-wide font-bold text-muted-foreground leading-none">Owed</p>
+                      <p className="text-[11px] font-bold tabular-nums break-all leading-tight mt-0.5">{formatUGX(adv.outstanding_balance)}</p>
                     </div>
                     <div>
-                      <p className="text-[9px] uppercase tracking-wider font-bold text-muted-foreground flex items-center justify-center gap-0.5">
+                      <p className="text-[8px] uppercase tracking-wide font-bold text-muted-foreground leading-none flex items-center justify-center gap-0.5">
                         <TrendingDown className="h-2.5 w-2.5" /> Daily
                       </p>
-                      <p className="text-xs font-bold tabular-nums text-red-500">
+                      <p className="text-[11px] font-bold tabular-nums text-red-500 break-all leading-tight mt-0.5">
                         {adv.status === 'completed' ? '—' : formatUGX(dailyDeduction)}
                       </p>
                     </div>
                     <div>
-                      <p className="text-[9px] uppercase tracking-wider font-bold text-muted-foreground">Days left</p>
-                      <p className="text-xs font-bold tabular-nums">{adv.status === 'completed' ? '—' : `${daysLeft}d`}</p>
+                      <p className="text-[8px] uppercase tracking-wide font-bold text-muted-foreground leading-none">Days left</p>
+                      <p className="text-[11px] font-bold tabular-nums leading-tight mt-0.5">{adv.status === 'completed' ? '—' : `${daysLeft}d`}</p>
                     </div>
                   </div>
                   {interest > 0 && adv.status !== 'completed' && (
