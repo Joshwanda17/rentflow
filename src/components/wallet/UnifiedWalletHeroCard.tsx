@@ -199,13 +199,13 @@ export function UnifiedWalletHeroCard({
             transition={morph ?? { duration: 0.25, ease: MORPH_EASE }}
           >
             <span className="p-1.5 rounded-lg bg-primary-foreground/15 backdrop-blur-sm shrink-0">
-              <Wallet className="h-3.5 w-3.5 text-primary-foreground/90" />
+              <Wallet className="h-3.5 w-3.5 text-white/90" />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-[10px] font-semibold text-primary-foreground/70 uppercase tracking-[0.12em] truncate">
+              <span className="block text-[10px] font-semibold text-white/70 uppercase tracking-[0.12em] truncate">
                 {ROLE_LABELS[role]}
               </span>
-              <span className="block text-lg font-black leading-tight text-primary-foreground truncate">
+              <span className="block text-lg font-black leading-tight text-white truncate">
                 {formatAmount(collapsedHeadline)}
               </span>
             </span>
@@ -213,7 +213,7 @@ export function UnifiedWalletHeroCard({
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               <span className="text-[9px] font-bold text-emerald-300 uppercase tracking-wider">Active</span>
             </span>
-            <ChevronDown className="h-4 w-4 text-primary-foreground/60 shrink-0" />
+            <ChevronDown className="h-4 w-4 text-white/60 shrink-0" />
           </motion.button>
         )}
       </AnimatePresence>
@@ -232,9 +232,9 @@ export function UnifiedWalletHeroCard({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="p-1.5 rounded-lg bg-primary-foreground/15 backdrop-blur-sm">
-              <Wallet className="h-3.5 w-3.5 text-primary-foreground/90" />
+              <Wallet className="h-3.5 w-3.5 text-white/90" />
             </div>
-            <span className="text-[11px] font-semibold text-primary-foreground/80 uppercase tracking-[0.12em]">
+            <span className="text-[11px] font-semibold text-white/80 uppercase tracking-[0.12em]">
               {ROLE_LABELS[role]}
             </span>
           </div>
@@ -250,7 +250,7 @@ export function UnifiedWalletHeroCard({
               aria-label={`Collapse ${ROLE_LABELS[role]}`}
               className="p-1 rounded-full bg-primary-foreground/10 hover:bg-primary-foreground/20 active:scale-95 transition-all"
             >
-              <ChevronDown className="h-4 w-4 rotate-180 text-primary-foreground/70" />
+              <ChevronDown className="h-4 w-4 rotate-180 text-white/70" />
             </button>
           </div>
         </div>
@@ -269,15 +269,15 @@ export function UnifiedWalletHeroCard({
               {floatBalance !== undefined && (
                 <div className="bg-primary-foreground/15 rounded-xl p-3 min-w-0">
                   <div className="flex items-center gap-1.5 mb-1.5">
-                    <PiggyBank className="h-3 w-3 text-primary-foreground/50" />
-                    <p className="text-[9px] uppercase tracking-[0.15em] font-semibold text-primary-foreground/50">Wallet Float</p>
+                    <PiggyBank className="h-3 w-3 text-white/50" />
+                    <p className="text-[9px] uppercase tracking-[0.15em] font-semibold text-white/50">Wallet Float</p>
                   </div>
-                  <p className="text-lg font-black tracking-tight leading-none text-primary-foreground whitespace-nowrap">
+                  <p className="text-lg font-black tracking-tight leading-none text-white whitespace-nowrap">
                     {formatAmount(
                       Math.max(0, (floatBalance ?? 0) - Math.max(0, floatReserved ?? 0)),
                     )}
                   </p>
-                  <p className="text-[9px] text-primary-foreground/40 mt-1 font-medium">
+                  <p className="text-[9px] text-white/40 mt-1 font-medium">
                     {floatCaption ?? 'Tenant collections · Pay Rent'}
                   </p>
                   {!!floatReserved && floatReserved > 0 && (
@@ -296,7 +296,7 @@ export function UnifiedWalletHeroCard({
                   <Coins className="h-3 w-3 text-emerald-400/70" />
                   <p className="text-[9px] uppercase tracking-[0.15em] font-semibold text-emerald-300/70">Withdrawable</p>
                 </div>
-                <p className="text-lg font-black tracking-tight leading-none text-primary-foreground whitespace-nowrap">
+                <p className="text-lg font-black tracking-tight leading-none text-white whitespace-nowrap">
                   {formatAmount(withdrawableBalance ?? 0)}
                 </p>
                 <p className="text-[9px] text-emerald-300/50 mt-1 font-medium">
@@ -307,8 +307,8 @@ export function UnifiedWalletHeroCard({
 
             {/* Total balance row */}
             <div className="flex items-center justify-between mt-3 px-1">
-              <span className="text-[10px] uppercase tracking-[0.12em] font-semibold text-primary-foreground/40">Total Balance</span>
-              <span className="text-sm font-black text-primary-foreground">{formatAmount(balance)}</span>
+              <span className="text-[10px] uppercase tracking-[0.12em] font-semibold text-white/40">Total Balance</span>
+              <span className="text-sm font-black text-white">{formatAmount(balance)}</span>
             </div>
             <p className="mt-2 px-1 text-[10px] text-white font-medium">
               Tap to see how your money moves in and out
@@ -359,34 +359,34 @@ export function UnifiedWalletHeroCard({
               className="bg-primary-foreground/15 rounded-xl p-2.5 text-center active:scale-[0.95] transition-transform"
             >
               {housesLabel
-                ? <Users className="h-3.5 w-3.5 text-primary-foreground/60 mx-auto mb-1" />
-                : <Home className="h-3.5 w-3.5 text-primary-foreground/60 mx-auto mb-1" />}
-              <p className="text-[9px] uppercase tracking-wider text-primary-foreground/50 font-medium">{housesLabel ?? 'Houses'}</p>
-              <p className="text-sm font-black text-primary-foreground mt-0.5 font-mono tabular-nums">{houses ?? 0}</p>
+                ? <Users className="h-3.5 w-3.5 text-white/60 mx-auto mb-1" />
+                : <Home className="h-3.5 w-3.5 text-white/60 mx-auto mb-1" />}
+              <p className="text-[9px] uppercase tracking-wider text-white/50 font-medium">{housesLabel ?? 'Houses'}</p>
+              <p className="text-sm font-black text-white mt-0.5 font-mono tabular-nums">{houses ?? 0}</p>
             </button>
             <button
               onClick={() => { hapticTap(); onReturnTap?.(); }}
               className="bg-primary-foreground/15 rounded-xl p-2.5 text-center active:scale-[0.95] transition-transform"
             >
-              <TrendingUp className="h-3.5 w-3.5 text-primary-foreground/60 mx-auto mb-1" />
-              <p className="text-[9px] uppercase tracking-wider text-primary-foreground/50 font-medium">Return/Mo</p>
-              <p className="text-[11px] font-extrabold text-primary-foreground mt-0.5 font-mono tabular-nums truncate">{returnPerMonth ?? '—'}</p>
+              <TrendingUp className="h-3.5 w-3.5 text-white/60 mx-auto mb-1" />
+              <p className="text-[9px] uppercase tracking-wider text-white/50 font-medium">Return/Mo</p>
+              <p className="text-[11px] font-extrabold text-white mt-0.5 font-mono tabular-nums truncate">{returnPerMonth ?? '—'}</p>
             </button>
             <button
               onClick={() => { hapticTap(); onDeployedTap?.(); }}
               className="bg-primary-foreground/15 rounded-xl p-2.5 text-center active:scale-[0.95] transition-transform"
             >
-              <Rocket className="h-3.5 w-3.5 text-primary-foreground/60 mx-auto mb-1" />
-              <p className="text-[9px] uppercase tracking-wider text-primary-foreground/50 font-medium">Deployed</p>
-              <p className="text-[11px] font-extrabold text-primary-foreground mt-0.5 font-mono tabular-nums truncate">{deployed ?? '—'}</p>
+              <Rocket className="h-3.5 w-3.5 text-white/60 mx-auto mb-1" />
+              <p className="text-[9px] uppercase tracking-wider text-white/50 font-medium">Deployed</p>
+              <p className="text-[11px] font-extrabold text-white mt-0.5 font-mono tabular-nums truncate">{deployed ?? '—'}</p>
             </button>
           </div>
         )}
 
         {secondaryLabel && secondaryValue && !showAgentSplit && (
           <div className="flex items-center justify-between pt-1 border-t border-primary-foreground/[0.08]">
-            <span className="text-[11px] text-primary-foreground/50 font-medium">{secondaryLabel}</span>
-            <span className="text-[11px] text-primary-foreground/70 font-bold">{secondaryValue}</span>
+            <span className="text-[11px] text-white/50 font-medium">{secondaryLabel}</span>
+            <span className="text-[11px] text-white/70 font-bold">{secondaryValue}</span>
           </div>
         )}
 
@@ -416,11 +416,11 @@ export function UnifiedWalletHeroCard({
               <p className="text-[10px] uppercase tracking-[0.12em] font-semibold text-amber-200/90">
                 Balance growing · {(payrollGrowth.dailyRate * 100).toFixed(1)}% / day
               </p>
-              <p className="text-[10px] text-primary-foreground/70 mt-0.5">
-                <span className="font-bold text-primary-foreground">{formatAmount(displayedParked)}</span>
-                <span className="text-primary-foreground/50"> parked · </span>
+              <p className="text-[10px] text-white/70 mt-0.5">
+                <span className="font-bold text-white">{formatAmount(displayedParked)}</span>
+                <span className="text-white/50"> parked · </span>
                 <span className="font-semibold text-emerald-300">+{formatAmount(displayedEarned)}</span>
-                <span className="text-primary-foreground/50"> earned</span>
+                <span className="text-white/50"> earned</span>
               </p>
             </div>
           </div>
@@ -435,7 +435,7 @@ export function UnifiedWalletHeroCard({
           </div>
           <button
             onClick={handleViewStatement}
-            className="relative flex items-center gap-2 px-4 py-2.5 rounded-full bg-primary-foreground/15 hover:bg-primary-foreground/25 active:scale-95 text-primary-foreground font-semibold text-sm shadow-lg ring-2 ring-primary-foreground/40 animate-bell-glow transition-all overflow-hidden group"
+            className="relative flex items-center gap-2 px-4 py-2.5 rounded-full bg-primary-foreground/15 hover:bg-primary-foreground/25 active:scale-95 text-white font-semibold text-sm shadow-lg ring-2 ring-primary-foreground/40 animate-bell-glow transition-all overflow-hidden group"
           >
             <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full bg-gradient-to-r from-transparent via-primary-foreground/30 to-transparent transition-transform duration-1000 ease-out" />
             <span className="relative">View Wallet</span>
