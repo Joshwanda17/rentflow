@@ -35644,6 +35644,13 @@ export type Database = {
         }
         Returns: Json
       }
+      auth_user_ids_by_phone_last9: {
+        Args: { p_last9: string }
+        Returns: {
+          auth_phone: string
+          user_id: string
+        }[]
+      }
       auto_activate_merchant_referral: {
         Args: { p_referrer: string }
         Returns: {

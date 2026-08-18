@@ -90,14 +90,33 @@ serve(async (req) => {
     // Duplicate handling — the caller has proven ownership of this SIM via a
     // recent OTP, so any OTHER account still holding this number is revoked
     // (its phone is cleared) before we assign the number to the caller.
+    // IMPORTANT: a stale holder can exist at the login (auth) level even when
+    // its visible profile phone is a completely different number. Checking only
+    // profiles.phone missed those and the auth update failed with
+    // "phone number already registered". We now union both sources.
     const { data: dupProfiles } = await adminClient
       .from("profiles")
       .select("id")
       .or(`phone.eq.${normalized},phone.eq.${authPhone}`)
       .neq("id", caller.id);
 
+    const { data: dupAuthRows, error: dupAuthErr } = await adminClient.rpc(
+      "auth_user_ids_by_phone_last9",
+      { p_last9: last9 },
+    );
+    if (dupAuthErr) {
+      console.error("auth phone duplicate lookup failed:", dupAuthErr);
+    }
+
+    const dupIds = new Set<string>();
+    for (const p of dupProfiles ?? []) dupIds.add(p.id as string);
+    for (const a of (dupAuthRows ?? []) as { user_id: string }[]) {
+      if (a.user_id && a.user_id !== caller.id) dupIds.add(a.user_id);
+    }
+    dupIds.delete(caller.id);
+
     const revokedFrom: string[] = [];
-    for (const dup of dupProfiles ?? []) {
+    for (const dup of [...dupIds].map((id) => ({ id }))) {
       // Clear the phone on the previous owner's auth account so the unique
       // auth.users phone constraint doesn't block the caller's update.
       const { error: revokeAuthErr } = await adminClient.auth.admin.updateUserById(dup.id, {
@@ -106,8 +125,19 @@ serve(async (req) => {
       if (revokeAuthErr) {
         console.error("failed to revoke auth phone for", dup.id, revokeAuthErr);
       }
-      // Clear the mirrored profile phone.
-      await adminClient.from("profiles").update({ phone: null }).eq("id", dup.id);
+      // Clear the mirrored profile phone ONLY when it is the same number.
+      // A stale auth-level holder can have a legitimately different profile
+      // phone, which must be left intact. Mobile money / withdrawal details
+      // are never touched here.
+      const { data: dupProfile } = await adminClient
+        .from("profiles")
+        .select("phone")
+        .eq("id", dup.id)
+        .maybeSingle();
+      const dupLast9 = (dupProfile?.phone ?? "").replace(/\D/g, "").slice(-9);
+      if (dupLast9 && dupLast9 === last9) {
+        await adminClient.from("profiles").update({ phone: null }).eq("id", dup.id);
+      }
       // Audit the revocation against the previous owner.
       await adminClient.from("audit_logs").insert({
         actor_id: caller.id,
