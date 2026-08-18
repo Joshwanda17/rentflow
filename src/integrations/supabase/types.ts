@@ -37314,9 +37314,10 @@ export type Database = {
         Args: { p_date?: string }
         Returns: Json
       }
-      get_agent_products_overview:
-        | { Args: never; Returns: Json }
-        | { Args: { p_category?: string }; Returns: Json }
+      get_agent_products_overview: {
+        Args: { p_category?: string }
+        Returns: Json
+      }
       get_agent_products_services_report:
         | { Args: { p_date?: string }; Returns: Json }
         | { Args: { p_date?: string; p_from?: string }; Returns: Json }
