@@ -339,11 +339,11 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
               <button
                 key={tenant.id}
                 onClick={() => onOpenTenantSheet(tenant.id)}
-                className="w-full flex items-center gap-3 p-3 rounded-2xl bg-card border-2 border-border/60 active:scale-[0.97] transition-all text-left touch-manipulation shadow-sm hover:shadow-md"
-                style={{ touchAction: 'manipulation', minHeight: '80px' }}
+                className="w-full flex items-center gap-2.5 sm:gap-3 p-2.5 sm:p-3 rounded-2xl bg-card border-2 border-border/60 active:scale-[0.97] transition-all text-left touch-manipulation shadow-sm hover:shadow-md"
+                style={{ touchAction: 'manipulation', minHeight: '72px' }}
               >
                 <div
-                  className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 text-base font-bold ${
+                  className={`w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center shrink-0 text-sm sm:text-base font-bold ${
                     isNotPaying
                       ? 'bg-amber-100 text-amber-700'
                       : hasDebt
@@ -371,26 +371,26 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold text-sm truncate">
+                  <p className="font-bold text-[13px] sm:text-sm truncate">
                     {tenant.full_name?.trim() || 'Tenant'}
                   </p>
                   <span
-                    className={`inline-flex items-center mt-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide ${statusBadge.cls}`}
+                    className={`inline-flex items-center mt-1 px-1.5 sm:px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-bold uppercase tracking-wide ${statusBadge.cls}`}
                   >
                     {statusBadge.label}
                   </span>
                   {tenant.phone && (
-                    <p className="text-xs text-muted-foreground flex items-center gap-1 truncate mt-0.5">
+                    <p className="text-[11px] sm:text-xs text-muted-foreground flex items-center gap-1 truncate mt-0.5">
                       <Phone className="h-3 w-3 shrink-0" />
                       {tenant.phone}
                     </p>
                   )}
                 </div>
-                <div className="text-right shrink-0 flex flex-col items-end min-w-0 max-w-[45%]">
-                  <p className={`text-[10px] font-bold uppercase tracking-wide ${toneText}`}>
+                <div className="text-right shrink-0 flex flex-col items-end min-w-0 max-w-[38%] sm:max-w-[40%]">
+                  <p className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-wide ${toneText}`}>
                     {hasDebt ? 'Owing' : isNotPaying ? 'On hold' : 'Cleared'}
                   </p>
-                  <p className={`font-bold font-mono text-sm ${toneText} truncate`}>
+                  <p className={`font-bold font-mono text-[11px] sm:text-sm ${toneText} truncate`}>
                     {balance > 0 ? formatUGX(balance) : 'UGX 0'}
                   </p>
                 </div>
