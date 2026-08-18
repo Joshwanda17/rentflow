@@ -36,6 +36,7 @@ import { supabase } from '@/hr/api/client';
 import { setMyWorkBadge } from '@/hr/lib/myWorkBadge';
 import type { Department, Employee, MetricDefinition, MetricSnapshot, Task } from '@/hr/types';
 import TaskFormDialog from './TaskFormDialog';
+import TransitionNoteDialog from './TransitionNoteDialog';
 
 
 interface LeadScoreboardRow {
@@ -504,16 +505,19 @@ export default function MyWork({ embedded = false }: MyWorkProps) {
     }
     return buckets.map((b) => ({
       label: b.label,
-      rate: b.created > 0 ? Math.round((b.completed / b.created) * 100) : 0,
       created: b.created,
       completed: b.completed,
     }));
   }, [tasks]);
 
-  const act = async (taskId: string, eventType: 'started' | 'submitted' | 'completed') => {
+  const act = async (
+    taskId: string,
+    eventType: 'started' | 'submitted' | 'completed',
+    note?: string,
+  ) => {
     setBusyTaskId(taskId);
     try {
-      await addTaskEvent({ taskId, eventType });
+      await addTaskEvent({ taskId, eventType, note: note && note.trim() ? note.trim() : null });
       toast.success(`Task ${eventType}`);
       await load();
     } catch (e) {
