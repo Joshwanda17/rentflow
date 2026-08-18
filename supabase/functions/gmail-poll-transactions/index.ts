@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { logDepositDecision } from '../_shared/depositDecisionAudit.ts';
 import { resolvePayoutDebitTarget, logProxyFallbackAudit } from '../_shared/partnership-emails.ts';
 import { attemptYoolaPrimary } from "../_shared/yoolaPrimary.ts";
+import { resolveOwnedRecipientEmail } from "../_shared/ownedRecipientEmail.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -1695,7 +1696,13 @@ async function creditMerchantFloatFromOutboundSms(
         `New float balance: ${fmt(newFloat)}.`;
       await sendSmsViaAfricasTalking(profile.phone, msg);
     }
-    const recipientEmail = (profile as any).email ? String((profile as any).email).trim() : '';
+    // Ownership guard: never email a float receipt to an address that is
+    // shared with (or owned by) another account. See ownedRecipientEmail.ts.
+    const recipientEmail = await resolveOwnedRecipientEmail(
+      supabase,
+      profile.id,
+      'gmail-poll-transactions',
+    );
     if (recipientEmail) {
       const fnUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/send-transactional-email`;
       const sk = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -2312,7 +2319,13 @@ async function _tryAutoCreditOperationalFloat(
     await sendSmsViaAfricasTalking(profile.phone, msg);
 
     // Also email the receipt if we have an email on file.
-    const recipientEmail = (profile as any).email ? String((profile as any).email).trim() : '';
+    // Ownership guard: never email a float receipt to an address that is
+    // shared with (or owned by) another account. See ownedRecipientEmail.ts.
+    const recipientEmail = await resolveOwnedRecipientEmail(
+      supabase,
+      profile.id,
+      'gmail-poll-transactions',
+    );
     if (recipientEmail) {
       try {
         const fnUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/send-transactional-email`;
