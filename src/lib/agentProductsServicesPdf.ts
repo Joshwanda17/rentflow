@@ -67,6 +67,29 @@ export interface ApsReport {
   agent_float_rows: ApsFloatRow[];
 }
 
+/** One cumulative window: everything from `from_date` up to the reporting date. */
+export interface ApsCumulativeWindow {
+  days: number;
+  from_date: string;
+  to_date: string;
+  rent_collected: number;
+  collections_count: number;
+  collecting_agents: number;
+  new_agents: number;
+  advances_issued: number;
+  advances_count: number;
+  advances_recovered: number;
+}
+
+export interface ApsCumulative {
+  as_of: string;
+  timezone: string;
+  windows: ApsCumulativeWindow[];
+}
+
+export const apsWindowLabel = (days: number) =>
+  days === 365 ? 'Last 1 year (365 days)' : `Last ${days} days`;
+
 export function apsPctChange(current: number, previous: number): number | null {
   const c = Number(current) || 0;
   const p = Number(previous) || 0;
