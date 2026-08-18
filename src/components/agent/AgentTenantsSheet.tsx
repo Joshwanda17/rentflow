@@ -1534,15 +1534,15 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
                 });
                 return (
                   <div className="grid grid-cols-2 gap-2">
-                    <div className="rounded-2xl bg-rose-50 border border-rose-200 p-3 text-center">
-                      <p className="text-[10px] uppercase tracking-wide font-bold text-rose-700">{tr('toCollect')}</p>
-                      <p className="text-xl font-extrabold font-mono text-rose-700 leading-tight mt-0.5">
+                    <div className="rounded-2xl bg-rose-50 border border-rose-200 p-2.5 sm:p-3 text-center">
+                      <p className="text-[9px] sm:text-[10px] uppercase tracking-wide font-bold text-rose-700">{tr('toCollect')}</p>
+                      <p className="text-base sm:text-lg font-extrabold font-mono text-rose-700 leading-tight mt-0.5">
                         {formatUGX(totalToCollect)}
                       </p>
                     </div>
-                    <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-3 text-center">
-                      <p className="text-[10px] uppercase tracking-wide font-bold text-emerald-700">{tr('paid')}</p>
-                      <p className="text-xl font-extrabold font-mono text-emerald-700 leading-tight mt-0.5">
+                    <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-2.5 sm:p-3 text-center">
+                      <p className="text-[9px] sm:text-[10px] uppercase tracking-wide font-bold text-emerald-700">{tr('paid')}</p>
+                      <p className="text-base sm:text-lg font-extrabold font-mono text-emerald-700 leading-tight mt-0.5">
                         {formatUGX(totalPaid)}
                       </p>
                     </div>
@@ -1554,11 +1554,11 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
                 onClick={handleShareAllocationReport}
                 disabled={reportSharing}
                 aria-label={simpleLang === 'lg' ? 'Sindika lipoota ya leero' : 'Share daily report'}
-                className="w-full h-14 rounded-2xl bg-primary text-primary-foreground font-bold text-base flex items-center justify-center gap-2 disabled:opacity-60 active:scale-[0.99] transition-transform"
+                className="w-full h-12 sm:h-14 rounded-2xl bg-primary text-primary-foreground font-bold text-sm sm:text-base flex items-center justify-center gap-2 disabled:opacity-60 active:scale-[0.99] transition-transform"
               >
                 {reportSharing
-                  ? <Loader2 className="h-6 w-6 animate-spin" />
-                  : <FileDown className="h-6 w-6" strokeWidth={2.4} />}
+                  ? <Loader2 className="h-5 w-5 sm:h-6 sm:w-6 animate-spin" />
+                  : <FileDown className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={2.4} />}
                 <span>{simpleLang === 'lg' ? 'Sindika lipoota' : 'Share daily report'}</span>
               </button>
               <div className="relative">
@@ -1567,7 +1567,7 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
                   placeholder={tr('searchTenant')}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="pl-11 h-14 rounded-2xl bg-muted/40 border-2 border-primary/40 text-lg"
+                  className="pl-11 h-12 sm:h-14 rounded-2xl bg-muted/40 border-2 border-primary/40 text-base sm:text-lg"
                   style={{ fontSize: '16px' }}
                   aria-label={tr('searchTenant')}
                   inputMode="search"
