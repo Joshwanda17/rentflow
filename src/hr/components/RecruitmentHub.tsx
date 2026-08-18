@@ -1170,7 +1170,7 @@ export default function RecruitmentHub() {
       <Tabs value={tab} onValueChange={setTab} className="space-y-4">
         <TabsList className="grid grid-cols-5 w-full">
         <TabsTrigger value="applications">
-          Applications {applicationCount ? `(${fmtCount(applicationCount)})` : ''}
+          Applications {typeof applicationCount === 'number' ? `(${fmtCount(applicationCount)})` : ''}
         </TabsTrigger>
         <TabsTrigger value="internships" className="relative">
           Internships {typeof internshipCount === 'number' ? `(${fmtCount(internshipCount)})` : ''}
