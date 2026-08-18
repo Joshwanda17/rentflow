@@ -26,12 +26,14 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'owing'>('all');
+  // Tenants whose plan is live and being paid (status `repaying`, marked paying).
   const [activeTenantIds, setActiveTenantIds] = useState<Set<string>>(new Set());
+  // Tenants who finished their rent plan.
+  const [completedTenantIds, setCompletedTenantIds] = useState<Set<string>>(new Set());
+  // Tenants the agent flagged as not paying — kept out of Active / Owing.
+  const [notPayingIds, setNotPayingIds] = useState<Set<string>>(new Set());
+  // Owing = repaying-only outstanding (landlord already paid via float disbursement).
   const [tenantBalances, setTenantBalances] = useState<Record<string, number>>({});
-  // Tenants whose only rent requests are still pre-funding (pending / approved /
-  // returned for correction). They have no plan running yet, so a zero balance
-  // must NOT be shown as "Paid up".
-  const [inReviewIds, setInReviewIds] = useState<Set<string>>(new Set());
   const [tenantAvatars, setTenantAvatars] = useState<Record<string, string>>({});
   const [failedAvatars, setFailedAvatars] = useState<Set<string>>(new Set());
   const fetchSeqRef = useRef(0);
@@ -55,33 +57,42 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
       if (seq !== fetchSeqRef.current) return;
 
       const rows = (data || []) as any[];
-      const tenantList: Tenant[] = rows.map((row) => ({
+      const balances: Record<string, number> = {};
+      const activeIds = new Set<string>();
+      const completedIds = new Set<string>();
+      const notPaying = new Set<string>();
+      const eligibleRows: any[] = [];
+      rows.forEach((row) => {
+        const statuses = ((row.statuses || []) as string[]).filter(Boolean);
+        const paymentStates = ((row.payment_states || []) as string[]).filter(Boolean);
+        const isRepaying = statuses.includes('repaying');
+        const isCompleted = statuses.includes('completed');
+        // Vetting gate: nothing shows until the plan reached `repaying`
+        // (landlord paid via float disbursement) or was completed.
+        if (!isRepaying && !isCompleted) return;
+        eligibleRows.push(row);
+        // Repaying-only outstanding — pre-funding / vetting rows never count.
+        balances[row.id] = Number(row.repaying_balance || 0);
+        const flaggedNotPaying =
+          paymentStates.length > 0 && !paymentStates.some((s) => s !== 'not_paying');
+        if (flaggedNotPaying) notPaying.add(row.id);
+        if (isCompleted) completedIds.add(row.id);
+        if (!flaggedNotPaying && (isRepaying || isCompleted)) activeIds.add(row.id);
+      });
+      setTenantBalances(balances);
+      setActiveTenantIds(activeIds);
+      setCompletedTenantIds(completedIds);
+      setNotPayingIds(notPaying);
+      setTenants(eligibleRows.map((row) => ({
         id: row.id,
         full_name: row.full_name || 'Tenant',
         phone: row.phone || '',
         email: row.email || '',
         created_at: row.created_at,
-      }));
-      setTenants(tenantList);
-
-      const balances: Record<string, number> = {};
-      const activeIds = new Set<string>();
-      const reviewIds = new Set<string>();
-      rows.forEach((row) => {
-        balances[row.id] = Number(row.balance || 0);
-        const statuses = ((row.statuses || []) as string[]).filter(Boolean);
-        if (statuses.some((status) => status !== 'completed')) activeIds.add(row.id);
-        const hasLivePlan = statuses.some((status) =>
-          ['funded', 'disbursed', 'repaying', 'completed'].includes(status)
-        );
-        if (!hasLivePlan && statuses.length > 0) reviewIds.add(row.id);
-      });
-      setTenantBalances(balances);
-      setActiveTenantIds(activeIds);
-      setInReviewIds(reviewIds);
+      })));
 
       // Fetch passport / avatar photos for the tenant list (fallback to initials on missing/broken).
-      const ids = tenantList.map((t) => t.id);
+      const ids = eligibleRows.map((r) => r.id as string);
       if (ids.length > 0) {
         const { data: photoRows } = await supabase
           .from('profiles')
@@ -128,9 +139,11 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
       );
     });
     if (activeFilter === 'active') {
+      // Actively paying or already completed — never a tenant flagged not paying.
       list = list.filter((t) => activeTenantIds.has(t.id));
     } else if (activeFilter === 'owing') {
-      list = list.filter((t) => (tenantBalances[t.id] || 0) > 0);
+      // Landlord already paid (repaying) with money still outstanding.
+      list = list.filter((t) => (tenantBalances[t.id] || 0) > 0 && !notPayingIds.has(t.id));
     }
     list.sort((a, b) => {
       const ba = tenantBalances[a.id] || 0;
@@ -139,7 +152,7 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
       return a.full_name.localeCompare(b.full_name);
     });
     return list;
-  }, [tenants, search, activeFilter, tenantBalances, activeTenantIds]);
+  }, [tenants, search, activeFilter, tenantBalances, activeTenantIds, notPayingIds]);
 
   // Reset pagination whenever the filtered result set changes.
   useEffect(() => {
@@ -153,8 +166,8 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
     [tenants, activeTenantIds]
   );
   const owingCount = useMemo(
-    () => tenants.filter((t) => (tenantBalances[t.id] || 0) > 0).length,
-    [tenants, tenantBalances]
+    () => tenants.filter((t) => (tenantBalances[t.id] || 0) > 0 && !notPayingIds.has(t.id)).length,
+    [tenants, tenantBalances, notPayingIds]
   );
 
   // Source-of-truth total outstanding: sum of per-tenant (deduped) balances
@@ -164,9 +177,9 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
     () =>
       tenants.reduce((sum, t) => {
         const bal = tenantBalances[t.id] || 0;
-        return bal > 0 ? sum + bal : sum;
+        return bal > 0 && !notPayingIds.has(t.id) ? sum + bal : sum;
       }, 0),
-    [tenants, tenantBalances]
+    [tenants, tenantBalances, notPayingIds]
   );
 
   return (
@@ -304,12 +317,20 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
           <>
           {visible.map((tenant) => {
             const balance = tenantBalances[tenant.id] || 0;
-            const hasDebt = balance > 0;
-            const isInReview = !hasDebt && inReviewIds.has(tenant.id);
-            const toneText = hasDebt
-              ? 'text-rose-600'
-              : isInReview
-                ? 'text-amber-600'
+            const isNotPaying = notPayingIds.has(tenant.id);
+            const hasDebt = balance > 0 && !isNotPaying;
+            const isCompleted = !isNotPaying && balance <= 0 && completedTenantIds.has(tenant.id);
+            const statusBadge = isNotPaying
+              ? { label: 'Not paying', cls: 'bg-amber-100 text-amber-700' }
+              : hasDebt
+                ? { label: 'Repaying', cls: 'bg-rose-100 text-rose-700' }
+                : isCompleted
+                  ? { label: 'Completed', cls: 'bg-emerald-100 text-emerald-700' }
+                  : { label: 'Paid up', cls: 'bg-emerald-100 text-emerald-700' };
+            const toneText = isNotPaying
+              ? 'text-amber-600'
+              : hasDebt
+                ? 'text-rose-600'
                 : 'text-emerald-600';
             const initial = (tenant.full_name?.trim()?.charAt(0) || tenant.phone?.charAt(0) || '?').toUpperCase();
             const photoUrl = tenantAvatars[tenant.id];
@@ -323,10 +344,10 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
               >
                 <div
                   className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 text-base font-bold ${
-                    hasDebt
-                      ? 'bg-rose-100 text-rose-700'
-                      : isInReview
-                        ? 'bg-amber-100 text-amber-700'
+                    isNotPaying
+                      ? 'bg-amber-100 text-amber-700'
+                      : hasDebt
+                        ? 'bg-rose-100 text-rose-700'
                         : 'bg-emerald-100 text-emerald-700'
                   } overflow-hidden`}
                 >
@@ -353,6 +374,11 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
                   <p className="font-bold text-sm truncate">
                     {tenant.full_name?.trim() || 'Tenant'}
                   </p>
+                  <span
+                    className={`inline-flex items-center mt-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide ${statusBadge.cls}`}
+                  >
+                    {statusBadge.label}
+                  </span>
                   {tenant.phone && (
                     <p className="text-xs text-muted-foreground flex items-center gap-1 truncate mt-0.5">
                       <Phone className="h-3 w-3 shrink-0" />
@@ -362,10 +388,10 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
                 </div>
                 <div className="text-right shrink-0 flex flex-col items-end min-w-0 max-w-[45%]">
                   <p className={`text-[10px] font-bold uppercase tracking-wide ${toneText}`}>
-                    {hasDebt ? 'Owing' : isInReview ? 'In review' : 'Paid up'}
+                    {hasDebt ? 'Owing' : isNotPaying ? 'On hold' : 'Cleared'}
                   </p>
                   <p className={`font-bold font-mono text-sm ${toneText} truncate`}>
-                    {hasDebt ? formatUGX(balance) : isInReview ? 'Not funded' : 'UGX 0'}
+                    {balance > 0 ? formatUGX(balance) : 'UGX 0'}
                   </p>
                 </div>
               </button>
