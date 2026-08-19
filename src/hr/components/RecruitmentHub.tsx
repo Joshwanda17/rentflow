@@ -88,12 +88,14 @@ import HRInternshipApplications from '@/components/hr/HRInternshipApplications';
 
 const ALL = '__all__';
 const SHORTLIST_1 = 'shortlist_1';
+const SHORTLIST_2 = 'shortlist_2';
 
 const FILTER_OPTIONS: { value: string; label: string; match: (status: string | null) => boolean }[] = [
   { value: ALL, label: 'All', match: () => true },
   { value: 'new', label: 'Shortlist', match: (s) => s === 'new' || s === null || s === '' },
   { value: 'hold', label: 'Hold', match: (s) => s === 'hold' },
   { value: SHORTLIST_1, label: 'Shortlist 1', match: (s) => s === 'shortlisted' },
+  { value: SHORTLIST_2, label: 'Shortlist 2', match: (s) => s === 'shortlisted_2' },
 ];
 
 type ReqStatus = HiringRequisition['status'];
@@ -176,21 +178,28 @@ type JobApplicationRow = Database['public']['Tables']['job_applications']['Row']
 /** Labels for the decision vocabulary. Keyed by the constant, so no status is invented here. */
 const DECISION_LABELS: Record<ApplicationDecision, string> = {
   shortlisted: 'Shortlist',
+  shortlisted_2: 'Shortlist 2',
   hold: 'Hold',
   rejected: 'Decline',
 };
 
 /**
- * Already-shortlisted candidates sit at shortlist level 1, so their shortlist
- * action reads "Shortlist 1" (and is tinted) instead of the plain "Shortlist".
+ * Already-shortlisted candidates sit at shortlist level 1, so their next
+ * shortlist action reads "Shortlist 2" instead of the plain "Shortlist".
  */
-function decisionLabel(d: ApplicationDecision, status: string | null): string {
-  if (d === 'shortlisted' && status === 'shortlisted') return 'Shortlist 1';
+function decisionLabel(d: ApplicationDecision, _status: string | null): string {
   return DECISION_LABELS[d];
 }
 
-const SHORTLIST_LEVEL_1_CLASS =
-  'border-violet-500/50 bg-violet-500/10 text-violet-700 hover:bg-violet-500/20';
+/** Only the actions that make sense for the current status are shown. */
+function decisionsForStatus(status: string | null): ApplicationDecision[] {
+  if (status === 'shortlisted') return ['shortlisted_2', 'hold', 'rejected'];
+  if (status === 'shortlisted_2') return ['hold', 'rejected'];
+  return ['shortlisted', 'hold', 'rejected'];
+}
+
+const SHORTLIST_LEVEL_2_CLASS =
+  'border-fuchsia-500/50 bg-fuchsia-500/10 text-fuchsia-700 hover:bg-fuchsia-500/20';
 
 
 const fmtCount = (n: number) => Math.round(n).toLocaleString();
@@ -662,9 +671,11 @@ function ApplicationsTab() {
                   className={`cursor-pointer ${
                     row.status === 'shortlisted'
                       ? 'bg-violet-50 hover:bg-violet-100'
-                      : row.status === 'hold'
-                        ? 'bg-sky-50 hover:bg-sky-100'
-                        : ''
+                      : row.status === 'shortlisted_2'
+                        ? 'bg-fuchsia-50 hover:bg-fuchsia-100'
+                        : row.status === 'hold'
+                          ? 'bg-sky-50 hover:bg-sky-100'
+                          : ''
                   }`}
                   onClick={() => setSelected(row)}
                 >
@@ -684,9 +695,11 @@ function ApplicationsTab() {
                   <TableCell>
                     {row.status === 'shortlisted'
                       ? 'Shortlist 1'
-                      : row.status
-                        ? row.status.charAt(0).toUpperCase() + row.status.slice(1)
-                        : '—'}
+                      : row.status === 'shortlisted_2'
+                        ? 'Shortlist 2'
+                        : row.status
+                          ? row.status.charAt(0).toUpperCase() + row.status.slice(1)
+                          : '—'}
                   </TableCell>
                   <TableCell>{fmtDateTime(row.created_at)}</TableCell>
                   <TableCell>{row.public_ref || '—'}</TableCell>
@@ -695,15 +708,13 @@ function ApplicationsTab() {
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div className="inline-flex gap-1">
-                      {APPLICATION_DECISIONS.map((d) => (
+                      {decisionsForStatus(row.status).map((d) => (
                         <Button
                           key={d}
                           size="sm"
                           variant="outline"
                           className={`h-7 px-2 text-xs ${
-                            d === 'shortlisted' && row.status === 'shortlisted'
-                              ? SHORTLIST_LEVEL_1_CLASS
-                              : ''
+                            d === 'shortlisted_2' ? SHORTLIST_LEVEL_2_CLASS : ''
                           }`}
                           onClick={() => {
                             setPending({ row, kind: d });
@@ -744,16 +755,12 @@ function ApplicationsTab() {
               <Separator />
               <Label className="text-xs text-muted-foreground">Decision</Label>
               <div className="flex flex-wrap gap-2">
-                {APPLICATION_DECISIONS.map((d) => (
+                {decisionsForStatus(selected.status).map((d) => (
                   <Button
                     key={d}
                     size="sm"
                     variant="outline"
-                    className={
-                      d === 'shortlisted' && selected.status === 'shortlisted'
-                        ? SHORTLIST_LEVEL_1_CLASS
-                        : undefined
-                    }
+                    className={d === 'shortlisted_2' ? SHORTLIST_LEVEL_2_CLASS : undefined}
                     onClick={() => {
                       setPending({ row: selected, kind: d });
                     }}
