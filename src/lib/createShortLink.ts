@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { getPublicOrigin } from '@/lib/getPublicOrigin';
 
 /**
  * Create or retrieve a short link for the given path + params.
@@ -29,7 +30,7 @@ export async function createShortLink(
   };
 
   const existingCode = await findExisting();
-  if (existingCode) return `${window.location.origin}/r/${existingCode}`;
+  if (existingCode) return `${getPublicOrigin()}/r/${existingCode}`;
 
   const { data: created, error } = await supabase
     .from('short_links')
@@ -42,11 +43,11 @@ export async function createShortLink(
     .single();
 
   if (!error && created) {
-    return `${window.location.origin}/r/${created.code}`;
+    return `${getPublicOrigin()}/r/${created.code}`;
   }
 
   const retryCode = await findExisting();
-  if (retryCode) return `${window.location.origin}/r/${retryCode}`;
+  if (retryCode) return `${getPublicOrigin()}/r/${retryCode}`;
 
   throw error ?? new Error('Failed to create short link');
 }
