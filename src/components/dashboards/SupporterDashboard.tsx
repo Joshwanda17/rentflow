@@ -546,7 +546,7 @@ export default function SupporterDashboard({
                 if (!effectiveHasAccepted) { setShowAgreementModal(true); return; }
                 setShowPaymentPartners(true);
               }}
-              className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-primary text-primary-foreground font-bold text-sm shadow-lg shadow-primary/20 active:scale-[0.96] transition-transform touch-manipulation min-h-[48px]"
+              className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-primary text-white font-bold text-sm shadow-lg shadow-primary/20 active:scale-[0.96] transition-transform touch-manipulation min-h-[48px]"
             >
               <CreditCard className="h-4.5 w-4.5" />
               Add Funds
