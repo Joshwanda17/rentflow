@@ -44,6 +44,35 @@ let lastAttempt = 0;
 let forcedSignOut = false;
 let recoveryFailures: number[] = [];
 let recoveryDispatched = false;
+/**
+ * Depth counter for "auth-critical sections" — long user actions that must never
+ * be interrupted by a forced sign-out (camera capture → proof upload is the
+ * canonical case: returning from the phone camera often resumes the page with a
+ * momentarily expired token and no network for a second or two).
+ */
+let criticalDepth = 0;
+
+/** Mark the start of an operation that must not be interrupted by a sign-out. */
+export function beginAuthCriticalSection(): void {
+  criticalDepth += 1;
+}
+
+/** Mark the end of an auth-critical operation. */
+export function endAuthCriticalSection(): void {
+  criticalDepth = Math.max(0, criticalDepth - 1);
+}
+
+/** True while the app must not be booted to /auth (offline, backgrounded, or busy). */
+export function isSignOutSuppressed(): boolean {
+  if (criticalDepth > 0) return true;
+  try {
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return true;
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return true;
+  } catch {
+    /* ignore */
+  }
+  return false;
+}
 
 function recordAuthFailure(reason: string): boolean {
   const now = Date.now();
@@ -92,9 +121,20 @@ async function handleStaleToken(reason: string): Promise<void> {
   inFlight = (async () => {
     try {
       console.warn('[StaleSession] Detected stale token —', reason, '— forcing refresh');
-      const { data, error } = await supabase.auth.refreshSession();
+      // Retry the refresh a few times before concluding the session is dead:
+      // the first attempt right after the page resumes (camera/file picker,
+      // app switch) very often fails purely because the radio is still down.
+      let data: Awaited<ReturnType<typeof supabase.auth.refreshSession>>['data'] | null = null;
+      let error: unknown = null;
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        const res = await supabase.auth.refreshSession();
+        data = res.data;
+        error = res.error;
+        if (!res.error && res.data.session) break;
+        if (attempt < 2) await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+      }
 
-      if (!error && data.session) {
+      if (!error && data?.session) {
         console.info('[StaleSession] Refresh succeeded — rehydrating app state');
         // Success — reset the failure counter.
         recoveryFailures = [];
@@ -109,10 +149,19 @@ async function handleStaleToken(reason: string): Promise<void> {
         return;
       }
 
+      // Never boot the user mid-action (proof upload), while offline, or while
+      // the page is backgrounded — those refresh failures are environmental,
+      // not a dead session. Allow a later attempt instead.
+      if (isSignOutSuppressed()) {
+        console.warn('[StaleSession] Refresh failed but sign-out is suppressed (busy/offline/hidden) — keeping session');
+        lastAttempt = 0;
+        return;
+      }
+
       // Refresh failed → the session is truly dead. Sign out cleanly.
       forcedSignOut = true;
       recordAuthFailure(reason);
-      console.warn('[StaleSession] Refresh failed — signing out:', error?.message);
+      console.warn('[StaleSession] Refresh failed — signing out:', (error as any)?.message);
       try {
         window.dispatchEvent(new CustomEvent(SIGNED_OUT_EVENT, { detail: { reason } }));
       } catch {

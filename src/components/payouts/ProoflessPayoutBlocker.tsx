@@ -8,6 +8,7 @@ import { AlertOctagon, Loader2, Upload, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
+import { beginAuthCriticalSection, endAuthCriticalSection } from '@/lib/staleSessionDetector';
 
 interface ProoflessRow {
   id: string;
@@ -107,6 +108,9 @@ export function ProoflessPayoutBlocker() {
     if (!id || uploadingRef.current) return;
     uploadingRef.current = true;
     setBusyId(id);
+    // Returning from the camera can resume the page with a momentarily expired
+    // token; suppress forced sign-out until the proof is attached.
+    beginAuthCriticalSection();
     try {
       const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
       const path = `${user!.id}/payout-proofs/${id}-${Date.now()}.${ext}`;
@@ -127,6 +131,7 @@ export function ProoflessPayoutBlocker() {
     } catch (e: any) {
       toast.error(e?.message || 'Could not attach the proof');
     } finally {
+      endAuthCriticalSection();
       uploadingRef.current = false;
       setBusyId(null);
     }
