@@ -74,10 +74,14 @@ export function AgentRentCapacityPanel({
   const { agentIds: qualifyingIds, isReady: qualifyingReady } = useQualifyingAgentIds();
   // Default every row to collapsed on load so the operator sees a clean
   // ALLOWED / BLOCKED status card and can tap to drill in.
-  const [rowCollapsed, setRowCollapsed] = useState<Record<string, boolean>>({});
-  const [defaultCollapsed] = useState<boolean>(true);
-  const [allCollapsed, setAllCollapsed] = useState<boolean>(true);
+  // Global collapsed state is the source of truth for rows the user hasn't
+  // explicitly toggled. This keeps the "Collapse All / Expand All" button in
+  // sync with the actual rendered state, including rows loaded via "Load more".
+  const [globalCollapsed, setGlobalCollapsed] = useState<boolean>(true);
+  const [rowOverrides, setRowOverrides] = useState<Record<string, boolean>>({});
   const queryClient = useQueryClient();
+
+  const isRowCollapsed = (agentId: string) => rowOverrides[agentId] ?? globalCollapsed;
 
   // Force a fresh fetch every time the panel mounts (e.g. user switches to
   // the Agent Rent Capacity tab). Without this, a cached fleet snapshot
