@@ -114,7 +114,7 @@ function PriorityTile({
         <p className={cn('text-[10px] uppercase tracking-wide font-medium', highlight ? 'text-amber-700' : 'text-muted-foreground')}>
           {label}
         </p>
-        <p className={cn('text-base font-bold tabular-nums leading-tight tracking-tight truncate mt-0.5', highlight && 'text-amber-900')}>
+        <p className={cn('text-base font-bold tabular-nums leading-tight tracking-tight truncate mt-0.5', highlight ? 'text-amber-900 dark:text-white' : 'dark:text-white')}>
           {valueLabel}
         </p>
         {(sub || statusIcon) && (

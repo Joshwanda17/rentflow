@@ -335,7 +335,7 @@ export default function MyTenantsSection() {
         <div className="flex items-center gap-3">
           <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight">My Tenants</h2>
         </div>
-        <Button onClick={() => setShowAdd(true)} className="gap-2 rounded-xl">
+        <Button onClick={() => setShowAdd(true)} className="gap-2 rounded-xl dark:text-white">
           <Plus className="h-4 w-4" />
           Add Tenant
         </Button>

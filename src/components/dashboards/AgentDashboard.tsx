@@ -1470,7 +1470,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                 </Button>
                 <Button
                   onClick={() => { hapticTap(); setRentRequestOpen(true); }}
-                  className="h-9 sm:h-11 px-3 sm:px-4 text-xs sm:text-sm font-bold rounded-xl gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
+                  className="h-9 sm:h-11 px-3 sm:px-4 text-xs sm:text-sm font-bold rounded-xl gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 dark:text-white"
                 >
                   <UserPlus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   Add Tenant
