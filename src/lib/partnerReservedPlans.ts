@@ -10,12 +10,17 @@ import { supabase } from '@/integrations/supabase/client';
  *
  * One round trip for the whole page (no N+1).
  */
-export type PartnerReservedStage = 'partner_held' | 'partner_committed' | 'partner_funded';
+export type PartnerReservedStage =
+  | 'partner_held'
+  | 'partner_committed'
+  | 'partner_funded'
+  | 'promissory_booked';
 
 export const PARTNER_RESERVED_LABEL: Record<PartnerReservedStage, string> = {
   partner_held: 'PARTNER CLAIMED',
   partner_committed: 'PARTNER CLAIMED',
   partner_funded: 'PARTNER FUNDED',
+  promissory_booked: 'PARTNER BOOKED',
 };
 
 export const PARTNER_RESERVED_HINT: Record<PartnerReservedStage, string> = {
@@ -23,6 +28,8 @@ export const PARTNER_RESERVED_HINT: Record<PartnerReservedStage, string> = {
   partner_committed:
     'A partner has committed this plan and is awaiting Partner Ops approval. On approval the principal goes straight to the agent’s landlord float — do not disburse from company float.',
   partner_funded: 'Already paid for by a partner — the principal is in the agent’s landlord float.',
+  promissory_booked:
+    'Booked on a partner promissory note for 7 days. Company float cannot fund it — if the partner does not fund in time it is released back to this queue automatically.',
 };
 
 /** Reserved stage per rent request (IDs + stage only, never the partner identity). */

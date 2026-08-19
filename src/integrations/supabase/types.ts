@@ -24549,10 +24549,13 @@ export type Database = {
           created_at: string
           id: string
           note_id: string
+          release_reason: string | null
           released_at: string | null
           rent_request_id: string
+          reserved_until: string
           status: string
           updated_at: string
+          warned_at: string | null
         }
         Insert: {
           agent_id: string
@@ -24561,10 +24564,13 @@ export type Database = {
           created_at?: string
           id?: string
           note_id: string
+          release_reason?: string | null
           released_at?: string | null
           rent_request_id: string
+          reserved_until?: string
           status?: string
           updated_at?: string
+          warned_at?: string | null
         }
         Update: {
           agent_id?: string
@@ -24573,10 +24579,13 @@ export type Database = {
           created_at?: string
           id?: string
           note_id?: string
+          release_reason?: string | null
           released_at?: string | null
           rent_request_id?: string
+          reserved_until?: string
           status?: string
           updated_at?: string
+          warned_at?: string | null
         }
         Relationships: [
           {
@@ -24691,6 +24700,74 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "promissory_note_pledge_notices_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: true
+            referencedRelation: "promissory_notes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      promissory_note_release_notices: {
+        Row: {
+          amount: number
+          attempts: number
+          booked_amount: number
+          booked_count: number
+          created_at: string
+          days_left: number
+          email: string | null
+          email_status: string
+          id: string
+          last_error: string | null
+          note_id: string
+          partner_name: string
+          phone: string | null
+          release_at: string
+          sms_status: string
+          tenants: Json
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          attempts?: number
+          booked_amount?: number
+          booked_count?: number
+          created_at?: string
+          days_left?: number
+          email?: string | null
+          email_status?: string
+          id?: string
+          last_error?: string | null
+          note_id: string
+          partner_name: string
+          phone?: string | null
+          release_at: string
+          sms_status?: string
+          tenants?: Json
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          attempts?: number
+          booked_amount?: number
+          booked_count?: number
+          created_at?: string
+          days_left?: number
+          email?: string | null
+          email_status?: string
+          id?: string
+          last_error?: string | null
+          note_id?: string
+          partner_name?: string
+          phone?: string | null
+          release_at?: string
+          sms_status?: string
+          tenants?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promissory_note_release_notices_note_id_fkey"
             columns: ["note_id"]
             isOneToOne: true
             referencedRelation: "promissory_notes"
@@ -35163,6 +35240,86 @@ export type Database = {
           },
         ]
       }
+      v_cfo_promissory_bookings: {
+        Row: {
+          agent_id: string | null
+          agent_name: string | null
+          booked_amount: number | null
+          booked_at: string | null
+          commitment_id: string | null
+          days_left: number | null
+          funded_at: string | null
+          intent_id: string | null
+          is_lapsed: boolean | null
+          is_live: boolean | null
+          note_amount: number | null
+          note_approved_at: string | null
+          note_id: string | null
+          partner_name: string | null
+          partner_user_id: string | null
+          release_reason: string | null
+          released_at: string | null
+          rent_amount: number | null
+          rent_request_id: string | null
+          rent_request_status: string | null
+          reserved_until: string | null
+          self_funding_partner_id: string | null
+          status: string | null
+          tenant_name: string | null
+          warned_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promissory_note_plan_intents_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "promissory_notes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promissory_note_plan_intents_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "rent_request_formula_drift"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promissory_note_plan_intents_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "rent_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promissory_note_plan_intents_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "v_partner_self_fundable_plans"
+            referencedColumns: ["rent_request_id"]
+          },
+          {
+            foreignKeyName: "promissory_note_plan_intents_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_daily_eligibility"
+            referencedColumns: ["rent_request_id"]
+          },
+          {
+            foreignKeyName: "promissory_note_plan_intents_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["rent_request_id"]
+          },
+          {
+            foreignKeyName: "promissory_note_plan_intents_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_ops_tenant_base"
+            referencedColumns: ["rent_request_id"]
+          },
+        ]
+      }
       v_general_ledger_effective: {
         Row: {
           account: string | null
@@ -37323,6 +37480,10 @@ export type Database = {
       }
       cfo_decide_allocation_return: {
         Args: { p_cfo_note?: string; p_decision: string; p_request_id: string }
+        Returns: Json
+      }
+      cfo_promissory_bookings_report: {
+        Args: { p_filter?: string; p_limit?: number; p_offset?: number }
         Returns: Json
       }
       cfo_reconcile_stale_withdrawal: {
@@ -42420,6 +42581,10 @@ export type Database = {
         }[]
       }
       proxy_cc_resolve_agent: { Args: { p_agent_id: string }; Returns: string }
+      psm_assert_no_foreign_booking: {
+        Args: { p_partner: string; p_rent_request_ids: string[] }
+        Returns: undefined
+      }
       psm_audit: {
         Args: {
           p_action: string
@@ -42451,6 +42616,10 @@ export type Database = {
       }
       psm_is_partner: { Args: { p_user: string }; Returns: boolean }
       psm_is_topup_reviewer: { Args: { p_uid: string }; Returns: boolean }
+      psm_plan_booked_for_other: {
+        Args: { p_partner: string; p_rent_request_id: string }
+        Returns: boolean
+      }
       psm_plan_partner_reserved_stage: {
         Args: { p_rent_request_id: string }
         Returns: string
@@ -42459,6 +42628,8 @@ export type Database = {
         Args: { p_note_id: string }
         Returns: undefined
       }
+      psm_queue_promissory_release_warnings: { Args: never; Returns: Json }
+      psm_release_expired_promissory_intents: { Args: never; Returns: Json }
       psm_reserved_plan_ids: {
         Args: { p_rent_request_ids: string[] }
         Returns: {
