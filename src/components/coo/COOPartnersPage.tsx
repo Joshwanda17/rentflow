@@ -4902,6 +4902,8 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
       list = list.filter(p => p.daysUntil < 0);
     } else if (rangeFilter === 'today') {
       list = list.filter(p => p.daysUntil === 0);
+    } else if (rangeFilter === 'tomorrow') {
+      list = list.filter(p => p.daysUntil === 1);
     } else if (rangeFilter === '5') {
       // Weekdays (Mon–Fri) of the current week
       list = list.filter(p => inRange(p.nextPayoutDate, weekMonday, weekFriday));
@@ -4947,6 +4949,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
     switch (rangeFilter) {
       case 'overdue': return 'Overdue only';
       case 'today':   return 'Due today';
+      case 'tomorrow': return 'Due tomorrow';
       case '5':       return 'This week (Mon–Fri)';
       case 'weekend': return 'This weekend (Sat & Sun)';
       case '7':       return 'Next 7 days (incl. overdue ≤ 30d)';
@@ -5841,6 +5844,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="today">Today</SelectItem>
+                    <SelectItem value="tomorrow">Tomorrow</SelectItem>
                     <SelectItem value="5">5 days</SelectItem>
                     <SelectItem value="weekend">Weekend</SelectItem>
                     <SelectItem value="7">7 days</SelectItem>
