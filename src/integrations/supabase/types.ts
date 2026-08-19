@@ -37635,6 +37635,13 @@ export type Database = {
         Args: { p_agent_id: string; p_limit?: number }
         Returns: Json
       }
+      get_agent_commission_earned: {
+        Args: { p_from?: string; p_to?: string }
+        Returns: {
+          agent_id: string
+          commission_earned: number
+        }[]
+      }
       get_agent_daily_activity_report: {
         Args: { p_date?: string }
         Returns: Json
