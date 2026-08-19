@@ -505,7 +505,19 @@ function ApplicationsTab() {
         toast.success(`${pending.row.full_name || 'Application'} removed from the list`);
         setSelected(null);
       } else {
-        await recordApplicationDecision(pending.row.id, pending.kind, undefined, pending.round ?? null);
+        // The target round travels with the decision. `recordApplicationDecision`
+        // in `@/hr/api/applications` still takes three arguments (that file is
+        // out of scope for this change), so the round is written here as part of
+        // the same action. Hold and Decline carry a null round and therefore
+        // leave `shortlist_round` untouched, preserving the level reached.
+        await recordApplicationDecision(pending.row.id, pending.kind);
+        if (pending.round !== null && pending.round !== undefined) {
+          const { error: roundError } = await supabase
+            .from('job_applications')
+            .update({ shortlist_round: pending.round })
+            .eq('id', pending.row.id);
+          if (roundError) throw new Error(roundError.message);
+        }
         toast.success(
           `${DECISION_LABELS[pending.kind]} recorded for ${pending.row.full_name || 'applicant'}`,
         );
