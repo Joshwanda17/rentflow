@@ -410,7 +410,7 @@ export function AgentRentCapacityPanel({
             <DailyRatingThresholdPopover />
             <button
               type="button"
-              onClick={() => setIsSectionCollapsed((v) => !v)}
+              onClick={toggleSectionCollapsed}
               className="inline-flex items-center justify-center h-8 w-8 rounded-lg border border-border bg-background hover:bg-muted transition-colors"
               aria-label={isSectionCollapsed ? 'Expand section' : 'Collapse section'}
               title={isSectionCollapsed ? 'Expand' : 'Collapse'}
