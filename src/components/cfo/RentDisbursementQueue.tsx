@@ -190,7 +190,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
       }
 
       // Read-only enrichment so the existing table can be filtered by district.
-      const listingIds = [...new Set(requests.map(r => (r as any).house_listing_id).filter(Boolean) as string[])];
+      const listingIds = [...new Set(disbursable.map(r => (r as any).house_listing_id).filter(Boolean) as string[])];
       const districtMap = new Map<string, string>();
       if (listingIds.length) {
         const { data: listings } = await supabase
@@ -200,7 +200,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
         for (const l of listings || []) if (l.district) districtMap.set(l.id, l.district);
       }
 
-      return requests.map(r => {
+      return disbursable.map(r => {
         const agentId = r.assigned_agent_id || r.agent_id;
         const hasWallet = walletSet.has(r.landlord_id);
         const loc: any = tenantLocMap.get(r.tenant_id) || {};
