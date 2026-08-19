@@ -1,6 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { checkTreasuryGuard } from "../_shared/treasuryGuard.ts";
 import { sendSMS } from "../_shared/sendSmsMultiProvider.ts";
+import { postBalancedLedgerGroup } from "../_shared/balancedLedgerPost.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -27,8 +28,16 @@ const UUID_RE =
  *
  * It does this the only sanctioned way — by posting a balanced, double-entry
  * WALLET-scope transaction through `create_ledger_transaction`:
- *   • leg 1: cash_out  amount  wallet_bucket='float'        recipient_type='operational_wallet'
- *   • leg 2: cash_in   amount  wallet_bucket='withdrawable'  recipient_type='user'
+ *   • leg 1 (CREDIT source): cash_out amount wallet_bucket='float'
+ *     category='bucket_reclass_out'  recipient_type='operational_wallet'
+ *   • leg 2 (DEBIT destination): cash_in amount wallet_bucket='withdrawable'
+ *     category='bucket_reclass_in'   recipient_type='user'
+ *
+ * Phase 2 (WELILE-LEDGER-TRACE-2): the legs used to reuse `agent_float_assignment`
+ * and `wallet_transfer`, which both price to the SAME side of the account map — so
+ * every reclass wrote two credits (or two debits in reverse) and grew the trial
+ * balance gap. Dedicated reclass categories carry their own mapping rows, and the
+ * group is asserted to net to zero before it is written.
  *
  * Because `wallets` is a view that derives every bucket live from
  * `v_user_wallet_strict` (which routes by the explicit `wallet_bucket` column),
@@ -157,16 +166,16 @@ Deno.serve(async (req) => {
       });
     if (corrErr) return json({ error: corrErr.message }, 403);
 
-    const { data: groupId, error: rpcErr } = await adminClient.rpc(
-      "create_ledger_transaction",
-      {
-        entries: [
+    const posted = await postBalancedLedgerGroup(adminClient, {
+      source: "admin-float-to-withdrawable",
+      referenceId: refId,
+      entries: [
           {
-            // Remove from operational float (company money).
+            // CREDIT the source bucket: remove from operational float (company money).
             user_id: targetUserId,
             amount,
             direction: "cash_out",
-            category: "agent_float_assignment",
+            category: "bucket_reclass_out",
             ledger_scope: "wallet",
             recipient_type: "operational_wallet",
             wallet_bucket: "float",
@@ -179,11 +188,11 @@ Deno.serve(async (req) => {
             description: `Reclass: move UGX ${amount.toLocaleString()} out of Operational Float for ${targetName}: ${reason}`,
           },
           {
-            // Add to the user's own withdrawable money.
+            // DEBIT the destination bucket: add to the user's own withdrawable money.
             user_id: targetUserId,
             amount,
             direction: "cash_in",
-            category: "wallet_transfer",
+            category: "bucket_reclass_in",
             ledger_scope: "wallet",
             recipient_type: "user",
             wallet_bucket: "withdrawable",
@@ -195,13 +204,13 @@ Deno.serve(async (req) => {
             transaction_date: nowIso,
             description: `Reclass: credit UGX ${amount.toLocaleString()} to Withdrawable for ${targetName}: ${reason}`,
           },
-        ],
-        // Both legs are wallet-scope and net to zero; the internal float→withdrawable
-        // move is balanced on its own (cash_in === cash_out).
-        skip_balance_check: true,
-      },
-    );
-    if (rpcErr) return json({ error: `Ledger error: ${rpcErr.message}` }, 500);
+      ],
+      // The engine's withdrawable pre-check would mis-handle the float leg; the
+      // double-entry assertion in postBalancedLedgerGroup is what guards this write.
+      skipBalanceCheck: true,
+    });
+    if (!posted.ok) return json({ error: posted.error }, 500);
+    const groupId = posted.groupId;
 
     // Refresh the cached wallet total (buckets are derived by the view).
     try {
