@@ -376,12 +376,13 @@ export function AgentRentCapacityPanel({
   const canPostCount = rows.filter((r) => r.daily_status !== 'blocked').length;
   const blockedCount = rows.filter((r) => r.daily_status === 'blocked').length;
 
+  const allVisibleCollapsed = visible.every((r) => isRowCollapsed(r.agent_id));
+
   const toggleAll = () => {
-    const nextCollapsed = !allCollapsed;
-    const next: Record<string, boolean> = {};
-    (filtered || []).forEach((r) => { next[r.agent_id] = nextCollapsed; });
-    setRowCollapsed(next);
-    setAllCollapsed(nextCollapsed);
+    const nextGlobal = !allVisibleCollapsed;
+    setGlobalCollapsed(nextGlobal);
+    // Clear per-row overrides so every row follows the new global state.
+    setRowOverrides({});
   };
 
   return (
@@ -480,11 +481,11 @@ export function AgentRentCapacityPanel({
               type="button"
               onClick={toggleAll}
               className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-background hover:bg-muted text-xs font-semibold shrink-0"
-              title={allCollapsed ? 'Expand all agent cards' : 'Collapse all agent cards'}
-              aria-label={allCollapsed ? 'Expand all' : 'Collapse all'}
+              title={allVisibleCollapsed ? 'Expand all agent cards' : 'Collapse all agent cards'}
+              aria-label={allVisibleCollapsed ? 'Expand all' : 'Collapse all'}
             >
-              {allCollapsed ? <Plus className="h-3.5 w-3.5" /> : <Minus className="h-3.5 w-3.5" />}
-              <span className="hidden sm:inline">{allCollapsed ? 'Expand All' : 'Collapse All'}</span>
+              {allVisibleCollapsed ? <Plus className="h-3.5 w-3.5" /> : <Minus className="h-3.5 w-3.5" />}
+              <span className="hidden sm:inline">{allVisibleCollapsed ? 'Expand All' : 'Collapse All'}</span>
             </button>
           )}
         </div>
@@ -503,7 +504,7 @@ export function AgentRentCapacityPanel({
               <CapacityRow
                 key={row.agent_id}
                 row={row}
-                collapsed={rowCollapsed[row.agent_id] ?? defaultCollapsed}
+                collapsed={isRowCollapsed(row.agent_id)}
                 onToggle={() => toggleRow(row.agent_id)}
               />
             ))}
