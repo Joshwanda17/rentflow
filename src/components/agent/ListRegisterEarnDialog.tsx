@@ -109,7 +109,7 @@ export function ListRegisterEarnDialog({ onListHouse, onRegisterTenant }: Props)
 
           {/* CTA stack — thumb-friendly on mobile */}
           <div className="flex flex-col gap-2 pt-1">
-            <Button onClick={() => act(onListHouse)} className="gap-2 font-semibold h-11 text-base">
+            <Button onClick={() => act(onListHouse)} className="gap-2 font-semibold h-11 text-base text-white">
               <Home className="h-4 w-4" /> List a house
             </Button>
             <Button variant="outline" onClick={() => act(onRegisterTenant)} className="gap-2 font-semibold h-11 text-base">
