@@ -356,8 +356,70 @@ export function ExpiringPortfoliosPanel() {
               </table>
             </div>
           )}
+
+          {progress && (
+            <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold flex items-center gap-1.5">
+                  {progress.done
+                    ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                    : <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />}
+                  {progress.done ? 'Maturity notices complete' : 'Sending maturity notices…'}
+                </p>
+                <span className="text-[11px] tabular-nums text-muted-foreground">
+                  {progress.processed}/{progress.queued}
+                </span>
+              </div>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-border">
+                <div
+                  className={cn('h-full rounded-full transition-all', progress.done ? 'bg-emerald-500' : 'bg-primary')}
+                  style={{ width: `${progress.queued ? Math.round((progress.processed / progress.queued) * 100) : 0}%` }}
+                />
+              </div>
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 pt-0.5">
+                {([
+                  ['Queued', progress.queued, 'text-muted-foreground'],
+                  ['Sent', progress.sent, 'text-emerald-600'],
+                  ['Skipped', progress.skipped, 'text-amber-600'],
+                  ['Suppressed', progress.suppressed, 'text-muted-foreground'],
+                  ['Rate-limited', progress.rateLimited, 'text-orange-600'],
+                  ['Failed', progress.failed, 'text-rose-600'],
+                ] as const).map(([label, value, tone]) => (
+                  <div key={label} className="rounded-lg bg-background border border-border px-2 py-1.5 text-center">
+                    <p className={cn('text-base font-bold tabular-nums leading-none', tone)}>{value}</p>
+                    <p className="text-[9px] uppercase tracking-wide text-muted-foreground mt-1">{label}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Send Maturity Notices</AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to send the <strong>"Maturity Notice"</strong> email for{' '}
+              <strong>{confirmPortfolioIds.length} expiring portfolio{confirmPortfolioIds.length === 1 ? '' : 's'}</strong> listed here.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setConfirmPortfolioIds([])}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmSend} disabled={sendingNotices}>
+              {sendingNotices ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                  Sending…
+                </>
+              ) : (
+                <>Send {confirmPortfolioIds.length} Notice{confirmPortfolioIds.length === 1 ? '' : 's'}</>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
