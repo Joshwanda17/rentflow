@@ -546,14 +546,15 @@ export function generateAgentProductsServicesPdf(opts: {
   if (report.rent_rows.length) {
     drawTable(
       `AGENT RENT RECEIVABLES DETAIL (${num(report.rent_rows.length)} agent${report.rent_rows.length === 1 ? '' : 's'})`,
-      ['Agent', 'Phone', 'Plans', 'Daily due', 'Collected today', 'Repaid to date', 'Outstanding', 'Avg days'],
-      [50, 30, 22, 38, 40, 40, 40, 26],
+      ['Agent', 'Phone', 'Plans', 'Daily due', 'Expected (period)', 'Collected', 'Repaid to date', 'Outstanding', 'Avg days'],
+      [44, 26, 16, 32, 36, 34, 34, 36, 28],
       report.rent_rows.map(r => [
         r.agent_name || '—', r.phone || '—', num(r.live_plans),
-        apsUgx(r.daily_receivable), apsUgx(r.collected_today), apsUgx(r.repaid_to_date),
+        apsUgx(r.daily_receivable), apsUgx(apsAgentExpectedTotal(r, expectedDays)),
+        apsUgx(r.collected_today), apsUgx(r.repaid_to_date),
         apsUgx(r.outstanding), num(r.avg_days_outstanding),
       ]),
-      ['left', 'left', 'right', 'right', 'right', 'right', 'right', 'right'],
+      ['left', 'left', 'right', 'right', 'right', 'right', 'right', 'right', 'right'],
     );
   }
 
