@@ -111,7 +111,7 @@ function PriorityTile({
         <ArrowRight className={cn('h-3.5 w-3.5', highlight ? 'text-amber-600' : 'text-muted-foreground/60')} />
       </div>
       <div className="min-w-0 w-full">
-        <p className={cn('text-[10px] uppercase tracking-wide font-medium', highlight ? 'text-amber-700' : 'text-muted-foreground')}>
+        <p className={cn('text-[10px] uppercase tracking-wide font-medium', highlight ? 'text-amber-700 dark:text-white' : 'text-muted-foreground dark:text-white')}>
           {label}
         </p>
         <p className={cn('text-base font-bold tabular-nums leading-tight tracking-tight truncate mt-0.5', highlight ? 'text-amber-900 dark:text-white' : 'dark:text-white')}>
