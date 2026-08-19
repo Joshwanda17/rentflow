@@ -67,14 +67,14 @@ export function PartnerPortfolioWalletCard({ onAddCard, onSend, onRequest, onTop
   const name = (profile?.full_name || '').trim().toUpperCase();
 
   if (loading) {
-    return <div className="w-full aspect-[354/165] max-h-[240px] rounded-[20px] bg-muted animate-pulse" />;
+    return <div className="w-full aspect-[354/200] min-h-[180px] max-h-[280px] rounded-[20px] bg-muted animate-pulse" />;
   }
 
   return (
     <div className="w-full space-y-3">
       {/* CARD */}
       <div
-        className="relative w-full aspect-[354/165] min-h-[150px] max-h-[240px] mx-auto"
+        className="relative w-full aspect-[354/200] min-h-[180px] max-h-[280px] mx-auto"
         style={{
           filter: 'drop-shadow(0px 8px 22px rgba(99, 26, 186, 0.30))',
           containerType: 'inline-size',
@@ -82,13 +82,13 @@ export function PartnerPortfolioWalletCard({ onAddCard, onSend, onRequest, onTop
       >
         <svg
           className="absolute inset-0 w-full h-full"
-          viewBox="0 0 354 165"
+          viewBox="0 0 354 200"
           preserveAspectRatio="none"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
         >
           <defs>
-            <linearGradient id="welilePurpleCardGrad" x1="0" y1="0" x2="354" y2="165" gradientUnits="userSpaceOnUse">
+            <linearGradient id="welilePurpleCardGrad" x1="0" y1="0" x2="354" y2="200" gradientUnits="userSpaceOnUse">
               <stop offset="0%" stopColor="#7321d4" />
               <stop offset="45%" stopColor="#631aba" />
               <stop offset="85%" stopColor="#6219bb" />
@@ -101,14 +101,14 @@ export function PartnerPortfolioWalletCard({ onAddCard, onSend, onRequest, onTop
         {/* CONTENT */}
         <div
           className="relative z-10 w-full h-full flex flex-col justify-between text-white select-none"
-          style={{ padding: 'min(1.4cqw, 8px) min(4.5cqw, 26px) min(3.8cqw, 22px)' }}
+          style={{ padding: 'min(12px, 3.4cqw) min(16px, 4.5cqw) min(18px, 5.1cqw)' }}
         >
           <div className="flex items-center justify-between">
             <img
               src={welileLogo}
               alt="Welile"
               className="w-auto brightness-0 invert object-contain block"
-              style={{ height: 'clamp(12px, 3cqw, 20px)' }}
+              style={{ height: 'clamp(16px, 4cqw, 24px)' }}
             />
             <span
               className="font-medium tracking-widest text-white/80 uppercase whitespace-nowrap"
