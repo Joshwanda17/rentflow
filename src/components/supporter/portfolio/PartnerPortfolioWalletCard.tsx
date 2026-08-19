@@ -152,8 +152,8 @@ export function PartnerPortfolioWalletCard({ onAddCard, onSend, onRequest, onTop
             </div>
           </div>
 
-          <div className="flex items-end justify-between" style={{ marginTop: 'min(-0.5cqw, -2px)' }}>
-            <div className="flex flex-col">
+          <div className="flex items-end justify-between gap-2" style={{ marginTop: 'min(-0.5cqw, -2px)' }}>
+            <div className="flex flex-col min-w-0">
               <span
                 className="font-medium tracking-wider text-white/70 uppercase whitespace-nowrap"
                 style={{ fontSize: 'clamp(8px, 2cqw, 12px)', marginBottom: 'min(0.4cqw, 3px)' }}
@@ -162,41 +162,39 @@ export function PartnerPortfolioWalletCard({ onAddCard, onSend, onRequest, onTop
               </span>
               <span
                 className="font-bold tracking-wide text-white uppercase truncate whitespace-nowrap"
-                style={{ fontSize: 'clamp(11px, 2.9cqw, 17px)', maxWidth: '52cqw' }}
+                style={{ fontSize: 'clamp(11px, 2.9cqw, 17px)' }}
               >
                 {name || '—'}
               </span>
             </div>
+
+            {/* ADD CARD PILL — inline at mobile so it shrinks with the viewport and never overlaps the partner name */}
+            <button
+              type="button"
+              onClick={onAddCard}
+              className="shrink-0 bg-black hover:bg-neutral-900 rounded-full flex items-center justify-center border border-white/10 shadow-sm transition active:scale-95"
+              style={{
+                width: 'clamp(88px, 26cqw, 160px)',
+                height: 'clamp(30px, 8cqw, 44px)',
+                gap: 'min(6px, 1.6cqw)',
+                paddingInline: 'clamp(8px, 2cqw, 14px)',
+              }}
+            >
+              <span
+                className="rounded-full bg-white flex items-center justify-center shrink-0"
+                style={{ width: 'clamp(18px, 4.5cqw, 28px)', height: 'clamp(18px, 4.5cqw, 28px)' }}
+              >
+                <Plus className="text-black" strokeWidth={3.5} style={{ width: 'clamp(11px, 2.7cqw, 16px)', height: 'clamp(11px, 2.7cqw, 16px)' }} />
+              </span>
+              <span
+                className="tracking-tight text-white font-bold whitespace-nowrap"
+                style={{ fontSize: 'clamp(11px, 2.9cqw, 16px)' }}
+              >
+                Add Card
+              </span>
+            </button>
           </div>
         </div>
-
-        {/* ADD CARD PILL */}
-        <button
-          type="button"
-          onClick={onAddCard}
-          className="absolute z-20 bg-black hover:bg-neutral-900 rounded-full flex items-center justify-center border border-white/10 shadow-sm transition active:scale-95"
-          style={{
-            bottom: 'min(10px, 2.8cqw)',
-            right: 'min(10px, 2.8cqw)',
-            width: 'clamp(100px, 30cqw, 170px)',
-            height: 'clamp(34px, 9cqw, 46px)',
-            gap: 'min(8px, 2cqw)',
-            paddingInline: 'clamp(10px, 2.4cqw, 16px)',
-          }}
-        >
-          <span
-            className="rounded-full bg-white flex items-center justify-center shrink-0"
-            style={{ width: 'clamp(20px, 5cqw, 30px)', height: 'clamp(20px, 5cqw, 30px)' }}
-          >
-            <Plus className="text-black" strokeWidth={3.5} style={{ width: 'clamp(12px, 3cqw, 18px)', height: 'clamp(12px, 3cqw, 18px)' }} />
-          </span>
-          <span
-            className="tracking-tight text-white font-bold whitespace-nowrap"
-            style={{ fontSize: 'clamp(12px, 3.2cqw, 18px)' }}
-          >
-            Add Card
-          </span>
-        </button>
       </div>
 
       {/* ACTION ROW */}
