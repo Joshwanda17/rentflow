@@ -41723,6 +41723,19 @@ export type Database = {
         Args: { p_limit?: number; p_threshold?: number }
         Returns: Json
       }
+      record_agent_assisted_signup: {
+        Args: {
+          p_actor_user_id: string
+          p_device_fp?: string
+          p_email?: string
+          p_ip?: string
+          p_phone?: string
+          p_screen?: string
+          p_target_role?: string
+          p_user_agent?: string
+        }
+        Returns: Json
+      }
       record_campaign_click: {
         Args: {
           p_approx_location?: Json
