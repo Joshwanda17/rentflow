@@ -39,6 +39,7 @@ export type PipelineStage =
   | 'agent_ops_approved'
   | 'tenant_ops_approved'
   | 'landlord_ops_approved'
+  | 'partner_ops_approved'
   | 'coo_approved';
 
 interface PipelineConfig {
@@ -82,7 +83,7 @@ const STAGE_CONFIG: Record<PipelineStage, PipelineConfig> = {
   tenant_ops_approved: {
     stage: 'tenant_ops_approved',
     title: '🏠 Landlord Ops Review',
-    approveLabel: 'Approve & Forward to COO',
+    approveLabel: 'Approve & Forward to Partner Ops',
     nextStatus: 'landlord_ops_approved',
     reviewerColumn: 'landlord_ops_reviewed_by',
     reviewerAtColumn: 'landlord_ops_reviewed_at',
@@ -95,6 +96,20 @@ const STAGE_CONFIG: Record<PipelineStage, PipelineConfig> = {
   },
   landlord_ops_approved: {
     stage: 'landlord_ops_approved',
+    title: '🤝 Partner Ops Proxy Attachment',
+    approveLabel: 'Attach Proxy Agent & Forward to COO',
+    nextStatus: 'partner_ops_approved',
+    reviewerColumn: 'partner_ops_reviewed_by',
+    reviewerAtColumn: 'partner_ops_reviewed_at',
+    commentColumn: 'partner_ops_comment',
+    previousCommentColumns: [
+      { column: 'agent_ops_comment', label: 'Agent Ops note' },
+      { column: 'tenant_ops_comment', label: 'Tenant Ops note' },
+      { column: 'landlord_ops_comment', label: 'Landlord Ops note' },
+    ],
+  },
+  partner_ops_approved: {
+    stage: 'partner_ops_approved',
     title: '📋 COO Approval',
     approveLabel: 'Approve & Forward to CFO',
     nextStatus: 'coo_approved',
@@ -105,6 +120,7 @@ const STAGE_CONFIG: Record<PipelineStage, PipelineConfig> = {
       { column: 'agent_ops_comment', label: 'Agent Ops note' },
       { column: 'tenant_ops_comment', label: 'Tenant Ops note' },
       { column: 'landlord_ops_comment', label: 'Landlord Ops note' },
+      { column: 'partner_ops_comment', label: 'Partner Ops note' },
     ],
   },
   coo_approved: {
@@ -130,6 +146,7 @@ const STATUS_COLORS: Record<string, string> = {
   agent_ops_approved: 'bg-cyan-100 text-cyan-700',
   tenant_ops_approved: 'bg-blue-100 text-blue-700',
   landlord_ops_approved: 'bg-indigo-100 text-indigo-700',
+  partner_ops_approved: 'bg-violet-100 text-violet-700',
   coo_approved: 'bg-emerald-100 text-emerald-700',
   funded: 'bg-green-100 text-green-700',
   disbursed: 'bg-teal-100 text-teal-700',
@@ -142,7 +159,8 @@ const STAGE_REJECTOR_LABEL: Record<PipelineStage, string> = {
   pending: 'Agent Ops',
   agent_ops_approved: 'Tenant Ops',
   tenant_ops_approved: 'Landlord Ops',
-  landlord_ops_approved: 'COO',
+  landlord_ops_approved: 'Partner Ops',
+  partner_ops_approved: 'COO',
   coo_approved: 'CFO / Financial Ops',
 };
 
