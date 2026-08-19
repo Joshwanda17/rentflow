@@ -14384,6 +14384,35 @@ export type Database = {
           },
         ]
       }
+      hr_review_weeks: {
+        Row: {
+          created_at: string
+          locked_at: string | null
+          locked_by: string | null
+          week_ending: string
+        }
+        Insert: {
+          created_at?: string
+          locked_at?: string | null
+          locked_by?: string | null
+          week_ending: string
+        }
+        Update: {
+          created_at?: string
+          locked_at?: string | null
+          locked_by?: string | null
+          week_ending?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_review_weeks_locked_by_fkey"
+            columns: ["locked_by"]
+            isOneToOne: false
+            referencedRelation: "hr_staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_staff: {
         Row: {
           active: boolean
@@ -14423,7 +14452,8 @@ export type Database = {
           removed_by: string | null
           size_bytes: number
           storage_path: string
-          task_id: string
+          task_id: string | null
+          ticket_id: string | null
           uploaded_at: string
           uploaded_by: string
         }
@@ -14438,7 +14468,8 @@ export type Database = {
           removed_by?: string | null
           size_bytes: number
           storage_path: string
-          task_id: string
+          task_id?: string | null
+          ticket_id?: string | null
           uploaded_at?: string
           uploaded_by?: string
         }
@@ -14453,7 +14484,8 @@ export type Database = {
           removed_by?: string | null
           size_bytes?: number
           storage_path?: string
-          task_id?: string
+          task_id?: string | null
+          ticket_id?: string | null
           uploaded_at?: string
           uploaded_by?: string
         }
@@ -14470,6 +14502,13 @@ export type Database = {
             columns: ["task_id"]
             isOneToOne: false
             referencedRelation: "hr_tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_task_attachments_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "hr_tickets"
             referencedColumns: ["id"]
           },
         ]
@@ -14587,6 +14626,147 @@ export type Database = {
             columns: ["department_id"]
             isOneToOne: false
             referencedRelation: "hr_departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_ticket_surfaces: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          key: string
+          label: string
+          sort_order: number
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          key: string
+          label: string
+          sort_order?: number
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          key?: string
+          label?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
+      hr_tickets: {
+        Row: {
+          body: string
+          close_reason: string | null
+          closed_no_task_at: string | null
+          closed_no_task_by: string | null
+          duplicate_of_ticket_id: string | null
+          id: string
+          origin: Database["public"]["Enums"]["hr_ticket_origin"]
+          raised_at: string
+          raised_by: string
+          ref: string
+          reported_at: string | null
+          reporter_channel:
+            | Database["public"]["Enums"]["hr_reporter_channel"]
+            | null
+          reporter_contact: string | null
+          reporter_name: string | null
+          reporter_words: string | null
+          resolution_summary: string | null
+          severity: Database["public"]["Enums"]["hr_ticket_severity"]
+          severity_basis: string | null
+          surface_id: string
+          task_id: string | null
+          title: string
+        }
+        Insert: {
+          body: string
+          close_reason?: string | null
+          closed_no_task_at?: string | null
+          closed_no_task_by?: string | null
+          duplicate_of_ticket_id?: string | null
+          id?: string
+          origin: Database["public"]["Enums"]["hr_ticket_origin"]
+          raised_at?: string
+          raised_by: string
+          ref: string
+          reported_at?: string | null
+          reporter_channel?:
+            | Database["public"]["Enums"]["hr_reporter_channel"]
+            | null
+          reporter_contact?: string | null
+          reporter_name?: string | null
+          reporter_words?: string | null
+          resolution_summary?: string | null
+          severity: Database["public"]["Enums"]["hr_ticket_severity"]
+          severity_basis?: string | null
+          surface_id: string
+          task_id?: string | null
+          title: string
+        }
+        Update: {
+          body?: string
+          close_reason?: string | null
+          closed_no_task_at?: string | null
+          closed_no_task_by?: string | null
+          duplicate_of_ticket_id?: string | null
+          id?: string
+          origin?: Database["public"]["Enums"]["hr_ticket_origin"]
+          raised_at?: string
+          raised_by?: string
+          ref?: string
+          reported_at?: string | null
+          reporter_channel?:
+            | Database["public"]["Enums"]["hr_reporter_channel"]
+            | null
+          reporter_contact?: string | null
+          reporter_name?: string | null
+          reporter_words?: string | null
+          resolution_summary?: string | null
+          severity?: Database["public"]["Enums"]["hr_ticket_severity"]
+          severity_basis?: string | null
+          surface_id?: string
+          task_id?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_tickets_closed_no_task_by_fkey"
+            columns: ["closed_no_task_by"]
+            isOneToOne: false
+            referencedRelation: "hr_staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_tickets_duplicate_of_ticket_id_fkey"
+            columns: ["duplicate_of_ticket_id"]
+            isOneToOne: false
+            referencedRelation: "hr_tickets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_tickets_raised_by_fkey"
+            columns: ["raised_by"]
+            isOneToOne: false
+            referencedRelation: "hr_staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_tickets_surface_id_fkey"
+            columns: ["surface_id"]
+            isOneToOne: false
+            referencedRelation: "hr_ticket_surfaces"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_tickets_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "hr_tasks"
             referencedColumns: ["id"]
           },
         ]
