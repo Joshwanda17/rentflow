@@ -226,7 +226,6 @@ export function PartnersOpsDashboard() {
               </CardContent>
             </Card>
           </motion.div>
-          <PendingFunderApprovals />
           <PendingPartnerRequests />
           <NewPartnersPanel />
           <SelfManagedNearingPayouts />
@@ -241,7 +240,7 @@ export function PartnersOpsDashboard() {
       case 'portfolios.pending': return (
         <div className="space-y-6">
           <PendingPartnerRequests />
-          <PendingFunderApprovals />
+          <PendingFunderApprovals defaultExpanded showWhenEmpty />
         </div>
       );
       case 'portfolios.expiring': return <SelfManagedNearingPayouts />;

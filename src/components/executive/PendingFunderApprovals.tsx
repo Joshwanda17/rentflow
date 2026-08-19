@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import {
-  UserCheck, UserX, Phone, Clock, Shield, AlertTriangle, Loader2, Users,
+  UserCheck, UserX, Phone, Clock, Shield, AlertTriangle, Loader2, Users, Inbox,
 } from 'lucide-react';
 
 interface PendingFunder {
@@ -28,9 +28,16 @@ interface PendingFunder {
   investmentTotal: number;
 }
 
-export function PendingFunderApprovals() {
+interface Props {
+  /** Start expanded (used on the dedicated Pending Portfolios view). */
+  defaultExpanded?: boolean;
+  /** Render the section (with an empty state) even when there is nothing pending. */
+  showWhenEmpty?: boolean;
+}
+
+export function PendingFunderApprovals({ defaultExpanded = false, showWhenEmpty = false }: Props = {}) {
   const { user } = useAuth();
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [rejectId, setRejectId] = useState<string | null>(null);
@@ -204,19 +211,21 @@ export function PendingFunderApprovals() {
   });
 
   const count = pending?.length || 0;
-  if (!isLoading && count === 0) return null;
+  if (!isLoading && count === 0 && !showWhenEmpty) return null;
+
+  const isEmpty = !isLoading && count === 0;
 
   return (
     <>
-      <Card className="border-warning/40 bg-warning/5">
+      <Card className={cn(isEmpty ? 'border-border/60' : 'border-warning/40 bg-warning/5')}>
         <CardContent className="p-4 space-y-3">
           <button
             onClick={() => setIsExpanded(!isExpanded)}
             className="flex items-center justify-between w-full text-left"
           >
             <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-warning/15">
-                <Shield className="h-4 w-4 text-warning" />
+              <div className={cn('p-1.5 rounded-lg', isEmpty ? 'bg-muted' : 'bg-warning/15')}>
+                <Shield className={cn('h-4 w-4', isEmpty ? 'text-muted-foreground' : 'text-warning')} />
               </div>
               <div>
                 <h3 className="text-sm font-bold">Pending Funder Approvals</h3>
@@ -236,6 +245,14 @@ export function PendingFunderApprovals() {
           {isExpanded && (isLoading ? (
             <div className="space-y-2">
               {[1, 2].map(i => <Skeleton key={i} className="h-20 w-full rounded-xl" />)}
+            </div>
+          ) : isEmpty ? (
+            <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border/70 py-8 text-center">
+              <Inbox className="h-7 w-7 text-muted-foreground/70" />
+              <p className="text-sm font-semibold">No pending funder approvals</p>
+              <p className="text-[11px] text-muted-foreground max-w-[260px]">
+                Every agent-registered funder has been verified. New registrations will appear here for approval.
+              </p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -257,33 +274,39 @@ export function PendingFunderApprovals() {
                       </Badge>
                     </div>
 
-                    <div className="text-[10px] text-muted-foreground space-y-0.5">
-                      <p>
-                        <span className="font-medium text-foreground">Registered by:</span>{' '}
-                        {p.agent?.full_name || 'Unknown agent'}
-                        {p.agent?.phone && <span className="ml-1">({p.agent.phone})</span>}
-                      </p>
-                      {p.reason && (
-                        <p><span className="font-medium text-foreground">Reason:</span> {p.reason}</p>
-                      )}
-                      <p>
-                        <span className="font-medium text-foreground">Date:</span>{' '}
-                        {format(new Date(p.created_at), 'dd MMM yyyy, HH:mm')}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-3 rounded-lg bg-muted/50 px-2.5 py-1.5">
-                        <div className="text-[10px]">
-                          <span className="text-muted-foreground">Invested:</span>{' '}
-                          <span className="font-semibold text-foreground">UGX {p.investmentTotal.toLocaleString()}</span>
-                        </div>
-                        <div className="text-[10px]">
-                          <span className="text-muted-foreground">Accrued (not yet paid):</span>{' '}
-                          <span className={cn("font-semibold", p.accruedReturns > 0 ? "text-success" : "text-muted-foreground")}>
-                            UGX {p.accruedReturns.toLocaleString()}
-                          </span>
-                        </div>
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[10px]">
+                      <div className="min-w-0">
+                        <p className="text-muted-foreground uppercase tracking-wide">Registered by</p>
+                        <p className="font-semibold text-foreground truncate">
+                          {p.agent?.full_name || 'Unknown agent'}
+                        </p>
+                        {p.agent?.phone && <p className="text-muted-foreground">{p.agent.phone}</p>}
                       </div>
+                      <div className="min-w-0">
+                        <p className="text-muted-foreground uppercase tracking-wide">Registered on</p>
+                        <p className="font-semibold text-foreground">
+                          {format(new Date(p.created_at), 'dd MMM yyyy, HH:mm')}
+                        </p>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-muted-foreground uppercase tracking-wide">Active Funds</p>
+                        <p className="font-semibold text-foreground tabular-nums">
+                          UGX {p.investmentTotal.toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-muted-foreground uppercase tracking-wide">Accrued (unpaid)</p>
+                        <p className={cn('font-semibold tabular-nums', p.accruedReturns > 0 ? 'text-success' : 'text-muted-foreground')}>
+                          UGX {p.accruedReturns.toLocaleString()}
+                        </p>
+                      </div>
+                      {p.reason && (
+                        <div className="col-span-2 min-w-0">
+                          <p className="text-muted-foreground uppercase tracking-wide">Reason</p>
+                          <p className="text-foreground">{p.reason}</p>
+                        </div>
+                      )}
+                    </div>
 
                     <div className="flex gap-2 pt-1">
                       <Button
