@@ -656,9 +656,9 @@ function SummaryItem({ label, value, caption, valueColor }: {
 }) {
   return (
     <div className="min-w-0">
-      <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide truncate">{label}</p>
-      <p className={`text-base sm:text-lg font-bold font-mono tabular-nums leading-tight mt-1 ${valueColor || ''}`}>{value}</p>
-      <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{caption}</p>
+      <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider leading-tight">{label}</p>
+      <p className={`text-sm sm:text-base font-bold font-mono tabular-nums leading-tight mt-1.5 ${valueColor || ''}`}>{value}</p>
+      <p className="text-[10px] text-muted-foreground mt-1 leading-tight">{caption}</p>
     </div>
   );
 }
