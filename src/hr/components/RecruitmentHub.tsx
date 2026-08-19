@@ -353,7 +353,8 @@ function ApplicationsTab() {
     }
 
     if (statusFilter !== ALL) {
-      data = data.filter((r) => (r.status ?? '—') === statusFilter);
+      const option = FILTER_OPTIONS.find((o) => o.value === statusFilter);
+      data = data.filter((r) => option?.match(r.status) ?? false);
     }
 
     const sorted = [...data];
