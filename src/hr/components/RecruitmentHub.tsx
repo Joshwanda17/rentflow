@@ -87,6 +87,14 @@ import type {
 import HRInternshipApplications from '@/components/hr/HRInternshipApplications';
 
 const ALL = '__all__';
+const SHORTLIST_1 = 'shortlist_1';
+
+const FILTER_OPTIONS: { value: string; label: string; match: (status: string | null) => boolean }[] = [
+  { value: ALL, label: 'All', match: () => true },
+  { value: 'new', label: 'Shortlist', match: (s) => s === 'new' || s === null || s === '' },
+  { value: 'hold', label: 'Hold', match: (s) => s === 'hold' },
+  { value: SHORTLIST_1, label: 'Shortlist 1', match: (s) => s === 'shortlisted' },
+];
 
 type ReqStatus = HiringRequisition['status'];
 
@@ -330,11 +338,7 @@ function ApplicationsTab() {
   }, [refetchRemovedCount]);
 
 
-  const statuses = useMemo(() => {
-    const set = new Set<string>();
-    rows.forEach((r) => set.add(r.status ?? '—'));
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [rows]);
+  const statuses = useMemo(() => FILTER_OPTIONS, []);
 
   const filteredSorted = useMemo(() => {
     let data = rows;
@@ -349,7 +353,8 @@ function ApplicationsTab() {
     }
 
     if (statusFilter !== ALL) {
-      data = data.filter((r) => (r.status ?? '—') === statusFilter);
+      const option = FILTER_OPTIONS.find((o) => o.value === statusFilter);
+      data = data.filter((r) => option?.match(r.status) ?? false);
     }
 
     const sorted = [...data];
@@ -534,10 +539,9 @@ function ApplicationsTab() {
             <SelectValue placeholder="Filter by status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={ALL}>all</SelectItem>
             {statuses.map((s) => (
-              <SelectItem key={s} value={s}>
-                {s}
+              <SelectItem key={s.value} value={s.value}>
+                {s.label}
               </SelectItem>
             ))}
           </SelectContent>
@@ -657,7 +661,7 @@ function ApplicationsTab() {
                   key={row.id}
                   className={`cursor-pointer ${
                     row.status === 'shortlisted'
-                      ? 'bg-emerald-50 hover:bg-emerald-100'
+                      ? 'bg-violet-50 hover:bg-violet-100'
                       : row.status === 'hold'
                         ? 'bg-sky-50 hover:bg-sky-100'
                         : ''
@@ -677,7 +681,13 @@ function ApplicationsTab() {
                   <TableCell>{row.category || '—'}</TableCell>
                   <TableCell>{row.location || '—'}</TableCell>
                   <TableCell>{row.experience_level || '—'}</TableCell>
-                  <TableCell>{row.status || '—'}</TableCell>
+                  <TableCell>
+                    {row.status === 'shortlisted'
+                      ? 'Shortlist 1'
+                      : row.status
+                        ? row.status.charAt(0).toUpperCase() + row.status.slice(1)
+                        : '—'}
+                  </TableCell>
                   <TableCell>{fmtDateTime(row.created_at)}</TableCell>
                   <TableCell>{row.public_ref || '—'}</TableCell>
                   <TableCell
