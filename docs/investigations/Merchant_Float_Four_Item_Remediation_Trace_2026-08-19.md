@@ -352,3 +352,98 @@ before any haircut for the 243,063,727 of unevidenced credits described in Item 
 **Data-quality flag:** two distinct profiles carry near-identical names — `Bayo Mercy`
 (cfa56623-e6cb-4023-b601-3dbd4fdbc027, the owed desk) and `Mercy Bayo` (separate id, holder of
 35,000,000 of `PAY-*` credits). Confirm these are separate humans before any settlement.
+
+---
+
+# ADDENDUM C — Candidate lists awaiting sign-off (nothing posted)
+
+Governance accepted for every reversing entry: named non-conflicted CFO/FinOps officer, guarded
+fail-closed pre-check, unique `idempotency_key`, explicit prior-reversal interlock on the same
+`source_id`, one item at a time with a fresh trace between items.
+
+## Authorizing officer eligibility
+
+| Officer | Role | Eligible | Reason |
+|---|---|---|---|
+| Benjamin Muhanguzi (cf561688-b3a2-4f62-b9c1-67ee7b36ff2b) | cfo | **Yes** | Not a desk holder in any item; did not author the 14/17 Aug defects |
+| Angwen Sarah (29a0cfa8-1eaf-453c-874c-0fc72fa4f74b) | cfo | **Yes** | Not a desk holder in any item |
+| Joshua Wanda (cb798acb-68bc-4b4e-a414-a3d374e030b6) | cfo | **No** | Desk holder on 3 of the 15 Item 1 deposits (3,150,000) — self-authorization |
+| Nankambo Sharimah (59d45ad2-0d44-433c-b4ec-20927a25c281) | financial_ops | **No** | Desk holder on Item 1 deposit 9bdee02a (3,000,000) |
+
+The 14 Aug double reversal and the 17 Aug duplicate credit were posted by **migration**, not by an
+authenticated user — no `audit_logs` actor exists for them, so no officer is excluded on causation
+grounds beyond the two desk-holder conflicts above.
+
+## Interlock state verified 19 Aug (pre-flight, read-only)
+
+- Zero legs exist against any of the 15 Item 1 `source_id`s dated after 2026-08-14 → no third
+  correcting leg, confirming the population is still uncorrected and un-double-corrected.
+- Zero collisions for the proposed key namespaces `mfc1-restore-*` and `mfc2-credit-declass-*`.
+
+## Candidate list 1 — restore the 15 double-debited float deposits
+
+- Scope: 15 legs, one per `source_id`, total **UGX 32,810,000**, 8 desks.
+- Posting shape: `wallet_bucket='float'`, `direction='cash_in'`,
+  `category='system_balance_correction'`, `classification='admin_correction'`,
+  `source_table='deposit_requests'`, `source_id` = the original deposit,
+  `idempotency_key='mfc1-restore-<source_id>'`, `reference_id` = the original provider TID.
+- Category choice is deliberate: `agent_float_deposit` would re-enter `float_credits_recorded`
+  next to the surviving original and spuriously erase UGX 6,106,623 of platform owed.
+- Pre-check (fail closed, per source_id): exactly 1 production `cash_in` leg **and** exactly 2
+  `admin_correction` `cash_out` legs of the same amount **and** 0 legs with key prefix
+  `mfc1-restore-`; otherwise `RAISE EXCEPTION` and post nothing.
+- Expected effect: `merchant_ledger_float()` +32,810,000 in aggregate;
+  `owed_to_agent` unchanged (**delta 0**); platform owed stays 88,203,296.
+- Secondary, separate sign-off: re-link the 15 `gmail_transactions` rows nulled on 14 Aug and
+  reverse the false "not an approved credit" rejection reasons on the 15 `deposit_requests`.
+
+## Candidate list 2 — declassify the Bayo Mercy duplicate opening-balance credit
+
+- Scope: 1 leg, `b1c251b4-3614-40d8-ad8d-a1474cbf75eb`, **UGX 36,780,000**, desk
+  `1c9bb2f6-3f95-47d7-8e56-f291c79d1261`, agent `cfa56623-…198c`.
+- Wallet balance is already correct — the only defect is that the 17 Aug reversal
+  (`38363eb8`) was `admin_correction`, so the duplicate credit still counts toward
+  `float_credits_recorded`.
+- Posting shape (option A, preferred): a `production` `cash_out` `agent_float_deposit` contra leg keyed
+  `mfc2-credit-declass-2132e8da-…` so the pair nets to zero inside the owed formula, plus a
+  compensating `admin_correction` `cash_in` so the wallet float does not move. Option B (reclassify
+  `b1c251b4` in place) is rejected — it mutates a historical production row.
+- Pre-check: `merchant_ledger_float(cfa56623…)` = **500,000** exactly; `b1c251b4` still
+  `production`/`cash_in`; `38363eb8` present; 0 legs keyed `mfc2-credit-declass-%`.
+  Any mismatch → `RAISE EXCEPTION`.
+- Expected effect: Bayo Mercy `owed_to_agent` 41,308,031 → **78,088,031**; platform
+  88,203,296 → **124,983,296**; wallet float unchanged at 500,000.
+- Also flagged for the same sign-off: her `opening_balance` recon rows total 36,980,000
+  (22b21079 100,000 · fed1ba1a 100,000 · 2132e8da 36,780,000) against a real opening of 200,000, and
+  `1b68a9ee` (1,000,000 write-down) carries the note `0 NGBGFFFHHGGG VHHHJ`.
+- **The pre-existing draft reversal is stale and must be deleted, not run** (it expects 49,780,000).
+
+## Candidate list 3 — correction queue: no ledger reversal proposed, CFO adjudication only
+
+- 161 debit legs (639,214,680) cannot move `owed_to_agent`; reversing them would move wallet floats
+  that have since been settled. No blanket reversal is proposed.
+- Adjudication list A — **4 legs / UGX 2,035,800** with neither provider evidence nor an
+  intelligible justification (notes such as `HHDGDGVGF HHH`, `gthngdfghjkmnhhj`).
+- Adjudication list B — **97 legs / UGX 409,098,926** posted by an operator against their own desk.
+- Adjudication list C — **11 `PAY-*` legs** with no `audit_logs` row at all: no actor, no role,
+  no justification.
+- Adjudication list D — **89 `cash_in` legs / UGX 572,462,864** whose `reference_id` is a self-minted
+  `PAY-*`/`FXW-*` string with no `gmail_transactions` match. These *suppress* owed
+  (243,063,727 of them sit on the five owed desks). Any disallowance raises platform owed and needs
+  its own sign-off per desk.
+
+## Candidate list 4 — sweep credits: nothing to post
+
+Population void — the 30 `sweep-*` legs are Item 1's debits (2 per source_id × 15), 15/15
+TID-corroborated. Item closed with no entry.
+
+## Out-of-scope defects that actually drive the headline (no reversal fixes them)
+
+1. `get_merchant_float_positions.paid_out_total` has no `payout_method` filter →
+   **UGX 62,342,175 (70.7%)** of the headline is bank transfers charged to desks that never funded
+   them. This is a **code fix**, not a ledger correction.
+2. The `assigned_cashout_agent_id OR processed_by` disjunction double-counts 10 withdrawals across two
+   desks each — up to **UGX 10,107,036**.
+3. Reconcile the two similarly named profiles `Bayo Mercy` and `Mercy Bayo` before any settlement.
+
+Posting order requested: 1 → fresh trace → 2 → fresh trace → (3 adjudication) → code fix.
