@@ -8,6 +8,7 @@ import {
   type SmsAttemptRecord,
 } from "./smsDeliveryLog.ts";
 import { appendSupportFooter } from "./smsFooter.ts";
+import { confirmYoolaDelivery, extractYoolaMessageId } from "./yoolaDeliveryConfirm.ts";
 
 export function formatPhoneInternational(phone: string): string {
   const digits = (phone || "").replace(/[^0-9]/g, "");
@@ -31,9 +32,10 @@ async function sendViaYoola(phone: string, message: string) {
     const res = await fetch("https://yoolasms.com/api/v1/send", {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
-      // WELILE is the registered sender ID across all providers and must be
-      // set explicitly on every SMS call site.
-      body: JSON.stringify({ phone: toMsisdn(phone), message, api_key: apiKey, sender: "WELILE" }),
+      // Do NOT set `sender` here: "WELILE" is not registered with Yoola and
+      // carriers silently drop messages sent under it (they sit at "pending"
+      // forever). Omitting the field makes Yoola use its registered default.
+      body: JSON.stringify({ phone: toMsisdn(phone), message, api_key: apiKey }),
     });
     const raw = await res.text();
     let data: any; try { data = JSON.parse(raw); } catch { data = null; }
