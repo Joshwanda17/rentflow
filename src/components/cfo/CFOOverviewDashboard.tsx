@@ -217,18 +217,6 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
         </div>
       </div>
 
-      {/* ── PAY TO WALLET ── */}
-      {onTabChange && (
-        <div className="flex justify-end">
-          <button
-            onClick={() => onTabChange('wallet-payout')}
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
-          >
-            <Wallet className="h-3.5 w-3.5" />
-            Send Money to Wallet
-          </button>
-        </div>
-      )}
 
       {/* ══════════════ THREE HEADLINE CARDS ══════════════ */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
