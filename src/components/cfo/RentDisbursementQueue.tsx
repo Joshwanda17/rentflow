@@ -981,6 +981,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
                         <tbody>
                       {group.rows.map(item => {
                         const isSel = selected.has(item.id);
+                        const reserved = item.partner_reserved_stage;
                         const locationLabel = [item.request_city, item.request_country].filter(Boolean).join(', ');
                         return (
                         <Fragment key={item.id}>
@@ -988,21 +989,30 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
                           onClick={() => toggle(item.id)}
                           className={cn(
                             'border-b border-border/70 last:border-0 cursor-pointer transition-colors',
-                            isSel
+                            reserved
+                              ? 'bg-muted/30 cursor-not-allowed opacity-80'
+                              : isSel
                               ? 'bg-primary/[0.07] shadow-[inset_3px_0_0_0_hsl(var(--primary))]'
                               : 'hover:bg-muted/40'
                           )}
+                          title={reserved ? PARTNER_RESERVED_HINT[reserved] : undefined}
                         >
                           <td className="px-2 py-2.5 align-middle" onClick={e => e.stopPropagation()}>
                             <Checkbox
-                              checked={selected.has(item.id)}
+                              checked={!reserved && selected.has(item.id)}
+                              disabled={!!reserved}
                               onCheckedChange={() => toggle(item.id)}
                             />
                           </td>
                           <td className="px-2 py-2.5 align-middle">
                             <div className="flex items-center gap-1.5 min-w-0">
                               <span className={cn('truncate', isSel ? 'font-bold' : 'font-semibold')}>{item.tenant_name}</span>
-                              {isSel && (
+                              {reserved && (
+                                <Badge className="text-[9px] px-1.5 py-0 shrink-0 rounded-full bg-violet-100 text-violet-700 border-violet-200">
+                                  {PARTNER_RESERVED_LABEL[reserved]}
+                                </Badge>
+                              )}
+                              {!reserved && isSel && (
                                 <Badge className="text-[9px] px-1.5 py-0 shrink-0 bg-primary text-primary-foreground border-0">
                                   SELECTED
                                 </Badge>
