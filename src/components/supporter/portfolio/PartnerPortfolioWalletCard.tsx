@@ -178,6 +178,7 @@ export function PartnerPortfolioWalletCard({ onAddCard, onSend, onRequest, onTop
                 height: 'clamp(30px, 8cqw, 44px)',
                 gap: 'min(6px, 1.6cqw)',
                 paddingInline: 'clamp(8px, 2cqw, 14px)',
+                marginTop: 'min(2.5cqw, 12px)',
               }}
             >
               <span
