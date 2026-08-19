@@ -51,6 +51,9 @@ const STATUS_COLORS: Record<string, string> = {
   blocked_ip: 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
   blocked_device: 'bg-orange-500/15 text-orange-700 dark:text-orange-400',
   blocked_verification: 'bg-red-500/15 text-red-700 dark:text-red-400',
+  blocked_burst_hour: 'bg-rose-500/15 text-rose-700 dark:text-rose-400',
+  blocked_burst_day: 'bg-rose-500/15 text-rose-700 dark:text-rose-400',
+  blocked_bad_fingerprint: 'bg-red-500/15 text-red-700 dark:text-red-400',
 };
 
 export function SignupSourceLogPanel() {
@@ -165,7 +168,8 @@ export function SignupSourceLogPanel() {
         <div>
           <h2 className="text-2xl font-semibold tracking-tight">Signup Sources & Anti-Bot Log</h2>
           <p className="text-sm text-muted-foreground">
-            Every self-service signup attempt across <code>/auth</code>, <code>/funder-onboarding</code>, campaign links, etc.
+            Every signup attempt — self-service (<code>/auth</code>, <code>/funder-onboarding</code>, campaign links) and
+            agent-assisted registrations, which now carry the agent's device fingerprint, IP and the real in-app screen used.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -272,6 +276,8 @@ export function SignupSourceLogPanel() {
                 <SelectItem value="blocked_ip">Blocked (IP)</SelectItem>
                 <SelectItem value="blocked_device">Blocked (Device)</SelectItem>
                 <SelectItem value="blocked_verification">Blocked (OTP)</SelectItem>
+                <SelectItem value="blocked_burst_hour">Blocked (burst / hour)</SelectItem>
+                <SelectItem value="blocked_burst_day">Blocked (burst / day)</SelectItem>
               </SelectContent>
             </Select>
           </div>
