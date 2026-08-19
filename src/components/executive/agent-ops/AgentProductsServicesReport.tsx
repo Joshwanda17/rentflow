@@ -369,7 +369,7 @@ export function AgentProductsServicesReport() {
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
-              <Button size="sm" variant="outline" className="h-8 text-[11px]" onClick={() => void reportQuery.refetch()}>
+              <Button size="sm" variant="outline" className="h-8 text-[11px]" onClick={() => { void reportQuery.refetch(); void commissionQuery.refetch(); }}>
                 <RefreshCw className={cn('h-3.5 w-3.5 mr-1', reportQuery.isFetching && 'animate-spin')} />
                 Refresh
               </Button>
