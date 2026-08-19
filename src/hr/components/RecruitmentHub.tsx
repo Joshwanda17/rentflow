@@ -690,12 +690,12 @@ function ApplicationsTab() {
                   key={row.id}
                   className={`cursor-pointer ${
                     row.status === 'shortlisted'
-                      ? 'bg-violet-50 hover:bg-violet-100'
-                      : row.status === 'shortlisted_2'
+                      ? (row.shortlist_round ?? 1) >= 2
                         ? 'bg-fuchsia-50 hover:bg-fuchsia-100'
-                        : row.status === 'hold'
-                          ? 'bg-sky-50 hover:bg-sky-100'
-                          : ''
+                        : 'bg-violet-50 hover:bg-violet-100'
+                      : row.status === 'hold'
+                        ? 'bg-sky-50 hover:bg-sky-100'
+                        : ''
                   }`}
                   onClick={() => setSelected(row)}
                 >
@@ -714,12 +714,12 @@ function ApplicationsTab() {
                   <TableCell>{row.experience_level || '—'}</TableCell>
                   <TableCell>
                     {row.status === 'shortlisted'
-                      ? 'Shortlist 1'
-                      : row.status === 'shortlisted_2'
-                        ? 'Shortlist 2'
-                        : row.status
-                          ? row.status.charAt(0).toUpperCase() + row.status.slice(1)
-                          : '—'}
+                      ? `Shortlist ${row.shortlist_round ?? 1}`
+                      : row.status
+                        ? `${row.status.charAt(0).toUpperCase() + row.status.slice(1)}${
+                            row.shortlist_round ? ` · reached Shortlist ${row.shortlist_round}` : ''
+                          }`
+                        : '—'}
                   </TableCell>
                   <TableCell>{fmtDateTime(row.created_at)}</TableCell>
                   <TableCell>{row.public_ref || '—'}</TableCell>
@@ -728,19 +728,19 @@ function ApplicationsTab() {
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div className="inline-flex gap-1">
-                      {decisionsForStatus(row.status).map((d) => (
+                      {getAvailableDecisions(row.status, row.shortlist_round ?? null).map((a) => (
                         <Button
-                          key={d}
+                          key={`${a.status}-${a.round ?? 'none'}`}
                           size="sm"
                           variant="outline"
                           className={`h-7 px-2 text-xs ${
-                            d === 'shortlisted_2' ? SHORTLIST_LEVEL_2_CLASS : ''
+                            (a.round ?? 0) >= 2 ? SHORTLIST_LEVEL_2_CLASS : ''
                           }`}
                           onClick={() => {
-                            setPending({ row, kind: d });
+                            setPending({ row, kind: a.status, round: a.round });
                           }}
                         >
-                          {decisionLabel(d, row.status)}
+                          {a.label}
                         </Button>
                       ))}
                       <Button
@@ -775,17 +775,17 @@ function ApplicationsTab() {
               <Separator />
               <Label className="text-xs text-muted-foreground">Decision</Label>
               <div className="flex flex-wrap gap-2">
-                {decisionsForStatus(selected.status).map((d) => (
+                {getAvailableDecisions(selected.status, selected.shortlist_round ?? null).map((a) => (
                   <Button
-                    key={d}
+                    key={`${a.status}-${a.round ?? 'none'}`}
                     size="sm"
                     variant="outline"
-                    className={d === 'shortlisted_2' ? SHORTLIST_LEVEL_2_CLASS : undefined}
+                    className={(a.round ?? 0) >= 2 ? SHORTLIST_LEVEL_2_CLASS : undefined}
                     onClick={() => {
-                      setPending({ row: selected, kind: d });
+                      setPending({ row: selected, kind: a.status, round: a.round });
                     }}
                   >
-                    {decisionLabel(d, selected.status)}
+                    {a.label}
                   </Button>
                 ))}
                 <Button
