@@ -198,10 +198,12 @@ const DECISION_LABELS: Record<ApplicationDecision, string> = {
  * (null when the round must not change) and the label on its button.
  */
 interface DecisionAction {
-  status: ApplicationDecision;
+  status: ApplicationDecision | 'contacted';
   round: number | null;
   label: string;
+  writer: 'decision' | 'contacted';
 }
+
 
 /**
  * Only the actions that make sense for where the row already stands are shown.
