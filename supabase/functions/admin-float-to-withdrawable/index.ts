@@ -63,8 +63,19 @@ Deno.serve(async (req) => {
       .select("role")
       .eq("user_id", authedUser.id)
       .in("role", ["cfo", "financial_ops", "super_admin"]);
-    if (!roles?.length) return json({ error: "Insufficient permissions" }, 403);
     const callerRoles = (roles || []).map((r: { role: string }) => r.role);
+
+    // Designated Financial Ops operators who also run a merchant desk are
+    // authorized too, but only for their OWN wallet (float -> withdrawable never
+    // changes a total balance). Everyone else needs a finance role.
+    let isDesignatedOperator = false;
+    if (!callerRoles.length) {
+      const { data: authorized } = await adminClient.rpc("merchant_float_fix_authorized", {
+        _user_id: authedUser.id,
+      });
+      isDesignatedOperator = authorized === true;
+      if (!isDesignatedOperator) return json({ error: "Insufficient permissions" }, 403);
+    }
 
     // ── Input validation ──────────────────────────────────────────────────
     const body = await req.json().catch(() => ({}));
@@ -76,6 +87,12 @@ Deno.serve(async (req) => {
         : Number(String(body?.amount ?? "").replace(/[, _]/g, ""));
 
     if (!UUID_RE.test(targetUserId)) return json({ error: "Invalid target user." }, 400);
+    if (isDesignatedOperator && targetUserId !== authedUser.id) {
+      return json(
+        { error: "You can only move float to withdrawable on your own wallet." },
+        403,
+      );
+    }
     if (!Number.isFinite(amount) || amount <= 0 || amount > 500_000_000) {
       return json({ error: "Amount must be a positive number up to UGX 500,000,000." }, 400);
     }
@@ -130,7 +147,13 @@ Deno.serve(async (req) => {
         evidence: `Float → Withdrawable reclass for ${targetName}: ${reason}`,
         reference_id: refId,
         created_by: authedUser.id,
-        metadata: { float_before: floatBefore, withdrawable_before: withdrawableBefore, caller_roles: callerRoles },
+        metadata: {
+          float_before: floatBefore,
+          withdrawable_before: withdrawableBefore,
+          caller_roles: callerRoles,
+          designated_operator: isDesignatedOperator,
+          self_authored: targetUserId === authedUser.id,
+        },
       });
     if (corrErr) return json({ error: corrErr.message }, 403);
 
