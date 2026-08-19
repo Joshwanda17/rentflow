@@ -836,12 +836,13 @@ function ApplicationsTab() {
                     variant="outline"
                     className={(a.round ?? 0) >= 2 ? SHORTLIST_LEVEL_2_CLASS : undefined}
                     onClick={() => {
-                      setPending({ row: selected, kind: a.status, round: a.round });
+                      setPending({ row: selected, kind: a.status, writer: a.writer, round: a.round });
                     }}
                   >
                     {a.label}
                   </Button>
                 ))}
+
                 <Button
                   size="sm"
                   variant="destructive"
