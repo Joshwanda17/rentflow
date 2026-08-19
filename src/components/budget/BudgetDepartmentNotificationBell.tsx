@@ -1,25 +1,14 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, Check } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-import { departmentKeysForDashboard } from './departmentScope';
-
-interface DeptNotification {
-  id: string;
-  department_key: string;
-  department_name: string;
-  cycle_title: string;
-  deadline: string | null;
-  title: string;
-  message: string;
-  link: string;
-  created_at: string;
-  is_read: boolean;
-}
+import {
+  useBudgetDepartmentNotifications,
+  type DeptNotification,
+} from './useBudgetDepartmentNotifications';
 
 /**
  * Department-level budget notice bell. A single notice exists per budget cycle
@@ -39,50 +28,17 @@ export function BudgetDepartmentNotificationBell({
   dashboard?: string;
   departmentKeys?: string[];
 }) {
-  const [items, setItems] = useState<DeptNotification[]>([]);
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
-
-  const scopedKeys = departmentKeys ?? departmentKeysForDashboard(dashboard);
-  const scopeArg = scopedKeys && scopedKeys.length > 0 ? scopedKeys : null;
-  const scopeSignature = scopeArg ? scopeArg.join(',') : '';
-
-  const load = useCallback(async () => {
-    const { data, error } = await supabase.rpc('get_budget_department_notifications', {
-      _department_keys: scopeSignature ? scopeSignature.split(',') : null,
-    });
-    if (error) {
-      console.error('Failed to load department budget notices:', error);
-      return;
-    }
-    setItems((data as DeptNotification[]) ?? []);
-  }, [scopeSignature]);
-
-  useEffect(() => { load(); }, [load]);
-
-  const unread = items.filter(i => !i.is_read).length;
+  const { items, unread, markRead, markAll } = useBudgetDepartmentNotifications(
+    dashboard,
+    departmentKeys,
+  );
 
   const openItem = async (n: DeptNotification) => {
     setOpen(false);
-    if (!n.is_read) {
-      const { error } = await supabase.rpc('mark_budget_department_notification_read', {
-        _notification_id: n.id,
-      });
-      if (error) console.error('Failed to mark notice read:', error);
-      else setItems(prev => prev.map(i => (i.id === n.id ? { ...i, is_read: true } : i)));
-    }
+    if (!n.is_read) await markRead(n.id);
     navigate(n.link || '/budgets');
-  };
-
-  const markAll = async () => {
-    const pending = items.filter(i => !i.is_read);
-    if (pending.length === 0) return;
-    await Promise.all(
-      pending.map(i =>
-        supabase.rpc('mark_budget_department_notification_read', { _notification_id: i.id }),
-      ),
-    );
-    setItems(prev => prev.map(i => ({ ...i, is_read: true })));
   };
 
   return (
