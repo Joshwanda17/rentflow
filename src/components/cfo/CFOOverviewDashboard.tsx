@@ -293,7 +293,6 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
           ]}
           footer="Position view — part of Money We Have, not added to it"
           footerTone="bg-indigo-50/70 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-400"
-          onClick={() => setActiveBreakdown('cash')}
         />
         <HeroCard
           icon={<Landmark className="h-4 w-4 text-sky-600" />}
@@ -307,7 +306,6 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
           ]}
           footer="Position view — part of Money We Have, not added to it"
           footerTone="bg-sky-50/70 dark:bg-sky-950/30 text-sky-700 dark:text-sky-400"
-          onClick={() => setActiveBreakdown('cash')}
         />
       </div>
 
@@ -600,19 +598,15 @@ function HeroCard({ icon, iconBg, title, value, valueColor, items, footer, foote
   footerTone: string;
   onClick?: () => void;
 }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="w-full text-left rounded-2xl border border-border bg-card overflow-hidden hover:shadow-md active:scale-[0.995] transition-all"
-    >
+  const content = (
+    <>
       <div className="p-3 sm:p-4">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${iconBg}`}>{icon}</div>
             <p className="font-semibold text-xs truncate">{title}</p>
           </div>
-          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          {onClick && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
         </div>
         <p className={`mt-2.5 text-lg sm:text-xl font-bold font-mono tabular-nums tracking-tight ${valueColor}`}>{value}</p>
         <div className="mt-3 pt-3 border-t border-border space-y-1.5">
@@ -631,7 +625,25 @@ function HeroCard({ icon, iconBg, title, value, valueColor, items, footer, foote
         <span className="truncate">{footer}</span>
         <Info className="h-3 w-3 shrink-0 opacity-70" />
       </div>
-    </button>
+    </>
+  );
+
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className="w-full text-left rounded-2xl border border-border bg-card overflow-hidden hover:shadow-md active:scale-[0.995] transition-all"
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <div className="w-full rounded-2xl border border-border bg-card overflow-hidden">
+      {content}
+    </div>
   );
 }
 
