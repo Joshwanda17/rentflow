@@ -72,11 +72,11 @@ export function AgentRentCapacityPanel({
   });
   const showList = mode !== 'summary';
   const { agentIds: qualifyingIds, isReady: qualifyingReady } = useQualifyingAgentIds();
-  // On phones, default every row to collapsed so the agent sees a clean
+  // Default every row to collapsed on load so the operator sees a clean
   // ALLOWED / BLOCKED status card and can tap to drill in.
-  const isPhone = typeof window !== 'undefined' && window.innerWidth < 640;
   const [rowCollapsed, setRowCollapsed] = useState<Record<string, boolean>>({});
-  const [defaultCollapsed] = useState<boolean>(isPhone);
+  const [defaultCollapsed] = useState<boolean>(true);
+  const [allCollapsed, setAllCollapsed] = useState<boolean>(true);
   const queryClient = useQueryClient();
 
   // Force a fresh fetch every time the panel mounts (e.g. user switches to
@@ -372,15 +372,12 @@ export function AgentRentCapacityPanel({
   const canPostCount = rows.filter((r) => r.daily_status !== 'blocked').length;
   const blockedCount = rows.filter((r) => r.daily_status === 'blocked').length;
 
-  const expandAll = () => {
+  const toggleAll = () => {
+    const nextCollapsed = !allCollapsed;
     const next: Record<string, boolean> = {};
-    (filtered || []).forEach((r) => { next[r.agent_id] = false; });
+    (filtered || []).forEach((r) => { next[r.agent_id] = nextCollapsed; });
     setRowCollapsed(next);
-  };
-  const collapseAll = () => {
-    const next: Record<string, boolean> = {};
-    (filtered || []).forEach((r) => { next[r.agent_id] = true; });
-    setRowCollapsed(next);
+    setAllCollapsed(nextCollapsed);
   };
 
   return (
@@ -475,26 +472,16 @@ export function AgentRentCapacityPanel({
             />
           </div>
           {visible.length > 0 && (
-            <div className="flex items-center gap-1 shrink-0">
-              <button
-                type="button"
-                onClick={expandAll}
-                className="inline-flex items-center gap-1 h-9 px-2.5 rounded-lg border border-border bg-background hover:bg-muted text-xs font-semibold"
-                title="Expand all"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Expand</span>
-              </button>
-              <button
-                type="button"
-                onClick={collapseAll}
-                className="inline-flex items-center gap-1 h-9 px-2.5 rounded-lg border border-border bg-background hover:bg-muted text-xs font-semibold"
-                title="Collapse all"
-              >
-                <Minus className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Collapse</span>
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={toggleAll}
+              className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-background hover:bg-muted text-xs font-semibold shrink-0"
+              title={allCollapsed ? 'Expand all agent cards' : 'Collapse all agent cards'}
+              aria-label={allCollapsed ? 'Expand all' : 'Collapse all'}
+            >
+              {allCollapsed ? <Plus className="h-3.5 w-3.5" /> : <Minus className="h-3.5 w-3.5" />}
+              <span className="hidden sm:inline">{allCollapsed ? 'Expand All' : 'Collapse All'}</span>
+            </button>
           )}
         </div>
 
