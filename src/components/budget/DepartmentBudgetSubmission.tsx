@@ -251,7 +251,7 @@ export default function DepartmentBudgetSubmission() {
       <Card>
         <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
           <CardTitle className="text-base">My submissions</CardTitle>
-          <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={startNew}>
+          <Button size="sm" className="gap-1.5 bg-purple-600 text-xs text-white hover:bg-purple-700" onClick={startNew}>
             <Plus className="h-3.5 w-3.5" /> New budget
           </Button>
         </CardHeader>
