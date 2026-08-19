@@ -179,10 +179,11 @@ export function PartnerPortfolioWalletCard({ onAddCard, onSend, onRequest, onTop
           
           className="absolute z-20 bg-black hover:bg-neutral-900 rounded-full flex items-center justify-center border border-white/10 shadow-lg transition active:scale-95"
           style={{
-            left: '66.5cqw',
+            left: '66.2%',
             right: 0,
-            top: 'calc(46.5cqw + min(1.2cqw, 6px))',
-            height: 'clamp(26px, 8.4cqw, 44px)',
+            top: 'calc(81% + 4px)',
+            height: 'calc(19% - 7px)',
+            minHeight: '26px',
             gap: 'clamp(4px, 1.4cqw, 8px)',
             paddingInline: 'clamp(6px, 2cqw, 14px)',
           }}
