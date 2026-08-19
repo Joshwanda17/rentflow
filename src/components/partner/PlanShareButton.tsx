@@ -88,7 +88,9 @@ export function PlanShareButton({
     {
       label: 'WhatsApp',
       icon: MessageCircle,
-      onClick: () => openTarget(`https://wa.me/?text=${encodeURIComponent(full)}`),
+      // Exactly one URL in the message, and it is the branded welileapp.com
+      // short link. Encoded once, via URLSearchParams only.
+      onClick: () => openTarget(`https://wa.me/?${new URLSearchParams({ text: full }).toString()}`),
     },
     {
       label: 'Telegram',

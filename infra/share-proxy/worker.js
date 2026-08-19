@@ -1,89 +1,104 @@
 /**
  * Welile share proxy (Cloudflare Worker).
  *
- * Purpose: let shared links read as
- *   https://welileapp.com/m/<code>   (merchandise)
+ * Public, branded share URLs:
  *   https://welileapp.com/s/<code>   (rent plans)
- * while WhatsApp still receives the Open Graph tags (and item/photo) produced
- * by the upstream edge functions.
+ *   https://welileapp.com/m/<code>   (merchandise, legacy)
  *
- * It must PROXY, never redirect: a 301/302 makes WhatsApp display the final
- * upstream URL in the preview card, which is the problem we are solving.
+ * The Worker PROXIES the internal Supabase edge functions server-to-server and
+ * returns their HTML under the welileapp.com URL. It never redirects the public
+ * request to supabase.co, so the internal endpoint stays invisible to users and
+ * to social crawlers, while WhatsApp still reads the per-plan Open Graph head.
  *
- * Deploy (one time, outside this repo):
- *   1. Create the Worker (dashboard or `npx wrangler deploy worker.js`).
- *   2. Add routes for  welileapp.com/s/*  and  welileapp.com/m/*  (preferred —
- *      shares then read as https://welileapp.com/s/<code>), and optionally
- *      s.welileapp.com/*  as well. Routing is path-based, so the same Worker
- *      serves either host.
- *   3. Add a CNAME for  s  ->  the Worker/Cloudflare host, proxied (orange cloud).
- *   4. Set the UPSTREAM constants below if the project ref ever changes.
+ * Deploy:
+ *   npx wrangler deploy            (config: wrangler.toml at the repo root)
+ * Routes required in Cloudflare (zone welileapp.com):
+ *   welileapp.com/s/*      www.welileapp.com/s/*
+ *   welileapp.com/m/*      www.welileapp.com/m/*   (legacy merchandise links)
  */
 const MERCH_UPSTREAM = "https://wirntoujqoyjobfhyelc.supabase.co/functions/v1/og-merchandise";
 const PLAN_UPSTREAM = "https://wirntoujqoyjobfhyelc.supabase.co/functions/v1/og-plan";
 const SITE = "https://welileapp.com";
 
-function isCode(s) {
-  return /^[A-Za-z0-9_-]{4,32}$/.test(s);
+/** Only /s/<code> and /m/<code> are proxied — never any other app route. */
+const SHARE_LINK_PATTERN = /^\/(s|m)\/([A-Za-z0-9_-]{4,64})\/?$/;
+
+function textResponse(body, status, extra = {}) {
+  return new Response(body, {
+    status,
+    headers: { "Content-Type": "text/plain; charset=UTF-8", "Cache-Control": "no-store", ...extra },
+  });
 }
 
 async function proxyUpstream(request, upstreamUrl, fallbackPath) {
-  const url = new URL(request.url);
-  const target = new URL(upstreamUrl);
-  for (const [k, v] of url.searchParams) {
-    target.searchParams.set(k, v.slice(0, 200));
-  }
-
-  const upstream = await fetch(target.toString(), {
-    method: "GET",
-    headers: {
-      "user-agent": request.headers.get("user-agent") || "",
-      referer: request.headers.get("referer") || "",
-      accept: request.headers.get("accept") || "*/*",
-    },
-    // Follow the function's own redirect for human visitors so they land
-    // on the app page; crawlers get the OG HTML directly (200).
-    redirect: "manual",
-  });
-
-  // Humans: the function answers 302 to the app page. Pass that through.
-  if (upstream.status >= 300 && upstream.status < 400) {
-    return new Response(null, {
-      status: 302,
+  let upstream;
+  try {
+    upstream = await fetch(upstreamUrl, {
+      method: "GET",
       headers: {
-        Location: upstream.headers.get("location") || `${SITE}${fallbackPath}`,
-        "cache-control": "no-store",
+        Accept: "text/html,application/xhtml+xml",
+        "User-Agent": request.headers.get("User-Agent") || "Welile-Share-Proxy/1.0",
+        Referer: request.headers.get("Referer") || "",
       },
+      redirect: "manual",
+    });
+  } catch {
+    // Upstream unavailable: controlled temporary error, never a supabase redirect.
+    return textResponse("Share preview temporarily unavailable. Please try again.", 503, {
+      "Retry-After": "30",
     });
   }
 
+  // Upstream may 3xx humans onward. Pass it through, but only ever to our own
+  // site — a supabase.co Location must never reach the browser.
+  if (upstream.status >= 300 && upstream.status < 400) {
+    const loc = upstream.headers.get("location") || "";
+    const safe = loc.startsWith(SITE) || loc.startsWith("/") ? loc : `${SITE}${fallbackPath}`;
+    return new Response(null, {
+      status: 302,
+      headers: { Location: safe, "Cache-Control": "no-store" },
+    });
+  }
+
+  // Read the body and rebuild the response as real HTML under our domain.
+  const html = await upstream.text();
   const headers = new Headers();
-  headers.set("content-type", upstream.headers.get("content-type") || "text/html; charset=utf-8");
-  headers.set("cache-control", upstream.headers.get("cache-control") || "public, max-age=300");
-  return new Response(upstream.body, { status: upstream.status, headers });
+  headers.set("Content-Type", "text/html; charset=UTF-8");
+  headers.set("Cache-Control", "public, max-age=60, s-maxage=300");
+  headers.set("X-Content-Type-Options", "nosniff");
+  headers.delete("Content-Length");
+  headers.delete("Content-Encoding");
+
+  return new Response(request.method === "HEAD" ? null : html, {
+    status: upstream.status,
+    headers,
+  });
 }
 
 export default {
   async fetch(request) {
     const url = new URL(request.url);
-    const parts = url.pathname.split("/").filter(Boolean);
+    const match = url.pathname.match(SHARE_LINK_PATTERN);
 
-    // /m/<code>  ->  og-merchandise?code=<code>
-    if (parts.length === 2 && parts[0] === "m" && isCode(parts[1])) {
+    if (!match) return textResponse("Short link not found", 404);
+
+    if (request.method !== "GET" && request.method !== "HEAD") {
+      return textResponse("Method not allowed", 405, { Allow: "GET, HEAD" });
+    }
+
+    const kind = match[1];
+    const shortCode = match[2];
+    const src = url.searchParams.get("src");
+
+    if (kind === "m") {
       const upstream = new URL(MERCH_UPSTREAM);
-      upstream.searchParams.set("code", parts[1].toLowerCase());
-      const src = url.searchParams.get("src");
+      upstream.searchParams.set("code", shortCode.toLowerCase());
       if (src) upstream.searchParams.set("src", src.slice(0, 50));
       return proxyUpstream(request, upstream.toString(), "/merchandise");
     }
 
-    // /s/<code>  ->  og-plan/<code>  (rent-plan share links)
-    if (parts.length === 2 && parts[0] === "s" && isCode(parts[1])) {
-      const upstream = `${PLAN_UPSTREAM}/${parts[1]}`;
-      return proxyUpstream(request, upstream, "/funder-onboarding");
-    }
-
-    // Anything else on the share host goes to the app.
-    return Response.redirect(`${SITE}${url.pathname}${url.search}`, 302);
+    const upstream = new URL(`${PLAN_UPSTREAM}/${encodeURIComponent(shortCode)}`);
+    if (src) upstream.searchParams.set("src", src.slice(0, 50));
+    return proxyUpstream(request, upstream.toString(), "/funder-onboarding");
   },
 };
