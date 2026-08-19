@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import { formatUGX } from '@/lib/rentCalculations';
 import {
   AlertTriangle,
   ChevronDown,
@@ -18,6 +19,12 @@ import {
   Check,
   CheckCircle2,
   Loader2,
+  Home,
+  Shield,
+  CalendarClock,
+  Wallet,
+  Undo2,
+  MessageSquare,
 } from 'lucide-react';
 
 function timeAgo(iso: string): string {
@@ -28,6 +35,22 @@ function timeAgo(iso: string): string {
   const hrs = Math.floor(mins / 60);
   if (hrs < 24) return `${hrs}h ago`;
   return `${Math.floor(hrs / 24)}d ago`;
+}
+
+function Detail({ label, value, tone }: { label: string; value: string; tone?: 'danger' | 'muted' }) {
+  return (
+    <div className="rounded-lg border border-border/60 bg-background/60 px-2 py-1.5">
+      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p
+        className={
+          'text-xs font-semibold truncate ' +
+          (tone === 'danger' ? 'text-destructive' : tone === 'muted' ? 'text-muted-foreground' : 'text-foreground')
+        }
+      >
+        {value}
+      </p>
+    </div>
+  );
 }
 
 interface Props {
@@ -84,11 +107,20 @@ function InactivationRow({
   onOpenBehavior?: (tenantId: string) => void;
 }) {
   const { toast } = useToast();
-  const { acknowledge, resolve } = useInactivationReview();
+  const { acknowledge, resolve, reject } = useInactivationReview();
   const [resolving, setResolving] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
+  const [commenting, setCommenting] = useState(false);
   const [notes, setNotes] = useState('');
   const isAcknowledged = row.review_status === 'acknowledged';
-  const busy = acknowledge.isPending || resolve.isPending;
+  const busy = acknowledge.isPending || resolve.isPending || reject.isPending;
+
+  const closeForms = () => {
+    setResolving(false);
+    setRejecting(false);
+    setCommenting(false);
+    setNotes('');
+  };
 
   const handleAcknowledge = async () => {
     try {
@@ -96,6 +128,37 @@ function InactivationRow({
       toast({ title: 'Marked as reviewed' });
     } catch (e: any) {
       toast({ title: 'Could not acknowledge', description: e?.message, variant: 'destructive' });
+    }
+  };
+
+  const handleComment = async () => {
+    if (notes.trim().length < 10) {
+      toast({ title: 'Add a comment', description: 'At least 10 characters required.', variant: 'destructive' });
+      return;
+    }
+    try {
+      await acknowledge.mutateAsync({ rentRequestId: row.rent_request_id, notes });
+      toast({ title: 'Comment saved' });
+      closeForms();
+    } catch (e: any) {
+      toast({ title: 'Could not save comment', description: e?.message, variant: 'destructive' });
+    }
+  };
+
+  const handleReject = async () => {
+    if (notes.trim().length < 10) {
+      toast({ title: 'Add a rejection reason', description: 'At least 10 characters required.', variant: 'destructive' });
+      return;
+    }
+    try {
+      await reject.mutateAsync({ rentRequestId: row.rent_request_id, notes });
+      toast({
+        title: 'Sent back to the agent',
+        description: 'Tenant is back on the agent’s book with a follow-up task.',
+      });
+      closeForms();
+    } catch (e: any) {
+      toast({ title: 'Could not reject', description: e?.message, variant: 'destructive' });
     }
   };
 
@@ -107,10 +170,18 @@ function InactivationRow({
     try {
       await resolve.mutateAsync({ rentRequestId: row.rent_request_id, notes });
       toast({ title: 'Marked as resolved' });
+      closeForms();
     } catch (e: any) {
       toast({ title: 'Could not resolve', description: e?.message, variant: 'destructive' });
     }
   };
+
+  const formOpen = resolving || rejecting || commenting;
+  const formLabel = rejecting
+    ? 'Why is this flag being rejected? The agent will see this. (required, min 10 characters)'
+    : commenting
+      ? 'Add a review comment for this tenant (required, min 10 characters)'
+      : 'What was done to resolve this? (required, min 10 characters)';
 
   return (
     <li className="p-3.5 flex flex-col gap-2 bg-card/40">
@@ -131,9 +202,48 @@ function InactivationRow({
             {row.tenant_city && (
               <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{row.tenant_city}</span>
             )}
+            {row.house_title && (
+              <span className="flex items-center gap-1 truncate"><Home className="h-3 w-3" />{row.house_title}</span>
+            )}
+            {typeof row.trust_score === 'number' && (
+              <span className="flex items-center gap-1"><Shield className="h-3 w-3" />Trust {Math.round(row.trust_score)}</span>
+            )}
           </div>
         </div>
         <span className="text-[11px] text-muted-foreground whitespace-nowrap">{timeAgo(row.marked_at)}</span>
+      </div>
+
+      {/* Key tenant facts Ops needs before deciding */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+        <Detail label="Outstanding" value={formatUGX(row.outstanding ?? 0)} tone="danger" />
+        <Detail label="Daily amount" value={formatUGX(row.daily_repayment ?? 0)} />
+        <Detail label="Repaid" value={`${formatUGX(row.amount_repaid ?? 0)} / ${formatUGX(row.total_repayment ?? 0)}`} />
+        <Detail
+          label="Last collection"
+          value={
+            row.last_collection_at
+              ? `${formatUGX(row.last_collection_amount ?? 0)} · ${row.days_since_last_collection ?? 0}d ago`
+              : 'Never collected'
+          }
+          tone={row.last_collection_at ? undefined : 'danger'}
+        />
+        <Detail label="Collections" value={String(row.collections_count ?? 0)} />
+        <Detail
+          label="Funded"
+          value={row.funded_at ? `${row.days_since_funded ?? 0}d ago` : 'Not funded'}
+        />
+        <Detail label="Landlord" value={row.landlord_name ?? '—'} tone={row.landlord_name ? undefined : 'muted'} />
+        <Detail label="Agent" value={row.agent_name ?? '—'} />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+        <span className="flex items-center gap-1"><Wallet className="h-3 w-3" />Rent {formatUGX(row.rent_amount ?? 0)}</span>
+        {row.house_area && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{row.house_area}</span>}
+        {row.landlord_phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" />Landlord {row.landlord_phone}</span>}
+        {row.agent_phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" />Agent {row.agent_phone}</span>}
+        {row.tenancy_status && (
+          <span className="flex items-center gap-1"><CalendarClock className="h-3 w-3" />Tenancy {row.tenancy_status}</span>
+        )}
       </div>
 
       <div className="flex items-start gap-2 rounded-lg bg-destructive/5 border border-destructive/15 p-2">
@@ -152,24 +262,41 @@ function InactivationRow({
         </p>
       )}
 
-      {resolving ? (
+      {formOpen ? (
         <div className="flex flex-col gap-2 rounded-lg border border-border bg-background/60 p-2">
           <Textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="What was done to resolve this? (required, min 10 characters)"
+            placeholder={formLabel}
             rows={2}
             className="text-xs resize-none"
           />
           <div className="flex items-center gap-2">
-            <Button size="sm" className="h-8" onClick={handleResolve} disabled={busy}>
-              {resolve.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-              Confirm resolved
-            </Button>
-            <Button size="sm" variant="ghost" className="h-8" onClick={() => setResolving(false)} disabled={busy}>
+            {rejecting ? (
+              <Button size="sm" variant="destructive" className="h-8 gap-1" onClick={handleReject} disabled={busy}>
+                {reject.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Undo2 className="h-4 w-4" />}
+                Reject &amp; send to agent
+              </Button>
+            ) : commenting ? (
+              <Button size="sm" className="h-8 gap-1" onClick={handleComment} disabled={busy}>
+                {acknowledge.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageSquare className="h-4 w-4" />}
+                Save comment
+              </Button>
+            ) : (
+              <Button size="sm" className="h-8 gap-1" onClick={handleResolve} disabled={busy}>
+                {resolve.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                Confirm resolved
+              </Button>
+            )}
+            <Button size="sm" variant="ghost" className="h-8" onClick={closeForms} disabled={busy}>
               Cancel
             </Button>
           </div>
+          <p className="text-[10px] text-muted-foreground">
+            {rejecting
+              ? 'Rejecting puts the tenant back as “paying” on the agent’s book and creates a high-priority follow-up task on their dashboard.'
+              : 'Notes are saved to the audit trail.'}
+          </p>
         </div>
       ) : (
         <div className="flex flex-wrap items-center gap-2">
@@ -178,13 +305,31 @@ function InactivationRow({
               Open tenant
             </Button>
           )}
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 gap-1"
+            onClick={() => { setNotes(''); setCommenting(true); }}
+            disabled={busy}
+          >
+            <MessageSquare className="h-4 w-4" /> Comment
+          </Button>
           {!isAcknowledged && (
             <Button variant="secondary" size="sm" className="h-8 gap-1" onClick={handleAcknowledge} disabled={busy}>
               {acknowledge.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
               Acknowledge
             </Button>
           )}
-          <Button size="sm" className="h-8 gap-1" onClick={() => setResolving(true)} disabled={busy}>
+          <Button
+            variant="destructive"
+            size="sm"
+            className="h-8 gap-1"
+            onClick={() => { setNotes(''); setRejecting(true); }}
+            disabled={busy}
+          >
+            <Undo2 className="h-4 w-4" /> Reject
+          </Button>
+          <Button size="sm" className="h-8 gap-1" onClick={() => { setNotes(''); setResolving(true); }} disabled={busy}>
             <CheckCircle2 className="h-4 w-4" /> Resolve
           </Button>
         </div>
