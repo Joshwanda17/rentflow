@@ -202,7 +202,36 @@ export function AgentProductsServicesReport() {
     staleTime: 60_000,
   });
 
-  const report = reportQuery.data;
+  const rawReport = reportQuery.data;
+
+  /** Actual commission EARNED in the window (ledger-backed) — not the wallet balance. */
+  const commissionQuery = useQuery({
+    queryKey: ['agent-commission-earned', dayKey, todayKey],
+    queryFn: async (): Promise<Record<string, number>> => {
+      const { data, error } = await supabase.rpc('get_agent_commission_earned' as any, {
+        p_from: dayKey,
+        p_to: todayKey,
+      });
+      if (error) throw error;
+      const map: Record<string, number> = {};
+      for (const row of (data as any[]) || []) map[row.agent_id] = Number(row.commission_earned) || 0;
+      return map;
+    },
+    staleTime: 60_000,
+  });
+
+  const report = useMemo(() => {
+    if (!rawReport) return rawReport;
+    const map = commissionQuery.data;
+    if (!map) return rawReport;
+    return {
+      ...rawReport,
+      agent_float_rows: (rawReport.agent_float_rows || []).map(r => ({
+        ...r,
+        commission_balance: Number(map[(r as any).agent_id] ?? 0),
+      })),
+    };
+  }, [rawReport, commissionQuery.data]);
 
   const cumulativeQuery = useQuery({
     queryKey: ['agent-products-cumulative', todayKey],
