@@ -198,10 +198,12 @@ const DECISION_LABELS: Record<ApplicationDecision, string> = {
  * (null when the round must not change) and the label on its button.
  */
 interface DecisionAction {
-  status: ApplicationDecision;
+  status: ApplicationDecision | 'contacted';
   round: number | null;
   label: string;
+  writer: 'decision' | 'contacted';
 }
+
 
 /**
  * Only the actions that make sense for where the row already stands are shown.
@@ -213,14 +215,19 @@ function getAvailableDecisions(status: string | null, round: number | null): Dec
   const level = round ?? (status === 'shortlisted' ? 1 : 0);
   const actions: DecisionAction[] = [];
 
-  if (level === 0) actions.push({ status: 'shortlisted', round: 1, label: 'Shortlist' });
-  else if (level === 1) actions.push({ status: 'shortlisted', round: 2, label: 'Shortlist 2' });
-  else if (level === 2) actions.push({ status: 'shortlisted', round: 3, label: 'Shortlist 3' });
+  if (level === 0) actions.push({ status: 'shortlisted', round: 1, label: 'Shortlist', writer: 'decision' });
+  else if (level === 1) actions.push({ status: 'shortlisted', round: 2, label: 'Shortlist 2', writer: 'decision' });
+  else if (level === 2) actions.push({ status: 'shortlisted', round: 3, label: 'Shortlist 3', writer: 'decision' });
 
-  actions.push({ status: 'hold', round: null, label: DECISION_LABELS.hold });
-  actions.push({ status: 'rejected', round: null, label: DECISION_LABELS.rejected });
+  if (status !== 'contacted') {
+    actions.push({ status: 'contacted', round: null, label: 'Contacted', writer: 'contacted' });
+  }
+
+  actions.push({ status: 'hold', round: null, label: DECISION_LABELS.hold, writer: 'decision' });
+  actions.push({ status: 'rejected', round: null, label: DECISION_LABELS.rejected, writer: 'decision' });
   return actions;
 }
+
 
 const SHORTLIST_LEVEL_2_CLASS =
   'border-amber-500/50 bg-amber-500/10 text-amber-700 hover:bg-amber-500/20';
@@ -337,8 +344,14 @@ function ApplicationsTab() {
     { key: 'name' | 'role_interest' | 'status' | 'created'; dir: 'asc' | 'desc' }
   >({ key: 'created', dir: 'desc' });
   const [pending, setPending] = useState<
-    { row: JobApplicationRow; kind: ApplicationDecision | 'remove'; round?: number | null } | null
+    {
+      row: JobApplicationRow;
+      kind: ApplicationDecision | 'contacted' | 'remove';
+      writer?: 'decision' | 'contacted' | null;
+      round?: number | null;
+    } | null
   >(null);
+
   const [busy, setBusy] = useState(false);
   // Selection lives as a set of ids so it survives filtering and sorting.
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -526,18 +539,21 @@ function ApplicationsTab() {
         await archiveApplication(pending.row.id);
         toast.success(`${pending.row.full_name || 'Application'} removed from the list`);
         setSelected(null);
+      } else if (pending.writer === 'contacted') {
+        await recordApplicationContacted(pending.row.id);
+        toast.success(`${pending.row.full_name || 'Applicant'} marked as contacted`);
       } else {
         // The target round travels with the decision in a single write.
         // Hold and Decline carry a null round and therefore leave
         // `shortlist_round` untouched, preserving the level reached.
         await recordApplicationDecision(
           pending.row.id,
-          pending.kind,
+          pending.kind as ApplicationDecision,
           undefined,
           pending.round,
         );
         toast.success(
-          `${DECISION_LABELS[pending.kind]} recorded for ${pending.row.full_name || 'applicant'}`,
+          `${DECISION_LABELS[pending.kind as ApplicationDecision]} recorded for ${pending.row.full_name || 'applicant'}`,
         );
       }
       closeConfirm();
@@ -551,24 +567,8 @@ function ApplicationsTab() {
     }
   };
 
-  // Marking contact is a single click: no reason, no confirmation dialog.
-  const [contactingId, setContactingId] = useState<string | null>(null);
 
-  const markContacted = async (row: JobApplicationRow) => {
-    setContactingId(row.id);
-    try {
-      await recordApplicationContacted(row.id);
-      toast.success(`${row.full_name || 'Applicant'} marked as contacted`);
-      const fresh = await refetch();
-      await refetchRemovedCount();
-      const next = (fresh.data ?? []).find((r) => r.id === row.id) ?? null;
-      setSelected((prev) => (prev && prev.id === row.id ? next : prev));
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not record this contact');
-    } finally {
-      setContactingId(null);
-    }
-  };
+
 
   const openCv = async (path: string) => {
     try {
@@ -790,23 +790,12 @@ function ApplicationsTab() {
                             (a.round ?? 0) >= 2 ? SHORTLIST_LEVEL_2_CLASS : ''
                           }`}
                           onClick={() => {
-                            setPending({ row, kind: a.status, round: a.round });
+                            setPending({ row, kind: a.status, writer: a.writer, round: a.round });
                           }}
                         >
                           {a.label}
                         </Button>
                       ))}
-                      {row.status === 'shortlisted' && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 px-2 text-xs"
-                          disabled={contactingId === row.id}
-                          onClick={() => { void markContacted(row); }}
-                        >
-                          Contacted
-                        </Button>
-                      )}
                       <Button
                         size="sm"
                         variant="destructive"
@@ -818,6 +807,7 @@ function ApplicationsTab() {
                         Remove
                       </Button>
                     </div>
+
                   </TableCell>
                 </TableRow>
               ))}
@@ -846,12 +836,13 @@ function ApplicationsTab() {
                     variant="outline"
                     className={(a.round ?? 0) >= 2 ? SHORTLIST_LEVEL_2_CLASS : undefined}
                     onClick={() => {
-                      setPending({ row: selected, kind: a.status, round: a.round });
+                      setPending({ row: selected, kind: a.status, writer: a.writer, round: a.round });
                     }}
                   >
                     {a.label}
                   </Button>
                 ))}
+
                 <Button
                   size="sm"
                   variant="destructive"
@@ -873,10 +864,13 @@ function ApplicationsTab() {
             <AlertDialogTitle>
               {pending?.kind === 'remove'
                 ? `Remove ${pending?.row.full_name || 'this application'}?`
-                : `${pending ? DECISION_LABELS[pending.kind as ApplicationDecision] : ''} ${
-                    pending?.row.full_name || 'this applicant'
-                  }?`}
+                : pending?.writer === 'contacted'
+                  ? `Mark ${pending?.row.full_name || 'this applicant'} as contacted?`
+                  : `${pending ? DECISION_LABELS[pending.kind as ApplicationDecision] : ''} ${
+                      pending?.row.full_name || 'this applicant'
+                    }?`}
             </AlertDialogTitle>
+
             <AlertDialogDescription>
               {pending?.kind === 'remove'
                 ? 'This hides the application from the list. The record is kept, not deleted.'
