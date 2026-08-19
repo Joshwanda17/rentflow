@@ -93,28 +93,28 @@ export function AgentLandlordFloatCard({ onPayLandlord, onOpenRecovery, onOpenHi
       <div className="border-t border-[#9234EA]/20 grid grid-cols-4 divide-x divide-[#9234EA]/20">
         <button
           onClick={onOpenRecovery}
-          className="flex items-center justify-center gap-1.5 py-2 text-[10px] font-medium text-muted-foreground hover:text-[#9234EA] hover:bg-[#9234EA]/5 transition-colors touch-manipulation"
+          className="flex items-center justify-center gap-1.5 py-2 text-[10px] font-medium text-muted-foreground dark:text-white hover:text-[#9234EA] dark:hover:text-white hover:bg-[#9234EA]/5 transition-colors touch-manipulation"
         >
           <TrendingUp className="h-3 w-3" />
           Recovery
         </button>
         <button
           onClick={onOpenStatusTracker}
-          className="flex items-center justify-center gap-1.5 py-2 text-[10px] font-medium text-muted-foreground hover:text-[#9234EA] hover:bg-[#9234EA]/5 transition-colors touch-manipulation"
+          className="flex items-center justify-center gap-1.5 py-2 text-[10px] font-medium text-muted-foreground dark:text-white hover:text-[#9234EA] dark:hover:text-white hover:bg-[#9234EA]/5 transition-colors touch-manipulation"
         >
           <ShieldCheck className="h-3 w-3" />
           Status
         </button>
         <button
           onClick={onOpenOtpAudit}
-          className="flex items-center justify-center gap-1.5 py-2 text-[10px] font-medium text-muted-foreground hover:text-[#9234EA] hover:bg-[#9234EA]/5 transition-colors touch-manipulation"
+          className="flex items-center justify-center gap-1.5 py-2 text-[10px] font-medium text-muted-foreground dark:text-white hover:text-[#9234EA] dark:hover:text-white hover:bg-[#9234EA]/5 transition-colors touch-manipulation"
         >
           <KeyRound className="h-3 w-3" />
           OTP Log
         </button>
         <button
           onClick={onOpenHistory}
-          className="flex items-center justify-center gap-1.5 py-2 text-[10px] font-medium text-muted-foreground hover:text-[#9234EA] hover:bg-[#9234EA]/5 transition-colors touch-manipulation"
+          className="flex items-center justify-center gap-1.5 py-2 text-[10px] font-medium text-muted-foreground dark:text-white hover:text-[#9234EA] dark:hover:text-white hover:bg-[#9234EA]/5 transition-colors touch-manipulation"
         >
           <History className="h-3 w-3" />
           History
