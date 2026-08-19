@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { validateFullName, FULL_NAME_ERROR } from "../_shared/validateFullName.ts";
+import { guardAgentAssistedSignup, attachAgentSignupUser } from "../_shared/agentSignupGuard.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -61,7 +62,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { full_name, phone, notes } = await req.json();
+    const { full_name, phone, notes, telemetry } = await req.json();
     // Attribution is always the authenticated caller.
     const agent_id = callerId;
 
@@ -106,6 +107,21 @@ Deno.serve(async (req) => {
     }
 
     // Create auth user (no password — USSD-only user)
+    // Anti-bot guard: log device fingerprint + true source screen, enforce burst cap.
+    const guard = await guardAgentAssistedSignup(supabase as any, {
+      req,
+      actorUserId: agent_id,
+      telemetry,
+      phone: normalizedPhone,
+      targetRole: "funder",
+    });
+    if (!guard.allowed) {
+      return new Response(
+        JSON.stringify({ error: guard.reason || "Registration temporarily blocked by the anti-bot guard.", status: guard.status }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       phone: toE164(normalizedPhone),
       email: `${normalizedPhone}@proxy.welile.local`,
@@ -122,6 +138,7 @@ Deno.serve(async (req) => {
     }
 
     const userId = authData.user.id;
+    await attachAgentSignupUser(supabase as any, guard.attempt_id, userId);
 
     // Insert profile
     const { error: profileError } = await supabase.from("profiles").upsert({
