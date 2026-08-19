@@ -17,14 +17,15 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { formatDynamic as formatUGX } from '@/lib/currencyFormat';
 import {
-  fetchConsolidation, fetchLines, fetchSubmissions, getBudgetDocumentUrl, useBudgetCycles,
-  type BudgetConsolidation, type BudgetLine, type BudgetSubmission,
+  fetchConsolidation, useBudgetCycles,
+  type BudgetConsolidation,
 } from '@/hooks/useDepartmentBudgets';
+import BudgetReviewQueue from '@/components/budget/BudgetReviewQueue';
 
 type View = 'queue' | 'consolidation' | 'cycles';
 
 const VIEWS: { id: View; label: string }[] = [
-  { id: 'queue', label: 'Review queue' },
+  { id: 'queue', label: 'Department budgets' },
   { id: 'consolidation', label: 'Consolidated budget' },
   { id: 'cycles', label: 'Budget cycles' },
 ];
@@ -34,30 +35,10 @@ export default function BudgetApprovalPanel() {
   const { cycles, loading: cyclesLoading, reload: reloadCycles } = useBudgetCycles();
   const [view, setView] = useState<View>('queue');
   const [cycleId, setCycleId] = useState('');
-  const [submissions, setSubmissions] = useState<BudgetSubmission[]>([]);
   const [loading, setLoading] = useState(false);
-  const [expanded, setExpanded] = useState<string | null>(null);
-  const [lines, setLines] = useState<BudgetLine[]>([]);
-  const [lineEdits, setLineEdits] = useState<Record<string, string>>({});
-  const [busy, setBusy] = useState<string | null>(null);
-  const [comment, setComment] = useState('');
   const [consolidation, setConsolidation] = useState<BudgetConsolidation | null>(null);
 
   useEffect(() => { if (!cycleId && cycles.length) setCycleId(cycles[0].id); }, [cycles, cycleId]);
-
-  const loadQueue = useCallback(async () => {
-    if (!cycleId) return;
-    setLoading(true);
-    try {
-      setSubmissions(await fetchSubmissions(cycleId));
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not load submissions');
-    } finally {
-      setLoading(false);
-    }
-  }, [cycleId]);
-
-  useEffect(() => { loadQueue(); }, [loadQueue]);
 
   useEffect(() => {
     if (view !== 'consolidation' || !cycleId) return;
