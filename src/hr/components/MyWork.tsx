@@ -479,6 +479,21 @@ export default function MyWork({ embedded = false }: MyWorkProps) {
       }));
   }, [tasks]);
 
+  const finishedTasks = useMemo(() => {
+    return tasks
+      .filter((t) => CLOSED.includes(t.status))
+      .sort((a, b) => {
+        const aCompleted = a.completed_at ? new Date(a.completed_at).getTime() : null;
+        const bCompleted = b.completed_at ? new Date(b.completed_at).getTime() : null;
+        if (aCompleted && bCompleted) return bCompleted - aCompleted;
+        if (aCompleted) return -1;
+        if (bCompleted) return 1;
+        const aCreated = new Date(a.created_at).getTime();
+        const bCreated = new Date(b.created_at).getTime();
+        return bCreated - aCreated;
+      });
+  }, [tasks]);
+
   /** Last 30 days of completed ÷ created, straight off this person's hr_tasks rows. */
   const trend = useMemo(() => {
     const buckets: { key: number; label: string; created: number; completed: number }[] = [];
