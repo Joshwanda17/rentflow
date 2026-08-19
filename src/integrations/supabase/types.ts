@@ -14751,7 +14751,7 @@ export type Database = {
           origin: Database["public"]["Enums"]["hr_ticket_origin"]
           raised_at?: string
           raised_by: string
-          ref: string
+          ref?: string
           reported_at?: string | null
           reporter_channel?:
             | Database["public"]["Enums"]["hr_reporter_channel"]
