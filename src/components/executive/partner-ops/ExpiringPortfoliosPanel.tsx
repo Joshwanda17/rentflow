@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Hourglass, Search, CalendarX2, Inbox, RefreshCw, TrendingUp, Wallet } from 'lucide-react';
+import { Hourglass, Search, CalendarX2, Inbox, RefreshCw, TrendingUp, Wallet, Mail, Loader2, CheckCircle2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +8,12 @@ import { Button } from '@/components/ui/button';
 import { formatUGX } from '@/lib/rentCalculations';
 import { cn } from '@/lib/utils';
 import { fetchAllNearingPayoutPortfolios } from '@/lib/supabaseBatchUtils';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/components/ui/sonner';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const EXPIRY_WINDOW_DAYS = 90; // "approaching maturity" = within 3 months
 
