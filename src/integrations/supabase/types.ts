@@ -14443,6 +14443,61 @@ export type Database = {
         }
         Relationships: []
       }
+      hr_task_assessments: {
+        Row: {
+          assessed_at: string
+          assessed_by: string
+          basis: string
+          difficulty_band: Database["public"]["Enums"]["hr_difficulty_band"]
+          id: string
+          quality: Database["public"]["Enums"]["hr_quality"]
+          task_id: string
+          week_ending: string
+        }
+        Insert: {
+          assessed_at?: string
+          assessed_by: string
+          basis: string
+          difficulty_band: Database["public"]["Enums"]["hr_difficulty_band"]
+          id?: string
+          quality: Database["public"]["Enums"]["hr_quality"]
+          task_id: string
+          week_ending: string
+        }
+        Update: {
+          assessed_at?: string
+          assessed_by?: string
+          basis?: string
+          difficulty_band?: Database["public"]["Enums"]["hr_difficulty_band"]
+          id?: string
+          quality?: Database["public"]["Enums"]["hr_quality"]
+          task_id?: string
+          week_ending?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_task_assessments_assessed_by_fkey"
+            columns: ["assessed_by"]
+            isOneToOne: false
+            referencedRelation: "hr_staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_task_assessments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: true
+            referencedRelation: "hr_tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_task_assessments_week_ending_fkey"
+            columns: ["week_ending"]
+            isOneToOne: false
+            referencedRelation: "hr_review_weeks"
+            referencedColumns: ["week_ending"]
+          },
+        ]
+      }
       hr_task_attachments: {
         Row: {
           caption: string | null
