@@ -539,18 +539,21 @@ function ApplicationsTab() {
         await archiveApplication(pending.row.id);
         toast.success(`${pending.row.full_name || 'Application'} removed from the list`);
         setSelected(null);
+      } else if (pending.writer === 'contacted') {
+        await recordApplicationContacted(pending.row.id);
+        toast.success(`${pending.row.full_name || 'Applicant'} marked as contacted`);
       } else {
         // The target round travels with the decision in a single write.
         // Hold and Decline carry a null round and therefore leave
         // `shortlist_round` untouched, preserving the level reached.
         await recordApplicationDecision(
           pending.row.id,
-          pending.kind,
+          pending.kind as ApplicationDecision,
           undefined,
           pending.round,
         );
         toast.success(
-          `${DECISION_LABELS[pending.kind]} recorded for ${pending.row.full_name || 'applicant'}`,
+          `${DECISION_LABELS[pending.kind as ApplicationDecision]} recorded for ${pending.row.full_name || 'applicant'}`,
         );
       }
       closeConfirm();
@@ -563,6 +566,7 @@ function ApplicationsTab() {
       setBusy(false);
     }
   };
+
 
   // Marking contact is a single click: no reason, no confirmation dialog.
   const [contactingId, setContactingId] = useState<string | null>(null);
