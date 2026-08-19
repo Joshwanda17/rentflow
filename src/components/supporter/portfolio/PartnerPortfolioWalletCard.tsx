@@ -8,8 +8,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 const welileLogo = '/welile-colored.png';
 
+// Taller card (354x200) to give the Add Card button more room on mobile.
 const NOTCH_PATH =
-  'M 20,0 L 334,0 A 20,20 0 0 1 354,20 L 354,119 A 8,8 0 0 1 346,127 L 241,127 A 8,8 0 0 0 233,135 L 233,145 A 20,20 0 0 1 213,165 L 20,165 A 20,20 0 0 1 0,145 L 0,20 A 20,20 0 0 1 20,0 Z';
+  'M 20,0 L 334,0 A 20,20 0 0 1 354,20 L 354,154 A 8,8 0 0 1 346,162 L 241,162 A 8,8 0 0 0 233,170 L 233,180 A 20,20 0 0 1 213,200 L 20,200 A 20,20 0 0 1 0,180 L 0,20 A 20,20 0 0 1 20,0 Z';
 
 interface Props {
   onAddCard?: () => void;
