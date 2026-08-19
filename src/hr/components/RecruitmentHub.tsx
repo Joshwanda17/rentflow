@@ -681,7 +681,13 @@ function ApplicationsTab() {
                   <TableCell>{row.category || '—'}</TableCell>
                   <TableCell>{row.location || '—'}</TableCell>
                   <TableCell>{row.experience_level || '—'}</TableCell>
-                  <TableCell>{row.status || '—'}</TableCell>
+                  <TableCell>
+                    {row.status === 'shortlisted'
+                      ? 'Shortlist 1'
+                      : row.status
+                        ? row.status.charAt(0).toUpperCase() + row.status.slice(1)
+                        : '—'}
+                  </TableCell>
                   <TableCell>{fmtDateTime(row.created_at)}</TableCell>
                   <TableCell>{row.public_ref || '—'}</TableCell>
                   <TableCell
