@@ -62,7 +62,14 @@ export function AgentRentCapacityPanel({
   const [search, setSearch] = useState('');
   const LOAD_STEP = 15;
   const [visibleCount, setVisibleCount] = useState(LOAD_STEP);
-  const [isSectionCollapsed, setIsSectionCollapsed] = useState(false);
+  const SECTION_COLLAPSE_KEY = 'agent-rent-capacity-collapsed';
+  const [isSectionCollapsed, setIsSectionCollapsed] = useState(() => {
+    try {
+      return window.localStorage.getItem(SECTION_COLLAPSE_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  });
   const showList = mode !== 'summary';
   const { agentIds: qualifyingIds, isReady: qualifyingReady } = useQualifyingAgentIds();
   // On phones, default every row to collapsed so the agent sees a clean
