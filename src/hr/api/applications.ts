@@ -172,18 +172,21 @@ export async function recordApplicationDecision(
  * table. `job_applications` has no `purged_by` column, so authorship of the
  * removal is not written here. Nothing in this module deletes.
  */
-export async function purgeApplication(applicationId: string): Promise<void> {
-  const purgedBy = await actingUserId();
+export async function purgeApplication(applicationId: string): Promise<JobApplicationRow> {
+  const archivedBy = await actingUserId();
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('job_applications')
     .update({
-      purged_at: new Date().toISOString(),
-      purged_by: purgedBy,
+      archived_at: new Date().toISOString(),
+      archived_by: archivedBy,
     })
-    .eq('id', applicationId);
+    .eq('id', applicationId)
+    .select(COLUMNS)
+    .single();
 
   if (error) throw new Error(error.message);
+  return data as unknown as JobApplicationRow;
 }
 
 /** Stamp that a person has been reached. Not a decision, so the status is untouched. */
@@ -209,13 +212,19 @@ export async function listPurgedApplications(): Promise<PurgedApplicationRow[]> 
 }
 
 /** Put a removed application back on the working list. Status is left as it was. */
-export async function restoreApplication(applicationId: string): Promise<void> {
-  const { error } = await supabase
+export async function restoreApplication(applicationId: string): Promise<JobApplicationRow> {
+  const { data, error } = await supabase
     .from('job_applications')
-    .update({ purged_at: null, purged_by: null })
-    .eq('id', applicationId);
+    .update({
+      archived_at: null,
+      archived_by: null,
+    })
+    .eq('id', applicationId)
+    .select(COLUMNS)
+    .single();
 
   if (error) throw new Error(error.message);
+  return data as unknown as JobApplicationRow;
 }
 
 export async function markApplicationContacted(
