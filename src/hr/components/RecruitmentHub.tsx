@@ -317,7 +317,7 @@ function ApplicationsTab() {
     { key: 'name' | 'role_interest' | 'status' | 'created'; dir: 'asc' | 'desc' }
   >({ key: 'created', dir: 'desc' });
   const [pending, setPending] = useState<
-    { row: JobApplicationRow; kind: ApplicationDecision | 'remove' } | null
+    { row: JobApplicationRow; kind: ApplicationDecision | 'remove'; round?: number | null } | null
   >(null);
   const [busy, setBusy] = useState(false);
   // Selection lives as a set of ids so it survives filtering and sorting.
@@ -505,7 +505,7 @@ function ApplicationsTab() {
         toast.success(`${pending.row.full_name || 'Application'} removed from the list`);
         setSelected(null);
       } else {
-        await recordApplicationDecision(pending.row.id, pending.kind);
+        await recordApplicationDecision(pending.row.id, pending.kind, undefined, pending.round ?? null);
         toast.success(
           `${DECISION_LABELS[pending.kind]} recorded for ${pending.row.full_name || 'applicant'}`,
         );
