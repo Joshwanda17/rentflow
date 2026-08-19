@@ -5,6 +5,7 @@ export interface ApsAgents { new_today: number; new_prev: number; total: number;
 export interface ApsRent {
   collected_today: number; collected_prev: number; collections_today: number;
   outstanding: number; daily_receivable: number; live_plans: number; avg_days_outstanding: number;
+  expected_cumulative?: number; expected_days?: number;
 }
 export interface ApsAdvances {
   submitted: number; approved: number; rejected: number; issued_today: number;
@@ -30,6 +31,7 @@ export interface ApsRentRow {
   agent_id: string; agent_name: string; phone: string | null; location: string | null;
   live_plans: number; outstanding: number; daily_receivable: number; repaid_to_date: number;
   avg_days_outstanding: number; collected_today: number;
+  expected_cumulative?: number;
 }
 export interface ApsAdvanceRow {
   id: string; agent_name: string; phone: string | null; status: string;
