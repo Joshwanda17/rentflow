@@ -95,3 +95,4 @@
 - [Partner-reserved plan fence](mem://features/partner/partner-reserved-plan-fence) — DB trigger + psm_reserved_plan_ids keep partner self-funded rent plans out of every company/CFO landlord float disbursement queue
 - [Promissory note funding](mem://features/partner/promissory-note-funding) — Note approval commits partner withdrawable money to earmarked plans, raises pending portfolio for Partner Ops; pledge SMS/email at creation
 - [Budget departments = hr_departments](mem://features/budget/hr-departments-source-of-truth) — Budgets bind to active `hr_departments` only; membership from HR assignments; `budget_department_routes` override table; roles are never departments
+- [Budget cycle open notifications](mem://features/budget/cycle-open-notifications) — Cycle open notifies users with department dashboard access (not HR assignments); dedup table; `budget` type allowlisted in notification suppression trigger
