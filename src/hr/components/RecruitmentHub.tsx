@@ -66,7 +66,6 @@ import {
 import { getResumeUrl } from '@/hr/api/resumes';
 import {
   APPLICATION_DECISIONS,
-  listPurgedApplications,
   purgeApplication,
   recordApplicationDecision,
   restoreApplication,
