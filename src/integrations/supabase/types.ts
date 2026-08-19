@@ -5444,6 +5444,41 @@ export type Database = {
           },
         ]
       }
+      budget_department_routes: {
+        Row: {
+          changed_by: string | null
+          created_at: string
+          department_id: string
+          reason: string | null
+          route: string
+          updated_at: string
+        }
+        Insert: {
+          changed_by?: string | null
+          created_at?: string
+          department_id: string
+          reason?: string | null
+          route: string
+          updated_at?: string
+        }
+        Update: {
+          changed_by?: string | null
+          created_at?: string
+          department_id?: string
+          reason?: string | null
+          route?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_department_routes_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: true
+            referencedRelation: "hr_departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       budget_disbursements: {
         Row: {
           amount: number

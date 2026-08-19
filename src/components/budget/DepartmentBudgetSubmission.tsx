@@ -15,7 +15,7 @@ import { format } from 'date-fns';
 import { formatDynamic as formatUGX } from '@/lib/currencyFormat';
 import {
   fetchLines, fetchSubmissions, uploadBudgetDocument, getBudgetDocumentUrl,
-  registerBudgetDocuments, isBudgetableAccount,
+  registerBudgetDocuments, isBudgetableAccount, fetchDepartmentRoute, BUDGET_ROUTE_LABEL,
   useBudgetCycles, useBudgetReferenceData,
   type BudgetSubmission, type BudgetLine,
 } from '@/hooks/useDepartmentBudgets';
@@ -52,6 +52,7 @@ export default function DepartmentBudgetSubmission() {
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [uploadingIdx, setUploadingIdx] = useState<number | null>(null);
+  const [route, setRoute] = useState<'direct' | 'coo' | null>(null);
 
   const openCycles = useMemo(() => cycles.filter(c => c.status === 'open'), [cycles]);
   const budgetableAccounts = useMemo(() => accounts.filter(isBudgetableAccount), [accounts]);
@@ -65,6 +66,15 @@ export default function DepartmentBudgetSubmission() {
   useEffect(() => {
     if (!departmentId && myDepartments.length) setDepartmentId(myDepartments[0].id);
   }, [myDepartments, departmentId]);
+
+  useEffect(() => {
+    if (!departmentId) { setRoute(null); return; }
+    let cancelled = false;
+    fetchDepartmentRoute(departmentId)
+      .then(r => { if (!cancelled) setRoute(r); })
+      .catch(() => { if (!cancelled) setRoute(null); });
+    return () => { cancelled = true; };
+  }, [departmentId]);
 
   const loadSubmissions = useCallback(async () => {
     if (!cycleId) return;
@@ -218,6 +228,11 @@ export default function DepartmentBudgetSubmission() {
                   {myDepartments.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
                 </SelectContent>
               </Select>
+              {route && (
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Approval route: {BUDGET_ROUTE_LABEL[route]}
+                </p>
+              )}
             </div>
           </div>
           {cycle?.instructions && (
