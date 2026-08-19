@@ -472,26 +472,16 @@ export function AgentRentCapacityPanel({
             />
           </div>
           {visible.length > 0 && (
-            <div className="flex items-center gap-1 shrink-0">
-              <button
-                type="button"
-                onClick={expandAll}
-                className="inline-flex items-center gap-1 h-9 px-2.5 rounded-lg border border-border bg-background hover:bg-muted text-xs font-semibold"
-                title="Expand all"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Expand</span>
-              </button>
-              <button
-                type="button"
-                onClick={collapseAll}
-                className="inline-flex items-center gap-1 h-9 px-2.5 rounded-lg border border-border bg-background hover:bg-muted text-xs font-semibold"
-                title="Collapse all"
-              >
-                <Minus className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Collapse</span>
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={toggleAll}
+              className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-background hover:bg-muted text-xs font-semibold shrink-0"
+              title={allCollapsed ? 'Expand all agent cards' : 'Collapse all agent cards'}
+              aria-label={allCollapsed ? 'Expand all' : 'Collapse all'}
+            >
+              {allCollapsed ? <Plus className="h-3.5 w-3.5" /> : <Minus className="h-3.5 w-3.5" />}
+              <span className="hidden sm:inline">{allCollapsed ? 'Expand All' : 'Collapse All'}</span>
+            </button>
           )}
         </div>
 
