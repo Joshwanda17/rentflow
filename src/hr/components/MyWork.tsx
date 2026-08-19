@@ -479,6 +479,21 @@ export default function MyWork({ embedded = false }: MyWorkProps) {
       }));
   }, [tasks]);
 
+  const finishedTasks = useMemo(() => {
+    return tasks
+      .filter((t) => CLOSED.includes(t.status))
+      .sort((a, b) => {
+        const aCompleted = a.completed_at ? new Date(a.completed_at).getTime() : null;
+        const bCompleted = b.completed_at ? new Date(b.completed_at).getTime() : null;
+        if (aCompleted && bCompleted) return bCompleted - aCompleted;
+        if (aCompleted) return -1;
+        if (bCompleted) return 1;
+        const aCreated = new Date(a.created_at).getTime();
+        const bCreated = new Date(b.created_at).getTime();
+        return bCreated - aCreated;
+      });
+  }, [tasks]);
+
   /** Last 30 days of completed ÷ created, straight off this person's hr_tasks rows. */
   const trend = useMemo(() => {
     const buckets: { key: number; label: string; created: number; completed: number }[] = [];
@@ -784,6 +799,49 @@ export default function MyWork({ embedded = false }: MyWorkProps) {
                         )}
                       </div>
                     </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">My finished tasks</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {finishedTasks.length === 0 ? (
+            <p className="p-4 text-center text-sm text-muted-foreground">Nothing finished yet</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Ref</TableHead>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Completed</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {finishedTasks.map((task) => (
+                  <TableRow key={task.id}>
+                    <TableCell className="text-xs text-muted-foreground">{task.ref}</TableCell>
+                    <TableCell className="max-w-[280px]">
+                      <Link
+                        to={`/hr/dashboard/tasks/${task.id}`}
+                        className="text-sm font-medium text-foreground hover:underline"
+                      >
+                        {task.title}
+                      </Link>
+                    </TableCell>
+                    <TableCell>
+                      <span className={`rounded px-1.5 py-0.5 text-[10px] ${STATUS_PILL[task.status] ?? 'bg-muted text-foreground'}`}>
+                        {humanize(task.status)}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-xs">{formatDate(task.completed_at)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
