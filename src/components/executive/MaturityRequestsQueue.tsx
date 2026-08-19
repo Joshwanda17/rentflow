@@ -122,7 +122,8 @@ export function MaturityRequestsQueue() {
         .from('portfolio_action_requests')
         .select(
           `*, portfolio:investor_portfolios!portfolio_action_requests_portfolio_id_fkey(
-            duration_months, payout_day, maturity_date, next_roi_date, roi_percentage
+            duration_months, payout_day, maturity_date, next_roi_date, roi_percentage,
+            investment_amount, status
           )`,
         )
         .order('created_at', { ascending: false })
