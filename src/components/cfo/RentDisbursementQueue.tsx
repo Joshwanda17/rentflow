@@ -18,7 +18,12 @@ import {
 } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Loader2, CheckCircle2, Banknote, Home, TrendingUp, Users, Wallet, AlertTriangle, XCircle, Search, MapPin, Filter } from 'lucide-react';
-import { excludePartnerReservedPlans } from '@/lib/partnerReservedPlans';
+import {
+  fetchPartnerReservedStages,
+  PARTNER_RESERVED_HINT,
+  PARTNER_RESERVED_LABEL,
+  type PartnerReservedStage,
+} from '@/lib/partnerReservedPlans';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -56,6 +61,12 @@ interface ApprovedRentItem {
   loc_village: string | null;
   loc_region: string | null;
   loc_house_category: string | null;
+  /**
+   * Set when a partner has claimed / committed / already funded this plan
+   * (self-managed funding). Such rows stay visible but can never be ticked —
+   * the DB also hard-blocks a company float allocation on them.
+   */
+  partner_reserved_stage: PartnerReservedStage | null;
 }
 
 /** Same category set the previous "Pay by Location / Category" picker offered. */
@@ -144,12 +155,12 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
       if (error) throw error;
       if (!requests?.length) return [];
 
-      // Plans reserved or already funded by a partner (self-managed funding) are
-      // disbursed by Partner Ops approval straight to the agent's landlord float.
-      // They must never appear here — the DB also hard-blocks a company
-      // allocation on them.
-      const disbursable = await excludePartnerReservedPlans(requests);
-      if (!disbursable.length) return [];
+      // Plans claimed / committed / already funded by a partner (self-managed
+      // funding) stay VISIBLE but carry a "Partner claimed" badge and cannot be
+      // ticked: Partner Ops approval sends the principal straight to the agent's
+      // landlord float, and the DB hard-blocks a company allocation on them.
+      const reservedStages = await fetchPartnerReservedStages(requests.map(r => r.id as string));
+      const disbursable = requests;
 
       // Gather unique IDs
       const tenantIds = [...new Set(disbursable.map(r => r.tenant_id))];
@@ -206,6 +217,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
         const loc: any = tenantLocMap.get(r.tenant_id) || {};
         return {
           ...r,
+          partner_reserved_stage: reservedStages.get(r.id as string) ?? null,
           access_fee: r.access_fee ?? 0,
           request_fee: r.request_fee ?? 0,
           total_repayment: r.total_repayment ?? 0,
@@ -235,8 +247,9 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
   // Pre-tick rows handed over by the location/category recipient picker.
   useEffect(() => {
     if (!autoSelectIds?.length) return;
-    setSelected(new Set(autoSelectIds));
-  }, [autoSelectIds?.join(',')]);
+    const reserved = new Set(items.filter(i => i.partner_reserved_stage).map(i => i.id));
+    setSelected(new Set(autoSelectIds.filter(id => !reserved.has(id))));
+  }, [autoSelectIds?.join(','), items]);
 
   const effectiveRestrictIds = useMemo(
     () => (restrictToIds && restrictToIds.length ? restrictToIds : null),
@@ -251,6 +264,8 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
   const totalRepaymentExpected = useMemo(() => selectedItems.reduce((s, i) => s + i.total_repayment, 0), [selectedItems]);
 
   const toggle = (id: string) => {
+    // Partner-claimed plans are never fundable from company float.
+    if (items.find(i => i.id === id)?.partner_reserved_stage) return;
     const next = new Set(selected);
     next.has(id) ? next.delete(id) : next.add(id);
     setSelected(next);
@@ -370,7 +385,12 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
     [countryFilteredGroups, agentFilter],
   );
   const visibleItems = useMemo(() => visibleGroups.flatMap(g => g.rows), [visibleGroups]);
-  const allSelected = visibleItems.length > 0 && visibleItems.every(i => selected.has(i.id));
+  /** Rows the CFO may actually fund (partner-claimed plans excluded). */
+  const selectableItems = useMemo(
+    () => visibleItems.filter(i => !i.partner_reserved_stage),
+    [visibleItems],
+  );
+  const allSelected = selectableItems.length > 0 && selectableItems.every(i => selected.has(i.id));
   // Presentation only: which visible row should host the inline Step 2 panel.
   const firstSelectedId = useMemo(
     () => visibleItems.find(i => selected.has(i.id))?.id ?? null,
@@ -378,13 +398,14 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
   );
   const toggleAll = () => {
     const next = new Set(selected);
-    if (allSelected) visibleItems.forEach(i => next.delete(i.id));
-    else visibleItems.forEach(i => next.add(i.id));
+    if (allSelected) selectableItems.forEach(i => next.delete(i.id));
+    else selectableItems.forEach(i => next.add(i.id));
     setSelected(next);
   };
 
   const toggleAgentGroup = (rows: ApprovedRentItem[]) => {
-    const ids = rows.map(r => r.id);
+    const ids = rows.filter(r => !r.partner_reserved_stage).map(r => r.id);
+    if (!ids.length) return;
     const allOn = ids.every(id => selected.has(id));
     const next = new Set(selected);
     if (allOn) ids.forEach(id => next.delete(id));
@@ -961,6 +982,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
                         <tbody>
                       {group.rows.map(item => {
                         const isSel = selected.has(item.id);
+                        const reserved = item.partner_reserved_stage;
                         const locationLabel = [item.request_city, item.request_country].filter(Boolean).join(', ');
                         return (
                         <Fragment key={item.id}>
@@ -968,21 +990,30 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
                           onClick={() => toggle(item.id)}
                           className={cn(
                             'border-b border-border/70 last:border-0 cursor-pointer transition-colors',
-                            isSel
+                            reserved
+                              ? 'bg-muted/30 cursor-not-allowed opacity-80'
+                              : isSel
                               ? 'bg-primary/[0.07] shadow-[inset_3px_0_0_0_hsl(var(--primary))]'
                               : 'hover:bg-muted/40'
                           )}
+                          title={reserved ? PARTNER_RESERVED_HINT[reserved] : undefined}
                         >
                           <td className="px-2 py-2.5 align-middle" onClick={e => e.stopPropagation()}>
                             <Checkbox
-                              checked={selected.has(item.id)}
+                              checked={!reserved && selected.has(item.id)}
+                              disabled={!!reserved}
                               onCheckedChange={() => toggle(item.id)}
                             />
                           </td>
                           <td className="px-2 py-2.5 align-middle">
                             <div className="flex items-center gap-1.5 min-w-0">
                               <span className={cn('truncate', isSel ? 'font-bold' : 'font-semibold')}>{item.tenant_name}</span>
-                              {isSel && (
+                              {reserved && (
+                                <Badge className="text-[9px] px-1.5 py-0 shrink-0 rounded-full bg-violet-100 text-violet-700 border-violet-200">
+                                  {PARTNER_RESERVED_LABEL[reserved]}
+                                </Badge>
+                              )}
+                              {!reserved && isSel && (
                                 <Badge className="text-[9px] px-1.5 py-0 shrink-0 bg-primary text-primary-foreground border-0">
                                   SELECTED
                                 </Badge>
