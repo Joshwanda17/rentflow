@@ -215,14 +215,19 @@ function getAvailableDecisions(status: string | null, round: number | null): Dec
   const level = round ?? (status === 'shortlisted' ? 1 : 0);
   const actions: DecisionAction[] = [];
 
-  if (level === 0) actions.push({ status: 'shortlisted', round: 1, label: 'Shortlist' });
-  else if (level === 1) actions.push({ status: 'shortlisted', round: 2, label: 'Shortlist 2' });
-  else if (level === 2) actions.push({ status: 'shortlisted', round: 3, label: 'Shortlist 3' });
+  if (level === 0) actions.push({ status: 'shortlisted', round: 1, label: 'Shortlist', writer: 'decision' });
+  else if (level === 1) actions.push({ status: 'shortlisted', round: 2, label: 'Shortlist 2', writer: 'decision' });
+  else if (level === 2) actions.push({ status: 'shortlisted', round: 3, label: 'Shortlist 3', writer: 'decision' });
 
-  actions.push({ status: 'hold', round: null, label: DECISION_LABELS.hold });
-  actions.push({ status: 'rejected', round: null, label: DECISION_LABELS.rejected });
+  if (status !== 'contacted') {
+    actions.push({ status: 'contacted', round: null, label: 'Contacted', writer: 'contacted' });
+  }
+
+  actions.push({ status: 'hold', round: null, label: DECISION_LABELS.hold, writer: 'decision' });
+  actions.push({ status: 'rejected', round: null, label: DECISION_LABELS.rejected, writer: 'decision' });
   return actions;
 }
+
 
 const SHORTLIST_LEVEL_2_CLASS =
   'border-amber-500/50 bg-amber-500/10 text-amber-700 hover:bg-amber-500/20';
