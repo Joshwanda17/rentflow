@@ -41603,6 +41603,10 @@ export type Database = {
           total_count: number
         }[]
       }
+      ops_tenant_ops_weekly_bundle: {
+        Args: { p_from: string; p_to: string }
+        Returns: Json
+      }
       ops_tenant_products_services_report: {
         Args: { p_from?: string; p_to?: string }
         Returns: Json
