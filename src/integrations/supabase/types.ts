@@ -39300,13 +39300,14 @@ export type Database = {
       get_authoritative_wallet: { Args: { p_user_id: string }; Returns: Json }
       get_budget_consolidation: { Args: { p_call_id: string }; Returns: Json }
       get_budget_department_notifications: {
-        Args: never
+        Args: { _department_keys?: string[] }
         Returns: {
           call_id: string
           created_at: string
           cycle_title: string
           deadline: string
           department_id: string
+          department_key: string
           department_name: string
           id: string
           is_read: boolean
