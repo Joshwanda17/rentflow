@@ -98,7 +98,7 @@ export function ApprovedRequestsFundingWidget() {
     const profileMap = new Map((profilesRes.data || []).map(p => [p.id, p.full_name]));
     const landlordMap = new Map((landlordsRes.data || []).map(l => [l.id, l.name]));
 
-    setRequests(data.map(r => ({
+    setRequests(rows.map(r => ({
       id: r.id,
       rent_amount: r.rent_amount,
       duration_days: r.duration_days,
