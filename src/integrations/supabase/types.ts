@@ -14349,6 +14349,7 @@ export type Database = {
       hr_positions: {
         Row: {
           active: boolean
+          can_assign_tasks: boolean
           created_at: string
           department_id: string | null
           id: string
@@ -14358,6 +14359,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          can_assign_tasks?: boolean
           created_at?: string
           department_id?: string | null
           id?: string
@@ -14367,6 +14369,7 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          can_assign_tasks?: boolean
           created_at?: string
           department_id?: string | null
           id?: string
@@ -40227,6 +40230,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      hr_can_assign_tasks: { Args: never; Returns: boolean }
       hr_change_department: {
         Args: {
           p_assignment: string
@@ -40270,6 +40274,7 @@ export type Database = {
         }[]
       }
       hr_is_admin: { Args: never; Returns: boolean }
+      hr_is_engineering: { Args: never; Returns: boolean }
       hr_is_executive: { Args: never; Returns: boolean }
       hr_is_named_officer: {
         Args: { _role: Database["public"]["Enums"]["app_role"] }
@@ -40289,6 +40294,7 @@ export type Database = {
           title: string
         }[]
       }
+      hr_my_department_id: { Args: never; Returns: string }
       hr_my_staff_id: { Args: never; Returns: string }
       hr_pay_advance_due: {
         Args: { _gross: number; _run_id: string; _staff_id: string }
