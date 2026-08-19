@@ -755,16 +755,12 @@ function ApplicationsTab() {
               <Separator />
               <Label className="text-xs text-muted-foreground">Decision</Label>
               <div className="flex flex-wrap gap-2">
-                {APPLICATION_DECISIONS.map((d) => (
+                {decisionsForStatus(selected.status).map((d) => (
                   <Button
                     key={d}
                     size="sm"
                     variant="outline"
-                    className={
-                      d === 'shortlisted' && selected.status === 'shortlisted'
-                        ? SHORTLIST_LEVEL_1_CLASS
-                        : undefined
-                    }
+                    className={d === 'shortlisted_2' ? SHORTLIST_LEVEL_2_CLASS : undefined}
                     onClick={() => {
                       setPending({ row: selected, kind: d });
                     }}
