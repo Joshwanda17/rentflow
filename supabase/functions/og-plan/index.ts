@@ -64,6 +64,12 @@ Deno.serve(async (req) => {
     .maybeSingle();
 
   const params = (link?.target_params ?? {}) as Record<string, string>;
+  if (!link) {
+    return new Response("Short link not found", {
+      status: 404,
+      headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store", ...corsHeaders },
+    });
+  }
   const planId = params.plan ?? "";
   const ref = params.ref ?? "";
 
