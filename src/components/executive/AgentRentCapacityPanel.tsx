@@ -114,8 +114,8 @@ export function AgentRentCapacityPanel({
   }, [queryClient]);
 
   const toggleRow = (agentId: string) =>
-    setRowCollapsed((prev) => {
-      const current = prev[agentId] ?? defaultCollapsed;
+    setRowOverrides((prev) => {
+      const current = isRowCollapsed(agentId);
       return { ...prev, [agentId]: !current };
     });
 
