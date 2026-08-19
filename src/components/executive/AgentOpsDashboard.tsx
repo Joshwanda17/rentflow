@@ -58,6 +58,7 @@ import { AgentOpsOverview, AtRiskAgentsPreview } from './agent-ops-v2/AgentOpsOv
 import { AdvanceHealthCard } from './agent-ops-v2/AdvanceHealthCard';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Users, Banknote, DollarSign, Search, UserPlus, Trophy, BarChart3, 
   ClipboardList, AlertTriangle, Building2, Wallet, Bell, ArrowLeftRight,
@@ -597,6 +598,8 @@ function AgentOpsSideNav({
           </span>
           <span className="truncate">Overview</span>
         </button>
+
+        <div className="space-y-1">{renderItem('agent-products-services')}</div>
 
         {SIDE_GROUPS.map((group) => {
           const containsActive = group.keys.includes(activeView as ActiveView);
