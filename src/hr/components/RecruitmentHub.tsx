@@ -178,21 +178,28 @@ type JobApplicationRow = Database['public']['Tables']['job_applications']['Row']
 /** Labels for the decision vocabulary. Keyed by the constant, so no status is invented here. */
 const DECISION_LABELS: Record<ApplicationDecision, string> = {
   shortlisted: 'Shortlist',
+  shortlisted_2: 'Shortlist 2',
   hold: 'Hold',
   rejected: 'Decline',
 };
 
 /**
- * Already-shortlisted candidates sit at shortlist level 1, so their shortlist
- * action reads "Shortlist 1" (and is tinted) instead of the plain "Shortlist".
+ * Already-shortlisted candidates sit at shortlist level 1, so their next
+ * shortlist action reads "Shortlist 2" instead of the plain "Shortlist".
  */
-function decisionLabel(d: ApplicationDecision, status: string | null): string {
-  if (d === 'shortlisted' && status === 'shortlisted') return 'Shortlist 1';
+function decisionLabel(d: ApplicationDecision, _status: string | null): string {
   return DECISION_LABELS[d];
 }
 
-const SHORTLIST_LEVEL_1_CLASS =
-  'border-violet-500/50 bg-violet-500/10 text-violet-700 hover:bg-violet-500/20';
+/** Only the actions that make sense for the current status are shown. */
+function decisionsForStatus(status: string | null): ApplicationDecision[] {
+  if (status === 'shortlisted') return ['shortlisted_2', 'hold', 'rejected'];
+  if (status === 'shortlisted_2') return ['hold', 'rejected'];
+  return ['shortlisted', 'hold', 'rejected'];
+}
+
+const SHORTLIST_LEVEL_2_CLASS =
+  'border-fuchsia-500/50 bg-fuchsia-500/10 text-fuchsia-700 hover:bg-fuchsia-500/20';
 
 
 const fmtCount = (n: number) => Math.round(n).toLocaleString();
