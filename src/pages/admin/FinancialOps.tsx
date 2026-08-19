@@ -32,7 +32,7 @@ export default function FinancialOpsPage() {
             Back to dashboard
           </Button>
           <div className="flex items-center gap-1">
-            <BudgetDepartmentNotificationBell />
+            <BudgetDepartmentNotificationBell dashboard="financial-ops" />
             <Button
               variant="outline"
               size="sm"

@@ -435,7 +435,10 @@ export default function ExecutiveDashboardLayout({
         <GlossaryButton variant="header" />
 
         {/* Department budget cycle notices (only for departments the user can access) */}
-        <BudgetDepartmentNotificationBell className="text-primary-foreground hover:bg-white/10 hover:text-primary-foreground" />
+        <BudgetDepartmentNotificationBell
+          dashboard={role}
+          className="text-primary-foreground hover:bg-white/10 hover:text-primary-foreground"
+        />
 
         {/* Role-specific header actions (notifications, etc.) */}
         {headerActions}

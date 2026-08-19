@@ -122,7 +122,7 @@ export default function ExecutiveHub() {
               <h1 className="text-lg font-bold truncate">{current.title}</h1>
               <p className="text-xs text-muted-foreground">Executive &amp; Operations Hub</p>
             </div>
-            <BudgetDepartmentNotificationBell />
+            <BudgetDepartmentNotificationBell dashboard={tab} />
             <Button
               variant="outline"
               size="sm"

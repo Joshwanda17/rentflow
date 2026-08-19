@@ -6,9 +6,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
+import { departmentKeysForDashboard } from './departmentScope';
 
 interface DeptNotification {
   id: string;
+  department_key: string;
   department_name: string;
   cycle_title: string;
   deadline: string | null;
@@ -23,20 +25,38 @@ interface DeptNotification {
  * Department-level budget notice bell. A single notice exists per budget cycle
  * per department; every user with dashboard access to that department sees it,
  * and read state is tracked per user.
+ *
+ * Pass `dashboard` (executive-hub tab slug, role slug, or dashboard permission
+ * key) to scope the bell to that dashboard's own department(s). Scoping is
+ * enforced server-side by `get_budget_department_notifications`.
  */
-export function BudgetDepartmentNotificationBell({ className }: { className?: string }) {
+export function BudgetDepartmentNotificationBell({
+  className,
+  dashboard,
+  departmentKeys,
+}: {
+  className?: string;
+  dashboard?: string;
+  departmentKeys?: string[];
+}) {
   const [items, setItems] = useState<DeptNotification[]>([]);
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
 
+  const scopedKeys = departmentKeys ?? departmentKeysForDashboard(dashboard);
+  const scopeArg = scopedKeys && scopedKeys.length > 0 ? scopedKeys : null;
+  const scopeSignature = scopeArg ? scopeArg.join(',') : '';
+
   const load = useCallback(async () => {
-    const { data, error } = await supabase.rpc('get_budget_department_notifications');
+    const { data, error } = await supabase.rpc('get_budget_department_notifications', {
+      _department_keys: scopeSignature ? scopeSignature.split(',') : null,
+    });
     if (error) {
       console.error('Failed to load department budget notices:', error);
       return;
     }
     setItems((data as DeptNotification[]) ?? []);
-  }, []);
+  }, [scopeSignature]);
 
   useEffect(() => { load(); }, [load]);
 
