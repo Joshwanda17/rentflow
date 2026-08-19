@@ -89,13 +89,20 @@ import HRInternshipApplications from '@/components/hr/HRInternshipApplications';
 const ALL = '__all__';
 const SHORTLIST_1 = 'shortlist_1';
 const SHORTLIST_2 = 'shortlist_2';
+const SHORTLIST_3 = 'shortlist_3';
 
-const FILTER_OPTIONS: { value: string; label: string; match: (status: string | null) => boolean }[] = [
+const FILTER_OPTIONS: {
+  value: string;
+  label: string;
+  match: (status: string | null, round: number | null) => boolean;
+}[] = [
   { value: ALL, label: 'All', match: () => true },
   { value: 'new', label: 'Shortlist', match: (s) => s === 'new' || s === null || s === '' },
   { value: 'hold', label: 'Hold', match: (s) => s === 'hold' },
-  { value: SHORTLIST_1, label: 'Shortlist 1', match: (s) => s === 'shortlisted' },
-  { value: SHORTLIST_2, label: 'Shortlist 2', match: (s) => s === 'shortlisted_2' },
+  // A shortlisted row with no round recorded is a level 1 row.
+  { value: SHORTLIST_1, label: 'Shortlist 1', match: (s, r) => s === 'shortlisted' && (r ?? 1) === 1 },
+  { value: SHORTLIST_2, label: 'Shortlist 2', match: (s, r) => s === 'shortlisted' && r === 2 },
+  { value: SHORTLIST_3, label: 'Shortlist 3', match: (s, r) => s === 'shortlisted' && r === 3 },
 ];
 
 type ReqStatus = HiringRequisition['status'];
@@ -176,26 +183,39 @@ function isAlwaysOpen(posting: JobPosting): boolean {
 type JobApplicationRow = Database['public']['Tables']['job_applications']['Row'];
 
 /** Labels for the decision vocabulary. Keyed by the constant, so no status is invented here. */
-const DECISION_LABELS: Record<ApplicationDecision, string> = {
+const DECISION_LABELS: Record<string, string> = {
   shortlisted: 'Shortlist',
-  shortlisted_2: 'Shortlist 2',
   hold: 'Hold',
   rejected: 'Decline',
 };
 
 /**
- * Already-shortlisted candidates sit at shortlist level 1, so their next
- * shortlist action reads "Shortlist 2" instead of the plain "Shortlist".
+ * One offered action: the status it writes, the shortlist round it targets
+ * (null when the round must not change) and the label on its button.
  */
-function decisionLabel(d: ApplicationDecision, _status: string | null): string {
-  return DECISION_LABELS[d];
+interface DecisionAction {
+  status: ApplicationDecision;
+  round: number | null;
+  label: string;
 }
 
-/** Only the actions that make sense for the current status are shown. */
-function decisionsForStatus(status: string | null): ApplicationDecision[] {
-  if (status === 'shortlisted') return ['shortlisted_2', 'hold', 'rejected'];
-  if (status === 'shortlisted_2') return ['hold', 'rejected'];
-  return ['shortlisted', 'hold', 'rejected'];
+/**
+ * Only the actions that make sense for where the row already stands are shown.
+ * Shortlist level lives in `shortlist_round`, not in the status string, so a
+ * shortlisted row with no round recorded is read as level 1. Level 3 is the
+ * last level, so it offers no further shortlist step.
+ */
+function getAvailableDecisions(status: string | null, round: number | null): DecisionAction[] {
+  const level = status === 'shortlisted' ? (round ?? 1) : 0;
+  const actions: DecisionAction[] = [];
+
+  if (level === 0) actions.push({ status: 'shortlisted', round: 1, label: 'Shortlist' });
+  else if (level === 1) actions.push({ status: 'shortlisted', round: 2, label: 'Shortlist 2' });
+  else if (level === 2) actions.push({ status: 'shortlisted', round: 3, label: 'Shortlist 3' });
+
+  actions.push({ status: 'hold', round: null, label: DECISION_LABELS.hold });
+  actions.push({ status: 'rejected', round: null, label: DECISION_LABELS.rejected });
+  return actions;
 }
 
 const SHORTLIST_LEVEL_2_CLASS =
@@ -297,7 +317,7 @@ function ApplicationsTab() {
     { key: 'name' | 'role_interest' | 'status' | 'created'; dir: 'asc' | 'desc' }
   >({ key: 'created', dir: 'desc' });
   const [pending, setPending] = useState<
-    { row: JobApplicationRow; kind: ApplicationDecision | 'remove' } | null
+    { row: JobApplicationRow; kind: ApplicationDecision | 'remove'; round?: number | null } | null
   >(null);
   const [busy, setBusy] = useState(false);
   // Selection lives as a set of ids so it survives filtering and sorting.
@@ -363,7 +383,7 @@ function ApplicationsTab() {
 
     if (statusFilter !== ALL) {
       const option = FILTER_OPTIONS.find((o) => o.value === statusFilter);
-      data = data.filter((r) => option?.match(r.status) ?? false);
+      data = data.filter((r) => option?.match(r.status, r.shortlist_round ?? null) ?? false);
     }
 
     const sorted = [...data];
@@ -485,7 +505,19 @@ function ApplicationsTab() {
         toast.success(`${pending.row.full_name || 'Application'} removed from the list`);
         setSelected(null);
       } else {
+        // The target round travels with the decision. `recordApplicationDecision`
+        // in `@/hr/api/applications` still takes three arguments (that file is
+        // out of scope for this change), so the round is written here as part of
+        // the same action. Hold and Decline carry a null round and therefore
+        // leave `shortlist_round` untouched, preserving the level reached.
         await recordApplicationDecision(pending.row.id, pending.kind);
+        if (pending.round !== null && pending.round !== undefined) {
+          const { error: roundError } = await supabase
+            .from('job_applications')
+            .update({ shortlist_round: pending.round })
+            .eq('id', pending.row.id);
+          if (roundError) throw new Error(roundError.message);
+        }
         toast.success(
           `${DECISION_LABELS[pending.kind]} recorded for ${pending.row.full_name || 'applicant'}`,
         );
@@ -670,12 +702,12 @@ function ApplicationsTab() {
                   key={row.id}
                   className={`cursor-pointer ${
                     row.status === 'shortlisted'
-                      ? 'bg-violet-50 hover:bg-violet-100'
-                      : row.status === 'shortlisted_2'
+                      ? (row.shortlist_round ?? 1) >= 2
                         ? 'bg-fuchsia-50 hover:bg-fuchsia-100'
-                        : row.status === 'hold'
-                          ? 'bg-sky-50 hover:bg-sky-100'
-                          : ''
+                        : 'bg-violet-50 hover:bg-violet-100'
+                      : row.status === 'hold'
+                        ? 'bg-sky-50 hover:bg-sky-100'
+                        : ''
                   }`}
                   onClick={() => setSelected(row)}
                 >
@@ -694,12 +726,12 @@ function ApplicationsTab() {
                   <TableCell>{row.experience_level || '—'}</TableCell>
                   <TableCell>
                     {row.status === 'shortlisted'
-                      ? 'Shortlist 1'
-                      : row.status === 'shortlisted_2'
-                        ? 'Shortlist 2'
-                        : row.status
-                          ? row.status.charAt(0).toUpperCase() + row.status.slice(1)
-                          : '—'}
+                      ? `Shortlist ${row.shortlist_round ?? 1}`
+                      : row.status
+                        ? `${row.status.charAt(0).toUpperCase() + row.status.slice(1)}${
+                            row.shortlist_round ? ` · reached Shortlist ${row.shortlist_round}` : ''
+                          }`
+                        : '—'}
                   </TableCell>
                   <TableCell>{fmtDateTime(row.created_at)}</TableCell>
                   <TableCell>{row.public_ref || '—'}</TableCell>
@@ -708,19 +740,19 @@ function ApplicationsTab() {
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div className="inline-flex gap-1">
-                      {decisionsForStatus(row.status).map((d) => (
+                      {getAvailableDecisions(row.status, row.shortlist_round ?? null).map((a) => (
                         <Button
-                          key={d}
+                          key={`${a.status}-${a.round ?? 'none'}`}
                           size="sm"
                           variant="outline"
                           className={`h-7 px-2 text-xs ${
-                            d === 'shortlisted_2' ? SHORTLIST_LEVEL_2_CLASS : ''
+                            (a.round ?? 0) >= 2 ? SHORTLIST_LEVEL_2_CLASS : ''
                           }`}
                           onClick={() => {
-                            setPending({ row, kind: d });
+                            setPending({ row, kind: a.status, round: a.round });
                           }}
                         >
-                          {decisionLabel(d, row.status)}
+                          {a.label}
                         </Button>
                       ))}
                       <Button
@@ -755,17 +787,17 @@ function ApplicationsTab() {
               <Separator />
               <Label className="text-xs text-muted-foreground">Decision</Label>
               <div className="flex flex-wrap gap-2">
-                {decisionsForStatus(selected.status).map((d) => (
+                {getAvailableDecisions(selected.status, selected.shortlist_round ?? null).map((a) => (
                   <Button
-                    key={d}
+                    key={`${a.status}-${a.round ?? 'none'}`}
                     size="sm"
                     variant="outline"
-                    className={d === 'shortlisted_2' ? SHORTLIST_LEVEL_2_CLASS : undefined}
+                    className={(a.round ?? 0) >= 2 ? SHORTLIST_LEVEL_2_CLASS : undefined}
                     onClick={() => {
-                      setPending({ row: selected, kind: d });
+                      setPending({ row: selected, kind: a.status, round: a.round });
                     }}
                   >
-                    {decisionLabel(d, selected.status)}
+                    {a.label}
                   </Button>
                 ))}
                 <Button
