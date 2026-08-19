@@ -18,7 +18,12 @@ import {
 } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Loader2, CheckCircle2, Banknote, Home, TrendingUp, Users, Wallet, AlertTriangle, XCircle, Search, MapPin, Filter } from 'lucide-react';
-import { excludePartnerReservedPlans } from '@/lib/partnerReservedPlans';
+import {
+  fetchPartnerReservedStages,
+  PARTNER_RESERVED_HINT,
+  PARTNER_RESERVED_LABEL,
+  type PartnerReservedStage,
+} from '@/lib/partnerReservedPlans';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -56,6 +61,12 @@ interface ApprovedRentItem {
   loc_village: string | null;
   loc_region: string | null;
   loc_house_category: string | null;
+  /**
+   * Set when a partner has claimed / committed / already funded this plan
+   * (self-managed funding). Such rows stay visible but can never be ticked —
+   * the DB also hard-blocks a company float allocation on them.
+   */
+  partner_reserved_stage: PartnerReservedStage | null;
 }
 
 /** Same category set the previous "Pay by Location / Category" picker offered. */
