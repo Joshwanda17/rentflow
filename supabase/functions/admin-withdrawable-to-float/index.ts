@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { checkTreasuryGuard } from "../_shared/treasuryGuard.ts";
+import { postBalancedLedgerGroup } from "../_shared/balancedLedgerPost.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -192,7 +193,9 @@ Deno.serve(async (req) => {
           metadata: { overdraft_fill: true, float_net: floatNet, caller_roles: callerRoles },
         });
       if (fillCorrErr) return json({ error: fillCorrErr.message }, 403);
-      const { error: fillErr } = await adminClient.rpc("create_ledger_transaction", {
+      const fill = await postBalancedLedgerGroup(adminClient, {
+        source: "admin-withdrawable-to-float:overdraft_fill",
+        referenceId: overdraftFillRef,
         entries: [
           {
             user_id: targetUserId,
@@ -227,9 +230,9 @@ Deno.serve(async (req) => {
             description: `Overdraft fill: platform absorbs UGX ${overdraftFilled.toLocaleString()} to clear float overdraft for user ${targetUserId}. ${reason}`,
           },
         ],
-        skip_balance_check: true,
+        skipBalanceCheck: true,
       });
-      if (fillErr) return json({ error: `Overdraft fill failed: ${fillErr.message}` }, 500);
+      if (!fill.ok) return json({ error: `Overdraft fill failed: ${fill.error}` }, 500);
     }
 
     const { data: targetProfile } = await adminClient
@@ -260,16 +263,16 @@ Deno.serve(async (req) => {
       });
     if (corrErr) return json({ error: corrErr.message }, 403);
 
-    const { data: groupId, error: rpcErr } = await adminClient.rpc(
-      "create_ledger_transaction",
-      {
-        entries: [
+    const posted = await postBalancedLedgerGroup(adminClient, {
+      source: "admin-withdrawable-to-float",
+      referenceId: refId,
+      entries: [
           {
-            // Remove from the user's own withdrawable money.
+            // CREDIT the source bucket: remove from the user's own withdrawable money.
             user_id: targetUserId,
             amount,
             direction: "cash_out",
-            category: "wallet_transfer",
+            category: "bucket_reclass_out",
             ledger_scope: "wallet",
             recipient_type: "user",
             wallet_bucket: "withdrawable",
@@ -282,11 +285,11 @@ Deno.serve(async (req) => {
             description: `Reclass: move UGX ${amount.toLocaleString()} out of Withdrawable for ${targetName}: ${reason}`,
           },
           {
-            // Add to operational float (company money).
+            // DEBIT the destination bucket: add to operational float (company money).
             user_id: targetUserId,
             amount,
             direction: "cash_in",
-            category: "agent_float_assignment",
+            category: "bucket_reclass_in",
             ledger_scope: "wallet",
             recipient_type: "operational_wallet",
             wallet_bucket: "float",
@@ -298,13 +301,13 @@ Deno.serve(async (req) => {
             transaction_date: nowIso,
             description: `Reclass: credit UGX ${amount.toLocaleString()} to Operational Float for ${targetName}: ${reason}`,
           },
-        ],
-        // Both legs are wallet-scope and net to zero; the internal withdrawable→float
-        // move is balanced on its own (cash_in === cash_out).
-        skip_balance_check: true,
-      },
-    );
-    if (rpcErr) return json({ error: `Ledger error: ${rpcErr.message}` }, 500);
+      ],
+      // The engine's own pre-check can't see across buckets; the double-entry
+      // assertion in postBalancedLedgerGroup is what guards this write.
+      skipBalanceCheck: true,
+    });
+    if (!posted.ok) return json({ error: posted.error }, 500);
+    const groupId = posted.groupId;
 
     // Refresh the cached wallet total (buckets are derived by the view).
     try {

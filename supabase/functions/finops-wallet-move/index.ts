@@ -1,6 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { checkTreasuryGuard } from "../_shared/treasuryGuard.ts";
 import { sendSMS } from "../_shared/sendSmsMultiProvider.ts";
+import { postBalancedLedgerGroup } from "../_shared/balancedLedgerPost.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -430,11 +431,18 @@ Deno.serve(async (req) => {
       description: string,
       refId: string,
       nowIso: string,
+      // Phase 2 (WELILE-LEDGER-TRACE-2): when the money changes BUCKET, the two
+      // general-purpose categories price to the same side of the account map and
+      // the group would post two debits (or two credits). Cross-bucket moves use
+      // the dedicated reclass categories, which have their own mapping rows.
+      crossBucket = false,
     ) => ({
       user_id: userId,
       amount,
       direction,
-      category: bucket === "float" ? "agent_float_assignment" : "wallet_transfer",
+      category: crossBucket
+        ? (direction === "cash_in" ? "bucket_reclass_in" : "bucket_reclass_out")
+        : (bucket === "float" ? "agent_float_assignment" : "wallet_transfer"),
       ledger_scope: "wallet",
       recipient_type: bucket === "float" ? "operational_wallet" : "user",
       wallet_bucket: bucket,
@@ -458,6 +466,7 @@ Deno.serve(async (req) => {
     if (mode === "user_to_user") {
       refId = `FXW-${crypto.randomUUID().replace(/-/g, "").slice(0, 10).toUpperCase()}`;
       const dstBucketLabel = destBucket === "withdrawable" ? "Withdrawable" : "Float";
+      const crossBucket = sourceBucket !== destBucket;
       entries = [
         bucketLeg(
           sourceUserId,
@@ -467,6 +476,7 @@ Deno.serve(async (req) => {
           `Operator move: sent ${fmt} from ${srcBucketLabel} to ${destName} (${dstBucketLabel}). ${reason}`,
           refId,
           nowIso,
+          crossBucket,
         ),
         bucketLeg(
           destUserId,
@@ -476,6 +486,7 @@ Deno.serve(async (req) => {
           `Operator move: received ${fmt} into ${dstBucketLabel} from ${sourceName} (${srcBucketLabel}). ${reason}`,
           refId,
           nowIso,
+          crossBucket,
         ),
       ];
     } else {
@@ -493,11 +504,15 @@ Deno.serve(async (req) => {
         ),
         {
           // Platform receives the funds back — recorded on the cash-flow
-          // statement as a system balance / error correction.
+          // statement as a system balance / error correction. The category is
+          // chosen so this leg lands on the OPPOSITE side of the account map to
+          // the wallet leg: a withdrawable claw-back debits the liability, so the
+          // platform side must credit (balance_correction → E3); a float claw-back
+          // credits the float asset, so the platform side must debit (A9).
           user_id: null,
           amount,
           direction: "cash_in",
-          category: "system_balance_correction",
+          category: sourceBucket === "float" ? "system_balance_correction" : "balance_correction",
           ledger_scope: "platform",
           routing_source: "finops_wallet_move",
           source_table: "finops_wallet_move",
@@ -512,14 +527,19 @@ Deno.serve(async (req) => {
     }
 
     // ── Post the balanced transaction ─────────────────────────────────────
-    // Each transaction nets to zero on its own (cash_in === cash_out); we
-    // pre-validated the source has enough, so skip the engine's withdrawable
-    // check (it would otherwise mis-handle the float-bucket legs).
-    const { data: groupId, error: rpcErr } = await adminClient.rpc(
-      "create_ledger_transaction",
-      { entries, skip_balance_check: true },
-    );
-    if (rpcErr) return json({ error: `Ledger error: ${rpcErr.message}` }, 500);
+    // The group is priced against `ledger_account_map` and asserted to net to
+    // zero (debits = credits) BEFORE anything is written; an unbalanced group is
+    // rejected and logged instead of posted. We pre-validated the source has
+    // enough, so the engine's own withdrawable check is skipped (it would
+    // otherwise mis-handle the float-bucket legs).
+    const posted = await postBalancedLedgerGroup(adminClient, {
+      entries,
+      source: `finops-wallet-move:${mode}`,
+      referenceId: refId,
+      skipBalanceCheck: true,
+    });
+    if (!posted.ok) return json({ error: posted.error }, 500);
+    const groupId = posted.groupId;
 
     // Refresh cached totals (buckets are derived by the view; this keeps the
     // cached `balance` column in step).
