@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -41,6 +42,8 @@ const EDITABLE_STATUSES = ['draft'];
 export default function DepartmentBudgetSubmission() {
   const { cycles, loading: cyclesLoading } = useBudgetCycles();
   const { accounts, myDepartments } = useBudgetReferenceData();
+  const [searchParams] = useSearchParams();
+  const urlDepartmentKey = searchParams.get('department_key');
 
   const [cycleId, setCycleId] = useState<string>('');
   const [departmentId, setDepartmentId] = useState<string>('');
@@ -64,8 +67,13 @@ export default function DepartmentBudgetSubmission() {
     if (!cycleId && openCycles.length) setCycleId(openCycles[0].id);
   }, [openCycles, cycleId]);
   useEffect(() => {
-    if (!departmentId && myDepartments.length) setDepartmentId(myDepartments[0].id);
-  }, [myDepartments, departmentId]);
+    if (!myDepartments.length) return;
+    if (departmentId) return;
+    const preferred = urlDepartmentKey
+      ? myDepartments.find(d => d.key.toLowerCase() === urlDepartmentKey.toLowerCase())
+      : undefined;
+    setDepartmentId(preferred?.id ?? myDepartments[0].id);
+  }, [myDepartments, departmentId, urlDepartmentKey]);
 
   useEffect(() => {
     if (!departmentId) { setRoute(null); return; }

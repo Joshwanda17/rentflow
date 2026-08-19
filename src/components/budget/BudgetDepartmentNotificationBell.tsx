@@ -71,7 +71,8 @@ export function BudgetDepartmentNotificationBell({
       if (error) console.error('Failed to mark notice read:', error);
       else setItems(prev => prev.map(i => (i.id === n.id ? { ...i, is_read: true } : i)));
     }
-    navigate(n.link || '/budgets');
+    const target = n.link && n.link !== '/budgets' ? n.link : `/budgets?department_key=${encodeURIComponent(n.department_key)}`;
+    navigate(target);
   };
 
   const markAll = async () => {
