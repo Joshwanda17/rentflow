@@ -384,7 +384,12 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
     [countryFilteredGroups, agentFilter],
   );
   const visibleItems = useMemo(() => visibleGroups.flatMap(g => g.rows), [visibleGroups]);
-  const allSelected = visibleItems.length > 0 && visibleItems.every(i => selected.has(i.id));
+  /** Rows the CFO may actually fund (partner-claimed plans excluded). */
+  const selectableItems = useMemo(
+    () => visibleItems.filter(i => !i.partner_reserved_stage),
+    [visibleItems],
+  );
+  const allSelected = selectableItems.length > 0 && selectableItems.every(i => selected.has(i.id));
   // Presentation only: which visible row should host the inline Step 2 panel.
   const firstSelectedId = useMemo(
     () => visibleItems.find(i => selected.has(i.id))?.id ?? null,
@@ -392,13 +397,14 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
   );
   const toggleAll = () => {
     const next = new Set(selected);
-    if (allSelected) visibleItems.forEach(i => next.delete(i.id));
-    else visibleItems.forEach(i => next.add(i.id));
+    if (allSelected) selectableItems.forEach(i => next.delete(i.id));
+    else selectableItems.forEach(i => next.add(i.id));
     setSelected(next);
   };
 
   const toggleAgentGroup = (rows: ApprovedRentItem[]) => {
-    const ids = rows.map(r => r.id);
+    const ids = rows.filter(r => !r.partner_reserved_stage).map(r => r.id);
+    if (!ids.length) return;
     const allOn = ids.every(id => selected.has(id));
     const next = new Set(selected);
     if (allOn) ids.forEach(id => next.delete(id));
