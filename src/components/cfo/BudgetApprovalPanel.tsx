@@ -154,9 +154,14 @@ function CycleManager({ cycles, onCreated }: { cycles: ReturnType<typeof useBudg
   const [deadline, setDeadline] = useState('');
   const [instructions, setInstructions] = useState('');
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState('');
 
   const create = async () => {
-    if (!title || !start || !end) { toast.error('Title, start and end dates are required'); return; }
+    if (!title || !start || !end) {
+      setFormError('Title, start and end dates are required');
+      return;
+    }
+    setFormError('');
     setSaving(true);
     try {
       const { error } = await supabase.rpc('budget_create_cycle', {
@@ -211,6 +216,7 @@ function CycleManager({ cycles, onCreated }: { cycles: ReturnType<typeof useBudg
           <Button onClick={create} disabled={saving} className="gap-2">
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Open cycle
           </Button>
+          {formError && <p className="text-xs text-destructive">{formError}</p>}
         </CardContent>
       </Card>
 
