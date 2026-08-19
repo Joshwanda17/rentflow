@@ -185,7 +185,7 @@ function isAlwaysOpen(posting: JobPosting): boolean {
 type JobApplicationRow = Database['public']['Tables']['job_applications']['Row'];
 
 /** Labels for the decision vocabulary. Keyed by the constant, so no status is invented here. */
-const DECISION_LABELS: Record<string, string> = {
+const DECISION_LABELS: Record<ApplicationDecision, string> = {
   shortlisted: 'Shortlist',
   hold: 'Hold',
   rejected: 'Decline',
@@ -208,7 +208,7 @@ interface DecisionAction {
  * last level, so it offers no further shortlist step.
  */
 function getAvailableDecisions(status: string | null, round: number | null): DecisionAction[] {
-  const level = status === 'shortlisted' ? (round ?? 1) : 0;
+  const level = round ?? (status === 'shortlisted' ? 1 : 0);
   const actions: DecisionAction[] = [];
 
   if (level === 0) actions.push({ status: 'shortlisted', round: 1, label: 'Shortlist' });
@@ -507,19 +507,15 @@ function ApplicationsTab() {
         toast.success(`${pending.row.full_name || 'Application'} removed from the list`);
         setSelected(null);
       } else {
-        // The target round travels with the decision. `recordApplicationDecision`
-        // in `@/hr/api/applications` still takes three arguments (that file is
-        // out of scope for this change), so the round is written here as part of
-        // the same action. Hold and Decline carry a null round and therefore
-        // leave `shortlist_round` untouched, preserving the level reached.
-        await recordApplicationDecision(pending.row.id, pending.kind);
-        if (pending.round !== null && pending.round !== undefined) {
-          const { error: roundError } = await supabase
-            .from('job_applications')
-            .update({ shortlist_round: pending.round })
-            .eq('id', pending.row.id);
-          if (roundError) throw new Error(roundError.message);
-        }
+        // The target round travels with the decision in a single write.
+        // Hold and Decline carry a null round and therefore leave
+        // `shortlist_round` untouched, preserving the level reached.
+        await recordApplicationDecision(
+          pending.row.id,
+          pending.kind,
+          undefined,
+          pending.round,
+        );
         toast.success(
           `${DECISION_LABELS[pending.kind]} recorded for ${pending.row.full_name || 'applicant'}`,
         );

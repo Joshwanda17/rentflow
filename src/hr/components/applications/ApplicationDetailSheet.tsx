@@ -29,7 +29,7 @@ export function formatDate(value: string | null): string {
   });
 }
 
-const DECISION_LABELS: Record<string, string> = {
+const DECISION_LABELS: Record<ApplicationDecision, string> = {
   shortlisted: 'Shortlist',
   hold: 'Hold',
   rejected: 'Decline',
