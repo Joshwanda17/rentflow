@@ -167,38 +167,39 @@ export function PartnerPortfolioWalletCard({ onAddCard, onSend, onRequest, onTop
                 {name || '—'}
               </span>
             </div>
-
-            {/* ADD CARD PILL — inline at mobile so it shrinks with the viewport and never overlaps the partner name */}
-            <button
-              type="button"
-              onClick={onAddCard}
-              className="shrink-0 bg-black hover:bg-neutral-900 rounded-full flex items-center justify-center border border-white/10 shadow-sm transition active:scale-95"
-              style={{
-                width: 'auto',
-                minWidth: 0,
-                maxWidth: '46%',
-                height: 'clamp(26px, 7cqw, 42px)',
-                gap: 'clamp(4px, 1.4cqw, 8px)',
-                paddingInline: 'clamp(6px, 1.8cqw, 14px)',
-                marginTop: 'clamp(8px, 2.5cqw, 12px)',
-                marginBottom: 'clamp(2px, 0.8cqw, 4px)',
-              }}
-            >
-              <span
-                className="rounded-full bg-white flex items-center justify-center shrink-0"
-                style={{ width: 'clamp(15px, 4cqw, 26px)', height: 'clamp(15px, 4cqw, 26px)' }}
-              >
-                <Plus className="text-black" strokeWidth={3.5} style={{ width: 'clamp(9px, 2.4cqw, 15px)', height: 'clamp(9px, 2.4cqw, 15px)' }} />
-              </span>
-              <span
-                className="tracking-tight text-white font-bold whitespace-nowrap"
-                style={{ fontSize: 'clamp(9.5px, 2.6cqw, 15px)' }}
-              >
-                Add Card
-              </span>
-            </button>
           </div>
         </div>
+
+        {/* ADD CARD PILL — sits in the notch shelf below the card's right edge (y=162/200 of the SVG),
+            with breathing room above it, and scales down with the card width on mobile. */}
+        <button
+          type="button"
+          onClick={onAddCard}
+          aria-label="Add Card"
+          onClickCapture={undefined}
+          className="absolute z-20 bg-black hover:bg-neutral-900 rounded-full flex items-center justify-center border border-white/10 shadow-lg transition active:scale-95"
+          style={{
+            right: 0,
+            top: 'calc(46cqw + min(1.6cqw, 8px))',
+            maxWidth: '31cqw',
+            height: 'clamp(22px, 7.2cqw, 38px)',
+            gap: 'clamp(3px, 1.2cqw, 7px)',
+            paddingInline: 'clamp(5px, 1.8cqw, 13px)',
+          }}
+        >
+          <span
+            className="rounded-full bg-white flex items-center justify-center shrink-0"
+            style={{ width: 'clamp(13px, 4cqw, 24px)', height: 'clamp(13px, 4cqw, 24px)' }}
+          >
+            <Plus className="text-black" strokeWidth={3.5} style={{ width: 'clamp(8px, 2.4cqw, 14px)', height: 'clamp(8px, 2.4cqw, 14px)' }} />
+          </span>
+          <span
+            className="tracking-tight text-white font-bold whitespace-nowrap"
+            style={{ fontSize: 'clamp(8.5px, 2.5cqw, 14px)' }}
+          >
+            Add Card
+          </span>
+        </button>
       </div>
 
       {/* ACTION ROW */}
