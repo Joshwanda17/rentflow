@@ -5,9 +5,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import {
-  Loader2, ArrowDownRight, ArrowUpRight, Scale, Wallet, Users, TrendingUp,
-  Banknote, Percent, Receipt, ChevronRight, Info, CalendarDays, Download,
-  PiggyBank, Flame, BarChart3, Package, LineChart as LineChartIcon, ChevronDown,
+  Loader2, ArrowDownRight, ArrowUpRight, Scale, Wallet,
+  ChevronRight, Info, CalendarDays, Download,
+  PiggyBank, BarChart3, Package, LineChart as LineChartIcon, ChevronDown,
   Landmark, Vault,
 } from 'lucide-react';
 import {
@@ -310,16 +310,19 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
       </div>
 
 
-      {/* ══════════════ KPI STRIP ══════════════ */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-3">
-        <KpiTile icon={<Banknote className="h-4 w-4 text-emerald-600" />} iconBg="bg-emerald-50 dark:bg-emerald-950/40" label="Cash Balance" value={fmt(totalCash)} caption="Bank + in transit" />
-        <KpiTile icon={<Flame className="h-4 w-4 text-destructive" />} iconBg="bg-red-50 dark:bg-red-950/40" label="Daily Burn" value={fmt(dailyBurn)} caption="30-day average" />
-        <KpiTile icon={<TrendingUp className="h-4 w-4 text-emerald-600" />} iconBg="bg-emerald-50 dark:bg-emerald-950/40" label="Revenue" value={fmt(revenueTotal)} caption="Life to date" />
-        <KpiTile icon={<Receipt className="h-4 w-4 text-orange-600" />} iconBg="bg-orange-50 dark:bg-orange-950/40" label="Total Expenses" value={fmt(expenseTotal)} caption="Life to date" />
-        <KpiTile icon={<Scale className="h-4 w-4 text-blue-600" />} iconBg="bg-blue-50 dark:bg-blue-950/40" label="Net Working Capital" value={fmt(netWorkingCapital)} caption="Cash + receivables − debt" valueColor={netWorkingCapital >= 0 ? undefined : 'text-destructive'} />
-        <KpiTile icon={<Banknote className="h-4 w-4 text-emerald-600" />} iconBg="bg-emerald-50 dark:bg-emerald-950/40" label="Net Result" value={fmt(netProfit)} caption="Revenue − expenses" valueColor={netProfit >= 0 ? 'text-emerald-600' : 'text-destructive'} />
-        <KpiTile icon={<Percent className="h-4 w-4 text-purple-600" />} iconBg="bg-purple-50 dark:bg-purple-950/40" label="Net Margin" value={`${netMargin.toFixed(1)}%`} caption="Net ÷ revenue" valueColor={netMargin >= 0 ? undefined : 'text-destructive'} />
-        <KpiTile icon={<Users className="h-4 w-4 text-amber-600" />} iconBg="bg-amber-50 dark:bg-amber-950/40" label="Receivables" value={fmt(totalReceivables)} caption="Tenant + advances" />
+      {/* ══════════════ COMPACT FINANCIAL SUMMARY ══════════════ */}
+      <div className="rounded-2xl border border-border bg-card p-4 sm:p-5">
+        <h2 className="text-sm font-semibold tracking-tight mb-4">Financial Summary</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-x-4 gap-y-5">
+          <SummaryItem label="Cash Balance" value={fmt(totalCash)} caption="Bank + in transit" />
+          <SummaryItem label="Daily Burn" value={fmt(dailyBurn)} caption="30-day average" valueColor="text-destructive" />
+          <SummaryItem label="Revenue" value={fmt(revenueTotal)} caption="Life to date" valueColor="text-emerald-600" />
+          <SummaryItem label="Total Expenses" value={fmt(expenseTotal)} caption="Life to date" valueColor="text-orange-600" />
+          <SummaryItem label="Net Working Capital" value={fmt(netWorkingCapital)} caption="Cash + receivables − debt" valueColor={netWorkingCapital >= 0 ? undefined : 'text-destructive'} />
+          <SummaryItem label="Net Result" value={fmt(netProfit)} caption="Revenue − expenses" valueColor={netProfit >= 0 ? 'text-emerald-600' : 'text-destructive'} />
+          <SummaryItem label="Net Margin" value={`${netMargin.toFixed(1)}%`} caption="Net ÷ revenue" valueColor={netMargin >= 0 ? undefined : 'text-destructive'} />
+          <SummaryItem label="Receivables" value={fmt(totalReceivables)} caption="Tenant + advances" valueColor="text-amber-600" />
+        </div>
       </div>
 
       {/* ══════════════ CHARTS ══════════════ */}
@@ -648,17 +651,14 @@ function HeroCard({ icon, iconBg, title, value, valueColor, items, footer, foote
 }
 
 
-function KpiTile({ icon, iconBg, label, value, caption, valueColor }: {
-  icon: React.ReactNode; iconBg: string; label: string; value: string; caption: string; valueColor?: string;
+function SummaryItem({ label, value, caption, valueColor }: {
+  label: string; value: string; caption: string; valueColor?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-card p-3 min-w-0">
-      <div className="flex items-center gap-2 mb-2">
-        <div className={`h-7 w-7 rounded-lg flex items-center justify-center shrink-0 ${iconBg}`}>{icon}</div>
-        <p className="text-[11px] font-medium text-muted-foreground truncate">{label}</p>
-      </div>
-      <p className={`text-sm font-bold font-mono tabular-nums leading-tight break-words ${valueColor || ''}`}>{value}</p>
-      <p className="text-[10px] text-muted-foreground mt-1 leading-tight">{caption}</p>
+    <div className="min-w-0">
+      <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide truncate">{label}</p>
+      <p className={`text-base sm:text-lg font-bold font-mono tabular-nums leading-tight mt-1 ${valueColor || ''}`}>{value}</p>
+      <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{caption}</p>
     </div>
   );
 }
