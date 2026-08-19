@@ -89,13 +89,20 @@ import HRInternshipApplications from '@/components/hr/HRInternshipApplications';
 const ALL = '__all__';
 const SHORTLIST_1 = 'shortlist_1';
 const SHORTLIST_2 = 'shortlist_2';
+const SHORTLIST_3 = 'shortlist_3';
 
-const FILTER_OPTIONS: { value: string; label: string; match: (status: string | null) => boolean }[] = [
+const FILTER_OPTIONS: {
+  value: string;
+  label: string;
+  match: (status: string | null, round: number | null) => boolean;
+}[] = [
   { value: ALL, label: 'All', match: () => true },
   { value: 'new', label: 'Shortlist', match: (s) => s === 'new' || s === null || s === '' },
   { value: 'hold', label: 'Hold', match: (s) => s === 'hold' },
-  { value: SHORTLIST_1, label: 'Shortlist 1', match: (s) => s === 'shortlisted' },
-  { value: SHORTLIST_2, label: 'Shortlist 2', match: (s) => s === 'shortlisted_2' },
+  // A shortlisted row with no round recorded is a level 1 row.
+  { value: SHORTLIST_1, label: 'Shortlist 1', match: (s, r) => s === 'shortlisted' && (r ?? 1) === 1 },
+  { value: SHORTLIST_2, label: 'Shortlist 2', match: (s, r) => s === 'shortlisted' && r === 2 },
+  { value: SHORTLIST_3, label: 'Shortlist 3', match: (s, r) => s === 'shortlisted' && r === 3 },
 ];
 
 type ReqStatus = HiringRequisition['status'];
