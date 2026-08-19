@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   FileText,
   ClipboardCheck,
+  ClipboardList,
   type LucideIcon,
 } from 'lucide-react';
 
