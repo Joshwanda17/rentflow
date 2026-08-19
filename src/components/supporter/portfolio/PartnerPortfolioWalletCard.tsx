@@ -176,23 +176,23 @@ export function PartnerPortfolioWalletCard({ onAddCard, onSend, onRequest, onTop
           onClick={onAddCard}
           className="absolute z-20 bg-black hover:bg-neutral-900 rounded-full flex items-center justify-center border border-white/10 shadow-sm transition active:scale-95"
           style={{
-            bottom: 'min(0.6cqw, 5px)',
-            right: 'min(1.1cqw, 8px)',
-            width: 'clamp(120px, 38cqw, 210px)',
-            height: 'clamp(38px, 11cqw, 58px)',
-            gap: 'min(1.6cqw, 10px)',
-            paddingInline: 'min(2.4cqw, 16px)',
+            bottom: 'min(10px, 2.8cqw)',
+            right: 'min(10px, 2.8cqw)',
+            width: 'clamp(100px, 30cqw, 170px)',
+            height: 'clamp(34px, 9cqw, 46px)',
+            gap: 'min(8px, 2cqw)',
+            paddingInline: 'clamp(10px, 2.4cqw, 16px)',
           }}
         >
           <span
             className="rounded-full bg-white flex items-center justify-center shrink-0"
-            style={{ width: 'clamp(22px, 6.4cqw, 34px)', height: 'clamp(22px, 6.4cqw, 34px)' }}
+            style={{ width: 'clamp(20px, 5cqw, 30px)', height: 'clamp(20px, 5cqw, 30px)' }}
           >
-            <Plus className="text-black" strokeWidth={3.5} style={{ width: 'clamp(13px, 4cqw, 22px)', height: 'clamp(13px, 4cqw, 22px)' }} />
+            <Plus className="text-black" strokeWidth={3.5} style={{ width: 'clamp(12px, 3cqw, 18px)', height: 'clamp(12px, 3cqw, 18px)' }} />
           </span>
           <span
             className="tracking-tight text-white font-bold whitespace-nowrap"
-            style={{ fontSize: 'clamp(14px, 4cqw, 22px)' }}
+            style={{ fontSize: 'clamp(12px, 3.2cqw, 18px)' }}
           >
             Add Card
           </span>
