@@ -5589,6 +5589,11 @@ export type Database = {
           account_code: string | null
           approved_amount: number | null
           category: string | null
+          coo_approved_amount: number | null
+          coo_decided_at: string | null
+          coo_decided_by: string | null
+          coo_note: string | null
+          coo_status: string
           created_at: string
           decided_at: string | null
           decided_by: string | null
@@ -5610,6 +5615,11 @@ export type Database = {
           account_code?: string | null
           approved_amount?: number | null
           category?: string | null
+          coo_approved_amount?: number | null
+          coo_decided_at?: string | null
+          coo_decided_by?: string | null
+          coo_note?: string | null
+          coo_status?: string
           created_at?: string
           decided_at?: string | null
           decided_by?: string | null
@@ -5631,6 +5641,11 @@ export type Database = {
           account_code?: string | null
           approved_amount?: number | null
           category?: string | null
+          coo_approved_amount?: number | null
+          coo_decided_at?: string | null
+          coo_decided_by?: string | null
+          coo_note?: string | null
+          coo_status?: string
           created_at?: string
           decided_at?: string | null
           decided_by?: string | null
@@ -5670,6 +5685,9 @@ export type Database = {
           approved_total: number
           call_id: string | null
           cfo_comment: string | null
+          coo_comment: string | null
+          coo_reviewed_at: string | null
+          coo_reviewed_by: string | null
           created_at: string
           department_id: string
           id: string
@@ -5695,6 +5713,9 @@ export type Database = {
           approved_total?: number
           call_id?: string | null
           cfo_comment?: string | null
+          coo_comment?: string | null
+          coo_reviewed_at?: string | null
+          coo_reviewed_by?: string | null
           created_at?: string
           department_id: string
           id?: string
@@ -5720,6 +5741,9 @@ export type Database = {
           approved_total?: number
           call_id?: string | null
           cfo_comment?: string | null
+          coo_comment?: string | null
+          coo_reviewed_at?: string | null
+          coo_reviewed_by?: string | null
           created_at?: string
           department_id?: string
           id?: string
@@ -37243,6 +37267,27 @@ export type Database = {
         Args: { _note?: string; _submission_id: string }
         Returns: undefined
       }
+      budget_coo_decide_line: {
+        Args: {
+          p_approved_amount: number
+          p_decision: string
+          p_line_id: string
+          p_note: string
+        }
+        Returns: Json
+      }
+      budget_coo_forward_submission: {
+        Args: { p_comment: string; p_submission_id: string }
+        Returns: Json
+      }
+      budget_coo_return_submission: {
+        Args: { p_comment: string; p_decision: string; p_submission_id: string }
+        Returns: string
+      }
+      budget_coo_start_review: {
+        Args: { p_submission_id: string }
+        Returns: undefined
+      }
       budget_create_call: {
         Args: {
           _deadline?: string
@@ -37286,6 +37331,10 @@ export type Database = {
         }
         Returns: Json
       }
+      budget_department_route: {
+        Args: { _department_id: string }
+        Returns: string
+      }
       budget_finalize_submission: {
         Args: { p_comment: string; p_decision: string; p_submission_id: string }
         Returns: Json
@@ -37297,6 +37346,10 @@ export type Database = {
         Returns: boolean
       }
       budget_is_releaser: { Args: never; Returns: boolean }
+      budget_log_event: {
+        Args: { _event_type: string; _payload: Json; _submission_id: string }
+        Returns: undefined
+      }
       budget_my_position_in_department: {
         Args: { _department_id: string }
         Returns: string
@@ -37334,6 +37387,10 @@ export type Database = {
       budget_return: {
         Args: { _note: string; _submission_id: string }
         Returns: undefined
+      }
+      budget_review_queue: {
+        Args: { p_call_id: string; p_stage?: string }
+        Returns: Json
       }
       budget_save_draft: {
         Args: {
@@ -41182,6 +41239,7 @@ export type Database = {
         Args: { p_user_id?: string }
         Returns: boolean
       }
+      is_budget_coo_reviewer: { Args: { _user_id: string }; Returns: boolean }
       is_budget_reviewer: { Args: { _user_id: string }; Returns: boolean }
       is_business_advance_ops: { Args: { _uid: string }; Returns: boolean }
       is_conversation_participant: {

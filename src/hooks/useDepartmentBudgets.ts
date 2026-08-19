@@ -38,6 +38,59 @@ export interface BudgetLine {
   status: string;
   approved_amount: number | null;
   decision_note: string | null;
+  coo_status: string;
+  coo_approved_amount: number | null;
+  coo_note: string | null;
+}
+
+/** Review-queue row served by budget_review_queue (single round trip, live totals). */
+export interface BudgetQueueRow {
+  id: string;
+  reference: string;
+  title: string | null;
+  purpose: string | null;
+  department_id: string | null;
+  department_name: string;
+  department_key: string | null;
+  route: 'direct' | 'coo';
+  status: string;
+  version: number;
+  is_late: boolean;
+  submitted_at: string | null;
+  created_at: string;
+  reviewed_at: string | null;
+  cfo_comment: string | null;
+  coo_reviewed_at: string | null;
+  coo_comment: string | null;
+  line_count: number;
+  total_amount: number;
+  cfo_approved_total: number;
+  coo_approved_total: number;
+  pending_lines: number;
+}
+
+export type BudgetReviewStage = 'cfo' | 'coo';
+
+export const BUDGET_ROUTE_LABEL: Record<'direct' | 'coo', string> = {
+  direct: 'Direct to CFO',
+  coo: 'Department → COO → CFO',
+};
+
+export async function fetchBudgetReviewQueue(callId: string | null, stage: BudgetReviewStage) {
+  const { data, error } = await supabase.rpc('budget_review_queue', {
+    p_call_id: callId,
+    p_stage: stage,
+  });
+  if (error) throw error;
+  const payload = (data ?? {}) as { rows?: BudgetQueueRow[] };
+  return (payload.rows ?? []).map(r => ({
+    ...r,
+    total_amount: Number(r.total_amount ?? 0),
+    cfo_approved_total: Number(r.cfo_approved_total ?? 0),
+    coo_approved_total: Number(r.coo_approved_total ?? 0),
+    line_count: Number(r.line_count ?? 0),
+    pending_lines: Number(r.pending_lines ?? 0),
+  }));
 }
 
 export interface BudgetSubmission {
@@ -187,7 +240,7 @@ export async function fetchSubmissions(callId?: string | null, departmentId?: st
 export async function fetchLines(submissionId: string) {
   const { data, error } = await supabase
     .from('budget_submission_lines')
-    .select('id,submission_id,sort_order,description,category,account_code,quantity,unit_amount,line_total,period_month,justification,document_path,status,approved_amount,decision_note')
+    .select('id,submission_id,sort_order,description,category,account_code,quantity,unit_amount,line_total,period_month,justification,document_path,status,approved_amount,decision_note,coo_status,coo_approved_amount,coo_note')
     .eq('submission_id', submissionId)
     .order('sort_order');
   if (error) throw error;

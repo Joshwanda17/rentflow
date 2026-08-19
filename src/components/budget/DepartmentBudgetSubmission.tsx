@@ -251,7 +251,13 @@ export default function DepartmentBudgetSubmission() {
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-mono font-medium">{s.reference}</span>
                 <Badge variant="outline" className="text-[10px]">v{s.version}</Badge>
-                <Badge variant="secondary" className="text-[10px]">{s.status.replace(/_/g, ' ')}</Badge>
+                <Badge variant="secondary" className="text-[10px]">
+                  {s.status === 'pending_coo'
+                    ? 'Pending COO approval'
+                    : s.status === 'coo_under_review'
+                      ? 'COO reviewing'
+                      : s.status.replace(/_/g, ' ')}
+                </Badge>
                 {s.is_late && <Badge variant="destructive" className="gap-1 text-[10px]"><AlertTriangle className="h-3 w-3" /> late</Badge>}
               </div>
               <p className="mt-1 text-muted-foreground">
