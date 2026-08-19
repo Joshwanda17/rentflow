@@ -38195,6 +38195,7 @@ export type Database = {
           wallet_bucket: string
         }[]
       }
+      get_cfo_weekly_report: { Args: { p_end?: string }; Returns: Json }
       get_chain_health_summary: {
         Args: never
         Returns: {

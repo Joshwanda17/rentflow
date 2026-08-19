@@ -21,6 +21,7 @@ import RoiDisbursementReportPanel from '@/components/cfo/RoiDisbursementReportPa
 import RentDisbursementReportPanel from '@/components/cfo/RentDisbursementReportPanel';
 import MerchantFloatRequisitionReportPanel from '@/components/cfo/MerchantFloatRequisitionReportPanel';
 import ExpenseReportPanel from '@/components/cfo/ExpenseReportPanel';
+import CFOWeeklyReportPanel from '@/components/cfo/CFOWeeklyReportPanel';
 import { CashflowForecastGraphs } from '@/components/cfo/CashflowForecastGraphs';
 import { DirectorRequisitionsPanel } from '@/components/requisitions/DirectorRequisitionsPanel';
 
@@ -216,6 +217,8 @@ export default function CFODashboardPage() {
         );
       case 'statements':
         return <FinancialStatementsPanel />;
+      case 'weekly-report':
+        return <CFOWeeklyReportPanel />;
       case 'department-budgets':
         return (
           <div className="space-y-4">
