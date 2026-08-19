@@ -671,9 +671,11 @@ function ApplicationsTab() {
                   className={`cursor-pointer ${
                     row.status === 'shortlisted'
                       ? 'bg-violet-50 hover:bg-violet-100'
-                      : row.status === 'hold'
-                        ? 'bg-sky-50 hover:bg-sky-100'
-                        : ''
+                      : row.status === 'shortlisted_2'
+                        ? 'bg-fuchsia-50 hover:bg-fuchsia-100'
+                        : row.status === 'hold'
+                          ? 'bg-sky-50 hover:bg-sky-100'
+                          : ''
                   }`}
                   onClick={() => setSelected(row)}
                 >
@@ -693,9 +695,11 @@ function ApplicationsTab() {
                   <TableCell>
                     {row.status === 'shortlisted'
                       ? 'Shortlist 1'
-                      : row.status
-                        ? row.status.charAt(0).toUpperCase() + row.status.slice(1)
-                        : '—'}
+                      : row.status === 'shortlisted_2'
+                        ? 'Shortlist 2'
+                        : row.status
+                          ? row.status.charAt(0).toUpperCase() + row.status.slice(1)
+                          : '—'}
                   </TableCell>
                   <TableCell>{fmtDateTime(row.created_at)}</TableCell>
                   <TableCell>{row.public_ref || '—'}</TableCell>
@@ -704,15 +708,13 @@ function ApplicationsTab() {
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div className="inline-flex gap-1">
-                      {APPLICATION_DECISIONS.map((d) => (
+                      {decisionsForStatus(row.status).map((d) => (
                         <Button
                           key={d}
                           size="sm"
                           variant="outline"
                           className={`h-7 px-2 text-xs ${
-                            d === 'shortlisted' && row.status === 'shortlisted'
-                              ? SHORTLIST_LEVEL_1_CLASS
-                              : ''
+                            d === 'shortlisted_2' ? SHORTLIST_LEVEL_2_CLASS : ''
                           }`}
                           onClick={() => {
                             setPending({ row, kind: d });
