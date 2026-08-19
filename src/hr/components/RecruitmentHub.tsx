@@ -66,7 +66,6 @@ import {
 import { getResumeUrl } from '@/hr/api/resumes';
 import {
   APPLICATION_DECISIONS,
-  listPurgedApplications,
   purgeApplication,
   recordApplicationDecision,
   restoreApplication,
@@ -227,22 +226,38 @@ const SHORTLIST_LEVEL_2_CLASS =
 const fmtCount = (n: number) => Math.round(n).toLocaleString();
 
 /**
- * Removal bin. `Remove` only stamps `purged_at`, so nothing is destroyed —
- * removed applications are held here and can be put back unchanged.
+ * Removal bin. `Remove` stamps `archived_at`, so nothing is destroyed —
+ * removed applications are held here and can be restored to the working list.
  */
-function RemovedApplicationsPanel() {
+function RemovedApplicationsPanel({
+  refetchList,
+  refetchCount,
+}: {
+  refetchList: () => Promise<unknown>;
+  refetchCount: () => Promise<unknown>;
+}) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const { data: rows = [], isLoading, error, refetch } = useQuery({
     queryKey: ['job-applications', 'purged'],
-    queryFn: listPurgedApplications,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('job_applications')
+        .select('*')
+        .not('archived_at', 'is', null)
+        .is('purged_at', null)
+        .order('archived_at', { ascending: false })
+        .limit(500);
+      if (error) throw new Error(error.message);
+      return (data ?? []) as JobApplicationRow[];
+    },
   });
 
   const restore = async (id: string, name: string) => {
     setBusyId(id);
     try {
       await restoreApplication(id);
-      toast.success(`${name || 'Application'} put back on the list`);
-      await refetch();
+      toast.success(`${name || 'Application'} restored to the working list`);
+      await Promise.all([refetchList(), refetchCount(), refetch()]);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Could not restore this application');
     } finally {
@@ -276,7 +291,7 @@ function RemovedApplicationsPanel() {
             <TableHead>Role interest</TableHead>
             <TableHead>Location</TableHead>
             <TableHead>Status when removed</TableHead>
-            <TableHead>Removed</TableHead>
+            <TableHead>Archived</TableHead>
             <TableHead>Reference</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
@@ -289,7 +304,7 @@ function RemovedApplicationsPanel() {
               <TableCell>{row.role_interest || '—'}</TableCell>
               <TableCell>{row.location || '—'}</TableCell>
               <TableCell>{row.status || '—'}</TableCell>
-              <TableCell>{fmtDateTime(row.purged_at)}</TableCell>
+              <TableCell>{fmtDateTime(row.archived_at)}</TableCell>
               <TableCell>{row.public_ref || '—'}</TableCell>
               <TableCell className="text-right whitespace-nowrap">
                 <Button
@@ -299,7 +314,7 @@ function RemovedApplicationsPanel() {
                   disabled={busyId === row.id}
                   onClick={() => void restore(row.id, row.full_name)}
                 >
-                  {busyId === row.id ? 'Restoring…' : 'Put back'}
+                  {busyId === row.id ? 'Restoring…' : 'Restore'}
                 </Button>
               </TableCell>
             </TableRow>
@@ -336,6 +351,7 @@ function ApplicationsTab() {
       const { data, error } = await supabase
         .from('job_applications')
         .select('*')
+        .is('archived_at', null)
         .is('purged_at', null)
         .order('created_at', { ascending: false })
         .limit(500);
@@ -350,7 +366,8 @@ function ApplicationsTab() {
       const { count, error } = await supabase
         .from('job_applications')
         .select('*', { count: 'exact', head: true })
-        .not('purged_at', 'is', null);
+        .not('archived_at', 'is', null)
+        .is('purged_at', null);
       if (error) throw new Error(error.message);
       return count ?? 0;
     },
@@ -601,7 +618,7 @@ function ApplicationsTab() {
             Removed applications are kept here indefinitely — nothing is deleted. Put one back to
             return it to the working list.
           </p>
-          <RemovedApplicationsPanel />
+          <RemovedApplicationsPanel refetchList={refetch} refetchCount={refetchRemovedCount} />
         </div>
       ) : (
       <>
@@ -1115,6 +1132,7 @@ export default function RecruitmentHub() {
       const { count, error } = await supabase
         .from('job_applications')
         .select('*', { count: 'exact', head: true })
+        .is('archived_at', null)
         .is('purged_at', null);
       if (error) throw new Error(error.message);
       return count ?? 0;
