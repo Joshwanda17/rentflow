@@ -1255,10 +1255,10 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
         {/* ───── Header (scrolls with the rest of the page) ───── */}
         <div className="bg-background/95 border-b border-border/50 px-4 pt-4 pb-3 space-y-3 shrink-0">
           {/* HERO: Welile Agent Advance — live limit + Apply CTA */}
-          <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-purple-600 via-purple-700 to-fuchsia-700 text-white shadow-xl shadow-purple-900/30 border border-purple-300/40">
+          <div className="relative overflow-hidden rounded-2xl p-4 bg-card text-foreground shadow-xl shadow-purple-900/10 border border-purple-300/50">
             {/* Decorative glow */}
-            <div aria-hidden className="pointer-events-none absolute -top-16 -right-16 h-44 w-44 rounded-full bg-fuchsia-400/30 blur-3xl" />
-            <div aria-hidden className="pointer-events-none absolute -bottom-20 -left-10 h-40 w-40 rounded-full bg-purple-300/20 blur-3xl" />
+            <div aria-hidden className="pointer-events-none absolute -top-16 -right-16 h-44 w-44 rounded-full bg-fuchsia-400/10 blur-3xl" />
+            <div aria-hidden className="pointer-events-none absolute -bottom-20 -left-10 h-40 w-40 rounded-full bg-purple-300/10 blur-3xl" />
 
             <div className="relative">
               {/* Floating "+UGX X added" badge — appears the instant the
@@ -1284,28 +1284,28 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
                     variant="ghost"
                     size="sm"
                     onClick={() => onOpenChange(false)}
-                    className="h-8 px-2 text-xs font-semibold text-white hover:bg-white/10 gap-1"
+                    className="h-8 px-2 text-xs font-semibold text-foreground hover:bg-muted gap-1"
                     aria-label="Back"
                   >
                     <ArrowLeft className="h-4 w-4" />
                     Back
                   </Button>
-                  <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-xl bg-white/15 backdrop-blur flex items-center justify-center ring-1 ring-white/25">
+                  <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-xl bg-purple-100 flex items-center justify-center ring-1 ring-purple-300">
                     <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   </div>
-                  <div className="text-[10px] sm:text-[11px] uppercase tracking-[0.18em] font-bold text-purple-100/90">
+                  <div className="text-[10px] sm:text-[11px] uppercase tracking-[0.18em] font-bold text-purple-800">
                     Welile Agent Advance
                   </div>
                 </div>
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-400/20 ring-1 ring-emerald-300/40 px-2 py-0.5 text-[9px] sm:text-[10px] font-semibold text-emerald-50">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 animate-pulse" />
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 ring-1 ring-emerald-300 px-2 py-0.5 text-[9px] sm:text-[10px] font-semibold text-emerald-800">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                   Live
                 </span>
               </div>
 
               {/* BIG live number */}
               <div className="mt-2.5 sm:mt-3">
-                <div className="text-[10px] sm:text-[11px] font-medium text-purple-100/85">
+                <div className="text-[10px] sm:text-[11px] font-medium text-muted-foreground">
                   Money you can borrow today
                 </div>
                 <AnimatePresence mode="popLayout" initial={false}>
@@ -1315,15 +1315,15 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -6, scale: 0.98 }}
                     transition={{ type: 'spring', stiffness: 260, damping: 22 }}
-                    className="text-3xl sm:text-4xl font-extrabold tracking-tight leading-none mt-1 tabular-nums whitespace-pre-line"
+                    className="text-3xl sm:text-4xl font-extrabold tracking-tight leading-none mt-1 tabular-nums whitespace-pre-line text-purple-900"
                   >
                     {advanceLoading && !advanceLimit.totalLimit
                       ? '—'
                       : formatCreditAmount(advanceLimit.totalLimit)}
                   </motion.div>
                 </AnimatePresence>
-                <div className="text-[10px] sm:text-[11px] text-purple-100/85 mt-1 leading-snug">
-                  Pay 1,000 for a tenant, you can borrow <span className="font-extrabold text-white">2,000</span>. Pay more, borrow more.
+                <div className="text-[10px] sm:text-[11px] text-muted-foreground mt-1 leading-snug">
+                  Pay 1,000 for a tenant, you can borrow <span className="font-extrabold text-foreground">2,000</span>. Pay more, borrow more.
                 </div>
               </div>
 
@@ -1370,15 +1370,15 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
 
               {/* Progress to cap */}
               <div className="mt-2.5 sm:mt-3">
-                <div className="h-1.5 w-full rounded-full bg-white/15 overflow-hidden">
+                <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
                   <motion.div
                     initial={false}
                     animate={{ width: `${capProgress}%` }}
                     transition={{ type: 'spring', stiffness: 120, damping: 22 }}
-                    className="h-full bg-gradient-to-r from-amber-300 via-yellow-200 to-emerald-300"
+                    className="h-full bg-gradient-to-r from-amber-500 via-yellow-400 to-emerald-500"
                   />
                 </div>
-                <div className="flex items-center justify-between mt-1 text-[9px] sm:text-[10px] text-purple-100/80 font-medium">
+                <div className="flex items-center justify-between mt-1 text-[9px] sm:text-[10px] text-muted-foreground font-medium">
                   <span>Start UGX 30,000</span>
                   <span>Up to UGX 30M</span>
                 </div>
@@ -1386,30 +1386,30 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
 
               {/* Live mini-stats */}
               <div className="mt-2.5 sm:mt-3 grid grid-cols-3 gap-1.5 sm:gap-2 text-center">
-                <div className="rounded-lg bg-white/10 px-1.5 sm:px-2 py-1.5 ring-1 ring-white/10">
-                  <div className="text-[9px] text-purple-100/80 font-medium leading-tight">You paid for tenants</div>
-                  <div className="text-[10px] sm:text-xs font-bold tabular-nums">{formatCreditAmount(allocatedTotal)}</div>
+                <div className="rounded-lg bg-muted px-1.5 sm:px-2 py-1.5 ring-1 ring-border">
+                  <div className="text-[9px] text-muted-foreground font-medium leading-tight">You paid for tenants</div>
+                  <div className="text-[10px] sm:text-xs font-bold tabular-nums text-foreground">{formatCreditAmount(allocatedTotal)}</div>
                 </div>
-                <div className="rounded-lg bg-white/10 px-1.5 sm:px-2 py-1.5 ring-1 ring-white/10">
-                  <div className="text-[9px] text-purple-100/80 font-medium leading-tight">Added to your borrow</div>
-                  <div className="text-[10px] sm:text-xs font-bold tabular-nums text-emerald-100">+ {formatCreditAmount(bonusFromAlloc)}</div>
+                <div className="rounded-lg bg-muted px-1.5 sm:px-2 py-1.5 ring-1 ring-border">
+                  <div className="text-[9px] text-muted-foreground font-medium leading-tight">Added to your borrow</div>
+                  <div className="text-[10px] sm:text-xs font-bold tabular-nums text-emerald-700">+ {formatCreditAmount(bonusFromAlloc)}</div>
                 </div>
-                <div className="rounded-lg bg-white/15 px-1.5 sm:px-2 py-1.5 ring-1 ring-white/25">
-                  <div className="text-[9px] text-purple-100/80 font-medium leading-tight">Every 1,000</div>
-                  <div className="text-[10px] sm:text-xs font-bold">= 2,000</div>
+                <div className="rounded-lg bg-purple-50 px-1.5 sm:px-2 py-1.5 ring-1 ring-purple-200">
+                  <div className="text-[9px] text-purple-700 font-medium leading-tight">Every 1,000</div>
+                  <div className="text-[10px] sm:text-xs font-bold text-purple-900">= 2,000</div>
                 </div>
               </div>
 
               {/* CTA */}
               <button
                 onClick={() => setApplyAdvanceOpen(true)}
-                className="mt-2.5 sm:mt-3 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-card text-purple-800 font-bold text-xs sm:text-sm px-4 py-2.5 sm:py-3 shadow-lg shadow-purple-950/20 ring-1 ring-white/60 hover:bg-white/95 active:scale-[0.99] transition"
+                className="mt-2.5 sm:mt-3 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-purple-700 text-primary-foreground font-bold text-xs sm:text-sm px-4 py-2.5 sm:py-3 shadow-lg shadow-purple-900/20 ring-1 ring-purple-800 hover:bg-purple-800 active:scale-[0.99] transition"
                 style={{ touchAction: 'manipulation', minHeight: 44 }}
               >
                 <Zap className="h-4 w-4" />
                 Get Money Now
               </button>
-              <div className="text-[9px] sm:text-[10px] text-purple-100/70 text-center mt-1">
+              <div className="text-[9px] sm:text-[10px] text-muted-foreground text-center mt-1">
                 Money goes straight to your wallet. Fast. No long forms.
               </div>
             </div>
