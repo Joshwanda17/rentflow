@@ -273,26 +273,17 @@ export function AgentOpsDashboard() {
       case 'sc-products': return <AgentProductsPanel />;
       case 'agent-service-centres': return <ServiceCentreOverview />;
       case 'agent-products-services': {
-        const PRODUCT_CARDS = [
-          { key: 'motor_bike' as const, label: 'Agent Motor Bikes', desc: 'Spiro bike issuance, deliveries & receivables', icon: Bike, color: 'from-amber-500 to-orange-600' },
-          { key: 'smart_phone' as const, label: 'Agent Smart Phones', desc: 'Device orders, payments & outstanding balances', icon: Smartphone, color: 'from-indigo-500 to-blue-600' },
-          { key: 'boutique' as const, label: 'Agent Boutique', desc: 'Branded merchandise sales & recoveries', icon: ShoppingBag, color: 'from-pink-500 to-rose-600' },
-          { key: 'signage' as const, label: 'Signages', desc: 'Shop signage production & agent contributions', icon: Signpost, color: 'from-lime-500 to-green-600' },
-          { key: 'advances' as const, label: 'Agent Advances', desc: 'Advance requests, limits & repayment queues', icon: HandCoins, color: 'from-purple-500 to-violet-600' },
-        ];
-
-        if (!productSection) {
-          return (
+        return (
             <div className="space-y-4">
               <div>
                 <h2 className="text-xl font-bold tracking-tight">Agent Products &amp; Services</h2>
                 <p className="text-sm text-muted-foreground">Choose a category to manage issuance, payments and receivables.</p>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                {PRODUCT_CARDS.map((c) => (
-                  <button
-                    key={c.key}
-                    onClick={() => setProductSection(c.key)}
+                {AGENT_PRODUCT_PAGES.map((c) => (
+                  <Link
+                    key={c.slug}
+                    to={`/agent-ops/products/${c.slug}`}
                     className="group text-left rounded-2xl border bg-card p-5 shadow-sm transition-all hover:shadow-lg hover:-translate-y-0.5 hover:border-primary/40"
                   >
                     <div className={`inline-flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${c.color} text-primary-foreground shadow-md`}>
@@ -300,35 +291,11 @@ export function AgentOpsDashboard() {
                     </div>
                     <div className="mt-4 text-lg font-bold leading-tight">{c.label}</div>
                     <p className="mt-1 text-sm text-muted-foreground">{c.desc}</p>
-                    <div className="mt-3 text-xs font-semibold uppercase tracking-wide text-primary opacity-0 transition-opacity group-hover:opacity-100">Open →</div>
-                  </button>
+                    <div className="mt-3 text-xs font-semibold uppercase tracking-wide text-primary opacity-0 transition-opacity group-hover:opacity-100">Open full page →</div>
+                  </Link>
                 ))}
               </div>
             </div>
-          );
-        }
-
-        const current = PRODUCT_CARDS.find((c) => c.key === productSection)!;
-        return (
-          <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <Button variant="outline" size="sm" onClick={() => setProductSection(null)}>← All categories</Button>
-              <div className="flex items-center gap-2 font-bold">
-                <current.icon className="h-4 w-4" />{current.label}
-              </div>
-            </div>
-            {productSection === 'advances' ? (
-              <div className="space-y-6">
-                <AdvanceAnalyticsPanel />
-                <AdvanceRequestsQueue stage="agent_ops" />
-                <AdvanceRequestsReviewed />
-                <BusinessAdvanceQueue stage="agent_ops" />
-                <RentHistoryVerificationQueue dept="agent_ops" />
-              </div>
-            ) : (
-              <AgentProductsPanel category={productSection} />
-            )}
-          </div>
         );
       }
       case 'sub-agents': return <SubAgentVerificationQueue />;
