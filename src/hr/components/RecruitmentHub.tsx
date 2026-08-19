@@ -351,7 +351,8 @@ function ApplicationsTab() {
       const { count, error } = await supabase
         .from('job_applications')
         .select('*', { count: 'exact', head: true })
-        .not('purged_at', 'is', null);
+        .not('archived_at', 'is', null)
+        .is('purged_at', null);
       if (error) throw new Error(error.message);
       return count ?? 0;
     },
