@@ -37924,6 +37924,21 @@ export type Database = {
           month_start: string
         }[]
       }
+      get_advance_growth_cohorts: {
+        Args: never
+        Returns: {
+          advance_id: string
+          agent_id: string
+          cohort: string
+          full_name: string
+          interest_14: number
+          outstanding: number
+          paid_14: number
+          paid_days: number
+          phone: string
+          status: string
+        }[]
+      }
       get_agent_advance_activity_correlation: {
         Args: { p_days?: number }
         Returns: {
