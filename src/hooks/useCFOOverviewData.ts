@@ -234,7 +234,7 @@ export function useCFOOverviewData() {
                 children: [
                   {
                     category: 'partner_capital_recorded',
-                    label: 'Recorded partner funding · active portfolios',
+                    label: 'Recorded partner funding · all portfolios (Partnership Dashboard)',
                     value: recordedPartnerFunding,
                     count: recordedPartnerCount,
                   },
