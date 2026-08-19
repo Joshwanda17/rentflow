@@ -41184,6 +41184,10 @@ export type Database = {
         Args: { p_date_from?: string; p_date_to?: string; p_search?: string }
         Returns: Json
       }
+      ops_landlord_ops_weekly_bundle: {
+        Args: { p_from: string; p_to: string }
+        Returns: Json
+      }
       ops_landlord_report: {
         Args: {
           p_date_from?: string
