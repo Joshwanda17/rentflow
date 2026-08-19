@@ -152,7 +152,7 @@ export function PartnerPortfolioWalletCard({ onAddCard, onSend, onRequest, onTop
             </div>
           </div>
 
-          <div className="flex items-end justify-between gap-2" style={{ marginTop: 'min(3.5cqw, 18px)' }}>
+          <div className="flex items-end justify-between gap-2" style={{ marginTop: 'clamp(16px, 5cqw, 26px)' }}>
             <div className="flex flex-col min-w-0">
               <span
                 className="font-medium tracking-wider text-white/70 uppercase whitespace-nowrap"
@@ -174,22 +174,25 @@ export function PartnerPortfolioWalletCard({ onAddCard, onSend, onRequest, onTop
               onClick={onAddCard}
               className="shrink-0 bg-black hover:bg-neutral-900 rounded-full flex items-center justify-center border border-white/10 shadow-sm transition active:scale-95"
               style={{
-                width: 'clamp(88px, 26cqw, 160px)',
-                height: 'clamp(30px, 8cqw, 44px)',
-                gap: 'min(6px, 1.6cqw)',
-                paddingInline: 'clamp(8px, 2cqw, 14px)',
-                marginTop: 'min(2.5cqw, 12px)',
+                width: 'auto',
+                minWidth: 0,
+                maxWidth: '46%',
+                height: 'clamp(26px, 7cqw, 42px)',
+                gap: 'clamp(4px, 1.4cqw, 8px)',
+                paddingInline: 'clamp(6px, 1.8cqw, 14px)',
+                marginTop: 'clamp(8px, 2.5cqw, 12px)',
+                marginBottom: 'clamp(2px, 0.8cqw, 4px)',
               }}
             >
               <span
                 className="rounded-full bg-white flex items-center justify-center shrink-0"
-                style={{ width: 'clamp(18px, 4.5cqw, 28px)', height: 'clamp(18px, 4.5cqw, 28px)' }}
+                style={{ width: 'clamp(15px, 4cqw, 26px)', height: 'clamp(15px, 4cqw, 26px)' }}
               >
-                <Plus className="text-black" strokeWidth={3.5} style={{ width: 'clamp(11px, 2.7cqw, 16px)', height: 'clamp(11px, 2.7cqw, 16px)' }} />
+                <Plus className="text-black" strokeWidth={3.5} style={{ width: 'clamp(9px, 2.4cqw, 15px)', height: 'clamp(9px, 2.4cqw, 15px)' }} />
               </span>
               <span
                 className="tracking-tight text-white font-bold whitespace-nowrap"
-                style={{ fontSize: 'clamp(11px, 2.9cqw, 16px)' }}
+                style={{ fontSize: 'clamp(9.5px, 2.6cqw, 15px)' }}
               >
                 Add Card
               </span>
