@@ -247,8 +247,9 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
   // Pre-tick rows handed over by the location/category recipient picker.
   useEffect(() => {
     if (!autoSelectIds?.length) return;
-    setSelected(new Set(autoSelectIds));
-  }, [autoSelectIds?.join(',')]);
+    const reserved = new Set(items.filter(i => i.partner_reserved_stage).map(i => i.id));
+    setSelected(new Set(autoSelectIds.filter(id => !reserved.has(id))));
+  }, [autoSelectIds?.join(','), items]);
 
   const effectiveRestrictIds = useMemo(
     () => (restrictToIds && restrictToIds.length ? restrictToIds : null),
