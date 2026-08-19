@@ -62,7 +62,14 @@ export function AgentRentCapacityPanel({
   const [search, setSearch] = useState('');
   const LOAD_STEP = 15;
   const [visibleCount, setVisibleCount] = useState(LOAD_STEP);
-  const [isSectionCollapsed, setIsSectionCollapsed] = useState(false);
+  const SECTION_COLLAPSE_KEY = 'agent-rent-capacity-collapsed';
+  const [isSectionCollapsed, setIsSectionCollapsed] = useState(() => {
+    try {
+      return window.localStorage.getItem(SECTION_COLLAPSE_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  });
   const showList = mode !== 'summary';
   const { agentIds: qualifyingIds, isReady: qualifyingReady } = useQualifyingAgentIds();
   // On phones, default every row to collapsed so the agent sees a clean
@@ -107,6 +114,18 @@ export function AgentRentCapacityPanel({
       const current = prev[agentId] ?? defaultCollapsed;
       return { ...prev, [agentId]: !current };
     });
+
+  const toggleSectionCollapsed = () => {
+    setIsSectionCollapsed((v) => {
+      const next = !v;
+      try {
+        window.localStorage.setItem(SECTION_COLLAPSE_KEY, String(next));
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  };
 
   const { data, isLoading, dataUpdatedAt, isFetching, refetch } = useQuery({
     queryKey: ['agent-rent-capacity-fleet'],
@@ -391,7 +410,7 @@ export function AgentRentCapacityPanel({
             <DailyRatingThresholdPopover />
             <button
               type="button"
-              onClick={() => setIsSectionCollapsed((v) => !v)}
+              onClick={toggleSectionCollapsed}
               className="inline-flex items-center justify-center h-8 w-8 rounded-lg border border-border bg-background hover:bg-muted transition-colors"
               aria-label={isSectionCollapsed ? 'Expand section' : 'Collapse section'}
               title={isSectionCollapsed ? 'Expand' : 'Collapse'}
@@ -440,7 +459,7 @@ export function AgentRentCapacityPanel({
           </div>
         )}
 
-        {!compact && <FleetPerformanceStats detailed={showList} />}
+        {!compact && !isSectionCollapsed && <FleetPerformanceStats detailed={showList} />}
       </div>
 
       {showList && (
