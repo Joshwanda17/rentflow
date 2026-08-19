@@ -221,6 +221,65 @@ export function MaturityRequestsQueue() {
     queryClient.invalidateQueries({ queryKey: ['maturity-requests-queue'] });
   };
 
+  /**
+   * Process a capital redemption. Partner Ops chooses whether the whole
+   * principal is redeemed or only part of it. For a part redemption the
+   * released amount is deducted and the portfolio continues on the
+   * principal that stays invested.
+   */
+  const processRedemption = async (req: Req) => {
+    const scope = redScope[req.id] || 'full';
+    const principal = Number(req.portfolio?.investment_amount ?? req.portfolio_value ?? 0);
+    const amount = scope === 'partial' ? Math.round(Number(redAmount[req.id] || 0)) : principal;
+    const note = (redNote[req.id] || '').trim();
+
+    if (scope === 'partial') {
+      if (!(amount > 0)) {
+        toast({ title: 'Enter the amount to redeem', variant: 'destructive' });
+        return;
+      }
+      if (amount > principal) {
+        toast({
+          title: 'Amount exceeds principal',
+          description: `Portfolio principal is ${fmtAmount(principal, req.currency)}.`,
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+    const remaining = principal - amount;
+
+    const confirmMsg =
+      `Process redemption for ${req.portfolio_code}?\n\n` +
+      `• Principal before redemption: ${fmtAmount(principal, req.currency)}\n` +
+      `• Amount to be redeemed: ${fmtAmount(amount, req.currency)}\n` +
+      (remaining > 0
+        ? `• Principal that will stay invested: ${fmtAmount(remaining, req.currency)}\n\n` +
+          `The portfolio will continue on ${fmtAmount(remaining, req.currency)} and the partner will be notified.`
+        : `• Principal remaining: ${fmtAmount(0, req.currency)}\n\n` +
+          `The full principal is redeemed and the portfolio will be closed. The partner will be notified.`);
+    if (!window.confirm(confirmMsg)) return;
+
+    setBusyId(req.id);
+    const { data, error } = await supabase.functions.invoke('process-portfolio-redemption', {
+      body: { request_id: req.id, scope, amount, note: note || null },
+    });
+    setBusyId(null);
+    if (error) {
+      toast({ title: 'Redemption failed', description: error.message, variant: 'destructive' });
+      return;
+    }
+    const r = (data as any)?.redemption;
+    toast({
+      title: r?.scope === 'full' ? 'Redemption processed in full' : 'Part redemption processed',
+      description:
+        r?.scope === 'full'
+          ? `${req.portfolio_code} — portfolio closed, partner notified.`
+          : `${req.portfolio_code} — ${fmtAmount(Number(r?.remaining_principal || 0), req.currency)} stays invested. Partner notified.`,
+    });
+    queryClient.invalidateQueries({ queryKey: ['maturity-requests-queue'] });
+  };
+
   return (
     <div className="space-y-4">
       {/* Summary cards */}
