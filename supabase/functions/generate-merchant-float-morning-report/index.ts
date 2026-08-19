@@ -462,8 +462,12 @@ async function buildPdf(p: Payload): Promise<Uint8Array> {
     pages.push(page);
     header(true);
   };
+  let repeatHead: (() => void) | null = null;
   const ensure = (need: number) => {
-    if (y - need < M + 30) newPage();
+    if (y - need < M + 34) {
+      newPage();
+      if (repeatHead) repeatHead();
+    }
   };
 
   const section = (n: string, t: string, sub?: string) => {
@@ -510,6 +514,7 @@ async function buildPdf(p: Payload): Promise<Uint8Array> {
     }
   };
   const headRow = (cells: Cell[], size = 8.2) => {
+    repeatHead = null;
     ensure(rowH + 6);
     page.drawRectangle({ x: M, y: y - 5, width: CW, height: rowH, color: col(38, 20, 60) });
     for (const c of cells) {
@@ -518,6 +523,7 @@ async function buildPdf(p: Payload): Promise<Uint8Array> {
       page.drawText(c.text.toUpperCase(), { x, y, size: s, font: bold, color: col(226, 214, 248) });
     }
     y -= rowH + 3;
+    repeatHead = () => headRow(cells, size);
   };
   const bodyRow = (cells: Cell[], zebra: boolean, size = 9) => {
     ensure(rowH + 4);
@@ -532,10 +538,11 @@ async function buildPdf(p: Payload): Promise<Uint8Array> {
     page.drawLine({ start: { x: M, y: y + 12 }, end: { x: M + CW, y: y + 12 }, thickness: 1, color: brand });
     drawCells(cells.map((c) => ({ ...c, b: true, c: brand })), size);
     y -= rowH + 12;
+    repeatHead = null;
   };
 
-  const R = M + CW - 8;
-  const L = M + 8;
+  const R = M + CW - 14;
+  const L = M + 10;
 
   // 1. Phone money
   section('1', 'Phone Money — Right Now', 'Company lines and verified cash immediately available for payouts.');
@@ -568,7 +575,7 @@ async function buildPdf(p: Payload): Promise<Uint8Array> {
 
   // 3. Activity
   section('3', `Yesterday's Agent Activity`, `Movements recorded on ${p.dateStr} (EAT).`);
-  const cFloatRecd = M + 250, cCount = M + 292, cPaid = M + 380, cComm = M + 452;
+  const cFloatRecd = M + 218, cCount = M + 250, cPaid = M + 348, cComm = M + 438;
   headRow([
     { text: 'Agent', x: L },
     { text: 'Float recd', right: cFloatRecd },
@@ -579,7 +586,7 @@ async function buildPdf(p: Payload): Promise<Uint8Array> {
   ], 7.6);
   p.activity.forEach((a, i) =>
     bodyRow([
-      { text: clip(a.name || '—', 30), x: L },
+      { text: clip(a.name || '—', 24), x: L },
       { text: fmt(a.floatReceived), right: cFloatRecd },
       { text: String(a.payoutCount), right: cCount },
       { text: fmt(a.payoutAmount), right: cPaid },
