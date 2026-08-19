@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import {
-  UserCheck, UserX, Phone, Clock, Shield, AlertTriangle, Loader2, Users,
+  UserCheck, UserX, Phone, Clock, Shield, AlertTriangle, Loader2, Users, Inbox,
 } from 'lucide-react';
 
 interface PendingFunder {
@@ -28,9 +28,16 @@ interface PendingFunder {
   investmentTotal: number;
 }
 
-export function PendingFunderApprovals() {
+interface Props {
+  /** Start expanded (used on the dedicated Pending Portfolios view). */
+  defaultExpanded?: boolean;
+  /** Render the section (with an empty state) even when there is nothing pending. */
+  showWhenEmpty?: boolean;
+}
+
+export function PendingFunderApprovals({ defaultExpanded = false, showWhenEmpty = false }: Props = {}) {
   const { user } = useAuth();
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [rejectId, setRejectId] = useState<string | null>(null);
