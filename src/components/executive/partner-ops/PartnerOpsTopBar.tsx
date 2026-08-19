@@ -138,7 +138,7 @@ export function PartnerOpsTopBar({ active, onSelect, badges, actions }: Props) {
           )}
         </div>
 
-        <BudgetDepartmentNotificationBell />
+        <BudgetDepartmentNotificationBell dashboard="partner-ops" />
 
         {actions}
 
