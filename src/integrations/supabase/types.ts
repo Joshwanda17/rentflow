@@ -5444,6 +5444,45 @@ export type Database = {
           },
         ]
       }
+      budget_cycle_notifications: {
+        Row: {
+          call_id: string
+          created_at: string
+          department_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          call_id: string
+          created_at?: string
+          department_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          call_id?: string
+          created_at?: string
+          department_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_cycle_notifications_call_id_fkey"
+            columns: ["call_id"]
+            isOneToOne: false
+            referencedRelation: "budget_calls"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budget_cycle_notifications_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "hr_departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       budget_department_routes: {
         Row: {
           changed_by: string | null
@@ -37366,6 +37405,10 @@ export type Database = {
         }
         Returns: Json
       }
+      budget_department_access_user_ids: {
+        Args: { _department_id: string }
+        Returns: string[]
+      }
       budget_department_route: {
         Args: { _department_id: string }
         Returns: string
@@ -37398,6 +37441,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      budget_notify_cycle_open: { Args: { _call_id: string }; Returns: number }
       budget_position_for: { Args: { _fn: string }; Returns: string }
       budget_probe_one: { Args: never; Returns: string }
       budget_release_preview: {
