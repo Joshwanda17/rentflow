@@ -58,7 +58,7 @@ import { AgentOpsOverview, AtRiskAgentsPreview } from './agent-ops-v2/AgentOpsOv
 import { AdvanceHealthCard } from './agent-ops-v2/AdvanceHealthCard';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 import { 
   Users, Banknote, DollarSign, Search, UserPlus, Trophy, BarChart3, 
   ClipboardList, AlertTriangle, Building2, Wallet, Bell, ArrowLeftRight,
@@ -141,6 +141,7 @@ export function AgentOpsDashboard() {
 
   useEffect(() => {
     const next = new URLSearchParams(searchParams);
+    if (activeView !== 'agent-products-services') setProductSection(null);
     const slug = activeView === 'sc-products' ? 'products' : activeView;
     if (slug) next.set('section', slug);
     else next.delete('section');
