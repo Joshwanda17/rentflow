@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, LayoutDashboard } from 'lucide-react';
 import { FinancialOpsCommandCenter } from '@/components/financial-ops/FinancialOpsCommandCenter';
+import { BudgetDepartmentNotificationBell } from '@/components/budget/BudgetDepartmentNotificationBell';
 
 export default function FinancialOpsPage() {
   const navigate = useNavigate();
@@ -30,15 +31,18 @@ export default function FinancialOpsPage() {
             <ArrowLeft className="h-4 w-4" />
             Back to dashboard
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={goToManagerDashboard}
-            className="gap-2 text-sm"
-          >
-            <LayoutDashboard className="h-4 w-4" />
-            Manager dashboard
-          </Button>
+          <div className="flex items-center gap-1">
+            <BudgetDepartmentNotificationBell />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={goToManagerDashboard}
+              className="gap-2 text-sm"
+            >
+              <LayoutDashboard className="h-4 w-4" />
+              Manager dashboard
+            </Button>
+          </div>
         </div>
       </div>
 
