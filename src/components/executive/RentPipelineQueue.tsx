@@ -662,7 +662,7 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
       // Outstanding-balance rent requests bypass COO + CFO (DB trigger short-circuits
       // them straight to `repaying` after Landlord Ops approval). Hide them from
       // those queues so reviewers can't accidentally try to approve them.
-      if (stage === 'landlord_ops_approved' || stage === 'coo_approved') {
+      if (stage === 'partner_ops_approved' || stage === 'coo_approved') {
         query = query.or('registration_type.is.null,registration_type.neq.outstanding_balance');
       }
 
@@ -1040,7 +1040,7 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
     });
   };
 
-  const isCooStage = stage === 'landlord_ops_approved';
+  const isCooStage = stage === 'partner_ops_approved';
 
   return (
     <Card className="border border-border">
