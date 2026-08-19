@@ -21,6 +21,7 @@ type RejectedStage =
   | 'tenant_ops_approved'
   | 'agent_verified'
   | 'landlord_ops_approved'
+  | 'partner_ops_approved'
   | 'coo_approved';
 
 const STAGE_LABEL: Record<string, string> = {
@@ -28,7 +29,8 @@ const STAGE_LABEL: Record<string, string> = {
   agent_ops_approved: 'Tenant Ops',
   tenant_ops_approved: 'Landlord Ops',
   agent_verified: 'Landlord Ops (legacy)',
-  landlord_ops_approved: 'COO',
+  landlord_ops_approved: 'Partner Ops',
+  partner_ops_approved: 'COO',
   coo_approved: 'CFO',
 };
 
@@ -36,7 +38,8 @@ const STAGE_NEXT: Record<string, string> = {
   pending: 'tenant_ops_approved',
   tenant_ops_approved: 'agent_verified',
   agent_verified: 'landlord_ops_approved',
-  landlord_ops_approved: 'coo_approved',
+  landlord_ops_approved: 'partner_ops_approved',
+  partner_ops_approved: 'coo_approved',
   coo_approved: 'funded',
 };
 

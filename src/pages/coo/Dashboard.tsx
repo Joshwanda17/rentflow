@@ -108,8 +108,8 @@ export default function COODashboardPage() {
             {isMobile && renderBackButton('Overview')}
             {renderSectionHeader('Rent Approvals', ClipboardList)}
             <p className="text-sm text-muted-foreground -mt-2">Review rent requests approved by Landlord Ops. Your sign-off forwards to CFO for payout.</p>
-            <RentPipelineQueue stage="landlord_ops_approved" />
-            <RejectedRequestsQueue stageFilter="landlord_ops_approved" title="Rejected at COO" />
+            <RentPipelineQueue stage="partner_ops_approved" />
+            <RejectedRequestsQueue stageFilter="partner_ops_approved" title="Rejected at COO" />
           </div>
         );
       case 'tenants':

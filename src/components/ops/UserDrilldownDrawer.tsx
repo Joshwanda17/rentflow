@@ -3400,7 +3400,7 @@ type TenantFilter = 'all' | 'active' | 'pending' | 'completed';
 const STATUS_GROUPS: Record<TenantFilter, string[]> = {
   all: [],
   active: ['active'],
-  pending: ['pending', 'agent_ops_approved', 'agent_verified', 'tenant_ops_approved', 'landlord_ops_approved', 'coo_approved'],
+  pending: ['pending', 'agent_ops_approved', 'agent_verified', 'tenant_ops_approved', 'landlord_ops_approved', 'partner_ops_approved', 'coo_approved'],
   completed: ['completed', 'repaid', 'fully_repaid'],
 };
 

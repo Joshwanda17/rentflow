@@ -44,6 +44,7 @@ import { PartnerOpsTopBar } from './partner-ops/PartnerOpsTopBar';
 import { PartnerOpsSummaryCards } from './partner-ops/PartnerOpsSummaryCards';
 import { ExpiringPortfoliosPanel } from './partner-ops/ExpiringPortfoliosPanel';
 import { NearingPayoutsPanel } from './partner-ops/NearingPayoutsPanel';
+import { PartnerOpsRentRequestQueue } from './partner-ops/PartnerOpsRentRequestQueue';
 import {
   PartnerRoiProjectionChart,
   PartnerRecentWithdrawals,
@@ -306,6 +307,7 @@ export function PartnersOpsDashboard() {
         </div>
       );
       case 'proxy.vetting': return <ProxyAgentApplicationsQueue />;
+      case 'rent.requests': return <PartnerOpsRentRequestQueue />;
       case 'proxy.followup': return (
         <div className="space-y-6">
           <PartnerOpsScoreboard />

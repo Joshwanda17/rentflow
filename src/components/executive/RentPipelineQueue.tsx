@@ -39,6 +39,7 @@ export type PipelineStage =
   | 'agent_ops_approved'
   | 'tenant_ops_approved'
   | 'landlord_ops_approved'
+  | 'partner_ops_approved'
   | 'coo_approved';
 
 interface PipelineConfig {
@@ -82,7 +83,7 @@ const STAGE_CONFIG: Record<PipelineStage, PipelineConfig> = {
   tenant_ops_approved: {
     stage: 'tenant_ops_approved',
     title: '🏠 Landlord Ops Review',
-    approveLabel: 'Approve & Forward to COO',
+    approveLabel: 'Approve & Forward to Partner Ops',
     nextStatus: 'landlord_ops_approved',
     reviewerColumn: 'landlord_ops_reviewed_by',
     reviewerAtColumn: 'landlord_ops_reviewed_at',
@@ -95,6 +96,20 @@ const STAGE_CONFIG: Record<PipelineStage, PipelineConfig> = {
   },
   landlord_ops_approved: {
     stage: 'landlord_ops_approved',
+    title: '🤝 Partner Ops Proxy Attachment',
+    approveLabel: 'Attach Proxy Agent & Forward to COO',
+    nextStatus: 'partner_ops_approved',
+    reviewerColumn: 'partner_ops_reviewed_by',
+    reviewerAtColumn: 'partner_ops_reviewed_at',
+    commentColumn: 'partner_ops_comment',
+    previousCommentColumns: [
+      { column: 'agent_ops_comment', label: 'Agent Ops note' },
+      { column: 'tenant_ops_comment', label: 'Tenant Ops note' },
+      { column: 'landlord_ops_comment', label: 'Landlord Ops note' },
+    ],
+  },
+  partner_ops_approved: {
+    stage: 'partner_ops_approved',
     title: '📋 COO Approval',
     approveLabel: 'Approve & Forward to CFO',
     nextStatus: 'coo_approved',
@@ -105,6 +120,7 @@ const STAGE_CONFIG: Record<PipelineStage, PipelineConfig> = {
       { column: 'agent_ops_comment', label: 'Agent Ops note' },
       { column: 'tenant_ops_comment', label: 'Tenant Ops note' },
       { column: 'landlord_ops_comment', label: 'Landlord Ops note' },
+      { column: 'partner_ops_comment', label: 'Partner Ops note' },
     ],
   },
   coo_approved: {
@@ -130,6 +146,7 @@ const STATUS_COLORS: Record<string, string> = {
   agent_ops_approved: 'bg-cyan-100 text-cyan-700',
   tenant_ops_approved: 'bg-blue-100 text-blue-700',
   landlord_ops_approved: 'bg-indigo-100 text-indigo-700',
+  partner_ops_approved: 'bg-violet-100 text-violet-700',
   coo_approved: 'bg-emerald-100 text-emerald-700',
   funded: 'bg-green-100 text-green-700',
   disbursed: 'bg-teal-100 text-teal-700',
@@ -142,7 +159,8 @@ const STAGE_REJECTOR_LABEL: Record<PipelineStage, string> = {
   pending: 'Agent Ops',
   agent_ops_approved: 'Tenant Ops',
   tenant_ops_approved: 'Landlord Ops',
-  landlord_ops_approved: 'COO',
+  landlord_ops_approved: 'Partner Ops',
+  partner_ops_approved: 'COO',
   coo_approved: 'CFO / Financial Ops',
 };
 
@@ -638,13 +656,13 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
       const statuses = [stage, ...additionalStatuses];
       let query = supabase
         .from('rent_requests')
-        .select('id, tenant_id, agent_id, landlord_id, lc1_id, rent_amount, duration_days, access_fee, request_fee, total_repayment, daily_repayment, status, created_at, updated_at, resubmitted_at, agent_ops_reviewed_at, tenant_ops_reviewed_at, landlord_ops_reviewed_at, coo_reviewed_at, house_category, request_city, request_latitude, request_longitude, assigned_agent_id, payout_method, payout_transaction_reference, approval_comment, agent_ops_comment, tenant_ops_comment, landlord_ops_comment, registration_type, initial_outstanding_balance, tenant_photo_url, house_image_urls, latest_rent_receipt_url, latest_rent_receipt_uploaded_at')
+        .select('id, tenant_id, agent_id, landlord_id, lc1_id, rent_amount, duration_days, access_fee, request_fee, total_repayment, daily_repayment, status, created_at, updated_at, resubmitted_at, agent_ops_reviewed_at, tenant_ops_reviewed_at, landlord_ops_reviewed_at, coo_reviewed_at, house_category, request_city, request_latitude, request_longitude, assigned_agent_id, payout_method, payout_transaction_reference, approval_comment, agent_ops_comment, tenant_ops_comment, landlord_ops_comment, partner_ops_comment, partner_ops_reviewed_at, proxy_agent_id, registration_type, initial_outstanding_balance, tenant_photo_url, house_image_urls, latest_rent_receipt_url, latest_rent_receipt_uploaded_at')
         .in('status', statuses);
 
       // Outstanding-balance rent requests bypass COO + CFO (DB trigger short-circuits
       // them straight to `repaying` after Landlord Ops approval). Hide them from
       // those queues so reviewers can't accidentally try to approve them.
-      if (stage === 'landlord_ops_approved' || stage === 'coo_approved') {
+      if (stage === 'partner_ops_approved' || stage === 'coo_approved') {
         query = query.or('registration_type.is.null,registration_type.neq.outstanding_balance');
       }
 
@@ -1022,7 +1040,7 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
     });
   };
 
-  const isCooStage = stage === 'landlord_ops_approved';
+  const isCooStage = stage === 'partner_ops_approved';
 
   return (
     <Card className="border border-border">

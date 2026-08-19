@@ -130,7 +130,7 @@ export function AgentTenantSearch() {
           .from('rent_requests')
           .select('agent_id, tenant_id')
           .in('agent_id', agentIdList)
-          .in('status', ['funded', 'disbursed', 'repaying', 'approved', 'tenant_ops_approved', 'agent_verified', 'landlord_ops_approved', 'coo_approved']);
+          .in('status', ['funded', 'disbursed', 'repaying', 'approved', 'tenant_ops_approved', 'agent_verified', 'landlord_ops_approved', 'partner_ops_approved', 'coo_approved']);
 
         const countMap = new Map<string, Set<string>>();
         rrData?.forEach(r => {
@@ -165,7 +165,7 @@ export function AgentTenantSearch() {
           .from('rent_requests')
           .select('id, tenant_id, landlord_id, status, rent_amount, daily_repayment, amount_repaid, total_repayment, agent_id')
           .eq('agent_id', selectedAgent!.id)
-          .in('status', ['funded', 'disbursed', 'repaying', 'approved', 'tenant_ops_approved', 'agent_verified', 'landlord_ops_approved', 'coo_approved'])
+          .in('status', ['funded', 'disbursed', 'repaying', 'approved', 'tenant_ops_approved', 'agent_verified', 'landlord_ops_approved', 'partner_ops_approved', 'coo_approved'])
           .order('created_at', { ascending: false })
           .range(from, from + page - 1);
         if (error) throw error;

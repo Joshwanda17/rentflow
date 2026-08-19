@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   FileText,
   ClipboardCheck,
+  ClipboardList,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -40,7 +41,8 @@ export type PartnerOpsViewKey =
   | 'proxy.promissory'
   | 'proxy.followup'
   | 'maturity'
-  | 'approvals';
+  | 'approvals'
+  | 'rent.requests';
 
 export interface PartnerOpsNavChild {
   key: PartnerOpsViewKey;
@@ -111,6 +113,13 @@ export const PARTNER_OPS_NAV: PartnerOpsNavItem[] = [
     ],
   },
   { key: 'maturity', label: 'Maturity Requests', icon: CalendarClock, view: 'maturity', keywords: ['maturity', 'requests', 'queue'] },
+  {
+    key: 'rent.requests',
+    label: 'Rent Plan Vetting',
+    icon: ClipboardList,
+    view: 'rent.requests',
+    keywords: ['rent', 'requests', 'proxy', 'attach', 'coo', 'tenants', 'media'],
+  },
   { key: 'approvals', label: 'Partner Approvals', icon: ClipboardCheck, view: 'approvals', keywords: ['approve', 'funders', 'role requests'] },
 ];
 
