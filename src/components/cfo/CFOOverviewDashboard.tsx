@@ -219,19 +219,15 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
 
       {/* ── PAY TO WALLET ── */}
       {onTabChange && (
-        <button
-          onClick={() => onTabChange('wallet-payout')}
-          className="w-full flex items-center gap-3 p-4 rounded-2xl bg-primary text-primary-foreground hover:opacity-90 transition-opacity text-left shadow-lg"
-        >
-          <div className="h-11 w-11 rounded-xl bg-primary-foreground/20 flex items-center justify-center shrink-0">
-            <Wallet className="h-5 w-5" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-semibold text-sm">Send Money to a Wallet</p>
-            <p className="text-xs opacity-80">Credit or debit any user instantly</p>
-          </div>
-          <ArrowUpRight className="h-5 w-5 opacity-60 shrink-0" />
-        </button>
+        <div className="flex justify-end">
+          <button
+            onClick={() => onTabChange('wallet-payout')}
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+          >
+            <Wallet className="h-3.5 w-3.5" />
+            Send Money to Wallet
+          </button>
+        </div>
       )}
 
       {/* ══════════════ THREE HEADLINE CARDS ══════════════ */}
