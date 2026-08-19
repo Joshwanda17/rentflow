@@ -90,3 +90,4 @@
 - [Wallet view dirty-check regression](mem://architecture/wallet-view-dirty-check-regression) — get_user_wallet_view / get_user_available_balance dropped their is_dirty self-heal check in a 2026-08-13 rewrite; freshness now depends on the 2-min flush cron only
 - [Wallet row-locking disabled](mem://architecture/wallet-row-locking-disabled) — wallet_row_locking_race_fix's FOR UPDATE guard ships gated behind wallet_row_locking_rollout.enabled=false; concurrent double-debit race is still open unless flipped in prod
 - [Cash Flow Statement](mem://architecture/cash-flow-statement) — Ledger-derived corporate cash flow: get_statement_of_cash_flows + cash_flow_line_map; cash = A1 + A2
+- [Merchant owed is ledger truth](mem://constraints/merchant-owed-ledger-truth) — owed = negative ledger float + confirmed out-of-pocket claims only; momo-only, single-desk paid_out_total
