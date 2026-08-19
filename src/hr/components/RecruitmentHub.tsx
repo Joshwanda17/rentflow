@@ -68,6 +68,7 @@ import {
   APPLICATION_DECISIONS,
   archiveApplication,
   recordApplicationDecision,
+  recordApplicationContacted,
   restoreApplication,
   sendCareersEmails,
   type ApplicationDecision,
@@ -91,6 +92,7 @@ const ALL = '__all__';
 const SHORTLIST_1 = 'shortlist_1';
 const SHORTLIST_2 = 'shortlist_2';
 const SHORTLIST_3 = 'shortlist_3';
+const CONTACTED = 'contacted_filter';
 
 const FILTER_OPTIONS: {
   value: string;
@@ -104,6 +106,7 @@ const FILTER_OPTIONS: {
   { value: SHORTLIST_1, label: 'Shortlist 1', match: (s, r) => s === 'shortlisted' && (r ?? 1) === 1 },
   { value: SHORTLIST_2, label: 'Shortlist 2', match: (s, r) => s === 'shortlisted' && r === 2 },
   { value: SHORTLIST_3, label: 'Shortlist 3', match: (s, r) => s === 'shortlisted' && r === 3 },
+  { value: CONTACTED, label: 'Contacted', match: (s) => s === 'contacted' },
 ];
 
 type ReqStatus = HiringRequisition['status'];
@@ -549,6 +552,7 @@ function ApplicationsTab() {
   };
 
   const openCv = async (path: string) => {
+
     try {
       const url = await getResumeUrl(path);
       window.open(url, '_blank', 'noopener,noreferrer');
