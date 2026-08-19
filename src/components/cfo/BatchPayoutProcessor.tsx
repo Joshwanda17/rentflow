@@ -29,14 +29,18 @@ export function BatchPayoutProcessor() {
         .order('created_at', { ascending: true });
       if (error) throw error;
 
-      const userIds = [...new Set((data || []).map(r => r.tenant_id))];
+      // Plans a partner is self-funding are disbursed by Partner Ops approval,
+      // not by the company float — keep them out of this queue.
+      const rows = await excludePartnerReservedPlans(data || []);
+
+      const userIds = [...new Set(rows.map(r => r.tenant_id))];
       const profileMap = new Map<string, string>();
       if (userIds.length > 0) {
         const { data: profiles } = await supabase.from('profiles').select('id, full_name').in('id', userIds);
         for (const p of profiles || []) profileMap.set(p.id, p.full_name);
       }
 
-      return (data || []).map(r => ({ ...r, amount: r.rent_amount, tenant_name: profileMap.get(r.tenant_id) || 'Unknown' }));
+      return rows.map(r => ({ ...r, amount: r.rent_amount, tenant_name: profileMap.get(r.tenant_id) || 'Unknown' }));
     },
     staleTime: 30_000,
   });
