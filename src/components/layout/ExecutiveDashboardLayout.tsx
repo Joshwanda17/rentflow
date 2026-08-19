@@ -14,6 +14,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { SidebarSection, SidebarItem } from './executiveSidebarConfig';
 import { useStaffPermissions } from '@/hooks/useStaffPermissions';
 import { GlossaryButton } from '@/components/shared/GlossaryButton';
+import { BudgetDepartmentNotificationBell } from '@/components/budget/BudgetDepartmentNotificationBell';
 import { MissionBanner } from '@/components/mission/MissionBanner';
 
 /** Shared "My Work" tab, available on every executive dashboard. Lazy so
@@ -432,6 +433,9 @@ export default function ExecutiveDashboardLayout({
 
         {/* Glossary — shared team vocabulary */}
         <GlossaryButton variant="header" />
+
+        {/* Department budget cycle notices (only for departments the user can access) */}
+        <BudgetDepartmentNotificationBell className="text-primary-foreground hover:bg-white/10 hover:text-primary-foreground" />
 
         {/* Role-specific header actions (notifications, etc.) */}
         {headerActions}
