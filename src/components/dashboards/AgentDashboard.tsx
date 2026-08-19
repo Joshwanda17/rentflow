@@ -829,6 +829,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         <MissionBanner dashboardRole="agent" />
         <AgentPaymentEditAlert agentId={user.id} />
         {!isMerchant && <AgentInactivityWarningBanner agentId={user.id} />}
+        {!isMerchant && <AgentReturnedInactivationsPanel />}
 
         {/* Landlord verification rejections — edit & resubmit, or dismiss */}
         <AgentRejectedLandlordsPanel />
