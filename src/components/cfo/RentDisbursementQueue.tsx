@@ -144,10 +144,17 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
       if (error) throw error;
       if (!requests?.length) return [];
 
+      // Plans reserved or already funded by a partner (self-managed funding) are
+      // disbursed by Partner Ops approval straight to the agent's landlord float.
+      // They must never appear here — the DB also hard-blocks a company
+      // allocation on them.
+      const disbursable = await excludePartnerReservedPlans(requests);
+      if (!disbursable.length) return [];
+
       // Gather unique IDs
-      const tenantIds = [...new Set(requests.map(r => r.tenant_id))];
-      const landlordIds = [...new Set(requests.map(r => r.landlord_id).filter(Boolean))];
-      const agentIds = [...new Set(requests.flatMap(r => [r.agent_id, r.assigned_agent_id].filter(Boolean) as string[]))];
+      const tenantIds = [...new Set(disbursable.map(r => r.tenant_id))];
+      const landlordIds = [...new Set(disbursable.map(r => r.landlord_id).filter(Boolean))];
+      const agentIds = [...new Set(disbursable.flatMap(r => [r.agent_id, r.assigned_agent_id].filter(Boolean) as string[]))];
 
       // Fetch profiles for tenants and agents
       const allUserIds = [...new Set([...tenantIds, ...agentIds])];
