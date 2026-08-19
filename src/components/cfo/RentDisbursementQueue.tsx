@@ -263,6 +263,8 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
   const totalRepaymentExpected = useMemo(() => selectedItems.reduce((s, i) => s + i.total_repayment, 0), [selectedItems]);
 
   const toggle = (id: string) => {
+    // Partner-claimed plans are never fundable from company float.
+    if (items.find(i => i.id === id)?.partner_reserved_stage) return;
     const next = new Set(selected);
     next.has(id) ? next.delete(id) : next.add(id);
     setSelected(next);
