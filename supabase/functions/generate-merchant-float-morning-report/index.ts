@@ -421,108 +421,196 @@ async function buildPdf(p: Payload): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
-  const PAGE_W = 595.28, PAGE_H = 841.89, margin = 40;
+  const PAGE_W = 595.28, PAGE_H = 841.89, M = 44;
+  const CW = PAGE_W - M * 2;
   const col = (r: number, g: number, b: number) => rgb(r / 255, g / 255, b / 255);
-  const ink = col(17, 17, 17);
-  const muted = col(110, 110, 120);
+  const ink = col(24, 24, 27);
+  const soft = col(82, 82, 91);
+  const muted = col(140, 140, 150);
+  const brand = col(88, 28, 135);
+  const brandLite = col(243, 240, 250);
+  const line = col(228, 228, 234);
+  const white = col(255, 255, 255);
 
+  const pages: any[] = [];
   let page = doc.addPage([PAGE_W, PAGE_H]);
+  pages.push(page);
   let y = 0;
 
-  const header = () => {
-    page.drawRectangle({ x: 0, y: PAGE_H - 96, width: PAGE_W, height: 96, color: col(88, 28, 135) });
-    page.drawText('WELILE — Financial Operations', { x: margin, y: PAGE_H - 32, size: 10, font: bold, color: col(255, 255, 255) });
-    page.drawText('Merchant Float Morning Report', { x: margin, y: PAGE_H - 56, size: 17, font: bold, color: col(255, 255, 255) });
-    page.drawText(`Activity day: ${p.dateStr} (EAT)  •  Balances as at ${p.generatedAtLabel}`, { x: margin, y: PAGE_H - 76, size: 9, font, color: col(230, 220, 245) });
-    page.drawText('Currency: UGX  •  Scope: active merchant desks (cashout_agents) only', { x: margin, y: PAGE_H - 89, size: 8.5, font, color: col(230, 220, 245) });
-    y = PAGE_H - 124;
+  const header = (continued = false) => {
+    const H = 104;
+    page.drawRectangle({ x: 0, y: PAGE_H - H, width: PAGE_W, height: H, color: brand });
+    page.drawRectangle({ x: 0, y: PAGE_H - H, width: PAGE_W, height: 3, color: col(196, 168, 255) });
+    page.drawText('WELILE  ·  FINANCIAL OPERATIONS', {
+      x: M, y: PAGE_H - 34, size: 8.5, font: bold, color: col(214, 197, 245),
+    });
+    page.drawText(`Merchant Float Morning Report${continued ? ' (cont.)' : ''}`, {
+      x: M, y: PAGE_H - 58, size: 18, font: bold, color: white,
+    });
+    page.drawText(`Activity day ${p.dateStr} (EAT)   ·   Balances as at ${p.generatedAtLabel}`, {
+      x: M, y: PAGE_H - 78, size: 9, font, color: col(226, 214, 248),
+    });
+    page.drawText('Currency UGX   ·   Scope: active merchant desks only', {
+      x: M, y: PAGE_H - 92, size: 8.5, font, color: col(200, 184, 232),
+    });
+    y = PAGE_H - H - 26;
   };
   header();
 
+  const newPage = () => {
+    page = doc.addPage([PAGE_W, PAGE_H]);
+    pages.push(page);
+    header(true);
+  };
+  let repeatHead: (() => void) | null = null;
   const ensure = (need: number) => {
-    if (y - need < margin + 20) {
-      page = doc.addPage([PAGE_W, PAGE_H]);
-      header();
+    if (y - need < M + 34) {
+      newPage();
+      if (repeatHead) repeatHead();
     }
   };
-  const title = (t: string) => {
-    ensure(30);
-    page.drawText(t, { x: margin, y, size: 12, font: bold, color: ink });
-    y -= 18;
+
+  const section = (n: string, t: string, sub?: string) => {
+    ensure(46);
+    page.drawRectangle({ x: M, y: y - 5, width: 3, height: 17, color: brand });
+    page.drawText(`${n}.  ${t}`, { x: M + 11, y, size: 12.5, font: bold, color: ink });
+    y -= sub ? 14 : 20;
+    if (sub) {
+      page.drawText(sub, { x: M + 11, y, size: 8.5, font, color: muted });
+      y -= 16;
+    }
   };
-  const row = (cells: { text: string; x: number; right?: number; b?: boolean; size?: number }[], shade = false) => {
-    ensure(16);
-    if (shade) page.drawRectangle({ x: margin, y: y - 4, width: PAGE_W - margin * 2, height: 16, color: col(245, 243, 250) });
+
+  // KPI cards
+  const kpis = [
+    { label: 'PHONE MONEY NOW', value: fmt(p.phone.total) },
+    { label: 'MERCHANT FLOAT NOW', value: fmt(p.floatTotal) },
+    { label: `PAID OUT ${p.dateStr.slice(5)}`, value: fmt(p.totals.payoutAmount) },
+    { label: 'FLOAT ISSUED', value: fmt(p.totals.floatReceived) },
+  ];
+  const cardW = (CW - 3 * 8) / 4, cardH = 52;
+  ensure(cardH + 14);
+  kpis.forEach((k, i) => {
+    const x = M + i * (cardW + 8);
+    page.drawRectangle({
+      x, y: y - cardH + 12, width: cardW, height: cardH,
+      color: brandLite, borderColor: col(226, 216, 246), borderWidth: 0.8,
+    });
+    page.drawText(k.label, { x: x + 9, y: y - 4, size: 6.6, font: bold, color: brand });
+    let vs = 12.5;
+    while (bold.widthOfTextAtSize(k.value, vs) > cardW - 18 && vs > 7) vs -= 0.5;
+    page.drawText(k.value, { x: x + 9, y: y - 25, size: vs, font: bold, color: ink });
+  });
+  y -= cardH + 22;
+
+  type Cell = { text: string; x?: number; right?: number; b?: boolean; size?: number; c?: any };
+  const rowH = 16.5;
+  const drawCells = (cells: Cell[], size = 9) => {
     for (const c of cells) {
       const f = c.b ? bold : font;
-      const size = c.size ?? 9;
-      const x = c.right != null ? c.right - f.widthOfTextAtSize(c.text, size) : c.x;
-      page.drawText(c.text, { x, y, size, font: f, color: ink });
+      const s = c.size ?? size;
+      const x = c.right != null ? c.right - f.widthOfTextAtSize(c.text, s) : (c.x ?? M);
+      page.drawText(c.text, { x, y, size: s, font: f, color: c.c ?? ink });
     }
-    y -= 15;
   };
-  const R = PAGE_W - margin - 6;
+  const headRow = (cells: Cell[], size = 8.2) => {
+    repeatHead = null;
+    ensure(rowH + 6);
+    page.drawRectangle({ x: M, y: y - 5, width: CW, height: rowH, color: col(38, 20, 60) });
+    for (const c of cells) {
+      const s = c.size ?? size;
+      const x = c.right != null ? c.right - bold.widthOfTextAtSize(c.text, s) : (c.x ?? M);
+      page.drawText(c.text.toUpperCase(), { x, y, size: s, font: bold, color: col(226, 214, 248) });
+    }
+    y -= rowH + 3;
+    repeatHead = () => headRow(cells, size);
+  };
+  const bodyRow = (cells: Cell[], zebra: boolean, size = 9) => {
+    ensure(rowH + 4);
+    if (zebra) page.drawRectangle({ x: M, y: y - 5, width: CW, height: rowH, color: col(249, 248, 252) });
+    drawCells(cells, size);
+    page.drawLine({ start: { x: M, y: y - 5.5 }, end: { x: M + CW, y: y - 5.5 }, thickness: 0.4, color: line });
+    y -= rowH;
+  };
+  const totalRow = (cells: Cell[], size = 9) => {
+    ensure(rowH + 8);
+    page.drawRectangle({ x: M, y: y - 6, width: CW, height: rowH + 3, color: brandLite });
+    page.drawLine({ start: { x: M, y: y + 12 }, end: { x: M + CW, y: y + 12 }, thickness: 1, color: brand });
+    drawCells(cells.map((c) => ({ ...c, b: true, c: brand })), size);
+    y -= rowH + 12;
+    repeatHead = null;
+  };
 
-  // Section 1
-  title('1. Phone Money — Right Now');
-  row([{ text: 'Line', x: margin + 6, b: true }, { text: 'Balance', right: R, b: true }], true);
-  row([{ text: 'MTN MoMo', x: margin + 6 }, { text: fmt(p.phone.mtn), right: R }]);
-  row([{ text: 'Airtel Money', x: margin + 6 }, { text: fmt(p.phone.airtel), right: R }]);
-  row([{ text: 'Cash at hand (verified)', x: margin + 6 }, { text: fmt(p.phone.cashAtHand), right: R }]);
-  row([{ text: 'Total available now', x: margin + 6, b: true }, { text: fmt(p.phone.total), right: R, b: true }], true);
-  y -= 10;
+  const R = M + CW - 14;
+  const L = M + 10;
 
-  // Section 2
-  title(`2. Merchant Float — Right Now (${p.floats.length} active agents, lowest first)`);
-  row([
-    { text: 'Agent', x: margin + 6, b: true },
-    { text: 'Float phone', x: margin + 250, b: true },
-    { text: 'Float balance', right: R, b: true },
-  ], true);
-  for (const f of p.floats) {
-    row([
-      { text: clip(f.name, 40), x: margin + 6 },
-      { text: clip(f.phone, 16), x: margin + 250 },
+  // 1. Phone money
+  section('1', 'Phone Money — Right Now', 'Company lines and verified cash immediately available for payouts.');
+  headRow([{ text: 'Line', x: L }, { text: 'Balance', right: R }]);
+  const phoneRows: [string, number][] = [
+    ['MTN MoMo', p.phone.mtn],
+    ['Airtel Money', p.phone.airtel],
+    ['Cash at hand (verified)', p.phone.cashAtHand],
+  ];
+  phoneRows.forEach(([label, v], i) =>
+    bodyRow([{ text: label, x: L }, { text: fmt(v), right: R }], i % 2 === 1),
+  );
+  totalRow([{ text: 'Total available now', x: L }, { text: fmt(p.phone.total), right: R }]);
+
+  // 2. Merchant float
+  section('2', 'Merchant Float — Right Now', `${p.floats.length} active desks, lowest float first — top of the list needs funding.`);
+  headRow([
+    { text: 'Agent', x: L },
+    { text: 'Float phone', x: M + 270 },
+    { text: 'Float balance', right: R },
+  ]);
+  p.floats.forEach((f, i) =>
+    bodyRow([
+      { text: clip(f.name || '—', 40), x: L },
+      { text: clip(f.phone || '—', 16), x: M + 270, c: soft },
       { text: fmt(f.floatHeld), right: R },
-    ]);
-  }
-  row([{ text: 'Total merchant float', x: margin + 6, b: true }, { text: fmt(p.floatTotal), right: R, b: true }], true);
-  y -= 10;
+    ], i % 2 === 1),
+  );
+  totalRow([{ text: 'Total merchant float', x: L }, { text: fmt(p.floatTotal), right: R }]);
 
-  // Section 3
-  title(`3. Yesterday's Agent Activity — ${p.dateStr} (EAT)`);
-  const c1 = margin + 6, c2 = margin + 235, c3 = margin + 300, c4 = margin + 385, c5 = margin + 455;
-  row([
-    { text: 'Agent', x: c1, b: true, size: 8.5 },
-    { text: 'Float recd', right: c2 + 55, b: true, size: 8.5 },
-    { text: '#', right: c3 + 22, b: true, size: 8.5 },
-    { text: 'Paid out', right: c4 + 60, b: true, size: 8.5 },
-    { text: 'Commission', right: c5 + 55, b: true, size: 8.5 },
-    { text: 'Float now', right: R, b: true, size: 8.5 },
-  ], true);
-  for (const a of p.activity) {
-    row([
-      { text: clip(a.name, 28), x: c1, size: 8.5 },
-      { text: fmt(a.floatReceived), right: c2 + 55, size: 8.5 },
-      { text: String(a.payoutCount), right: c3 + 22, size: 8.5 },
-      { text: fmt(a.payoutAmount), right: c4 + 60, size: 8.5 },
-      { text: fmt(a.commission), right: c5 + 55, size: 8.5 },
-      { text: fmt(a.floatHeld), right: R, size: 8.5 },
-    ]);
-  }
-  row([
-    { text: 'Total', x: c1, b: true, size: 8.5 },
-    { text: fmt(p.totals.floatReceived), right: c2 + 55, b: true, size: 8.5 },
-    { text: String(p.totals.payoutCount), right: c3 + 22, b: true, size: 8.5 },
-    { text: fmt(p.totals.payoutAmount), right: c4 + 60, b: true, size: 8.5 },
-    { text: fmt(p.totals.commission), right: c5 + 55, b: true, size: 8.5 },
-    { text: fmt(p.floatTotal), right: R, b: true, size: 8.5 },
-  ], true);
+  // 3. Activity
+  section('3', `Yesterday's Agent Activity`, `Movements recorded on ${p.dateStr} (EAT).`);
+  const cFloatRecd = M + 218, cCount = M + 250, cPaid = M + 344, cComm = M + 432;
+  headRow([
+    { text: 'Agent', x: L },
+    { text: 'Float recd', right: cFloatRecd },
+    { text: '#', right: cCount },
+    { text: 'Paid out', right: cPaid },
+    { text: 'Commission', right: cComm },
+    { text: 'Float now', right: R },
+  ], 7.6);
+  p.activity.forEach((a, i) =>
+    bodyRow([
+      { text: clip(a.name || '—', 24), x: L },
+      { text: fmt(a.floatReceived), right: cFloatRecd },
+      { text: String(a.payoutCount), right: cCount },
+      { text: fmt(a.payoutAmount), right: cPaid },
+      { text: fmt(a.commission), right: cComm },
+      { text: fmt(a.floatHeld), right: R },
+    ], i % 2 === 1, 8.4),
+  );
+  totalRow([
+    { text: 'Total', x: L },
+    { text: fmt(p.totals.floatReceived), right: cFloatRecd },
+    { text: String(p.totals.payoutCount), right: cCount },
+    { text: fmt(p.totals.payoutAmount), right: cPaid },
+    { text: fmt(p.totals.commission), right: cComm },
+    { text: fmt(p.floatTotal), right: R },
+  ], 8.4);
 
-  y -= 16;
-  ensure(20);
-  page.drawText('Cash-flow planning report. Read-only: no deposits, general withdrawals or anomalies included.', {
-    x: margin, y, size: 8, font, color: muted,
+  // Footer on every page
+  pages.forEach((pg, i) => {
+    pg.drawLine({ start: { x: M, y: M + 16 }, end: { x: M + CW, y: M + 16 }, thickness: 0.6, color: line });
+    pg.drawText('Cash-flow planning report · read-only · excludes deposits, general withdrawals and anomalies', {
+      x: M, y: M + 5, size: 7.4, font, color: muted,
+    });
+    const pn = `Page ${i + 1} of ${pages.length}`;
+    pg.drawText(pn, { x: M + CW - font.widthOfTextAtSize(pn, 7.4), y: M + 5, size: 7.4, font, color: muted });
   });
 
   return await doc.save();
