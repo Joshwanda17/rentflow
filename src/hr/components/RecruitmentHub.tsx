@@ -619,7 +619,7 @@ function ApplicationsTab() {
             Removed applications are kept here indefinitely — nothing is deleted. Put one back to
             return it to the working list.
           </p>
-          <RemovedApplicationsPanel />
+          <RemovedApplicationsPanel refetchList={refetch} refetchCount={refetchRemovedCount} />
         </div>
       ) : (
       <>
