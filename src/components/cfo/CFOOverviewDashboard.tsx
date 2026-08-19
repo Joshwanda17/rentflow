@@ -313,7 +313,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
       {/* ══════════════ COMPACT FINANCIAL SUMMARY ══════════════ */}
       <div className="rounded-2xl border border-border bg-card p-4 sm:p-5">
         <h2 className="text-sm font-semibold tracking-tight mb-4">Financial Summary</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-x-4 gap-y-5">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-5">
           <SummaryItem label="Cash Balance" value={fmt(totalCash)} caption="Bank + in transit" />
           <SummaryItem label="Daily Burn" value={fmt(dailyBurn)} caption="30-day average" valueColor="text-destructive" />
           <SummaryItem label="Revenue" value={fmt(revenueTotal)} caption="Life to date" valueColor="text-emerald-600" />
