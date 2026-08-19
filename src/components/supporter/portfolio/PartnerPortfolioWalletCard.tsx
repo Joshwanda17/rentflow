@@ -175,7 +175,7 @@ export function PartnerPortfolioWalletCard({ onAddCard, onSend, onRequest, onTop
         <button
           type="button"
           onClick={onAddCard}
-          aria-label="Add Card"
+          aria-label="Support"
           
           className="absolute z-20 bg-black hover:bg-neutral-900 rounded-full flex items-center justify-center border border-white/10 shadow-lg transition active:scale-95"
           style={{
@@ -198,7 +198,7 @@ export function PartnerPortfolioWalletCard({ onAddCard, onSend, onRequest, onTop
             className="tracking-tight text-white font-bold whitespace-nowrap"
             style={{ fontSize: 'clamp(9.5px, 2.8cqw, 15px)' }}
           >
-            Add Card
+            Support
           </span>
         </button>
       </div>
