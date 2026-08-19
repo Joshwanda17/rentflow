@@ -88,6 +88,7 @@ import { AgentPaymentEditAlert } from '@/components/agent/AgentPaymentEditAlert'
 import { AgentInactivityWarningBanner } from '@/components/agent/AgentInactivityWarningBanner';
 import { AgentRejectedLandlordsPanel } from '@/components/agent/AgentRejectedLandlordsPanel';
 import { AgentDeadTenantsBanner } from '@/components/agent/AgentDeadTenantsBanner';
+import { AgentReturnedInactivationsPanel } from '@/components/agent/AgentReturnedInactivationsPanel';
 import { VerificationChecklist } from '@/components/shared/VerificationChecklist';
 import { useOffline } from '@/contexts/OfflineContext';
 import { OfflineBanner } from '@/components/OfflineBanner';
