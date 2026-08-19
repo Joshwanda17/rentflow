@@ -20,7 +20,7 @@ type StatusFilter = 'all' | 'paid' | 'pending' | 'empty';
 
 const PAID_STATUSES = new Set(['funded', 'disbursed', 'repaying', 'completed']);
 const PENDING_STATUSES = new Set([
-  'pending', 'agent_verified', 'tenant_ops_approved', 'landlord_ops_approved', 'coo_approved',
+  'pending', 'agent_verified', 'tenant_ops_approved', 'landlord_ops_approved', 'partner_ops_approved', 'coo_approved',
 ]);
 
 interface RentRow {

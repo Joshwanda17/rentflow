@@ -294,7 +294,7 @@ export function PipelineStatusHub({ onOpenTenant, initialStatusKey }: Props) {
     const count = (keys: string[]) => requests.filter((r) => keys.includes(r.status)).length;
     return {
       pending: count(['pending', 'service_center_review']),
-      inPipeline: count(['agent_ops_approved', 'tenant_ops_approved', 'agent_verified', 'landlord_ops_approved', 'coo_approved']),
+      inPipeline: count(['agent_ops_approved', 'tenant_ops_approved', 'agent_verified', 'landlord_ops_approved', 'partner_ops_approved', 'coo_approved']),
       funded: count(['funded', 'disbursed']),
       repaying: count(['repaying']),
       completed: count(['fully_repaid', 'completed']),
