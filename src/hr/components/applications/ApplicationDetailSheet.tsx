@@ -72,7 +72,7 @@ function parseCoverNoteSections(text: string | null): { title: string; body: str
   return sections;
 }
 
-function CoverNoteSections({ text }: { text: string | null }) {
+export function CoverNoteSections({ text }: { text: string | null }) {
   const sections = parseCoverNoteSections(text);
   if (sections.length === 0) return <p className="text-sm text-muted-foreground">—</p>;
 

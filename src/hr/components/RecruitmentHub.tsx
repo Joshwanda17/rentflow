@@ -85,6 +85,8 @@ import type {
   JobPosting,
 } from '@/hr/types';
 import HRInternshipApplications from '@/components/hr/HRInternshipApplications';
+import { CoverNoteSections } from '@/hr/components/applications/ApplicationDetailSheet';
+
 
 const ALL = '__all__';
 const SHORTLIST_1 = 'shortlist_1';
@@ -993,7 +995,12 @@ function ApplicationDetail({
           label="Availability date"
           value={app.availability_date ? fmtDate(app.availability_date) : null}
         />
-        <Field label="Cover note" value={app.cover_note} />
+        {app.cover_note && (
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Cover note</Label>
+            <CoverNoteSections text={app.cover_note} />
+          </div>
+        )}
       </Section>
 
       <Separator />
