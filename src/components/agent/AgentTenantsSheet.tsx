@@ -1009,8 +1009,9 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
     for (const t of tenants) {
       const statuses = tenantStatuses[t.id] ?? new Set<string>();
       const balance = tenantBalances[t.id] || 0;
-      const isActive = statuses.has('disbursed') || statuses.has('repaying');
-      const isPending = !isActive && (statuses.has('pending') || statuses.has('approved') || statuses.has('funded'));
+      const isActive =
+        statuses.has('funded') || statuses.has('disbursed') || statuses.has('repaying');
+      const isPending = !isActive && (statuses.has('pending') || statuses.has('approved'));
       const isSettled = !isActive && !isPending && statuses.has('completed') && balance === 0;
       if (isActive) active++;
       else if (isPending) pending++;
