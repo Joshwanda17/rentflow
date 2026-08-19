@@ -37,7 +37,6 @@ const MAX_ROWS = 500;
  */
 export const APPLICATION_DECISIONS = [
   'shortlisted',
-  'shortlisted_2',
   'hold',
   'rejected',
 ] as const;
@@ -136,7 +135,12 @@ export async function recordApplicationDecision(
   applicationId: string,
   decision: ApplicationDecision,
   reason?: string,
+  shortlistRound: number | null = null,
 ): Promise<JobApplicationRow> {
+  if (shortlistRound !== null && ![1, 2, 3].includes(shortlistRound)) {
+    throw new Error('shortlist round must be 1, 2 or 3');
+  }
+
   // A reason is optional: HR records these decisions in bulk from the list, so
   // the action must go through with a single click.
   const trimmedReason = (reason ?? '').trim() || null;
@@ -149,6 +153,9 @@ export async function recordApplicationDecision(
       decided_at: new Date().toISOString(),
       decided_by: decidedBy,
       decision_reason: trimmedReason,
+      ...(decision === 'shortlisted' && shortlistRound !== null
+        ? { shortlist_round: shortlistRound }
+        : {}),
     })
     .eq('id', applicationId)
     .select(COLUMNS)
