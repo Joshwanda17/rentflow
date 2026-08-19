@@ -16,6 +16,10 @@ or NULL.
   PARTNER_RESERVED` for any allocation whose `source <> 'partner_self_funding'`
   on a reserved plan. The CFO/company route (`fund-agent-landlord-float`)
   therefore cannot double-fund a partner plan.
+- BADGE (CFO queue): `RentDisbursementQueue` KEEPS reserved rows visible with a
+  violet `PARTNER CLAIMED` / `PARTNER FUNDED` badge, checkbox disabled, row
+  greyed + tooltip. Never silently hide them there — the CFO must see why the
+  plan is not fundable. Use `fetchPartnerReservedStages`.
 - SOFT FENCE (UI): `src/lib/partnerReservedPlans.ts`
   (`excludePartnerReservedPlans`) calls `psm_reserved_plan_ids(uuid[])` — ONE
   round trip, IDs only, no partner identity — and is applied in
