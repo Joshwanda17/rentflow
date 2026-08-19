@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { ArrowUp, Check, CreditCard, Menu, Plus } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { ArrowUp, Check, CreditCard, Eye, EyeOff, Menu, Plus } from 'lucide-react';
 import { usePartnerPortfolios } from '@/hooks/usePartnerPortfolios';
 import { computeAccrual, normalizePortfolioState } from '@/lib/portfolioAccrual';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -39,6 +39,7 @@ export function PartnerPortfolioWalletCard({ onAddCard, onSend, onRequest, onTop
   const { user } = useAuth();
   const { profile } = useProfile();
   const { portfolios, loading } = usePartnerPortfolios();
+  const [showAmount, setShowAmount] = useState(true);
 
   const active = useMemo(
     () => portfolios.filter(p => normalizePortfolioState(p.status) === 'active'),
@@ -119,13 +120,31 @@ export function PartnerPortfolioWalletCard({ onAddCard, onSend, onRequest, onTop
           </div>
 
           <div className="flex items-end justify-between gap-2" style={{ marginTop: 'min(-0.5cqw, -2px)' }}>
-            <div className="flex flex-col">
-              <span
-                className="font-medium tracking-wider text-white/70 uppercase whitespace-nowrap"
-                style={{ fontSize: 'clamp(8px, 2.25cqw, 13px)', marginBottom: 'min(0.6cqw, 4px)' }}
+            <div className="flex flex-col min-w-0">
+              <div
+                className="flex items-center gap-1.5"
+                style={{ marginBottom: 'min(0.6cqw, 4px)' }}
               >
-                ACTIVE RENT PRINCIPAL
-              </span>
+                <span
+                  className="font-medium tracking-wider text-white/70 uppercase whitespace-nowrap"
+                  style={{ fontSize: 'clamp(8px, 2.25cqw, 13px)' }}
+                >
+                  ACTIVE RENT PRINCIPAL
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowAmount((s) => !s)}
+                  aria-label={showAmount ? 'Hide amount' : 'Show amount'}
+                  aria-pressed={showAmount}
+                  className="shrink-0 rounded p-0.5 text-white/70 hover:text-white hover:bg-white/10 transition"
+                >
+                  {showAmount ? (
+                    <EyeOff style={{ width: 'clamp(12px, 3cqw, 18px)', height: 'clamp(12px, 3cqw, 18px)' }} />
+                  ) : (
+                    <Eye style={{ width: 'clamp(12px, 3cqw, 18px)', height: 'clamp(12px, 3cqw, 18px)' }} />
+                  )}
+                </button>
+              </div>
               <div
                 className="font-black text-white tracking-tight leading-none whitespace-nowrap"
                 style={{
@@ -133,7 +152,7 @@ export function PartnerPortfolioWalletCard({ onAddCard, onSend, onRequest, onTop
                   fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro", "Segoe UI", Roboto, sans-serif',
                 }}
               >
-                {formatUGX(totalPrincipal)}
+                {showAmount ? formatUGX(totalPrincipal) : 'UGX ••••••'}
               </div>
             </div>
             <div className="flex flex-col items-end shrink-0" style={{ paddingRight: 'min(0.5cqw, 4px)' }}>
