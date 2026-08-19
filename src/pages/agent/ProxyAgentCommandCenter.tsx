@@ -132,8 +132,21 @@ export default function ProxyAgentCommandCenter() {
     });
     if (error) throw new Error(error.message);
     const payload = data as unknown as { path: string; code: string };
-    return { url: `${getPublicOrigin()}${payload.path}`, code: payload.code };
-  }, []);
+    const longUrl = `${getPublicOrigin()}${payload.path}`;
+
+    // Always hand out a short branded link (/r/<code>) — never the raw
+    // query-string onboarding URL. Falls back to the long form only if the
+    // short-link row cannot be created.
+    try {
+      const parsed = new URL(longUrl);
+      const params: Record<string, string> = {};
+      parsed.searchParams.forEach((v, k) => { params[k] = v; });
+      const short = await createShortLink(agentId!, parsed.pathname, params);
+      return { url: short, code: payload.code };
+    } catch {
+      return { url: longUrl, code: payload.code };
+    }
+  }, [agentId]);
 
   /**
    * iOS Safari revokes the user gesture once you `await`, so `window.open` /
