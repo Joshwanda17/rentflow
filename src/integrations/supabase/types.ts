@@ -42086,6 +42086,7 @@ export type Database = {
           withdrawable: number
         }[]
       }
+      reconcile_advance_statuses: { Args: never; Returns: Json }
       reconcile_agent_landlord_float_all: {
         Args: {
           p_allow_increase?: boolean
