@@ -397,11 +397,19 @@ export default function BalanceSheetPanel() {
               : <AlertTriangle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />}
             <div className="min-w-0 space-y-1">
               <p className={cn('text-xs font-semibold', data.balance_check.balanced ? 'text-success' : 'text-destructive')}>
-                {data.balance_check.balanced ? 'Balanced — Total Assets = Total Liabilities + Equity' : 'Not balanced — difference reported, nothing adjusted'}
+                {data.balance_check.balanced
+                  ? 'Balanced — Total Assets = Total Liabilities + Equity (real ledger data, no plug)'
+                  : 'BALANCE CHECK FAILED — Total Assets do not equal Total Liabilities + Equity'}
               </p>
               <p className="text-[10px] font-mono text-muted-foreground break-words">
                 {formatUGX(data.balance_check.total_assets)} vs {formatUGX(data.balance_check.total_liabilities_and_equity)} · Difference {formatUGX(data.balance_check.difference)}
               </p>
+              {!data.balance_check.balanced && (
+                <p className="text-[10px] text-destructive/90 break-words">
+                  {data.balance_check.message
+                    ?? 'No suspense plug has been applied — the difference above is real and must be resolved in the ledger.'}
+                </p>
+              )}
             </div>
           </div>
 
