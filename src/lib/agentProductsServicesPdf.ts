@@ -341,10 +341,10 @@ export function generateAgentProductsServicesPdf(opts: {
     y += 3;
   };
 
+  const expectedTotal = apsExpectedTotal(report);
+  const expectedDays = Math.max(1, Math.round(Number(report.rent.expected_days ?? rangeDays) || 1));
   const collectionRatePct =
-    report.rent.daily_receivable > 0
-      ? (Number(report.rent.collected_today) / Number(report.rent.daily_receivable)) * 100
-      : 0;
+    expectedTotal > 0 ? (Number(report.rent.collected_today) / expectedTotal) * 100 : 0;
 
   drawKpiCards([
     {
@@ -355,7 +355,7 @@ export function generateAgentProductsServicesPdf(opts: {
     {
       label: 'Collection rate vs expected',
       value: `${collectionRatePct.toFixed(1)}%`,
-      detail: `expected ${apsUgx(report.rent.daily_receivable)}`,
+      detail: `expected ${apsUgx(expectedTotal)} over ${num(expectedDays)} day${expectedDays === 1 ? '' : 's'}`,
     },
     {
       label: 'Outstanding receivable',
@@ -449,8 +449,9 @@ export function generateAgentProductsServicesPdf(opts: {
   drawTable('2. RENT RECEIVABLES', ['Metric', 'Current period', prevCol, 'Change'], w4, [
     ['Rent collected', apsUgx(report.rent.collected_today), apsUgx(base.collected), apsPctLabel(report.rent.collected_today, base.collected)],
     ['Collection entries recorded', num(report.rent.collections_today), cell(hasPrev ? num(base.collections) : ''), pct(report.rent.collections_today, base.collections, hasPrev)],
-    ['Expected daily receivable', apsUgx(report.rent.daily_receivable), cell(hasPrev ? apsUgx(base.dailyReceivable) : ''), pct(report.rent.daily_receivable, base.dailyReceivable, hasPrev)],
-    ['Collection rate vs expected', `${report.rent.daily_receivable > 0 ? ((Number(report.rent.collected_today) / Number(report.rent.daily_receivable)) * 100).toFixed(1) : '0.0'}%`, '—', '—'],
+    ['Expected daily receivable (per day)', apsUgx(report.rent.daily_receivable), cell(hasPrev ? apsUgx(base.dailyReceivable) : ''), pct(report.rent.daily_receivable, base.dailyReceivable, hasPrev)],
+    [`Expected target (cumulative, ${num(expectedDays)} day${expectedDays === 1 ? '' : 's'})`, apsUgx(expectedTotal), cell(hasPrev ? apsUgx(base.expectedTotal) : ''), pct(expectedTotal, base.expectedTotal, hasPrev)],
+    ['Collection rate vs expected', `${collectionRatePct.toFixed(1)}%`, '—', '—'],
     ['Total outstanding receivable', apsUgx(report.rent.outstanding), cell(hasPrev ? apsUgx(base.outstanding) : ''), pct(report.rent.outstanding, base.outstanding, hasPrev)],
     ['Live rent plans', num(report.rent.live_plans), '—', '—'],
     ['Average duration outstanding (days)', num(report.rent.avg_days_outstanding), '—', '—'],
