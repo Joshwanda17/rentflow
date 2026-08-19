@@ -216,6 +216,7 @@ function CycleManager({ cycles, onCreated }: { cycles: ReturnType<typeof useBudg
           <Button onClick={create} disabled={saving} className="gap-2">
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Open cycle
           </Button>
+          {formError && <p className="text-xs text-destructive">{formError}</p>}
         </CardContent>
       </Card>
 
