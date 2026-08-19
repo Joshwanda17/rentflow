@@ -26,7 +26,7 @@ export function PortfolioEmptyState({ onExplore }: { onExplore: () => void }) {
     <div className="rounded-2xl border border-border/60 bg-card p-4 space-y-2">
       <p className="text-sm font-bold text-foreground">No active portfolios</p>
       <p className="text-[11px] text-muted-foreground">You currently have no capital deployed.</p>
-      <Button size="sm" className="mt-1 w-full" onClick={onExplore}>Explore Capital Opportunities</Button>
+      <Button size="sm" className="mt-1 w-full text-white" onClick={onExplore}>Explore Capital Opportunities</Button>
     </div>
   );
 }
