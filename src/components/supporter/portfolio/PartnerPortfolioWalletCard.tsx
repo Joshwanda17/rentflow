@@ -176,7 +176,7 @@ export function PartnerPortfolioWalletCard({ onAddCard, onSend, onRequest, onTop
           type="button"
           onClick={onAddCard}
           aria-label="Add Card"
-          onClickCapture={undefined}
+          
           className="absolute z-20 bg-black hover:bg-neutral-900 rounded-full flex items-center justify-center border border-white/10 shadow-lg transition active:scale-95"
           style={{
             right: 0,
