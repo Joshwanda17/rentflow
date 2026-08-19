@@ -42,6 +42,7 @@ import { SelfManagedNearingPayouts } from './SelfManagedNearingPayouts';
 import { PartnerOpsSidebar } from './partner-ops/PartnerOpsSidebar';
 import { PartnerOpsTopBar } from './partner-ops/PartnerOpsTopBar';
 import { PartnerOpsSummaryCards } from './partner-ops/PartnerOpsSummaryCards';
+import { ExpiringPortfoliosPanel } from './partner-ops/ExpiringPortfoliosPanel';
 import {
   PartnerRoiProjectionChart,
   PartnerRecentWithdrawals,
@@ -243,7 +244,7 @@ export function PartnersOpsDashboard() {
           <PendingFunderApprovals defaultExpanded showWhenEmpty />
         </div>
       );
-      case 'portfolios.expiring': return <SelfManagedNearingPayouts />;
+      case 'portfolios.expiring': return <ExpiringPortfoliosPanel />;
       case 'portfolios.renewed': return <PortfolioRenewalsPanel />;
       case 'financial.capital': return <PartnerCapitalFlow />;
       case 'financial.payouts': return (
