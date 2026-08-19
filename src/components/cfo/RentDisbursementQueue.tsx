@@ -155,12 +155,12 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
       if (error) throw error;
       if (!requests?.length) return [];
 
-      // Plans reserved or already funded by a partner (self-managed funding) are
-      // disbursed by Partner Ops approval straight to the agent's landlord float.
-      // They must never appear here — the DB also hard-blocks a company
-      // allocation on them.
-      const disbursable = await excludePartnerReservedPlans(requests);
-      if (!disbursable.length) return [];
+      // Plans claimed / committed / already funded by a partner (self-managed
+      // funding) stay VISIBLE but carry a "Partner claimed" badge and cannot be
+      // ticked: Partner Ops approval sends the principal straight to the agent's
+      // landlord float, and the DB hard-blocks a company allocation on them.
+      const reservedStages = await fetchPartnerReservedStages(requests.map(r => r.id as string));
+      const disbursable = requests;
 
       // Gather unique IDs
       const tenantIds = [...new Set(disbursable.map(r => r.tenant_id))];
@@ -217,6 +217,7 @@ export function RentDisbursementQueue({ restrictToIds, autoSelectIds, locationPr
         const loc: any = tenantLocMap.get(r.tenant_id) || {};
         return {
           ...r,
+          partner_reserved_stage: reservedStages.get(r.id as string) ?? null,
           access_fee: r.access_fee ?? 0,
           request_fee: r.request_fee ?? 0,
           total_repayment: r.total_repayment ?? 0,
