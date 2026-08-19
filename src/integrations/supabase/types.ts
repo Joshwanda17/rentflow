@@ -26868,9 +26868,13 @@ export type Database = {
           number_of_payments: number | null
           outstanding_at_end: number | null
           outstanding_grace_days: number | null
+          partner_ops_comment: string | null
+          partner_ops_reviewed_at: string | null
+          partner_ops_reviewed_by: string | null
           payout_method: string | null
           payout_transaction_reference: string | null
           preferred_language: string | null
+          proxy_agent_id: string | null
           registration_type: string
           rejected_at: string | null
           rejected_at_stage: string | null
@@ -26989,9 +26993,13 @@ export type Database = {
           number_of_payments?: number | null
           outstanding_at_end?: number | null
           outstanding_grace_days?: number | null
+          partner_ops_comment?: string | null
+          partner_ops_reviewed_at?: string | null
+          partner_ops_reviewed_by?: string | null
           payout_method?: string | null
           payout_transaction_reference?: string | null
           preferred_language?: string | null
+          proxy_agent_id?: string | null
           registration_type?: string
           rejected_at?: string | null
           rejected_at_stage?: string | null
@@ -27110,9 +27118,13 @@ export type Database = {
           number_of_payments?: number | null
           outstanding_at_end?: number | null
           outstanding_grace_days?: number | null
+          partner_ops_comment?: string | null
+          partner_ops_reviewed_at?: string | null
+          partner_ops_reviewed_by?: string | null
           payout_method?: string | null
           payout_transaction_reference?: string | null
           preferred_language?: string | null
+          proxy_agent_id?: string | null
           registration_type?: string
           rejected_at?: string | null
           rejected_at_stage?: string | null
@@ -27315,6 +27327,55 @@ export type Database = {
           {
             foreignKeyName: "rent_requests_manager_verified_by_fkey"
             columns: ["manager_verified_by"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
+            foreignKeyName: "rent_requests_proxy_agent_id_fkey"
+            columns: ["proxy_agent_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "rent_requests_proxy_agent_id_fkey"
+            columns: ["proxy_agent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rent_requests_proxy_agent_id_fkey"
+            columns: ["proxy_agent_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "rent_requests_proxy_agent_id_fkey"
+            columns: ["proxy_agent_id"]
+            isOneToOne: false
+            referencedRelation: "v_accounts_no_verified_phone"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rent_requests_proxy_agent_id_fkey"
+            columns: ["proxy_agent_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "rent_requests_proxy_agent_id_fkey"
+            columns: ["proxy_agent_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_ops_tenant_base"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "rent_requests_proxy_agent_id_fkey"
+            columns: ["proxy_agent_id"]
             isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
@@ -36494,9 +36555,13 @@ export type Database = {
           number_of_payments: number | null
           outstanding_at_end: number | null
           outstanding_grace_days: number | null
+          partner_ops_comment: string | null
+          partner_ops_reviewed_at: string | null
+          partner_ops_reviewed_by: string | null
           payout_method: string | null
           payout_transaction_reference: string | null
           preferred_language: string | null
+          proxy_agent_id: string | null
           registration_type: string
           rejected_at: string | null
           rejected_at_stage: string | null
@@ -41936,6 +42001,14 @@ export type Database = {
         Args: { p_notes?: string; p_topup_id: string }
         Returns: Json
       }
+      partner_ops_attach_proxy_and_forward: {
+        Args: {
+          p_comment: string
+          p_proxy_agent_id: string
+          p_request_ids: string[]
+        }
+        Returns: Json
+      }
       partner_ops_decide_proxy_agent: {
         Args: { p_agent_user_id: string; p_decision: string; p_notes?: string }
         Returns: Json
@@ -41957,6 +42030,15 @@ export type Database = {
           status: string
           submitted_at: string
         }[]
+      }
+      partner_ops_list_rent_requests: {
+        Args: {
+          p_limit?: number
+          p_offset?: number
+          p_search?: string
+          p_status?: string
+        }
+        Returns: Json
       }
       partner_ops_list_self_topup_reviews: {
         Args: { p_limit?: number; p_status?: string }
