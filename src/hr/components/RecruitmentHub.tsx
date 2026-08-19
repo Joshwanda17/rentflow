@@ -995,7 +995,12 @@ function ApplicationDetail({
           label="Availability date"
           value={app.availability_date ? fmtDate(app.availability_date) : null}
         />
-        <Field label="Cover note" value={app.cover_note} />
+        {app.cover_note && (
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Cover note</Label>
+            <CoverNoteSections text={app.cover_note} />
+          </div>
+        )}
       </Section>
 
       <Separator />
