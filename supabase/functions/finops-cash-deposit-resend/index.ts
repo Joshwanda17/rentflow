@@ -128,6 +128,9 @@ Deno.serve(async (req) => {
         reference_id: (ver as any).deposit_request_id,
         recipient_user_id: (ver as any).user_id,
         recipient_name: (profile as any)?.full_name ?? null,
+        // Time-critical code: require Yoola handset confirmation, else fail
+        // over to Africa's Talking.
+        requireDeliveryConfirmation: true,
       });
     } catch (e) {
       smsError = String((e as Error)?.message ?? e);
