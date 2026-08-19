@@ -85,7 +85,6 @@ import AgentFrozenGate from '@/components/agent/AgentFrozenGate';
 import { OperatingLocationGate } from '@/components/location/OperatingLocationGate';
 import { AgentAgreementBanner } from '@/components/agent/agreement';
 import { AgentPaymentEditAlert } from '@/components/agent/AgentPaymentEditAlert';
-import { AgentInactivityWarningBanner } from '@/components/agent/AgentInactivityWarningBanner';
 import { AgentRejectedLandlordsPanel } from '@/components/agent/AgentRejectedLandlordsPanel';
 import { AgentDeadTenantsBanner } from '@/components/agent/AgentDeadTenantsBanner';
 import { AgentReturnedInactivationsPanel } from '@/components/agent/AgentReturnedInactivationsPanel';
@@ -829,7 +828,6 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         <AgentAgreementBanner />
         <MissionBanner dashboardRole="agent" />
         <AgentPaymentEditAlert agentId={user.id} />
-        {!isMerchant && <AgentInactivityWarningBanner agentId={user.id} />}
         {!isMerchant && <AgentReturnedInactivationsPanel />}
 
         {/* Landlord verification rejections — edit & resubmit, or dismiss */}
