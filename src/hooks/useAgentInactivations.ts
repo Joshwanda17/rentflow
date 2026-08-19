@@ -10,12 +10,30 @@ export interface AgentInactivationRow {
   tenant_city: string | null;
   agent_id: string;
   agent_name: string | null;
+  agent_phone: string | null;
   reason: string | null;
   marked_at: string;
-  review_status: 'open' | 'acknowledged' | 'resolved' | string;
+  review_status: 'open' | 'acknowledged' | 'resolved' | 'rejected' | string;
   review_notes: string | null;
   acknowledged_at: string | null;
   reviewer_name: string | null;
+  rent_amount: number | null;
+  daily_repayment: number | null;
+  total_repayment: number | null;
+  amount_repaid: number | null;
+  outstanding: number | null;
+  funded_at: string | null;
+  days_since_funded: number | null;
+  last_collection_at: string | null;
+  last_collection_amount: number | null;
+  collections_count: number | null;
+  days_since_last_collection: number | null;
+  landlord_name: string | null;
+  landlord_phone: string | null;
+  house_title: string | null;
+  house_area: string | null;
+  trust_score: number | null;
+  tenancy_status: string | null;
 }
 
 /**
@@ -88,7 +106,22 @@ export function useInactivationReview() {
     onSuccess: refresh,
   });
 
-  return { acknowledge, resolve };
+  /**
+   * Reject the agent's inactive flag: the tenant goes back on the agent's book
+   * and the case is returned to that agent's dashboard as a high-priority task.
+   */
+  const reject = useMutation({
+    mutationFn: async ({ rentRequestId, notes }: { rentRequestId: string; notes: string }) => {
+      const { error } = await supabase.rpc('ops_reject_inactivation', {
+        p_rent_request_id: rentRequestId,
+        p_notes: notes.trim(),
+      });
+      if (error) throw error;
+    },
+    onSuccess: refresh,
+  });
+
+  return { acknowledge, resolve, reject };
 }
 
 export default useAgentInactivations;

@@ -88,6 +88,7 @@ import { AgentPaymentEditAlert } from '@/components/agent/AgentPaymentEditAlert'
 import { AgentInactivityWarningBanner } from '@/components/agent/AgentInactivityWarningBanner';
 import { AgentRejectedLandlordsPanel } from '@/components/agent/AgentRejectedLandlordsPanel';
 import { AgentDeadTenantsBanner } from '@/components/agent/AgentDeadTenantsBanner';
+import { AgentReturnedInactivationsPanel } from '@/components/agent/AgentReturnedInactivationsPanel';
 import { VerificationChecklist } from '@/components/shared/VerificationChecklist';
 import { useOffline } from '@/contexts/OfflineContext';
 import { OfflineBanner } from '@/components/OfflineBanner';
@@ -829,6 +830,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         <MissionBanner dashboardRole="agent" />
         <AgentPaymentEditAlert agentId={user.id} />
         {!isMerchant && <AgentInactivityWarningBanner agentId={user.id} />}
+        {!isMerchant && <AgentReturnedInactivationsPanel />}
 
         {/* Landlord verification rejections — edit & resubmit, or dismiss */}
         <AgentRejectedLandlordsPanel />

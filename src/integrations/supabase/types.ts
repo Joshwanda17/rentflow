@@ -30450,9 +30450,12 @@ export type Database = {
         Row: {
           acknowledged_at: string | null
           acknowledged_by: string | null
+          agent_seen_at: string | null
           created_at: string
           id: string
           notes: string | null
+          rejected_at: string | null
+          rejected_by: string | null
           rent_request_id: string
           resolved_at: string | null
           resolved_by: string | null
@@ -30463,9 +30466,12 @@ export type Database = {
         Insert: {
           acknowledged_at?: string | null
           acknowledged_by?: string | null
+          agent_seen_at?: string | null
           created_at?: string
           id?: string
           notes?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
           rent_request_id: string
           resolved_at?: string | null
           resolved_by?: string | null
@@ -30476,9 +30482,12 @@ export type Database = {
         Update: {
           acknowledged_at?: string | null
           acknowledged_by?: string | null
+          agent_seen_at?: string | null
           created_at?: string
           id?: string
           notes?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
           rent_request_id?: string
           resolved_at?: string | null
           resolved_by?: string | null
@@ -35942,6 +35951,10 @@ export type Database = {
         Returns: number
       }
       advance_period_days: { Args: { _frequency: string }; Returns: number }
+      agent_ack_returned_inactivation: {
+        Args: { p_rent_request_id: string }
+        Returns: undefined
+      }
       agent_advance_activity: { Args: { p_user_id: string }; Returns: Json }
       agent_advance_topup_eligibility: {
         Args: { p_agent_id: string }
@@ -36081,6 +36094,21 @@ export type Database = {
       agent_resubmit_rent_request: {
         Args: { p_agent_note: string; p_patch: Json; p_request_id: string }
         Returns: string
+      }
+      agent_returned_inactivations: {
+        Args: never
+        Returns: {
+          agent_seen_at: string
+          daily_repayment: number
+          ops_notes: string
+          outstanding: number
+          rejected_at: string
+          rent_request_id: string
+          reviewer_name: string
+          tenant_id: string
+          tenant_name: string
+          tenant_phone: string
+        }[]
       }
       agent_reverse_tenant_allocation: {
         Args: { p_collection_id: string; p_reason: string }
@@ -40849,9 +40877,12 @@ export type Database = {
         Returns: {
           acknowledged_at: string | null
           acknowledged_by: string | null
+          agent_seen_at: string | null
           created_at: string
           id: string
           notes: string | null
+          rejected_at: string | null
+          rejected_by: string | null
           rent_request_id: string
           resolved_at: string | null
           resolved_by: string | null
@@ -41133,16 +41164,34 @@ export type Database = {
           acknowledged_at: string
           agent_id: string
           agent_name: string
+          agent_phone: string
+          amount_repaid: number
+          collections_count: number
+          daily_repayment: number
+          days_since_funded: number
+          days_since_last_collection: number
+          funded_at: string
+          house_area: string
+          house_title: string
+          landlord_name: string
+          landlord_phone: string
+          last_collection_amount: number
+          last_collection_at: string
           marked_at: string
+          outstanding: number
           reason: string
+          rent_amount: number
           rent_request_id: string
           review_notes: string
           review_status: string
           reviewer_name: string
+          tenancy_status: string
           tenant_city: string
           tenant_id: string
           tenant_name: string
           tenant_phone: string
+          total_repayment: number
+          trust_score: number
         }[]
       }
       ops_record_payment_edit: {
@@ -41153,6 +41202,31 @@ export type Database = {
           p_target_id: string
         }
         Returns: Json
+      }
+      ops_reject_inactivation: {
+        Args: { p_notes: string; p_rent_request_id: string }
+        Returns: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          agent_seen_at: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          rejected_at: string | null
+          rejected_by: string | null
+          rent_request_id: string
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          tenant_id: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "tenant_inactive_reviews"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       ops_resolve_agent_segment: {
         Args: {
@@ -41177,9 +41251,12 @@ export type Database = {
         Returns: {
           acknowledged_at: string | null
           acknowledged_by: string | null
+          agent_seen_at: string | null
           created_at: string
           id: string
           notes: string | null
+          rejected_at: string | null
+          rejected_by: string | null
           rent_request_id: string
           resolved_at: string | null
           resolved_by: string | null
