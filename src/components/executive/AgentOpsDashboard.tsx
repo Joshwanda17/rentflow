@@ -269,18 +269,29 @@ export function AgentOpsDashboard() {
       case 'sc-operating-model': return <ServiceCentreOperatingModel />;
       case 'sc-products': return <AgentProductsPanel />;
       case 'agent-service-centres': return <ServiceCentreOverview />;
-      case 'agent-motor-bikes': return <AgentProductsPanel category="motor_bike" />;
-      case 'agent-boutique': return <AgentProductsPanel category="boutique" />;
-      case 'agent-signages': return <AgentProductsPanel category="signage" />;
-      case 'agent-smart-phones': return <AgentProductsPanel category="smart_phone" />;
-      case 'agent-advances': return (
-        <div className="space-y-6">
-          <AdvanceAnalyticsPanel />
-          <AdvanceRequestsQueue stage="agent_ops" />
-          <AdvanceRequestsReviewed />
-          <BusinessAdvanceQueue stage="agent_ops" />
-          <RentHistoryVerificationQueue dept="agent_ops" />
-        </div>
+      case 'agent-products-services': return (
+        <Tabs defaultValue="motor_bike" className="w-full">
+          <TabsList className="flex w-full flex-wrap h-auto justify-start gap-1">
+            <TabsTrigger value="motor_bike" className="gap-1.5"><Bike className="h-3.5 w-3.5" />Motor Bikes</TabsTrigger>
+            <TabsTrigger value="smart_phone" className="gap-1.5"><Smartphone className="h-3.5 w-3.5" />Smartphones</TabsTrigger>
+            <TabsTrigger value="boutique" className="gap-1.5"><ShoppingBag className="h-3.5 w-3.5" />Boutique</TabsTrigger>
+            <TabsTrigger value="signage" className="gap-1.5"><Signpost className="h-3.5 w-3.5" />Signages</TabsTrigger>
+            <TabsTrigger value="advances" className="gap-1.5"><HandCoins className="h-3.5 w-3.5" />Advances</TabsTrigger>
+          </TabsList>
+          <TabsContent value="motor_bike" className="mt-4"><AgentProductsPanel category="motor_bike" /></TabsContent>
+          <TabsContent value="smart_phone" className="mt-4"><AgentProductsPanel category="smart_phone" /></TabsContent>
+          <TabsContent value="boutique" className="mt-4"><AgentProductsPanel category="boutique" /></TabsContent>
+          <TabsContent value="signage" className="mt-4"><AgentProductsPanel category="signage" /></TabsContent>
+          <TabsContent value="advances" className="mt-4">
+            <div className="space-y-6">
+              <AdvanceAnalyticsPanel />
+              <AdvanceRequestsQueue stage="agent_ops" />
+              <AdvanceRequestsReviewed />
+              <BusinessAdvanceQueue stage="agent_ops" />
+              <RentHistoryVerificationQueue dept="agent_ops" />
+            </div>
+          </TabsContent>
+        </Tabs>
       );
       case 'sub-agents': return <SubAgentVerificationQueue />;
       case 'promote-tenant': return <TenantToSubAgentPanel />;
@@ -361,7 +372,7 @@ export function AgentOpsDashboard() {
     { title: 'Agents', keys: ['directory', 'performance', 'sub-agents', 'bulk-ops'] },
     { title: 'Field Operations', keys: ['pipeline', 'rent-capacity', 'daily-collections-report', 'tasks', 'escalations', 'connector'] },
     { title: 'Service Centers', keys: ['sc-overview', 'service-centres', 'sc-directory', 'sc-payouts', 'sc-requests', 'sc-operating-model', 'sc-products'] },
-    { title: 'AGENT PRODUCTS & SERVICES', keys: ['agent-motor-bikes', 'agent-boutique', 'agent-signages', 'agent-smart-phones', 'agent-advances'] },
+    { title: 'Agent Products & Services', keys: ['agent-products-services'] },
     { title: 'Financials', keys: ['balances', 'float-payouts', 'earnings', 'locked-transfers', 'allocation-report', 'lending-agents'] },
     { title: 'Advances', keys: ['advances-analytics', 'advance-requests', 'active-advances', 'advance-potential', 'advance-limits', 'advance-repayments', 'advance-activity-correlation'] },
     { title: 'Reports', keys: ['products-services-report', 'performance-report', 'allocation-report'] },
@@ -528,7 +539,6 @@ function AgentOpsSideNav({
     { title: 'Agents', defaultOpen: true, keys: ['directory', 'performance', 'sub-agents', 'bulk-ops'] },
     { title: 'Field Operations', defaultOpen: true, keys: ['pipeline', 'rent-capacity', 'daily-collections-report', 'tasks', 'escalations', 'connector'] },
     { title: 'Service Centers', keys: ['sc-overview', 'service-centres', 'sc-directory', 'sc-payouts', 'sc-requests', 'sc-operating-model', 'sc-products'] },
-    { title: 'AGENT PRODUCTS & SERVICES', keys: ['agent-motor-bikes', 'agent-boutique', 'agent-signages', 'agent-smart-phones', 'agent-advances'] },
     { title: 'Financials', keys: ['balances', 'float-payouts', 'earnings', 'locked-transfers', 'allocation-report', 'lending-agents'] },
     { title: 'Advances', keys: ['advances-analytics', 'advance-requests', 'active-advances', 'advance-potential', 'advance-limits', 'advance-repayments', 'advance-activity-correlation'] },
     { title: 'Reports', keys: ['products-services-report', 'performance-report', 'allocation-report'] },
