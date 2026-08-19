@@ -864,10 +864,13 @@ function ApplicationsTab() {
             <AlertDialogTitle>
               {pending?.kind === 'remove'
                 ? `Remove ${pending?.row.full_name || 'this application'}?`
-                : `${pending ? DECISION_LABELS[pending.kind as ApplicationDecision] : ''} ${
-                    pending?.row.full_name || 'this applicant'
-                  }?`}
+                : pending?.writer === 'contacted'
+                  ? `Mark ${pending?.row.full_name || 'this applicant'} as contacted?`
+                  : `${pending ? DECISION_LABELS[pending.kind as ApplicationDecision] : ''} ${
+                      pending?.row.full_name || 'this applicant'
+                    }?`}
             </AlertDialogTitle>
+
             <AlertDialogDescription>
               {pending?.kind === 'remove'
                 ? 'This hides the application from the list. The record is kept, not deleted.'
