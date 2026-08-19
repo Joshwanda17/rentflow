@@ -15280,6 +15280,8 @@ export type Database = {
       }
       job_applications: {
         Row: {
+          archived_at: string | null
+          archived_by: string | null
           availability_date: string | null
           category: string
           consent_text_version: string | null
@@ -15319,6 +15321,8 @@ export type Database = {
           whatsapp_number: string | null
         }
         Insert: {
+          archived_at?: string | null
+          archived_by?: string | null
           availability_date?: string | null
           category?: string
           consent_text_version?: string | null
@@ -15358,6 +15362,8 @@ export type Database = {
           whatsapp_number?: string | null
         }
         Update: {
+          archived_at?: string | null
+          archived_by?: string | null
           availability_date?: string | null
           category?: string
           consent_text_version?: string | null
