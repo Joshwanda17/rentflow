@@ -9,7 +9,7 @@ import {
   getPreloadedSession,
   getPreloadedRoles,
 } from '@/lib/sessionCache';
-import { installStaleSessionDetector, STALE_SESSION_EVENTS } from '@/lib/staleSessionDetector';
+import { installStaleSessionDetector, STALE_SESSION_EVENTS, isSignOutSuppressed } from '@/lib/staleSessionDetector';
 import { loginTelemetry as lt } from '@/lib/loginTelemetry';
 
 
@@ -373,6 +373,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Try one refresh; if it fails, boot the user.
         const { data, error } = await supabase.auth.refreshSession();
         if (!error && data.session) return;
+        // Do not boot the user while offline, backgrounded, or mid-action
+        // (e.g. a merchant uploading proof of payment after using the camera).
+        if (isSignOutSuppressed()) return;
         console.warn('[Auth] session expired and refresh failed — signing out');
         try { clearSessionCache(); clearAllAuthStorage(); } catch { /* ignore */ }
         try { await supabase.auth.signOut(); } catch { /* ignore */ }
