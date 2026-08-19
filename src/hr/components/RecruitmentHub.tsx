@@ -790,23 +790,12 @@ function ApplicationsTab() {
                             (a.round ?? 0) >= 2 ? SHORTLIST_LEVEL_2_CLASS : ''
                           }`}
                           onClick={() => {
-                            setPending({ row, kind: a.status, round: a.round });
+                            setPending({ row, kind: a.status, writer: a.writer, round: a.round });
                           }}
                         >
                           {a.label}
                         </Button>
                       ))}
-                      {row.status === 'shortlisted' && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 px-2 text-xs"
-                          disabled={contactingId === row.id}
-                          onClick={() => { void markContacted(row); }}
-                        >
-                          Contacted
-                        </Button>
-                      )}
                       <Button
                         size="sm"
                         variant="destructive"
@@ -818,6 +807,7 @@ function ApplicationsTab() {
                         Remove
                       </Button>
                     </div>
+
                   </TableCell>
                 </TableRow>
               ))}
