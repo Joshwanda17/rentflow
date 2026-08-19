@@ -10,6 +10,7 @@ import { template as partnerPortfolioCompoundedTemplate } from './partner-portfo
 import { template as portfolioRenewalTemplate } from './portfolio-renewal.tsx'
 import { template as portfolioRenewalDaysRemainingTemplate } from './portfolio-renewal-days-remaining.tsx'
 import { template as portfolioMaturityTemplate } from './portfolio-maturity.tsx'
+import { template as portfolioRedemptionTemplate } from './portfolio-redemption.tsx'
 import { template as partnershipMaturityNoticeTemplate } from './partnership-maturity-notice.tsx'
 import { template as partnerSelfManagedCycleEndedTemplate } from './partner-self-managed-cycle-ended.tsx'
 import { template as partnerSelfManagedDeploymentTemplate } from './partner-self-managed-deployment.tsx'
@@ -60,6 +61,7 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   'portfolio-renewal': portfolioRenewalTemplate,
   'portfolio-renewal-days-remaining': portfolioRenewalDaysRemainingTemplate,
   'portfolio-maturity': portfolioMaturityTemplate,
+  'portfolio-redemption': portfolioRedemptionTemplate,
   'partnership-maturity-notice': partnershipMaturityNoticeTemplate,
   'partner-self-managed-cycle-ended': partnerSelfManagedCycleEndedTemplate,
   'partner-self-managed-deployment': partnerSelfManagedDeploymentTemplate,

@@ -23048,6 +23048,12 @@ export type Database = {
           portfolio_id: string
           portfolio_name: string | null
           portfolio_value: number
+          processed_at: string | null
+          processed_by: string | null
+          processing_note: string | null
+          redemption_amount: number | null
+          redemption_scope: string | null
+          remaining_principal: number | null
           request_type: string
           status: string
           updated_at: string
@@ -23065,6 +23071,12 @@ export type Database = {
           portfolio_id: string
           portfolio_name?: string | null
           portfolio_value?: number
+          processed_at?: string | null
+          processed_by?: string | null
+          processing_note?: string | null
+          redemption_amount?: number | null
+          redemption_scope?: string | null
+          remaining_principal?: number | null
           request_type: string
           status?: string
           updated_at?: string
@@ -23082,6 +23094,12 @@ export type Database = {
           portfolio_id?: string
           portfolio_name?: string | null
           portfolio_value?: number
+          processed_at?: string | null
+          processed_by?: string | null
+          processing_note?: string | null
+          redemption_amount?: number | null
+          redemption_scope?: string | null
+          remaining_principal?: number | null
           request_type?: string
           status?: string
           updated_at?: string
@@ -23139,6 +23157,75 @@ export type Database = {
             columns: ["portfolio_id"]
             isOneToOne: true
             referencedRelation: "investor_portfolios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      portfolio_redemptions: {
+        Row: {
+          created_at: string
+          id: string
+          is_test: boolean
+          new_status: string | null
+          note: string | null
+          old_principal: number
+          old_status: string | null
+          partner_id: string | null
+          portfolio_code: string | null
+          portfolio_id: string
+          processed_by: string | null
+          redeemed_amount: number
+          remaining_principal: number
+          request_id: string | null
+          scope: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_test?: boolean
+          new_status?: string | null
+          note?: string | null
+          old_principal: number
+          old_status?: string | null
+          partner_id?: string | null
+          portfolio_code?: string | null
+          portfolio_id: string
+          processed_by?: string | null
+          redeemed_amount: number
+          remaining_principal: number
+          request_id?: string | null
+          scope: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_test?: boolean
+          new_status?: string | null
+          note?: string | null
+          old_principal?: number
+          old_status?: string | null
+          partner_id?: string | null
+          portfolio_code?: string | null
+          portfolio_id?: string
+          processed_by?: string | null
+          redeemed_amount?: number
+          remaining_principal?: number
+          request_id?: string | null
+          scope?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portfolio_redemptions_portfolio_id_fkey"
+            columns: ["portfolio_id"]
+            isOneToOne: false
+            referencedRelation: "investor_portfolios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "portfolio_redemptions_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "portfolio_action_requests"
             referencedColumns: ["id"]
           },
         ]
@@ -35989,6 +36076,17 @@ export type Database = {
       }
       apply_layer_a_writedown: {
         Args: { p_dry_run?: boolean; p_user_id: string }
+        Returns: Json
+      }
+      apply_portfolio_redemption: {
+        Args: {
+          p_amount?: number
+          p_is_test?: boolean
+          p_note?: string
+          p_processed_by?: string
+          p_request_id: string
+          p_scope: string
+        }
         Returns: Json
       }
       apply_portfolio_renewal: {

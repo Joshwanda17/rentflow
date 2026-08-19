@@ -28,12 +28,18 @@ type Req = {
   message: string | null;
   currency: string;
   created_at: string;
+  redemption_scope?: 'full' | 'partial' | null;
+  redemption_amount?: number | null;
+  remaining_principal?: number | null;
+  processing_note?: string | null;
   portfolio?: {
     duration_months: number | null;
     payout_day: number | null;
     maturity_date: string | null;
     next_roi_date: string | null;
     roi_percentage: number | null;
+    investment_amount?: number | null;
+    status?: string | null;
   } | null;
 };
 
@@ -108,6 +114,10 @@ export function MaturityRequestsQueue() {
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  // Redemption processing form state, keyed by request id.
+  const [redScope, setRedScope] = useState<Record<string, 'full' | 'partial'>>({});
+  const [redAmount, setRedAmount] = useState<Record<string, string>>({});
+  const [redNote, setRedNote] = useState<Record<string, string>>({});
 
   const { data: requests = [], isLoading, refetch } = useQuery({
     queryKey: ['maturity-requests-queue'],
@@ -116,7 +126,8 @@ export function MaturityRequestsQueue() {
         .from('portfolio_action_requests')
         .select(
           `*, portfolio:investor_portfolios!portfolio_action_requests_portfolio_id_fkey(
-            duration_months, payout_day, maturity_date, next_roi_date, roi_percentage
+            duration_months, payout_day, maturity_date, next_roi_date, roi_percentage,
+            investment_amount, status
           )`,
         )
         .order('created_at', { ascending: false })
@@ -207,6 +218,65 @@ export function MaturityRequestsQueue() {
       return;
     }
     toast({ title: `Request ${label}`, description: `${req.portfolio_code} — ${req.partner_name}` });
+    queryClient.invalidateQueries({ queryKey: ['maturity-requests-queue'] });
+  };
+
+  /**
+   * Process a capital redemption. Partner Ops chooses whether the whole
+   * principal is redeemed or only part of it. For a part redemption the
+   * released amount is deducted and the portfolio continues on the
+   * principal that stays invested.
+   */
+  const processRedemption = async (req: Req) => {
+    const scope = redScope[req.id] || 'full';
+    const principal = Number(req.portfolio?.investment_amount ?? req.portfolio_value ?? 0);
+    const amount = scope === 'partial' ? Math.round(Number(redAmount[req.id] || 0)) : principal;
+    const note = (redNote[req.id] || '').trim();
+
+    if (scope === 'partial') {
+      if (!(amount > 0)) {
+        toast({ title: 'Enter the amount to redeem', variant: 'destructive' });
+        return;
+      }
+      if (amount > principal) {
+        toast({
+          title: 'Amount exceeds principal',
+          description: `Portfolio principal is ${fmtAmount(principal, req.currency)}.`,
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+    const remaining = principal - amount;
+
+    const confirmMsg =
+      `Process redemption for ${req.portfolio_code}?\n\n` +
+      `• Principal before redemption: ${fmtAmount(principal, req.currency)}\n` +
+      `• Amount to be redeemed: ${fmtAmount(amount, req.currency)}\n` +
+      (remaining > 0
+        ? `• Principal that will stay invested: ${fmtAmount(remaining, req.currency)}\n\n` +
+          `The portfolio will continue on ${fmtAmount(remaining, req.currency)} and the partner will be notified.`
+        : `• Principal remaining: ${fmtAmount(0, req.currency)}\n\n` +
+          `The full principal is redeemed and the portfolio will be closed. The partner will be notified.`);
+    if (!window.confirm(confirmMsg)) return;
+
+    setBusyId(req.id);
+    const { data, error } = await supabase.functions.invoke('process-portfolio-redemption', {
+      body: { request_id: req.id, scope, amount, note: note || null },
+    });
+    setBusyId(null);
+    if (error) {
+      toast({ title: 'Redemption failed', description: error.message, variant: 'destructive' });
+      return;
+    }
+    const r = (data as any)?.redemption;
+    toast({
+      title: r?.scope === 'full' ? 'Redemption processed in full' : 'Part redemption processed',
+      description:
+        r?.scope === 'full'
+          ? `${req.portfolio_code} — portfolio closed, partner notified.`
+          : `${req.portfolio_code} — ${fmtAmount(Number(r?.remaining_principal || 0), req.currency)} stays invested. Partner notified.`,
+    });
     queryClient.invalidateQueries({ queryKey: ['maturity-requests-queue'] });
   };
 
@@ -520,6 +590,121 @@ export function MaturityRequestsQueue() {
                       );
                     })()}
 
+                  {/* Completed redemption summary — what the partner keeps */}
+                  {!isRenewal && req.status === 'completed' && req.redemption_scope && (
+                    <div className="rounded-md border border-amber-200 bg-amber-50/60 p-2.5 space-y-1 dark:bg-amber-950/20 dark:border-amber-900">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
+                        {req.redemption_scope === 'full' ? 'Redeemed in full' : 'Part redemption processed'}
+                      </p>
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
+                        <div>
+                          <p className="text-muted-foreground">Amount redeemed</p>
+                          <p className="font-semibold dark:text-white">{fmtAmount(Number(req.redemption_amount || 0), req.currency)}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Principal that stays invested</p>
+                          <p className="font-semibold dark:text-white">{fmtAmount(Number(req.remaining_principal || 0), req.currency)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Redemption processing form — Partner Ops decides whether the
+                      whole principal is redeemed or only part of it. */}
+                  {!isRenewal && (req.status === 'pending' || req.status === 'processing') && (() => {
+                    const principal = Number(req.portfolio?.investment_amount ?? req.portfolio_value ?? 0);
+                    const scope = redScope[req.id] || 'full';
+                    const typed = Math.round(Number(redAmount[req.id] || 0));
+                    const amount = scope === 'partial' ? typed : principal;
+                    const remaining = Math.max(principal - (amount || 0), 0);
+                    const invalid =
+                      scope === 'partial' && (!(amount > 0) || amount > principal);
+                    return (
+                      <div className="rounded-md border border-amber-200 bg-amber-50/50 p-2.5 space-y-2.5 dark:bg-amber-950/20 dark:border-amber-900">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
+                          Redemption processing
+                        </p>
+                        <div className="flex gap-1.5">
+                          {[
+                            { k: 'full' as const, l: 'Redeem full principal' },
+                            { k: 'partial' as const, l: 'Redeem part of principal' },
+                          ].map(o => (
+                            <button
+                              key={o.k}
+                              type="button"
+                              onClick={() => setRedScope(s => ({ ...s, [req.id]: o.k }))}
+                              className={cn(
+                                'px-2.5 py-1 rounded-full text-[11px] font-medium transition-all border',
+                                scope === o.k
+                                  ? 'bg-amber-600 text-white border-amber-600'
+                                  : 'bg-background text-muted-foreground border-border hover:bg-muted',
+                              )}
+                            >
+                              {o.l}
+                            </button>
+                          ))}
+                        </div>
+
+                        {scope === 'partial' && (
+                          <Input
+                            type="number"
+                            min={1}
+                            max={principal}
+                            inputMode="numeric"
+                            placeholder={`Amount to redeem (max ${fmtAmount(principal, req.currency)})`}
+                            value={redAmount[req.id] || ''}
+                            onChange={(e) => setRedAmount(s => ({ ...s, [req.id]: e.target.value }))}
+                            className="h-8 text-xs"
+                          />
+                        )}
+
+                        <Input
+                          placeholder="Processing note (optional)"
+                          value={redNote[req.id] || ''}
+                          onChange={(e) => setRedNote(s => ({ ...s, [req.id]: e.target.value }))}
+                          className="h-8 text-xs"
+                        />
+
+                        <div className="grid grid-cols-3 gap-x-3 gap-y-1 text-[11px]">
+                          <div>
+                            <p className="text-muted-foreground">Principal now</p>
+                            <p className="font-semibold dark:text-white">{fmtAmount(principal, req.currency)}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">To be redeemed</p>
+                            <p className="font-semibold text-amber-700 dark:text-amber-300">
+                              {invalid ? '—' : fmtAmount(amount, req.currency)}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Stays invested</p>
+                            <p className="font-semibold dark:text-white">
+                              {invalid ? '—' : fmtAmount(remaining, req.currency)}
+                            </p>
+                          </div>
+                        </div>
+
+                        <p className="text-[10px] leading-snug text-amber-700/80 dark:text-amber-300/80">
+                          {invalid
+                            ? `Enter an amount between ${fmtAmount(1, req.currency)} and ${fmtAmount(principal, req.currency)}.`
+                            : remaining > 0
+                              ? `Once submitted, this portfolio will continue on a principal of ${fmtAmount(remaining, req.currency)} and all future returns are calculated on that amount.`
+                              : 'Once submitted, the full principal is redeemed and this portfolio will be closed.'}
+                        </p>
+
+                        <Button
+                          size="sm"
+                          className="h-8 text-xs gap-1.5 bg-amber-600 hover:bg-amber-700 text-white"
+                          disabled={busy || invalid}
+                          onClick={() => processRedemption(req)}
+                        >
+                          <Wallet className="h-3.5 w-3.5" />
+                          {remaining > 0 && !invalid ? 'Submit part redemption' : 'Submit full redemption'}
+                        </Button>
+                      </div>
+                    );
+                  })()}
+
                   {req.status !== 'completed' && req.status !== 'cancelled' && (
                     <div className="flex flex-wrap gap-2 pt-0.5">
                       {req.status === 'pending' && (
@@ -528,7 +713,7 @@ export function MaturityRequestsQueue() {
                           <Loader2 className="h-3.5 w-3.5" /> Start processing
                         </Button>
                       )}
-                      {(() => {
+                      {isRenewal && (() => {
                         const preview = isRenewal ? computeRenewalPreview(req) : null;
                         const daysLabel = preview
                           ? preview.mode === 'renew_now'

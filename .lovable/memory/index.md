@@ -1,2 +1,3 @@
 - [Free Service Center qualification](mem://features/agent/free-service-center-qualification) — permanent milestone: 20 qualifying sub-agents (each with an active tenant) + 5 personal active tenants unlocks a free service center request
 - [Two-step verification](mem://features/security/two-step-verification) — Email-code 2MFA in Settings → Safety; enabling kills all other sessions, new devices need an emailed code, blocked for placeholder emails
+- [Partial & full capital redemption](mem://business-model/partial-capital-redemption) — Partner Ops redemption scope selection; partial reduces principal permanently and the remainder stays invested; `apply_portfolio_redemption` RPC + `portfolio_redemptions` audit + `portfolio-redemption` email
