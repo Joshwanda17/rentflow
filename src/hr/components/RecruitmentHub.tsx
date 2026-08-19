@@ -538,10 +538,9 @@ function ApplicationsTab() {
             <SelectValue placeholder="Filter by status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={ALL}>all</SelectItem>
             {statuses.map((s) => (
-              <SelectItem key={s} value={s}>
-                {s}
+              <SelectItem key={s.value} value={s.value}>
+                {s.label}
               </SelectItem>
             ))}
           </SelectContent>
