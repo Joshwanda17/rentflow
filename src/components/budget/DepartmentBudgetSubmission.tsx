@@ -392,16 +392,21 @@ export default function DepartmentBudgetSubmission() {
             <span className="font-mono font-semibold">{formatUGX(total)}</span>
           </div>
 
-          {!readOnly && (
-            <div className="flex flex-wrap gap-2">
-              <Button onClick={saveDraft} disabled={saving} className="gap-2">
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save draft
-              </Button>
-              <Button onClick={submit} disabled={submitting || !activeId} variant="secondary" className="gap-2">
-                {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Submit for review
-              </Button>
-            </div>
-          )}
+          <div className="flex flex-wrap items-center gap-2 pt-3">
+            <Button size="sm" className="gap-1.5 bg-purple-600 text-xs text-white hover:bg-purple-700" onClick={startNew}>
+              <Plus className="h-3.5 w-3.5" /> New budget
+            </Button>
+            {!readOnly && (
+              <>
+                <Button size="sm" onClick={saveDraft} disabled={saving} className="gap-2 text-xs">
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save draft
+                </Button>
+                <Button size="sm" onClick={submit} disabled={submitting || !activeId} variant="secondary" className="gap-2 text-xs">
+                  {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Submit for review
+                </Button>
+              </>
+            )}
+          </div>
           {readOnly && (
             <p className="text-xs text-muted-foreground">
               This submission is locked. If the CFO requests a revision, a new version is created for you to edit.
