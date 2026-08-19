@@ -14,10 +14,9 @@ export async function fetchPartnerReservedPlanIds(
   rentRequestIds: string[],
 ): Promise<Set<string>> {
   if (!rentRequestIds.length) return new Set();
-  const { data, error } = await supabase
-    .from('v_partner_reserved_plan_ids' as any)
-    .select('rent_request_id')
-    .in('rent_request_id', rentRequestIds);
+  const { data, error } = await supabase.rpc('psm_reserved_plan_ids' as any, {
+    p_rent_request_ids: rentRequestIds,
+  });
   if (error) {
     // Fail closed is wrong here (it would empty the queue); the DB trigger still
     // blocks any double funding, so fall back to showing everything.
