@@ -68,6 +68,7 @@ import {
   APPLICATION_DECISIONS,
   archiveApplication,
   recordApplicationDecision,
+  recordApplicationContacted,
   restoreApplication,
   sendCareersEmails,
   type ApplicationDecision,
@@ -91,6 +92,7 @@ const ALL = '__all__';
 const SHORTLIST_1 = 'shortlist_1';
 const SHORTLIST_2 = 'shortlist_2';
 const SHORTLIST_3 = 'shortlist_3';
+const CONTACTED = 'contacted_filter';
 
 const FILTER_OPTIONS: {
   value: string;
@@ -104,6 +106,7 @@ const FILTER_OPTIONS: {
   { value: SHORTLIST_1, label: 'Shortlist 1', match: (s, r) => s === 'shortlisted' && (r ?? 1) === 1 },
   { value: SHORTLIST_2, label: 'Shortlist 2', match: (s, r) => s === 'shortlisted' && r === 2 },
   { value: SHORTLIST_3, label: 'Shortlist 3', match: (s, r) => s === 'shortlisted' && r === 3 },
+  { value: CONTACTED, label: 'Contacted', match: (s) => s === 'contacted' },
 ];
 
 type ReqStatus = HiringRequisition['status'];
@@ -548,6 +551,25 @@ function ApplicationsTab() {
     }
   };
 
+  // Marking contact is a single click: no reason, no confirmation dialog.
+  const [contactingId, setContactingId] = useState<string | null>(null);
+
+  const markContacted = async (row: JobApplicationRow) => {
+    setContactingId(row.id);
+    try {
+      await recordApplicationContacted(row.id);
+      toast.success(`${row.full_name || 'Applicant'} marked as contacted`);
+      const fresh = await refetch();
+      await refetchRemovedCount();
+      const next = (fresh.data ?? []).find((r) => r.id === row.id) ?? null;
+      setSelected((prev) => (prev && prev.id === row.id ? next : prev));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not record this contact');
+    } finally {
+      setContactingId(null);
+    }
+  };
+
   const openCv = async (path: string) => {
     try {
       const url = await getResumeUrl(path);
@@ -742,6 +764,10 @@ function ApplicationsTab() {
                   <TableCell>
                     {row.status === 'shortlisted'
                       ? `Shortlist ${row.shortlist_round ?? 1}`
+                      : row.status === 'contacted'
+                        ? row.shortlist_round
+                          ? `Contacted · reached Shortlist ${row.shortlist_round}`
+                          : 'Contacted'
                       : row.status
                         ? `${row.status.charAt(0).toUpperCase() + row.status.slice(1)}${
                             row.shortlist_round ? ` · reached Shortlist ${row.shortlist_round}` : ''
@@ -770,6 +796,17 @@ function ApplicationsTab() {
                           {a.label}
                         </Button>
                       ))}
+                      {row.status === 'shortlisted' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2 text-xs"
+                          disabled={contactingId === row.id}
+                          onClick={() => { void markContacted(row); }}
+                        >
+                          Contacted
+                        </Button>
+                      )}
                       <Button
                         size="sm"
                         variant="destructive"
