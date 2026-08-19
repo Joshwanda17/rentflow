@@ -43043,13 +43043,23 @@ export type Database = {
         | "employee_advances"
         | "general"
       flag_severity: "low" | "medium" | "high" | "critical"
+      hr_difficulty_band: "w1" | "w2" | "w3" | "w4" | "w5"
       hr_measurement_mode: "output" | "time" | "mixed"
+      hr_quality: "excellent" | "good" | "fair" | "poor" | "not_delivered"
+      hr_reporter_channel:
+        | "phone"
+        | "whatsapp"
+        | "email"
+        | "in_person"
+        | "in_app"
       hr_task_event_type:
         | "created"
         | "assigned"
+        | "claimed"
         | "started"
         | "blocked"
         | "unblocked"
+        | "returned"
         | "submitted"
         | "reviewed"
         | "completed"
@@ -43065,6 +43075,8 @@ export type Database = {
         | "submitted"
         | "completed"
         | "cancelled"
+      hr_ticket_origin: "internal" | "external"
+      hr_ticket_severity: "critical" | "high" | "normal"
       leave_type: "annual" | "sick" | "personal" | "maternity" | "paternity"
       recruitment_campaign_status: "draft" | "active" | "paused" | "completed"
       recruitment_link_status: "active" | "disabled" | "expired"
@@ -43386,13 +43398,24 @@ export const Constants = {
         "general",
       ],
       flag_severity: ["low", "medium", "high", "critical"],
+      hr_difficulty_band: ["w1", "w2", "w3", "w4", "w5"],
       hr_measurement_mode: ["output", "time", "mixed"],
+      hr_quality: ["excellent", "good", "fair", "poor", "not_delivered"],
+      hr_reporter_channel: [
+        "phone",
+        "whatsapp",
+        "email",
+        "in_person",
+        "in_app",
+      ],
       hr_task_event_type: [
         "created",
         "assigned",
+        "claimed",
         "started",
         "blocked",
         "unblocked",
+        "returned",
         "submitted",
         "reviewed",
         "completed",
@@ -43410,6 +43433,8 @@ export const Constants = {
         "completed",
         "cancelled",
       ],
+      hr_ticket_origin: ["internal", "external"],
+      hr_ticket_severity: ["critical", "high", "normal"],
       leave_type: ["annual", "sick", "personal", "maternity", "paternity"],
       recruitment_campaign_status: ["draft", "active", "paused", "completed"],
       recruitment_link_status: ["active", "disabled", "expired"],
