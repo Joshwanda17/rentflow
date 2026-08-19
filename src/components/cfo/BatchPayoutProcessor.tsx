@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Layers, Loader2, CheckCircle2, Banknote } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
+import { excludePartnerReservedPlans } from '@/lib/partnerReservedPlans';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
