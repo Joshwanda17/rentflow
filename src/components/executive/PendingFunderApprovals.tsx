@@ -217,129 +217,138 @@ export function PendingFunderApprovals({ defaultExpanded = false, showWhenEmpty 
 
   return (
     <>
-      <Card className={cn(isEmpty ? 'border-border/60' : 'border-warning/40 bg-warning/5')}>
-        <CardContent className="p-4 space-y-3">
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="flex items-center justify-between w-full text-left"
-          >
-            <div className="flex items-center gap-2">
-              <div className={cn('p-1.5 rounded-lg', isEmpty ? 'bg-muted' : 'bg-warning/15')}>
-                <Shield className={cn('h-4 w-4', isEmpty ? 'text-muted-foreground' : 'text-warning')} />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold">Pending Funder Approvals</h3>
-                <p className="text-[10px] text-muted-foreground">Agent-registered funders awaiting verification</p>
-              </div>
+      <section className="space-y-4">
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="flex w-full items-start justify-between gap-3 text-left"
+        >
+          <div className="flex items-start gap-3">
+            <div className={cn('mt-0.5 rounded-lg p-2', isEmpty ? 'bg-muted' : 'bg-warning/15')}>
+              <Shield className={cn('h-4 w-4', isEmpty ? 'text-muted-foreground' : 'text-warning')} />
             </div>
-            <div className="flex items-center gap-2">
-              {count > 0 && (
-                <Badge className="bg-warning/20 text-warning border-0 text-xs font-bold">
-                  {count}
-                </Badge>
-              )}
-              <svg className={cn("h-4 w-4 text-muted-foreground transition-transform duration-200", isExpanded && "rotate-180")} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-            </div>
-          </button>
-
-          {isExpanded && (isLoading ? (
-            <div className="space-y-2">
-              {[1, 2].map(i => <Skeleton key={i} className="h-20 w-full rounded-xl" />)}
-            </div>
-          ) : isEmpty ? (
-            <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border/70 py-8 text-center">
-              <Inbox className="h-7 w-7 text-muted-foreground/70" />
-              <p className="text-sm font-semibold">No pending funder approvals</p>
-              <p className="text-[11px] text-muted-foreground max-w-[260px]">
-                Every agent-registered funder has been verified. New registrations will appear here for approval.
+            <div>
+              <h2 className="text-base font-semibold tracking-tight text-foreground">
+                Pending Funder Approvals
+              </h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Agent-registered funders awaiting verification before their capital can be deployed.
               </p>
             </div>
-          ) : (
-            <div className="space-y-2">
-              {pending?.map(p => (
-                <Card key={p.id} className="border border-border/60">
-                  <CardContent className="p-3 space-y-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold truncate">
-                          {p.beneficiary?.full_name || 'Unknown'}
-                        </p>
-                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                          <Phone className="h-2.5 w-2.5" />
-                          {p.beneficiary?.phone || '—'}
-                        </div>
-                      </div>
-                      <Badge variant="outline" className="text-[10px] shrink-0 gap-1 bg-warning/10 text-warning border-warning/30">
-                        <Clock className="h-2.5 w-2.5" /> Pending
-                      </Badge>
-                    </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            {count > 0 && (
+              <Badge variant="outline" className="border-warning/40 bg-warning/10 text-xs font-semibold text-warning">
+                {count} pending
+              </Badge>
+            )}
+            <svg className={cn("h-4 w-4 text-muted-foreground transition-transform duration-200", isExpanded && "rotate-180")} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </div>
+        </button>
 
-                    <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[10px]">
-                      <div className="min-w-0">
-                        <p className="text-muted-foreground uppercase tracking-wide">Registered by</p>
-                        <p className="font-semibold text-foreground truncate">
-                          {p.agent?.full_name || 'Unknown agent'}
-                        </p>
-                        {p.agent?.phone && <p className="text-muted-foreground">{p.agent.phone}</p>}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-muted-foreground uppercase tracking-wide">Registered on</p>
-                        <p className="font-semibold text-foreground">
-                          {format(new Date(p.created_at), 'dd MMM yyyy, HH:mm')}
-                        </p>
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-muted-foreground uppercase tracking-wide">Active Funds</p>
-                        <p className="font-semibold text-foreground tabular-nums">
-                          UGX {p.investmentTotal.toLocaleString()}
-                        </p>
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-muted-foreground uppercase tracking-wide">Accrued (unpaid)</p>
-                        <p className={cn('font-semibold tabular-nums', p.accruedReturns > 0 ? 'text-success' : 'text-muted-foreground')}>
-                          UGX {p.accruedReturns.toLocaleString()}
-                        </p>
-                      </div>
-                      {p.reason && (
-                        <div className="col-span-2 min-w-0">
-                          <p className="text-muted-foreground uppercase tracking-wide">Reason</p>
-                          <p className="text-foreground">{p.reason}</p>
-                        </div>
+        {isExpanded && (isLoading ? (
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {[1, 2, 3].map(i => <Skeleton key={i} className="h-52 w-full rounded-xl" />)}
+          </div>
+        ) : isEmpty ? (
+          <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border/70 py-10 text-center">
+            <Inbox className="h-7 w-7 text-muted-foreground/70" />
+            <p className="text-sm font-semibold">No pending funder approvals</p>
+            <p className="max-w-[280px] text-xs text-muted-foreground">
+              Every agent-registered funder has been verified. New registrations will appear here for approval.
+            </p>
+          </div>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {pending?.map(p => (
+              <Card key={p.id} className="flex flex-col overflow-hidden border-border/60 transition-shadow hover:shadow-sm">
+                <div className="flex items-start justify-between gap-2 border-b border-border/50 px-4 py-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-foreground">
+                      {p.beneficiary?.full_name || 'Unknown'}
+                    </p>
+                    <div className="mt-0.5 flex items-center gap-1 text-[11px] text-muted-foreground">
+                      <Phone className="h-3 w-3" />
+                      {p.beneficiary?.phone || '—'}
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="shrink-0 gap-1 border-warning/30 bg-warning/10 text-[10px] text-warning">
+                    <Clock className="h-2.5 w-2.5" /> Pending
+                  </Badge>
+                </div>
+
+                <CardContent className="flex flex-1 flex-col gap-3 p-4">
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-3">
+                    <div className="min-w-0">
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Registered by</p>
+                      <p className="truncate text-xs font-semibold text-foreground">
+                        {p.agent?.full_name || 'Unknown agent'}
+                      </p>
+                      {p.agent?.phone && <p className="text-[10px] text-muted-foreground">{p.agent.phone}</p>}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Registered on</p>
+                      <p className="text-xs font-semibold text-foreground">
+                        {format(new Date(p.created_at), 'dd MMM yyyy')}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {format(new Date(p.created_at), 'HH:mm')}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-lg border border-border/50 px-2.5 py-2">
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Active Funds</p>
+                      <p className="mt-0.5 text-sm font-semibold tabular-nums text-foreground">
+                        UGX {p.investmentTotal.toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-border/50 px-2.5 py-2">
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Accrued (unpaid)</p>
+                      <p className={cn('mt-0.5 text-sm font-semibold tabular-nums', p.accruedReturns > 0 ? 'text-success' : 'text-muted-foreground')}>
+                        UGX {p.accruedReturns.toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+
+                  {p.reason && (
+                    <div className="min-w-0">
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Reason</p>
+                      <p className="text-xs text-foreground">{p.reason}</p>
+                    </div>
+                  )}
+
+                  <div className="mt-auto flex gap-2 pt-1">
+                    <Button
+                      size="sm"
+                      className="h-8 flex-1 gap-1.5 bg-success text-xs text-success-foreground hover:bg-success/90"
+                      onClick={() => approveMutation.mutate(p.id)}
+                      disabled={approveMutation.isPending}
+                    >
+                      {approveMutation.isPending ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <UserCheck className="h-3 w-3" />
                       )}
-                    </div>
-
-                    <div className="flex gap-2 pt-1">
-                      <Button
-                        size="sm"
-                        className="flex-1 h-8 text-xs gap-1.5 bg-success hover:bg-success/90 text-white"
-                        onClick={() => approveMutation.mutate(p.id)}
-                        disabled={approveMutation.isPending}
-                      >
-                        {approveMutation.isPending ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : (
-                          <UserCheck className="h-3 w-3" />
-                        )}
-                        Approve
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="flex-1 h-8 text-xs gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10"
-                        onClick={() => setRejectId(p.id)}
-                        disabled={rejectMutation.isPending}
-                      >
-                        <UserX className="h-3 w-3" />
-                        Reject
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+                      Approve
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 flex-1 gap-1.5 border-destructive/30 text-xs text-destructive hover:bg-destructive/10"
+                      onClick={() => setRejectId(p.id)}
+                      disabled={rejectMutation.isPending}
+                    >
+                      <UserX className="h-3 w-3" />
+                      Reject
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ))}
+      </section>
 
       {/* Rejection Reason Dialog */}
       <Dialog open={!!rejectId} onOpenChange={(o) => { if (!o) { setRejectId(null); setRejectReason(''); } }}>
