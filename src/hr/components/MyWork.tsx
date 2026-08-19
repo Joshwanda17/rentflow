@@ -809,6 +809,49 @@ export default function MyWork({ embedded = false }: MyWorkProps) {
 
       <Card>
         <CardHeader className="pb-2">
+          <CardTitle className="text-sm">My finished tasks</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {finishedTasks.length === 0 ? (
+            <p className="p-4 text-center text-sm text-muted-foreground">Nothing finished yet</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Ref</TableHead>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Completed</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {finishedTasks.map((task) => (
+                  <TableRow key={task.id}>
+                    <TableCell className="text-xs text-muted-foreground">{task.ref}</TableCell>
+                    <TableCell className="max-w-[280px]">
+                      <Link
+                        to={`/hr/dashboard/tasks/${task.id}`}
+                        className="text-sm font-medium text-foreground hover:underline"
+                      >
+                        {task.title}
+                      </Link>
+                    </TableCell>
+                    <TableCell>
+                      <span className={`rounded px-1.5 py-0.5 text-[10px] ${STATUS_PILL[task.status] ?? 'bg-muted text-foreground'}`}>
+                        {humanize(task.status)}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-xs">{formatDate(task.completed_at)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <CardTitle className="text-sm">Tasks created and completed · last 30 days</CardTitle>
             <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
