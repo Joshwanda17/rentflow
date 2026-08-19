@@ -43,6 +43,7 @@ import { PartnerOpsSidebar } from './partner-ops/PartnerOpsSidebar';
 import { PartnerOpsTopBar } from './partner-ops/PartnerOpsTopBar';
 import { PartnerOpsSummaryCards } from './partner-ops/PartnerOpsSummaryCards';
 import { ExpiringPortfoliosPanel } from './partner-ops/ExpiringPortfoliosPanel';
+import { NearingPayoutsPanel } from './partner-ops/NearingPayoutsPanel';
 import {
   PartnerRoiProjectionChart,
   PartnerRecentWithdrawals,
@@ -280,7 +281,12 @@ export function PartnersOpsDashboard() {
           <PendingPartnerRequests />
         </div>
       );
-      case 'nearing.overview': return <SelfManagedNearingPayouts />;
+      case 'nearing.overview': return (
+        <div className="space-y-6">
+          <NearingPayoutsPanel />
+          <SelfManagedNearingPayouts />
+        </div>
+      );
       case 'nearing.followup': return (
         <div className="space-y-6">
           <SelfManagedNearingPayouts />
