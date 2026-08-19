@@ -152,7 +152,7 @@ export function PartnerPortfolioWalletCard({ onAddCard, onSend, onRequest, onTop
             </div>
           </div>
 
-          <div className="flex items-end justify-between gap-2" style={{ marginTop: 'min(-0.5cqw, -2px)' }}>
+          <div className="flex items-end justify-between gap-2" style={{ marginTop: 'min(2cqw, 12px)' }}>
             <div className="flex flex-col min-w-0">
               <span
                 className="font-medium tracking-wider text-white/70 uppercase whitespace-nowrap"
