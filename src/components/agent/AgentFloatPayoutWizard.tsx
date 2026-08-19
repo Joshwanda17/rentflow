@@ -60,6 +60,10 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
   const [phoneOverride, setPhoneOverride] = useState<string>('');
   // Inline, always-visible reason the "Send OTP to Landlord" step failed.
   const [sendOtpError, setSendOtpError] = useState<string | null>(null);
+  // GPS capture happens before the OTP request. Track that preparation phase
+  // explicitly so the button never falsely says an OTP was already sent while
+  // the browser is still waiting for (or has stalled on) location permission.
+  const [preparingOtp, setPreparingOtp] = useState(false);
   // Landlord-Ops-verified landlords lock the phone number; agents request a
   // change via Landlord Ops instead of editing it inline.
   const [showPhoneChangeReq, setShowPhoneChangeReq] = useState(false);
@@ -185,6 +189,8 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
     setResendCooldown(0);
     setAmountInput('');
     setPhoneOverride('');
+    setSendOtpError(null);
+    setPreparingOtp(false);
     setShowPhoneChangeReq(false);
     setNewPhoneReq('');
     setPhoneReqNote('');
@@ -269,47 +275,63 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
     }
     sentLandlordsRef.current.add(landlordKey);
     forceLockRender((n) => n + 1);
+    setPreparingOtp(true);
 
-    // Capture GPS for the challenge payload
-    const loc = await geo.captureLocation().catch(() => null);
-    const r = selectedRequest;
-    const propLat = r.landlord?.latitude ?? null;
-    const propLng = r.landlord?.longitude ?? null;
+    try {
+      // Location must never hold the OTP button hostage. Some mobile WebViews
+      // leave getCurrentPosition pending indefinitely when the permission sheet
+      // is dismissed. Continue after 8 seconds; payout verification still keeps
+      // the landlord/property coordinates already stored on the request.
+      const loc = await Promise.race([
+        geo.captureLocation().catch(() => null),
+        new Promise<null>((resolve) => window.setTimeout(() => resolve(null), 8000)),
+      ]);
+      const r = selectedRequest;
+      const propLat = r.landlord?.latitude ?? null;
+      const propLng = r.landlord?.longitude ?? null;
 
-    const provider = (r.landlord?.mobile_money_number || '').toString().startsWith('07')
-      ? 'MTN' : 'MTN';
+      const provider = (r.landlord?.mobile_money_number || '').toString().startsWith('07')
+        ? 'MTN' : 'MTN';
 
-    const challengeId = await landlordOtp.sendPayoutOtp({
-      landlord_id: r.landlord_id,
-      landlord_name: r.landlord?.name || 'Unknown',
-      landlord_phone: landlordPhone,
-      tenant_id: r.tenant_id,
-      tenant_name: r.tenant?.full_name || undefined,
-      tenant_phone: r.tenant?.phone || undefined,
-      rent_request_id: r.id,
-      amount: effectiveAmount,
-      mobile_money_provider: provider,
-      agent_latitude: loc?.latitude ?? null,
-      agent_longitude: loc?.longitude ?? null,
-      property_latitude: propLat,
-      property_longitude: propLng,
-      trigger_source: source,
-    });
+      const challengeId = await landlordOtp.sendPayoutOtp({
+        landlord_id: r.landlord_id,
+        landlord_name: r.landlord?.name || 'Unknown',
+        landlord_phone: landlordPhone,
+        tenant_id: r.tenant_id,
+        tenant_name: r.tenant?.full_name || undefined,
+        tenant_phone: r.tenant?.phone || undefined,
+        rent_request_id: r.id,
+        amount: effectiveAmount,
+        mobile_money_provider: provider,
+        agent_latitude: loc?.latitude ?? null,
+        agent_longitude: loc?.longitude ?? null,
+        property_latitude: propLat,
+        property_longitude: propLng,
+        trigger_source: source,
+      });
 
-    if (challengeId) {
-      bumpCooldown();
-      toast.success(source === 'auto' ? 'OTP auto-sent to landlord\'s phone' : 'OTP sent to landlord\'s phone');
-    } else {
-      // Send failed — release the lock so the agent can legitimately retry.
-      sentLandlordsRef.current.delete(landlordKey);
-      forceLockRender((n) => n + 1);
-      // NEVER fail silently: read the reason from the hook's ref (state is
-      // still stale at this point) and show it both as a toast and inline.
-      const reason =
-        landlordOtp.getLastError() ||
-        'Could not send the OTP. Check your connection and tap Send OTP again.';
+      if (challengeId) {
+        bumpCooldown();
+        toast.success(source === 'auto' ? 'OTP auto-sent to landlord\'s phone' : 'OTP sent to landlord\'s phone');
+      } else {
+        const reason =
+          landlordOtp.getLastError() ||
+          'Could not send the OTP. Check your connection and tap Send OTP again.';
+        setSendOtpError(reason);
+        toast.error(reason);
+      }
+    } catch (error) {
+      const reason = error instanceof Error
+        ? error.message
+        : 'Could not prepare the OTP request. Tap Send OTP to try again.';
       setSendOtpError(reason);
       toast.error(reason);
+    } finally {
+      setPreparingOtp(false);
+      // A successful send is represented by otpSent/challengeId. The ref is
+      // only an in-flight mutex, so always release it after the attempt.
+      sentLandlordsRef.current.delete(landlordKey);
+      forceLockRender((n) => n + 1);
     }
   };
 
@@ -1048,18 +1070,21 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
                   type="button"
                   onClick={() => handleSendOtp('manual')}
                   disabled={
+                    preparingOtp ||
                     landlordOtp.otpLoading ||
                     (!!selectedRequest && sentLandlordsRef.current.has(String(selectedRequest.landlord_id)))
                   }
                   className="w-full gap-2 h-12 rounded-xl"
                 >
-                  {landlordOtp.otpLoading ? (
+                  {preparingOtp || landlordOtp.otpLoading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     <Phone className="h-4 w-4" />
                   )}
-                  {selectedRequest && sentLandlordsRef.current.has(String(selectedRequest.landlord_id))
-                    ? 'OTP already sent to landlord'
+                  {preparingOtp
+                    ? 'Preparing OTP…'
+                    : landlordOtp.otpLoading
+                      ? 'Sending OTP…'
                     : `Send OTP to Landlord (${landlordPhone || '—'})`}
                 </Button>
                 {(sendOtpError || sendBlockedReason) && (
