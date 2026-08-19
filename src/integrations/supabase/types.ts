@@ -17460,6 +17460,75 @@ export type Database = {
           },
         ]
       }
+      ledger_backfill_corrections: {
+        Row: {
+          amount: number
+          batch: string
+          correcting_account_code: string
+          correcting_category: string
+          correcting_direction: string
+          correcting_ledger_scope: string
+          correcting_leg_id: string
+          created_at: string
+          id: string
+          imbalance_delta: number
+          notes: string | null
+          original_category: string
+          original_direction: string
+          original_ledger_scope: string
+          original_leg_id: string
+          original_transaction_date: string
+          original_transaction_group_id: string
+          reference_id: string
+          updated_at: string
+          workflow: string
+        }
+        Insert: {
+          amount: number
+          batch: string
+          correcting_account_code: string
+          correcting_category: string
+          correcting_direction: string
+          correcting_ledger_scope: string
+          correcting_leg_id: string
+          created_at?: string
+          id?: string
+          imbalance_delta: number
+          notes?: string | null
+          original_category: string
+          original_direction: string
+          original_ledger_scope: string
+          original_leg_id: string
+          original_transaction_date: string
+          original_transaction_group_id: string
+          reference_id: string
+          updated_at?: string
+          workflow: string
+        }
+        Update: {
+          amount?: number
+          batch?: string
+          correcting_account_code?: string
+          correcting_category?: string
+          correcting_direction?: string
+          correcting_ledger_scope?: string
+          correcting_leg_id?: string
+          created_at?: string
+          id?: string
+          imbalance_delta?: number
+          notes?: string | null
+          original_category?: string
+          original_direction?: string
+          original_ledger_scope?: string
+          original_leg_id?: string
+          original_transaction_date?: string
+          original_transaction_group_id?: string
+          reference_id?: string
+          updated_at?: string
+          workflow?: string
+        }
+        Relationships: []
+      }
       ledger_balance_pivot: {
         Row: {
           balance_sum: number
