@@ -192,18 +192,35 @@ export function useCFOOverviewData() {
 
       let recordedPartnerFunding = 0;
       let recordedPartnerCount = 0;
-      for (let from = 0; from < 5000; from += 1000) {
-        const { data: page } = await supabase
-          .from('investor_portfolios')
-          .select('investment_amount')
-          .eq('status', 'active')
-          .range(from, from + 999);
-        const rows = (page as any[]) || [];
-        rows.forEach((p) => {
-          recordedPartnerFunding += Number(p.investment_amount || 0);
-        });
-        recordedPartnerCount += rows.length;
-        if (rows.length < 1000) break;
+      // Server-side aggregate — the exact same figure the Partnership Dashboard
+      // reports as "Total AUM raised" (`partner_ops_report_totals.total_aum`).
+      // The previous client-side paginated sum under-counted: unordered
+      // `.range()` paging over 1,000+ rows can skip/repeat rows, and per-row RLS
+      // filtering silently dropped portfolios. Reporting only — no accounting
+      // logic, records or workflows are touched.
+      const { data: partnerTotals, error: partnerTotalsError } = await supabase.rpc(
+        'partner_ops_report_totals' as any,
+        {} as any
+      );
+      if (!partnerTotalsError && partnerTotals) {
+        const t = partnerTotals as Record<string, any>;
+        recordedPartnerFunding = Number(t.total_aum ?? 0);
+        recordedPartnerCount = Number(t.total_portfolios ?? 0);
+      } else {
+        // Fallback: deterministic ordered paging over every portfolio.
+        for (let from = 0; from < 20000; from += 1000) {
+          const { data: page } = await supabase
+            .from('investor_portfolios')
+            .select('id, investment_amount')
+            .order('id', { ascending: true })
+            .range(from, from + 999);
+          const rows = (page as any[]) || [];
+          rows.forEach((p) => {
+            recordedPartnerFunding += Number(p.investment_amount || 0);
+          });
+          recordedPartnerCount += rows.length;
+          if (rows.length < 1000) break;
+        }
       }
 
       const withPartnerTruth = grouped
@@ -217,7 +234,7 @@ export function useCFOOverviewData() {
                 children: [
                   {
                     category: 'partner_capital_recorded',
-                    label: 'Recorded partner funding · active portfolios',
+                    label: 'Recorded partner funding · all portfolios (Partnership Dashboard)',
                     value: recordedPartnerFunding,
                     count: recordedPartnerCount,
                   },
