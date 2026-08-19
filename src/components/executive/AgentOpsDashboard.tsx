@@ -58,7 +58,7 @@ import { AgentOpsOverview, AtRiskAgentsPreview } from './agent-ops-v2/AgentOpsOv
 import { AdvanceHealthCard } from './agent-ops-v2/AdvanceHealthCard';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 import { 
   Users, Banknote, DollarSign, Search, UserPlus, Trophy, BarChart3, 
   ClipboardList, AlertTriangle, Building2, Wallet, Bell, ArrowLeftRight,
@@ -127,6 +127,7 @@ export function AgentOpsDashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedAgent, setSelectedAgent] = useState<any>(null);
   const [bottomTab, setBottomTab] = useState<BottomTab>('home');
+  const [productSection, setProductSection] = useState<null | 'motor_bike' | 'smart_phone' | 'boutique' | 'signage' | 'advances'>(null);
   const [dateRange, setDateRange] = useState<DateRange>('24h');
   const pendingAdvanceCount = usePendingAdvanceCount();
 
@@ -140,6 +141,7 @@ export function AgentOpsDashboard() {
 
   useEffect(() => {
     const next = new URLSearchParams(searchParams);
+    if (activeView !== 'agent-products-services') setProductSection(null);
     const slug = activeView === 'sc-products' ? 'products' : activeView;
     if (slug) next.set('section', slug);
     else next.delete('section');
@@ -270,30 +272,65 @@ export function AgentOpsDashboard() {
       case 'sc-operating-model': return <ServiceCentreOperatingModel />;
       case 'sc-products': return <AgentProductsPanel />;
       case 'agent-service-centres': return <ServiceCentreOverview />;
-      case 'agent-products-services': return (
-        <Tabs defaultValue="motor_bike" className="w-full">
-          <TabsList className="flex w-full flex-wrap h-auto justify-start gap-1">
-            <TabsTrigger value="motor_bike" className="gap-1.5"><Bike className="h-3.5 w-3.5" />Motor Bikes</TabsTrigger>
-            <TabsTrigger value="smart_phone" className="gap-1.5"><Smartphone className="h-3.5 w-3.5" />Smartphones</TabsTrigger>
-            <TabsTrigger value="boutique" className="gap-1.5"><ShoppingBag className="h-3.5 w-3.5" />Boutique</TabsTrigger>
-            <TabsTrigger value="signage" className="gap-1.5"><Signpost className="h-3.5 w-3.5" />Signages</TabsTrigger>
-            <TabsTrigger value="advances" className="gap-1.5"><HandCoins className="h-3.5 w-3.5" />Advances</TabsTrigger>
-          </TabsList>
-          <TabsContent value="motor_bike" className="mt-4"><AgentProductsPanel category="motor_bike" /></TabsContent>
-          <TabsContent value="smart_phone" className="mt-4"><AgentProductsPanel category="smart_phone" /></TabsContent>
-          <TabsContent value="boutique" className="mt-4"><AgentProductsPanel category="boutique" /></TabsContent>
-          <TabsContent value="signage" className="mt-4"><AgentProductsPanel category="signage" /></TabsContent>
-          <TabsContent value="advances" className="mt-4">
-            <div className="space-y-6">
-              <AdvanceAnalyticsPanel />
-              <AdvanceRequestsQueue stage="agent_ops" />
-              <AdvanceRequestsReviewed />
-              <BusinessAdvanceQueue stage="agent_ops" />
-              <RentHistoryVerificationQueue dept="agent_ops" />
+      case 'agent-products-services': {
+        const PRODUCT_CARDS = [
+          { key: 'motor_bike' as const, label: 'Agent Motor Bikes', desc: 'Spiro bike issuance, deliveries & receivables', icon: Bike, color: 'from-amber-500 to-orange-600' },
+          { key: 'smart_phone' as const, label: 'Agent Smart Phones', desc: 'Device orders, payments & outstanding balances', icon: Smartphone, color: 'from-indigo-500 to-blue-600' },
+          { key: 'boutique' as const, label: 'Agent Boutique', desc: 'Branded merchandise sales & recoveries', icon: ShoppingBag, color: 'from-pink-500 to-rose-600' },
+          { key: 'signage' as const, label: 'Signages', desc: 'Shop signage production & agent contributions', icon: Signpost, color: 'from-lime-500 to-green-600' },
+          { key: 'advances' as const, label: 'Agent Advances', desc: 'Advance requests, limits & repayment queues', icon: HandCoins, color: 'from-purple-500 to-violet-600' },
+        ];
+
+        if (!productSection) {
+          return (
+            <div className="space-y-4">
+              <div>
+                <h2 className="text-xl font-bold tracking-tight">Agent Products &amp; Services</h2>
+                <p className="text-sm text-muted-foreground">Choose a category to manage issuance, payments and receivables.</p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                {PRODUCT_CARDS.map((c) => (
+                  <button
+                    key={c.key}
+                    onClick={() => setProductSection(c.key)}
+                    className="group text-left rounded-2xl border bg-card p-5 shadow-sm transition-all hover:shadow-lg hover:-translate-y-0.5 hover:border-primary/40"
+                  >
+                    <div className={`inline-flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${c.color} text-primary-foreground shadow-md`}>
+                      <c.icon className="h-6 w-6" />
+                    </div>
+                    <div className="mt-4 text-lg font-bold leading-tight">{c.label}</div>
+                    <p className="mt-1 text-sm text-muted-foreground">{c.desc}</p>
+                    <div className="mt-3 text-xs font-semibold uppercase tracking-wide text-primary opacity-0 transition-opacity group-hover:opacity-100">Open →</div>
+                  </button>
+                ))}
+              </div>
             </div>
-          </TabsContent>
-        </Tabs>
-      );
+          );
+        }
+
+        const current = PRODUCT_CARDS.find((c) => c.key === productSection)!;
+        return (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <Button variant="outline" size="sm" onClick={() => setProductSection(null)}>← All categories</Button>
+              <div className="flex items-center gap-2 font-bold">
+                <current.icon className="h-4 w-4" />{current.label}
+              </div>
+            </div>
+            {productSection === 'advances' ? (
+              <div className="space-y-6">
+                <AdvanceAnalyticsPanel />
+                <AdvanceRequestsQueue stage="agent_ops" />
+                <AdvanceRequestsReviewed />
+                <BusinessAdvanceQueue stage="agent_ops" />
+                <RentHistoryVerificationQueue dept="agent_ops" />
+              </div>
+            ) : (
+              <AgentProductsPanel category={productSection} />
+            )}
+          </div>
+        );
+      }
       case 'sub-agents': return <SubAgentVerificationQueue />;
       case 'promote-tenant': return <TenantToSubAgentPanel />;
       case 'float-payouts': return <AgentOpsFloatPayoutReview />;
