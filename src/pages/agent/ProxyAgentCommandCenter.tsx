@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils';
 import { hapticTap } from '@/lib/haptics';
 import { formatDynamic } from '@/lib/currencyFormat';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
+import { createShortLink } from '@/lib/createShortLink';
 
 import { PromissoryNoteDialog } from '@/components/agent/PromissoryNoteDialog';
 import { WithdrawRequestDialog } from '@/components/wallet/WithdrawRequestDialog';
