@@ -266,6 +266,13 @@ export function AgentProductsServicesReport() {
     [report],
   );
 
+  /** Cumulative expected collections across the selected window (sum of daily dues per live day). */
+  const expectedTotal = report ? apsExpectedTotal(report) : 0;
+  const expectedDays = Math.max(
+    1,
+    Math.round(Number(report?.rent.expected_days ?? report?.range_days) || 1),
+  );
+
   const handlePdf = () => {
     if (!report) return;
     setExporting(true);
