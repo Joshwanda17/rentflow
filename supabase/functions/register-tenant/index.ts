@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { validateFullName, FULL_NAME_ERROR } from "../_shared/validateFullName.ts";
 import { validateUgandaPhone } from "../_shared/ugandaPhone.ts";
+import { guardAgentAssistedSignup, attachAgentSignupUser } from "../_shared/agentSignupGuard.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -109,6 +110,7 @@ Deno.serve(async (req) => {
 
     const { full_name: rawName, phone: rawPhone, email: rawEmail, national_id: rawNationalId } = body as Record<string, unknown>;
     const landlordPayload = (body as any)?.landlord ?? null;
+    const telemetryPayload = (body as any)?.telemetry ?? null;
     const lc1Payload = (body as any)?.lc1 ?? null;
     const rentRequestPayload = (body as any)?.rent_request ?? null;
     console.log("[register-tenant] Input:", { rawName, rawPhone, rawNationalId, hasLandlord: !!landlordPayload });
@@ -212,6 +214,23 @@ Deno.serve(async (req) => {
     // Create auth user with a temp password
     const tempPassword = crypto.randomUUID().slice(0, 12) + "Aa1!";
 
+    // Anti-bot guard: log device fingerprint + true source screen + IP for this
+    // agent-assisted registration and enforce the registration burst cap.
+    const guard = await guardAgentAssistedSignup(supabaseAdmin as any, {
+      req,
+      actorUserId: callingUser.id,
+      telemetry: telemetryPayload,
+      email: virtualEmail,
+      phone: cleanPhone,
+      targetRole: "tenant",
+    });
+    if (!guard.allowed) {
+      console.warn("[register-tenant] Blocked by anti-bot guard:", guard.status);
+      return new Response(JSON.stringify({ error: guard.reason || "Registration temporarily blocked by the anti-bot guard.", status: guard.status }), {
+        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     console.log("[register-tenant] Creating auth user with email:", virtualEmail);
     const { data: authData, error: createErr } = await supabaseAdmin.auth.admin.createUser({
       email: virtualEmail,
@@ -245,6 +264,7 @@ Deno.serve(async (req) => {
 
     const userId = authData.user.id;
     rollback.authUserId = userId;
+    await attachAgentSignupUser(supabaseAdmin as any, guard.attempt_id, userId);
     console.log("[register-tenant] Created auth user:", userId);
 
     // Update profile (trigger should have created it).

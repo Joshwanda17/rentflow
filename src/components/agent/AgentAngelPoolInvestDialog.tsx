@@ -11,6 +11,7 @@ import { PRICE_PER_SHARE, TOTAL_SHARES, POOL_PERCENT } from '@/components/angel-
 import { cn } from '@/lib/utils';
 import { usePhoneDuplicateCheck } from '@/hooks/usePhoneDuplicateCheck';
 import { invokeEdgeFunction } from '@/lib/invokeEdgeFunction';
+import { collectAgentSignupTelemetry } from '@/lib/agentSignupTelemetry';
 
 interface AgentAngelPoolInvestDialogProps {
   open: boolean;
@@ -169,6 +170,7 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
           phone: regPhone.trim(),
           agent_id: user.id,
           notes: regNotes.trim() || 'Registered during Angel Pool funding',
+          telemetry: await collectAgentSignupTelemetry('/agent/angel-pool-invest', 'funder'),
         },
       });
 

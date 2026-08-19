@@ -13,6 +13,7 @@ import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import { createShortLink } from '@/lib/createShortLink';
 import { Loader2, HandCoins, Wallet, TrendingUp, CheckCircle2, Copy, Share2, MessageCircle, Link, Smartphone, UserPlus, Info, User, Phone, Upload, FileText, X, Image } from 'lucide-react';
 import { isValidPhoneNumberGlobal } from '@/lib/phoneUtils';
+import { collectAgentSignupTelemetry } from '@/lib/agentSignupTelemetry';
 
 interface AgentInvestForPartnerDialogProps {
   open: boolean;
@@ -217,6 +218,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
             phone: partnerPhone.trim(),
             agent_id: user.id,
             notes: 'Auto-registered during field funding',
+            telemetry: await collectAgentSignupTelemetry('/agent/invest-for-partner', 'funder'),
           },
         });
 
