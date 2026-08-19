@@ -1132,6 +1132,7 @@ export default function RecruitmentHub() {
       const { count, error } = await supabase
         .from('job_applications')
         .select('*', { count: 'exact', head: true })
+        .is('archived_at', null)
         .is('purged_at', null);
       if (error) throw new Error(error.message);
       return count ?? 0;
