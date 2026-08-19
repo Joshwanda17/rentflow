@@ -45,7 +45,11 @@ Deno.serve(async (req) => {
     .trim();
 
   if (!code || !/^[A-Za-z0-9_-]{4,32}$/.test(code)) {
-    return new Response(null, { status: 302, headers: { Location: SITE_URL, ...corsHeaders } });
+    // Controlled 404 — never hand back the generic SPA page for a bad code.
+    return new Response("Short link not found", {
+      status: 404,
+      headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store", ...corsHeaders },
+    });
   }
 
   const supabase = createClient(
