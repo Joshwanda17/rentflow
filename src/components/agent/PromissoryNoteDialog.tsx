@@ -116,6 +116,11 @@ export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialo
       const result = (data ?? {}) as { note?: Record<string, unknown>; attached_count?: number; attached_amount?: number };
       if (!result.note) throw new Error('Note was not created');
       setCreatedNote(result.note);
+      // Fire-and-forget: partner gets the pledge SMS + email (tenants + 12-month
+      // earnings). A 10-minute cron sweep retries anything that fails here.
+      void supabase.functions
+        .invoke('notify-promissory-note-pledge', { body: { note_id: (result.note as any).id } })
+        .catch(() => {});
       setAttached({ count: Number(result.attached_count || 0), amount: Number(result.attached_amount || 0) });
       toast.success(
         Number(result.attached_count || 0) > 0

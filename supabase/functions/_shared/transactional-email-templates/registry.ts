@@ -14,6 +14,7 @@ import { template as portfolioRedemptionTemplate } from './portfolio-redemption.
 import { template as partnershipMaturityNoticeTemplate } from './partnership-maturity-notice.tsx'
 import { template as partnerSelfManagedCycleEndedTemplate } from './partner-self-managed-cycle-ended.tsx'
 import { template as partnerSelfManagedDeploymentTemplate } from './partner-self-managed-deployment.tsx'
+import { template as promissoryNotePledgeTemplate } from './promissory-note-pledge.tsx'
 import { template as partnerAccountCreatedTemplate } from './partner-account-created.tsx'
 import { template as databaseBackupReadyTemplate } from './database-backup-ready.tsx'
 import { template as databaseBackupLinkTemplate } from './database-backup-link.tsx'
@@ -65,6 +66,7 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   'partnership-maturity-notice': partnershipMaturityNoticeTemplate,
   'partner-self-managed-cycle-ended': partnerSelfManagedCycleEndedTemplate,
   'partner-self-managed-deployment': partnerSelfManagedDeploymentTemplate,
+  'promissory-note-pledge': promissoryNotePledgeTemplate,
   'partner-account-created': partnerAccountCreatedTemplate,
   'database-backup-ready': databaseBackupReadyTemplate,
   'database-backup-link': databaseBackupLinkTemplate,
