@@ -15126,6 +15126,7 @@ export type Database = {
           resume_filename: string | null
           resume_url: string | null
           role_interest: string | null
+          shortlist_round: number | null
           source: string | null
           status: string
           updated_at: string
@@ -15164,6 +15165,7 @@ export type Database = {
           resume_filename?: string | null
           resume_url?: string | null
           role_interest?: string | null
+          shortlist_round?: number | null
           source?: string | null
           status?: string
           updated_at?: string
@@ -15202,6 +15204,7 @@ export type Database = {
           resume_filename?: string | null
           resume_url?: string | null
           role_interest?: string | null
+          shortlist_round?: number | null
           source?: string | null
           status?: string
           updated_at?: string
