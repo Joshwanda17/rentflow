@@ -87,6 +87,14 @@ import type {
 import HRInternshipApplications from '@/components/hr/HRInternshipApplications';
 
 const ALL = '__all__';
+const SHORTLIST_1 = 'shortlist_1';
+
+const FILTER_OPTIONS: { value: string; label: string; match: (status: string | null) => boolean }[] = [
+  { value: ALL, label: 'All', match: () => true },
+  { value: 'new', label: 'Shortlist', match: (s) => s === 'new' || s === null || s === '' },
+  { value: 'hold', label: 'Hold', match: (s) => s === 'hold' },
+  { value: SHORTLIST_1, label: 'Shortlist 1', match: (s) => s === 'shortlisted' },
+];
 
 type ReqStatus = HiringRequisition['status'];
 
