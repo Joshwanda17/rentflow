@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Hourglass, Search, CalendarX2, Inbox, RefreshCw, TrendingUp, Wallet } from 'lucide-react';
+import { Hourglass, Search, CalendarX2, Inbox, RefreshCw, TrendingUp, Wallet, Mail, Loader2, CheckCircle2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +8,12 @@ import { Button } from '@/components/ui/button';
 import { formatUGX } from '@/lib/rentCalculations';
 import { cn } from '@/lib/utils';
 import { fetchAllNearingPayoutPortfolios } from '@/lib/supabaseBatchUtils';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/components/ui/sonner';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const EXPIRY_WINDOW_DAYS = 90; // "approaching maturity" = within 3 months
 
@@ -49,6 +55,99 @@ function fmtDate(d: Date) {
  */
 export function ExpiringPortfoliosPanel() {
   const [search, setSearch] = useState('');
+
+  /* ─── Bulk-send the "Maturity Notice" email to every partner expiring soon. ─── */
+  const [sendingNotices, setSendingNotices] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmPortfolioIds, setConfirmPortfolioIds] = useState<string[]>([]);
+  type NoticeProgress = {
+    queued: number; sent: number; skipped: number;
+    suppressed: number; rateLimited: number; failed: number; processed: number;
+    done: boolean;
+  };
+  const [progress, setProgress] = useState<NoticeProgress | null>(null);
+
+  function openMaturityConfirm() {
+    const portfolioIds = Array.from(new Set(filtered.map(p => p.portfolioId).filter(Boolean)));
+    if (portfolioIds.length === 0) {
+      toast.info('No portfolios to notify');
+      return;
+    }
+    setConfirmPortfolioIds(portfolioIds);
+    setConfirmOpen(true);
+  }
+
+  async function handleConfirmSend() {
+    setConfirmOpen(false);
+    if (sendingNotices || confirmPortfolioIds.length === 0) return;
+    setSendingNotices(true);
+    setProgress({ queued: confirmPortfolioIds.length, sent: 0, skipped: 0, suppressed: 0, rateLimited: 0, failed: 0, processed: 0, done: false });
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const apikey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/bulk-send-maturity-notice`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'apikey': apikey,
+        },
+        body: JSON.stringify({ portfolioIds: confirmPortfolioIds, stream: true }),
+      });
+      if (!res.ok || !res.body) {
+        const txt = await res.text().catch(() => '');
+        throw new Error(txt || `Request failed (${res.status})`);
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let last: any = null;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          let evt: any;
+          try { evt = JSON.parse(line); } catch { continue; }
+          if (evt.type === 'error') throw new Error(evt.error || 'Send failed');
+          last = evt;
+          setProgress({
+            queued: evt.queued ?? confirmPortfolioIds.length,
+            sent: evt.sent ?? 0,
+            skipped: evt.skipped ?? 0,
+            suppressed: evt.suppressed ?? 0,
+            rateLimited: evt.rateLimited ?? 0,
+            failed: evt.failed ?? 0,
+            processed: evt.processed ?? 0,
+            done: evt.type === 'done',
+          });
+        }
+      }
+
+      const sent = last?.sent ?? 0;
+      const skipped = last?.skipped ?? 0;
+      const suppressed = last?.suppressed ?? 0;
+      const rateLimited = last?.rateLimited ?? 0;
+      const failed = last?.failed ?? 0;
+      toast.success(`Maturity notices sent: ${sent}`, {
+        description: `${skipped} skipped (no email), ${suppressed} suppressed, ${rateLimited} rate-limited, ${failed} failed.`,
+      });
+    } catch (e: any) {
+      console.error('Bulk maturity notice failed', e);
+      toast.error(e?.message || 'Failed to send maturity notices');
+      setProgress(prev => (prev ? { ...prev, done: true } : prev));
+    } finally {
+      setSendingNotices(false);
+      setConfirmPortfolioIds([]);
+    }
+  }
 
   const { data, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['partner-ops-expiring-portfolios'],
@@ -137,9 +236,23 @@ export function ExpiringPortfoliosPanel() {
                 </p>
               </div>
             </div>
-            <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => refetch()} disabled={isFetching}>
-              <RefreshCw className={cn('h-3.5 w-3.5', isFetching && 'animate-spin')} /> Refresh
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              {filtered.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 gap-1.5 text-xs"
+                  onClick={openMaturityConfirm}
+                  disabled={sendingNotices}
+                >
+                  {sendingNotices ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />}
+                  {sendingNotices ? 'Sending…' : `Send Maturity Notice to ${filtered.length} Portfolio${filtered.length === 1 ? '' : 's'}`}
+                </Button>
+              )}
+              <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => refetch()} disabled={isFetching}>
+                <RefreshCw className={cn('h-3.5 w-3.5', isFetching && 'animate-spin')} /> Refresh
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -243,8 +356,70 @@ export function ExpiringPortfoliosPanel() {
               </table>
             </div>
           )}
+
+          {progress && (
+            <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold flex items-center gap-1.5">
+                  {progress.done
+                    ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                    : <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />}
+                  {progress.done ? 'Maturity notices complete' : 'Sending maturity notices…'}
+                </p>
+                <span className="text-[11px] tabular-nums text-muted-foreground">
+                  {progress.processed}/{progress.queued}
+                </span>
+              </div>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-border">
+                <div
+                  className={cn('h-full rounded-full transition-all', progress.done ? 'bg-emerald-500' : 'bg-primary')}
+                  style={{ width: `${progress.queued ? Math.round((progress.processed / progress.queued) * 100) : 0}%` }}
+                />
+              </div>
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 pt-0.5">
+                {([
+                  ['Queued', progress.queued, 'text-muted-foreground'],
+                  ['Sent', progress.sent, 'text-emerald-600'],
+                  ['Skipped', progress.skipped, 'text-amber-600'],
+                  ['Suppressed', progress.suppressed, 'text-muted-foreground'],
+                  ['Rate-limited', progress.rateLimited, 'text-orange-600'],
+                  ['Failed', progress.failed, 'text-rose-600'],
+                ] as const).map(([label, value, tone]) => (
+                  <div key={label} className="rounded-lg bg-background border border-border px-2 py-1.5 text-center">
+                    <p className={cn('text-base font-bold tabular-nums leading-none', tone)}>{value}</p>
+                    <p className="text-[9px] uppercase tracking-wide text-muted-foreground mt-1">{label}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Send Maturity Notices</AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to send the <strong>"Maturity Notice"</strong> email for{' '}
+              <strong>{confirmPortfolioIds.length} expiring portfolio{confirmPortfolioIds.length === 1 ? '' : 's'}</strong> listed here.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setConfirmPortfolioIds([])}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmSend} disabled={sendingNotices}>
+              {sendingNotices ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                  Sending…
+                </>
+              ) : (
+                <>Send {confirmPortfolioIds.length} Notice{confirmPortfolioIds.length === 1 ? '' : 's'}</>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
