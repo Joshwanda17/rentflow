@@ -115,6 +115,18 @@ export function AgentRentCapacityPanel({
       return { ...prev, [agentId]: !current };
     });
 
+  const toggleSectionCollapsed = () => {
+    setIsSectionCollapsed((v) => {
+      const next = !v;
+      try {
+        window.localStorage.setItem(SECTION_COLLAPSE_KEY, String(next));
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  };
+
   const { data, isLoading, dataUpdatedAt, isFetching, refetch } = useQuery({
     queryKey: ['agent-rent-capacity-fleet'],
     // Always pull a fresh slice when the panel mounts or regains focus so
