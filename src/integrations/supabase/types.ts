@@ -5483,6 +5483,80 @@ export type Database = {
           },
         ]
       }
+      budget_department_notification_reads: {
+        Row: {
+          notification_id: string
+          read_at: string
+          user_id: string
+        }
+        Insert: {
+          notification_id: string
+          read_at?: string
+          user_id: string
+        }
+        Update: {
+          notification_id?: string
+          read_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_department_notification_reads_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: false
+            referencedRelation: "budget_department_notifications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      budget_department_notifications: {
+        Row: {
+          call_id: string
+          created_at: string
+          department_id: string
+          id: string
+          message: string
+          metadata: Json
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          call_id: string
+          created_at?: string
+          department_id: string
+          id?: string
+          message: string
+          metadata?: Json
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          call_id?: string
+          created_at?: string
+          department_id?: string
+          id?: string
+          message?: string
+          metadata?: Json
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_department_notifications_call_id_fkey"
+            columns: ["call_id"]
+            isOneToOne: false
+            referencedRelation: "budget_calls"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budget_department_notifications_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "hr_departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       budget_department_routes: {
         Row: {
           changed_by: string | null
@@ -37341,6 +37415,10 @@ export type Database = {
         Args: { _note?: string; _submission_id: string }
         Returns: undefined
       }
+      budget_can_access_department: {
+        Args: { _department_id: string; _user_id?: string }
+        Returns: boolean
+      }
       budget_coo_decide_line: {
         Args: {
           p_approved_amount: number
@@ -39221,6 +39299,22 @@ export type Database = {
       get_approximate_user_count: { Args: never; Returns: number }
       get_authoritative_wallet: { Args: { p_user_id: string }; Returns: Json }
       get_budget_consolidation: { Args: { p_call_id: string }; Returns: Json }
+      get_budget_department_notifications: {
+        Args: never
+        Returns: {
+          call_id: string
+          created_at: string
+          cycle_title: string
+          deadline: string
+          department_id: string
+          department_name: string
+          id: string
+          is_read: boolean
+          link: string
+          message: string
+          title: string
+        }[]
+      }
       get_budget_vs_actual: {
         Args: { p_call_id: string; p_department_id?: string }
         Returns: Json
@@ -41554,6 +41648,10 @@ export type Database = {
           has_pin: boolean
           vendor_id: string
         }[]
+      }
+      mark_budget_department_notification_read: {
+        Args: { _notification_id: string }
+        Returns: undefined
       }
       mark_deposit_bridge_delivered: {
         Args: { p_event_id: string; p_group_id: string; p_latency_ms?: number }
