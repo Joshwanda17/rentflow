@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Navigate, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { AgentOpsHomeView, type DateRange } from './agent-ops-v2/AgentOpsHomeView';
 import { AgentOpsBottomNav, type BottomTab } from './agent-ops-v2/AgentOpsBottomNav';
 import { AdvanceRequestsQueue } from '@/components/ops/AdvanceRequestsQueue';
@@ -29,6 +29,7 @@ import { ServiceCentreDirectory } from './service-centres/ServiceCentreDirectory
 import { ServiceCentrePayouts } from './service-centres/ServiceCentrePayouts';
 import { ServiceCentreOperatingModel } from './service-centres/ServiceCentreOperatingModel';
 import { AgentProductsPanel } from './agent-ops/AgentProductsPanel';
+import { AGENT_PRODUCT_PAGES } from '@/pages/AgentProductCategoryPage';
 import { SubAgentVerificationQueue } from './SubAgentVerificationQueue';
 import { TenantToSubAgentPanel } from './TenantToSubAgentPanel';
 import { AgentOpsFloatPayoutReview } from '@/components/agent/AgentOpsFloatPayoutReview';
