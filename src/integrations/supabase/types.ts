@@ -1141,6 +1141,13 @@ export type Database = {
             referencedRelation: "agent_landlord_float_allocations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "agent_allocation_return_requests_allocation_id_fkey"
+            columns: ["allocation_id"]
+            isOneToOne: false
+            referencedRelation: "v_partner_funded_landlord_float"
+            referencedColumns: ["allocation_id"]
+          },
         ]
       }
       agent_allocation_traces: {
@@ -3512,6 +3519,8 @@ export type Database = {
           agent_id: string
           allocated_amount: number
           created_at: string
+          funded_by_partner_id: string | null
+          funding_reference: string | null
           id: string
           landlord_id: string | null
           landlord_name: string
@@ -3530,6 +3539,8 @@ export type Database = {
           agent_id: string
           allocated_amount?: number
           created_at?: string
+          funded_by_partner_id?: string | null
+          funding_reference?: string | null
           id?: string
           landlord_id?: string | null
           landlord_name?: string
@@ -3548,6 +3559,8 @@ export type Database = {
           agent_id?: string
           allocated_amount?: number
           created_at?: string
+          funded_by_partner_id?: string | null
+          funding_reference?: string | null
           id?: string
           landlord_id?: string | null
           landlord_name?: string
@@ -10501,6 +10514,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "agent_landlord_float_allocations"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "field_deposit_batch_items_allocation_id_fkey"
+            columns: ["allocation_id"]
+            isOneToOne: false
+            referencedRelation: "v_partner_funded_landlord_float"
+            referencedColumns: ["allocation_id"]
           },
           {
             foreignKeyName: "field_deposit_batch_items_batch_id_fkey"
@@ -21293,6 +21313,81 @@ export type Database = {
           },
         ]
       }
+      partner_float_agent_notices: {
+        Row: {
+          agent_id: string
+          amount: number
+          attempts: number
+          commitment_id: string
+          created_at: string
+          id: string
+          landlord_id: string | null
+          landlord_name: string
+          last_error: string | null
+          partner_id: string
+          provider: string | null
+          rent_request_ids: string[]
+          sent_at: string | null
+          status: string
+          tenant_count: number
+          topup_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          amount: number
+          attempts?: number
+          commitment_id: string
+          created_at?: string
+          id?: string
+          landlord_id?: string | null
+          landlord_name?: string
+          last_error?: string | null
+          partner_id: string
+          provider?: string | null
+          rent_request_ids?: string[]
+          sent_at?: string | null
+          status?: string
+          tenant_count?: number
+          topup_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          amount?: number
+          attempts?: number
+          commitment_id?: string
+          created_at?: string
+          id?: string
+          landlord_id?: string | null
+          landlord_name?: string
+          last_error?: string | null
+          partner_id?: string
+          provider?: string | null
+          rent_request_ids?: string[]
+          sent_at?: string | null
+          status?: string
+          tenant_count?: number
+          topup_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_float_agent_notices_commitment_id_fkey"
+            columns: ["commitment_id"]
+            isOneToOne: false
+            referencedRelation: "partner_self_commitments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_float_agent_notices_topup_id_fkey"
+            columns: ["topup_id"]
+            isOneToOne: false
+            referencedRelation: "partner_self_topups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       partner_funding_backfill_log: {
         Row: {
           amount: number | null
@@ -21713,6 +21808,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "partner_self_funding_lines"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_self_earnings_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "v_partner_funded_landlord_float"
+            referencedColumns: ["funding_line_id"]
           },
         ]
       }
@@ -35522,6 +35624,71 @@ export type Database = {
         }
         Relationships: []
       }
+      v_partner_float_notice_queue: {
+        Row: {
+          agent_id: string | null
+          agent_name: string | null
+          agent_phone: string | null
+          amount: number | null
+          attempts: number | null
+          commitment_id: string | null
+          created_at: string | null
+          id: string | null
+          landlord_id: string | null
+          landlord_name: string | null
+          partner_id: string | null
+          status: string | null
+          tenant_count: number | null
+          topup_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_float_agent_notices_commitment_id_fkey"
+            columns: ["commitment_id"]
+            isOneToOne: false
+            referencedRelation: "partner_self_commitments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_float_agent_notices_topup_id_fkey"
+            columns: ["topup_id"]
+            isOneToOne: false
+            referencedRelation: "partner_self_topups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_partner_funded_landlord_float: {
+        Row: {
+          agent_id: string | null
+          agent_name: string | null
+          allocated_amount: number | null
+          allocation_id: string | null
+          commitment_id: string | null
+          created_at: string | null
+          funding_line_id: string | null
+          funding_reference: string | null
+          landlord_id: string | null
+          landlord_name: string | null
+          paid_out_amount: number | null
+          partner_id: string | null
+          partner_name: string | null
+          remaining_amount: number | null
+          rent_request_id: string | null
+          status: string | null
+          tenant_id: string | null
+          tenant_name: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_self_funding_lines_commitment_id_fkey"
+            columns: ["commitment_id"]
+            isOneToOne: false
+            referencedRelation: "partner_self_commitments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_partner_self_fundable_plans: {
         Row: {
           active_claim_id: string | null
@@ -42011,6 +42178,14 @@ export type Database = {
           p_partner: string
         }
         Returns: undefined
+      }
+      psm_disburse_landlord_float: {
+        Args: {
+          p_commitment_id: string
+          p_rent_request_ids?: string[]
+          p_topup_id?: string
+        }
+        Returns: Json
       }
       psm_is_partner: { Args: { p_user: string }; Returns: boolean }
       psm_is_topup_reviewer: { Args: { p_uid: string }; Returns: boolean }
