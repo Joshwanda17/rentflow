@@ -41033,6 +41033,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      ops_agent_ops_weekly_bundle: {
+        Args: { p_from: string; p_to: string }
+        Returns: Json
+      }
       ops_bulk_apply_capabilities: {
         Args: {
           _action: string
