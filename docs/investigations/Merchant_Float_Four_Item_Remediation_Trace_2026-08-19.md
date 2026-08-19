@@ -189,3 +189,166 @@ the `linked_deposit_request_id` that proved it.
 All figures reproducible with read-only SQL against `general_ledger`, `deposit_requests`,
 `gmail_transactions`, `audit_logs`, `error_correction_audit`, `merchant_float_reconciliations`,
 `cashout_agents`, `profiles` and `wallet_strict_for_user()`.
+---
+
+# ADDENDUM B — Per-item owed_to_agent delta quantification (read-only, 19 Aug 2026)
+
+Formula under test (`get_merchant_float_positions`, anchor `2026-08-01`):
+
+```
+owed_to_agent = GREATEST( paid_out_total - (float_credits_recorded + adjustments_total), 0 )
+
+paid_out_total          = SUM(withdrawal_requests.amount) WHERE status='completed'
+                          AND COALESCE(processed_at,updated_at) >= anchor
+                          AND (assigned_cashout_agent_id = desk OR processed_by = desk.agent_id)
+                          -- NOTE: no payout_method filter
+float_credits_recorded  = SUM(general_ledger.amount) WHERE wallet_bucket='float'
+                          AND direction='cash_in'
+                          AND category IN ('agent_float_deposit','agent_float_assignment')
+                          AND classification <> 'admin_correction'
+adjustments_total       = unposted merchant_float_reconciliations only
+```
+
+**Structural consequence:** every `cash_out` leg and every `admin_correction` leg is invisible to this
+formula. Items 1, 3 and 4 consist entirely of `cash_out` / `admin_correction` legs, so they cannot
+inflate `owed_to_agent` at all. Only Item 2 touches it — and it *suppresses* it.
+
+## Live platform position (recomputed 19 Aug)
+
+| Metric | Value |
+|---|---|
+| SUM(owed_to_agent) over active desks | **UGX 88,203,296** |
+| Card figure quoted in the brief | UGX 86,315,896 (drifted; +1,887,400 since) |
+| Desks with owed_to_agent > 0 | 5 of the active desk population |
+
+| Desk / agent | paid_out | float_credits | adjustments | **owed_to_agent** | merchant_ledger_float() | merchant_float_visible_net() |
+|---|---|---|---|---|---|---|
+| Sky Bubbles (desk BAITA) | 220,403,745 | 147,230,000 | 30,317,606 | **42,856,139** | 0 | 0 |
+| Bayo Mercy | 120,165,267 | 87,751,300 | −8,894,064 | **41,308,031** | 500,000 | 500,000 |
+| Mudumba Samuel | 45,523,797 | 32,950,625 | 9,362,776 | **3,210,396** | 60,715 | 60,715 |
+| Babrah Tusingwire | 5,980,977 | 5,534,354 | 0 | **446,623** | 0 | 0 |
+| Nakajjubi Shamirah | 4,450,855 | 4,068,748 | 0 | **382,107** | 0 | 0 |
+
+## Item 1 — double reversal of 15 float deposits (UGX 32,810,000)
+
+The **original production `cash_in` credit survives for all 15** deposits, so `float_credits_recorded`
+already contains the full 32,810,000. Both reversing legs are `cash_out` + `admin_correction`.
+
+| Agent | source_id (deposit_requests) | amount | original credit leg id | reversal 1 (14:03:55, agent_float_deposit) | reversal 2 (14:06:34, system_balance_correction) | provider TID | current owed | owed delta if item corrected |
+|---|---|---|---|---|---|---|---|---|
+| Babrah Tusingwire | 58c7c23f-10f8-40b1-8d1a-cc56eead3c0d | 2,000,000 | 5a6db142 | efd4ff95 | 3c820f77 | 153940906265 | 446,623 | 0 |
+| Bayo Mercy | 089ae94e-fe80-438d-a80c-88e5da697ff2 | 5,000,000 | d196e4f7 | 82806fd7 | 4def02f0 | 42739397201 | 41,308,031 | 0 |
+| Bayo Mercy | 19a096e0-38ae-4089-835f-167cba96f4e7 | 500,000 | e8a87d07 | 74f60335 | aad29706 | 42738769917 | ″ | 0 |
+| Bayo Mercy | 3070f505-3d56-40e6-a354-98a5e588ac9d | 110,000 | 35f24863 | 5dd838fa | 87309178 | 42667649239 | ″ | 0 |
+| Bayo Mercy | 55228e7d-f42d-4a11-ac77-c6b4a59dbb5c | 50,000 | 15880e3a | 5b4a98b2 | 34b6e86a | 42667830164 | ″ | 0 |
+| Catherine Nabaggala | 0933087e-4ced-4ea4-b7de-6a98a709b824 | 2,000,000 | a1603a73 | dbcc4ebd | 7c2a6883 | 153939982935 | 0 | 0 |
+| Hilary Evanz | 85195814-8fcf-4155-b5c0-a76361d70bdf | 2,000,000 | 83b8834e | 0b92ad4d | 6ca49532 | 153939903251 | 0 | 0 |
+| Hilary Evanz | 96cabda2-1e03-43c5-855d-ea6de8c4c716 | 5,000,000 | 5fd72cad | d604ab6d | 842259c8 | 153719403119 | 0 | 0 |
+| Joshua Wanda | 78884626-e39d-4031-a7a2-bac338175f6d | 950,000 | c9e669a7 | 933c2454 | cb65d81b | 153927379986 | 0 | 0 |
+| Joshua Wanda | 82cdda43-7787-45b1-922f-c6db962691b4 | 1,000,000 | 7ac9ed8c | 61944017 | de4ce602 | 153780808118 | 0 | 0 |
+| Joshua Wanda | fc6e04ce-97e4-4d5f-a806-87a520c62f1f | 1,200,000 | 240ab8aa | 1dde2523 | def7109f | 153802953581 | 0 | 0 |
+| Nabbale Claire | 9c1b385d-2bf2-4f0b-b4d2-5e8ccdecc16b | 3,000,000 | 66a9d095 | 7096e053 | 9281bf43 | 42740427573 | 0 | 0 |
+| Nabbale Claire | fc8ba1ab-5f66-4c6d-a86b-d8da7c20b1f2 | 2,000,000 | e592af32 | 1ea8982d | cd46c822 | 42693571793 | 0 | 0 |
+| Nankambo Sharimah | 9bdee02a-2968-4cd5-bd99-06f73503e7db | 3,000,000 | 75b8c8be | 46e4fac2 | 5ac98738 | 153426985875 | 0 | 0 |
+| Tugabirwe Apophia | e9ab8e23-1b4a-48e7-9ab5-55291c55899e | 5,000,000 | e741df0c | 5974edf9 | 9d6c61be | 42757995152 | 0 | 0 |
+
+All legs: `source_table='deposit_requests'`, `wallet_bucket='float'`, `transaction_date` 2026-08-14.
+
+Live positions of the 8 affected agents (all desks active): Babrah 0/0 · Bayo Mercy 500,000/500,000 ·
+Catherine Nabaggala 938,092/938,092 · Hilary Evanz 26,949/26,949 · Joshua Wanda 0/0 ·
+Nabbale Claire 0/0 · Nankambo Sharimah 0/0 · Tugabirwe Apophia 0/0.
+
+**owed_to_agent delta if corrected = UGX 0.** The damage is confined to
+`merchant_ledger_float()` / `merchant_float_visible_net()`, understated by 32,810,000 in aggregate.
+
+**Remediation warning (changed from the earlier plan):** the compensating credit must NOT be posted as
+`agent_float_deposit` / `cash_in` / `production` — that would re-enter `float_credits_recorded`
+alongside the surviving original and wrongly extinguish owed:
+Babrah −446,623 and Bayo Mercy −5,660,000, i.e. a **spurious UGX 6,106,623 reduction** of platform
+owed. Post it as `system_balance_correction` `cash_in` instead (restores the wallet bucket, invisible
+to the owed formula).
+
+## Item 2 — Bayo Mercy duplicate opening-balance credit (UGX 36,780,000)
+
+Exactly two legs, both `wallet_bucket='float'`:
+
+| id | transaction_date | amount | category | classification | direction | source_table / source_id |
+|---|---|---|---|---|---|---|
+| b1c251b4-3614-40d8-ad8d-a1474cbf75eb | 2026-08-17 08:49:40Z | 36,780,000 | agent_float_deposit | **production** | **cash_in** | merchant_float_reconciliations / 2132e8da-6215-430e-9581-201c485267ad |
+| 38363eb8-4e20-4c0b-8d84-4a19052312bd | 2026-08-17 11:00:06Z | 36,780,000 | system_balance_correction | admin_correction | cash_out | ledger_transaction / — |
+
+Live: `merchant_ledger_float()` = **500,000**, `merchant_float_visible_net()` = **500,000**
+(the draft reversal expects a 49,780,000 pre-check — it is stale; do not run it).
+
+The wallet balance is already correct, **but the reversal was `admin_correction` so the formula never
+saw it**: the duplicate credit is still inflating her `float_credits_recorded`. Her three
+`opening_balance` reconciliation rows total 36,980,000 against a real opening of 200,000.
+
+**owed_to_agent delta if corrected = +UGX 36,780,000** (Bayo Mercy 41,308,031 → **78,088,031**).
+Platform total 88,203,296 → **124,983,296**. This item *hides* debt; it does not inflate it.
+
+## Item 3 — general-purpose correction queue
+
+Scope re-cut on active merchant desks since the anchor, by reference prefix:
+
+| direction | category | classification | legs | amount |
+|---|---|---|---|---|
+| cash_out | agent_float_assignment | production | 150 | 602,907,704 |
+| cash_out | system_balance_correction | admin_correction | 11 | 36,306,976 |
+| cash_in | agent_float_deposit | production | 74 | 547,899,665 |
+| cash_in | agent_float_assignment | production | 15 | 24,563,199 |
+
+The 161 debit legs (639,214,680) are `cash_out` → **owed_to_agent delta = UGX 0**, including the
+4 unevidenced/unintelligible legs (2,035,800) and the 97 self-authored legs (409,098,926).
+
+The real exposure in this population is on the **credit** side: 89 `cash_in` legs (572,462,864) whose
+`reference_id` is a self-minted `PAY-*` / `FXW-*` string with **no matching `gmail_transactions.transaction_id`**.
+On the five owed desks, unevidenced credits are:
+
+| Desk | unevidenced credit legs | amount | as % of that desk's float_credits |
+|---|---|---|---|
+| Sky Bubbles | 6 | 147,230,000 | **100%** |
+| Bayo Mercy | 2 | 56,780,000 | 65% |
+| Mudumba Samuel | 18 | 32,950,625 | **100%** |
+| Nakajjubi Shamirah | 5 | 4,068,748 | **100%** |
+| Babrah Tusingwire | 2 | 2,034,354 | 37% |
+
+Each of these *suppresses* owed. If the unevidenced credits were disallowed, platform owed would rise
+by roughly the full 243,063,727 on these desks (bounded by paid_out). Directionally this item, like
+Item 2, understates rather than inflates.
+
+## Item 4 — "sweep" credits
+
+Population does not exist as described: all 30 `sweep-*` keyed legs are the Item 1 `cash_out`
+reversals (2 per source_id × 15), so 65,620,000 is 32,810,000 counted twice. 15/15 are TID-corroborated.
+**owed_to_agent delta = UGX 0.**
+
+## Aggregate
+
+| Item | owed_to_agent delta if corrected |
+|---|---|
+| 1 — double reversal | 0 (wallet float +32,810,000) |
+| 2 — Bayo duplicate credit | **+36,780,000** |
+| 3 — correction queue (debit legs) | 0 |
+| 4 — sweep credits | 0 (population void) |
+| **Net across all four items** | **+36,780,000** |
+
+**Conclusion: none of the UGX 88,203,296 headline is attributable to Items 1–4.** Those four defects
+are wallet-balance and control defects; corrected faithfully they would *raise* the figure by
+36,780,000. The inflation lives in two mechanisms outside the named scope:
+
+1. **Cross-method attribution — UGX 62,342,175 (70.7% of the headline).** `paid_out_total` has no
+   `payout_method` filter, so bank transfers the desk never funded from float are charged to it.
+   Sky Bubbles: 210,298,745 of 220,403,745 paid_out is `bank_transfer`; momo-only owed = **0**
+   (−42,856,139). Bayo Mercy: 19,486,036 bank of 120,165,267; momo-only owed = 21,821,995
+   (−19,486,036). Mudumba, Babrah, Nakajjubi are 100% mobile money — unaffected.
+2. **Multi-desk double attribution — up to UGX 10,107,036** across 10 completed withdrawals matched to
+   two desks each by the `assigned_cashout_agent_id OR processed_by` disjunction.
+
+Genuine float-backed debt to agents after both corrections: **UGX 25,861,121**
+(Bayo Mercy 21,821,995 + Mudumba 3,210,396 + Babrah 446,623 + Nakajjubi 382,107 + Sky Bubbles 0),
+before any haircut for the 243,063,727 of unevidenced credits described in Item 3.
+
+**Data-quality flag:** two distinct profiles carry near-identical names — `Bayo Mercy`
+(cfa56623-e6cb-4023-b601-3dbd4fdbc027, the owed desk) and `Mercy Bayo` (separate id, holder of
+35,000,000 of `PAY-*` credits). Confirm these are separate humans before any settlement.
