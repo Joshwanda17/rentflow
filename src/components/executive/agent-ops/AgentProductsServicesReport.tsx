@@ -25,7 +25,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import {
   generateAgentProductsServicesPdf, apsPctChange, apsPctLabel, apsUgx, type ApsReport,
-  apsWindowLabel, apsCompareLabel, type ApsCumulative,
+  apsWindowLabel, apsCompareLabel, apsExpectedTotal, apsAgentExpectedTotal, type ApsCumulative,
 } from '@/lib/agentProductsServicesPdf';
 
 const PAGE_SIZE = 15;
@@ -247,6 +247,7 @@ export function AgentProductsServicesReport() {
       activeAgents: p ? Number(p.agents.active_today) : undefined,
       collected: p ? Number(p.rent.collected_today) : Number(report?.rent.collected_prev ?? 0),
       dailyReceivable: p ? Number(p.rent.daily_receivable) : undefined,
+      expectedTotal: p ? apsExpectedTotal(p) : undefined,
       outstanding: p ? Number(p.rent.outstanding) : undefined,
       advIssued: p ? Number(p.advances.issued_today) : undefined,
       advOutstanding: p ? Number(p.advances.outstanding) : undefined,
@@ -263,6 +264,13 @@ export function AgentProductsServicesReport() {
       .sort((a, b) => a.day.localeCompare(b.day))
       .map(t => ({ ...t, label: format(new Date(`${t.day}T00:00:00`), 'dd MMM'), collected: Number(t.collected) || 0 })),
     [report],
+  );
+
+  /** Cumulative expected collections across the selected window (sum of daily dues per live day). */
+  const expectedTotal = report ? apsExpectedTotal(report) : 0;
+  const expectedDays = Math.max(
+    1,
+    Math.round(Number(report?.rent.expected_days ?? report?.range_days) || 1),
   );
 
   const handlePdf = () => {
@@ -408,10 +416,13 @@ export function AgentProductsServicesReport() {
               hint={`${num(report.agents.active_today)} active`} />
             <Kpi label="Rent collected" value={apsUgx(report.rent.collected_today)}
               current={report.rent.collected_today} previous={pop.collected} compareLabel={compareLabel} />
-            <Kpi label="Expected daily receivable" value={apsUgx(report.rent.daily_receivable)}
-              current={pop.dailyReceivable === undefined ? undefined : report.rent.daily_receivable}
-              previous={pop.dailyReceivable} compareLabel={compareLabel}
-              hint={`${num(report.rent.live_plans)} live plans`} />
+            <Kpi label="Expected target (period)" value={apsUgx(expectedTotal)}
+              current={pop.expectedTotal === undefined ? undefined : expectedTotal}
+              previous={pop.expectedTotal} compareLabel={compareLabel}
+              hint={`${num(report.rent.live_plans)} live plans · ${apsUgx(report.rent.daily_receivable)}/day over ${num(expectedDays)} day${expectedDays === 1 ? '' : 's'}`} />
+            <Kpi label="Collection rate vs expected"
+              value={`${expectedTotal > 0 ? ((Number(report.rent.collected_today) / expectedTotal) * 100).toFixed(1) : '0.0'}%`}
+              hint={`collected ${apsUgx(report.rent.collected_today)} of ${apsUgx(expectedTotal)}`} />
             <Kpi label="Outstanding receivable" value={apsUgx(report.rent.outstanding)}
               current={pop.outstanding === undefined ? undefined : report.rent.outstanding}
               previous={pop.outstanding} invert compareLabel={compareLabel}
@@ -587,6 +598,7 @@ export function AgentProductsServicesReport() {
                       { key: 'phone', label: 'Phone' },
                       { key: 'live_plans', label: 'Plans', align: 'right', render: r => num(r.live_plans) },
                       { key: 'daily_receivable', label: 'Daily due', align: 'right', render: r => apsUgx(r.daily_receivable) },
+                      { key: 'expected_cumulative', label: 'Expected (period)', align: 'right', render: r => apsUgx(apsAgentExpectedTotal(r, expectedDays)) },
                       { key: 'collected_today', label: 'Collected today', align: 'right', render: r => apsUgx(r.collected_today) },
                       { key: 'repaid_to_date', label: 'Repaid to date', align: 'right', render: r => apsUgx(r.repaid_to_date) },
                       { key: 'outstanding', label: 'Outstanding', align: 'right', render: r => apsUgx(r.outstanding) },

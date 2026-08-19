@@ -5,6 +5,7 @@ export interface ApsAgents { new_today: number; new_prev: number; total: number;
 export interface ApsRent {
   collected_today: number; collected_prev: number; collections_today: number;
   outstanding: number; daily_receivable: number; live_plans: number; avg_days_outstanding: number;
+  expected_cumulative?: number; expected_days?: number;
 }
 export interface ApsAdvances {
   submitted: number; approved: number; rejected: number; issued_today: number;
@@ -30,6 +31,7 @@ export interface ApsRentRow {
   agent_id: string; agent_name: string; phone: string | null; location: string | null;
   live_plans: number; outstanding: number; daily_receivable: number; repaid_to_date: number;
   avg_days_outstanding: number; collected_today: number;
+  expected_cumulative?: number;
 }
 export interface ApsAdvanceRow {
   id: string; agent_name: string; phone: string | null; status: string;
@@ -122,6 +124,27 @@ export function apsPopLabel(current: number, previous: number, rangeDays?: numbe
 }
 
 export const apsUgx = (n: any) => `UGX ${Math.round(Number(n) || 0).toLocaleString()}`;
+
+/**
+ * Cumulative expected collections for the whole selected window: the sum of every
+ * live plan's daily repayment for each day it was live between the start date and
+ * the report date. Falls back to a single day × range days when the RPC predates
+ * the cumulative field.
+ */
+export function apsExpectedTotal(report: { rent: ApsRent; range_days?: number }): number {
+  const cum = Number(report.rent.expected_cumulative);
+  if (Number.isFinite(cum) && cum > 0) return cum;
+  const days = Math.max(1, Math.round(Number(report.rent.expected_days ?? report.range_days) || 1));
+  return (Number(report.rent.daily_receivable) || 0) * days;
+}
+
+/** Cumulative expected collections for one agent row. */
+export function apsAgentExpectedTotal(row: ApsRentRow, rangeDays?: number | null): number {
+  const cum = Number(row.expected_cumulative);
+  if (Number.isFinite(cum) && cum > 0) return cum;
+  const days = Math.max(1, Math.round(Number(rangeDays) || 1));
+  return (Number(row.daily_receivable) || 0) * days;
+}
 const num = (n: any) => Math.round(Number(n) || 0).toLocaleString();
 const title = (s: any) => String(s ?? '—').replace(/_/g, ' ');
 
@@ -146,6 +169,7 @@ export function generateAgentProductsServicesPdf(opts: {
     collected: prev ? Number(prev.rent.collected_today) : Number(report.rent.collected_prev),
     collections: prev ? Number(prev.rent.collections_today) : 0,
     dailyReceivable: prev ? Number(prev.rent.daily_receivable) : 0,
+    expectedTotal: prev ? apsExpectedTotal(prev) : 0,
     outstanding: prev ? Number(prev.rent.outstanding) : 0,
     advSubmitted: prev ? Number(prev.advances.submitted) : 0,
     advApproved: prev ? Number(prev.advances.approved) : 0,
@@ -317,10 +341,10 @@ export function generateAgentProductsServicesPdf(opts: {
     y += 3;
   };
 
+  const expectedTotal = apsExpectedTotal(report);
+  const expectedDays = Math.max(1, Math.round(Number(report.rent.expected_days ?? rangeDays) || 1));
   const collectionRatePct =
-    report.rent.daily_receivable > 0
-      ? (Number(report.rent.collected_today) / Number(report.rent.daily_receivable)) * 100
-      : 0;
+    expectedTotal > 0 ? (Number(report.rent.collected_today) / expectedTotal) * 100 : 0;
 
   drawKpiCards([
     {
@@ -331,7 +355,7 @@ export function generateAgentProductsServicesPdf(opts: {
     {
       label: 'Collection rate vs expected',
       value: `${collectionRatePct.toFixed(1)}%`,
-      detail: `expected ${apsUgx(report.rent.daily_receivable)}`,
+      detail: `expected ${apsUgx(expectedTotal)} over ${num(expectedDays)} day${expectedDays === 1 ? '' : 's'}`,
     },
     {
       label: 'Outstanding receivable',
@@ -425,8 +449,9 @@ export function generateAgentProductsServicesPdf(opts: {
   drawTable('2. RENT RECEIVABLES', ['Metric', 'Current period', prevCol, 'Change'], w4, [
     ['Rent collected', apsUgx(report.rent.collected_today), apsUgx(base.collected), apsPctLabel(report.rent.collected_today, base.collected)],
     ['Collection entries recorded', num(report.rent.collections_today), cell(hasPrev ? num(base.collections) : ''), pct(report.rent.collections_today, base.collections, hasPrev)],
-    ['Expected daily receivable', apsUgx(report.rent.daily_receivable), cell(hasPrev ? apsUgx(base.dailyReceivable) : ''), pct(report.rent.daily_receivable, base.dailyReceivable, hasPrev)],
-    ['Collection rate vs expected', `${report.rent.daily_receivable > 0 ? ((Number(report.rent.collected_today) / Number(report.rent.daily_receivable)) * 100).toFixed(1) : '0.0'}%`, '—', '—'],
+    ['Expected daily receivable (per day)', apsUgx(report.rent.daily_receivable), cell(hasPrev ? apsUgx(base.dailyReceivable) : ''), pct(report.rent.daily_receivable, base.dailyReceivable, hasPrev)],
+    [`Expected target (cumulative, ${num(expectedDays)} day${expectedDays === 1 ? '' : 's'})`, apsUgx(expectedTotal), cell(hasPrev ? apsUgx(base.expectedTotal) : ''), pct(expectedTotal, base.expectedTotal, hasPrev)],
+    ['Collection rate vs expected', `${collectionRatePct.toFixed(1)}%`, '—', '—'],
     ['Total outstanding receivable', apsUgx(report.rent.outstanding), cell(hasPrev ? apsUgx(base.outstanding) : ''), pct(report.rent.outstanding, base.outstanding, hasPrev)],
     ['Live rent plans', num(report.rent.live_plans), '—', '—'],
     ['Average duration outstanding (days)', num(report.rent.avg_days_outstanding), '—', '—'],
@@ -521,14 +546,15 @@ export function generateAgentProductsServicesPdf(opts: {
   if (report.rent_rows.length) {
     drawTable(
       `AGENT RENT RECEIVABLES DETAIL (${num(report.rent_rows.length)} agent${report.rent_rows.length === 1 ? '' : 's'})`,
-      ['Agent', 'Phone', 'Plans', 'Daily due', 'Collected today', 'Repaid to date', 'Outstanding', 'Avg days'],
-      [50, 30, 22, 38, 40, 40, 40, 26],
+      ['Agent', 'Phone', 'Plans', 'Daily due', 'Expected (period)', 'Collected', 'Repaid to date', 'Outstanding', 'Avg days'],
+      [44, 26, 16, 32, 36, 34, 34, 36, 28],
       report.rent_rows.map(r => [
         r.agent_name || '—', r.phone || '—', num(r.live_plans),
-        apsUgx(r.daily_receivable), apsUgx(r.collected_today), apsUgx(r.repaid_to_date),
+        apsUgx(r.daily_receivable), apsUgx(apsAgentExpectedTotal(r, expectedDays)),
+        apsUgx(r.collected_today), apsUgx(r.repaid_to_date),
         apsUgx(r.outstanding), num(r.avg_days_outstanding),
       ]),
-      ['left', 'left', 'right', 'right', 'right', 'right', 'right', 'right'],
+      ['left', 'left', 'right', 'right', 'right', 'right', 'right', 'right', 'right'],
     );
   }
 
