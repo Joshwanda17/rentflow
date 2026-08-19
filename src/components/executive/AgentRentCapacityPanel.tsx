@@ -72,11 +72,11 @@ export function AgentRentCapacityPanel({
   });
   const showList = mode !== 'summary';
   const { agentIds: qualifyingIds, isReady: qualifyingReady } = useQualifyingAgentIds();
-  // On phones, default every row to collapsed so the agent sees a clean
+  // Default every row to collapsed on load so the operator sees a clean
   // ALLOWED / BLOCKED status card and can tap to drill in.
-  const isPhone = typeof window !== 'undefined' && window.innerWidth < 640;
   const [rowCollapsed, setRowCollapsed] = useState<Record<string, boolean>>({});
-  const [defaultCollapsed] = useState<boolean>(isPhone);
+  const [defaultCollapsed] = useState<boolean>(true);
+  const [allCollapsed, setAllCollapsed] = useState<boolean>(true);
   const queryClient = useQueryClient();
 
   // Force a fresh fetch every time the panel mounts (e.g. user switches to
