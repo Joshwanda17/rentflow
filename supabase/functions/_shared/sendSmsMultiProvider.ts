@@ -101,6 +101,13 @@ export interface SmsLogCtx {
   recipient_user_id?: string | null;
   recipient_name?: string | null;
   idempotencyKey?: string | null;
+  /**
+   * Time-critical SMS (cash-deposit codes): require Yoola to CONFIRM handset
+   * delivery before we call the send done. Yoola accepting the request is not
+   * delivery — when it does not confirm inside the window we fail over to
+   * Africa's Talking instead of leaving the depositor without a code.
+   */
+  requireDeliveryConfirmation?: boolean;
 }
 
 /**
@@ -195,8 +202,25 @@ export async function sendSMS(phone: string, message: string, logCtx?: SmsLogCtx
     for (const send of [sendViaYoola, sendViaAT, sendViaLana]) {
       const r = await send(effectivePhone, message);
       if (r === null) continue;
-      trail.push({ provider: providerNames[send.name] || send.name, ok: r.ok, error: r.error, response: (r as any).response, attempt: 1 });
-      if (r.ok) { delivered = true; break; }
+      const providerName = providerNames[send.name] || send.name;
+      let ok = r.ok;
+      let error = r.error;
+      let response: any = (r as any).response;
+
+      // Yoola only: hold the send open until the delivery report confirms the
+      // handset received it, then fall through to Africa's Talking if it does not.
+      if (ok && providerName === "yoola" && logCtx?.requireDeliveryConfirmation) {
+        const messageId = extractYoolaMessageId(response);
+        const confirmation = await confirmYoolaDelivery(messageId);
+        response = { send_response: response, delivery_confirmation: confirmation };
+        if (confirmation.outcome !== "delivered") {
+          ok = false;
+          error = `Yoola accepted but did not confirm delivery (${confirmation.detail ?? confirmation.outcome}) — failing over to Africa's Talking`;
+        }
+      }
+
+      trail.push({ provider: providerName, ok, error, response, attempt: 1 });
+      if (ok) { delivered = true; break; }
     }
   }
 
