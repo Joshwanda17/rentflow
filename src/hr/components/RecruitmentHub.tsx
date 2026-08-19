@@ -85,6 +85,8 @@ import type {
   JobPosting,
 } from '@/hr/types';
 import HRInternshipApplications from '@/components/hr/HRInternshipApplications';
+import { CoverNoteSections } from '@/hr/components/applications/ApplicationDetailSheet';
+
 
 const ALL = '__all__';
 const SHORTLIST_1 = 'shortlist_1';
