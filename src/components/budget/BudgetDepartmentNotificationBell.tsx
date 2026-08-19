@@ -65,8 +65,6 @@ export function BudgetDepartmentNotificationBell({ className }: { className?: st
     setItems(prev => prev.map(i => ({ ...i, is_read: true })));
   };
 
-  if (items.length === 0) return null;
-
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
