@@ -28,12 +28,18 @@ type Req = {
   message: string | null;
   currency: string;
   created_at: string;
+  redemption_scope?: 'full' | 'partial' | null;
+  redemption_amount?: number | null;
+  remaining_principal?: number | null;
+  processing_note?: string | null;
   portfolio?: {
     duration_months: number | null;
     payout_day: number | null;
     maturity_date: string | null;
     next_roi_date: string | null;
     roi_percentage: number | null;
+    investment_amount?: number | null;
+    status?: string | null;
   } | null;
 };
 
