@@ -157,6 +157,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
       title: 'Reports & Audit',
       items: [
         { label: 'Financial Reports', icon: BookOpen, id: 'statements' },
+        { label: 'Weekly CFO Report', icon: FileText, id: 'weekly-report' },
         { label: 'Revenue & Expenses', icon: TrendingUp, id: 'revenue-expenses' },
         { label: 'Returns Disbursement Report', icon: FileText, id: 'roi-disbursement-report' },
         { label: 'Rent Disbursement Report', icon: FileText, id: 'rent-disbursement-report' },
