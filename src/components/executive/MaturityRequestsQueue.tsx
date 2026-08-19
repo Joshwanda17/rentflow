@@ -114,6 +114,10 @@ export function MaturityRequestsQueue() {
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  // Redemption processing form state, keyed by request id.
+  const [redScope, setRedScope] = useState<Record<string, 'full' | 'partial'>>({});
+  const [redAmount, setRedAmount] = useState<Record<string, string>>({});
+  const [redNote, setRedNote] = useState<Record<string, string>>({});
 
   const { data: requests = [], isLoading, refetch } = useQuery({
     queryKey: ['maturity-requests-queue'],
