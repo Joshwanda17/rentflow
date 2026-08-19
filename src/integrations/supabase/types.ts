@@ -42189,6 +42189,17 @@ export type Database = {
       }
       psm_is_partner: { Args: { p_user: string }; Returns: boolean }
       psm_is_topup_reviewer: { Args: { p_uid: string }; Returns: boolean }
+      psm_plan_partner_reserved_stage: {
+        Args: { p_rent_request_id: string }
+        Returns: string
+      }
+      psm_reserved_plan_ids: {
+        Args: { p_rent_request_ids: string[] }
+        Returns: {
+          rent_request_id: string
+          reserved_stage: string
+        }[]
+      }
       purge_geo_coverage_cache: { Args: never; Returns: number }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }

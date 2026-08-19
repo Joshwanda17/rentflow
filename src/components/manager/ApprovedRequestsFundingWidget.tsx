@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { CheckCircle, Home, Loader2, MapPin, HandCoins, Clock } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
+import { excludePartnerReservedPlans } from '@/lib/partnerReservedPlans';
 import { formatDistanceToNow } from 'date-fns';
 import { motion } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
@@ -76,9 +77,13 @@ export function ApprovedRequestsFundingWidget() {
       return;
     }
 
-    const tenantIds = [...new Set(data.map(r => r.tenant_id))];
-    const agentIds = [...new Set(data.map(r => r.agent_id).filter(Boolean))] as string[];
-    const landlordIds = [...new Set(data.map(r => r.landlord_id))];
+    // Partner self-funded plans are released by Partner Ops approval, not from
+    // company float — never offer them here.
+    const rows = await excludePartnerReservedPlans(data);
+
+    const tenantIds = [...new Set(rows.map(r => r.tenant_id))];
+    const agentIds = [...new Set(rows.map(r => r.agent_id).filter(Boolean))] as string[];
+    const landlordIds = [...new Set(rows.map(r => r.landlord_id))];
     const allUserIds = [...new Set([...tenantIds, ...agentIds])];
 
     const [profilesRes, landlordsRes] = await Promise.all([
@@ -93,7 +98,7 @@ export function ApprovedRequestsFundingWidget() {
     const profileMap = new Map((profilesRes.data || []).map(p => [p.id, p.full_name]));
     const landlordMap = new Map((landlordsRes.data || []).map(l => [l.id, l.name]));
 
-    setRequests(data.map(r => ({
+    setRequests(rows.map(r => ({
       id: r.id,
       rent_amount: r.rent_amount,
       duration_days: r.duration_days,

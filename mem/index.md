@@ -92,3 +92,4 @@
 - [Cash Flow Statement](mem://architecture/cash-flow-statement) — Ledger-derived corporate cash flow: get_statement_of_cash_flows + cash_flow_line_map; cash = A1 + A2
 - [Merchant owed is ledger truth](mem://constraints/merchant-owed-ledger-truth) — owed = negative ledger float + confirmed out-of-pocket claims only; momo-only, single-desk paid_out_total
 - [Partner self-support landlord float](mem://features/partner/self-support-landlord-float-release) — Ops approval releases partner principal straight to the tenant's agent landlord float (partner-stamped ledger + agent SMS that hides the partner)
+- [Partner-reserved plan fence](mem://features/partner/partner-reserved-plan-fence) — DB trigger + psm_reserved_plan_ids keep partner self-funded rent plans out of every company/CFO landlord float disbursement queue
