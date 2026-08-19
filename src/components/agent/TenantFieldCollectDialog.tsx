@@ -118,7 +118,16 @@ export function TenantFieldCollectDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md max-h-[92vh] overflow-y-auto p-0">
-        <DialogHeader className="px-5 pt-5 pb-3 sticky top-0 bg-background z-10 border-b">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="absolute top-2 left-2 z-20 h-8 px-2 text-muted-foreground hover:text-foreground"
+          onClick={() => onOpenChange(false)}
+        >
+          <ChevronLeft className="h-4 w-4 mr-1" />
+          Back
+        </Button>
+        <DialogHeader className="px-5 pt-10 pb-3 sticky top-0 bg-background z-10 border-b">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <DialogTitle className="flex items-center gap-2 truncate">
