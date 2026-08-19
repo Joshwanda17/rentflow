@@ -276,10 +276,7 @@ export function AgentOpsDashboard() {
       case 'agent-products-services': {
         return (
             <div className="space-y-4">
-              <div>
-                <h2 className="text-xl font-bold tracking-tight">Agent Products &amp; Services</h2>
-                <p className="text-sm text-muted-foreground">Choose a category to manage issuance, payments and receivables.</p>
-              </div>
+              <p className="text-sm text-muted-foreground">Choose a category to manage issuance, payments and receivables.</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                 {AGENT_PRODUCT_PAGES.map((c) => (
                   <Link
