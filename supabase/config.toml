@@ -182,3 +182,6 @@ verify_jwt = false
 
 [functions.weekly-agent-ops-report]
 verify_jwt = false
+
+[functions.weekly-tenant-ops-report]
+verify_jwt = false
