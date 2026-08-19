@@ -67,17 +67,22 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
         const paymentStates = ((row.payment_states || []) as string[]).filter(Boolean);
         const isRepaying = statuses.includes('repaying');
         const isCompleted = statuses.includes('completed');
-        // Vetting gate: nothing shows until the plan reached `repaying`
-        // (landlord paid via float disbursement) or was completed.
-        if (!isRepaying && !isCompleted) return;
+        // Landlord already paid via float disbursement — `funded` and
+        // `disbursed` count exactly like `repaying`.
+        const isLive =
+          isRepaying || statuses.includes('funded') || statuses.includes('disbursed');
+        // Vetting gate: nothing shows until the plan is live (landlord paid)
+        // or was completed.
+        if (!isLive && !isCompleted) return;
         eligibleRows.push(row);
-        // Repaying-only outstanding — pre-funding / vetting rows never count.
-        balances[row.id] = Number(row.repaying_balance || 0);
+        // Outstanding across live plans (funded / disbursed / repaying) —
+        // pre-funding / vetting rows never count.
+        balances[row.id] = Number(row.balance || 0);
         const flaggedNotPaying =
           paymentStates.length > 0 && !paymentStates.some((s) => s !== 'not_paying');
         if (flaggedNotPaying) notPaying.add(row.id);
         if (isCompleted) completedIds.add(row.id);
-        if (!flaggedNotPaying && (isRepaying || isCompleted)) activeIds.add(row.id);
+        if (!flaggedNotPaying && (isLive || isCompleted)) activeIds.add(row.id);
       });
       setTenantBalances(balances);
       setActiveTenantIds(activeIds);
