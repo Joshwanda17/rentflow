@@ -221,7 +221,7 @@ function getAvailableDecisions(status: string | null, round: number | null): Dec
 }
 
 const SHORTLIST_LEVEL_2_CLASS =
-  'border-fuchsia-500/50 bg-fuchsia-500/10 text-fuchsia-700 hover:bg-fuchsia-500/20';
+  'border-amber-500/50 bg-amber-500/10 text-amber-700 hover:bg-amber-500/20';
 
 
 const fmtCount = (n: number) => Math.round(n).toLocaleString();
@@ -705,7 +705,7 @@ function ApplicationsTab() {
                   className={`cursor-pointer ${
                     row.status === 'shortlisted'
                       ? (row.shortlist_round ?? 1) >= 2
-                        ? 'bg-fuchsia-50 hover:bg-fuchsia-100'
+                        ? 'bg-amber-50 hover:bg-amber-100'
                         : 'bg-violet-50 hover:bg-violet-100'
                       : row.status === 'hold'
                         ? 'bg-sky-50 hover:bg-sky-100'
