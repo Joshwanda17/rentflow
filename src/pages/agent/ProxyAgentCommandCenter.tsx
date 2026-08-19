@@ -148,23 +148,24 @@ export default function ProxyAgentCommandCenter() {
     setInviteSheetOpen(true);
   }, []);
 
+  const inviteRequested = useRef(false);
+
   useEffect(() => {
-    if (!inviteSheetOpen || inviteUrl || inviting) return;
-    let cancelled = false;
+    if (!inviteSheetOpen || inviteRequested.current) return;
+    inviteRequested.current = true;
     setInviting(true);
     buildInviteLink('link')
       .then(({ url }) => {
-        if (cancelled) return;
         setInviteUrl(url);
         void summaryQ.refetch();
       })
       .catch((e) => {
-        if (cancelled) return;
+        inviteRequested.current = false;
         toast.error(e instanceof Error ? e.message : 'Could not create the invite link');
       })
-      .finally(() => { if (!cancelled) setInviting(false); });
-    return () => { cancelled = true; };
-  }, [inviteSheetOpen, inviteUrl, inviting, buildInviteLink, summaryQ]);
+      .finally(() => setInviting(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inviteSheetOpen]);
 
   const inviteMessage = inviteUrl
     ? `Join Welile as a partner and start earning monthly returns. Register here: ${inviteUrl}`
