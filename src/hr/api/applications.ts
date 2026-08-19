@@ -35,7 +35,12 @@ const MAX_ROWS = 500;
  * to replace. The screen still renders any status value it finds in the data,
  * including one not listed here, so an unrecognised value is never hidden.
  */
-export const APPLICATION_DECISIONS = ['shortlisted', 'hold', 'rejected'] as const;
+export const APPLICATION_DECISIONS = [
+  'shortlisted',
+  'shortlisted_2',
+  'hold',
+  'rejected',
+] as const;
 
 export type ApplicationDecision = (typeof APPLICATION_DECISIONS)[number];
 
