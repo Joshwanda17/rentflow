@@ -284,7 +284,7 @@ export function AgentOpsDashboard() {
                     to={`/agent-ops/products/${c.slug}`}
                     className="group text-left rounded-2xl border bg-card p-5 shadow-sm transition-all hover:shadow-lg hover:-translate-y-0.5 hover:border-primary/40"
                   >
-                    <div className={`inline-flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${c.color} text-primary-foreground shadow-md`}>
+                    <div className={`inline-flex h-12 w-12 items-center justify-center rounded-xl ${c.color} text-white shadow-md`}>
                       <c.icon className="h-6 w-6" />
                     </div>
                     <div className="mt-4 text-lg font-bold leading-tight">{c.label}</div>
