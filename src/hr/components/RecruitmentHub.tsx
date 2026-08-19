@@ -344,8 +344,14 @@ function ApplicationsTab() {
     { key: 'name' | 'role_interest' | 'status' | 'created'; dir: 'asc' | 'desc' }
   >({ key: 'created', dir: 'desc' });
   const [pending, setPending] = useState<
-    { row: JobApplicationRow; kind: ApplicationDecision | 'remove'; round?: number | null } | null
+    {
+      row: JobApplicationRow;
+      kind: ApplicationDecision | 'contacted' | 'remove';
+      writer?: 'decision' | 'contacted' | null;
+      round?: number | null;
+    } | null
   >(null);
+
   const [busy, setBusy] = useState(false);
   // Selection lives as a set of ids so it survives filtering and sorting.
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
