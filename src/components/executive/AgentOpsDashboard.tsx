@@ -77,7 +77,7 @@ import {
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
-type ActiveView = null | 'products-services-report' | 'sc-products' | 'pipeline' | 'directory' | 'rent-capacity' | 'connector' | 'performance' | 'lifecycle' | 'tasks' | 'escalations' | 'service-centres' | 'sc-overview' | 'sc-directory' | 'sc-payouts' | 'sc-requests' | 'sc-operating-model' | 'sub-agents' | 'promote-tenant' | 'float-payouts' | 'leaderboard' | 'earnings' | 'transfers' | 'locked-transfers' | 'advances-analytics' | 'advance-requests' | 'active-advances' | 'advance-potential' | 'advance-limits' | 'advance-repayments' | 'balances' | 'lending-agents' | 'trust-capture' | 'performance-report' | 'allocation-report' | 'feature-flags' | 'bulk-ops' | 'listing-campaign' | 'daily-collections-report' | 'advance-activity-correlation' | 'agent-service-centres' | 'agent-motor-bikes' | 'agent-boutique' | 'agent-signages' | 'agent-smart-phones' | 'agent-advances';
+type ActiveView = null | 'products-services-report' | 'sc-products' | 'pipeline' | 'directory' | 'rent-capacity' | 'connector' | 'performance' | 'lifecycle' | 'tasks' | 'escalations' | 'service-centres' | 'sc-overview' | 'sc-directory' | 'sc-payouts' | 'sc-requests' | 'sc-operating-model' | 'sub-agents' | 'promote-tenant' | 'float-payouts' | 'leaderboard' | 'earnings' | 'transfers' | 'locked-transfers' | 'advances-analytics' | 'advance-requests' | 'active-advances' | 'advance-potential' | 'advance-limits' | 'advance-repayments' | 'balances' | 'lending-agents' | 'trust-capture' | 'performance-report' | 'allocation-report' | 'feature-flags' | 'bulk-ops' | 'listing-campaign' | 'daily-collections-report' | 'advance-activity-correlation' | 'agent-service-centres' | 'agent-products-services';
 
 const NAV_ITEMS: { key: ActiveView; icon: any; label: string; color: string; priority?: boolean }[] = [
   { key: 'products-services-report', icon: FileBarChart, label: 'Products & Services Report', color: 'bg-purple-900', priority: true },
@@ -118,11 +118,7 @@ const NAV_ITEMS: { key: ActiveView; icon: any; label: string; color: string; pri
   { key: 'advance-requests', icon: Banknote, label: 'Advances', color: 'bg-purple-600', priority: true },
   { key: 'active-advances', icon: Activity, label: 'Active Advances', color: 'bg-purple-500', priority: true },
   { key: 'agent-service-centres', icon: Store, label: 'Agent Service Centres', color: 'bg-orange-600' },
-  { key: 'agent-motor-bikes', icon: Bike, label: 'Agent Motor Bikes', color: 'bg-amber-600' },
-  { key: 'agent-boutique', icon: ShoppingBag, label: 'Agent Boutique', color: 'bg-pink-600' },
-  { key: 'agent-signages', icon: Signpost, label: 'Signages', color: 'bg-lime-600' },
-  { key: 'agent-smart-phones', icon: Smartphone, label: 'Agent Smart Phones', color: 'bg-indigo-600' },
-  { key: 'agent-advances', icon: HandCoins, label: 'Agent Advances', color: 'bg-purple-600' },
+  { key: 'agent-products-services', icon: Package, label: 'Agent Products & Services', color: 'bg-amber-600', priority: true },
 ];
 
 export function AgentOpsDashboard() {
