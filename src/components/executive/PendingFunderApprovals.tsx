@@ -274,33 +274,39 @@ export function PendingFunderApprovals({ defaultExpanded = false, showWhenEmpty 
                       </Badge>
                     </div>
 
-                    <div className="text-[10px] text-muted-foreground space-y-0.5">
-                      <p>
-                        <span className="font-medium text-foreground">Registered by:</span>{' '}
-                        {p.agent?.full_name || 'Unknown agent'}
-                        {p.agent?.phone && <span className="ml-1">({p.agent.phone})</span>}
-                      </p>
-                      {p.reason && (
-                        <p><span className="font-medium text-foreground">Reason:</span> {p.reason}</p>
-                      )}
-                      <p>
-                        <span className="font-medium text-foreground">Date:</span>{' '}
-                        {format(new Date(p.created_at), 'dd MMM yyyy, HH:mm')}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-3 rounded-lg bg-muted/50 px-2.5 py-1.5">
-                        <div className="text-[10px]">
-                          <span className="text-muted-foreground">Invested:</span>{' '}
-                          <span className="font-semibold text-foreground">UGX {p.investmentTotal.toLocaleString()}</span>
-                        </div>
-                        <div className="text-[10px]">
-                          <span className="text-muted-foreground">Accrued (not yet paid):</span>{' '}
-                          <span className={cn("font-semibold", p.accruedReturns > 0 ? "text-success" : "text-muted-foreground")}>
-                            UGX {p.accruedReturns.toLocaleString()}
-                          </span>
-                        </div>
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[10px]">
+                      <div className="min-w-0">
+                        <p className="text-muted-foreground uppercase tracking-wide">Registered by</p>
+                        <p className="font-semibold text-foreground truncate">
+                          {p.agent?.full_name || 'Unknown agent'}
+                        </p>
+                        {p.agent?.phone && <p className="text-muted-foreground">{p.agent.phone}</p>}
                       </div>
+                      <div className="min-w-0">
+                        <p className="text-muted-foreground uppercase tracking-wide">Registered on</p>
+                        <p className="font-semibold text-foreground">
+                          {format(new Date(p.created_at), 'dd MMM yyyy, HH:mm')}
+                        </p>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-muted-foreground uppercase tracking-wide">Active Funds</p>
+                        <p className="font-semibold text-foreground tabular-nums">
+                          UGX {p.investmentTotal.toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-muted-foreground uppercase tracking-wide">Accrued (unpaid)</p>
+                        <p className={cn('font-semibold tabular-nums', p.accruedReturns > 0 ? 'text-success' : 'text-muted-foreground')}>
+                          UGX {p.accruedReturns.toLocaleString()}
+                        </p>
+                      </div>
+                      {p.reason && (
+                        <div className="col-span-2 min-w-0">
+                          <p className="text-muted-foreground uppercase tracking-wide">Reason</p>
+                          <p className="text-foreground">{p.reason}</p>
+                        </div>
+                      )}
+                    </div>
 
                     <div className="flex gap-2 pt-1">
                       <Button
