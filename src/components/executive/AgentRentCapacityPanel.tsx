@@ -459,7 +459,7 @@ export function AgentRentCapacityPanel({
           </div>
         )}
 
-        {!compact && <FleetPerformanceStats detailed={showList} />}
+        {!compact && !isSectionCollapsed && <FleetPerformanceStats detailed={showList} />}
       </div>
 
       {showList && (
