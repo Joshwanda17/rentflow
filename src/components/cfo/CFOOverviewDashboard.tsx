@@ -293,7 +293,6 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
           ]}
           footer="Position view — part of Money We Have, not added to it"
           footerTone="bg-indigo-50/70 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-400"
-          onClick={() => setActiveBreakdown('cash')}
         />
         <HeroCard
           icon={<Landmark className="h-4 w-4 text-sky-600" />}
@@ -307,7 +306,6 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
           ]}
           footer="Position view — part of Money We Have, not added to it"
           footerTone="bg-sky-50/70 dark:bg-sky-950/30 text-sky-700 dark:text-sky-400"
-          onClick={() => setActiveBreakdown('cash')}
         />
       </div>
 
