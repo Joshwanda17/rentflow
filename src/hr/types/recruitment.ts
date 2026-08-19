@@ -135,6 +135,12 @@ export interface Application {
   cover_note: string | null;
   stage: ApplicationStage;
   stage_changed_at: string;
+  /**
+   * Shortlist level reached: 1, 2 or 3. Only meaningful while the status is
+   * `shortlisted`, and kept on held or declined rows so the level a person
+   * reached is never lost. Null on rows that were never shortlisted.
+   */
+  shortlist_round?: number | null;
   decided_by_employee_id: string | null;
   decision_reason: string | null;
   extraction_status: 'pending' | 'done' | 'failed' | 'manual';
