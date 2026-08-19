@@ -306,7 +306,7 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
             {!search && (
               <Button
                 onClick={onAddTenant}
-                className="h-14 px-8 text-lg font-bold rounded-2xl gap-2"
+                className="h-14 px-8 text-lg font-bold rounded-2xl gap-2 dark:text-white"
               >
                 <UserPlus className="h-6 w-6" />
                 Add Tenant
