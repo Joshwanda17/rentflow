@@ -56,6 +56,99 @@ function fmtDate(d: Date) {
 export function ExpiringPortfoliosPanel() {
   const [search, setSearch] = useState('');
 
+  /* ─── Bulk-send the "Maturity Notice" email to every partner expiring soon. ─── */
+  const [sendingNotices, setSendingNotices] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmPortfolioIds, setConfirmPortfolioIds] = useState<string[]>([]);
+  type NoticeProgress = {
+    queued: number; sent: number; skipped: number;
+    suppressed: number; rateLimited: number; failed: number; processed: number;
+    done: boolean;
+  };
+  const [progress, setProgress] = useState<NoticeProgress | null>(null);
+
+  function openMaturityConfirm() {
+    const portfolioIds = Array.from(new Set(filtered.map(p => p.portfolioId).filter(Boolean)));
+    if (portfolioIds.length === 0) {
+      toast.info('No portfolios to notify');
+      return;
+    }
+    setConfirmPortfolioIds(portfolioIds);
+    setConfirmOpen(true);
+  }
+
+  async function handleConfirmSend() {
+    setConfirmOpen(false);
+    if (sendingNotices || confirmPortfolioIds.length === 0) return;
+    setSendingNotices(true);
+    setProgress({ queued: confirmPortfolioIds.length, sent: 0, skipped: 0, suppressed: 0, rateLimited: 0, failed: 0, processed: 0, done: false });
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const apikey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/bulk-send-maturity-notice`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'apikey': apikey,
+        },
+        body: JSON.stringify({ portfolioIds: confirmPortfolioIds, stream: true }),
+      });
+      if (!res.ok || !res.body) {
+        const txt = await res.text().catch(() => '');
+        throw new Error(txt || `Request failed (${res.status})`);
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let last: any = null;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          let evt: any;
+          try { evt = JSON.parse(line); } catch { continue; }
+          if (evt.type === 'error') throw new Error(evt.error || 'Send failed');
+          last = evt;
+          setProgress({
+            queued: evt.queued ?? confirmPortfolioIds.length,
+            sent: evt.sent ?? 0,
+            skipped: evt.skipped ?? 0,
+            suppressed: evt.suppressed ?? 0,
+            rateLimited: evt.rateLimited ?? 0,
+            failed: evt.failed ?? 0,
+            processed: evt.processed ?? 0,
+            done: evt.type === 'done',
+          });
+        }
+      }
+
+      const sent = last?.sent ?? 0;
+      const skipped = last?.skipped ?? 0;
+      const suppressed = last?.suppressed ?? 0;
+      const rateLimited = last?.rateLimited ?? 0;
+      const failed = last?.failed ?? 0;
+      toast.success(`Maturity notices sent: ${sent}`, {
+        description: `${skipped} skipped (no email), ${suppressed} suppressed, ${rateLimited} rate-limited, ${failed} failed.`,
+      });
+    } catch (e: any) {
+      console.error('Bulk maturity notice failed', e);
+      toast.error(e?.message || 'Failed to send maturity notices');
+      setProgress(prev => (prev ? { ...prev, done: true } : prev));
+    } finally {
+      setSendingNotices(false);
+      setConfirmPortfolioIds([]);
+    }
+  }
+
   const { data, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['partner-ops-expiring-portfolios'],
     staleTime: 60_000,
