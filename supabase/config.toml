@@ -176,3 +176,6 @@ verify_jwt = false
 
 [functions.agent-daily-performance-report]
 verify_jwt = false
+
+[functions.weekly-landlord-ops-report]
+verify_jwt = false
