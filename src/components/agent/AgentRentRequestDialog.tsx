@@ -94,6 +94,7 @@ import { generateRentRequestFormPdf } from '@/lib/rentRequestFormPdf';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { AgentEditRentRequestDialog } from '@/components/agent/AgentEditRentRequestDialog';
 import { STAGE_LABEL, type AgentRejectedRequest } from '@/hooks/useAgentRejectedRequests';
+import { collectAgentSignupTelemetry } from '@/lib/agentSignupTelemetry';
 
 interface AgentRentRequestDialogProps {
   open: boolean;
@@ -2812,6 +2813,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
           phone: cleanTenantPhone,
           // National ID is optional in the outstanding flow.
           national_id: cleanNationalId || null,
+          telemetry: await collectAgentSignupTelemetry('/agent/rent-request#outstanding-tenant', 'tenant'),
         },
       });
 

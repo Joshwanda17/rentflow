@@ -18,6 +18,7 @@ import AdvanceLimitMarketingCard from './AdvanceLimitMarketingCard';
 import { isContactPickerSupported, pickContact } from '@/lib/contactPicker';
 import LocationMapPreview from '@/components/shared/LocationMapPreview';
 import { reverseGeocode } from '@/lib/reverseGeocode';
+import { collectAgentSignupTelemetry } from '@/lib/agentSignupTelemetry';
 
 // GPS accuracy thresholds (metres)
 const GPS_GOOD_ACCURACY_M = 50;   // good enough — green
@@ -392,6 +393,7 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
             phone: tenantPhoneClean,
             national_id: tenantNationalId.trim().toUpperCase(),
             email: tenantEmail.trim() || undefined,
+            telemetry: await collectAgentSignupTelemetry('/agent/business-advance-request', 'tenant'),
           },
         });
         if (regErr || !regData?.user_id) throw new Error(regErr?.message || 'Failed to register tenant');

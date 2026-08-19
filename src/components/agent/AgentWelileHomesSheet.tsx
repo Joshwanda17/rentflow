@@ -21,6 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
 import { Home, Loader2, Plus, Banknote, TrendingUp, Users, Clock, Search, CheckCircle2, ShieldCheck, RefreshCw, ArrowLeft, Pencil, History, Trash2, ChevronDown } from 'lucide-react';
 import { z } from 'zod';
+import { collectAgentSignupTelemetry } from '@/lib/agentSignupTelemetry';
 
 // Shared client-side validation for the core enrollment fields. Kept strict so
 // agents cannot submit invalid or internally conflicting values (e.g. decimal
@@ -677,6 +678,7 @@ function EnrollDialog({ open, onOpenChange, agentId, onDone }: {
             full_name: newName.trim(),
             phone: phone.trim(),
             national_id: newNationalId.trim() || null,
+            telemetry: await collectAgentSignupTelemetry('/agent/welile-homes', 'tenant'),
           },
         });
         if (regErr) throw new Error(regErr.message || 'Could not create tenant account');

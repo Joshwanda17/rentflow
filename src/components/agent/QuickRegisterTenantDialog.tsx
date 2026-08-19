@@ -22,6 +22,7 @@ import {
   type PersonNameParts,
 } from '@/lib/authValidation';
 import PersonNameFields from '@/components/shared/PersonNameFields';
+import { collectAgentSignupTelemetry } from '@/lib/agentSignupTelemetry';
 
 interface QuickRegisterTenantDialogProps {
   open: boolean;
@@ -91,6 +92,7 @@ export function QuickRegisterTenantDialog({
           full_name: nameCheck.fullName,
           phone: phone.trim(),
           national_id: nationalId.trim().toUpperCase(),
+          telemetry: await collectAgentSignupTelemetry('/agent/quick-register-tenant', 'tenant'),
         },
       });
 

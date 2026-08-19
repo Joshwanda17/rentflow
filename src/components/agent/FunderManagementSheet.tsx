@@ -20,6 +20,7 @@ import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import { useFunderAccountsRealtime } from '@/hooks/useFunderAccountsRealtime';
 import { useAgentCapabilities } from '@/hooks/useAgentCapabilities';
 import {
+import { collectAgentSignupTelemetry } from '@/lib/agentSignupTelemetry';
   Users, Loader2, Phone, Send, HandCoins, UserPlus, AlertCircle,
 } from 'lucide-react';
 
@@ -156,7 +157,7 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
     setRegistering(true);
     try {
       const { data, error } = await supabase.functions.invoke('register-proxy-funder', {
-        body: { full_name: regName.trim(), phone: regPhone.trim(), agent_id: user.id, notes: regNotes.trim() || undefined },
+        body: { full_name: regName.trim(), phone: regPhone.trim(), agent_id: user.id, notes: regNotes.trim() || undefined, telemetry: await collectAgentSignupTelemetry('/agent/funders', 'funder') },
       });
       if (error) {
         const msg = await extractFromErrorObject(error);
