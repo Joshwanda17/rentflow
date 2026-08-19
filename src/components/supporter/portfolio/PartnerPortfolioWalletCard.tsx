@@ -104,7 +104,7 @@ export function PartnerPortfolioWalletCard({ onAddCard, onSend, onRequest, onTop
           className="relative z-10 w-full h-full flex flex-col justify-between text-white select-none"
           style={{ padding: 'min(12px, 3.4cqw) min(16px, 4.5cqw) min(18px, 5.1cqw)' }}
         >
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between" style={{ paddingTop: 4 }}>
             <img
               src={welileLogo}
               alt="Welile"
