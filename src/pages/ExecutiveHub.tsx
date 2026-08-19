@@ -41,6 +41,8 @@ const LocationManager = lazyWithRetry(() =>
   import('@/components/ops/LocationManager').then((m) => ({ default: m.LocationManager })),
 );
 
+import { BudgetDepartmentNotificationBell } from '@/components/budget/BudgetDepartmentNotificationBell';
+
 /**
  * Every tab must declare the `staff_permissions.permitted_dashboard` key that
  * unlocks it. A tab with no entry here is unreachable by design — add the key
@@ -120,6 +122,7 @@ export default function ExecutiveHub() {
               <h1 className="text-lg font-bold truncate">{current.title}</h1>
               <p className="text-xs text-muted-foreground">Executive &amp; Operations Hub</p>
             </div>
+            <BudgetDepartmentNotificationBell />
             <Button
               variant="outline"
               size="sm"

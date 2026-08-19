@@ -10,6 +10,7 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import { PartnerOpsSidebar } from './PartnerOpsSidebar';
 import { searchPartnerOpsNav, type PartnerOpsViewKey } from './partnerOpsNav';
+import { BudgetDepartmentNotificationBell } from '@/components/budget/BudgetDepartmentNotificationBell';
 
 interface Props {
   active: PartnerOpsViewKey;
@@ -136,6 +137,8 @@ export function PartnerOpsTopBar({ active, onSelect, badges, actions }: Props) {
             </div>
           )}
         </div>
+
+        <BudgetDepartmentNotificationBell />
 
         {actions}
 
