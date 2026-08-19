@@ -27,8 +27,9 @@ interface ScheduleRow {
 }
 
 interface Reconciliation {
-  suspense_amount: number;
-  suspense_side: 'asset' | 'liability' | 'none';
+  plug_applied?: boolean;
+  unreconciled_difference?: number;
+  classification_filter_granularity?: string;
   unresolved_groups: number;
   unresolved_absolute_amount: number;
   schedule: ScheduleRow[];
@@ -72,6 +73,8 @@ export interface StatementOfFinancialPosition {
     total_liabilities_and_equity: number;
     difference: number;
     balanced: boolean;
+    state?: 'balanced' | 'failed';
+    message?: string;
   };
 }
 
