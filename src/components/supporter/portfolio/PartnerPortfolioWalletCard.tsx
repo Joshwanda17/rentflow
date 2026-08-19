@@ -198,7 +198,7 @@ export function PartnerPortfolioWalletCard({ onAddCard, onSend, onRequest, onTop
             className="tracking-tight text-white font-bold whitespace-nowrap"
             style={{ fontSize: 'clamp(9.5px, 2.8cqw, 15px)' }}
           >
-            Add Card
+            Support
           </span>
         </button>
       </div>
