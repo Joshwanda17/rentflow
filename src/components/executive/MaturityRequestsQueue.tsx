@@ -611,7 +611,7 @@ export function MaturityRequestsQueue() {
 
                   {/* Redemption processing form — Partner Ops decides whether the
                       whole principal is redeemed or only part of it. */}
-                  {!isRenewal && (req.status === 'pending' || req.status === 'processing') && (() => {
+                  {!isRenewal && req.status === 'processing' && (() => {
                     const principal = Number(req.portfolio?.investment_amount ?? req.portfolio_value ?? 0);
                     const scope = redScope[req.id] || 'full';
                     const typed = Math.round(Number(redAmount[req.id] || 0));
