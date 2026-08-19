@@ -9,6 +9,7 @@ export const RENT_PIPELINE_STAGES = [
   { key: 'agent_ops_approved', label: 'Agent operations' },
   { key: 'tenant_ops_approved', label: 'Tenant operations' },
   { key: 'landlord_ops_approved', label: 'Landlord operations' },
+  { key: 'partner_ops_approved', label: 'Partner operations' },
   { key: 'coo_approved', label: 'Executive approval' },
   { key: 'funded', label: 'Funded' },
   { key: 'repaying', label: 'Repaying' },
