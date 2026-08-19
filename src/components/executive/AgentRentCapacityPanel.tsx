@@ -74,10 +74,14 @@ export function AgentRentCapacityPanel({
   const { agentIds: qualifyingIds, isReady: qualifyingReady } = useQualifyingAgentIds();
   // Default every row to collapsed on load so the operator sees a clean
   // ALLOWED / BLOCKED status card and can tap to drill in.
-  const [rowCollapsed, setRowCollapsed] = useState<Record<string, boolean>>({});
-  const [defaultCollapsed] = useState<boolean>(true);
-  const [allCollapsed, setAllCollapsed] = useState<boolean>(true);
+  // Global collapsed state is the source of truth for rows the user hasn't
+  // explicitly toggled. This keeps the "Collapse All / Expand All" button in
+  // sync with the actual rendered state, including rows loaded via "Load more".
+  const [globalCollapsed, setGlobalCollapsed] = useState<boolean>(true);
+  const [rowOverrides, setRowOverrides] = useState<Record<string, boolean>>({});
   const queryClient = useQueryClient();
+
+  const isRowCollapsed = (agentId: string) => rowOverrides[agentId] ?? globalCollapsed;
 
   // Force a fresh fetch every time the panel mounts (e.g. user switches to
   // the Agent Rent Capacity tab). Without this, a cached fleet snapshot
@@ -110,8 +114,8 @@ export function AgentRentCapacityPanel({
   }, [queryClient]);
 
   const toggleRow = (agentId: string) =>
-    setRowCollapsed((prev) => {
-      const current = prev[agentId] ?? defaultCollapsed;
+    setRowOverrides((prev) => {
+      const current = isRowCollapsed(agentId);
       return { ...prev, [agentId]: !current };
     });
 
@@ -372,12 +376,13 @@ export function AgentRentCapacityPanel({
   const canPostCount = rows.filter((r) => r.daily_status !== 'blocked').length;
   const blockedCount = rows.filter((r) => r.daily_status === 'blocked').length;
 
+  const allVisibleCollapsed = visible.every((r) => isRowCollapsed(r.agent_id));
+
   const toggleAll = () => {
-    const nextCollapsed = !allCollapsed;
-    const next: Record<string, boolean> = {};
-    (filtered || []).forEach((r) => { next[r.agent_id] = nextCollapsed; });
-    setRowCollapsed(next);
-    setAllCollapsed(nextCollapsed);
+    const nextGlobal = !allVisibleCollapsed;
+    setGlobalCollapsed(nextGlobal);
+    // Clear per-row overrides so every row follows the new global state.
+    setRowOverrides({});
   };
 
   return (
@@ -476,11 +481,11 @@ export function AgentRentCapacityPanel({
               type="button"
               onClick={toggleAll}
               className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-background hover:bg-muted text-xs font-semibold shrink-0"
-              title={allCollapsed ? 'Expand all agent cards' : 'Collapse all agent cards'}
-              aria-label={allCollapsed ? 'Expand all' : 'Collapse all'}
+              title={allVisibleCollapsed ? 'Expand all agent cards' : 'Collapse all agent cards'}
+              aria-label={allVisibleCollapsed ? 'Expand all' : 'Collapse all'}
             >
-              {allCollapsed ? <Plus className="h-3.5 w-3.5" /> : <Minus className="h-3.5 w-3.5" />}
-              <span className="hidden sm:inline">{allCollapsed ? 'Expand All' : 'Collapse All'}</span>
+              {allVisibleCollapsed ? <Plus className="h-3.5 w-3.5" /> : <Minus className="h-3.5 w-3.5" />}
+              <span className="hidden sm:inline">{allVisibleCollapsed ? 'Expand All' : 'Collapse All'}</span>
             </button>
           )}
         </div>
@@ -499,7 +504,7 @@ export function AgentRentCapacityPanel({
               <CapacityRow
                 key={row.agent_id}
                 row={row}
-                collapsed={rowCollapsed[row.agent_id] ?? defaultCollapsed}
+                collapsed={isRowCollapsed(row.agent_id)}
                 onToggle={() => toggleRow(row.agent_id)}
               />
             ))}
