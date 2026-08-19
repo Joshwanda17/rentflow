@@ -78,7 +78,7 @@ const PersonalLayout = ({ children, title }: PersonalLayoutProps) => {
           >
             <X className="h-4 w-4" />
           </button>
-          <div className="flex items-center gap-3 min-w-0 pt-4">
+          <div className="flex items-center gap-3 min-w-0 pt-4 mx-12">
             <Avatar className="h-11 w-11 border-2 border-primary/10 shrink-0">
 
               <AvatarImage src={avatarUrl || ''} alt={displayName || 'Your profile'} />
