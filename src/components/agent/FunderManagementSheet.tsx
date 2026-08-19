@@ -20,9 +20,9 @@ import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import { useFunderAccountsRealtime } from '@/hooks/useFunderAccountsRealtime';
 import { useAgentCapabilities } from '@/hooks/useAgentCapabilities';
 import {
-import { collectAgentSignupTelemetry } from '@/lib/agentSignupTelemetry';
   Users, Loader2, Phone, Send, HandCoins, UserPlus, AlertCircle,
 } from 'lucide-react';
+import { collectAgentSignupTelemetry } from '@/lib/agentSignupTelemetry';
 
 interface LinkedFunder {
   id: string;
