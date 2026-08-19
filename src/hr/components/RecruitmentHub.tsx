@@ -338,11 +338,7 @@ function ApplicationsTab() {
   }, [refetchRemovedCount]);
 
 
-  const statuses = useMemo(() => {
-    const set = new Set<string>();
-    rows.forEach((r) => set.add(r.status ?? '—'));
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [rows]);
+  const statuses = useMemo(() => FILTER_OPTIONS, []);
 
   const filteredSorted = useMemo(() => {
     let data = rows;
