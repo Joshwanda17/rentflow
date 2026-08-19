@@ -77,6 +77,17 @@ export const BUDGET_ROUTE_LABEL: Record<'direct' | 'coo', string> = {
 };
 
 export async function fetchBudgetReviewQueue(callId: string | null, stage: BudgetReviewStage) {
+  return fetchQueue(callId, stage);
+}
+
+/** Approval route configured for a registered HR department (server-resolved). */
+export async function fetchDepartmentRoute(departmentId: string): Promise<'direct' | 'coo'> {
+  const { data, error } = await supabase.rpc('budget_department_route', { _department_id: departmentId });
+  if (error) throw error;
+  return (data as unknown as 'direct' | 'coo') ?? 'direct';
+}
+
+async function fetchQueue(callId: string | null, stage: BudgetReviewStage) {
   const { data, error } = await supabase.rpc('budget_review_queue', {
     p_call_id: callId,
     p_stage: stage,
