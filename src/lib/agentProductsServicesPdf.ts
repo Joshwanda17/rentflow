@@ -124,6 +124,27 @@ export function apsPopLabel(current: number, previous: number, rangeDays?: numbe
 }
 
 export const apsUgx = (n: any) => `UGX ${Math.round(Number(n) || 0).toLocaleString()}`;
+
+/**
+ * Cumulative expected collections for the whole selected window: the sum of every
+ * live plan's daily repayment for each day it was live between the start date and
+ * the report date. Falls back to a single day × range days when the RPC predates
+ * the cumulative field.
+ */
+export function apsExpectedTotal(report: { rent: ApsRent; range_days?: number }): number {
+  const cum = Number(report.rent.expected_cumulative);
+  if (Number.isFinite(cum) && cum > 0) return cum;
+  const days = Math.max(1, Math.round(Number(report.rent.expected_days ?? report.range_days) || 1));
+  return (Number(report.rent.daily_receivable) || 0) * days;
+}
+
+/** Cumulative expected collections for one agent row. */
+export function apsAgentExpectedTotal(row: ApsRentRow, rangeDays?: number | null): number {
+  const cum = Number(row.expected_cumulative);
+  if (Number.isFinite(cum) && cum > 0) return cum;
+  const days = Math.max(1, Math.round(Number(rangeDays) || 1));
+  return (Number(row.daily_receivable) || 0) * days;
+}
 const num = (n: any) => Math.round(Number(n) || 0).toLocaleString();
 const title = (s: any) => String(s ?? '—').replace(/_/g, ' ');
 
@@ -148,6 +169,7 @@ export function generateAgentProductsServicesPdf(opts: {
     collected: prev ? Number(prev.rent.collected_today) : Number(report.rent.collected_prev),
     collections: prev ? Number(prev.rent.collections_today) : 0,
     dailyReceivable: prev ? Number(prev.rent.daily_receivable) : 0,
+    expectedTotal: prev ? apsExpectedTotal(prev) : 0,
     outstanding: prev ? Number(prev.rent.outstanding) : 0,
     advSubmitted: prev ? Number(prev.advances.submitted) : 0,
     advApproved: prev ? Number(prev.advances.approved) : 0,
