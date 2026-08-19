@@ -617,6 +617,54 @@ export default function ProxyAgentCommandCenter() {
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* Invite share sheet — opens instantly, link resolves inside */}
+      <Sheet open={inviteSheetOpen} onOpenChange={setInviteSheetOpen}>
+        <SheetContent side="bottom" className="rounded-t-2xl pb-8">
+          <SheetHeader className="pb-3 text-left">
+            <SheetTitle className="flex items-center gap-2 text-base">
+              <Share2 className="h-4 w-4 text-primary" /> Share partner invite
+            </SheetTitle>
+            <SheetDescription className="text-xs">
+              Your attributed onboarding link. Every partner who registers through it is linked to you.
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="space-y-3">
+            <Input
+              readOnly
+              value={inviteUrl ?? (inviting ? 'Generating your link…' : 'Preparing…')}
+              className="h-10 text-xs font-mono"
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                onClick={handleInviteWhatsApp}
+                disabled={!inviteUrl}
+                className="h-12 gap-2 font-semibold"
+              >
+                {inviting && !inviteUrl ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
+                WhatsApp
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleInviteNativeShare}
+                disabled={!inviteUrl}
+                className="h-12 gap-2 font-semibold"
+              >
+                <Share2 className="h-4 w-4" /> Share
+              </Button>
+            </div>
+            <Button
+              variant="ghost"
+              onClick={handleCopyInvite}
+              disabled={!inviteUrl}
+              className="w-full gap-2"
+            >
+              <Copy className="h-4 w-4" /> {inviteCopied ? 'Copied' : 'Copy link'}
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
