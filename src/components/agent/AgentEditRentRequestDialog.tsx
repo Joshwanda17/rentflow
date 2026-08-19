@@ -11,7 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { LandlordSearchSelect, type LandlordOption } from '@/components/agent/LandlordSearchSelect';
 import PersonNameFields from '@/components/shared/PersonNameFields';
 import { joinPersonName, splitPersonName, type PersonNameParts } from '@/lib/authValidation';
-import { toast } from 'sonner';
+import { toast, toast as sonnerToast } from 'sonner';
 import { calculateRentRepayment, formatUGX } from '@/lib/rentCalculations';
 import { optimizeImage } from '@/lib/imageOptimizer';
 import { useAuth } from '@/hooks/useAuth';
@@ -81,6 +81,16 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
   const [existingLcUrl, setExistingLcUrl] = useState<string | null>(null);
   const [newLcLetter, setNewLcLetter] = useState<{ file: File; preview: string } | null>(null);
   const [uploadingEvidence, setUploadingEvidence] = useState(false);
+  // Toasts sit outside the dialog and are routinely missed on small screens —
+  // every blocking reason is ALSO rendered inline right above the Resubmit
+  // button so the agent always sees why nothing happened.
+  const [formError, setFormError] = useState<{ title: string; description?: string } | null>(null);
+
+  /** Surface a failure both inline (always visible) and as a toast. */
+  const fail = (title: string, description?: string) => {
+    setFormError({ title, description });
+    toast.error(title, description ? { description } : undefined);
+  };
 
   useEffect(() => {
     if (request) {
@@ -90,6 +100,7 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
       setWaterMeter(request.tenant_water_meter ?? '');
       setElecMeter(request.tenant_electricity_meter ?? '');
       setNote('');
+      setFormError(null);
       setHouseCategory(request.house_category ?? '');
       setPreferredLanguage(request.preferred_language ?? '');
       setNoSmartphone(!!request.tenant_no_smartphone);
@@ -220,14 +231,23 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
           if (existingPhotos[i]) finalUrls.push(existingPhotos[i] as string);
           continue;
         }
-        const optimized = await optimizeImage(picked.file, { maxWidth: 1200, quality: 0.8 });
-        const ext = optimized.file.name.split('.').pop() || 'webp';
+        // Some phone captures (HEIC on older Android/iOS browsers) cannot be
+        // decoded by the canvas optimizer. Falling back to the raw file keeps
+        // the resubmit alive instead of dying with an opaque error.
+        let uploadFile = picked.file;
+        try {
+          const optimized = await optimizeImage(picked.file, { maxWidth: 1200, quality: 0.8 });
+          uploadFile = optimized.file;
+        } catch {
+          uploadFile = picked.file;
+        }
+        const ext = uploadFile.name.split('.').pop() || 'webp';
         // Unique path per attempt: overwriting the same object is an UPDATE in
         // storage and any missing UPDATE policy silently kills the resubmit.
         const path = `${user.id}/${requestId}/photo_${i}_${Date.now()}.${ext}`;
         const { error } = await supabase.storage
           .from('house-images')
-          .upload(path, optimized.file, { cacheControl: '86400', upsert: false });
+          .upload(path, uploadFile, { cacheControl: '86400', upsert: false });
         if (error) throw new Error(`House photo (${HOUSE_PHOTO_SLOTS[i]}) upload failed: ${error.message}`);
         const { data } = supabase.storage.from('house-images').getPublicUrl(path);
         finalUrls.push(data.publicUrl);
@@ -268,6 +288,19 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
     : null;
 
   const submit = async () => {
+    setFormError(null);
+    // Every failure inside this function must ALSO land in the inline banner,
+    // so `toast` is shadowed here with a mirror that writes both places.
+    const toast = {
+      success: sonnerToast.success,
+      message: (title: string, opts?: { description?: string }) => {
+        setFormError({ title, description: opts?.description });
+        sonnerToast.message(title, opts);
+      },
+      error: (title: string, opts?: { description?: string }) => {
+        fail(title, opts?.description);
+      },
+    };
     // Pre-flight client-side validation — every failure path gets its own toast.
     if (note.trim().length === 0) {
       toast.error('Add a resubmission note', {
@@ -750,6 +783,17 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
         </div>
 
         <DialogFooter className="sticky bottom-0 -mx-6 px-6 py-4 mt-2 bg-background border-t flex-col-reverse sm:flex-row gap-2 sm:gap-2 sm:space-x-0">
+          {formError && (
+            <div
+              role="alert"
+              className="w-full rounded-md border border-destructive/40 bg-destructive/10 p-3 text-left sm:order-first sm:w-auto sm:flex-1"
+            >
+              <p className="text-xs font-bold uppercase tracking-wide text-destructive">{formError.title}</p>
+              {formError.description && (
+                <p className="mt-0.5 text-xs text-foreground/90">{formError.description}</p>
+              )}
+            </div>
+          )}
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
