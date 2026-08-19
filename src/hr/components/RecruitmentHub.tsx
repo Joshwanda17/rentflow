@@ -336,6 +336,7 @@ function ApplicationsTab() {
       const { data, error } = await supabase
         .from('job_applications')
         .select('*')
+        .is('archived_at', null)
         .is('purged_at', null)
         .order('created_at', { ascending: false })
         .limit(500);
