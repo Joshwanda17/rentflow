@@ -434,11 +434,15 @@ export default function ExecutiveDashboardLayout({
         {/* Glossary — shared team vocabulary */}
         <GlossaryButton variant="header" />
 
-        {/* Department budget cycle notices (only for departments the user can access) */}
-        <BudgetDepartmentNotificationBell
-          dashboard={role}
-          className="text-primary-foreground hover:bg-white/10 hover:text-primary-foreground"
-        />
+        {/* Department budget cycle notices (only for departments the user can access).
+            The CFO dashboard has a single unified bell (CFOApprovalNotificationsBell),
+            which already includes budget notices — so no second bell there. */}
+        {role !== 'cfo' && (
+          <BudgetDepartmentNotificationBell
+            dashboard={role}
+            className="text-primary-foreground hover:bg-white/10 hover:text-primary-foreground"
+          />
+        )}
 
         {/* Role-specific header actions (notifications, etc.) */}
         {headerActions}
