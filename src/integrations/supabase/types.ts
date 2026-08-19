@@ -24545,6 +24545,7 @@ export type Database = {
         Row: {
           agent_id: string
           amount: number
+          commitment_id: string | null
           created_at: string
           id: string
           note_id: string
@@ -24556,6 +24557,7 @@ export type Database = {
         Insert: {
           agent_id: string
           amount: number
+          commitment_id?: string | null
           created_at?: string
           id?: string
           note_id: string
@@ -24567,6 +24569,7 @@ export type Database = {
         Update: {
           agent_id?: string
           amount?: number
+          commitment_id?: string | null
           created_at?: string
           id?: string
           note_id?: string
@@ -24624,6 +24627,74 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_tenant_ops_tenant_base"
             referencedColumns: ["rent_request_id"]
+          },
+        ]
+      }
+      promissory_note_pledge_notices: {
+        Row: {
+          amount: number
+          annual_return: number
+          attached_amount: number
+          attached_count: number
+          attempts: number
+          created_at: string
+          email: string | null
+          email_status: string
+          id: string
+          last_error: string | null
+          monthly_return: number
+          note_id: string
+          partner_name: string
+          phone: string | null
+          sms_status: string
+          tenants: Json
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          annual_return?: number
+          attached_amount?: number
+          attached_count?: number
+          attempts?: number
+          created_at?: string
+          email?: string | null
+          email_status?: string
+          id?: string
+          last_error?: string | null
+          monthly_return?: number
+          note_id: string
+          partner_name: string
+          phone?: string | null
+          sms_status?: string
+          tenants?: Json
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          annual_return?: number
+          attached_amount?: number
+          attached_count?: number
+          attempts?: number
+          created_at?: string
+          email?: string | null
+          email_status?: string
+          id?: string
+          last_error?: string | null
+          monthly_return?: number
+          note_id?: string
+          partner_name?: string
+          phone?: string | null
+          sms_status?: string
+          tenants?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promissory_note_pledge_notices_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: true
+            referencedRelation: "promissory_notes"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -42360,6 +42431,16 @@ export type Database = {
         }
         Returns: undefined
       }
+      psm_confirm_commitment_for: {
+        Args: {
+          p_actor?: string
+          p_idempotency_key?: string
+          p_partner: string
+          p_rent_request_ids: string[]
+          p_term_months?: number
+        }
+        Returns: Json
+      }
       psm_disburse_landlord_float: {
         Args: {
           p_commitment_id: string
@@ -42373,6 +42454,10 @@ export type Database = {
       psm_plan_partner_reserved_stage: {
         Args: { p_rent_request_id: string }
         Returns: string
+      }
+      psm_queue_promissory_pledge_notice: {
+        Args: { p_note_id: string }
+        Returns: undefined
       }
       psm_reserved_plan_ids: {
         Args: { p_rent_request_ids: string[] }
