@@ -91,3 +91,4 @@
 - [Wallet row-locking disabled](mem://architecture/wallet-row-locking-disabled) — wallet_row_locking_race_fix's FOR UPDATE guard ships gated behind wallet_row_locking_rollout.enabled=false; concurrent double-debit race is still open unless flipped in prod
 - [Cash Flow Statement](mem://architecture/cash-flow-statement) — Ledger-derived corporate cash flow: get_statement_of_cash_flows + cash_flow_line_map; cash = A1 + A2
 - [Merchant owed is ledger truth](mem://constraints/merchant-owed-ledger-truth) — owed = negative ledger float + confirmed out-of-pocket claims only; momo-only, single-desk paid_out_total
+- [Partner self-support landlord float](mem://features/partner/self-support-landlord-float-release) — Ops approval releases partner principal straight to the tenant's agent landlord float (partner-stamped ledger + agent SMS that hides the partner)
