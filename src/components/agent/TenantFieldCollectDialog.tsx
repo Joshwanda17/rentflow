@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Banknote, Loader2, Plus, Trash2, Wifi, WifiOff, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Banknote, Loader2, Plus, Trash2, Wifi, WifiOff, CheckCircle2, AlertCircle, ChevronLeft } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { addEntry, deleteEntry, getEntries, newClientUuid, type FieldEntry } from '@/lib/fieldCollectStore';
