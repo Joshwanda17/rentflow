@@ -23,6 +23,7 @@ import {
 import { parsePayoutConfirmationSms } from '@/utils/smsParser';
 import { usePayoutsUiEnabled } from '@/hooks/usePayoutsUiEnabled';
 import { humanizeWithdrawalError } from '@/lib/withdrawalErrorText';
+import { beginAuthCriticalSection, endAuthCriticalSection } from '@/lib/staleSessionDetector';
 
 export interface WithdrawalPayoutCardProps {
   withdrawal: any;
@@ -387,8 +388,15 @@ export function WithdrawalPayoutCard({
   async function uploadProofFile(file: File): Promise<{
     url: string; type: string; path: string; bucket: string; uploadedBy: string;
   }> {
-    const { data: { user } } = await supabase.auth.getUser();
+    // Read the session from local storage instead of calling `auth.getUser()`:
+    // that is a network round-trip which, right after the phone camera closes,
+    // frequently comes back 401 (expired token / no radio) and used to trip the
+    // stale-session detector into signing the merchant out mid-upload.
+    const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
     if (!user?.id) throw new Error('You must be signed in to upload proof.');
+    beginAuthCriticalSection();
+    try {
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
     const path = `${user.id}/payout-proofs/${withdrawal.id}-${Date.now()}.${ext}`;
     const { error: upErr } = await supabase.storage
@@ -412,6 +420,9 @@ export function WithdrawalPayoutCard({
       bucket: 'payment-proofs',
       uploadedBy: user.id,
     };
+    } finally {
+      endAuthCriticalSection();
+    }
   }
 
   // Submit the payout and, on server-side rejection, surface the SPECIFIC reason
