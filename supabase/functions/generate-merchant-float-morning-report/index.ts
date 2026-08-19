@@ -575,7 +575,7 @@ async function buildPdf(p: Payload): Promise<Uint8Array> {
 
   // 3. Activity
   section('3', `Yesterday's Agent Activity`, `Movements recorded on ${p.dateStr} (EAT).`);
-  const cFloatRecd = M + 218, cCount = M + 250, cPaid = M + 348, cComm = M + 438;
+  const cFloatRecd = M + 218, cCount = M + 250, cPaid = M + 344, cComm = M + 432;
   headRow([
     { text: 'Agent', x: L },
     { text: 'Float recd', right: cFloatRecd },
