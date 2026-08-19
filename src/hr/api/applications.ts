@@ -168,11 +168,12 @@ export async function recordApplicationDecision(
 /**
  * Remove an application from the working list without destroying it.
  *
- * This is a soft removal: `purged_at` is stamped and the row stays in the
- * table. `job_applications` has no `purged_by` column, so authorship of the
- * removal is not written here. Nothing in this module deletes.
+ * This stamps `archived_at` and `archived_by` and leaves the row in the table.
+ * The removal is reversible: call `restoreApplication` to clear the archive
+ * stamps and put the row back on the working list. It is not an erasure and
+ * does not affect retention.
  */
-export async function purgeApplication(applicationId: string): Promise<JobApplicationRow> {
+export async function archiveApplication(applicationId: string): Promise<JobApplicationRow> {
   const archivedBy = await actingUserId();
 
   const { data, error } = await supabase
@@ -189,26 +190,9 @@ export async function purgeApplication(applicationId: string): Promise<JobApplic
   return data as unknown as JobApplicationRow;
 }
 
-/** Stamp that a person has been reached. Not a decision, so the status is untouched. */
 export interface PurgedApplicationRow extends JobApplicationRow {
   purged_at: string | null;
   purged_by: string | null;
-}
-
-/**
- * The removal bin: applications whose `purged_at` is stamped. They are held
- * here indefinitely and can be put back on the working list unchanged.
- */
-export async function listPurgedApplications(): Promise<PurgedApplicationRow[]> {
-  const { data, error } = await supabase
-    .from('job_applications')
-    .select(`${COLUMNS}, purged_at, purged_by`)
-    .not('purged_at', 'is', null)
-    .order('purged_at', { ascending: false })
-    .limit(MAX_ROWS);
-
-  if (error) throw new Error(error.message);
-  return (data ?? []) as unknown as PurgedApplicationRow[];
 }
 
 /** Put a removed application back on the working list. Status is left as it was. */
@@ -227,6 +211,7 @@ export async function restoreApplication(applicationId: string): Promise<JobAppl
   return data as unknown as JobApplicationRow;
 }
 
+/** Stamp that a person has been reached. Not a decision, so the status is untouched. */
 export async function markApplicationContacted(
   applicationId: string,
 ): Promise<JobApplicationRow> {

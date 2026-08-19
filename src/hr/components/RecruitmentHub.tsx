@@ -66,7 +66,7 @@ import {
 import { getResumeUrl } from '@/hr/api/resumes';
 import {
   APPLICATION_DECISIONS,
-  purgeApplication,
+  archiveApplication,
   recordApplicationDecision,
   restoreApplication,
   sendCareersEmails,
@@ -520,7 +520,7 @@ function ApplicationsTab() {
     setBusy(true);
     try {
       if (pending.kind === 'remove') {
-        await purgeApplication(pending.row.id);
+        await archiveApplication(pending.row.id);
         toast.success(`${pending.row.full_name || 'Application'} removed from the list`);
         setSelected(null);
       } else {
