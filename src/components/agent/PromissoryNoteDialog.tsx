@@ -11,6 +11,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import PersonNameFields from '@/components/shared/PersonNameFields';
 import { joinPersonName, validatePersonNameParts, type PersonNameParts } from '@/lib/authValidation';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
+import { PromissoryPlanMatcher } from '@/components/agent/PromissoryPlanMatcher';
 
 interface PromissoryNoteDialogProps {
   open: boolean;
@@ -57,6 +58,9 @@ export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialo
   const [amount, setAmount] = useState('');
   const [contributionType, setContributionType] = useState<'monthly' | 'compounding'>('compounding');
   const [deductionDay, setDeductionDay] = useState('1');
+  // Optional earmarking of ready-to-fund rent plans to this note.
+  const [selectedPlanIds, setSelectedPlanIds] = useState<string[]>([]);
+  const [attached, setAttached] = useState<{ count: number; amount: number }>({ count: 0, amount: 0 });
 
   const resetForm = () => {
     setNameParts({ firstName: '', otherNames: '', lastName: '' });
@@ -67,6 +71,8 @@ export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialo
     setContributionType('compounding');
     setDeductionDay('1');
     setCreatedNote(null);
+    setSelectedPlanIds([]);
+    setAttached({ count: 0, amount: 0 });
   };
 
   const handleClose = (v: boolean) => {
@@ -81,11 +87,7 @@ export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialo
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-
-      const payload: any = {
-        agent_id: user.id,
+      const payload: Record<string, string | number | null> = {
         partner_name: partnerName.trim(),
         whatsapp_number: whatsappNumber.trim(),
         phone_number: phoneNumber.trim() || null,
@@ -97,24 +99,39 @@ export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialo
       };
 
       if (contributionType === 'monthly') {
-        payload.deduction_day = Number(deductionDay);
+        payload.deduction_day = String(Number(deductionDay));
         const now = new Date();
         const nextDate = new Date(now.getFullYear(), now.getMonth(), Number(deductionDay));
         if (nextDate <= now) nextDate.setMonth(nextDate.getMonth() + 1);
         payload.next_deduction_date = nextDate.toISOString().split('T')[0];
       }
 
-      const { data, error } = await supabase
-        .from('promissory_notes')
-        .insert(payload)
-        .select()
-        .single();
-
+      // One atomic server call: note + optional plan earmarks, validated server-side.
+      const { data, error } = await supabase.rpc('agent_create_promissory_note', {
+        p_payload: payload,
+        p_rent_request_ids: selectedPlanIds,
+      });
       if (error) throw error;
-      setCreatedNote(data);
-      toast.success('Promissory note created!');
+
+      const result = (data ?? {}) as { note?: Record<string, unknown>; attached_count?: number; attached_amount?: number };
+      if (!result.note) throw new Error('Note was not created');
+      setCreatedNote(result.note);
+      setAttached({ count: Number(result.attached_count || 0), amount: Number(result.attached_amount || 0) });
+      toast.success(
+        Number(result.attached_count || 0) > 0
+          ? `Note created with ${result.attached_count} tenant plan${Number(result.attached_count) === 1 ? '' : 's'} attached`
+          : 'Promissory note created!',
+      );
     } catch (err: any) {
-      toast.error(err.message || 'Failed to create note');
+      const raw = String(err?.message || 'Failed to create note');
+      if (raw.includes('PLANS_UNAVAILABLE')) {
+        setSelectedPlanIds([]);
+        toast.error('Some selected plans are no longer available. Selection cleared — try again or create the note without plans.');
+      } else if (raw.includes('PLANS_EXCEED_AMOUNT')) {
+        toast.error('Attached plans total more than the promised amount.');
+      } else {
+        toast.error(raw);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -160,6 +177,12 @@ export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialo
               <p className="text-xs text-muted-foreground">
                 {contributionType === 'monthly' ? `Monthly on day ${deductionDay}` : 'Once-off'} · <span className="text-primary font-semibold">{earningsLine}</span>
               </p>
+              {attached.count > 0 && (
+                <p className="text-[11px] text-muted-foreground">
+                  {attached.count} tenant plan{attached.count === 1 ? '' : 's'} earmarked ·{' '}
+                  <span className="font-semibold text-foreground">{formatUGX(attached.amount)}</span>
+                </p>
+              )}
             </div>
             <div className="grid gap-2">
               <Button variant="outline" onClick={handleShareLink} className="gap-2">
@@ -238,6 +261,15 @@ export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialo
             </div>
 
             {/* Quick earnings preview */}
+            {parsedAmount > 0 && (
+              <PromissoryPlanMatcher
+                targetAmount={parsedAmount}
+                selectedIds={selectedPlanIds}
+                onChange={setSelectedPlanIds}
+                disabled={submitting}
+              />
+            )}
+
             {parsedAmount > 0 && (
               <div className="rounded-lg bg-primary/5 border border-primary/10 p-2.5 text-[11px] space-y-0.5">
                 <div className="font-semibold text-primary text-xs">💰 Earnings Preview</div>
