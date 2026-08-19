@@ -372,15 +372,12 @@ export function AgentRentCapacityPanel({
   const canPostCount = rows.filter((r) => r.daily_status !== 'blocked').length;
   const blockedCount = rows.filter((r) => r.daily_status === 'blocked').length;
 
-  const expandAll = () => {
+  const toggleAll = () => {
+    const nextCollapsed = !allCollapsed;
     const next: Record<string, boolean> = {};
-    (filtered || []).forEach((r) => { next[r.agent_id] = false; });
+    (filtered || []).forEach((r) => { next[r.agent_id] = nextCollapsed; });
     setRowCollapsed(next);
-  };
-  const collapseAll = () => {
-    const next: Record<string, boolean> = {};
-    (filtered || []).forEach((r) => { next[r.agent_id] = true; });
-    setRowCollapsed(next);
+    setAllCollapsed(nextCollapsed);
   };
 
   return (
