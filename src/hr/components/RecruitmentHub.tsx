@@ -551,8 +551,26 @@ function ApplicationsTab() {
     }
   };
 
-  const openCv = async (path: string) => {
+  // Marking contact is a single click: no reason, no confirmation dialog.
+  const [contactingId, setContactingId] = useState<string | null>(null);
 
+  const markContacted = async (row: JobApplicationRow) => {
+    setContactingId(row.id);
+    try {
+      await recordApplicationContacted(row.id);
+      toast.success(`${row.full_name || 'Applicant'} marked as contacted`);
+      const fresh = await refetch();
+      await refetchRemovedCount();
+      const next = (fresh.data ?? []).find((r) => r.id === row.id) ?? null;
+      setSelected((prev) => (prev && prev.id === row.id ? next : prev));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not record this contact');
+    } finally {
+      setContactingId(null);
+    }
+  };
+
+  const openCv = async (path: string) => {
     try {
       const url = await getResumeUrl(path);
       window.open(url, '_blank', 'noopener,noreferrer');
