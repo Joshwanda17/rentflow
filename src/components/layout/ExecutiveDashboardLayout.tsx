@@ -14,6 +14,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { SidebarSection, SidebarItem } from './executiveSidebarConfig';
 import { useStaffPermissions } from '@/hooks/useStaffPermissions';
 import { GlossaryButton } from '@/components/shared/GlossaryButton';
+import { BudgetDepartmentNotificationBell } from '@/components/budget/BudgetDepartmentNotificationBell';
 import { MissionBanner } from '@/components/mission/MissionBanner';
 
 /** Shared "My Work" tab, available on every executive dashboard. Lazy so
