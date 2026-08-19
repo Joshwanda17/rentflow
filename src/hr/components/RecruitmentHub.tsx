@@ -183,26 +183,39 @@ function isAlwaysOpen(posting: JobPosting): boolean {
 type JobApplicationRow = Database['public']['Tables']['job_applications']['Row'];
 
 /** Labels for the decision vocabulary. Keyed by the constant, so no status is invented here. */
-const DECISION_LABELS: Record<ApplicationDecision, string> = {
+const DECISION_LABELS: Record<string, string> = {
   shortlisted: 'Shortlist',
-  shortlisted_2: 'Shortlist 2',
   hold: 'Hold',
   rejected: 'Decline',
 };
 
 /**
- * Already-shortlisted candidates sit at shortlist level 1, so their next
- * shortlist action reads "Shortlist 2" instead of the plain "Shortlist".
+ * One offered action: the status it writes, the shortlist round it targets
+ * (null when the round must not change) and the label on its button.
  */
-function decisionLabel(d: ApplicationDecision, _status: string | null): string {
-  return DECISION_LABELS[d];
+interface DecisionAction {
+  status: ApplicationDecision;
+  round: number | null;
+  label: string;
 }
 
-/** Only the actions that make sense for the current status are shown. */
-function decisionsForStatus(status: string | null): ApplicationDecision[] {
-  if (status === 'shortlisted') return ['shortlisted_2', 'hold', 'rejected'];
-  if (status === 'shortlisted_2') return ['hold', 'rejected'];
-  return ['shortlisted', 'hold', 'rejected'];
+/**
+ * Only the actions that make sense for where the row already stands are shown.
+ * Shortlist level lives in `shortlist_round`, not in the status string, so a
+ * shortlisted row with no round recorded is read as level 1. Level 3 is the
+ * last level, so it offers no further shortlist step.
+ */
+function getAvailableDecisions(status: string | null, round: number | null): DecisionAction[] {
+  const level = status === 'shortlisted' ? (round ?? 1) : 0;
+  const actions: DecisionAction[] = [];
+
+  if (level === 0) actions.push({ status: 'shortlisted', round: 1, label: 'Shortlist' });
+  else if (level === 1) actions.push({ status: 'shortlisted', round: 2, label: 'Shortlist 2' });
+  else if (level === 2) actions.push({ status: 'shortlisted', round: 3, label: 'Shortlist 3' });
+
+  actions.push({ status: 'hold', round: null, label: DECISION_LABELS.hold });
+  actions.push({ status: 'rejected', round: null, label: DECISION_LABELS.rejected });
+  return actions;
 }
 
 const SHORTLIST_LEVEL_2_CLASS =
@@ -370,7 +383,7 @@ function ApplicationsTab() {
 
     if (statusFilter !== ALL) {
       const option = FILTER_OPTIONS.find((o) => o.value === statusFilter);
-      data = data.filter((r) => option?.match(r.status) ?? false);
+      data = data.filter((r) => option?.match(r.status, r.shortlist_round ?? null) ?? false);
     }
 
     const sorted = [...data];
