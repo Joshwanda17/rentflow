@@ -94,3 +94,4 @@
 - [Partner self-support landlord float](mem://features/partner/self-support-landlord-float-release) — Ops approval releases partner principal straight to the tenant's agent landlord float (partner-stamped ledger + agent SMS that hides the partner)
 - [Partner-reserved plan fence](mem://features/partner/partner-reserved-plan-fence) — DB trigger + psm_reserved_plan_ids keep partner self-funded rent plans out of every company/CFO landlord float disbursement queue
 - [Promissory note funding](mem://features/partner/promissory-note-funding) — Note approval commits partner withdrawable money to earmarked plans, raises pending portfolio for Partner Ops; pledge SMS/email at creation
+- [Budget departments = hr_departments](mem://features/budget/hr-departments-source-of-truth) — Budgets bind to active `hr_departments` only; membership from HR assignments; `budget_department_routes` override table; roles are never departments
