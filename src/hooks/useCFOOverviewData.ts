@@ -275,7 +275,16 @@ export function useCFOOverviewData() {
       // above: the banking categories net to the bank balance, and whatever is
       // left of A1 is cash held by treasury / the platform. These are positions,
       // so they are NOT added to the sources total and cannot double-count.
-      const BANK_CATEGORIES = ['treasury_bank_deposit', 'cash_at_bank_reclass'];
+      // Only `treasury_bank_deposit` represents money physically sitting in the
+      // bank: each of its legs is paired 1:1 with a `cash_in_transit_banked`
+      // credit on A5, so a banking transfer reduces cash in transit and raises
+      // the bank balance without inflating total cash.
+      // `cash_at_bank_reclass` is NOT a bank balance — it is the A1 credit leg
+      // of a cash intake (paired with `cash_receipt_in_transit` on A5), i.e.
+      // undeposited cash moving out of Cash and Bank pending physical banking.
+      // Counting it as bank understated the bank position and overstated
+      // treasury cash, so it belongs with treasury/platform cash.
+      const BANK_CATEGORIES = ['treasury_bank_deposit'];
       const A1_CATEGORIES = [
         'agent_float_deposit',
         'agent_float_funding',
@@ -290,6 +299,10 @@ export function useCFOOverviewData() {
         'wallet_transfer',
         'wallet_withdrawal',
       ];
+      // A5 "Cash in Transit" is cash physically held by the platform/treasury
+      // but not yet banked, so it belongs to the treasury position. Including
+      // it makes the two position cards sum exactly to Money We Have (A1 + A5).
+      const A5_CATEGORIES = ['cash_receipt_in_transit', 'cash_in_transit_banked'];
 
       const lineFor = (cat: string) => cashLines.find((l: any) => String(l.category) === cat);
       const netOf = (cats: string[]) =>
@@ -308,8 +321,12 @@ export function useCFOOverviewData() {
           .sort((a, b) => Math.abs(b.value) - Math.abs(a.value));
 
       const bankCash = netOf(BANK_CATEGORIES);
-      const treasuryOnlyCategories = A1_CATEGORIES.filter((c) => !BANK_CATEGORIES.includes(c));
-      const treasuryCash = a1 - bankCash;
+      const treasuryOnlyCategories = [...A1_CATEGORIES, ...A5_CATEGORIES].filter(
+        (c) => !BANK_CATEGORIES.includes(c)
+      );
+      // Positions are a partition of the same A1 + A5 legs already summed
+      // above: bank + treasury === totalCash, each leg counted exactly once.
+      const treasuryCash = totalCash - bankCash;
 
       const positions = [
         {
