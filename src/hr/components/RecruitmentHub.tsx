@@ -764,6 +764,10 @@ function ApplicationsTab() {
                   <TableCell>
                     {row.status === 'shortlisted'
                       ? `Shortlist ${row.shortlist_round ?? 1}`
+                      : row.status === 'contacted'
+                        ? row.shortlist_round
+                          ? `Contacted · reached Shortlist ${row.shortlist_round}`
+                          : 'Contacted'
                       : row.status
                         ? `${row.status.charAt(0).toUpperCase() + row.status.slice(1)}${
                             row.shortlist_round ? ` · reached Shortlist ${row.shortlist_round}` : ''
@@ -792,6 +796,17 @@ function ApplicationsTab() {
                           {a.label}
                         </Button>
                       ))}
+                      {row.status === 'shortlisted' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2 text-xs"
+                          disabled={contactingId === row.id}
+                          onClick={() => { void markContacted(row); }}
+                        >
+                          Contacted
+                        </Button>
+                      )}
                       <Button
                         size="sm"
                         variant="destructive"
