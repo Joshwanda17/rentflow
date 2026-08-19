@@ -176,6 +176,21 @@ Deno.serve(async (req) => {
       .maybeSingle();
     const isSelfManaged = String(pendingRow?.source || "") === "self_managed";
 
+    // Self-managed approval has just released the principal as landlord float
+    // (inside the approve_pending_portfolio transaction) and queued one SMS per
+    // agent+landlord. Drain that queue now — fire and forget.
+    if (isSelfManaged && pendingRow?.commitment_id) {
+      try {
+        await fetch(`${supabaseUrl}/functions/v1/notify-partner-float-agents`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
+          body: JSON.stringify({ commitment_id: pendingRow.commitment_id }),
+        });
+      } catch (smsErr) {
+        console.warn("[approve-pending-portfolio] agent float SMS dispatch failed:", smsErr);
+      }
+    }
+
     if (partner?.email && isSelfManaged) {
       const monthlyReward = Math.round(Number(portfolio.investment_amount) * (Number(portfolio.roi_percentage) / 100));
       let tenants: Array<Record<string, unknown>> = [];
