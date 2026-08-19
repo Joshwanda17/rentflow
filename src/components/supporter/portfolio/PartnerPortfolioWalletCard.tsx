@@ -170,8 +170,8 @@ export function PartnerPortfolioWalletCard({ onAddCard, onSend, onRequest, onTop
           </div>
         </div>
 
-        {/* ADD CARD PILL — sits in the notch shelf below the card's right edge (y=162/200 of the SVG),
-            with breathing room above it, and scales down with the card width on mobile. */}
+        {/* ADD CARD PILL — spans the full notch shelf (x 233→354, y 162→200 of the SVG),
+            so it stretches to the notch's left edge on every viewport. */}
         <button
           type="button"
           onClick={onAddCard}
@@ -179,23 +179,24 @@ export function PartnerPortfolioWalletCard({ onAddCard, onSend, onRequest, onTop
           
           className="absolute z-20 bg-black hover:bg-neutral-900 rounded-full flex items-center justify-center border border-white/10 shadow-lg transition active:scale-95"
           style={{
-            right: 'min(1.5cqw, 6px)',
-            top: 'calc(46cqw + min(1.6cqw, 8px))',
-            maxWidth: '31cqw',
-            height: 'clamp(22px, 7.2cqw, 38px)',
-            gap: 'clamp(3px, 1.2cqw, 7px)',
-            paddingInline: 'clamp(5px, 1.8cqw, 13px)',
+            left: '66.2%',
+            right: 0,
+            top: 'calc(81% + 4px)',
+            height: 'calc(19% - 7px)',
+            minHeight: '26px',
+            gap: 'clamp(4px, 1.4cqw, 8px)',
+            paddingInline: 'clamp(6px, 2cqw, 14px)',
           }}
         >
           <span
             className="rounded-full bg-white flex items-center justify-center shrink-0"
-            style={{ width: 'clamp(13px, 4cqw, 24px)', height: 'clamp(13px, 4cqw, 24px)' }}
+            style={{ width: 'clamp(15px, 4.6cqw, 26px)', height: 'clamp(15px, 4.6cqw, 26px)' }}
           >
-            <Plus className="text-black" strokeWidth={3.5} style={{ width: 'clamp(8px, 2.4cqw, 14px)', height: 'clamp(8px, 2.4cqw, 14px)' }} />
+            <Plus className="text-black" strokeWidth={3.5} style={{ width: 'clamp(9px, 2.8cqw, 16px)', height: 'clamp(9px, 2.8cqw, 16px)' }} />
           </span>
           <span
             className="tracking-tight text-white font-bold whitespace-nowrap"
-            style={{ fontSize: 'clamp(8.5px, 2.5cqw, 14px)' }}
+            style={{ fontSize: 'clamp(9.5px, 2.8cqw, 15px)' }}
           >
             Add Card
           </span>
