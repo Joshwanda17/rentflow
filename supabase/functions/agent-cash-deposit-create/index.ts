@@ -7,6 +7,7 @@ import "../_shared/smsFooterInterceptor.ts";
 // depositor after receiving the cash; the depositor enters it via
 // agent-cash-deposit-confirm, which credits their withdrawable wallet and
 // debits the agent's float.
+import { confirmYoolaDelivery, extractYoolaMessageId } from "../_shared/yoolaDeliveryConfirm.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
@@ -49,7 +50,7 @@ async function sendViaYoola(phone: string, message: string): Promise<{ ok: boole
     const res = await fetch("https://yoolasms.com/api/v1/send", {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ phone: String(phone || "").replace(/\D/g, ""), message, api_key: apiKey, sender: "WELILE" }),
+      body: JSON.stringify({ phone: String(phone || "").replace(/\D/g, ""), message, api_key: apiKey }),
     });
     const text = await res.text();
     let data: any = null;
@@ -61,7 +62,14 @@ async function sendViaYoola(phone: string, message: string): Promise<{ ok: boole
       res.ok &&
       (status === "success" || status === "ok" || status === "sent" || status === "queued" ||
         (!data?.error && status === ""));
-    return accepted ? { ok: true } : { ok: false, reason: `yoola_${res.status}_${status || "rejected"}` };
+    if (!accepted) return { ok: false, reason: `yoola_${res.status}_${status || "rejected"}` };
+    // Acceptance is not delivery: the cash code is time-critical, so wait for
+    // Yoola's delivery report and hand over to Africa's Talking if the handset
+    // is not confirmed inside the window.
+    const confirmation = await confirmYoolaDelivery(extractYoolaMessageId(data));
+    if (confirmation.outcome === "delivered") return { ok: true };
+    console.warn("[agent-cash-create] Yoola accepted but did not confirm delivery:", confirmation.detail);
+    return { ok: false, reason: `yoola_unconfirmed_${confirmation.detail ?? confirmation.outcome}` };
   } catch (e) {
     console.error("[agent-cash-create] Yoola error:", e);
     return { ok: false, reason: "network_error" };

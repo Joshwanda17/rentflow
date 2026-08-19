@@ -8,6 +8,7 @@ import {
   type SmsAttemptRecord,
 } from "./smsDeliveryLog.ts";
 import { appendSupportFooter } from "./smsFooter.ts";
+import { confirmYoolaDelivery, extractYoolaMessageId } from "./yoolaDeliveryConfirm.ts";
 
 export function formatPhoneInternational(phone: string): string {
   const digits = (phone || "").replace(/[^0-9]/g, "");
@@ -31,9 +32,10 @@ async function sendViaYoola(phone: string, message: string) {
     const res = await fetch("https://yoolasms.com/api/v1/send", {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
-      // WELILE is the registered sender ID across all providers and must be
-      // set explicitly on every SMS call site.
-      body: JSON.stringify({ phone: toMsisdn(phone), message, api_key: apiKey, sender: "WELILE" }),
+      // Do NOT set `sender` here: "WELILE" is not registered with Yoola and
+      // carriers silently drop messages sent under it (they sit at "pending"
+      // forever). Omitting the field makes Yoola use its registered default.
+      body: JSON.stringify({ phone: toMsisdn(phone), message, api_key: apiKey }),
     });
     const raw = await res.text();
     let data: any; try { data = JSON.parse(raw); } catch { data = null; }
@@ -99,6 +101,13 @@ export interface SmsLogCtx {
   recipient_user_id?: string | null;
   recipient_name?: string | null;
   idempotencyKey?: string | null;
+  /**
+   * Time-critical SMS (cash-deposit codes): require Yoola to CONFIRM handset
+   * delivery before we call the send done. Yoola accepting the request is not
+   * delivery — when it does not confirm inside the window we fail over to
+   * Africa's Talking instead of leaving the depositor without a code.
+   */
+  requireDeliveryConfirmation?: boolean;
 }
 
 /**
@@ -193,8 +202,25 @@ export async function sendSMS(phone: string, message: string, logCtx?: SmsLogCtx
     for (const send of [sendViaYoola, sendViaAT, sendViaLana]) {
       const r = await send(effectivePhone, message);
       if (r === null) continue;
-      trail.push({ provider: providerNames[send.name] || send.name, ok: r.ok, error: r.error, response: (r as any).response, attempt: 1 });
-      if (r.ok) { delivered = true; break; }
+      const providerName = providerNames[send.name] || send.name;
+      let ok = r.ok;
+      let error = r.error;
+      let response: any = (r as any).response;
+
+      // Yoola only: hold the send open until the delivery report confirms the
+      // handset received it, then fall through to Africa's Talking if it does not.
+      if (ok && providerName === "yoola" && logCtx?.requireDeliveryConfirmation) {
+        const messageId = extractYoolaMessageId(response);
+        const confirmation = await confirmYoolaDelivery(messageId);
+        response = { send_response: response, delivery_confirmation: confirmation };
+        if (confirmation.outcome !== "delivered") {
+          ok = false;
+          error = `Yoola accepted but did not confirm delivery (${confirmation.detail ?? confirmation.outcome}) — failing over to Africa's Talking`;
+        }
+      }
+
+      trail.push({ provider: providerName, ok, error, response, attempt: 1 });
+      if (ok) { delivered = true; break; }
     }
   }
 

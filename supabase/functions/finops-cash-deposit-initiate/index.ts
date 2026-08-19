@@ -212,6 +212,9 @@ Deno.serve(async (req) => {
         reference_id: depositId,
         recipient_user_id: (depositor as any).id,
         recipient_name: (depositor as any).full_name ?? null,
+        // Cash-deposit codes are time-critical: require Yoola to confirm handset
+        // delivery, otherwise fail over to Africa's Talking.
+        requireDeliveryConfirmation: true,
       });
     } catch (e) {
       console.error("[finops-cash-initiate] sms failed", e);
