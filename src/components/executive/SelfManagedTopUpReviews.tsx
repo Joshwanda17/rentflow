@@ -88,6 +88,11 @@ export function SelfManagedTopUpReviews() {
       toast.error(error.message);
       return;
     }
+    // Approval already released the principal as landlord float and queued the
+    // agent notices (DB-side). Drain the SMS queue — never blocks the approval.
+    void supabase.functions.invoke('notify-partner-float-agents', {
+      body: { commitment_id: (row as any).commitment_id ?? null },
+    });
     toast.success(`Top-up of ${formatUGX(Number(row.amount))} confirmed and now earning.`);
     await load();
   };
