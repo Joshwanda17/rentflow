@@ -24541,6 +24541,92 @@ export type Database = {
           },
         ]
       }
+      promissory_note_plan_intents: {
+        Row: {
+          agent_id: string
+          amount: number
+          created_at: string
+          id: string
+          note_id: string
+          released_at: string | null
+          rent_request_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          amount: number
+          created_at?: string
+          id?: string
+          note_id: string
+          released_at?: string | null
+          rent_request_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          amount?: number
+          created_at?: string
+          id?: string
+          note_id?: string
+          released_at?: string | null
+          rent_request_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promissory_note_plan_intents_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "promissory_notes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promissory_note_plan_intents_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "rent_request_formula_drift"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promissory_note_plan_intents_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "rent_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promissory_note_plan_intents_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "v_partner_self_fundable_plans"
+            referencedColumns: ["rent_request_id"]
+          },
+          {
+            foreignKeyName: "promissory_note_plan_intents_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_daily_eligibility"
+            referencedColumns: ["rent_request_id"]
+          },
+          {
+            foreignKeyName: "promissory_note_plan_intents_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["rent_request_id"]
+          },
+          {
+            foreignKeyName: "promissory_note_plan_intents_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_ops_tenant_base"
+            referencedColumns: ["rent_request_id"]
+          },
+        ]
+      }
       promissory_notes: {
         Row: {
           activation_token: string
@@ -36358,6 +36444,10 @@ export type Database = {
         }
         Returns: Json
       }
+      agent_create_promissory_note: {
+        Args: { p_payload: Json; p_rent_request_ids?: string[] }
+        Returns: Json
+      }
       agent_delete_rejected_rent_request: {
         Args: { p_reason: string; p_request_id: string }
         Returns: string
@@ -36368,6 +36458,15 @@ export type Database = {
           p_amount: number
           p_notes?: string
           p_partner_id: string
+        }
+        Returns: Json
+      }
+      agent_list_promissory_fundable_plans: {
+        Args: {
+          p_limit?: number
+          p_max_amount?: number
+          p_offset?: number
+          p_search?: string
         }
         Returns: Json
       }
