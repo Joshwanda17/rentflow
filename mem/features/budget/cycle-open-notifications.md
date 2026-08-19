@@ -13,3 +13,5 @@ When a `budget_calls` row becomes `status='open'`, `budget_notify_cycle_open(cal
 - Legacy per-user table `budget_cycle_notifications` remains but is no longer written by cycle-open.
 - `budget_user_department_ids` still unions HR assignments and dashboard access (submission rights).
 - Routing untouched: tenant_ops/agent_ops/landlord_ops/partner_ops → `pending_coo`; others → `submitted` (direct to CFO). Post-submission `budget_notify` in-app notices unchanged (`type='budget'` allowlisted past `block_all_notification_inserts`).
+
+**2026-08-19 visibility fix**: `budget_can_access_department` now ALSO accepts active `staff_permissions.permitted_dashboard` grants (tenant-ops/agent-ops/landlord-ops/partner-ops → matching dept; cfo|financial-ops→finance; cmo→marketing; cto→engineering + product R&D; coo|company-ops→operations; ceo|director→board_of_directors; hr→interns + support_and_welfare; crm→partnership), not just `operations_departments`. The bell no longer self-hides when empty — it renders in every department dashboard header with a "No budget notices" empty state.

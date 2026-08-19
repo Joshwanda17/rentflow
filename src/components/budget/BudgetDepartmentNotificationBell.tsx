@@ -65,8 +65,6 @@ export function BudgetDepartmentNotificationBell({ className }: { className?: st
     setItems(prev => prev.map(i => ({ ...i, is_read: true })));
   };
 
-  if (items.length === 0) return null;
-
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -95,6 +93,9 @@ export function BudgetDepartmentNotificationBell({ className }: { className?: st
           )}
         </div>
         <div className="max-h-[320px] overflow-y-auto px-2 pb-2 space-y-1">
+          {items.length === 0 && (
+            <p className="px-3 py-4 text-xs text-muted-foreground">No budget notices for your departments.</p>
+          )}
           {items.map(n => (
             <button
               key={n.id}
