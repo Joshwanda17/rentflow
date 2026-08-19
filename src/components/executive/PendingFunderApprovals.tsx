@@ -211,19 +211,21 @@ export function PendingFunderApprovals({ defaultExpanded = false, showWhenEmpty 
   });
 
   const count = pending?.length || 0;
-  if (!isLoading && count === 0) return null;
+  if (!isLoading && count === 0 && !showWhenEmpty) return null;
+
+  const isEmpty = !isLoading && count === 0;
 
   return (
     <>
-      <Card className="border-warning/40 bg-warning/5">
+      <Card className={cn(isEmpty ? 'border-border/60' : 'border-warning/40 bg-warning/5')}>
         <CardContent className="p-4 space-y-3">
           <button
             onClick={() => setIsExpanded(!isExpanded)}
             className="flex items-center justify-between w-full text-left"
           >
             <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-warning/15">
-                <Shield className="h-4 w-4 text-warning" />
+              <div className={cn('p-1.5 rounded-lg', isEmpty ? 'bg-muted' : 'bg-warning/15')}>
+                <Shield className={cn('h-4 w-4', isEmpty ? 'text-muted-foreground' : 'text-warning')} />
               </div>
               <div>
                 <h3 className="text-sm font-bold">Pending Funder Approvals</h3>
@@ -243,6 +245,14 @@ export function PendingFunderApprovals({ defaultExpanded = false, showWhenEmpty 
           {isExpanded && (isLoading ? (
             <div className="space-y-2">
               {[1, 2].map(i => <Skeleton key={i} className="h-20 w-full rounded-xl" />)}
+            </div>
+          ) : isEmpty ? (
+            <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border/70 py-8 text-center">
+              <Inbox className="h-7 w-7 text-muted-foreground/70" />
+              <p className="text-sm font-semibold">No pending funder approvals</p>
+              <p className="text-[11px] text-muted-foreground max-w-[260px]">
+                Every agent-registered funder has been verified. New registrations will appear here for approval.
+              </p>
             </div>
           ) : (
             <div className="space-y-2">
