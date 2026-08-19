@@ -27,8 +27,9 @@ interface ScheduleRow {
 }
 
 interface Reconciliation {
-  suspense_amount: number;
-  suspense_side: 'asset' | 'liability' | 'none';
+  plug_applied?: boolean;
+  unreconciled_difference?: number;
+  classification_filter_granularity?: string;
   unresolved_groups: number;
   unresolved_absolute_amount: number;
   schedule: ScheduleRow[];
@@ -72,6 +73,8 @@ export interface StatementOfFinancialPosition {
     total_liabilities_and_equity: number;
     difference: number;
     balanced: boolean;
+    state?: 'balanced' | 'failed';
+    message?: string;
   };
 }
 
@@ -187,7 +190,8 @@ export default function BalanceSheetPanel() {
       rows.push(['UNRESOLVED ONE-SIDED LEDGER POSTINGS', '']);
       rows.push(['Transactions affected', data.reconciliation.unresolved_groups]);
       rows.push(['Absolute amount', data.reconciliation.unresolved_absolute_amount]);
-      rows.push([`Suspense carried (${data.reconciliation.suspense_side})`, data.reconciliation.suspense_amount]);
+      rows.push(['Suspense plug applied', 'NO — no plug is used; the balance check is a real assertion']);
+      rows.push(['Unreconciled difference (assets less liabilities and equity)', data.reconciliation.unreconciled_difference ?? data.balance_check.difference]);
       data.reconciliation.schedule?.forEach(r =>
         rows.push([`${r.category} (${r.ledger_scope}) — ${r.groups} transactions`, r.net_debit_less_credit]));
       rows.push([]);
@@ -292,7 +296,11 @@ export default function BalanceSheetPanel() {
       if (data.reconciliation) {
         heading('Unresolved one-sided ledger postings');
         row(`Transactions affected: ${data.reconciliation.unresolved_groups.toLocaleString()}`, data.reconciliation.unresolved_absolute_amount);
-        row(`Suspense carried (${data.reconciliation.suspense_side})`, data.reconciliation.suspense_amount, true);
+        row(
+          'Unreconciled difference (no suspense plug applied)',
+          data.reconciliation.unreconciled_difference ?? data.balance_check.difference,
+          true,
+        );
         data.reconciliation.schedule?.forEach(r =>
           row(`${r.category.replace(/_/g, ' ')} · ${r.ledger_scope} · ${r.groups} txns`, r.net_debit_less_credit));
         heading('Memo — operational records and wallet caches (not in totals)');
@@ -389,11 +397,19 @@ export default function BalanceSheetPanel() {
               : <AlertTriangle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />}
             <div className="min-w-0 space-y-1">
               <p className={cn('text-xs font-semibold', data.balance_check.balanced ? 'text-success' : 'text-destructive')}>
-                {data.balance_check.balanced ? 'Balanced — Total Assets = Total Liabilities + Equity' : 'Not balanced — difference reported, nothing adjusted'}
+                {data.balance_check.balanced
+                  ? 'Balanced — Total Assets = Total Liabilities + Equity (real ledger data, no plug)'
+                  : 'BALANCE CHECK FAILED — Total Assets do not equal Total Liabilities + Equity'}
               </p>
               <p className="text-[10px] font-mono text-muted-foreground break-words">
                 {formatUGX(data.balance_check.total_assets)} vs {formatUGX(data.balance_check.total_liabilities_and_equity)} · Difference {formatUGX(data.balance_check.difference)}
               </p>
+              {!data.balance_check.balanced && (
+                <p className="text-[10px] text-destructive/90 break-words">
+                  {data.balance_check.message
+                    ?? 'No suspense plug has been applied — the difference above is real and must be resolved in the ledger.'}
+                </p>
+              )}
             </div>
           </div>
 
@@ -452,9 +468,9 @@ export default function BalanceSheetPanel() {
                 <>
                   <p className="text-[10px] text-muted-foreground">
                     {data.reconciliation.unresolved_groups.toLocaleString()} historic ledger transactions carry only one side of their entry
-                    ({formatUGX(data.reconciliation.unresolved_absolute_amount)} in absolute terms). Their net effect of{' '}
-                    {formatUGX(data.reconciliation.suspense_amount)} is held in the suspense line on the{' '}
-                    {data.reconciliation.suspense_side} side and listed below by category. Nothing has been written back to the ledger.
+                    ({formatUGX(data.reconciliation.unresolved_absolute_amount)} in absolute terms) and are listed below by category.
+                    No suspense plug is applied: their net effect is left visible in the balance check above rather than absorbed into
+                    Current Assets. Classification exclusions are applied to whole transaction groups, never to individual legs.
                   </p>
 
                   {data.reconciliation.schedule?.length > 0 && (
