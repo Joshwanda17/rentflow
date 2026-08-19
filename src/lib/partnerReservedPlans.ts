@@ -10,20 +10,44 @@ import { supabase } from '@/integrations/supabase/client';
  *
  * One round trip for the whole page (no N+1).
  */
-export async function fetchPartnerReservedPlanIds(
+export type PartnerReservedStage = 'partner_held' | 'partner_committed' | 'partner_funded';
+
+export const PARTNER_RESERVED_LABEL: Record<PartnerReservedStage, string> = {
+  partner_held: 'PARTNER CLAIMED',
+  partner_committed: 'PARTNER CLAIMED',
+  partner_funded: 'PARTNER FUNDED',
+};
+
+export const PARTNER_RESERVED_HINT: Record<PartnerReservedStage, string> = {
+  partner_held: 'A partner is selecting this plan for self-managed funding. Company float cannot fund it.',
+  partner_committed:
+    'A partner has committed this plan and is awaiting Partner Ops approval. On approval the principal goes straight to the agent’s landlord float — do not disburse from company float.',
+  partner_funded: 'Already paid for by a partner — the principal is in the agent’s landlord float.',
+};
+
+/** Reserved stage per rent request (IDs + stage only, never the partner identity). */
+export async function fetchPartnerReservedStages(
   rentRequestIds: string[],
-): Promise<Set<string>> {
-  if (!rentRequestIds.length) return new Set();
+): Promise<Map<string, PartnerReservedStage>> {
+  const out = new Map<string, PartnerReservedStage>();
+  if (!rentRequestIds.length) return out;
   const { data, error } = await supabase.rpc('psm_reserved_plan_ids' as any, {
     p_rent_request_ids: rentRequestIds,
   });
   if (error) {
-    // Fail closed is wrong here (it would empty the queue); the DB trigger still
-    // blocks any double funding, so fall back to showing everything.
     console.warn('[partnerReservedPlans] lookup failed:', error.message);
-    return new Set();
+    return out;
   }
-  return new Set(((data ?? []) as any[]).map((r) => r.rent_request_id as string));
+  for (const r of (data ?? []) as any[]) {
+    out.set(r.rent_request_id as string, r.reserved_stage as PartnerReservedStage);
+  }
+  return out;
+}
+
+export async function fetchPartnerReservedPlanIds(
+  rentRequestIds: string[],
+): Promise<Set<string>> {
+  return new Set((await fetchPartnerReservedStages(rentRequestIds)).keys());
 }
 
 /** Drops partner-reserved plans from a list of rent-request-shaped rows. */
