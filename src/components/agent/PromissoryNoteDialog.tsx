@@ -87,7 +87,7 @@ export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialo
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
-      const payload: Record<string, unknown> = {
+      const payload: Record<string, string | number | null> = {
         partner_name: partnerName.trim(),
         whatsapp_number: whatsappNumber.trim(),
         phone_number: phoneNumber.trim() || null,
