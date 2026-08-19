@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -102,6 +102,9 @@ export default function ProxyAgentCommandCenter() {
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [reportsOpen, setReportsOpen] = useState(false);
   const [inviting, setInviting] = useState(false);
+  const [inviteSheetOpen, setInviteSheetOpen] = useState(false);
+  const [inviteUrl, setInviteUrl] = useState<string | null>(null);
+  const [inviteCopied, setInviteCopied] = useState(false);
 
   const summaryQ = useProxyCommandCenterSummary(agentId);
   const partnersQ = useProxyPartnerList({
@@ -132,34 +135,73 @@ export default function ProxyAgentCommandCenter() {
     return { url: `${getPublicOrigin()}${payload.path}`, code: payload.code };
   }, []);
 
-  const handleInvitePartner = useCallback(async () => {
-    if (inviting) return;
-    setInviting(true);
+  /**
+   * iOS Safari revokes the user gesture once you `await`, so `window.open` /
+   * `navigator.share` are blocked when they run after the invite RPC. The
+   * Invite button therefore only opens a sheet (synchronous); the link is
+   * generated once inside the sheet and every share action then fires
+   * directly from the user's tap on the already-resolved URL — and the invite
+   * is logged once, not once per share attempt.
+   */
+  const openInviteSheet = useCallback(() => {
     hapticTap();
-    try {
-      const { url } = await buildInviteLink('whatsapp');
-      const text = encodeURIComponent(
-        `Join Welile as a partner and start earning monthly returns. Register here: ${url}`,
-      );
-      window.open(`https://wa.me/?text=${text}`, '_blank', 'noopener,noreferrer');
-      void summaryQ.refetch();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not create the invite link');
-    } finally {
-      setInviting(false);
+    setInviteSheetOpen(true);
+  }, []);
+
+  useEffect(() => {
+    if (!inviteSheetOpen || inviteUrl || inviting) return;
+    let cancelled = false;
+    setInviting(true);
+    buildInviteLink('link')
+      .then(({ url }) => {
+        if (cancelled) return;
+        setInviteUrl(url);
+        void summaryQ.refetch();
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        toast.error(e instanceof Error ? e.message : 'Could not create the invite link');
+      })
+      .finally(() => { if (!cancelled) setInviting(false); });
+    return () => { cancelled = true; };
+  }, [inviteSheetOpen, inviteUrl, inviting, buildInviteLink, summaryQ]);
+
+  const inviteMessage = inviteUrl
+    ? `Join Welile as a partner and start earning monthly returns. Register here: ${inviteUrl}`
+    : '';
+
+  const handleInviteWhatsApp = useCallback(() => {
+    if (!inviteUrl) return;
+    hapticTap();
+    // Same-tab navigation: iOS blocks new windows far more aggressively.
+    window.location.href = `https://wa.me/?text=${encodeURIComponent(inviteMessage)}`;
+  }, [inviteUrl, inviteMessage]);
+
+  const handleInviteNativeShare = useCallback(() => {
+    if (!inviteUrl) return;
+    hapticTap();
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      // Fired straight from the tap — keeps the iOS transient activation.
+      navigator
+        .share({ title: 'Join Welile as a partner', text: inviteMessage, url: inviteUrl })
+        .catch(() => { /* user dismissed the share sheet */ });
+      return;
     }
-  }, [buildInviteLink, inviting, summaryQ]);
+    void navigator.clipboard?.writeText(inviteUrl);
+    toast.success('Partner invite link copied');
+  }, [inviteUrl, inviteMessage]);
 
   const handleCopyInvite = useCallback(async () => {
+    if (!inviteUrl) { openInviteSheet(); return; }
     try {
-      const { url } = await buildInviteLink('copy');
-      await navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(inviteUrl);
+      setInviteCopied(true);
+      setTimeout(() => setInviteCopied(false), 2000);
       toast.success('Partner invite link copied');
-      void summaryQ.refetch();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not copy the link');
+    } catch {
+      toast.error('Could not copy the link');
     }
-  }, [buildInviteLink, summaryQ]);
+  }, [inviteUrl, openInviteSheet]);
 
   const exportCsv = useCallback(() => {
     const rows: string[] = [];
@@ -194,9 +236,9 @@ export default function ProxyAgentCommandCenter() {
   const quickActions = useMemo(() => ([
     { key: 'note', label: 'Promissory', icon: FileText, onClick: () => { hapticTap(); setNoteOpen(true); } },
     { key: 'reports', label: 'Reports', icon: BarChart3, onClick: () => { hapticTap(); setReportsOpen(true); } },
-    { key: 'invite', label: 'Invite', icon: Share2, onClick: handleInvitePartner },
+    { key: 'invite', label: 'Invite', icon: Share2, onClick: openInviteSheet },
     { key: 'withdraw', label: 'Withdraw', icon: Wallet, onClick: () => { hapticTap(); setWithdrawOpen(true); } },
-  ]), [handleInvitePartner]);
+  ]), [openInviteSheet]);
 
   const partnerTotal = partnersQ.data?.total ?? 0;
   const noteTotal = notesQ.data?.total ?? 0;
@@ -575,9 +617,58 @@ export default function ProxyAgentCommandCenter() {
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* Invite share sheet — opens instantly, link resolves inside */}
+      <Sheet open={inviteSheetOpen} onOpenChange={setInviteSheetOpen}>
+        <SheetContent side="bottom" className="rounded-t-2xl pb-8">
+          <SheetHeader className="pb-3 text-left">
+            <SheetTitle className="flex items-center gap-2 text-base">
+              <Share2 className="h-4 w-4 text-primary" /> Share partner invite
+            </SheetTitle>
+            <SheetDescription className="text-xs">
+              Your attributed onboarding link. Every partner who registers through it is linked to you.
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="space-y-3">
+            <Input
+              readOnly
+              value={inviteUrl ?? (inviting ? 'Generating your link…' : 'Preparing…')}
+              className="h-10 text-xs font-mono"
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                onClick={handleInviteWhatsApp}
+                disabled={!inviteUrl}
+                className="h-12 gap-2 font-semibold"
+              >
+                {inviting && !inviteUrl ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
+                WhatsApp
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleInviteNativeShare}
+                disabled={!inviteUrl}
+                className="h-12 gap-2 font-semibold"
+              >
+                <Share2 className="h-4 w-4" /> Share
+              </Button>
+            </div>
+            <Button
+              variant="ghost"
+              onClick={handleCopyInvite}
+              disabled={!inviteUrl}
+              className="w-full gap-2"
+            >
+              <Copy className="h-4 w-4" /> {inviteCopied ? 'Copied' : 'Copy link'}
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
+
 
 function Pager({
   page, pages, total, onChange,
