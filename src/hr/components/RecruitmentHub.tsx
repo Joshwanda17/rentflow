@@ -661,7 +661,7 @@ function ApplicationsTab() {
                   key={row.id}
                   className={`cursor-pointer ${
                     row.status === 'shortlisted'
-                      ? 'bg-emerald-50 hover:bg-emerald-100'
+                      ? 'bg-violet-50 hover:bg-violet-100'
                       : row.status === 'hold'
                         ? 'bg-sky-50 hover:bg-sky-100'
                         : ''
