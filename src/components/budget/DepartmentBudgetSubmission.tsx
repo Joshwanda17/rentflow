@@ -393,18 +393,18 @@ export default function DepartmentBudgetSubmission() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2 pt-3">
+            {!readOnly && (
+              <Button size="sm" onClick={saveDraft} disabled={saving} className="gap-2 text-xs">
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save draft
+              </Button>
+            )}
             <Button size="sm" className="gap-1.5 bg-purple-600 text-xs text-white hover:bg-purple-700" onClick={startNew}>
               <Plus className="h-3.5 w-3.5" /> New budget
             </Button>
             {!readOnly && (
-              <>
-                <Button size="sm" onClick={saveDraft} disabled={saving} className="gap-2 text-xs">
-                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save draft
-                </Button>
-                <Button size="sm" onClick={submit} disabled={submitting || !activeId} variant="secondary" className="gap-2 text-xs">
-                  {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Submit for review
-                </Button>
-              </>
+              <Button size="sm" onClick={submit} disabled={submitting || !activeId} variant="secondary" className="gap-2 text-xs">
+                {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Submit for review
+              </Button>
             )}
           </div>
           {readOnly && (
