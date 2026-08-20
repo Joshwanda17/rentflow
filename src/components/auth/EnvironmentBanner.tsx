@@ -17,8 +17,8 @@ const AppleGlyph = () => (
 
 // Publicly reachable domains where the Lovable OAuth broker (/~oauth/*) is
 // served and Google/Apple sign-in can complete.
-const PUBLISHED_URL = 'https://welileapp.com';
-const CUSTOM_URLS = ['https://www.welileapp.com', 'https://welileapp.com'];
+const PUBLISHED_URL = 'https://welile.tech';
+const CUSTOM_URLS = ['https://www.welile.tech', 'https://welile.tech'];
 
 type EnvKind = 'local' | 'preview' | 'published' | 'custom';
 
@@ -48,7 +48,7 @@ function detectEnv(): EnvInfo {
     host.includes('preview--') ||
     host.endsWith('.lovableproject.com');
 
-  const isCustom = host.endsWith('welileapp.com');
+  const isCustom = host.endsWith('welile.tech');
   const isPublished = host.endsWith('.lovable.app') && !isPreview;
 
   if (isLocal) {

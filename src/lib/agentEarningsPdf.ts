@@ -2,8 +2,8 @@
 // agent earns money on Welile. Designed to be shared on WhatsApp as an
 // attachment. jsPDF is imported dynamically to keep it out of the main bundle.
 
-export const EARNINGS_SHARE_URL = 'https://welileapp.com/agent-commission-benefits';
-export const EARNINGS_JOIN_URL = 'https://welileapp.com/join';
+export const EARNINGS_SHARE_URL = 'https://welile.tech/agent-commission-benefits';
+export const EARNINGS_JOIN_URL = 'https://welile.tech/join';
 
 export const EARNINGS_SHARE_CAPTION = `💰 *How You Earn Money as a Welile Agent*
 

@@ -91,9 +91,9 @@ export function PartnerPortfolioCompounded({
   compound_history,
   currency = 'UGX',
   company_name = 'Welile',
-  logo_url = 'https://welileapp.com/welile-logo.png',
+  logo_url = 'https://welile.tech/welile-logo.png',
   unsubscribe_url = 'https://welile.com/unsubscribe',
-  dashboard_url = 'https://welileapp.com/auth',
+  dashboard_url = 'https://welile.tech/auth',
 }: PartnerPortfolioCompoundedProps) {
   const year = new Date().getFullYear()
   // Existing-partner compound event: the portfolio earned a return and was
@@ -485,8 +485,8 @@ export const template = {
     duration_months: 12,
     currency: 'UGX',
     company_name: 'Welile',
-    logo_url: 'https://welileapp.com/welile-logo.png',
+    logo_url: 'https://welile.tech/welile-logo.png',
     unsubscribe_url: 'https://welile.com/unsubscribe',
-    dashboard_url: 'https://welileapp.com/auth',
+    dashboard_url: 'https://welile.tech/auth',
   },
 } satisfies TemplateEntry

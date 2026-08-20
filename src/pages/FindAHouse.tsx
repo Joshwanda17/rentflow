@@ -76,7 +76,7 @@ const CATEGORIES = [
   { value: 'commercial_premises', label: 'Other Commercial Premises' },
 ];
 
-const SITE_URL = 'https://welileapp.com';
+const SITE_URL = 'https://welile.tech';
 
 // Location landing pages: /find-a-house/:regionSlug -> region-scoped SEO page.
 // Keep the slug list narrow and matched to the REGIONS array so Google gets
@@ -999,7 +999,7 @@ export default function FindAHouse() {
         {isLandingPage ? (
           <link rel="canonical" href={`${SITE_URL}/find-a-house/${regionSlug!.toLowerCase()}`} />
         ) : (
-          <link rel="canonical" href="https://welileapp.com/find-a-house" />
+          <link rel="canonical" href="https://welile.tech/find-a-house" />
         )}
         <meta property="og:title" content={pageTitle} />
         <meta property="og:description" content={seoDescription} />

@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const SITE_URL = "https://welileapp.com";
+const SITE_URL = "https://welile.tech";
 const ROI_RATE = 15;
 
 const ugx = (n: number) => `UGX ${Math.round(n).toLocaleString("en-UG")}`;

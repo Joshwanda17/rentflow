@@ -1064,7 +1064,7 @@ Deno.serve(async (req) => {
                   `${bucketLabel} on phone •••${phoneTail}. New ${isFloat ? 'float' : 'wallet'} balance: ` +
                   `${fmtUGX(newBucketBalance)}.` +
                   `\n\nAccess your dashboard to view your wallet, transactions, and account details:\n` +
-                  `https://welileapp.com/ZQhyGb`;
+                  `https://welile.tech/ZQhyGb`;
                await sendSmsViaAfricasTalking(depProfile.phone, smsMsg, {
                  admin: supabaseAdmin,
                  recipientUserId: depositRequest.user_id,

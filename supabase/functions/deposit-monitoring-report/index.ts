@@ -21,7 +21,7 @@ const corsHeaders = {
 
 const FROM = 'Welile Reports <reports@welile.com>';
 const DEFAULT_RECIPIENTS = ['joshwanda17@gmail.com'];
-const LOGO_URL = 'https://welileapp.com/welile-logo.png';
+const LOGO_URL = 'https://welile.tech/welile-logo.png';
 
 // Known merchant collection lines. Channel -> merchant code shown on the report.
 // Anything not listed is reported as an unmapped merchant (manual review).

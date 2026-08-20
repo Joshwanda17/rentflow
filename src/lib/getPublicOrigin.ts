@@ -5,12 +5,12 @@
  */
 export const CANONICAL_ORIGIN: string =
   (import.meta.env?.VITE_CANONICAL_ORIGIN as string | undefined)?.trim() ||
-  'https://welileapp.com';
+  'https://welile.tech';
 
 /**
  * Returns the canonical public-facing origin for share/referral/invite links.
  *
- * Always resolves to https://welileapp.com on every real host — preview
+ * Always resolves to https://welile.tech on every real host — preview
  * (*.lovable.app), published, the www. subdomain, and the apex custom domain —
  * so shared links never leak a Lovable-auth-gated URL or a www/legacy variant.
  * Only true local development (localhost / 127.0.0.1) keeps its own origin so

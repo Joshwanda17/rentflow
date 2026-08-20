@@ -135,10 +135,10 @@ export default function Internship() {
       <Helmet>
         <title>Welile Internship — Learn, Earn & Grow</title>
         <meta name="description" content="Join the Welile internship program. Gain real fintech experience, earn as you learn, and build a career across Africa." />
-        <link rel="canonical" href="https://welileapp.com/internship" />
+        <link rel="canonical" href="https://welile.tech/internship" />
         <meta property="og:title" content="Welile Internship — Learn, Earn & Grow" />
         <meta property="og:description" content="Join the Welile internship program. Gain real fintech experience, earn as you learn, and build a career across Africa." />
-        <meta property="og:url" content="https://welileapp.com/internship" />
+        <meta property="og:url" content="https://welile.tech/internship" />
       </Helmet>
       {/* Hero */}
       <div className="relative overflow-hidden bg-gradient-to-br from-amber-500/10 via-background to-orange-500/10">

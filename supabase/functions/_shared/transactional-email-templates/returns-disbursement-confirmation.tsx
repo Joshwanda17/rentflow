@@ -267,8 +267,8 @@ export function ReturnsDisbursementConfirmation({
                         <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={{ margin: '16px 0' }}>
                           <tbody><tr>
                             <td align="center">
-                              <Link href="https://welileapp.com/auth" style={supportLink}>
-                                https://welileapp.com/auth
+                              <Link href="https://welile.tech/auth" style={supportLink}>
+                                https://welile.tech/auth
                               </Link>
                             </td>
                           </tr></tbody>
@@ -338,8 +338,8 @@ export function ReturnsDisbursementConfirmation({
                     This is an automated notification. Please do not reply directly to this email.
                   </Text>
                   <Text style={{ margin: '0 0 15px 0' }}>
-                    <Link href="https://welileapp.com/privacy-policy" style={footerLink}>Privacy Policy</Link>
-                    <Link href="https://welileapp.com/partners-terms" style={footerLink}>Terms of Service</Link>
+                    <Link href="https://welile.tech/privacy-policy" style={footerLink}>Privacy Policy</Link>
+                    <Link href="https://welile.tech/partners-terms" style={footerLink}>Terms of Service</Link>
                     <Link href={unsubscribe_url} style={footerLink}>Unsubscribe</Link>
                   </Text>
                   <Text style={footerCopyText}>
@@ -596,7 +596,7 @@ export const template = {
     payout_method: 'Mobile Money (MTN)',
     payout_method_last4digit: '•••• 4521',
     company_name: 'Welile',
-    logo_url: 'https://welileapp.com/welile-logo.png',
+    logo_url: 'https://welile.tech/welile-logo.png',
     is_managed_by_agent: true,
     agent_name: 'James Okello',
     principal_amount: 10_000_000,

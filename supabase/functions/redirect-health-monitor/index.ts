@@ -2,7 +2,7 @@
 //
 // Continuously verifies that welilereceipts.com (and any other configured
 // origin) returns a clean permanent 301/308 to the matching path on
-// welileapp.com. Once a redirect has been healthy at least once, this function
+// welile.tech. Once a redirect has been healthy at least once, this function
 // raises an alert the moment it regresses ("redirect_down") and a follow-up
 // when it recovers ("redirect_restored").
 //

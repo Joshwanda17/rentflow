@@ -3,7 +3,7 @@
 //
 // A single, versioned REST gateway consumed by the Welile Flutter application.
 // Served by Supabase Edge Functions and reachable as:
-//   • https://api.welileapp.com/api/v1/...           (custom-domain proxy)
+//   • https://api.welile.tech/api/v1/...           (custom-domain proxy)
 //   • https://<project>.functions.supabase.co/functions/v1/api/v1/...  (direct)
 //
 // Every response uses a stable envelope so the Flutter client can decode it the

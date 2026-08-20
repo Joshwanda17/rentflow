@@ -96,7 +96,7 @@ Deno.serve(async (req) => {
             partner_name: fullName,
             partner_email: email,
             partner_reference: `PA-${userId.slice(0, 8).toUpperCase()}`,
-            portal_url: "https://welileapp.com/dashboard",
+            portal_url: "https://welile.tech/dashboard",
             company_name: "WELILE TECHNOLOGIES LTD",
           },
         },

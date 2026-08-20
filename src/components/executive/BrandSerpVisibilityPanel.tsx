@@ -106,7 +106,7 @@ export function BrandSerpVisibilityPanel() {
             <Globe className="w-5 h-5" /> Branded SERP Visibility
           </CardTitle>
           <p className="text-sm text-muted-foreground mt-1">
-            Search Console demand, Semrush rank &amp; cross-engine profile presence for welileapp.com
+            Search Console demand, Semrush rank &amp; cross-engine profile presence for welile.tech
           </p>
         </div>
         <Button size="sm" variant="outline" onClick={() => refetch()} disabled={isFetching}>

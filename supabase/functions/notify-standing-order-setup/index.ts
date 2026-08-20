@@ -257,7 +257,7 @@ Deno.serve(async (req) => {
     // 1) SMS to the recipient confirming the standing order is set.
     let smsSent = false;
     if (doSms && profile.phone) {
-      const msg = `Hi ${firstName}, WELILE has set up an automatic payout of ${amountStr} to your wallet (${scheduleLabel}). You'll get a message each time it runs. welileapp.com`;
+      const msg = `Hi ${firstName}, WELILE has set up an automatic payout of ${amountStr} to your wallet (${scheduleLabel}). You'll get a message each time it runs. welile.tech`;
       const smsResult = await withRetry(
         "sms",
         () => sendSMSOnce(profile.phone!, msg),

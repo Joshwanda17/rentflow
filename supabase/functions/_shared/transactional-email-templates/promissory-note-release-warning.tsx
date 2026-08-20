@@ -48,10 +48,10 @@ export function PromissoryNoteReleaseWarning({
   days_left = 4,
   release_date = '',
   tenants = [],
-  activation_url = 'https://welileapp.com/activate',
+  activation_url = 'https://welile.tech/activate',
   currency = 'UGX',
   company_name = 'Welile',
-  logo_url = 'https://welileapp.com/welile-logo.png',
+  logo_url = 'https://welile.tech/welile-logo.png',
   support_email = 'partnership@welile.com',
   unsubscribe_url = 'https://welile.com/unsubscribe',
 }: Props) {

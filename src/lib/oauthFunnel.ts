@@ -16,7 +16,7 @@ function detectEnvKind(): string {
     const host = window.location.hostname;
     if (host === 'localhost' || host === '127.0.0.1' || host.endsWith('.local')) return 'local';
     if (host.includes('id-preview--') || host.includes('preview--') || host.endsWith('.lovableproject.com')) return 'preview';
-    if (host.includes('welileapp.com')) return 'custom';
+    if (host.includes('welile.tech')) return 'custom';
     if (host.endsWith('.lovable.app')) return 'published';
     return 'unknown';
   } catch {

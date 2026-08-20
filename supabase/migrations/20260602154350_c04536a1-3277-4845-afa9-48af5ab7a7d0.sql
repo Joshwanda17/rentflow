@@ -8,7 +8,7 @@ VALUES (
     'enabled', true,
     'thank_you_text', 'Thank you for sending {amount} via {provider}.',
     'signup_prompt', 'Open your free Welile Wallet with any phone number here:',
-    'signup_link', 'https://welileapp.com/auth?signup=1',
+    'signup_link', 'https://welile.tech/auth?signup=1',
     'address', 'Welile HQ, P.O. Box 167564, Palm Lane, Kabaale, Entebbe - Uganda.',
     'website', 'welile.com',
     'support_email', 'info@welile.com'

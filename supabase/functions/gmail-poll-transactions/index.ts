@@ -2523,7 +2523,7 @@ const DEFAULT_MOMO_SIGNUP_SMS: MomoSignupSmsTemplate = {
   enabled: true,
   thank_you_text: 'Thank you for sending {amount} via {provider}. Create your free Welile account to manage this money.',
   signup_prompt: 'Access your dashboard to view your wallet, transactions, and account details:',
-  signup_link: 'https://welileapp.com/ZQhyGb',
+  signup_link: 'https://welile.tech/ZQhyGb',
   address: '',
   website: '',
   support_email: '',
@@ -2544,7 +2544,7 @@ async function loadMomoSignupSmsTemplate(
     const rawLink = (v.signup_link ?? DEFAULT_MOMO_SIGNUP_SMS.signup_link).toString();
     const signup_link = rawLink.replace(
       /https?:\/\/(www\.)?welilereceipts?\.com/gi,
-      'https://welileapp.com',
+      'https://welile.tech',
     );
     return {
       enabled: v.enabled !== false,

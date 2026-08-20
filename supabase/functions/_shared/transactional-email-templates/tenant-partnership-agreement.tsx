@@ -33,9 +33,9 @@ export function TenantPartnershipAgreement({
   partnership_amount_words = '',
   monthly_return = '',
   payout_summary = '',
-  agreement_download_url = 'https://welileapp.com',
+  agreement_download_url = 'https://welile.tech',
   company_name = 'WELILE TECHNOLOGIES LTD',
-  logo_url = 'https://welileapp.com/welile-logo.png',
+  logo_url = 'https://welile.tech/welile-logo.png',
   unsubscribe_url = 'https://welile.com/unsubscribe',
 }: TenantPartnershipAgreementProps) {
   const year = new Date().getFullYear()
@@ -225,8 +225,8 @@ export function TenantPartnershipAgreement({
                     </Link>.
                   </Text>
                   <Text style={{ margin: '0 0 15px 0' }}>
-                    <Link href="https://welileapp.com/privacy-policy" style={footerLink}>Privacy Policy</Link>
-                    <Link href="https://welileapp.com/partners-terms" style={footerLink}>Terms of Service</Link>
+                    <Link href="https://welile.tech/privacy-policy" style={footerLink}>Privacy Policy</Link>
+                    <Link href="https://welile.tech/partners-terms" style={footerLink}>Terms of Service</Link>
                     <Link href={unsubscribe_url} style={footerLink}>Unsubscribe</Link>
                   </Text>
                   <Text style={footerCopyText}>
@@ -473,9 +473,9 @@ export const template = {
     partnership_amount_words: 'One Million Five Hundred Thousand',
     monthly_return: '15%',
     payout_summary: 'Mobile Money — MTN 0780000000',
-    agreement_download_url: 'https://welileapp.com',
+    agreement_download_url: 'https://welile.tech',
     company_name: 'WELILE TECHNOLOGIES LTD',
-    logo_url: 'https://welileapp.com/welile-logo.png',
+    logo_url: 'https://welile.tech/welile-logo.png',
     unsubscribe_url: 'https://welile.com/unsubscribe',
   },
 } satisfies TemplateEntry

@@ -562,7 +562,7 @@ Deno.serve(async (req) => {
         : (row.partnership_amount_words || numberToWords(amountNum)),
       monthly_return: monthlyReturnLabel,
       payout_summary: payoutSummary,
-      agreement_download_url: signedUrl || 'https://welileapp.com',
+      agreement_download_url: signedUrl || 'https://welile.tech',
       company_name: 'WELILE TECHNOLOGIES LTD',
     }
     const subject = typeof tenantPartnershipAgreementTemplate.subject === 'function'

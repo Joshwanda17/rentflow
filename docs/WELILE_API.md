@@ -10,23 +10,23 @@ the request path and returns a stable JSON envelope on every call.
 
 | Environment | Base URL |
 |-------------|----------|
-| Production (custom domain) | `https://api.welileapp.com` |
+| Production (custom domain) | `https://api.welile.tech` |
 | Direct edge URL | `https://wirntoujqoyjobfhyelc.supabase.co/functions/v1/api` |
 
 All routes are prefixed with `/api/v1`. The router anchors on the `/v1`
 segment, so both base URLs resolve the same routes:
 
 ```
-POST https://api.welileapp.com/api/v1/auth/login
+POST https://api.welile.tech/api/v1/auth/login
 POST https://wirntoujqoyjobfhyelc.supabase.co/functions/v1/api/api/v1/auth/login
 ```
 
-### Connecting the `api.welileapp.com` custom domain
+### Connecting the `api.welile.tech` custom domain
 
 The function is live at the direct edge URL today. To serve it at
-`api.welileapp.com`, point that subdomain at the edge function with a reverse
+`api.welile.tech`, point that subdomain at the edge function with a reverse
 proxy / CDN rule (e.g. a Cloudflare Worker or a CNAME + rewrite) that forwards
-`https://api.welileapp.com/api/v1/*` to
+`https://api.welile.tech/api/v1/*` to
 `https://wirntoujqoyjobfhyelc.supabase.co/functions/v1/api/api/v1/*` and
 injects the Supabase `apikey` header. Until that DNS/proxy is in place, point
 the Flutter client's base URL at the direct edge URL.
@@ -237,7 +237,7 @@ import 'package:http/http.dart' as http;
 
 class WelileApi {
   // Use the custom domain in production, or the direct edge URL for now.
-  static const base = 'https://api.welileapp.com';
+  static const base = 'https://api.welile.tech';
   // Required only when hitting the direct *.supabase.co edge URL:
   static const apikey = String.fromEnvironment('WELILE_ANON_KEY');
   String? _token;

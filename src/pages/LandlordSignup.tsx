@@ -94,8 +94,8 @@ export default function LandlordSignup() {
       <div className="min-h-screen bg-background flex items-center justify-center px-4">
         <Helmet>
           <title>Welcome to Welile — Rent Guaranteed</title>
-          <link rel="canonical" href="https://welileapp.com/landlord-signup" />
-          <meta property="og:url" content="https://welileapp.com/landlord-signup" />
+          <link rel="canonical" href="https://welile.tech/landlord-signup" />
+          <meta property="og:url" content="https://welile.tech/landlord-signup" />
         </Helmet>
         <div className="max-w-md w-full text-center space-y-6 py-12">
           <div className="mx-auto w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
@@ -133,8 +133,8 @@ export default function LandlordSignup() {
       <Helmet>
         <title>Get 12 Months Rent Guaranteed | Welile</title>
         <meta name="description" content="Get paid every month on time, even if tenants don't pay. Welile guarantees your rent for 12 months." />
-        <link rel="canonical" href="https://welileapp.com/landlord-signup" />
-        <meta property="og:url" content="https://welileapp.com/landlord-signup" />
+        <link rel="canonical" href="https://welile.tech/landlord-signup" />
+        <meta property="og:url" content="https://welile.tech/landlord-signup" />
       </Helmet>
 
       {/* Hero */}

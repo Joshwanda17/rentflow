@@ -2,23 +2,23 @@
  * Welile share proxy (Cloudflare Worker).
  *
  * Public, branded share URLs:
- *   https://welileapp.com/s/<code>   (rent plans)
- *   https://welileapp.com/m/<code>   (merchandise, legacy)
+ *   https://welile.tech/s/<code>   (rent plans)
+ *   https://welile.tech/m/<code>   (merchandise, legacy)
  *
  * The Worker PROXIES the internal Supabase edge functions server-to-server and
- * returns their HTML under the welileapp.com URL. It never redirects the public
+ * returns their HTML under the welile.tech URL. It never redirects the public
  * request to supabase.co, so the internal endpoint stays invisible to users and
  * to social crawlers, while WhatsApp still reads the per-plan Open Graph head.
  *
  * Deploy:
  *   npx wrangler deploy            (config: wrangler.toml at the repo root)
- * Routes required in Cloudflare (zone welileapp.com):
- *   welileapp.com/s/*      www.welileapp.com/s/*
- *   welileapp.com/m/*      www.welileapp.com/m/*   (legacy merchandise links)
+ * Routes required in Cloudflare (zone welile.tech):
+ *   welile.tech/s/*      www.welile.tech/s/*
+ *   welile.tech/m/*      www.welile.tech/m/*   (legacy merchandise links)
  */
 const MERCH_UPSTREAM = "https://wirntoujqoyjobfhyelc.supabase.co/functions/v1/og-merchandise";
 const PLAN_UPSTREAM = "https://wirntoujqoyjobfhyelc.supabase.co/functions/v1/og-plan";
-const SITE = "https://welileapp.com";
+const SITE = "https://welile.tech";
 
 /** Only /s/<code> and /m/<code> are proxied — never any other app route. */
 const SHARE_LINK_PATTERN = /^\/(s|m)\/([A-Za-z0-9_-]{4,64})\/?$/;

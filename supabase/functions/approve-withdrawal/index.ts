@@ -3155,8 +3155,8 @@ Deno.serve(async (req) => {
       console.error("[approve-withdrawal] receipt token fetch failed (non-fatal):", e);
     }
     const receiptUrl = receiptToken
-      ? `https://welileapp.com/r/${receiptToken}`
-      : `https://welileapp.com/receipt/${withdrawal_id}`;
+      ? `https://welile.tech/r/${receiptToken}`
+      : `https://welile.tech/receipt/${withdrawal_id}`;
 
     // Cashout agent 0.5% commission (when caller is an active cashout agent, including staff roles).
     // Company funds (platform cash_out) move INSTANTLY into the agent's own
@@ -3673,7 +3673,7 @@ Deno.serve(async (req) => {
         const _reasonRaw = typeof wr.reason === "string" ? wr.reason : "";
         const _reason = _reasonRaw.toLowerCase();
         const _amt = amount.toLocaleString();
-        const _dash = "https://welileapp.com/auth";
+        const _dash = "https://welile.tech/auth";
         let proxySmsMsg: string;
         if (_reason.startsWith("landlord float payout") || _reason.includes("landlord float")) {
           // Merchant paid out an agent's CFO-funded landlord float.

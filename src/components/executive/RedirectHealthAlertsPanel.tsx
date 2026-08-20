@@ -46,7 +46,7 @@ export function RedirectHealthAlertsPanel() {
         .from('redirect_monitor')
         .select('*')
         .eq('old_domain', 'welilereceipts.com')
-        .eq('new_domain', 'welileapp.com')
+        .eq('new_domain', 'welile.tech')
         .maybeSingle();
       if (error) throw error;
       return data as unknown as MonitorRow | null;
@@ -110,7 +110,7 @@ export function RedirectHealthAlertsPanel() {
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <CardTitle className="flex items-center gap-2 text-base">
           <ShieldAlert className="h-4 w-4 text-muted-foreground" />
-          Redirect uptime alerts — welilereceipts.com → welileapp.com
+          Redirect uptime alerts — welilereceipts.com → welile.tech
         </CardTitle>
         <Button size="sm" variant="outline" onClick={runCheck} disabled={running}>
           <RefreshCw className={`h-4 w-4 ${running ? 'animate-spin' : ''}`} />

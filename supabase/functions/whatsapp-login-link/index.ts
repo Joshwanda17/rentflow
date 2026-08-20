@@ -88,7 +88,7 @@ Deno.serve(async (req) => {
 
     // Build the deep link — this is NEVER returned in the HTTP response.
     // It is only delivered out-of-band via SMS to the phone owner.
-    const baseUrl = "https://welileapp.com";
+    const baseUrl = "https://welile.tech";
     const linkParams = new URLSearchParams({
       phone: last9,
       token: otp,

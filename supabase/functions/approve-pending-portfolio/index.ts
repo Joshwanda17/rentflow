@@ -326,8 +326,8 @@ Deno.serve(async (req) => {
             tenants,
             currency: "UGX",
             company_name: "Welile",
-            logo_url: "https://welileapp.com/welile-logo.png",
-            dashboard_url: "https://welileapp.com/dashboard/funder",
+            logo_url: "https://welile.tech/welile-logo.png",
+            dashboard_url: "https://welile.tech/dashboard/funder",
           },
         });
       } catch (e) {

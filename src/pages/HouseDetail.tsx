@@ -38,7 +38,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { parseHouseVideo } from '@/lib/houseVideoUrl';
 
-const SITE_URL = 'https://welileapp.com';
+const SITE_URL = 'https://welile.tech';
 
 const CATEGORIES = [
   { value: 'single_room', label: 'Single Room' },

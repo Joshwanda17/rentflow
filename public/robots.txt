@@ -36,4 +36,4 @@ Disallow: /r/
 Disallow: /profile/
 Disallow: /id/
 
-Sitemap: https://welileapp.com/sitemap.xml
+Sitemap: https://welile.tech/sitemap.xml

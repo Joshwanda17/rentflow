@@ -1,4 +1,4 @@
-// SEO indexing monitor for welileapp.com.
+// SEO indexing monitor for welile.tech.
 //
 // Reads Google Search Console through the Lovable connector gateway, records a
 // snapshot in `seo_index_monitor_snapshots`, and — on a real state change —
@@ -23,8 +23,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const SITE_URL = "https://welileapp.com/";
-const SITEMAP_URL = "https://welileapp.com/sitemap.xml";
+const SITE_URL = "https://welile.tech/";
+const SITEMAP_URL = "https://welile.tech/sitemap.xml";
 const GATEWAY = "https://connector-gateway.lovable.dev/google_search_console";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -177,15 +177,15 @@ function buildEmailHtml(kind: AlertKind, snap: Record<string, any>): string {
   const degraded = kind === "monitor_degraded";
   const accent = good ? "#16a34a" : degraded ? "#d97706" : "#dc2626";
   const title = good
-    ? "welileapp.com is now appearing in Google"
+    ? "welile.tech is now appearing in Google"
     : degraded
       ? "SEO monitor degraded — Search Console data incomplete"
-      : "Indexing issue detected on welileapp.com";
+      : "Indexing issue detected on welile.tech";
   const lead = good
-    ? "Search Console now reports pages indexed and serving for welileapp.com, with no indexing errors."
+    ? "Search Console now reports pages indexed and serving for welile.tech, with no indexing errors."
     : degraded
       ? `The monitor could not read fields it depends on, so indexing status is UNKNOWN for this run (not bad — unknown). Missing: ${(snap.data_quality?.absent ?? []).join(", ") || "unspecified"}.`
-      : "Search Console reported a new indexing or sitemap error for welileapp.com.";
+      : "Search Console reported a new indexing or sitemap error for welile.tech.";
   const row = (k: string, v: unknown) =>
     `<tr><td style="padding:6px 12px;color:#64748b;font-size:13px">${k}</td><td style="padding:6px 12px;font-size:13px;font-weight:600">${v === null || v === undefined ? "unknown" : v}</td></tr>`;
   return `<!doctype html><html><body style="font-family:Arial,Helvetica,sans-serif;background:#f5f3fa;margin:0;padding:24px;color:#1e1b2e">
@@ -445,9 +445,9 @@ Deno.serve(async (req) => {
     let emailResult: unknown = null;
     if (alert_type && alertsEnabled) {
       const subject = alert_type === "first_indexation"
-        ? "welileapp.com is now indexed in Google (no errors)"
+        ? "welile.tech is now indexed in Google (no errors)"
         : alert_type === "errors"
-          ? `Indexing issue on welileapp.com: ${errorReasons[0]}`
+          ? `Indexing issue on welile.tech: ${errorReasons[0]}`
           : "SEO monitor degraded — Search Console fields missing";
       const r = await sendEmail(alertEmail, subject, buildEmailHtml(alert_type, snap));
       alertSent = r.ok;

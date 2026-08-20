@@ -265,13 +265,13 @@ export default function BecomeSupporter() {
           name="description"
           content="Become a Welile Supporter: fund tenants' rent, earn monthly returns on your capital, and withdraw flexibly while helping people stay housed in Uganda."
         />
-        <link rel="canonical" href="https://welileapp.com/become-supporter" />
+        <link rel="canonical" href="https://welile.tech/become-supporter" />
         <meta property="og:title" content="Become a Welile Supporter — Earn Returns" />
         <meta
           property="og:description"
           content="Fund tenants' rent and earn monthly returns while helping people stay housed across Uganda."
         />
-        <meta property="og:url" content="https://welileapp.com/become-supporter" />
+        <meta property="og:url" content="https://welile.tech/become-supporter" />
       </Helmet>
       {/* Background decoration */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">

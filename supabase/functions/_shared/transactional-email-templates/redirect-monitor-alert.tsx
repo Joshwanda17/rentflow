@@ -113,7 +113,7 @@ export const template = {
   previewData: {
     alertType: 'redirect_down',
     oldDomain: 'welilereceipts.com',
-    newDomain: 'welileapp.com',
+    newDomain: 'welile.tech',
     checkedAt: new Date().toISOString(),
     consecutiveFailures: 2,
     failingPaths: [

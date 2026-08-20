@@ -4,7 +4,7 @@ import { ArrowLeft, ArrowRight, CheckCircle2, Calendar, Wallet, ShieldCheck, Hom
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
-const CANONICAL = 'https://welileapp.com/guides/pay-rent-in-installments-uganda';
+const CANONICAL = 'https://welile.tech/guides/pay-rent-in-installments-uganda';
 
 const faqs = [
   {
@@ -78,7 +78,7 @@ export default function PayRentInstallmentsGuide() {
       {
         '@type': 'BreadcrumbList',
         itemListElement: [
-          { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://welileapp.com/' },
+          { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://welile.tech/' },
           { '@type': 'ListItem', position: 2, name: 'Pay Rent in Instalments Guide', item: CANONICAL },
         ],
       },

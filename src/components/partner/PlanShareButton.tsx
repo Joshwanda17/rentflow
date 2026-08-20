@@ -51,7 +51,7 @@ export function PlanShareButton({
   const start = async () => {
     setBusy(true);
     try {
-      // publicShareUrl — the branded welileapp.com short link. The internal
+      // publicShareUrl — the branded welile.tech short link. The internal
       // Open Graph endpoint is never exposed to the share surfaces.
       const { share_url: publicShareUrl } = await buildLink(plan);
       setLink(publicShareUrl);
@@ -88,7 +88,7 @@ export function PlanShareButton({
     {
       label: 'WhatsApp',
       icon: MessageCircle,
-      // Exactly one URL in the message, and it is the branded welileapp.com
+      // Exactly one URL in the message, and it is the branded welile.tech
       // short link. Encoded once, via URLSearchParams only.
       onClick: () => openTarget(`https://wa.me/?${new URLSearchParams({ text: full }).toString()}`),
     },

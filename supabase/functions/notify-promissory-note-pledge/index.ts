@@ -124,7 +124,7 @@ Deno.serve(async (req) => {
   if (error) return json(500, { error: error.message });
   if (!rows?.length) return json(200, { processed: 0, sms_sent: 0, emails_sent: 0 });
 
-  const origin = "https://welileapp.com";
+  const origin = "https://welile.tech";
   let smsSent = 0;
   let emailsSent = 0;
   const logRows: Record<string, unknown>[] = [];

@@ -127,10 +127,10 @@ export default function Landing() {
       <Helmet>
         <title>Welile — Housing & Funding for Everyone</title>
         <meta name="description" content="Meet the four Welile roles — Tenant, Funder, Agent, Landlord — and pick the one that fits you." />
-        <link rel="canonical" href="https://welileapp.com/welcome" />
+        <link rel="canonical" href="https://welile.tech/welcome" />
         <meta property="og:title" content="Welile — Housing & Funding for Everyone" />
         <meta property="og:description" content="Meet the four Welile roles — Tenant, Funder, Agent, Landlord — and pick the one that fits you." />
-        <meta property="og:url" content="https://welileapp.com/welcome" />
+        <meta property="og:url" content="https://welile.tech/welcome" />
       </Helmet>
 
       {/* Header — logo + skip on onboarding, title on picker */}

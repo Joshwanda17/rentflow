@@ -243,7 +243,7 @@ Deno.serve(async (req) => {
         `WELILE: Your withdrawal of UGX ${amount.toLocaleString()} is still being processed. ` +
         `Your funds remain on hold and your money will arrive shortly.\n` +
         `Track your transaction:\n` +
-        `https://welileapp.com/auth\n` +
+        `https://welile.tech/auth\n` +
         `For assistance, contact Welile Support on 0748747134.`;
 
       let sent = false;

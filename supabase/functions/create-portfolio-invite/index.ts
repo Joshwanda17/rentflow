@@ -260,7 +260,7 @@ Deno.serve(async (req) => {
 
     // Build the completion URL. Origin comes from the request so the same
     // function works in preview + production without extra config.
-    const origin = req.headers.get("origin") || "https://welileapp.com";
+    const origin = req.headers.get("origin") || "https://welile.tech";
     const completionUrl =
       `${origin}/partners/${partnerId}/portfolios/${portfolioId}/complete?token=${encodeURIComponent(rawToken)}`;
 

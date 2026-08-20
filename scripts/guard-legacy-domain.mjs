@@ -3,7 +3,7 @@
  * CI guard — fails the build if any shipping file still references the legacy
  * domains `welilereceipts.com` or the misspelled `welilereciept.com`.
  *
- * The canonical, public-facing domain is welileapp.com. No link, canonical
+ * The canonical, public-facing domain is welile.tech. No link, canonical
  * URL, og:url, sitemap entry, email link, or receipt URL may point at the old
  * domains — old links break SEO and land users on a parked page.
  *
@@ -42,7 +42,7 @@ const ALLOW_MARKER = 'legacy-domain-guard-allow';
 
 // Files whose entire purpose is to reference the legacy domain (redirect
 // monitors, change-of-address tooling, and the legacy-domain sitemap that is
-// submitted to Search Console so old URLs get a proper 301 to welileapp.com).
+// submitted to Search Console so old URLs get a proper 301 to welile.tech).
 const ALLOW_FILES = new Set([
   'public/sitemap-welilereceipts.xml',
   'supabase/functions/change-of-address-monitor/index.ts',

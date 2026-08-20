@@ -194,7 +194,7 @@ export const AgentCapacityShareCard = forwardRef<HTMLDivElement, ShareCardProps>
         </div>
 
         <div style={{ textAlign: 'center', fontSize: 11, color: c.footer, marginTop: 20, letterSpacing: 0.5 }}>
-          Powered by Welile · welileapp.com
+          Powered by Welile · welile.tech
         </div>
       </div>
     );

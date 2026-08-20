@@ -10,8 +10,8 @@ export default function Opportunities() {
   return (
     <>
       <Helmet>
-        <link rel="canonical" href="https://welileapp.com/opportunities" />
-        <meta property="og:url" content="https://welileapp.com/opportunities" />
+        <link rel="canonical" href="https://welile.tech/opportunities" />
+        <meta property="og:url" content="https://welile.tech/opportunities" />
       </Helmet>
     <div className="min-h-screen bg-background flex flex-col">
       <div className="sticky top-0 z-40 bg-background border-b border-border/50 px-4 py-3 flex items-center gap-3">

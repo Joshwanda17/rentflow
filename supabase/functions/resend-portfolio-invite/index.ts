@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
       return json({ error: "This partner's account is suspended. Unfreeze it before resending the invite." }, 403);
     }
 
-    const origin = req.headers.get("origin") || "https://welileapp.com";
+    const origin = req.headers.get("origin") || "https://welile.tech";
 
     // Both pipeline statuses use the completion invite. A pending Ops row can
     // originate from an older flow that never created a token, so UPSERT rather

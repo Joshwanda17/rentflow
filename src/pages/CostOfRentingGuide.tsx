@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { getCityGuide, CITY_GUIDES } from '@/data/rentCostGuides';
 import { formatUGX } from '@/lib/rentCalculations';
 
-const SITE_URL = 'https://welileapp.com';
+const SITE_URL = 'https://welile.tech';
 const YEAR_LABEL = '2026';
 
 function range(a: number, b: number) {

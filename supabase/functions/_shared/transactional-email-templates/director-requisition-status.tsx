@@ -25,7 +25,7 @@ export function DirectorRequisitionStatus({
   decided_by = 'Director',
   decided_at = '',
   comment = '',
-  review_url = 'https://welileapp.com/director/dashboard',
+  review_url = 'https://welile.tech/director/dashboard',
 }: Props) {
   return (
     <Html>
@@ -79,7 +79,7 @@ export const template = {
     decided_by: 'Director',
     decided_at: '9 Jul 2026, 15:10',
     comment: 'Approved. Proceed with the top-up.',
-    review_url: 'https://welileapp.com/director/dashboard',
+    review_url: 'https://welile.tech/director/dashboard',
   },
 } satisfies TemplateEntry
 

@@ -22,10 +22,10 @@ export function PortfolioRenewalApology({
   portfolio_id = '',
   original_maturity_date = '',
   company_name = 'Welile',
-  logo_url = 'https://welileapp.com/welile-logo.png',
+  logo_url = 'https://welile.tech/welile-logo.png',
   unsubscribe_url = 'https://welile.com/unsubscribe',
-  terms_url = 'https://welileapp.com/partners-terms',
-  privacy_url = 'https://welileapp.com/privacy',
+  terms_url = 'https://welile.tech/partners-terms',
+  privacy_url = 'https://welile.tech/privacy',
 }: Props) {
   const year = new Date().getFullYear()
   const displayId = portfolio_id || ''

@@ -2,7 +2,7 @@
 	"info": {
 		"_postman_id": "b1f0a2c4-7e21-4c9a-9d3f-welileapiv1000",
 		"name": "Welile API v1",
-		"description": "Official REST API for the Welile platform, consumed by the Welile Flutter application. Every response uses the envelope { status, message, data }. Login with a phone number or email to obtain a bearer access_token; all other requests send it as `Authorization: Bearer {{token}}`.\n\nBase URL options:\n- Custom domain (production): https://api.welileapp.com\n- Direct edge URL: https://wirntoujqoyjobfhyelc.supabase.co/functions/v1/api\n\nThe `apikey` header is required when calling the direct edge URL.",
+		"description": "Official REST API for the Welile platform, consumed by the Welile Flutter application. Every response uses the envelope { status, message, data }. Login with a phone number or email to obtain a bearer access_token; all other requests send it as `Authorization: Bearer {{token}}`.\n\nBase URL options:\n- Custom domain (production): https://api.welile.tech\n- Direct edge URL: https://wirntoujqoyjobfhyelc.supabase.co/functions/v1/api\n\nThe `apikey` header is required when calling the direct edge URL.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"item": [
@@ -197,7 +197,7 @@
 		}
 	],
 	"variable": [
-		{ "key": "base_url", "value": "https://api.welileapp.com", "type": "string" },
+		{ "key": "base_url", "value": "https://api.welile.tech", "type": "string" },
 		{ "key": "apikey", "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indpcm50b3VqcW95am9iZmh5ZWxjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1NjE1MTYsImV4cCI6MjA4MjEzNzUxNn0.5-zxcRPVxvpxNiXhoo5VHpIuvbtuOLfiI3ph8jPIod8", "type": "string" },
 		{ "key": "token", "value": "", "type": "string" },
 		{ "key": "refresh_token", "value": "", "type": "string" }

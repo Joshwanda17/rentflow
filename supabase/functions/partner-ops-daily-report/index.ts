@@ -27,7 +27,7 @@ const FROM = "Welile Reports <info@welile.com>";
 const SENDER_DOMAIN = "notify.welile.com";
 const EVENT_TYPE = "partner_ops_daily_report";
 const LABEL = "partner-ops-daily-report";
-const LOGO_URL = "https://welileapp.com/welile-logo.png";
+const LOGO_URL = "https://welile.tech/welile-logo.png";
 const COMPANY_LOCATION = "Welile Technologies Ltd - Kabaale Palm Lane, Uganda";
 
 type Admin = ReturnType<typeof createClient>;

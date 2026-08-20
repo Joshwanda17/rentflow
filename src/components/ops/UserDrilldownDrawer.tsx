@@ -916,7 +916,7 @@ function TenantExportButtons({
       pdf.text('Tenant Profile Statement', 14, 22);
       pdf.setFontSize(8);
       pdf.text(`Generated ${format(new Date(), 'dd MMM yyyy, HH:mm')}`, pageW - 14, 15, { align: 'right' });
-      pdf.text('welileapp.com', pageW - 14, 21, { align: 'right' });
+      pdf.text('welile.tech', pageW - 14, 21, { align: 'right' });
 
       pdf.setTextColor(...INK);
       let y = 40;

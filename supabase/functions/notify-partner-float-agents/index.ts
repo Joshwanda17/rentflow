@@ -35,7 +35,7 @@ function normalizePhone(raw: string): string {
 const ugx = (n: number) => `UGX ${Math.round(Number(n) || 0).toLocaleString("en-US")}`;
 
 /** Agent dashboard deep link included in every float-arrival SMS. */
-const AGENT_DASHBOARD_URL = "https://welileapp.com/dashboard/agent";
+const AGENT_DASHBOARD_URL = "https://welile.tech/dashboard/agent";
 
 /** Agent-facing copy. No partner identity is ever disclosed. */
 function buildMessage(row: {

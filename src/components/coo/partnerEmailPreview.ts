@@ -1,4 +1,4 @@
-const LOGO_URL = 'https://welileapp.com/welile-logo.png';
+const LOGO_URL = 'https://welile.tech/welile-logo.png';
 
 function escapeHtml(s: string) {
   return s

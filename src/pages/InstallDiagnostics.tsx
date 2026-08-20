@@ -130,7 +130,7 @@ export default function InstallDiagnostics() {
         label: 'Secure (HTTPS) context',
         status: isSecure ? 'ok' : 'fail',
         detail: isSecure ? 'Page is served over HTTPS.' : 'Page is not in a secure context.',
-        fix: isSecure ? undefined : 'Open the site via https://welileapp.com — installation requires HTTPS.',
+        fix: isSecure ? undefined : 'Open the site via https://welile.tech — installation requires HTTPS.',
       });
 
       // Standalone / already installed

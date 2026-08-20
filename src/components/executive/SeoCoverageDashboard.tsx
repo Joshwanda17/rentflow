@@ -170,7 +170,7 @@ export function SeoCoverageDashboard() {
       <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
         <div className="flex items-center gap-2">
           <GitCompareArrows className="w-5 h-5 text-primary" />
-          <CardTitle className="text-base sm:text-lg">Search Console Coverage · welileapp.com vs welilereceipts.com</CardTitle>{/* legacy-domain-guard-allow */}
+          <CardTitle className="text-base sm:text-lg">Search Console Coverage · welile.tech vs welilereceipts.com</CardTitle>{/* legacy-domain-guard-allow */}
         </div>
         <Button size="sm" variant="outline" onClick={run} disabled={isFetching}>
           <RefreshCw className={`w-4 h-4 mr-1.5 ${isFetching ? 'animate-spin' : ''}`} />
@@ -199,14 +199,14 @@ export function SeoCoverageDashboard() {
             )}
             <div>
               {consolidation === 'correct' && (
-                <span>Google is consolidating correctly — it treats <strong>welileapp.com</strong> as canonical.</span>
+                <span>Google is consolidating correctly — it treats <strong>welile.tech</strong> as canonical.</span>
               )}
               {consolidation === 'reversed' && (
                 <span className="flex flex-wrap items-center gap-1">
                   <strong>Consolidation is reversed.</strong> Google currently picks
                   <span className="font-mono">welilereceipts.com</span>{/* legacy-domain-guard-allow */}
-                  <ArrowRight className="w-3 h-3" /> as canonical for welileapp.com pages.
-                  Fix the legacy 301 redirect + submit a Change of Address so signals flow to welileapp.com.
+                  <ArrowRight className="w-3 h-3" /> as canonical for welile.tech pages.
+                  Fix the legacy 301 redirect + submit a Change of Address so signals flow to welile.tech.
                 </span>
               )}
               {consolidation === 'unknown' && (
@@ -232,7 +232,7 @@ export function SeoCoverageDashboard() {
             <p className="text-xs text-muted-foreground flex items-center gap-1.5">
               <Clock className="w-3.5 h-3.5" />
               Live from Search Console · checked {formatDistanceToNow(new Date(data.checked_at), { addSuffix: true })}.
-              Green canonical = points to welileapp.com; red = points to the legacy domain.
+              Green canonical = points to welile.tech; red = points to the legacy domain.
             </p>
           </>
         ) : null}

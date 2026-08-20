@@ -36,7 +36,7 @@ export function WithdrawalPaidReceipt({
   proof_reference = '',
   new_balance = null,
   date = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }),
-  wallet_url = 'https://welileapp.com/ZQhyGb',
+  wallet_url = 'https://welile.tech/ZQhyGb',
   receipt_url = null,
   copy_for = null,
   commission_earned = null,
@@ -138,7 +138,7 @@ export const template = {
     proof_label: 'Mobile Money transaction ID',
     proof_reference: 'MP260628.1234.A56789',
     new_balance: 12000,
-    receipt_url: 'https://welileapp.com/r/2eaa0cdc65f145d5a65cd755b7910d2f',
+    receipt_url: 'https://welile.tech/r/2eaa0cdc65f145d5a65cd755b7910d2f',
   },
 } satisfies TemplateEntry
 

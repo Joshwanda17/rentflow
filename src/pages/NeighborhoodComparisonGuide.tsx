@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { getComparison, NEIGHBORHOOD_COMPARISONS } from '@/data/neighborhoodComparisons';
 import { formatUGX } from '@/lib/rentCalculations';
 
-const SITE_URL = 'https://welileapp.com';
+const SITE_URL = 'https://welile.tech';
 
 function range(a: number, b: number) {
   return `${formatUGX(a)} – ${formatUGX(b)}`;

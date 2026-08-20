@@ -1,8 +1,8 @@
-// Automatic sitemap resubmission for welileapp.com.
+// Automatic sitemap resubmission for welile.tech.
 //
 // The sitemap itself is regenerated at build time (scripts/generate-sitemap.ts
 // runs on prebuild and includes live house listings), so the served
-// welileapp.com/sitemap.xml already reflects current pages after each publish.
+// welile.tech/sitemap.xml already reflects current pages after each publish.
 //
 // This function detects when that served sitemap has actually CHANGED and, only
 // then, resubmits it to Google Search Console via the Lovable connector gateway.
@@ -20,8 +20,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const SITE_URL = "https://welileapp.com/";
-const SITEMAP_URL = "https://welileapp.com/sitemap.xml";
+const SITE_URL = "https://welile.tech/";
+const SITEMAP_URL = "https://welile.tech/sitemap.xml";
 const GATEWAY = "https://connector-gateway.lovable.dev/google_search_console";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;

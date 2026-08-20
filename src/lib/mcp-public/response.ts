@@ -101,8 +101,8 @@ export type PublicToolResult = {
 };
 
 const FALLBACK_LINKS: PublicToolLinks = {
-  landing_url: "https://welileapp.com",
-  signup_url: "https://welileapp.com/auth",
+  landing_url: "https://welile.tech",
+  signup_url: "https://welile.tech/auth",
   referral_url: null,
   role: null,
 };

@@ -2,7 +2,7 @@ CREATE TABLE public.semrush_brand_snapshots (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   captured_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   source TEXT NOT NULL DEFAULT 'manual',
-  domain TEXT NOT NULL DEFAULT 'welileapp.com',
+  domain TEXT NOT NULL DEFAULT 'welile.tech',
   brand_keywords JSONB NOT NULL DEFAULT '[]'::jsonb,
   domain_summary JSONB,
   backlinks_summary JSONB,

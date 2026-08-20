@@ -57,8 +57,8 @@ export default function Unsubscribe() {
   return (
     <>
       <Helmet>
-        <link rel="canonical" href="https://welileapp.com/unsubscribe" />
-        <meta property="og:url" content="https://welileapp.com/unsubscribe" />
+        <link rel="canonical" href="https://welile.tech/unsubscribe" />
+        <meta property="og:url" content="https://welile.tech/unsubscribe" />
       </Helmet>
     <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
       <Card className="w-full max-w-md">

@@ -41,10 +41,10 @@ export function PortfolioMaturity({
   duration = '',
   currency = 'UGX',
   company_name = 'Welile',
-  logo_url = 'https://welileapp.com/welile-logo.png',
+  logo_url = 'https://welile.tech/welile-logo.png',
   unsubscribe_url = 'https://welile.com/unsubscribe',
-  terms_url = 'https://welileapp.com/partners-terms',
-  privacy_url = 'https://welileapp.com/privacy',
+  terms_url = 'https://welile.tech/partners-terms',
+  privacy_url = 'https://welile.tech/privacy',
 }: PortfolioMaturityProps) {
   const year = new Date().getFullYear()
   const fmtPrincipal = formatAmount(principal_amount, currency)
@@ -330,9 +330,9 @@ export const template = {
     duration: '12 months',
     currency: 'UGX',
     company_name: 'Welile',
-    logo_url: 'https://welileapp.com/welile-logo.png',
+    logo_url: 'https://welile.tech/welile-logo.png',
     unsubscribe_url: 'https://welile.com/unsubscribe',
-    terms_url: 'https://welileapp.com/partners-terms',
-    privacy_url: 'https://welileapp.com/privacy',
+    terms_url: 'https://welile.tech/partners-terms',
+    privacy_url: 'https://welile.tech/privacy',
   },
 } satisfies TemplateEntry

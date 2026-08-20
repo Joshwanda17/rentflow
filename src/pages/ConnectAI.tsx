@@ -117,7 +117,7 @@ export default function ConnectAI() {
           name="description"
           content="Step-by-step instructions and the exact MCP connection URL for using your Welile wallet, statements and house listings inside ChatGPT or Claude."
         />
-        <link rel="canonical" href="https://welileapp.com/connect-ai" />
+        <link rel="canonical" href="https://welile.tech/connect-ai" />
       </Helmet>
 
       <main className="mx-auto max-w-3xl px-4 py-6 pb-24 sm:py-10">

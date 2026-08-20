@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { AvailableHousesSheet } from '@/components/tenant/AvailableHousesSheet';
 
-const SITE_URL = 'https://welileapp.com';
+const SITE_URL = 'https://welile.tech';
 
 /**
  * Full-page route for "View All" available houses. Mounts the existing
@@ -30,7 +30,7 @@ export default function AvailableHouses() {
       <Helmet>
         <title>Available Houses | Welile</title>
         <meta name="description" content="Browse all available houses to rent on Welile." />
-        <link rel="canonical" href="https://welileapp.com/houses" />
+        <link rel="canonical" href="https://welile.tech/houses" />
         <script type="application/ld+json">{JSON.stringify(collectionJsonLd)}</script>
       </Helmet>
       <h1 className="sr-only">Available Houses to Rent</h1>

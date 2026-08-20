@@ -162,7 +162,7 @@ Deno.serve(async (req) => {
     const smsMsg =
       `WELILE: Congratulations ${name}! You are now a Welile Merchant Agent (cash-out). ` +
       `You can start claiming and processing withdrawal requests and earn 0.5% commission per payout. ` +
-      `Open your dashboard: https://welileapp.com/ZQhyGb`;
+      `Open your dashboard: https://welile.tech/ZQhyGb`;
 
     const result = await sendSMSWithRetry(rawPhone, smsMsg);
 

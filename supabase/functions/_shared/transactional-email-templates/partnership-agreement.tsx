@@ -57,7 +57,7 @@ export function PartnershipAgreement({
   company_name = 'Welile',
   logo_url = 'https://wirntoujqoyjobfhyelc.supabase.co/storage/v1/object/public/email-assets/welile-logo.png',
   unsubscribe_url = 'https://welile.com/unsubscribe',
-  dashboard_url = 'https://welileapp.com/auth',
+  dashboard_url = 'https://welile.tech/auth',
 }: PartnershipAgreementProps) {
   const year = new Date().getFullYear()
   const formattedAmount = formatAmount(partnership_amount, currency)
@@ -474,8 +474,8 @@ export const template = {
     roi_payment_day: 21,
     currency: 'UGX',
     company_name: 'Welile',
-    logo_url: 'https://welileapp.com/welile-logo.png',
+    logo_url: 'https://welile.tech/welile-logo.png',
     unsubscribe_url: 'https://welile.com/unsubscribe',
-    dashboard_url: 'https://welileapp.com/auth',
+    dashboard_url: 'https://welile.tech/auth',
   },
 } satisfies TemplateEntry

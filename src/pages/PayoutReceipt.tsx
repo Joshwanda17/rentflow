@@ -194,7 +194,7 @@ export default function PayoutReceipt() {
                 This receipt was generated electronically. No signature is required.
               </p>
               <p className="text-[12px] text-muted-foreground mt-1">
-                Verify at <span className="text-primary font-semibold">welileapp.com</span>
+                Verify at <span className="text-primary font-semibold">welile.tech</span>
               </p>
             </div>
           </div>

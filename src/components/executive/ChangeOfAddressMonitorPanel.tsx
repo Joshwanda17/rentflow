@@ -63,7 +63,7 @@ export function ChangeOfAddressMonitorPanel() {
         .from('change_of_address_monitor')
         .select('*')
         .eq('old_domain', 'welilereceipts.com')
-        .eq('new_domain', 'welileapp.com')
+        .eq('new_domain', 'welile.tech')
         .maybeSingle();
       if (error) throw error;
       return data as unknown as MonitorRow | null;
@@ -92,7 +92,7 @@ export function ChangeOfAddressMonitorPanel() {
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <CardTitle className="flex items-center gap-2 text-base">
           <ArrowRightLeft className="h-4 w-4 text-muted-foreground" />
-          Change of Address — welilereceipts.com → welileapp.com
+          Change of Address — welilereceipts.com → welile.tech
         </CardTitle>
         <Button size="sm" variant="outline" onClick={runCheck} disabled={running}>
           <RefreshCw className={`h-4 w-4 ${running ? 'animate-spin' : ''}`} />
@@ -127,7 +127,7 @@ export function ChangeOfAddressMonitorPanel() {
               <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-sm">
                 Redirect is live and stable. In Search Console, open the{' '}
                 <strong>welilereceipts.com</strong> property → <strong>Settings → Change of Address</strong>,
-                pick <strong>welileapp.com</strong> as the destination, then Validate &amp; Submit. The
+                pick <strong>welile.tech</strong> as the destination, then Validate &amp; Submit. The
                 sitemap has been re-submitted automatically.
               </div>
             )}
@@ -166,7 +166,7 @@ export function ChangeOfAddressMonitorPanel() {
 
             <p className="text-xs text-muted-foreground">
               Runs automatically every 3 hours. When all rows show a permanent 301 landing on
-              welileapp.com, the consolidation actions are re-run and this panel turns green.
+              welile.tech, the consolidation actions are re-run and this panel turns green.
             </p>
           </>
         )}

@@ -110,14 +110,14 @@ export function SeoIndexMonitorPanel() {
   });
 
   const canonicalOnWelileapp =
-    latest?.google_canonical?.includes('welileapp.com') ?? false;
+    latest?.google_canonical?.includes('welile.tech') ?? false;
 
   return (
     <Card className="border-2">
       <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
         <div className="flex items-center gap-2">
           <Search className="w-5 h-5 text-primary" />
-          <CardTitle className="text-base sm:text-lg">Google Indexing Monitor · welileapp.com</CardTitle>
+          <CardTitle className="text-base sm:text-lg">Google Indexing Monitor · welile.tech</CardTitle>
         </div>
         <Button
           size="sm"
@@ -153,7 +153,7 @@ export function SeoIndexMonitorPanel() {
             />
             <StatusTile
               label="Google canonical"
-              value={canonicalOnWelileapp ? 'welileapp.com' : (latest.google_canonical?.replace(/^https?:\/\//, '').replace(/\/$/, '') ?? '—')}
+              value={canonicalOnWelileapp ? 'welile.tech' : (latest.google_canonical?.replace(/^https?:\/\//, '').replace(/\/$/, '') ?? '—')}
               tone={canonicalOnWelileapp ? 'good' : 'neutral'}
             />
           </div>

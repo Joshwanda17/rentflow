@@ -2,7 +2,7 @@
 //
 // On invoke it pulls, through the Lovable Semrush connector gateway:
 //   1. Branded keyword metrics (welile, welile.com, welile app, welile receipts)
-//   2. The primary domain's organic ranking summary (welileapp.com)
+//   2. The primary domain's organic ranking summary (welile.tech)
 //   3. The domain's backlink profile summary (authority, total links, ref domains)
 // It stores a snapshot row for historical tracking and returns the current
 // reading plus recent history. Read-only against Semrush; the free plan has a
@@ -17,7 +17,7 @@ const corsHeaders = {
 };
 
 const GATEWAY = "https://connector-gateway.lovable.dev/semrush";
-const DOMAIN = "welileapp.com";
+const DOMAIN = "welile.tech";
 const DATABASE = "us";
 const BRAND_PHRASES = ["welile", "welile.com", "welile app", "welile receipts"];
 

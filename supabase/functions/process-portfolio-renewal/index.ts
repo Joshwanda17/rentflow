@@ -48,10 +48,10 @@ async function sendPartnerRenewalEmail(opts: {
     duration: `${opts.durationMonths} months`,
     currency: "UGX",
     company_name: "Welile",
-    logo_url: "https://welileapp.com/welile-logo.png",
+    logo_url: "https://welile.tech/welile-logo.png",
     unsubscribe_url: "https://welile.com/unsubscribe",
-    terms_url: "https://welileapp.com/partners-terms",
-    privacy_url: "https://welileapp.com/privacy",
+    terms_url: "https://welile.tech/partners-terms",
+    privacy_url: "https://welile.tech/privacy",
     // consumed only by the scheduled variant (template gracefully ignores extras)
     scheduled: opts.variant === "scheduled",
     scheduled_date: fmtDate(opts.effectiveDate),

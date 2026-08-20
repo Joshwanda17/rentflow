@@ -421,10 +421,10 @@ export default function Auth() {
       <Helmet>
         <title>Sign In or Create Your Welile Account</title>
         <meta name="description" content="Log in or sign up to access rent, fund tenants, and manage your Welile wallet securely." />
-        <link rel="canonical" href="https://welileapp.com/auth" />
+        <link rel="canonical" href="https://welile.tech/auth" />
         <meta property="og:title" content="Sign In or Create Your Welile Account" />
         <meta property="og:description" content="Log in or sign up to access rent, fund tenants, and manage your Welile wallet securely." />
-        <meta property="og:url" content="https://welileapp.com/auth" />
+        <meta property="og:url" content="https://welile.tech/auth" />
       </Helmet>
       <div className="w-full max-w-sm relative z-10">
 
