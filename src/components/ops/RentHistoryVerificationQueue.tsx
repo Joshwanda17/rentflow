@@ -125,14 +125,6 @@ export function RentHistoryVerificationQueue({ dept }: Props) {
     return { pending, verified, total: rows.length };
   }, [rows, cfg.verifyCol]);
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center py-8">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-3">
       <div className="rounded-2xl border bg-card p-4 space-y-2">
@@ -149,15 +141,38 @@ export function RentHistoryVerificationQueue({ dept }: Props) {
             {stats.verified} signed
           </Badge>
         </div>
+        <DateWindowFilter
+          from={dateFrom}
+          to={dateTo}
+          onFromChange={setDateFrom}
+          onToChange={setDateTo}
+          fieldLabel="submitted"
+          className="pt-1"
+        />
+        <WindowSummary
+          visible={stats.total}
+          loaded={stats.total}
+          from={dateFrom}
+          to={dateTo}
+          noun="rent months"
+        />
+        <TruncationNotice fetched={rows.length} limit={VERIFY_LIMIT} noun="rent months" />
       </div>
 
-      {rows.length === 0 && (
+      {isLoading && (
+        <div className="flex justify-center py-8">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
+      )}
+
+      {!isLoading && rows.length === 0 && (
         <Card>
           <CardContent className="py-8 text-center">
             <Clock className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
             <p className="text-sm text-muted-foreground">No rent history records to verify yet.</p>
           </CardContent>
         </Card>
+
       )}
 
       {rows.map((row: any) => {
