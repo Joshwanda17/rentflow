@@ -15,6 +15,9 @@ import { formatUGX } from '@/lib/rentCalculations';
 
 const AgentCommissionBenefits = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const requestedSetupAmount = Number(searchParams.get('setup_amount') || 0);
+  const requestNote = searchParams.get('sc_note') || '';
   const [generatingPdf, setGeneratingPdf] = useState(false);
 
   const handleShareWhatsApp = () => {
