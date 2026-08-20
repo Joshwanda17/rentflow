@@ -30,6 +30,9 @@ function normalizePhone(raw: string): string {
 
 const ugx = (n: number) => `UGX ${Math.round(Number(n) || 0).toLocaleString("en-US")}`;
 
+/** Agent dashboard deep link included in every float-arrival SMS. */
+const AGENT_DASHBOARD_URL = "https://welileapp.com/dashboard/agent";
+
 /** Agent-facing copy. No partner identity is ever disclosed. */
 function buildMessage(row: {
   agent_name: string | null;
@@ -42,7 +45,7 @@ function buildMessage(row: {
   return (
     `WELILE: ${first}, ${ugx(row.amount)} landlord float has been released to you for ` +
     `${row.landlord_name} (${tenants}). The rent capital has been approved and is now in your ` +
-    `Landlord Payout Float. Pay the landlord and submit the TID/receipt in the app.`
+    `Landlord Payout Float. Pay the landlord now and submit the TID/receipt: ${AGENT_DASHBOARD_URL}`
   );
 }
 
