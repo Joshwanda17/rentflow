@@ -513,35 +513,33 @@ export function CFOActionsLog() {
             {filtered.map((r) => {
               const amount = Number(r.amount) || 0;
               const isOut = r.direction === 'cash_out' || r.direction === 'debit';
-              const icon = CATEGORY_ICONS[r.category] || '📋';
               const label = labelFor(r.category);
               const isCorrection = r.classification === 'admin_correction';
+              const partyName = r.actor_name && r.actor_name !== 'System' ? r.actor_name : 'System';
 
               return (
-                <div key={r.group_id} className="flex items-start gap-3 p-2.5 rounded-xl border border-border/50 hover:bg-muted/30 transition-colors">
-                  <div className="text-lg shrink-0 mt-0.5">{icon}</div>
+                <div key={r.group_id} className="flex items-start gap-3 px-1 py-2 border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors">
+                  <div className={`h-7 w-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5 ${toneFor(partyName)}`}>
+                    {initialsFor(partyName)}
+                  </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-xs font-semibold truncate">{label}</p>
-                      {amount > 0 && (
-                        <p className={`text-xs font-bold font-mono tabular-nums shrink-0 ${isOut ? 'text-destructive' : 'text-emerald-600'}`}>
-                          {isOut ? '−' : '+'}{fmt(amount)}
-                        </p>
-                      )}
-                    </div>
-                    {r.actor_name && r.actor_name !== 'System' && (
-                      <p className="text-[11px] text-foreground/80 truncate">{r.actor_name}</p>
-                    )}
-                    {r.description && (
-                      <p className="text-[10px] text-muted-foreground truncate mt-0.5">{r.description}</p>
-                    )}
-                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-2.5 w-2.5 text-muted-foreground" />
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="text-xs text-foreground truncate">{label}{partyName !== 'System' ? ` — ${partyName}` : ''}</p>
+                      <div className="shrink-0 text-right">
+                        {amount > 0 && (
+                          <p className={`text-xs font-bold tabular-nums ${isOut ? 'text-destructive' : 'text-foreground'}`}>
+                            {fmt(amount)}
+                          </p>
+                        )}
                         <p className="text-[10px] text-muted-foreground">
                           {format(new Date(r.transaction_date), 'MMM d, h:mm a')}
                         </p>
                       </div>
+                    </div>
+                    {r.description && (
+                      <p className="text-[10px] text-muted-foreground truncate mt-0.5">{r.description}</p>
+                    )}
+                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                       {r.reference_id && (
                         <span className="text-[10px] text-muted-foreground/70 font-mono truncate max-w-[140px]">
                           {r.reference_id}
