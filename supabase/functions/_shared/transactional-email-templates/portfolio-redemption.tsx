@@ -111,6 +111,41 @@ export function PortfolioRedemption({
                         ? `We confirm that your capital redemption request has been processed in full. The entire principal of ${fmtPrevious} has been released for payout and this portfolio has now been closed.`
                         : `We confirm that your capital redemption request has been processed. ${fmtRedeemed} has been released for payout from your portfolio principal of ${fmtPrevious}. The balance of ${fmtRemaining} remains invested and continues to earn returns under your existing partnership terms.`}
                     </Text>
+                    <Text style={{ ...introText, margin: '15px 0 0 0' }}>
+                      Please note: paying out your capital takes up to {windowDays} days (about 3 months) from
+                      today. This is normal and it is part of your partnership terms.
+                    </Text>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td className="padding-mobile" style={{ padding: '0 40px 30px 40px' }}>
+                    <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={noticeCard}>
+                      <tbody>
+                        <tr>
+                          <td style={{ padding: '18px 22px' }}>
+                            <Text style={noticeTitle}>When will I get my money? Up to {windowDays} days</Text>
+                            <Text style={noticeBody}>
+                              Your money is working inside real rent plans with tenants, so it cannot be pulled out
+                              on the same day. We need time to collect it back safely without hurting the tenants
+                              or the other partners. That is why capital redemptions take up to {windowDays} days,
+                              which is roughly 3 months.
+                            </Text>
+                            <Text style={{ ...noticeBody, margin: '10px 0 0 0' }}>
+                              What this means for you in simple terms:
+                            </Text>
+                            <Text style={{ ...noticeBody, margin: '6px 0 0 0' }}>
+                              • Your redemption of {fmtRedeemed} is now approved and locked in — the amount will not change.<br />
+                              • The cash is released to your registered payout channel within {windowDays} days from {processed_date || 'today'}
+                              {expected_payout_by ? `, and on or before ${expected_payout_by}` : ''}.<br />
+                              • It can come sooner. If it does, we will send you the money and inform you.<br />
+                              • You do not need to do anything or ask again while you wait. We will keep you updated.
+                              {!isFull ? <><br />• The {fmtRemaining} still invested keeps earning your returns as normal during this period.</> : null}
+                            </Text>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
                   </td>
                 </tr>
 
