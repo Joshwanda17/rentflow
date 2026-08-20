@@ -355,9 +355,9 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
       </div>
 
       {/* ── TODAY'S MOVEMENT ── */}
-      <Card className="rounded-xl overflow-hidden shadow-sm">
+      <Card className="rounded-lg overflow-hidden shadow-sm">
         <CardContent className="p-0">
-          <div className="px-5 py-3 flex items-center justify-between gap-3 border-b border-border bg-muted/30">
+          <div className="px-5 py-3 flex items-center justify-between gap-3 border-b border-border">
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Today's Money Flow</p>
             <SectionToggle open={isOpen('todayFlow')} onToggle={() => toggleSection('todayFlow')} label="Today's Money Flow" />
           </div>
