@@ -14,8 +14,8 @@ const NOTCH_PATH =
 
 interface Props {
   onAddCard?: () => void;
-  onSend?: () => void;
-  onRequest?: () => void;
+  onPortfolios?: () => void;
+  onCalculator?: () => void;
   onTopUp?: () => void;
   onMore?: () => void;
 }
