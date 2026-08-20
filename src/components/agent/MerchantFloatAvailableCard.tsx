@@ -210,49 +210,6 @@ export function MerchantFloatAvailableCard() {
         )}
       </div>
 
-      {/* Float shortfalls awaiting the merchant's own confirmation. */}
-      {(oop?.underReview ?? 0) > 0 && (
-        <div className="mt-3 rounded-2xl border border-warning/40 bg-warning/10 p-3">
-          <div className="flex items-center gap-2">
-            <Search className="h-4 w-4 text-warning" />
-            <p className="text-[10px] font-bold uppercase tracking-wider text-warning">
-              Awaiting finance review
-            </p>
-          </div>
-          <p className="mt-1 font-mono text-lg font-bold tabular-nums text-foreground break-all">
-            {formatUGX(oop?.underReview ?? 0)}
-          </p>
-          <p className="text-[10px] leading-relaxed text-muted-foreground">
-            Company float was short on {oop?.underReviewCount ?? 0} payout
-            {(oop?.underReviewCount ?? 0) === 1 ? '' : 's'}. This is not counted as money owed to you
-            yet. Confirm the ones where you really sent your own money — Finance checks each one.
-          </p>
-          {reviewRows.length > 0 && (
-            <ul className="mt-2 space-y-2">
-              {reviewRows.slice(0, 5).map((r) => (
-                <li key={r.id} className="flex items-center justify-between gap-2">
-                  <span className="min-w-0 truncate text-[10px] text-muted-foreground">
-                    {new Date(r.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} ·{' '}
-                    {r.kind === 'telecom' ? 'Telecom charge' : `Payout ${formatUGX(r.payoutAmount)}`} ·{' '}
-                    <span className="font-mono font-semibold text-foreground">
-                      {formatUGX(r.shortfallAmount)}
-                    </span>
-                  </span>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 shrink-0 gap-1 px-2 text-[10px]"
-                    disabled={review.isPending}
-                    onClick={() => confirmOwn(r.id)}
-                  >
-                    <Check className="h-3 w-3" /> I used my own money
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
 
       {/* Telecom (MTN/Airtel) sending charges. */}
       <div className="mt-3 rounded-2xl border border-border/60 bg-muted/30 p-3">
