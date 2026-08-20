@@ -326,7 +326,7 @@ export function ServiceCentreNewEntryDialog() {
           <Button variant="ghost" onClick={() => setOpen(false)} disabled={saving}>Cancel</Button>
           <Button onClick={handleSubmit} disabled={saving} className="gap-1">
             {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-            Submit for COO Approval
+            Submit
           </Button>
         </DialogFooter>
       </DialogContent>
