@@ -8,7 +8,12 @@ import { AlertOctagon, Loader2, Upload, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
-import { beginAuthCriticalSection, endAuthCriticalSection } from '@/lib/staleSessionDetector';
+import {
+  beginAuthCriticalSection,
+  endAuthCriticalSection,
+  armAuthCriticalSection,
+  disarmAuthCriticalSection,
+} from '@/lib/staleSessionDetector';
 
 interface ProoflessRow {
   id: string;
@@ -132,6 +137,7 @@ export function ProoflessPayoutBlocker() {
       toast.error(e?.message || 'Could not attach the proof');
     } finally {
       endAuthCriticalSection();
+      disarmAuthCriticalSection();
       uploadingRef.current = false;
       setBusyId(null);
     }
@@ -191,12 +197,20 @@ export function ProoflessPayoutBlocker() {
                 accept="image/*,application/pdf"
                 className="sr-only"
                 disabled={busyId === r.id}
-                onClick={() => sessionStorage.setItem(PENDING_KEY, r.id)}
+                onClick={() => {
+                  sessionStorage.setItem(PENDING_KEY, r.id);
+                  // Camera/gallery is opening — hold the session through the
+                  // background/resume cycle that follows.
+                  armAuthCriticalSection(180_000);
+                }}
                 onChange={(e) => {
                   const f = e.target.files?.[0];
                   e.target.value = '';
                   if (f) void handleFile(r.id, f);
-                  else sessionStorage.removeItem(PENDING_KEY);
+                  else {
+                    sessionStorage.removeItem(PENDING_KEY);
+                    disarmAuthCriticalSection();
+                  }
                 }}
               />
             </li>
