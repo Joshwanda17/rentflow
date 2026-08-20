@@ -651,7 +651,40 @@ Deno.serve(async (req) => {
           // A5 → A1/Treasury. Mobile money / bank / agent-cash deposits keep
           // their existing accounting untouched.
           const providerKey = (depositRequest.provider || '').toString().trim().toLowerCase();
-          const isPhysicalCashChannel = providerKey === 'cash_deposit';
+          // A deposit is a PHYSICAL CASH RECEIPT when either the provider says so
+          // or the receipt-code (cash_deposit_verifications) path produced it.
+          // Relying on the provider string alone let genuine receipt-path cash
+          // deposits fall through to the mobile-money accounting, which posts a
+          // platform `agent_float_deposit` cash_out leg (an A1 CREDIT) — making
+          // "Money We Have" DECREASE on a cash intake instead of increase.
+          let hasCashReceipt = false;
+          try {
+            const { count: receiptCount } = await supabaseAdmin
+              .from('cash_deposit_verifications')
+              .select('id', { count: 'exact', head: true })
+              .eq('deposit_request_id', depositRequest.id);
+            hasCashReceipt = (receiptCount ?? 0) > 0;
+          } catch (_receiptErr) {
+            hasCashReceipt = false;
+          }
+          const isPhysicalCashChannel =
+            providerKey === 'cash_deposit' ||
+            providerKey === 'cash' ||
+            providerKey === 'office_cash' ||
+            hasCashReceipt;
+          // Exactly-one-A5-entry guard: never post a second cash_receipt_in_transit
+          // leg for the same deposit (idempotency on re-approval / retries).
+          let hasTransitLeg = false;
+          if (isPhysicalCashChannel) {
+            const { count: transitCount } = await supabaseAdmin
+              .from('general_ledger')
+              .select('id', { count: 'exact', head: true })
+              .eq('source_table', 'deposit_requests')
+              .eq('source_id', depositRequest.id)
+              .eq('category', 'cash_receipt_in_transit')
+              .eq('direction', 'cash_in');
+            hasTransitLeg = (transitCount ?? 0) > 0;
+          }
           const depositEntries: Record<string, unknown>[] = [
               {
                 user_id: depositRequest.user_id,
@@ -687,7 +720,7 @@ Deno.serve(async (req) => {
               },
           ];
 
-          if (isPhysicalCashChannel) {
+          if (isPhysicalCashChannel && !hasTransitLeg) {
             depositEntries.push(
               {
                 direction: 'cash_in',
