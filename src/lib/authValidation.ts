@@ -55,7 +55,9 @@ const isGibberishToken = (token: string): boolean => {
   if (DUMMY_NAME_WORDS.has(t)) return true;
 
   // Real names almost always contain a vowel. Long consonant-only tokens are noise.
-  const vowels = (t.match(/[aeiou]/g) || []).length;
+  // `y` counts as a vowel here — it carries the vowel sound in many real names
+  // (e.g. "Gladys", "Nnamdy", "Sylvia") and excluding it flagged them as junk.
+  const vowels = (t.match(/[aeiouy]/g) || []).length;
   if (t.length >= 4 && vowels === 0) return true;
 
   // Very low vowel ratio on longer tokens (e.g. "dhfhfdhd", "hshseh").
