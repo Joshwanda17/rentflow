@@ -28921,6 +28921,78 @@ export type Database = {
           },
         ]
       }
+      service_centre_entries: {
+        Row: {
+          assigned_agent_ids: string[]
+          ceo_approved_at: string | null
+          ceo_approved_by: string | null
+          coo_approved_at: string | null
+          coo_approved_by: string | null
+          created_at: string
+          created_by: string | null
+          duration_unit: string
+          duration_value: number
+          forecast_amount: number
+          id: string
+          notes: string | null
+          paid_upfront: number
+          payment_mode: string
+          rejection_reason: string | null
+          stationed_location: string
+          status: string
+          unit_price: number
+          updated_at: string
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          assigned_agent_ids?: string[]
+          ceo_approved_at?: string | null
+          ceo_approved_by?: string | null
+          coo_approved_at?: string | null
+          coo_approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          duration_unit?: string
+          duration_value?: number
+          forecast_amount?: number
+          id?: string
+          notes?: string | null
+          paid_upfront?: number
+          payment_mode?: string
+          rejection_reason?: string | null
+          stationed_location: string
+          status?: string
+          unit_price?: number
+          updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          assigned_agent_ids?: string[]
+          ceo_approved_at?: string | null
+          ceo_approved_by?: string | null
+          coo_approved_at?: string | null
+          coo_approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          duration_unit?: string
+          duration_value?: number
+          forecast_amount?: number
+          id?: string
+          notes?: string | null
+          paid_upfront?: number
+          payment_mode?: string
+          rejection_reason?: string | null
+          stationed_location?: string
+          status?: string
+          unit_price?: number
+          updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: []
+      }
       service_centre_setups: {
         Row: {
           agent_id: string
