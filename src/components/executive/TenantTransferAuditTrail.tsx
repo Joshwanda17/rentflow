@@ -194,22 +194,27 @@ export function TenantTransferAuditTrail() {
         };
       });
 
-      return [...transferEntries, ...linkEntries].sort(
-        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-      );
+      return {
+        entries: [...transferEntries, ...linkEntries].sort(
+          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+        ),
+        transfersFetched: transfers.length,
+        linksFetched: links.length,
+      };
     },
   });
 
+  const entries = payload?.entries;
+
   // Advanced filter state — each filter is independent and combines with AND.
   const [showFilters, setShowFilters] = useState(false);
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
   const [tenantFilter, setTenantFilter] = useState('all');
   const [executiveFilter, setExecutiveFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [fromAgentFilter, setFromAgentFilter] = useState('all');
   const [toAgentFilter, setToAgentFilter] = useState('all');
   const [kindFilter, setKindFilter] = useState<'all' | 'transfer' | 'link'>('all');
+
 
   // Build dropdown option lists from the loaded entries so operators only see
   // values that actually exist in the audit trail.
