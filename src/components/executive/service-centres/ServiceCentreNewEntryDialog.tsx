@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -141,9 +141,6 @@ export function ServiceCentreNewEntryDialog() {
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>New Service Centre Entry</DialogTitle>
-          <DialogDescription>
-            Submission routes to Pending COO Approval → CEO Approval → Verified.
-          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-5">
