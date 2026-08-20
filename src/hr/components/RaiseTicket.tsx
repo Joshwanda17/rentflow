@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/hr/api/client';
+import TicketEvidence from '@/hr/components/TicketEvidence';
 
 interface Surface {
   id: string;
@@ -51,6 +52,7 @@ export default function RaiseTicket({ staffId }: RaiseTicketProps) {
   const [reportedAt, setReportedAt] = useState('');
   const [reporterWords, setReporterWords] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [files, setFiles] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState('');
   const [failure, setFailure] = useState('');
@@ -117,13 +119,49 @@ export default function RaiseTicket({ staffId }: RaiseTicketProps) {
     const { data, error } = await supabase
       .from('hr_tickets')
       .insert(payload as never)
-      .select('ref')
+      .select('id, ref')
       .single();
-    setSubmitting(false);
     if (error) {
+      setSubmitting(false);
       setFailure(error.message);
       return;
     }
+
+    const created = data as { id?: string; ref?: string } | null;
+    const ticketId = created?.id;
+    const uploadProblems: string[] = [];
+
+    if (ticketId && files.length > 0) {
+      const deleteAfter = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .slice(0, 10);
+
+      for (const file of files) {
+        const ext = (file.name.split('.').pop() || 'bin').toLowerCase();
+        const path = `tickets/${ticketId}/${crypto.randomUUID()}.${ext}`;
+        const { error: uploadError } = await supabase.storage
+          .from('task-evidence')
+          .upload(path, file, { upsert: false, contentType: file.type });
+        if (uploadError) {
+          uploadProblems.push(`${file.name} could not be attached.`);
+          continue;
+        }
+        const { error: rowError } = await supabase.from('hr_task_attachments').insert({
+          ticket_id: ticketId,
+          kind: 'evidence',
+          storage_path: path,
+          mime_type: file.type,
+          size_bytes: file.size,
+          file_name: file.name,
+          delete_after: deleteAfter,
+        } as never);
+        if (rowError) {
+          uploadProblems.push(`${file.name} could not be attached.`);
+        }
+      }
+    }
+
+    setSubmitting(false);
     setTitle('');
     setBody('');
     setSurfaceId('');
@@ -135,8 +173,10 @@ export default function RaiseTicket({ staffId }: RaiseTicketProps) {
     setReporterChannel('phone');
     setReportedAt('');
     setReporterWords('');
+    setFiles([]);
     setErrors({});
-    setSuccess(`Ticket ${(data as { ref?: string } | null)?.ref ?? ''} was raised.`);
+    setSuccess(`Ticket ${created?.ref ?? ''} was raised.`);
+    if (uploadProblems.length > 0) setFailure(uploadProblems.join(' '));
   };
 
   const fieldError = (key: string) =>
@@ -292,6 +332,8 @@ export default function RaiseTicket({ staffId }: RaiseTicketProps) {
 
           {success && <p className="text-sm text-emerald-600">{success}</p>}
           {failure && <p className="text-sm text-destructive">{failure}</p>}
+
+          <TicketEvidence files={files} onChange={setFiles} disabled={submitting} />
 
           <Button onClick={submit} disabled={submitting}>
             Raise ticket
