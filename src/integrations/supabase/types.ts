@@ -35975,6 +35975,36 @@ export type Database = {
           },
         ]
       }
+      v_merchant_oop_evidence: {
+        Row: {
+          advance_id: string | null
+          agent_id: string | null
+          attested_at: string | null
+          created_at: string | null
+          evidence: Json | null
+          evidenced_amount: number | null
+          float_position_at_payout: number | null
+          float_used: number | null
+          is_estimate: boolean | null
+          is_evidenced: boolean | null
+          kind: string | null
+          note: string | null
+          payout_amount: number | null
+          payout_at: string | null
+          payout_tid: string | null
+          provider: string | null
+          recipient_name: string | null
+          recipient_phone: string | null
+          reimbursed_at: string | null
+          reviewed_at: string | null
+          shortfall_amount: number | null
+          status: string | null
+          telecom_charge: number | null
+          withdrawal_amount: number | null
+          withdrawal_id: string | null
+        }
+        Relationships: []
+      }
       v_merchant_payout_float_trace: {
         Row: {
           agent_id: string | null
@@ -40303,6 +40333,10 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      get_merchant_oop_evidenced_owed: {
+        Args: { p_agent_id: string }
+        Returns: number
+      }
       get_merchant_out_of_pocket_summary: {
         Args: { p_agent_id?: string }
         Returns: Json
@@ -41926,6 +41960,10 @@ export type Database = {
       merchant_float_fix_authorized: {
         Args: { _user_id: string }
         Returns: boolean
+      }
+      merchant_float_position_at: {
+        Args: { p_agent_id: string; p_at: string }
+        Returns: number
       }
       merchant_float_visible_net: {
         Args: { p_agent_id: string }
