@@ -66,8 +66,12 @@ interface FloatRow {
   name: string;
   phone: string;
   label: string;
+  /** "Float they can spend now" on the Financial Ops board (evidenced_amount). */
   floatHeld: number;
-  floatRaw: number;
+  /** "Our cash still on their phones" (company_cash_with_agent). */
+  companyCash: number;
+  /** "Money we must send back to them" (owed_to_agent). */
+  owed: number;
 }
 interface ActivityRow {
   agentId: string;
