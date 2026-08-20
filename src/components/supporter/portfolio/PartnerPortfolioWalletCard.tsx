@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ArrowUp, Check, CreditCard, Eye, EyeOff, Menu, Plus } from 'lucide-react';
+import { Calculator, CreditCard, Eye, EyeOff, Menu, Plus, Wallet } from 'lucide-react';
 import { usePartnerPortfolios } from '@/hooks/usePartnerPortfolios';
 import { computeAccrual, normalizePortfolioState } from '@/lib/portfolioAccrual';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -14,8 +14,8 @@ const NOTCH_PATH =
 
 interface Props {
   onAddCard?: () => void;
-  onSend?: () => void;
-  onRequest?: () => void;
+  onPortfolios?: () => void;
+  onCalculator?: () => void;
   onTopUp?: () => void;
   onMore?: () => void;
 }
@@ -35,7 +35,7 @@ function ActionButton({ label, icon, onClick }: { label: string; icon: React.Rea
  * Premium bank-card style summary of the partner's deployed capital.
  * Additive card — does not replace the wallet hero card.
  */
-export function PartnerPortfolioWalletCard({ onAddCard, onSend, onRequest, onTopUp, onMore }: Props) {
+export function PartnerPortfolioWalletCard({ onAddCard, onPortfolios, onCalculator, onTopUp, onMore }: Props) {
   const { user } = useAuth();
   const { profile } = useProfile();
   const { portfolios, loading } = usePartnerPortfolios();
@@ -224,8 +224,8 @@ export function PartnerPortfolioWalletCard({ onAddCard, onSend, onRequest, onTop
 
       {/* ACTION ROW */}
       <div className="bg-muted/70 backdrop-blur rounded-2xl p-2.5 shadow-md border border-border/70 flex items-center justify-around">
-        <ActionButton label="Send" onClick={onSend} icon={<ArrowUp className="w-4 h-4 rotate-45" />} />
-        <ActionButton label="Request" onClick={onRequest} icon={<Check className="w-4 h-4" />} />
+        <ActionButton label="Portfolios" onClick={onPortfolios} icon={<Wallet className="w-4 h-4" />} />
+        <ActionButton label="Calculator" onClick={onCalculator} icon={<Calculator className="w-4 h-4" />} />
         <ActionButton label="TopUp" onClick={onTopUp} icon={<CreditCard className="w-4 h-4" />} />
         <ActionButton label="More" onClick={onMore} icon={<Menu className="w-4 h-4" />} />
       </div>
