@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { usePartnerPortfolios } from '@/hooks/usePartnerPortfolios';
-import { computeAccrual, summarizeAccruals, normalizePortfolioState } from '@/lib/portfolioAccrual';
-import { PortfolioSummary } from './PortfolioSummary';
+import { normalizePortfolioState } from '@/lib/portfolioAccrual';
 import { ActivePortfolioCard } from './ActivePortfolioCard';
 import { PortfolioSkeleton, PortfolioEmptyState, PortfolioErrorState } from './PortfolioStates';
 
@@ -32,27 +31,13 @@ export function PartnerPortfolioSection({ onViewPortfolios, onExploreOpportuniti
       .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
   }, [portfolios]);
 
-  const summary = useMemo(() => summarizeAccruals(active.map(computeAccrual)), [active]);
+  
 
   const list = active.length > 0 ? active : pending;
   const shown = list.slice(0, 3);
   const hasMore = list.length > 3;
-  const showViewAll = list.length > 0;
-
   return (
     <div id="your-portfolio" className="space-y-3 scroll-mt-4">
-      <div className="flex items-center justify-between gap-2 px-1">
-        <div className="flex items-center gap-2">
-          <div className="w-1 h-5 rounded-full bg-success" />
-          <h2 className="text-sm font-black text-foreground tracking-tight">Your Portfolio</h2>
-        </div>
-        {showViewAll && !loading && !error && (
-          <button onClick={() => onViewPortfolios()} className="text-[11px] font-semibold text-primary touch-manipulation">
-            View all
-          </button>
-        )}
-      </div>
-
       {loading ? (
         <PortfolioSkeleton />
       ) : error ? (
@@ -61,13 +46,6 @@ export function PartnerPortfolioSection({ onViewPortfolios, onExploreOpportuniti
         <PortfolioEmptyState onExplore={onExploreOpportunities} />
       ) : (
         <>
-          {summary.activeCount > 0 && (
-            <PortfolioSummary
-              totalDeployed={summary.totalDeployed}
-              activeCount={summary.activeCount}
-            />
-          )}
-
           <div className="flex items-center justify-between gap-2 px-1 pt-1">
             <h3 className="text-[10px] font-bold tracking-wide text-muted-foreground uppercase">
               {active.length > 0 ? 'YOUR ACTIVE PORTFOLIOS' : 'YOUR PENDING PORTFOLIOS'}
