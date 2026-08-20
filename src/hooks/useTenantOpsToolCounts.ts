@@ -22,6 +22,11 @@ export interface TenantOpsToolCounts {
   transfers_30d: number;
   approvals_today: number;
   rejected_30d: number;
+  /** Server-side operating day window (Africa/Kampala), ISO timestamps. */
+  day_start: string;
+  day_end: string;
+  /** YYYY-MM-DD of the server's operating day. */
+  day_date: string;
 }
 
 const EMPTY: TenantOpsToolCounts = {
