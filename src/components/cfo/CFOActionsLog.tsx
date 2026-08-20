@@ -361,7 +361,7 @@ export function CFOActionsLog() {
 
   if (isLoading) {
     return (
-      <Card className="rounded-2xl">
+      <Card className="rounded-lg shadow-sm">
         <CardContent className="p-4 flex justify-center">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         </CardContent>
@@ -370,11 +370,11 @@ export function CFOActionsLog() {
   }
 
   return (
-    <Card className="rounded-2xl">
+    <Card className="rounded-lg shadow-sm">
       <CardContent className="p-4">
         <div className="flex items-center justify-between gap-2 mb-1 flex-wrap">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            <span>CFO Actions Trail</span>
+          <div className="flex items-center gap-2 text-sm font-bold tracking-tight">
+            <span>CFO Actions Log</span>
             {total > 0 && (
               <Badge variant="secondary" className="text-[10px]">{total.toLocaleString()}</Badge>
             )}
@@ -405,10 +405,9 @@ export function CFOActionsLog() {
               type="button"
               onClick={() => setOpen((o) => !o)}
               aria-expanded={open}
-              aria-label={`${open ? 'Collapse' : 'Expand'} CFO Actions Trail`}
-              className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground shrink-0"
+              aria-label={`${open ? 'Collapse' : 'Expand'} CFO Actions Log`}
+              className="text-muted-foreground hover:text-foreground shrink-0"
             >
-              {open ? 'Hide' : 'Show'}
               <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
             </button>
           </div>
