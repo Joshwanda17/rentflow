@@ -610,7 +610,7 @@ async function buildPdf(p: Payload): Promise<Uint8Array> {
   totalRow([{ text: 'Total merchant float', x: L }, { text: fmt(p.floatTotal), right: R }]);
 
   // 3. Activity
-  section('3', `Yesterday's Agent Activity`, `Movements recorded on ${p.dateStr} (EAT).`);
+  section('3', `Yesterday's Agent Activity`, `Movements on ${p.dateStr} (EAT). Float recd − moved on − paid out explains the closing float. "Moved on" = float that left the desk without settling a payout.`);
   const cFloatRecd = M + 175, cMoved = M + 250, cCount = M + 272, cPaid = M + 355, cComm = M + 436;
   headRow([
     { text: 'Agent', x: L },
