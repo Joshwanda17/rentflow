@@ -77,9 +77,21 @@ export function InvitedPortfoliosPanel() {
       if (!portfolios || portfolios.length === 0) return [];
 
       const partnerIds = Array.from(new Set(portfolios.map(p => p.investor_id).filter(Boolean)));
-      const portfolioIds = portfolios.map(p => p.id);
+      const allPortfolioIds = portfolios.map(p => p.id);
 
-      const codes = portfolios.map(p => p.portfolio_code).filter(Boolean);
+      // Self-support portfolios (partner funds specific tenants from their own
+      // wallet) are vetted in the "Pending portfolios" tab, not in the invite
+      // pipeline — drop anything that already sits in the pending queue.
+      const { data: pendingRows } = await (supabase.from('funder_pending_portfolios') as any)
+        .select('portfolio_id')
+        .eq('status', 'pending')
+        .in('portfolio_id', allPortfolioIds);
+      const pendingSet = new Set<string>(((pendingRows || []) as any[]).map(r => r.portfolio_id));
+      const visible = portfolios.filter(p => !pendingSet.has(p.id));
+      if (visible.length === 0) return [];
+      const portfolioIds = visible.map(p => p.id);
+
+      const codes = visible.map(p => p.portfolio_code).filter(Boolean);
 
       const [{ data: profiles }, { data: tokens }, { data: sendLog }] = await Promise.all([
         (supabase.from('profiles') as any)
@@ -113,7 +125,7 @@ export function InvitedPortfoliosPanel() {
         }
       }
 
-      return portfolios.map((p): Row => {
+      return visible.map((p): Row => {
         const prof = nameMap.get(p.investor_id) || {};
         const tok = tokenMap.get(p.id) || {};
         const send = sendMap.get(p.portfolio_code);
