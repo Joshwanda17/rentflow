@@ -551,11 +551,12 @@ async function buildPdf(p: Payload): Promise<Uint8Array> {
   // KPI cards
   const kpis = [
     { label: 'PHONE MONEY NOW', value: fmt(p.phone.total) },
-    { label: 'MERCHANT FLOAT NOW', value: fmt(p.floatTotal) },
+    { label: 'CAN SPEND NOW', value: fmt(p.floatTotal) },
+    { label: 'OUR CASH ON THEIR PHONES', value: fmt(p.companyCashTotal) },
+    { label: 'WE OWE THEM', value: fmt(p.owedTotal) },
     { label: `PAID OUT ${p.dateStr.slice(5)}`, value: fmt(p.totals.payoutAmount) },
-    { label: 'FLOAT ISSUED', value: fmt(p.totals.floatReceived) },
   ];
-  const cardW = (CW - 3 * 8) / 4, cardH = 52;
+  const cardW = (CW - 4 * 8) / 5, cardH = 52;
   ensure(cardH + 14);
   kpis.forEach((k, i) => {
     const x = M + i * (cardW + 8);
@@ -563,7 +564,9 @@ async function buildPdf(p: Payload): Promise<Uint8Array> {
       x, y: y - cardH + 12, width: cardW, height: cardH,
       color: brandLite, borderColor: col(226, 216, 246), borderWidth: 0.8,
     });
-    page.drawText(k.label, { x: x + 9, y: y - 4, size: 6.6, font: bold, color: brand });
+    let ls = 6.6;
+    while (bold.widthOfTextAtSize(k.label, ls) > cardW - 14 && ls > 4.4) ls -= 0.2;
+    page.drawText(k.label, { x: x + 9, y: y - 4, size: ls, font: bold, color: brand });
     let vs = 12.5;
     while (bold.widthOfTextAtSize(k.value, vs) > cardW - 18 && vs > 7) vs -= 0.5;
     page.drawText(k.value, { x: x + 9, y: y - 25, size: vs, font: bold, color: ink });
@@ -625,20 +628,30 @@ async function buildPdf(p: Payload): Promise<Uint8Array> {
   totalRow([{ text: 'Total available now', x: L }, { text: fmt(p.phone.total), right: R }]);
 
   // 2. Merchant float
-  section('2', 'Merchant Float — Right Now', `${p.floats.length} active desks, lowest float first — top of the list needs funding.`);
+  section('2', 'Merchant Float — Right Now', `${p.floats.length} active desks, lowest float first. Same three measures as the Financial Ops board.`);
+  const cSpend = M + 300, cCash = M + 400;
   headRow([
     { text: 'Agent', x: L },
-    { text: 'Float phone', x: M + 270 },
-    { text: 'Float balance', right: R },
-  ]);
+    { text: 'Float phone', x: M + 170 },
+    { text: 'Can spend now', right: cSpend },
+    { text: 'Our cash there', right: cCash },
+    { text: 'We owe them', right: R },
+  ], 7.6);
   p.floats.forEach((f, i) =>
     bodyRow([
-      { text: clip(f.name || '—', 40), x: L },
-      { text: clip(f.phone || '—', 16), x: M + 270, c: soft },
-      { text: fmt(f.floatHeld), right: R },
-    ], i % 2 === 1),
+      { text: clip(f.name || '—', 24), x: L },
+      { text: clip(f.phone || '—', 14), x: M + 170, c: soft },
+      { text: fmt(f.floatHeld), right: cSpend },
+      { text: fmt(f.companyCash), right: cCash },
+      { text: fmt(f.owed), right: R },
+    ], i % 2 === 1, 8.4),
   );
-  totalRow([{ text: 'Total merchant float', x: L }, { text: fmt(p.floatTotal), right: R }]);
+  totalRow([
+    { text: 'Totals', x: L },
+    { text: fmt(p.floatTotal), right: cSpend },
+    { text: fmt(p.companyCashTotal), right: cCash },
+    { text: fmt(p.owedTotal), right: R },
+  ], 8.4);
 
   // 3. Activity
   section('3', `Yesterday's Agent Activity`, `Movements on ${p.dateStr} (EAT). Float recd less moved on less paid out explains the closing float. Moved on = float that left the desk without settling a payout.`);
