@@ -41,7 +41,6 @@ import TransitionNoteDialog, {
   isValidTransitionNote,
 } from './TransitionNoteDialog';
 import MyLeaveRequests from './MyLeaveRequests';
-import RaiseTicket from './RaiseTicket';
 
 
 interface LeadScoreboardRow {
@@ -719,8 +718,6 @@ export default function MyWork({ embedded = false }: MyWorkProps) {
           ))
         )}
       </div>
-
-      <RaiseTicket staffId={staff?.id ?? null} />
 
       <Card>
         <CardHeader className="pb-2">
