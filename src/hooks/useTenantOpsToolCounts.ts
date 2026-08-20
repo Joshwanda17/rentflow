@@ -50,12 +50,20 @@ const EMPTY: TenantOpsToolCounts = {
   transfers_30d: 0,
   approvals_today: 0,
   rejected_30d: 0,
+  day_start: '',
+  day_end: '',
+  day_date: '',
 };
+
+/** Keys that are timestamps/strings, not counters. */
+const STRING_KEYS: (keyof TenantOpsToolCounts)[] = ['day_start', 'day_end', 'day_date'];
 
 /**
  * Live, whole-system counts behind the Tenant Ops Tools cards.
  * Computed in the database (`ops_tenant_ops_tool_counts`) so badges are no
  * longer derived from a truncated client-side page of rent requests.
+ * Also carries the server's operating-day window so tools never recompute
+ * "today" from the browser clock.
  */
 export function useTenantOpsToolCounts() {
   return useQuery({
@@ -66,7 +74,11 @@ export function useTenantOpsToolCounts() {
       const raw = (data || {}) as Record<string, any>;
       const out = { ...EMPTY };
       (Object.keys(EMPTY) as (keyof TenantOpsToolCounts)[]).forEach(k => {
-        out[k] = Number(raw[k] || 0);
+        if (STRING_KEYS.includes(k)) {
+          (out as any)[k] = raw[k] ? String(raw[k]) : '';
+        } else {
+          (out as any)[k] = Number(raw[k] || 0);
+        }
       });
       return out;
     },
@@ -74,3 +86,4 @@ export function useTenantOpsToolCounts() {
     refetchInterval: 60000,
   });
 }
+
