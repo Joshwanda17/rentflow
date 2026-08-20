@@ -180,6 +180,25 @@ async function handleStaleToken(reason: string): Promise<void> {
         return;
       }
 
+      // A refresh that failed because the *network* failed (typical for the
+      // first second or two after the phone camera closes and the page
+      // resumes) says nothing about the validity of the session. Never sign
+      // out on that — let a later attempt decide.
+      const errMsg = ((error as any)?.message || '').toLowerCase();
+      if (
+        !errMsg ||
+        errMsg.includes('failed to fetch') ||
+        errMsg.includes('networkerror') ||
+        errMsg.includes('network request failed') ||
+        errMsg.includes('load failed') ||
+        errMsg.includes('timeout') ||
+        errMsg.includes('aborted')
+      ) {
+        console.warn('[StaleSession] Refresh failed for network reasons — keeping session');
+        lastAttempt = 0;
+        return;
+      }
+
       // Never boot the user mid-action (proof upload), while offline, or while
       // the page is backgrounded — those refresh failures are environmental,
       // not a dead session. Allow a later attempt instead.
