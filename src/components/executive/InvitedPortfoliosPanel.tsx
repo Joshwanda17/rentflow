@@ -9,6 +9,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { invokeEdgeFunction } from '@/lib/invokeEdgeFunction';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -191,7 +192,7 @@ export function InvitedPortfoliosPanel() {
     setApprovalError(null);
     setApprovingId(row.id);
     try {
-      const { data: res, error } = await supabase.functions.invoke('approve-pending-portfolio', {
+      const { data: res, error } = await invokeEdgeFunction('approve-pending-portfolio', { silent: true,
         body: { portfolio_id: row.id },
       });
       if (error) throw error;

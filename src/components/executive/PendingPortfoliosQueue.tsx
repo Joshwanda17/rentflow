@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { invokeEdgeFunction } from '@/lib/invokeEdgeFunction';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -165,7 +166,8 @@ export function PendingPortfoliosQueue() {
     setBusyId(row.pending_id);
     // Route through the edge function so the confirmation email is dispatched
     // (self-managed portfolios get the dedicated deployment template).
-    const { data: res, error } = await supabase.functions.invoke('approve-pending-portfolio', {
+    const { data: res, error } = await invokeEdgeFunction('approve-pending-portfolio', {
+      silent: true,
       body: { portfolio_id: row.portfolio_id },
     });
     setBusyId(null);
