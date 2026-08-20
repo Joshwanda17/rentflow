@@ -28,7 +28,6 @@ export function MerchantFloatAvailableCard() {
   const { data: oopRows } = useMerchantOutOfPocketRows();
   const { data: myDisputes } = useMyBalanceDisputes();
   const [disputeOpen, setDisputeOpen] = useState(false);
-  const review = useReviewMerchantOutOfPocket();
 
   // Finance/manager roles receive every desk from the RPC, ordered by float size.
   // Always pin to the signed-in agent's own desk so the card never shows another
@@ -51,17 +50,6 @@ export function MerchantFloatAvailableCard() {
   const unbacked = mine?.payoutsWithoutFloatEvidence ?? 0;
   const pending = (myDisputes ?? []).filter((d) => d.status === 'open' || d.status === 'reviewing');
   const lastAnswered = (myDisputes ?? []).find((d) => d.status === 'resolved' || d.status === 'rejected');
-  const reviewRows = (oopRows ?? []).filter((r) => r.status === 'needs_review');
-
-  const confirmOwn = (id: string) => {
-    review.mutate(
-      { id, decision: 'confirm' },
-      {
-        onSuccess: () => toast.success('Confirmed. Finance will pay this back to you.'),
-        onError: (e: any) => toast.error(e?.message ?? 'Could not confirm. Try again.'),
-      },
-    );
-  };
 
   return (
     <section className="rounded-3xl border border-border/60 bg-card p-5">
