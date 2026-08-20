@@ -38,7 +38,13 @@ export default function FloatingToolbar() {
     return () => observer.disconnect();
   }, []);
 
-  if (modalOpen) return <WelileAIChatDrawer open={aiOpen} onOpenChange={setAiOpen} />;
+  if (modalOpen)
+    return (
+      <>
+        <RaiseTicketButton />
+        <WelileAIChatDrawer open={aiOpen} onOpenChange={setAiOpen} />
+      </>
+    );
 
   return (
     <>
