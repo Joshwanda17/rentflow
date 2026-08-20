@@ -9,6 +9,10 @@ import "../_shared/smsFooterInterceptor.ts";
 //
 // The SMS deliberately NEVER names the funding partner.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import {
+  confirmYoolaDelivery,
+  extractYoolaMessageId,
+} from "../_shared/yoolaDeliveryConfirm.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -70,7 +74,19 @@ async function sendViaYoola(phone: string, message: string) {
     const accepted = res.ok &&
       (status === "success" || status === "ok" || status === "sent" || status === "queued" ||
         (!data?.error && status === ""));
-    return accepted ? { ok: true } : { ok: false, reason: `yoola_${res.status}_${status || "rejected"}` };
+    if (!accepted) {
+      return { ok: false, reason: `yoola_${res.status}_${status || "rejected"}` };
+    }
+    // Yoola accepting the request is NOT proof the handset received it: poll the
+    // delivery report and treat anything but a confirmed delivery as a failure so
+    // the caller fails over to Africa's Talking.
+    const messageId = extractYoolaMessageId(data);
+    const confirmation = await confirmYoolaDelivery(messageId, { attempts: 4, delayMs: 2500 });
+    if (confirmation.outcome === "delivered") return { ok: true };
+    return {
+      ok: false,
+      reason: `yoola_undelivered_${confirmation.detail ?? confirmation.outcome}`,
+    };
   } catch (e) {
     console.error("[partner-float-sms] Yoola error:", e);
     return { ok: false, reason: "network_error" };
