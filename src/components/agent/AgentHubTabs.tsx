@@ -1,4 +1,4 @@
-import { Home, Wallet, Users, TrendingUp, Store } from 'lucide-react';
+import { Home, Wallet, Users, TrendingUp, Store, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { hapticTap } from '@/lib/haptics';
 import {
@@ -16,6 +16,8 @@ interface AgentHubTabsProps {
   onChange: (tab: AgentHubTab) => void;
   /** When true, hides operational (tenant) sections for Merchant Agents. */
   restricted?: boolean;
+  /** Optional callback for the Proxy Agents shortcut rendered below Service Center. */
+  onProxyAgentsClick?: () => void;
 }
 
 const tabs: { id: AgentHubTab; icon: typeof Home; label: string }[] = [
