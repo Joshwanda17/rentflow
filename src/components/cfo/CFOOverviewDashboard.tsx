@@ -40,9 +40,10 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
   const [exportingCommissions, setExportingCommissions] = useState(false);
   const [activeBreakdown, setActiveBreakdown] = useState<string | null>(null);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
-  const isOpen = (key: string) => openSections[key] === true;
+  // Every section renders fully expanded on load; the chevron only collapses it.
+  const isOpen = (key: string) => openSections[key] !== false;
   const toggleSection = (key: string) =>
-    setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
+    setOpenSections((prev) => ({ ...prev, [key]: prev[key] === false }));
   const { user } = useAuth();
   const {
     platformCash, liabilities, revenue, receivables, moneyFlow,
@@ -566,10 +567,9 @@ function SectionToggle({ open, onToggle, label }: { open: boolean; onToggle: () 
       onClick={onToggle}
       aria-expanded={open}
       aria-label={`${open ? 'Collapse' : 'Expand'} ${label}`}
-      className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground shrink-0"
+      className="text-muted-foreground hover:text-foreground shrink-0"
     >
-      {open ? 'Hide' : 'Show'}
-      <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
+      <ChevronDown className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
     </button>
   );
 }
@@ -581,12 +581,12 @@ function CollapsibleBlock({ title, open, onToggle, children }: {
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{title}</p>
+    <div className="rounded-lg border border-border bg-card shadow-sm">
+      <div className="flex items-center justify-between gap-3 px-4 py-3">
+        <p className="text-sm font-bold tracking-tight">{title}</p>
         <SectionToggle open={open} onToggle={onToggle} label={title} />
       </div>
-      {open && children}
+      {open && <div className="px-4 pb-4">{children}</div>}
     </div>
   );
 }
