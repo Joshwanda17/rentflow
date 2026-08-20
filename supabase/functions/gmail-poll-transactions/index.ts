@@ -169,7 +169,19 @@ function parseTransaction(text: string): {
     }
     if (feeSum > 0) out.fee = feeSum;
   }
-  const balM = t.match(new RegExp(String.raw`(?:New\s+balance|Balance|Bal)\s*[:.\-]?\s*` + AMT, 'i'));
+  // Providers phrase the running balance in several ways and MTN inserts filler
+  // words between the label and the figure — "New balance is: UGX 6381255." —
+  // so allow optional "is / is now / now / of / stands at" plus a MoMoPay-style
+  // label. Without this the row lands with balance=null and the Phone Money
+  // card silently stays pinned to an older SMS.
+  const balM = t.match(
+    new RegExp(
+      String.raw`(?:New\s+MoMoPay\s+balance|MoMoPay\s+balance|New\s+balance|Balance|Bal)` +
+        String.raw`\s*(?:is\s+now|is|now|of|stands\s+at)?\s*[:.\-]?\s*` +
+        AMT,
+      'i',
+    ),
+  );
   if (balM) out.balance = toInt(balM[1]);
 
   const verbAmt = t.match(new RegExp(String.raw`(?:received|deposited|credited|sent|paid|withdrew|withdrawn|debited|payment of|amount of|sum of|of)\s+(?:UGX|USh|UShs?|Shs?)?\s*\.?\s*([\d][\d,]*(?:\.\d+)?)`, 'i'));
