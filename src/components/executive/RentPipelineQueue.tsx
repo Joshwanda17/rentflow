@@ -25,6 +25,16 @@ import { format } from 'date-fns';
 import { AgentProximitySelector } from './AgentProximitySelector';
 import { UserDrilldownDrawer } from '@/components/ops/UserDrilldownDrawer';
 import { PipelineAgentTransferDialog } from './PipelineAgentTransferDialog';
+import {
+  DateWindowFilter,
+  TruncationNotice,
+  WindowSummary,
+  kampalaDayStartISO,
+  kampalaDayEndISO,
+} from '@/components/shared/QueryWindowBar';
+
+const QUEUE_LIMIT = 1000;
+
 
 // Per-user preference key for the CFO's selected tenant filter (cross-device).
 const TENANT_FILTER_PREF_KEY = 'rentPipeline.selectedTenantId';
@@ -213,6 +223,10 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
   const [processing, setProcessing] = useState(false);
   const [quickProcessingId, setQuickProcessingId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  // Explicit fetch window (submission date) for the capped queue query.
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
