@@ -8,9 +8,11 @@ import promoPocket from '@/assets/promo-pocket-change.jpg.asset.json';
 import promoSchool from '@/assets/promo-school-of-ai.jpg.asset.json';
 import promoZeroRent from '@/assets/promo-365-days-zero-rent.jpg.asset.json';
 import promoZeroTech from '@/assets/promo-zero-tech-background.jpg.asset.json';
+import promoDowry from '@/assets/promo-welile-dowry.jpg.asset.json';
 
 const PROMOS: SpecialsCard[] = [
   { src: promoRetire.url, title: 'Retire your creative rent excuse stories' },
+  { src: promoDowry.url, title: 'Welile Dowry — from UGX 500K, get your wedding budget sorted' },
   { src: promoZeroRent.url, title: '365 days, zero rent headaches — 12 months paid upfront' },
   { src: promoSalary.url, title: 'Salary came in at 9:00 AM, gone by 9:05 AM?' },
   { src: promoPocket.url, title: 'Turn loose pocket change into solid roof coverage' },
