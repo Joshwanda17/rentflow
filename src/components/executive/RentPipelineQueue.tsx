@@ -1072,6 +1072,24 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
             {rows.length} pending
           </Badge>
         </div>
+        <div className="mt-2 space-y-2">
+          <DateWindowFilter
+            from={dateFrom}
+            to={dateTo}
+            onFromChange={setDateFrom}
+            onToChange={setDateTo}
+            fieldLabel="submitted"
+          />
+          <WindowSummary
+            visible={filtered.length}
+            loaded={rows.length}
+            from={dateFrom}
+            to={dateTo}
+            noun="requests"
+          />
+          <TruncationNotice fetched={rows.length} limit={QUEUE_LIMIT} noun="requests" />
+        </div>
+
         {/* COO Bulk Approve Controls */}
         {isCooStage && filtered.length > 0 && (
           <div className="flex items-center justify-between gap-2 mt-2 p-2 rounded-lg bg-muted/50 border">
