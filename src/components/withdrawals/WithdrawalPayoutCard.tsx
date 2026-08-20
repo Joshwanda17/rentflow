@@ -23,7 +23,12 @@ import {
 import { parsePayoutConfirmationSms } from '@/utils/smsParser';
 import { usePayoutsUiEnabled } from '@/hooks/usePayoutsUiEnabled';
 import { humanizeWithdrawalError } from '@/lib/withdrawalErrorText';
-import { beginAuthCriticalSection, endAuthCriticalSection } from '@/lib/staleSessionDetector';
+import {
+  beginAuthCriticalSection,
+  endAuthCriticalSection,
+  armAuthCriticalSection,
+  disarmAuthCriticalSection,
+} from '@/lib/staleSessionDetector';
 
 export interface WithdrawalPayoutCardProps {
   withdrawal: any;
@@ -1015,10 +1020,19 @@ export function WithdrawalPayoutCard({
                     type="file"
                     accept="image/*,application/pdf"
                     className="hidden"
+                    onClick={() => {
+                      // The camera / gallery is about to take over the screen.
+                      // Arm sign-out suppression NOW: the page can be resumed
+                      // with an expired token before onChange ever runs, and
+                      // that must never end the merchant's session.
+                      armAuthCriticalSection(180_000);
+                    }}
                     onChange={async (e) => {
                       const f = e.target.files?.[0] || null;
                       e.target.value = '';
+                      if (!f) { disarmAuthCriticalSection(); return; }
                       if (f && f.size > 8 * 1024 * 1024) {
+                        disarmAuthCriticalSection();
                         toast.error('File must be under 8 MB');
                         return;
                       }
@@ -1044,6 +1058,7 @@ export function WithdrawalPayoutCard({
                           toast.error(err?.message || 'Failed to upload proof');
                         } finally {
                           setProofUploading(false);
+                          disarmAuthCriticalSection();
                         }
                       }
                     }}
