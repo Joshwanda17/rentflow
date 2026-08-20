@@ -2635,15 +2635,6 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                   minimum), separated by a 12px gap so a thumb can't tap both
                   at once, and Back is fixed at ~38% width so the primary
                   Deposit CTA stays visually dominant. */}
-              {/* Auto-verification policy notice */}
-              <div className="flex items-start gap-2 p-2.5 rounded-lg border border-primary/20 bg-primary/5 mb-3">
-                <Info className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
-                <p className="text-[11px] text-muted-foreground leading-snug">
-                  <span className="font-semibold text-foreground">Auto-verified deposits</span>{' '}
-                  are credited to your <span className="font-semibold text-foreground">Operational Float</span>{' '}
-                  wallet by default.
-                </p>
-              </div>
               <div className="flex gap-3">
                 <Button
                   type="button"
