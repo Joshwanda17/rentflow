@@ -9,6 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { MapPin, CheckCircle, XCircle, Loader2, Building2, ExternalLink, Star, Phone } from 'lucide-react';
 import { format } from 'date-fns';
+import { ServiceCentreNewEntryDialog } from './service-centres/ServiceCentreNewEntryDialog';
+import { ServiceCentreEntriesList } from './service-centres/ServiceCentreEntriesList';
 
 interface EligibleAgent {
   id: string;
@@ -163,15 +165,18 @@ export function ServiceCentreVerificationQueue() {
           <Building2 className="h-4 w-4 text-primary" />
           Service Centre Pipeline
           {(setups?.length || 0) + eligibleNotSubmitted.length > 0 && (
-            <span className="ml-auto bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded-full">
+            <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded-full">
               {(setups?.length || 0) + eligibleNotSubmitted.length}
             </span>
           )}
+          <span className="ml-auto">
+            <ServiceCentreNewEntryDialog />
+          </span>
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-0">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="w-full grid grid-cols-2 mb-3">
+          <TabsList className="w-full grid grid-cols-3 mb-3">
             <TabsTrigger value="eligible" className="text-xs gap-1">
               <Star className="h-3 w-3" />
               Eligible ({eligibleNotSubmitted.length})
@@ -187,6 +192,10 @@ export function ServiceCentreVerificationQueue() {
                   {setups?.length}
                 </span>
               )}
+            </TabsTrigger>
+            <TabsTrigger value="entries" className="text-xs gap-1">
+              <Building2 className="h-3 w-3" />
+              Entries
             </TabsTrigger>
           </TabsList>
 
@@ -324,6 +333,11 @@ export function ServiceCentreVerificationQueue() {
                 ))}
               </div>
             )}
+          </TabsContent>
+
+          {/* ── Entries (COO → CEO → Verified) ── */}
+          <TabsContent value="entries">
+            <ServiceCentreEntriesList />
           </TabsContent>
         </Tabs>
       </CardContent>
