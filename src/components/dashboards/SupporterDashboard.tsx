@@ -529,11 +529,6 @@ export default function SupporterDashboard({
             <WalletHeroSkeleton />
           )}
 
-          {/* ═══ TENANTS YOU SUPPORT ═══ */}
-          <WidgetErrorBoundary label="Tenants you support">
-            <SupportedTenantsSection />
-          </WidgetErrorBoundary>
-
           <WidgetErrorBoundary label="Portfolio card">
             <PartnerPortfolioWalletCard
               onAddCard={() => { hapticTap(); setShowPaymentPartners(true); }}
