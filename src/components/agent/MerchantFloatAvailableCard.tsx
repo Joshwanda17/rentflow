@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Wallet, AlertTriangle, Hand, Smartphone, BadgeCheck, HandCoins, Signal, Flag, Search, Check, BatteryWarning } from 'lucide-react';
+import { Wallet, AlertTriangle, Hand, Smartphone, BadgeCheck, HandCoins, Signal, Flag, BatteryWarning } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
