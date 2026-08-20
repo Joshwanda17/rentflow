@@ -223,7 +223,7 @@ export function PortfolioRedemption({
                             <Text style={insightTitle}>{isFull ? 'What happens next' : 'Your portfolio going forward'}</Text>
                             <Text style={insightBody}>
                               {isFull
-                                ? 'Your redeemed capital will be settled through your registered payout channel. Once settlement is complete, this portfolio will show as closed on your dashboard.'
+                                ? `Your redeemed capital will be settled through your registered payout channel within the ${windowDays}-day window. Once the money has been sent, this portfolio will show as closed on your dashboard.`
                                 : `From today, your portfolio principal is recorded as ${fmtRemaining}${maturity_date ? `, running to its maturity date of ${maturity_date}` : ''}. All future returns are calculated on this new principal.`}
                             </Text>
                           </td>
@@ -329,6 +329,9 @@ const totalLabel: React.CSSProperties = { margin: '15px 0 5px 0', color: BRAND, 
 const totalValue: React.CSSProperties = { margin: 0, color: BRAND, fontSize: '22px', fontWeight: 800 }
 
 const insightCard: React.CSSProperties = { backgroundColor: '#f0fdfa', borderRadius: '8px', borderLeft: '4px solid #14b8a6' }
+const noticeCard: React.CSSProperties = { backgroundColor: '#fffbeb', borderRadius: '8px', borderLeft: '4px solid #f59e0b' }
+const noticeTitle: React.CSSProperties = { margin: '0 0 8px 0', color: '#92400e', fontSize: '15px', fontWeight: 700 }
+const noticeBody: React.CSSProperties = { margin: 0, color: '#78350f', fontSize: '14px', lineHeight: '21px' }
 const insightTitle: React.CSSProperties = { margin: '0 0 5px 0', color: '#0f766e', fontSize: '14px', fontWeight: 600 }
 const insightBody: React.CSSProperties = { margin: 0, color: '#0f766e', fontSize: '14px', lineHeight: '20px' }
 
@@ -367,6 +370,8 @@ export const template = {
     maturity_date: '28 April 2027',
     next_payout_date: '15 September 2026',
     processed_date: '19 August 2026',
+    settlement_window_days: 90,
+    expected_payout_by: '17 November 2026',
     currency: 'UGX',
     company_name: 'Welile',
     logo_url: 'https://welileapp.com/welile-logo.png',
