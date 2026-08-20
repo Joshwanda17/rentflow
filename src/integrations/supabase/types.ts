@@ -41359,6 +41359,7 @@ export type Database = {
         Args: { _period_code: string }
         Returns: number
       }
+      hr_task_wip_limit: { Args: never; Returns: number }
       hr_transfer_position: {
         Args: {
           p_from_assignment: string
