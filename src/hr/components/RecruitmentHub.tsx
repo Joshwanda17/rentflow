@@ -184,6 +184,36 @@ function isAlwaysOpen(posting: JobPosting): boolean {
   return posting.requisition_id === null && posting.closes_at === null;
 }
 
+export function rowToneClass(status: string | null, shortlistRound: number | null): string {
+  const round = shortlistRound ?? 1;
+  switch (status) {
+    case 'shortlisted':
+      if (round === 1) {
+        return 'bg-violet-500/10 border-l-2 border-violet-400/70 dark:bg-violet-500/10 dark:border-violet-400/80';
+      }
+      if (round === 2) {
+        return 'bg-violet-500/20 border-l-2 border-violet-500/80 dark:bg-violet-500/15 dark:border-violet-400/90';
+      }
+      return 'bg-violet-600/25 border-l-2 border-violet-600/90 dark:bg-violet-600/20 dark:border-violet-500';
+    case 'contacted':
+      return 'bg-sky-500/10 border-l-2 border-sky-400/70 dark:bg-sky-500/10 dark:border-sky-400/80';
+    case 'interviewing':
+      return 'bg-teal-500/10 border-l-2 border-teal-400/70 dark:bg-teal-500/10 dark:border-teal-400/80';
+    case 'hold':
+      return 'bg-amber-500/10 border-l-2 border-amber-400/70 dark:bg-amber-500/10 dark:border-amber-400/80';
+    case 'hired':
+      return 'bg-emerald-500/10 border-l-2 border-emerald-400/70 dark:bg-emerald-500/10 dark:border-emerald-400/80';
+    case 'rejected':
+      return 'bg-neutral-500/10 border-l-2 border-neutral-400/60 dark:bg-neutral-500/10 dark:border-neutral-400/70';
+    case 'new':
+    case null:
+    case '':
+      return '';
+    default:
+      return '';
+  }
+}
+
 type JobApplicationRow = Database['public']['Tables']['job_applications']['Row'];
 
 /** Labels for the decision vocabulary. Keyed by the constant, so no status is invented here. */
@@ -308,7 +338,7 @@ function RemovedApplicationsPanel({
         </TableHeader>
         <TableBody>
           {rows.map((row, idx) => (
-            <TableRow key={row.id} className="bg-muted/40">
+            <TableRow key={row.id} className={`bg-muted/40 ${rowToneClass(row.status, row.shortlist_round)}`}>
               <TableCell>{idx + 1}</TableCell>
               <TableCell>{row.full_name || '—'}</TableCell>
               <TableCell>{row.role_interest || '—'}</TableCell>
@@ -737,15 +767,7 @@ function ApplicationsTab() {
               {filteredSorted.map((row, idx) => (
                 <TableRow
                   key={row.id}
-                  className={`cursor-pointer ${
-                    row.status === 'shortlisted'
-                      ? (row.shortlist_round ?? 1) >= 2
-                        ? 'bg-amber-50 hover:bg-amber-100'
-                        : 'bg-violet-50 hover:bg-violet-100'
-                      : row.status === 'hold'
-                        ? 'bg-sky-50 hover:bg-sky-100'
-                        : ''
-                  }`}
+                  className={`cursor-pointer ${rowToneClass(row.status, row.shortlist_round)}`}
                   onClick={() => setSelected(row)}
                 >
                   <TableCell onClick={(e) => e.stopPropagation()}>
