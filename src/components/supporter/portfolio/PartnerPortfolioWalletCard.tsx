@@ -258,7 +258,7 @@ export function PartnerPortfolioWalletCard({ onAddCard, onPortfolios, onCalculat
           label="Supporting"
           onClick={() => document.getElementById('supported-tenants')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
           icon={<Users className="w-4 h-4" />}
-          badge={directTenantCount}
+          badge={supportingCount}
         />
         <ActionButton label="More" onClick={onMore} icon={<Menu className="w-4 h-4" />} />
       </div>
