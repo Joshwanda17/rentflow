@@ -70,30 +70,46 @@ function statusPill(status: string | null) {
   );
 }
 
+const TRANSFER_LIMIT = 200;
+const LINK_LIMIT = 200;
+
 export function TenantTransferAuditTrail() {
   const [search, setSearch] = useState('');
   // Currently-open entry for the embedded map drawer. null => closed.
   const [mapEntry, setMapEntry] = useState<AuditEntry | null>(null);
+  // Date window is applied SERVER-side so the KPI counts and the rendered rows
+  // describe the same slice even when the per-source caps are hit.
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
-  const { data: entries, isLoading } = useQuery({
-    queryKey: ['tenant-transfer-audit-trail'],
-    queryFn: async (): Promise<AuditEntry[]> => {
+  const { data: payload, isLoading } = useQuery({
+    queryKey: ['tenant-transfer-audit-trail', dateFrom, dateTo],
+    queryFn: async (): Promise<{ entries: AuditEntry[]; transfersFetched: number; linksFetched: number }> => {
       // Pull last 200 transfers and last 200 link audit_log rows in parallel.
+      let transfersQuery = supabase
+        .from('tenant_transfers')
+        .select(
+          'id, tenant_id, from_agent_id, to_agent_id, transferred_by, reason, flag_type, rent_requests_updated, actor_latitude, actor_longitude, actor_accuracy, actor_location_status, created_at',
+        );
+      let linksQuery = supabase
+        .from('audit_logs')
+        .select('id, action_type, record_id, metadata, user_id, created_at')
+        .eq('action_type', 'agent_linked');
+      if (dateFrom) {
+        const fromIso = kampalaDayStartISO(dateFrom);
+        transfersQuery = transfersQuery.gte('created_at', fromIso);
+        linksQuery = linksQuery.gte('created_at', fromIso);
+      }
+      if (dateTo) {
+        const toIso = kampalaDayEndISO(dateTo);
+        transfersQuery = transfersQuery.lte('created_at', toIso);
+        linksQuery = linksQuery.lte('created_at', toIso);
+      }
       const [transfersRes, linksRes] = await Promise.all([
-        supabase
-          .from('tenant_transfers')
-          .select(
-            'id, tenant_id, from_agent_id, to_agent_id, transferred_by, reason, flag_type, rent_requests_updated, actor_latitude, actor_longitude, actor_accuracy, actor_location_status, created_at',
-          )
-          .order('created_at', { ascending: false })
-          .limit(200),
-        supabase
-          .from('audit_logs')
-          .select('id, action_type, record_id, metadata, user_id, created_at')
-          .eq('action_type', 'agent_linked')
-          .order('created_at', { ascending: false })
-          .limit(200),
+        transfersQuery.order('created_at', { ascending: false }).limit(TRANSFER_LIMIT),
+        linksQuery.order('created_at', { ascending: false }).limit(LINK_LIMIT),
       ]);
+
 
       const transfers = transfersRes.data || [];
       const links = (linksRes.data || []) as Array<{
