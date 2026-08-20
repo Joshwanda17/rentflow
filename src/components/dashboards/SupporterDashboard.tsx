@@ -539,7 +539,6 @@ export default function SupporterDashboard({
               onAddCard={() => { hapticTap(); setShowPaymentPartners(true); }}
               onPortfolios={() => { hapticTap(); setInvestmentsTab('accounts'); setShowInvestments(true); }}
               onCalculator={() => { hapticTap(); setShowCalculator(true); }}
-              onTopUp={() => { hapticTap(); setShowPaymentPartners(true); }}
               onMore={() => { hapticTap(); setShowWallet(true); }}
             />
           </WidgetErrorBoundary>

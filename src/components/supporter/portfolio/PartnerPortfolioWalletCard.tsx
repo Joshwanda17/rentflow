@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
-import { Calculator, CreditCard, Eye, EyeOff, Menu, Plus, Wallet } from 'lucide-react';
+import { Calculator, Eye, EyeOff, Menu, Plus, Users, Wallet } from 'lucide-react';
 import { usePartnerPortfolios } from '@/hooks/usePartnerPortfolios';
 import { computeAccrual, normalizePortfolioState } from '@/lib/portfolioAccrual';
 import { formatUGX } from '@/lib/rentCalculations';
 import { generateWelileAiId } from '@/lib/welileAiId';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
+import { useSupportedTenants } from '@/hooks/useSupportedTenants';
 const welileLogo = '/welile-colored.png';
 
 // Taller card (354x200) to give the Add Card button more room on mobile.
@@ -16,15 +17,29 @@ interface Props {
   onAddCard?: () => void;
   onPortfolios?: () => void;
   onCalculator?: () => void;
-  onTopUp?: () => void;
   onMore?: () => void;
 }
 
-function ActionButton({ label, icon, onClick }: { label: string; icon: React.ReactNode; onClick?: () => void }) {
+function ActionButton({
+  label,
+  icon,
+  badge,
+  onClick,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  badge?: number;
+  onClick?: () => void;
+}) {
   return (
     <button type="button" onClick={onClick} className="group flex flex-col items-center gap-1">
-      <span className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-card flex items-center justify-center text-foreground/80 shadow-sm border border-border/60 transition-colors group-hover:bg-primary/10 group-hover:text-primary">
+      <span className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-card flex items-center justify-center text-foreground/80 shadow-sm border border-border/60 transition-colors group-hover:bg-primary/10 group-hover:text-primary">
         {icon}
+        {typeof badge === 'number' && badge > 0 && (
+          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center border-2 border-background">
+            {badge > 99 ? '99+' : badge}
+          </span>
+        )}
       </span>
       <span className="text-[10px] sm:text-[11px] font-semibold text-foreground/80">{label}</span>
     </button>
@@ -35,11 +50,17 @@ function ActionButton({ label, icon, onClick }: { label: string; icon: React.Rea
  * Premium bank-card style summary of the partner's deployed capital.
  * Additive card — does not replace the wallet hero card.
  */
-export function PartnerPortfolioWalletCard({ onAddCard, onPortfolios, onCalculator, onTopUp, onMore }: Props) {
+export function PartnerPortfolioWalletCard({ onAddCard, onPortfolios, onCalculator, onMore }: Props) {
   const { user } = useAuth();
   const { profile } = useProfile();
   const { portfolios, loading } = usePartnerPortfolios();
+  const { tenants, isLoading: tenantsLoading } = useSupportedTenants();
   const [showAmount, setShowAmount] = useState(true);
+
+  const directTenantCount = useMemo(
+    () => tenants.filter((t) => t.funding_mode === 'self_managed').length,
+    [tenants]
+  );
 
   const active = useMemo(
     () => portfolios.filter(p => normalizePortfolioState(p.status) === 'active'),
@@ -67,7 +88,7 @@ export function PartnerPortfolioWalletCard({ onAddCard, onPortfolios, onCalculat
   const aiId = user?.id ? generateWelileAiId(user.id) : '';
   const name = (profile?.full_name || '').trim().toUpperCase();
 
-  if (loading) {
+  if (loading || tenantsLoading) {
     return <div className="w-full aspect-[354/200] min-h-[180px] max-h-[280px] rounded-[20px] bg-muted animate-pulse" />;
   }
 
@@ -226,7 +247,12 @@ export function PartnerPortfolioWalletCard({ onAddCard, onPortfolios, onCalculat
       <div className="bg-muted/70 backdrop-blur rounded-2xl p-2.5 shadow-md border border-border/70 flex items-center justify-around">
         <ActionButton label="Portfolios" onClick={onPortfolios} icon={<Wallet className="w-4 h-4" />} />
         <ActionButton label="Calculator" onClick={onCalculator} icon={<Calculator className="w-4 h-4" />} />
-        <ActionButton label="TopUp" onClick={onTopUp} icon={<CreditCard className="w-4 h-4" />} />
+        <ActionButton
+          label="Tenants Supported"
+          onClick={() => document.getElementById('supported-tenants')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+          icon={<Users className="w-4 h-4" />}
+          badge={directTenantCount}
+        />
         <ActionButton label="More" onClick={onMore} icon={<Menu className="w-4 h-4" />} />
       </div>
     </div>
