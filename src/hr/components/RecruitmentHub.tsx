@@ -369,7 +369,7 @@ function RemovedApplicationsPanel({
         </TableHeader>
         <TableBody>
           {rows.map((row, idx) => (
-            <TableRow key={row.id} className={`bg-muted/40 ${rowToneClass(row.status, row.shortlist_round)}`}>
+            <TableRow key={row.id} className={`bg-muted/40 ${rowToneClass(row.status, row.shortlist_round, 'bin')}`}>
               <TableCell>{idx + 1}</TableCell>
               <TableCell>{row.full_name || '—'}</TableCell>
               <TableCell>{row.role_interest || '—'}</TableCell>
