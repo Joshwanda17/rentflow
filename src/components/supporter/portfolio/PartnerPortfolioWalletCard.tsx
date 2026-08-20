@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ArrowUp, Check, CreditCard, Eye, EyeOff, Menu, Plus } from 'lucide-react';
+import { Calculator, CreditCard, Eye, EyeOff, Menu, Plus, Wallet } from 'lucide-react';
 import { usePartnerPortfolios } from '@/hooks/usePartnerPortfolios';
 import { computeAccrual, normalizePortfolioState } from '@/lib/portfolioAccrual';
 import { formatUGX } from '@/lib/rentCalculations';
