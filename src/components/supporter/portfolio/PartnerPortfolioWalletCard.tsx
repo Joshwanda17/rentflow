@@ -248,7 +248,7 @@ export function PartnerPortfolioWalletCard({ onAddCard, onPortfolios, onCalculat
         <ActionButton label="Portfolios" onClick={onPortfolios} icon={<Wallet className="w-4 h-4" />} />
         <ActionButton label="Calculator" onClick={onCalculator} icon={<Calculator className="w-4 h-4" />} />
         <ActionButton
-          label="\u00a0Supporting"
+          label="Supporting"
           onClick={() => document.getElementById('supported-tenants')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
           icon={<Users className="w-4 h-4" />}
           badge={directTenantCount}
