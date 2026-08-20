@@ -451,7 +451,7 @@ export default function ExecutiveDashboardLayout({
         <button
           type="button"
           onClick={() => signOut()}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-white/10 transition-colors whitespace-nowrap"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-background text-primary text-xs font-semibold shadow-sm hover:bg-background/90 transition-colors whitespace-nowrap"
           style={{ touchAction: 'manipulation' }}
         >
           <LogOut className="h-3.5 w-3.5" />
@@ -461,12 +461,12 @@ export default function ExecutiveDashboardLayout({
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* Desktop Sidebar */}
-        <aside className="hidden lg:flex flex-col w-60 shrink-0 border-r border-border bg-card/50 overflow-y-auto">
+        <aside className="hidden lg:flex flex-col w-64 shrink-0 border-r border-border bg-card overflow-y-auto">
           {SidebarContent({})}
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 min-w-0 p-2 sm:p-4 lg:p-6 max-w-7xl mx-auto w-full overflow-y-auto overflow-x-hidden">
+        <main className="flex-1 min-w-0 p-2 sm:p-4 lg:p-6 max-w-7xl mx-auto w-full overflow-y-auto overflow-x-hidden bg-muted/20">
           {activeTab !== 'mission-goals' && (
             <MissionBanner dashboardRole={role} className="mb-4" />
           )}
