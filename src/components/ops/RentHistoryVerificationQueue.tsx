@@ -10,6 +10,16 @@ import { Loader2, CheckCircle2, XCircle, Clock, Phone, MapPin, User, ShieldCheck
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { formatUGX } from '@/lib/businessAdvanceCalculations';
+import {
+  DateWindowFilter,
+  TruncationNotice,
+  WindowSummary,
+  kampalaDayStartISO,
+  kampalaDayEndISO,
+} from '@/components/shared/QueryWindowBar';
+
+const VERIFY_LIMIT = 200;
+
 
 type Dept = 'tenant_ops' | 'agent_ops' | 'landlord_ops';
 
