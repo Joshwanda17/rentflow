@@ -55,7 +55,6 @@ import { CreditRequestsFeed } from '@/components/supporter/CreditRequestsFeed';
 import { InvestmentPackageSheet } from '@/components/supporter/InvestmentPackageSheet';
 // FundingPoolCard removed from direct import
 import { FunderCapitalOpportunities } from '@/components/supporter/FunderCapitalOpportunities';
-import { SupportedTenantsSection } from '@/components/supporter/SupportedTenantsSection';
 import { PartnerPortfolioSection } from '@/components/supporter/portfolio/PartnerPortfolioSection';
 import { PartnerPortfolioWalletCard } from '@/components/supporter/portfolio/PartnerPortfolioWalletCard';
 
