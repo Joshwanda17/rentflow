@@ -105,7 +105,7 @@ export function DailyPaymentTracker() {
   });
 
   const buildReportData = (): DailyPerformanceData => ({
-    date: new Date(),
+    date: todayStr ? parseISO(todayStr) : new Date(),
     totalExpected: totalExpectedToday,
     totalCollected: totalCollectedToday,
     collectionRate,
