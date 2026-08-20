@@ -187,8 +187,9 @@ export function PendingVettingTable() {
     setBusyKey(row.key);
     try {
       if (row.kind === 'self_support') {
-        const { data: res, error } = await supabase.functions.invoke('approve-pending-portfolio', {
+        const { data: res, error } = await invokeEdgeFunction('approve-pending-portfolio', {
           body: { portfolio_id: row.portfolio_id },
+          silent: true,
         });
         if (error || (res as any)?.error) throw new Error((res as any)?.error || error?.message || 'Approval failed');
         toast.success(`Portfolio ${row.portfolio_code} verified and funded`);
