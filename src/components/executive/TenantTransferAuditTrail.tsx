@@ -22,6 +22,13 @@ import {
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
+import {
+  TruncationNotice,
+  WindowSummary,
+  kampalaDayStartISO,
+  kampalaDayEndISO,
+} from '@/components/shared/QueryWindowBar';
+
 
 type AuditEntryKind = 'transfer' | 'link';
 
