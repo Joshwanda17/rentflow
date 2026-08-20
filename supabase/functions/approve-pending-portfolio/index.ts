@@ -54,6 +54,26 @@ Deno.serve(async (req) => {
 
     const admin = createClient(supabaseUrl, serviceKey);
 
+    // AUTHORIZATION FIRST. The wallet debit below must never run for a caller
+    // that the DB gate will reject, otherwise the partner is debited while the
+    // portfolio stays pending.
+    const { data: isOps, error: opsErr } = await admin.rpc("is_partner_ops", {
+      _uid: caller.id,
+    });
+    if (opsErr) {
+      console.error("[approve-pending-portfolio] role check failed:", opsErr);
+      return json({ error: "Could not verify your permissions. Please retry." }, 500);
+    }
+    if (!isOps) {
+      const { data: roleRows } = await admin
+        .from("user_roles").select("role").eq("user_id", caller.id);
+      const roles = (roleRows ?? []).map((r: any) => r.role).join(", ") || "none";
+      console.warn("[approve-pending-portfolio] NOT_AUTHORIZED caller:", caller.id, caller.email, roles);
+      return json({
+        error: `Only Partner Operations can approve portfolios. You are signed in as ${caller.email ?? caller.id} with roles: ${roles}. Ask an administrator to grant the Partner Operations role to this exact account.`,
+      }, 403);
+    }
+
     // Load the portfolio + partner up-front so we can debit the wallet
     // BEFORE the RPC flips it to 'active'. This closes the historical
     // bug where invite-flow portfolios were activated without any wallet
