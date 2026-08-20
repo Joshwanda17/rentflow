@@ -8,6 +8,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { History, Search, CheckCircle2, XCircle, User, Clock, Loader2 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { TenantOpsReportToolbar } from './TenantOpsReportToolbar';
+import {
+  DateWindowFilter,
+  TruncationNotice,
+  WindowSummary,
+  kampalaDayStartISO,
+  kampalaDayEndISO,
+} from '@/components/shared/QueryWindowBar';
+
 
 const PIPELINE_STATUSES = [
   'tenant_ops_approved',
