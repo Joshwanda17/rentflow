@@ -78,7 +78,7 @@ export const PARTNER_OPS_NAV: PartnerOpsNavItem[] = [
       { key: 'portfolios.renewed', label: 'Renewed Portfolios', icon: History, keywords: ['renewals', 'rollover'] },
       {
         key: 'portfolios.maturity',
-        label: 'Redemption & Renewal Requests',
+        label: 'Redemption & Renewal',
         icon: CalendarClock,
         keywords: ['redemption', 'redeem', 'renewal', 'maturity', 'requests', 'vet', 'queue'],
       },
