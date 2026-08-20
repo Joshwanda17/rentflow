@@ -796,6 +796,15 @@ Bring an investor who funds rent → earn *2%* of their investment (1% on Angel 
                     </div>
                   </div>
 
+                  {requestedSetupAmount > 0 && (
+                    <div className="rounded-xl border border-primary/30 bg-primary/10 p-3 mb-3">
+                      <p className="text-sm font-semibold text-foreground">Service centre requested for you</p>
+                      <p className="text-xs mt-1">
+                        Setup amount needed: <span className="font-bold text-primary">{formatUGX(requestedSetupAmount)}</span>
+                      </p>
+                      {requestNote && <p className="text-xs mt-1 text-muted-foreground">{requestNote}</p>}
+                    </div>
+                  )}
                   <ServiceCentreSubmissionForm />
                 </CardContent>
               </CollapsibleContent>
