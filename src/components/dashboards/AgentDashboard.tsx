@@ -1013,6 +1013,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               setSlideDirection(null);
               setActiveTab(tab);
             }}
+            onProxyAgentsClick={() => navigate('/agent/proxy-agents')}
           />
         </div>
 
