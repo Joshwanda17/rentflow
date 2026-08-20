@@ -1,10 +1,14 @@
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import DepartmentBudgetSubmission from '@/components/budget/DepartmentBudgetSubmission';
 
 export default function DepartmentBudgets() {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  // Opened from a department hub (e.g. /budgets?dashboard=tenant-ops) the form is
+  // locked to that department, so submissions stay department-specific.
+  const dashboard = params.get('dashboard') ?? undefined;
 
   return (
     <main className="mx-auto w-full max-w-3xl space-y-4 p-4 pb-24">
@@ -19,7 +23,7 @@ export default function DepartmentBudgets() {
           </p>
         </div>
       </header>
-      <DepartmentBudgetSubmission />
+      <DepartmentBudgetSubmission dashboard={dashboard} />
     </main>
   );
 }
