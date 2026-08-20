@@ -30,25 +30,36 @@ const STATUS_META: Record<string, { label: string; color: string; icon: 'approve
   approved: { label: 'Approved', color: 'bg-green-100 text-green-700', icon: 'approve' },
 };
 
+const HISTORY_LIMIT = 500;
+
 export function ApprovalHistoryLog() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  // Explicit window so the badge count and the rendered list always describe
+  // the same slice of history (the fetch is capped at HISTORY_LIMIT rows).
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
   const { data: history, isLoading } = useQuery({
-    queryKey: ['approval-history', statusFilter],
+    queryKey: ['approval-history', statusFilter, dateFrom, dateTo],
     queryFn: async () => {
       // Status filtering happens in the database — filtering a fixed page of 100
       // rows client-side made single-status views look almost empty.
       const statuses = statusFilter === 'all'
         ? [...PIPELINE_STATUSES, 'approved', 'repaying', 'fully_repaid', 'defaulted']
         : [statusFilter];
-      const { data, error } = await supabase
+      let query = supabase
         .from('rent_requests')
         .select('id, tenant_id, agent_id, rent_amount, status, created_at, updated_at, house_category, request_city, approval_comment, rejected_reason, tenant_ops_reviewed_by, tenant_ops_reviewed_at, agent_verified_by, agent_verified_at, landlord_ops_reviewed_by, landlord_ops_reviewed_at, coo_reviewed_by, coo_reviewed_at, cfo_reviewed_by, cfo_reviewed_at, assigned_agent_id, payout_method, payout_transaction_reference')
-        .in('status', statuses)
+        .in('status', statuses);
+      // Date window applies to last activity (updated_at), in Africa/Kampala time.
+      if (dateFrom) query = query.gte('updated_at', kampalaDayStartISO(dateFrom));
+      if (dateTo) query = query.lte('updated_at', kampalaDayEndISO(dateTo));
+      const { data, error } = await query
         .order('updated_at', { ascending: false })
-        .limit(500);
+        .limit(HISTORY_LIMIT);
       if (error) throw error;
+
 
       if (!data || data.length === 0) return [];
 
