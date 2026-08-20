@@ -303,11 +303,11 @@ export default function ExecutiveDashboardLayout({
                       onItemClick?.();
                     }}
                     className={cn(
-                      'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all select-none relative',
+                      'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all select-none relative',
                       'active:scale-[0.98]',
                       isItemActive(item)
-                        ? 'bg-primary/15 text-primary font-semibold shadow-[0_0_0_1px_hsl(var(--primary)/0.12)] before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-5 before:w-[3px] before:rounded-r-full before:bg-primary'
-                        : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground'
+                        ? 'bg-primary/10 text-primary font-semibold'
+                        : 'text-muted-foreground hover:bg-primary/5 hover:text-primary'
                     )}
                     style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
                   >
@@ -365,7 +365,7 @@ export default function ExecutiveDashboardLayout({
           title="Clear saved sidebar selection and return to Overview"
         >
           <RotateCcw className="h-4 w-4 shrink-0" />
-          <span>Reset sidebar selection</span>
+          <span>Reset layout</span>
         </button>
         <button
           type="button"
@@ -374,7 +374,7 @@ export default function ExecutiveDashboardLayout({
           style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
         >
           <ArrowLeft className="h-4 w-4 shrink-0" />
-          <span>Exit Dashboard</span>
+          <span>Back to app</span>
         </button>
       </div>
     </nav>
