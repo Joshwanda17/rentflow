@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
-import { Calculator, CreditCard, Eye, EyeOff, Menu, Plus, Wallet } from 'lucide-react';
+import { Calculator, Eye, EyeOff, Menu, Plus, Users, Wallet } from 'lucide-react';
 import { usePartnerPortfolios } from '@/hooks/usePartnerPortfolios';
 import { computeAccrual, normalizePortfolioState } from '@/lib/portfolioAccrual';
 import { formatUGX } from '@/lib/rentCalculations';
 import { generateWelileAiId } from '@/lib/welileAiId';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
+import { useSupportedTenants } from '@/hooks/useSupportedTenants';
 const welileLogo = '/welile-colored.png';
 
 // Taller card (354x200) to give the Add Card button more room on mobile.
@@ -16,15 +17,29 @@ interface Props {
   onAddCard?: () => void;
   onPortfolios?: () => void;
   onCalculator?: () => void;
-  onTopUp?: () => void;
   onMore?: () => void;
 }
 
-function ActionButton({ label, icon, onClick }: { label: string; icon: React.ReactNode; onClick?: () => void }) {
+function ActionButton({
+  label,
+  icon,
+  badge,
+  onClick,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  badge?: number;
+  onClick?: () => void;
+}) {
   return (
     <button type="button" onClick={onClick} className="group flex flex-col items-center gap-1">
-      <span className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-card flex items-center justify-center text-foreground/80 shadow-sm border border-border/60 transition-colors group-hover:bg-primary/10 group-hover:text-primary">
+      <span className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-card flex items-center justify-center text-foreground/80 shadow-sm border border-border/60 transition-colors group-hover:bg-primary/10 group-hover:text-primary">
         {icon}
+        {typeof badge === 'number' && badge > 0 && (
+          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center border-2 border-background">
+            {badge > 99 ? '99+' : badge}
+          </span>
+        )}
       </span>
       <span className="text-[10px] sm:text-[11px] font-semibold text-foreground/80">{label}</span>
     </button>
