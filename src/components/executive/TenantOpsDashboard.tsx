@@ -639,7 +639,7 @@ export function TenantOpsDashboard() {
         'repaying',
         'completed',
       ];
-      const { data, error } = await supabase
+      const data = await fetchAllPaged((rf, rt) => supabase
         .from('rent_requests')
         .select('id, tenant_id, approved_by, rent_amount, total_repayment, daily_repayment, amount_repaid, funded_at, approved_at, created_at, status')
         .in('status', POST_FUNDING_STATUSES)
@@ -648,9 +648,10 @@ export function TenantOpsDashboard() {
           `and(funded_at.is.null,approved_at.gte.${from.toISOString()},approved_at.lte.${to.toISOString()}),` +
           `and(funded_at.is.null,approved_at.is.null,created_at.gte.${from.toISOString()},created_at.lte.${to.toISOString()})`
         )
-        .order('created_at', { ascending: false });
-      if (error) throw error;
+        .order('created_at', { ascending: false })
+        .range(rf, rt));
       if (!data || data.length === 0) { toast.error('No funded tenants in this window'); return; }
+
       const profiles = await enrichWithProfiles(data);
       let stamped = 0;
       let inferred = 0;
