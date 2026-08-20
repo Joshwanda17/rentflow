@@ -37,6 +37,7 @@ import { ProxyAgentManager } from '@/components/cfo/ProxyAgentManager';
 import { ProxyAgentApplicationsQueue } from '@/components/executive/ProxyAgentApplicationsQueue';
 import { MaturityRequestsQueue } from './MaturityRequestsQueue';
 import { InvitedPortfoliosPanel } from './InvitedPortfoliosPanel';
+import { PendingPortfoliosQueue } from './PendingPortfoliosQueue';
 import { PortfolioRenewalsPanel } from './PortfolioRenewalsPanel';
 import { SelfManagedNearingPayouts } from './SelfManagedNearingPayouts';
 import { PartnerOpsSidebar } from './partner-ops/PartnerOpsSidebar';
@@ -242,6 +243,7 @@ export function PartnersOpsDashboard() {
       case 'portfolios.invited': return <InvitedPortfoliosPanel />;
       case 'portfolios.pending': return (
         <div className="space-y-6">
+          <PendingPortfoliosQueue />
           <PendingPartnerRequests />
           <PendingFunderApprovals defaultExpanded showWhenEmpty />
         </div>
