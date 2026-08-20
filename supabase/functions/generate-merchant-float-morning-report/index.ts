@@ -391,7 +391,7 @@ function renderHtml(p: Payload) {
   const td = 'padding:4px 10px;border-bottom:1px solid #eee';
   const tdr = `${td};text-align:right;font-variant-numeric:tabular-nums`;
   const floatRows = p.floats
-    .map((f) => `<tr><td style="${td}">${esc(f.name)}${f.label ? ` <span style="color:#888">(${esc(f.label)})</span>` : ''}</td><td style="${td}">${esc(f.phone)}</td><td style="${tdr}">${fmt(f.floatHeld)}</td></tr>`)
+    .map((f) => `<tr><td style="${td}">${esc(f.name)}${f.label ? ` <span style="color:#888">(${esc(f.label)})</span>` : ''}</td><td style="${td}">${esc(f.phone)}</td><td style="${tdr}">${fmt(f.floatHeld)}</td><td style="${tdr}">${fmt(f.companyCash)}</td><td style="${tdr}">${fmt(f.owed)}</td></tr>`)
     .join('');
   const actRows = p.activity
     .map((a) => `<tr><td style="${td}">${esc(a.name)}</td><td style="${tdr}">${fmt(a.floatReceived)}</td><td style="${tdr}">${fmt(a.floatMovedOn)}</td><td style="${tdr}">${a.payoutCount}</td><td style="${tdr}">${fmt(a.payoutAmount)}</td><td style="${tdr}">${fmt(a.commission)}</td><td style="${tdr}">${fmt(a.floatHeld)}</td></tr>`)
@@ -410,11 +410,24 @@ function renderHtml(p: Payload) {
     </table>
 
     <h3 style="margin:18px 0 6px">2. Merchant Float — Right Now (${p.floats.length} active agents, lowest first)</h3>
-    <table style="border-collapse:collapse;min-width:520px">
-      <tr><th style="${td};text-align:left">Agent</th><th style="${td};text-align:left">Float phone</th><th style="${td};text-align:right">Float balance</th></tr>
+    <table style="border-collapse:collapse;min-width:640px">
+      <tr>
+        <th style="${td};text-align:left">Agent</th>
+        <th style="${td};text-align:left">Float phone</th>
+        <th style="${td};text-align:right">Can spend now</th>
+        <th style="${td};text-align:right">Our cash on their phone</th>
+        <th style="${td};text-align:right">We owe them</th>
+      </tr>
       ${floatRows}
-      <tr><td style="padding:6px 10px"><b>Total merchant float</b></td><td></td><td style="${tdr}"><b>${fmt(p.floatTotal)}</b></td></tr>
+      <tr>
+        <td style="padding:6px 10px"><b>Totals</b></td>
+        <td></td>
+        <td style="${tdr}"><b>${fmt(p.floatTotal)}</b></td>
+        <td style="${tdr}"><b>${fmt(p.companyCashTotal)}</b></td>
+        <td style="${tdr}"><b>${fmt(p.owedTotal)}</b></td>
+      </tr>
     </table>
+    <p style="color:#666;margin:6px 0 0;font-size:12px">These three totals are the same measures shown on the Financial Ops "Money With Merchant Agents" card, from the same source.</p>
 
     <h3 style="margin:18px 0 6px">3. Yesterday's Agent Activity (${p.dateStr} EAT)</h3>
     <table style="border-collapse:collapse;min-width:640px">
