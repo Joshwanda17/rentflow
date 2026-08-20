@@ -651,7 +651,7 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
   };
 
   const { data: requests, isLoading } = useQuery({
-    queryKey: ['rent-pipeline', stage, additionalStatuses.join(',')],
+    queryKey: ['rent-pipeline', stage, additionalStatuses.join(','), dateFrom, dateTo],
     queryFn: async () => {
       const statuses = [stage, ...additionalStatuses];
       let query = supabase
@@ -666,6 +666,12 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
         query = query.or('registration_type.is.null,registration_type.neq.outstanding_balance');
       }
 
+      // Optional explicit window on submission date (Africa/Kampala) so the
+      // "pending" badge and the rendered queue describe the same slice even
+      // when the QUEUE_LIMIT cap is hit.
+      if (dateFrom) query = query.gte('created_at', kampalaDayStartISO(dateFrom));
+      if (dateTo) query = query.lte('created_at', kampalaDayEndISO(dateTo));
+
       const { data, error: queueError } = await query
         // FIFO by latest activity — most recently bumped/resubmitted/approved-into-stage first
         .order('resubmitted_at', { ascending: false, nullsFirst: false })
@@ -673,8 +679,9 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
         .order('created_at', { ascending: false })
         // Raised from 100: the pending stage alone holds 200+ requests, so the
         // queue was hiding more than half of the work.
-        .limit(1000);
+        .limit(QUEUE_LIMIT);
       if (queueError) throw queueError;
+
 
       if (!data || data.length === 0) return [];
 
