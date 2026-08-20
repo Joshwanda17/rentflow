@@ -20,6 +20,15 @@ import { formatUGX } from '@/lib/businessAdvanceCalculations';
 const MAX_AGENTS = 5;
 export const FORECAST_MULTIPLIER = 1.3;
 
+type AgentRow = {
+  id: string;
+  full_name: string;
+  phone: string | null;
+  email: string | null;
+  agent_code: string | null;
+  role: string | null;
+};
+
 export function ServiceCentreNewEntryDialog() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
