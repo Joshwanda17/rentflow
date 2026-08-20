@@ -33550,6 +33550,72 @@ export type Database = {
         }
         Relationships: []
       }
+      web_analytics_breakdown: {
+        Row: {
+          created_at: string
+          dimension: string
+          id: string
+          label: string
+          period_end: string
+          period_start: string
+          visitors: number
+        }
+        Insert: {
+          created_at?: string
+          dimension: string
+          id?: string
+          label: string
+          period_end: string
+          period_start: string
+          visitors?: number
+        }
+        Update: {
+          created_at?: string
+          dimension?: string
+          id?: string
+          label?: string
+          period_end?: string
+          period_start?: string
+          visitors?: number
+        }
+        Relationships: []
+      }
+      web_analytics_daily: {
+        Row: {
+          bounce_rate: number
+          created_at: string
+          day: string
+          id: string
+          pageviews: number
+          pageviews_per_visit: number
+          session_duration_seconds: number
+          updated_at: string
+          visitors: number
+        }
+        Insert: {
+          bounce_rate?: number
+          created_at?: string
+          day: string
+          id?: string
+          pageviews?: number
+          pageviews_per_visit?: number
+          session_duration_seconds?: number
+          updated_at?: string
+          visitors?: number
+        }
+        Update: {
+          bounce_rate?: number
+          created_at?: string
+          day?: string
+          id?: string
+          pageviews?: number
+          pageviews_per_visit?: number
+          session_duration_seconds?: number
+          updated_at?: string
+          visitors?: number
+        }
+        Relationships: []
+      }
       welile_homes_enrollment_audit: {
         Row: {
           agent_id: string | null
@@ -37747,6 +37813,7 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: boolean
       }
+      can_view_web_analytics: { Args: { _user_id: string }; Returns: boolean }
       cancel_agent_advance: {
         Args: { p_advance_id: string; p_reason: string; p_recoup: boolean }
         Returns: Json
