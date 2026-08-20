@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { usePartnerPortfolios } from '@/hooks/usePartnerPortfolios';
-import { computeAccrual, summarizeAccruals, normalizePortfolioState } from '@/lib/portfolioAccrual';
-import { PortfolioSummary } from './PortfolioSummary';
+import { computeAccrual, normalizePortfolioState } from '@/lib/portfolioAccrual';
 import { ActivePortfolioCard } from './ActivePortfolioCard';
 import { PortfolioSkeleton, PortfolioEmptyState, PortfolioErrorState } from './PortfolioStates';
 
