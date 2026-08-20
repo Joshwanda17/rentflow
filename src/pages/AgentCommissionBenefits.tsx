@@ -1,5 +1,5 @@
 import { ArrowLeft, Users, Award, BookOpen, Download, ImageIcon, Share2, DollarSign, Star, Printer, Zap, MapPin, Bike, Wallet, HandCoins, Building2, UserPlus, TrendingUp, CheckCircle2, Home, FileText, ChevronDown, FileDown, Link2, MessageCircle } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/component
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { sharePdfViaWhatsApp } from '@/lib/whatsappShare';
 import { generateAgentEarningsPdf, EARNINGS_SHARE_CAPTION, EARNINGS_SHARE_URL } from '@/lib/agentEarningsPdf';
+import { formatUGX } from '@/lib/rentCalculations';
 
 const AgentCommissionBenefits = () => {
   const navigate = useNavigate();
