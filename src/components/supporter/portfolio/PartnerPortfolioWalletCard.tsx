@@ -35,7 +35,7 @@ function ActionButton({ label, icon, onClick }: { label: string; icon: React.Rea
  * Premium bank-card style summary of the partner's deployed capital.
  * Additive card — does not replace the wallet hero card.
  */
-export function PartnerPortfolioWalletCard({ onAddCard, onSend, onRequest, onTopUp, onMore }: Props) {
+export function PartnerPortfolioWalletCard({ onAddCard, onPortfolios, onCalculator, onTopUp, onMore }: Props) {
   const { user } = useAuth();
   const { profile } = useProfile();
   const { portfolios, loading } = usePartnerPortfolios();
