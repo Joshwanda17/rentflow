@@ -153,24 +153,31 @@ export function ServiceCentreNewEntryDialog() {
               <Users className="h-3.5 w-3.5" /> 1. Assign agents ({selectedAgents.length}/{MAX_AGENTS})
             </Label>
             <Input
-              placeholder="Search agent by name or phone"
+              placeholder="Search agent by name, phone or agent code"
               value={agentSearch}
               onChange={(e) => setAgentSearch(e.target.value)}
             />
+            {selectedRows.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                Selected: {selectedRows.map((a) => a.full_name).join(', ')}
+              </p>
+            )}
             <div className="max-h-44 overflow-y-auto rounded-xl border border-border divide-y divide-border">
-              {agentsLoading ? (
+              {agentsLoading || agentsFetching ? (
                 <div className="flex justify-center py-4"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
-              ) : filteredAgents.length === 0 ? (
+              ) : (agents || []).length === 0 ? (
                 <p className="p-3 text-xs text-muted-foreground">No agents found.</p>
               ) : (
-                filteredAgents.map((a) => {
+                (agents || []).map((a) => {
                   const checked = selectedAgents.includes(a.id);
                   return (
                     <label key={a.id} className="flex items-center gap-2 p-2 cursor-pointer hover:bg-muted/50">
                       <Checkbox checked={checked} onCheckedChange={() => toggleAgent(a.id)} />
                       <span className="min-w-0 flex-1">
                         <span className="block text-sm font-medium text-foreground truncate">{a.full_name}</span>
-                        <span className="block text-xs text-muted-foreground">{a.phone || '—'}</span>
+                        <span className="block text-xs text-muted-foreground truncate">
+                          {a.phone || '—'}{a.agent_code ? ` · ${a.agent_code}` : ''}{a.role ? ` · ${a.role.replace(/_/g, ' ')}` : ''}
+                        </span>
                       </span>
                     </label>
                   );
