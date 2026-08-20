@@ -88,6 +88,8 @@ export default function FloatingToolbar() {
         </svg>
       </motion.a>
 
+      <RaiseTicketButton />
+
       <WelileAIChatDrawer open={aiOpen} onOpenChange={setAiOpen} />
     </>
   );
