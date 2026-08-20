@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { FileText, Briefcase, User, Bell, FolderOpen } from 'lucide-react';
+import { FileText, Briefcase, User, Bell, FolderOpen, Ticket } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import PersonalLayout from '@/components/layout/PersonalLayout';
 import NameCompletionReminder from '@/components/notifications/NameCompletionReminder';
@@ -64,6 +64,12 @@ const CARDS = [
     icon: Briefcase,
     title: 'My work',
     description: 'Tasks assigned to you',
+  },
+  {
+    to: '/me/tickets',
+    icon: Ticket,
+    title: 'Tickets',
+    description: 'Raise a fault or pick one up',
   },
   {
     to: '/your-profile',
