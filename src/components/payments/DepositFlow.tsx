@@ -2641,14 +2641,6 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                 >
                   <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" aria-hidden="true" />
                   <span className="leading-snug flex-1">{blockReason.message}</span>
-                  <button
-                    type="button"
-                    onClick={handleAttempt}
-                    aria-label={`Fix: ${blockReason.message}`}
-                    className="text-[11px] font-semibold text-destructive underline underline-offset-2 shrink-0 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-1"
-                  >
-                    Fix
-                  </button>
                 </div>
               )}
               {/* Back + Continue pair — Back is always reachable so users
