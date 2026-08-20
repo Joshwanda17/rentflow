@@ -134,19 +134,29 @@ Deno.serve(async (req) => {
     };
 
     // ── Section 2: Merchant Float — Right Now (all ACTIVE desks) ─────────
-    // Sourced strictly from cashout_agents (never proxy_agent_assignments).
-    const { data: posData, error: posErr } = await supabase.rpc('get_all_merchant_float_positions');
+    // MUST use the SAME source and the SAME three measures as the Financial Ops
+    // "Money With Merchant Agents" card, otherwise the report and the board
+    // disagree: `get_merchant_float_positions` + active desks only, with
+    // evidenced_amount / company_cash_with_agent / owed_to_agent clamped at 0
+    // exactly like MoneyWithAgentsCard does.
+    const { data: posData, error: posErr } = await supabase.rpc('get_merchant_float_positions');
     if (posErr) throw posErr;
-    const floats: FloatRow[] = (posData ?? []).map((r: any) => ({
-      deskId: String(r.desk_id),
-      agentId: String(r.agent_id),
-      name: String(r.agent_name || 'Unnamed agent'),
-      phone: String(r.agent_phone || ''),
-      label: String(r.label || ''),
-      floatHeld: Number(r.ledger_float_held || 0),
-      floatRaw: Number(r.float_balance_raw || 0),
-    })).sort((a: FloatRow, b: FloatRow) => a.floatHeld - b.floatHeld);
+    const floats: FloatRow[] = (posData ?? [])
+      .filter((r: any) => !!r.is_active)
+      .map((r: any) => ({
+        deskId: String(r.desk_id),
+        agentId: String(r.agent_id),
+        name: String(r.agent_name || 'Unnamed agent'),
+        phone: String(r.agent_phone || ''),
+        label: String(r.label || ''),
+        floatHeld: Math.max(0, Number(r.evidenced_amount || 0)),
+        companyCash: Math.max(0, Number(r.company_cash_with_agent || 0)),
+        owed: Number(r.owed_to_agent || 0),
+      }))
+      .sort((a: FloatRow, b: FloatRow) => a.floatHeld - b.floatHeld);
     const floatTotal = floats.reduce((s, r) => s + r.floatHeld, 0);
+    const companyCashTotal = floats.reduce((s, r) => s + r.companyCash, 0);
+    const owedTotal = floats.reduce((s, r) => s + r.owed, 0);
     const agentIds = [...new Set(floats.map((f) => f.agentId))];
     const deskIds = [...new Set(floats.map((f) => f.deskId))];
     const byAgent = new Map(floats.map((f) => [f.agentId, f]));
