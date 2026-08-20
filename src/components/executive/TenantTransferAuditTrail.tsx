@@ -277,10 +277,13 @@ export function TenantTransferAuditTrail() {
     return true;
   });
 
-  const captured = (entries || []).filter((e) => e.actor_location_status === 'captured').length;
-  const missing = (entries || []).filter(
+  // KPI cards describe the SAME rows the list renders (post-filter), so the
+  // counts and the visible trail never disagree.
+  const captured = filtered.filter((e) => e.actor_location_status === 'captured').length;
+  const missing = filtered.filter(
     (e) => !e.actor_location_status || e.actor_location_status !== 'captured',
   ).length;
+
 
   // Count active filters for the toggle pill — search excluded since it has its
   // own visible field.
