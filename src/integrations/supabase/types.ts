@@ -14693,6 +14693,7 @@ export type Database = {
       hr_task_attachments: {
         Row: {
           caption: string | null
+          delete_after: string | null
           event_id: string | null
           id: string
           kind: string
@@ -14709,6 +14710,7 @@ export type Database = {
         }
         Insert: {
           caption?: string | null
+          delete_after?: string | null
           event_id?: string | null
           id?: string
           kind: string
@@ -14725,6 +14727,7 @@ export type Database = {
         }
         Update: {
           caption?: string | null
+          delete_after?: string | null
           event_id?: string | null
           id?: string
           kind?: string
