@@ -15291,6 +15291,10 @@ export type Database = {
           investment_reference: string | null
           investor_id: string | null
           invite_id: string | null
+          lock_reason: string | null
+          locked_at: string | null
+          locked_by: string | null
+          locked_from_portfolio_id: string | null
           maturity_alert_30d: boolean
           maturity_alert_7d: boolean
           maturity_date: string | null
@@ -15330,6 +15334,10 @@ export type Database = {
           investment_reference?: string | null
           investor_id?: string | null
           invite_id?: string | null
+          lock_reason?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
+          locked_from_portfolio_id?: string | null
           maturity_alert_30d?: boolean
           maturity_alert_7d?: boolean
           maturity_date?: string | null
@@ -15369,6 +15377,10 @@ export type Database = {
           investment_reference?: string | null
           investor_id?: string | null
           invite_id?: string | null
+          lock_reason?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
+          locked_from_portfolio_id?: string | null
           maturity_alert_30d?: boolean
           maturity_alert_7d?: boolean
           maturity_date?: string | null
@@ -41757,6 +41769,14 @@ export type Database = {
         }[]
       }
       lock_campaign_attribution: { Args: { p_token: string }; Returns: Json }
+      lock_portfolio_principal: {
+        Args: {
+          p_locked_amount: number
+          p_portfolio_id: string
+          p_reason: string
+        }
+        Returns: Json
+      }
       log_archived_login_attempt: {
         Args: {
           p_archived_at?: string
