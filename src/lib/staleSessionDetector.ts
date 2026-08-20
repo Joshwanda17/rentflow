@@ -259,6 +259,25 @@ export function installStaleSessionDetector(): void {
 
   const originalFetch = window.fetch.bind(window);
 
+  // Resume grace: whenever the page comes back to the foreground (returning
+  // from the camera, gallery, or an app switch) give the network a few seconds
+  // before any refresh failure is allowed to end the session.
+  try {
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        suppressUntil = Math.max(suppressUntil, Date.now() + RESUME_GRACE_MS);
+        // Allow an immediate fresh refresh attempt after resuming.
+        lastAttempt = 0;
+      }
+    });
+    window.addEventListener('pageshow', () => {
+      suppressUntil = Math.max(suppressUntil, Date.now() + RESUME_GRACE_MS);
+      lastAttempt = 0;
+    });
+  } catch {
+    /* ignore */
+  }
+
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     const response = await originalFetch(input, init);
 
