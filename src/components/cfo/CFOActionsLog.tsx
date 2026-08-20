@@ -159,6 +159,67 @@ const DATE_PRESETS: { label: string; days: number | 'mtd' }[] = [
   { label: 'Month to date', days: 'mtd' },
 ];
 
+// Short reference for IDs (uuid → first segment, plain refs kept as-is).
+const shortRef = (v?: string | null) => {
+  if (!v) return null;
+  const s = String(v).trim();
+  if (!s) return null;
+  return s.length > 12 ? s.slice(0, 8).toUpperCase() : s;
+};
+
+/**
+ * Builds the human action sentence for a trail row from the LIVE ledger
+ * fields only (category, reference, linked party, actor, posting date).
+ * Nothing here is hardcoded sample data — unmatched categories fall back to
+ * the humanised category label so new movements never vanish.
+ */
+const describeAction = (r: TrailRow): string => {
+  const party = r.linked_party || (r.actor_name && r.actor_name !== 'System' ? r.actor_name : null);
+  const ref = shortRef(r.reference_id) || shortRef(r.source_id);
+  const cat = r.category;
+
+  if (cat === 'rent_disbursement' || cat === 'landlord_rent_payment') {
+    return `Approved rent payout for Landlord #${ref || party || '—'}`;
+  }
+  if (cat === 'payroll_expense') {
+    return `Released payroll for ${format(new Date(r.transaction_date), 'MMMM yyyy')}`;
+  }
+  if (
+    cat === 'agent_commission' ||
+    cat === 'agent_commission_earned' ||
+    cat === 'agent_commission_withdrawal' ||
+    cat === 'partner_commission'
+  ) {
+    return `Approved agent commissions batch #${ref || party || '—'}`;
+  }
+  if (cat.startsWith('agent_float')) {
+    return `Replenished agent float — ${party || ref || 'Unassigned team'}`;
+  }
+  if (cat === 'system_balance_correction' || r.classification === 'admin_correction') {
+    return `Adjusted ledger correction — Wallet ${shortRef(r.user_id) || ref || '—'}`;
+  }
+  return party ? `${labelFor(cat)} — ${party}` : labelFor(cat);
+};
+
+// Real relative timestamp computed from the logged action time ("2h ago").
+const relativeTime = (iso: string): string => {
+  const then = new Date(iso).getTime();
+  if (!Number.isFinite(then)) return '';
+  const secs = Math.max(0, Math.floor((Date.now() - then) / 1000));
+  if (secs < 60) return 'just now';
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d ago`;
+  const weeks = Math.floor(days / 7);
+  if (days < 30) return `${weeks}w ago`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months}mo ago`;
+  return `${Math.floor(days / 365)}y ago`;
+};
+
 export function CFOActionsLog() {
   const [filterGroup, setFilterGroup] = useState('all');
   const [searchInput, setSearchInput] = useState('');
