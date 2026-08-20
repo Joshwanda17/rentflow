@@ -61,6 +61,7 @@ export function InvitedPortfoliosPanel() {
   const [approvalError, setApprovalError] = useState<string | null>(null);
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [reviewRow, setReviewRow] = useState<Row | null>(null);
+  const [forceRow, setForceRow] = useState<Row | null>(null);
   const queryClient = useQueryClient();
 
   const { data, isLoading, refetch, isFetching } = useQuery<Row[]>({
