@@ -45,11 +45,13 @@ export function PromissoryPlanMatcher({
   selectedIds,
   onChange,
   disabled,
+  onSelectedTotalChange,
 }: {
   targetAmount: number;
   selectedIds: string[];
   onChange: (ids: string[]) => void;
   disabled?: boolean;
+  onSelectedTotalChange?: (total: number) => void;
 }) {
   const [search, setSearch] = useState('');
   const [debounced, setDebounced] = useState('');
@@ -92,6 +94,12 @@ export function PromissoryPlanMatcher({
   const remaining = Math.max(0, targetAmount - selectedTotal);
   const shortfall = targetAmount > 0 && pool < targetAmount;
 
+  // Lets the parent mirror the earmarked total into the promised amount while
+  // the agent has not typed one manually.
+  useEffect(() => {
+    onSelectedTotalChange?.(selectedTotal);
+  }, [selectedTotal, onSelectedTotalChange]);
+
   const toggle = useCallback(
     (plan: FundablePlanRow) => {
       if (disabled) return;
@@ -129,9 +137,12 @@ export function PromissoryPlanMatcher({
     <div className="rounded-xl border border-border p-3 space-y-2.5">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="text-xs font-semibold">Attach ready-to-fund tenant plans (optional)</p>
+          <p className="text-xs font-semibold">
+            Available rent requests {data ? `(${data.total})` : ''}
+          </p>
           <p className="text-[10px] text-muted-foreground mt-0.5">
-            Earmark this partner&apos;s money to specific plans, or skip and create the note on its own.
+            Pick the rent plans this partner will fund — the promised amount fills in from your
+            selection. Skip to create the note on its own.
           </p>
         </div>
         <Button
@@ -154,9 +165,9 @@ export function PromissoryPlanMatcher({
         <>
           <div className="grid grid-cols-3 gap-2">
             {[
-              { label: 'Promised', value: formatUGX(targetAmount) },
+              { label: 'Pool available', value: formatUGX(pool) },
               { label: 'Earmarked', value: formatUGX(selectedTotal) },
-              { label: 'Unallocated', value: formatUGX(remaining) },
+              { label: targetAmount > 0 ? 'Unallocated' : 'Promised', value: targetAmount > 0 ? formatUGX(remaining) : formatUGX(selectedTotal) },
             ].map((f) => (
               <div key={f.label} className="rounded-lg bg-muted/40 px-2 py-1.5 min-w-0">
                 <p className="text-[9px] uppercase tracking-wide font-semibold text-muted-foreground truncate">

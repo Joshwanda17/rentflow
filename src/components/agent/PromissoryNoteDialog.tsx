@@ -56,6 +56,9 @@ export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialo
   const [phoneNumber, setPhoneNumber] = useState('');
   const [email, setEmail] = useState('');
   const [amount, setAmount] = useState('');
+  // True once the agent edits the amount by hand — after that, plan selections
+  // never overwrite what they typed.
+  const [amountTouched, setAmountTouched] = useState(false);
   const [contributionType, setContributionType] = useState<'monthly' | 'compounding'>('compounding');
   const [deductionDay, setDeductionDay] = useState('1');
   // Optional earmarking of ready-to-fund rent plans to this note.
@@ -68,6 +71,7 @@ export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialo
     setPhoneNumber('');
     setEmail('');
     setAmount('');
+    setAmountTouched(false);
     setContributionType('compounding');
     setDeductionDay('1');
     setCreatedNote(null);
@@ -226,7 +230,7 @@ export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialo
 
             <div>
               <Label className="text-xs">Promised Amount (UGX) *</Label>
-              <Input value={amount} onChange={e => setAmount(e.target.value.replace(/[^0-9]/g, ''))} placeholder="e.g. 500000" inputMode="numeric" className="mt-0.5 h-9" />
+              <Input value={amount} onChange={e => { setAmountTouched(true); setAmount(e.target.value.replace(/[^0-9]/g, '')); }} placeholder="e.g. 500000" inputMode="numeric" className="mt-0.5 h-9" />
               {parsedAmount > 0 && (
                 <div className="flex justify-between mt-1 text-[11px]">
                   <span className="text-primary font-medium">{formatUGX(parsedAmount)}</span>
@@ -265,15 +269,18 @@ export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialo
               )}
             </div>
 
-            {/* Quick earnings preview */}
-            {parsedAmount > 0 && (
-              <PromissoryPlanMatcher
-                targetAmount={parsedAmount}
-                selectedIds={selectedPlanIds}
-                onChange={setSelectedPlanIds}
-                disabled={submitting}
-              />
-            )}
+            {/* Available rent requests from the funding queue — always visible so
+                the agent can earmark plans to the partner being added. */}
+            <PromissoryPlanMatcher
+              targetAmount={parsedAmount}
+              selectedIds={selectedPlanIds}
+              onChange={setSelectedPlanIds}
+              disabled={submitting}
+              onSelectedTotalChange={(total) => {
+                if (amountTouched) return;
+                setAmount(total > 0 ? String(total) : '');
+              }}
+            />
 
             {parsedAmount > 0 && (
               <div className="rounded-lg bg-primary/5 border border-primary/10 p-2.5 text-[11px] space-y-0.5">
