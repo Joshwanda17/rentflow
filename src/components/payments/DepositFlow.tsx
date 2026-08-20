@@ -1908,35 +1908,6 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                   ))}
                 </div>
 
-                {/* Pay Now USSD Button */}
-                {amount && parseFloat(amount) > 0 && (
-                  <a
-                    href={
-                      momoProvider === 'mtn'
-                        ? `tel:*165*3*${amount}%23`
-                        : `tel:*185*9%23`
-                    }
-                    // Native anchor — iOS Safari (and most Android in-app
-                    // webviews) refuse to launch the dialer from a
-                    // programmatic `window.location.href = "tel:"`. A real
-                    // <a href="tel:..."> is the only reliable way.
-                    onClick={() => {
-                      setTimeout(() => {
-                        toast.info(`Merchant ID: ${MERCHANT_CODES[momoProvider]}`, {
-                          duration: 10000,
-                          action: {
-                            label: 'Copy',
-                            onClick: () => navigator.clipboard.writeText(MERCHANT_CODES[momoProvider]),
-                          },
-                        });
-                      }, 500);
-                    }}
-                    className={`w-full h-11 inline-flex items-center justify-center rounded-md font-semibold text-sm transition-colors ${momoProvider === 'mtn' ? 'bg-[hsl(var(--warning))] text-[hsl(var(--warning-foreground))] hover:bg-[hsl(var(--warning))]/90' : 'bg-destructive text-destructive-foreground hover:bg-destructive/90'}`}
-                  >
-                    <Phone className="h-4 w-4 mr-2" />
-                    Pay Now via {momoProvider === 'mtn' ? 'MTN' : 'Airtel'}
-                  </a>
-                )}
               </div>
             )}
 
@@ -2559,134 +2530,39 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
 
           </div>
         )}
+
+        {/* Pay Now USSD Button — placed at the bottom of the sheet */}
+        {channel === 'momo' && amount && parseFloat(amount) > 0 && (
+          <a
+            href={
+              momoProvider === 'mtn'
+                ? `tel:*165*3*${amount}%23`
+                : `tel:*185*9%23`
+            }
+            // Native anchor — iOS Safari (and most Android in-app
+            // webviews) refuse to launch the dialer from a
+            // programmatic `window.location.href = "tel:"`. A real
+            // <a href="tel:..."> is the only reliable way.
+            onClick={() => {
+              setTimeout(() => {
+                toast.info(`Merchant ID: ${MERCHANT_CODES[momoProvider]}`, {
+                  duration: 10000,
+                  action: {
+                    label: 'Copy',
+                    onClick: () => navigator.clipboard.writeText(MERCHANT_CODES[momoProvider]),
+                  },
+                });
+              }, 500);
+            }}
+            className={`mx-4 mb-4 w-[calc(100%-2rem)] h-11 inline-flex items-center justify-center rounded-md font-semibold text-sm transition-colors ${momoProvider === 'mtn' ? 'bg-[hsl(var(--warning))] text-[hsl(var(--warning-foreground))] hover:bg-[hsl(var(--warning))]/90' : 'bg-destructive text-destructive-foreground hover:bg-destructive/90'}`}
+          >
+            <Phone className="h-4 w-4 mr-2" />
+            Pay Now via {momoProvider === 'mtn' ? 'MTN' : 'Airtel'}
+          </a>
+        )}
+
         {/* /scroll body */}
         </div>
-        {/* Sticky footer — primary action lives here only on the form
-            step. Other steps are big tap-target grids (Choose purpose /
-            Choose method) which act as their own CTAs. */}
-        {step === 'form' && !editLoading && (() => {
-          const total = parseFloat(amount) || 0;
-          // Single source of truth — same helper that gates handleSubmit.
-          // No more drift between the inline hint and the toast (root cause
-          // of the "Confirm deposit does nothing" complaint — FIX-46).
-          const blockReason = computeBlockReason();
-          const blocked = isSubmitting || !!blockReason;
-          // Auto-clear the red ring once the offending field is fixed —
-          // either because the user corrected it, or because a different
-          // field is now the blocker.
-          if (errorFieldId && (!blockReason || blockReason.fieldId !== errorFieldId)) {
-            // schedule outside render to avoid setState-in-render warning
-            queueMicrotask(() => setErrorFieldId(null));
-          }
-          const handleAttempt = () => {
-            if (isSubmitting) return;
-            if (blockReason) {
-              // Silent recovery: if the only blocker is an empty
-              // `depositPurpose` and the caller pinned a `defaultPurpose`
-              // with `lockPurpose`, restore it transparently and submit.
-              // This recovers the state-update race where `handleClose`
-              // reset the value just before the dialog reopened, without
-              // confronting the agent with a "pick a purpose" toast for a
-              // value they already implicitly chose by opening this flow.
-              if (
-                blockReason.fieldId === 'deposit-purpose' &&
-                !depositPurpose &&
-                defaultPurpose &&
-                lockPurpose &&
-                ALLOWED_DEPOSIT_PURPOSES.includes(defaultPurpose)
-              ) {
-                // Bypass the React-async closure race: stamp the override
-                // ref so the very next computeBlockReason/handleSubmit
-                // call sees the chosen purpose even before state flushes.
-                purposeOverrideRef.current = defaultPurpose;
-                setDepositPurpose(defaultPurpose);
-                const purposeLabel = DEPOSIT_PURPOSES.find(p => p.id === defaultPurpose)?.label;
-                if (purposeLabel && defaultPurpose !== 'other') setReason(purposeLabel);
-                setPurposeChosenAt(new Date().toISOString());
-                setPurposeEntryPoint('default');
-                // Submit immediately — the ref guarantees validation
-                // sees the right purpose without waiting for React.
-                handleSubmit();
-                return;
-              }
-              console.warn('[DepositFlow] submit blocked:', blockReason);
-              toast.error(blockReason.message);
-              setErrorFieldId(blockReason.fieldId);
-              const el = document.getElementById(blockReason.fieldId);
-              if (el) {
-                el.scrollIntoView({ block: 'center', behavior: 'smooth' });
-                // Focusing inputs pops the mobile keyboard — exactly what we
-                // want so the agent immediately sees the offending field.
-                if (typeof (el as HTMLElement & { focus?: () => void }).focus === 'function') {
-                  setTimeout(() => (el as HTMLInputElement).focus(), 250);
-                }
-              }
-              return;
-            }
-            handleSubmit();
-          };
-          return (
-            <div className="border-t bg-background px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
-              {/* Back + Continue pair — Back is always reachable so users
-                  never feel trapped on the form. Both buttons are thumb-sized
-                  with snappy press feedback (duration-75 + active:scale). */}
-              {/* Extra-large Back + Continue pair for small iPhones (SE / mini).
-                  Both buttons are ≥56px tall (well above the 44px Apple HIG
-                  minimum), separated by a 12px gap so a thumb can't tap both
-                  at once, and Back is fixed at ~38% width so the primary
-                  Deposit CTA stays visually dominant. */}
-              {/* Auto-verification policy notice */}
-              <div className="flex items-start gap-2 p-2.5 rounded-lg border border-primary/20 bg-primary/5 mb-3">
-                <Info className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
-                <p className="text-[11px] text-muted-foreground leading-snug">
-                  <span className="font-semibold text-foreground">Auto-verified deposits</span>{' '}
-                  are credited to your <span className="font-semibold text-foreground">Operational Float</span>{' '}
-                  wallet by default.
-                </p>
-              </div>
-              <div className="flex gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={requestBack}
-                  disabled={isSubmitting}
-                  className="h-14 basis-[38%] shrink-0 text-base font-semibold rounded-xl active:scale-95 transition-transform duration-75 touch-manipulation focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                  aria-label="Go back to payment method selection"
-                >
-                  <ChevronLeft className="h-5 w-5 mr-1.5" aria-hidden="true" /> Back
-                </Button>
-                <Button
-                  onClick={handleAttempt}
-                  disabled={isSubmitting}
-                  className="flex-1 h-14 text-base font-semibold rounded-xl active:scale-[0.98] transition-transform duration-75 touch-manipulation focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                  size="lg"
-                  aria-disabled={blocked}
-                  aria-describedby={blockReason ? 'deposit-block-reason' : undefined}
-                  aria-label={
-                    isSubmitting
-                      ? (isEditMode ? 'Saving changes' : 'Sending deposit')
-                      : isEditMode
-                        ? 'Save changes'
-                        : (total > 0
-                          ? `Submit deposit of ${formatCurrency(total)} for verification`
-                          : 'Submit deposit for verification')
-                  }
-                >
-                  {isSubmitting
-                    ? <><Loader2 className="h-4 w-4 animate-spin mr-2" aria-hidden="true" /> {isEditMode ? 'Saving…' : 'Sending…'}</>
-                    : isEditMode
-                      ? 'Save changes'
-                      : (total > 0 ? `Deposit ${formatCurrency(total)}` : 'Deposit')}
-                </Button>
-              </div>
-              {total > 0 && !blocked && (
-                <p className="text-center text-xs text-muted-foreground mt-1.5">
-                  Depositing <span className="font-semibold text-foreground">{formatCurrency(total)}</span>
-                </p>
-              )}
-            </div>
-          );
-        })()}
       </DialogContent>
     </Dialog>
     {smsPasteOpen && (
