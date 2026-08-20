@@ -62,8 +62,6 @@ export default function AgentProductCategoryPage() {
     );
   }
 
-  const isAdvances = entry.slug === 'advances';
-
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-7xl px-4 py-5 space-y-5">
