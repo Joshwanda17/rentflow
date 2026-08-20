@@ -115,6 +115,15 @@ export default function DepartmentBudgetSubmission({ dashboard, departmentKeys }
 
   useEffect(() => { loadSubmissions(); }, [loadSubmissions]);
 
+  // A new cycle (or department) always starts from a completely blank form —
+  // never carry forward values from a previously opened submission.
+  useEffect(() => {
+    setActiveId(null);
+    setTitle('');
+    setPurpose('');
+    setLines([emptyLine()]);
+  }, [cycleId, departmentId]);
+
   const openSubmission = async (s: BudgetSubmission) => {
     setActiveId(s.id);
     setTitle(s.title ?? '');
