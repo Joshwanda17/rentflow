@@ -325,7 +325,7 @@ export function TenantTransferAuditTrail() {
           <div className="grid grid-cols-3 gap-2">
             <div className="rounded-lg border bg-card p-2.5">
               <div className="text-[10px] uppercase text-muted-foreground">Total actions</div>
-              <div className="text-lg font-bold">{entries?.length ?? 0}</div>
+              <div className="text-lg font-bold">{filtered.length}</div>
             </div>
             <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-2.5">
               <div className="text-[10px] uppercase text-emerald-700">Geo captured</div>
@@ -337,6 +337,24 @@ export function TenantTransferAuditTrail() {
             </div>
           </div>
 
+          <WindowSummary
+            visible={filtered.length}
+            loaded={entries?.length ?? 0}
+            from={dateFrom}
+            to={dateTo}
+            noun="actions"
+          />
+          <TruncationNotice
+            fetched={payload?.transfersFetched ?? 0}
+            limit={TRANSFER_LIMIT}
+            noun="transfers"
+          />
+          <TruncationNotice
+            fetched={payload?.linksFetched ?? 0}
+            limit={LINK_LIMIT}
+            noun="agent links"
+          />
+
           <TenantOpsReportToolbar
             tool="transfer_audit"
             status="all"
@@ -346,6 +364,7 @@ export function TenantTransferAuditTrail() {
           />
 
           <div className="space-y-2">
+
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
