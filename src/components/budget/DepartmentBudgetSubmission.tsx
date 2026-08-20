@@ -249,10 +249,12 @@ export default function DepartmentBudgetSubmission({ dashboard, departmentKeys }
             </div>
             <div>
               <Label className="text-xs">Department</Label>
-              <Select value={departmentId} onValueChange={setDepartmentId}>
+              <Select value={departmentId} onValueChange={setDepartmentId} disabled={myDepartments.length > 0}>
                 <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
                 <SelectContent className="z-[100]">
-                  {myDepartments.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                  {myDepartments
+                    .filter(d => d.id === departmentId)
+                    .map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
                 </SelectContent>
               </Select>
               {route && (
