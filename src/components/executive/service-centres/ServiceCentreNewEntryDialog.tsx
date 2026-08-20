@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -20,6 +20,15 @@ import { formatUGX } from '@/lib/businessAdvanceCalculations';
 const MAX_AGENTS = 5;
 export const FORECAST_MULTIPLIER = 1.3;
 
+type AgentRow = {
+  id: string;
+  full_name: string;
+  phone: string | null;
+  email: string | null;
+  agent_code: string | null;
+  role: string | null;
+};
+
 export function ServiceCentreNewEntryDialog() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -36,40 +45,30 @@ export function ServiceCentreNewEntryDialog() {
   const [durationUnit, setDurationUnit] = useState<'days' | 'months' | 'years'>('months');
   const [notes, setNotes] = useState('');
 
-  const { data: agents, isLoading: agentsLoading } = useQuery({
-    queryKey: ['service-centre-entry-agents'],
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(agentSearch.trim()), 300);
+    return () => clearTimeout(t);
+  }, [agentSearch]);
+
+  const { data: agents, isLoading: agentsLoading, isFetching: agentsFetching } = useQuery({
+    queryKey: ['service-centre-entry-agents', debouncedSearch],
     enabled: open,
-    staleTime: 60_000,
+    staleTime: 30_000,
     queryFn: async () => {
-      const { data } = await supabase
-        .from('user_roles')
-        .select('user_id')
-        .in('role', ['agent', 'senior_agent', 'sub_agent'])
-        .limit(1000);
-      const ids = Array.from(new Set((data || []).map((r: any) => r.user_id)));
-      if (!ids.length) return [] as { id: string; full_name: string; phone: string | null }[];
-      const out: any[] = [];
-      for (let i = 0; i < ids.length; i += 200) {
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, full_name, phone')
-          .in('id', ids.slice(i, i + 200));
-        if (profiles) out.push(...profiles);
-      }
-      return out
-        .map((p) => ({ id: p.id, full_name: p.full_name || 'Unknown', phone: p.phone }))
-        .sort((a, b) => a.full_name.localeCompare(b.full_name));
+      const { data, error } = await supabase.rpc('search_all_agents' as any, {
+        p_term: debouncedSearch,
+        p_limit: 40,
+      });
+      if (error) throw error;
+      return (data || []) as AgentRow[];
     },
   });
 
-  const filteredAgents = useMemo(() => {
-    const q = agentSearch.trim().toLowerCase();
-    const list = agents || [];
-    if (!q) return list.slice(0, 40);
-    return list
-      .filter((a) => a.full_name.toLowerCase().includes(q) || (a.phone || '').includes(q))
-      .slice(0, 40);
-  }, [agents, agentSearch]);
+  const selectedRows = useMemo(
+    () => (agents || []).filter((a) => selectedAgents.includes(a.id)),
+    [agents, selectedAgents],
+  );
 
   const unitPriceNum = Number(unitPrice) || 0;
   const forecast = Math.round(unitPriceNum * FORECAST_MULTIPLIER);
@@ -154,24 +153,31 @@ export function ServiceCentreNewEntryDialog() {
               <Users className="h-3.5 w-3.5" /> 1. Assign agents ({selectedAgents.length}/{MAX_AGENTS})
             </Label>
             <Input
-              placeholder="Search agent by name or phone"
+              placeholder="Search agent by name, phone or agent code"
               value={agentSearch}
               onChange={(e) => setAgentSearch(e.target.value)}
             />
+            {selectedRows.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                Selected: {selectedRows.map((a) => a.full_name).join(', ')}
+              </p>
+            )}
             <div className="max-h-44 overflow-y-auto rounded-xl border border-border divide-y divide-border">
-              {agentsLoading ? (
+              {agentsLoading || agentsFetching ? (
                 <div className="flex justify-center py-4"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
-              ) : filteredAgents.length === 0 ? (
+              ) : (agents || []).length === 0 ? (
                 <p className="p-3 text-xs text-muted-foreground">No agents found.</p>
               ) : (
-                filteredAgents.map((a) => {
+                (agents || []).map((a) => {
                   const checked = selectedAgents.includes(a.id);
                   return (
                     <label key={a.id} className="flex items-center gap-2 p-2 cursor-pointer hover:bg-muted/50">
                       <Checkbox checked={checked} onCheckedChange={() => toggleAgent(a.id)} />
                       <span className="min-w-0 flex-1">
                         <span className="block text-sm font-medium text-foreground truncate">{a.full_name}</span>
-                        <span className="block text-xs text-muted-foreground">{a.phone || '—'}</span>
+                        <span className="block text-xs text-muted-foreground truncate">
+                          {a.phone || '—'}{a.agent_code ? ` · ${a.agent_code}` : ''}{a.role ? ` · ${a.role.replace(/_/g, ' ')}` : ''}
+                        </span>
                       </span>
                     </label>
                   );

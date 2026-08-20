@@ -43552,6 +43552,17 @@ export type Database = {
           phone: string
         }[]
       }
+      search_all_agents: {
+        Args: { p_limit?: number; p_term?: string }
+        Returns: {
+          agent_code: string
+          email: string
+          full_name: string
+          id: string
+          phone: string
+          role: string
+        }[]
+      }
       search_invitable_subagents: {
         Args: { result_limit?: number; search_term?: string }
         Returns: {
