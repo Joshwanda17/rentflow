@@ -471,8 +471,8 @@ function renderText(p: Payload) {
     `  TOTAL: ${fmt(p.phone.total)}`,
     '',
     `2. MERCHANT FLOAT — RIGHT NOW (${p.floats.length} active agents, lowest first)`,
-    ...p.floats.map((f) => `  ${f.name}: ${fmt(f.floatHeld)}`),
-    `  TOTAL: ${fmt(p.floatTotal)}`,
+    ...p.floats.map((f) => `  ${f.name}: can spend ${fmt(f.floatHeld)} | our cash on phone ${fmt(f.companyCash)} | we owe ${fmt(f.owed)}`),
+    `  TOTALS: can spend ${fmt(p.floatTotal)} | our cash on phones ${fmt(p.companyCashTotal)} | we owe ${fmt(p.owedTotal)}`,
     '',
     `3. YESTERDAY'S AGENT ACTIVITY (${p.dateStr} EAT)`,
     ...p.activity.map(
