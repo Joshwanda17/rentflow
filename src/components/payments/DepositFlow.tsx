@@ -2556,11 +2556,6 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
               )}
             </div>
 
-            {/* ─── Warning ─── */}
-            <div className="flex items-start gap-2 p-2.5 bg-warning/10 rounded-lg border border-warning/20">
-              <AlertCircle className="h-3.5 w-3.5 text-warning shrink-0 mt-0.5" />
-              <p className="text-xs text-muted-foreground">Ensure all details match your {channel === 'momo' ? 'SMS' : channel === 'bank' ? 'bank receipt' : 'physical receipt'}. Incorrect info delays verification.</p>
-            </div>
 
           </div>
         )}
