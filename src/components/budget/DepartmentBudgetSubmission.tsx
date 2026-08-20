@@ -19,6 +19,7 @@ import {
   useBudgetCycles, useBudgetReferenceData,
   type BudgetSubmission, type BudgetLine,
 } from '@/hooks/useDepartmentBudgets';
+import { departmentKeysForDashboard } from './departmentScope';
 
 interface DraftLine {
   description: string;
@@ -37,10 +38,31 @@ const emptyLine = (): DraftLine => ({
 
 const EDITABLE_STATUSES = ['draft'];
 
+interface Props {
+  /** Dashboard the page was opened from (e.g. 'tenant-ops'); locks the form to that hub's department. */
+  dashboard?: string;
+  /** Explicit hr_departments.key allowlist; overrides `dashboard`. */
+  departmentKeys?: string[];
+}
+
 /** Department-facing budget preparation and submission interface. */
-export default function DepartmentBudgetSubmission() {
+export default function DepartmentBudgetSubmission({ dashboard, departmentKeys }: Props = {}) {
   const { cycles, loading: cyclesLoading } = useBudgetCycles();
-  const { accounts, myDepartments } = useBudgetReferenceData();
+  const { accounts, myDepartments: allMyDepartments } = useBudgetReferenceData();
+
+  /**
+   * Submissions are department-specific: when the page is opened from a
+   * department hub we only expose that hub's department, so a Tenant Ops user
+   * can never file or read a budget under Agent Ops (and vice versa).
+   */
+  const allowedKeys = useMemo(
+    () => departmentKeys ?? departmentKeysForDashboard(dashboard),
+    [departmentKeys, dashboard],
+  );
+  const myDepartments = useMemo(
+    () => (allowedKeys ? allMyDepartments.filter(d => allowedKeys.includes(d.key)) : allMyDepartments),
+    [allMyDepartments, allowedKeys],
+  );
 
   const [cycleId, setCycleId] = useState<string>('');
   const [departmentId, setDepartmentId] = useState<string>('');
@@ -64,7 +86,8 @@ export default function DepartmentBudgetSubmission() {
     if (!cycleId && openCycles.length) setCycleId(openCycles[0].id);
   }, [openCycles, cycleId]);
   useEffect(() => {
-    if (!departmentId && myDepartments.length) setDepartmentId(myDepartments[0].id);
+    if (!myDepartments.length) { if (departmentId) setDepartmentId(''); return; }
+    if (!myDepartments.some(d => d.id === departmentId)) setDepartmentId(myDepartments[0].id);
   }, [myDepartments, departmentId]);
 
   useEffect(() => {
@@ -77,7 +100,7 @@ export default function DepartmentBudgetSubmission() {
   }, [departmentId]);
 
   const loadSubmissions = useCallback(async () => {
-    if (!cycleId) return;
+    if (!cycleId || !departmentId) { setSubmissions([]); return; }
     try {
       const rows = await fetchSubmissions(cycleId, departmentId || null);
       setSubmissions(rows);

@@ -236,16 +236,23 @@ export function useBudgetReferenceData() {
   return { accounts, departments, myDepartments };
 }
 
+/**
+ * Department-scoped submission list. A department id is REQUIRED: submissions
+ * belong to exactly one department and must never be listed under another one,
+ * so with no department resolved we return nothing rather than everything the
+ * caller's role happens to be able to read.
+ */
 export async function fetchSubmissions(callId?: string | null, departmentId?: string | null) {
+  if (!departmentId) return [] as BudgetSubmission[];
   let q = supabase
     .from('budget_submissions')
     .select('id,call_id,department_id,reference,title,purpose,total_amount,approved_total,status,version,parent_submission_id,is_late,submitted_at,reviewed_at,cfo_comment,created_at,submitted_by_user_id')
+    .eq('department_id', departmentId)
     .order('created_at', { ascending: false });
   if (callId) q = q.eq('call_id', callId);
-  if (departmentId) q = q.eq('department_id', departmentId);
   const { data, error } = await q;
   if (error) throw error;
-  return (data ?? []) as BudgetSubmission[];
+  return ((data ?? []) as BudgetSubmission[]).filter(s => s.department_id === departmentId);
 }
 
 export async function fetchLines(submissionId: string) {
