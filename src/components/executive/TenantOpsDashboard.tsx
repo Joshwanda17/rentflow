@@ -445,12 +445,39 @@ export function TenantOpsDashboard() {
     `${format(from, 'yyyyMMdd')}_${format(to, 'yyyyMMdd')}`;
 
   // Fetch tenant + landlord names for a list of rent_request rows in one go.
+  // Tenants / approvers live in `profiles`; landlords live in `landlords` (column `name`).
   const enrichWithProfiles = async (rows: any[]) => {
-    const ids = [...new Set(rows.flatMap(r => [r.tenant_id, r.landlord_id, r.approved_by]).filter(Boolean) as string[])];
-    if (!ids.length) return new Map<string, any>();
-    const { data } = await supabase.from('profiles').select('id, full_name, phone').in('id', ids);
-    return new Map((data || []).map((p: any) => [p.id, p]));
+    const profileIds = [...new Set(rows.flatMap(r => [r.tenant_id, r.approved_by]).filter(Boolean) as string[])];
+    const landlordIds = [...new Set(rows.map(r => r.landlord_id).filter(Boolean) as string[])];
+    const map = new Map<string, any>();
+    const [profRes, landRes] = await Promise.all([
+      profileIds.length
+        ? supabase.from('profiles').select('id, full_name, phone').in('id', profileIds)
+        : Promise.resolve({ data: [] as any[] }),
+      landlordIds.length
+        ? supabase.from('landlords').select('id, name, phone').in('id', landlordIds)
+        : Promise.resolve({ data: [] as any[] }),
+    ]);
+    (profRes.data || []).forEach((p: any) => map.set(p.id, p));
+    (landRes.data || []).forEach((l: any) => map.set(l.id, { id: l.id, full_name: l.name, phone: l.phone }));
+    return map;
   };
+
+  // Page past PostgREST's 1,000-row ceiling (same pattern as the exec-tenant-ops query).
+  const fetchAllPaged = async (build: (rangeFrom: number, rangeTo: number) => any) => {
+    const PAGE = 1000;
+    const out: any[] = [];
+    for (let offset = 0; ; offset += PAGE) {
+      const { data, error } = await build(offset, offset + PAGE - 1);
+      if (error) throw error;
+      const chunk = data || [];
+      out.push(...chunk);
+      if (chunk.length < PAGE) break;
+      if (out.length >= 50000) break;
+    }
+    return out;
+  };
+
 
   const handleExtractApplied = async () => {
     setExtracting('applied');
