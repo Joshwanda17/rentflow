@@ -238,15 +238,15 @@ export function DailyPaymentTracker() {
     staleTime: 120000,
   });
 
-  // Fetch today's collections
+  // Fetch today's collections (server day window)
   const { data: todayCollections, isLoading: colLoading } = useQuery({
-    queryKey: ['daily-tracker-collections', todayStr],
+    queryKey: ['daily-tracker-collections', dayStartIso, dayEndIso],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('agent_collections')
         .select('tenant_id, amount')
         .gte('created_at', dayStartIso)
-        .lte('created_at', dayEndIso);
+        .lt('created_at', dayEndIso);
       if (error) throw error;
       // Aggregate by tenant
       const map = new Map<string, number>();
@@ -255,30 +255,33 @@ export function DailyPaymentTracker() {
       });
       return map;
     },
+    enabled: hasDayWindow,
     staleTime: 60000,
   });
 
   // Fetch latest allocations today (with agent + tenant), most recent first
   const { data: latestAllocations } = useQuery({
-    queryKey: ['daily-tracker-latest-allocations', todayStr],
+    queryKey: ['daily-tracker-latest-allocations', dayStartIso, dayEndIso],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('agent_collections')
         .select('id, tenant_id, agent_id, amount, created_at, payment_method, location_name')
         .gte('created_at', dayStartIso)
-        .lte('created_at', dayEndIso)
+        .lt('created_at', dayEndIso)
         .order('created_at', { ascending: false })
         .limit(30);
       if (error) throw error;
       return data || [];
     },
+    enabled: hasDayWindow,
     staleTime: 60000,
   });
 
-  const isLoading = reqLoading || colLoading;
+  const isLoading = reqLoading || colLoading || !hasDayWindow;
 
   // Realtime: listen for new agent_collections today and refresh live
   useEffect(() => {
+    if (!hasDayWindow) return;
     const channel = supabase
       .channel('daily-tracker-live-allocations')
       .on(
@@ -287,21 +290,22 @@ export function DailyPaymentTracker() {
         (payload: any) => {
           const row = payload?.new;
           if (!row?.created_at) return;
-          // Only react to TODAY's allocations
-          const created = new Date(row.created_at);
-          const now = new Date();
-          if (created.toDateString() !== now.toDateString()) return;
+          // Only react to allocations inside the server's operating day window
+          const created = new Date(row.created_at).getTime();
+          if (created < new Date(dayStartIso).getTime() || created >= new Date(dayEndIso).getTime()) return;
           if (row.id) setFlashId(String(row.id));
           setPulseTotal(true);
           setTimeout(() => setPulseTotal(false), 1200);
-          queryClient.invalidateQueries({ queryKey: ['daily-tracker-collections', todayStr] });
-          queryClient.invalidateQueries({ queryKey: ['daily-tracker-latest-allocations', todayStr] });
+          queryClient.invalidateQueries({ queryKey: ['daily-tracker-collections', dayStartIso, dayEndIso] });
+          queryClient.invalidateQueries({ queryKey: ['daily-tracker-latest-allocations', dayStartIso, dayEndIso] });
+          queryClient.invalidateQueries({ queryKey: ['tenant-ops-tool-counts'] });
           queryClient.invalidateQueries({ queryKey: ['repayment-trend-7d'] });
         }
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [queryClient, todayStr]);
+  }, [queryClient, dayStartIso, dayEndIso, hasDayWindow]);
+
 
   // Detect new IDs arriving via query refresh and pulse total
   useEffect(() => {
