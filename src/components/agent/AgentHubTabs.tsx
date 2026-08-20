@@ -65,7 +65,7 @@ export function AgentHubTabs({ active, onChange, restricted = false, onProxyAgen
           </button>
         </div>
       )}
-      {onProxyAgentsClick && (
+      {serviceCenterTab && onProxyAgentsClick && (
         <div className="-mx-4 px-3 pb-2 flex justify-end">
           <button
             onClick={() => { hapticTap(); onProxyAgentsClick(); }}
