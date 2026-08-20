@@ -26,7 +26,9 @@ import { getWhatsAppLink } from '@/lib/phoneUtils';
 import { downloadDailyPerformancePdf, shareDailyPerformanceWhatsApp, type DailyPerformanceData } from '@/lib/dailyPerformanceReport';
 import { toast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
-import { format, formatDistanceToNow } from 'date-fns';
+import { format, formatDistanceToNow, parseISO } from 'date-fns';
+import { useTenantOpsToolCounts } from '@/hooks/useTenantOpsToolCounts';
+
 
 type Filter = 'all' | 'paid' | 'unpaid';
 type DeviceFilter = 'all' | 'smartphone' | 'no-smartphone';
