@@ -288,7 +288,7 @@ Deno.serve(async (req) => {
     };
 
     const generatedAtLabel = eatNowLabel();
-    const pdfBytes = await buildPdf({ dateStr, generatedAtLabel, phone, floats, floatTotal, activity, totals });
+    const pdfBytes = await buildPdf({ dateStr, generatedAtLabel, phone, floats, floatTotal, companyCashTotal, owedTotal, activity, totals });
 
     const baseName = `welile-merchant-float-morning-${dateStr}`;
     const pdfPath = `${dateStr}/${baseName}.pdf`;
@@ -312,8 +312,8 @@ Deno.serve(async (req) => {
       form.set('from', FROM);
       recipients.forEach((r) => form.append('to', r));
       form.set('subject', `Merchant Float Morning Report – ${dateStr} (EAT)`);
-      form.set('text', renderText({ dateStr, generatedAtLabel, phone, floats, floatTotal, activity, totals }));
-      form.set('html', renderHtml({ dateStr, generatedAtLabel, phone, floats, floatTotal, activity, totals }));
+      form.set('text', renderText({ dateStr, generatedAtLabel, phone, floats, floatTotal, companyCashTotal, owedTotal, activity, totals }));
+      form.set('html', renderHtml({ dateStr, generatedAtLabel, phone, floats, floatTotal, companyCashTotal, owedTotal, activity, totals }));
       form.set('o:tag', 'merchant-float-morning');
       form.append('attachment', new Blob([pdfBytes], { type: 'application/pdf' }), `${baseName}.pdf`);
 
@@ -344,6 +344,8 @@ Deno.serve(async (req) => {
         phone_money_total: phone.total,
         active_desks: floats.length,
         merchant_float_total: floatTotal,
+        company_cash_with_agents_total: companyCashTotal,
+        owed_to_agents_total: owedTotal,
         yesterday: totals,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
@@ -379,6 +381,8 @@ interface Payload {
   phone: PhoneMoney;
   floats: FloatRow[];
   floatTotal: number;
+  companyCashTotal: number;
+  owedTotal: number;
   activity: ActivityRow[];
   totals: { floatReceived: number; floatMovedOn: number; payoutCount: number; payoutAmount: number; commission: number };
 }
