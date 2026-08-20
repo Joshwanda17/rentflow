@@ -408,11 +408,18 @@ export function DailyPaymentTracker() {
     });
   }, [tenantList, filter, deviceFilter, search]);
 
-  const paidCount = tenantList.filter(t => t.hasPaid).length;
-  const unpaidCount = tenantList.filter(t => !t.hasPaid).length;
-  const totalCollectedToday = tenantList.reduce((s, t) => s + t.paidToday, 0);
-  const totalExpectedToday = tenantList.reduce((s, t) => s + t.daily_repayment, 0);
+  // Headline "today" figures come straight from the server RPC (same 50% paid
+  // rule, computed on Kampala day boundaries). Client sums are only a fallback
+  // while the RPC has not answered yet.
+  const paidCount = serverCounts ? serverCounts.paid_today_tenants : tenantList.filter(t => t.hasPaid).length;
+  const unpaidCount = serverCounts ? serverCounts.unpaid_today_tenants : tenantList.filter(t => !t.hasPaid).length;
+  const totalCollectedToday = serverCounts ? serverCounts.collected_today : tenantList.reduce((s, t) => s + t.paidToday, 0);
+  const paymentsToday = serverCounts ? serverCounts.payments_today : (latestAllocations?.length || 0);
+  const totalExpectedToday = serverCounts && serverCounts.expected_today > 0
+    ? serverCounts.expected_today
+    : tenantList.reduce((s, t) => s + t.daily_repayment, 0);
   const collectionRate = totalExpectedToday > 0 ? Math.round((totalCollectedToday / totalExpectedToday) * 100) : 0;
+
 
   // Pulse the headline total whenever collected actually grows
   useEffect(() => {
