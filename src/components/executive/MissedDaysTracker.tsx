@@ -16,6 +16,7 @@ import { differenceInDays, parseISO, format } from 'date-fns';
 import { TenantOpsReportToolbar } from './TenantOpsReportToolbar';
 import { useTenantCallSummaries, type TenantCallSummary } from '@/hooks/useTenantCallReports';
 import { LogTenantCallDialog } from './LogTenantCallDialog';
+import { useTenantOpsToolCounts } from '@/hooks/useTenantOpsToolCounts';
 
 /** Fetches in batches so large tenant sets are never silently truncated. */
 const chunk = <T,>(list: T[], size = 300): T[][] => {
@@ -173,7 +174,8 @@ export function MissedDaysTracker() {
 
   const tenantList = useMemo(() => {
     if (!activeRequests) return [];
-    const today = new Date();
+    // Server-provided operating day (Kampala) anchors the repayment clock.
+    const today = serverToday ?? new Date();
 
     // Group by tenant - aggregate if multiple requests
     const tenantMap = new Map<string, TenantMissedData>();
@@ -220,7 +222,7 @@ export function MissedDaysTracker() {
     });
 
     return Array.from(tenantMap.values());
-  }, [activeRequests, profileMap, walletMap]);
+  }, [activeRequests, profileMap, walletMap, serverToday]);
 
   // Risk classification
   const getRisk = (t: TenantMissedData) => {
@@ -235,7 +237,7 @@ export function MissedDaysTracker() {
   const isCalled = (tenantId: string) => {
     const s = callInfo(tenantId);
     if (!s || s.last_outcome !== 'picked_up' || !s.last_picked_up_at) return false;
-    return differenceInDays(new Date(), parseISO(s.last_picked_up_at)) < callAgainDays;
+    return differenceInDays(serverToday ?? new Date(), parseISO(s.last_picked_up_at)) < callAgainDays;
   };
 
   const filtered = useMemo(() => {
