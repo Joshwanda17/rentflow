@@ -222,7 +222,7 @@ export function MissedDaysTracker() {
     });
 
     return Array.from(tenantMap.values());
-  }, [activeRequests, profileMap, walletMap, serverToday]);
+  }, [activeRequests, profileMap, walletMap, serverToday, serverMissedByTenant]);
 
   // Risk classification
   const getRisk = (t: TenantMissedData) => {
