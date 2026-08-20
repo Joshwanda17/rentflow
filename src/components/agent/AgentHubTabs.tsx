@@ -65,6 +65,25 @@ export function AgentHubTabs({ active, onChange, restricted = false, onProxyAgen
           </button>
         </div>
       )}
+      {onProxyAgentsClick && (
+        <div className="-mx-4 px-3 pb-2 flex justify-end">
+          <button
+            onClick={() => { hapticTap(); onProxyAgentsClick(); }}
+            aria-label="Proxy Agents"
+            className={cn(
+              FLOATING_NAV_ITEM,
+              'min-w-[5.5rem] px-3',
+              'border border-purple-300/80 bg-purple-50/60 shadow-sm',
+              'dark:border-purple-500/60 dark:bg-purple-950/30',
+              'text-purple-900/80 dark:text-purple-100/80'
+            )}
+            style={{ WebkitTapHighlightColor: 'transparent' }}
+          >
+            <Sparkles className="h-5 w-5" strokeWidth={2} />
+            <span className={cn(FLOATING_NAV_LABEL, 'text-xs font-bold')}>Proxy Agents</span>
+          </button>
+        </div>
+      )}
       <div
         className="sticky z-20 -mx-4 px-3 pb-2"
         style={{ top: 0, paddingTop: 'calc(0.5rem + env(safe-area-inset-top, 0px))' }}
