@@ -119,7 +119,11 @@ export function MoneyWithAgentsCard({ onOpenTimeline }: { onOpenTimeline?: () =>
       return tb - ta;
     })
     .map((x) => x.r);
-  const heldTotal = rows.reduce((s, r) => s + Math.max(0, r.evidencedAmount), 0);
+  // Company cash still parked on agents' phones = money we sent them that they
+  // have NOT paid out yet. This is a different measure from spendable float
+  // (`evidencedAmount`), so it must never be computed from the same figure —
+  // doing so made both headline cards show the identical number.
+  const heldTotal = rows.reduce((s, r) => s + Math.max(0, r.companyCashWithAgent), 0);
   const owedTotal = rows.reduce((s, r) => s + r.owedToAgent, 0);
   const floatTotal = rows.reduce((s, r) => s + Math.max(0, r.evidencedAmount), 0);
   const excludedRows = rows.filter((r) => excludedFloat(r) > 0);
