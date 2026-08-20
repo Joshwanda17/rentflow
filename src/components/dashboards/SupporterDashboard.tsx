@@ -542,19 +542,6 @@ export default function SupporterDashboard({
             />
           </WidgetErrorBoundary>
 
-          <WidgetErrorBoundary label="Your portfolio">
-            <PartnerPortfolioSection
-              onViewPortfolios={(portfolioId) => {
-                setInvestmentsTab('accounts');
-                setFocusPortfolioId(portfolioId ?? null);
-                setShowInvestments(true);
-              }}
-              onExploreOpportunities={() => {
-                const el = document.getElementById('opportunities');
-                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              }}
-            />
-          </WidgetErrorBoundary>
 
           {/* ═══ SECTION: OPPORTUNITIES ═══ */}
           <div id="opportunities" className="relative scroll-mt-4 space-y-4">
