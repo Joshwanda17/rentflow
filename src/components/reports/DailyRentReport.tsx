@@ -40,6 +40,12 @@ function todayIso() {
   return format(new Date(), 'yyyy-MM-dd');
 }
 
+function kampalaDayBounds(dateIso: string) {
+  const start = new Date(`${dateIso}T00:00:00+03:00`);
+  const end = new Date(`${dateIso}T23:59:59.999+03:00`);
+  return { start: start.toISOString(), end: end.toISOString() };
+}
+
 function toCsv(headers: string[], rows: (string | number)[][]) {
   const esc = (v: any) => {
     const s = v == null ? '' : String(v);
