@@ -14695,6 +14695,7 @@ export type Database = {
           caption: string | null
           delete_after: string | null
           event_id: string | null
+          file_name: string | null
           id: string
           kind: string
           mime_type: string
@@ -14712,6 +14713,7 @@ export type Database = {
           caption?: string | null
           delete_after?: string | null
           event_id?: string | null
+          file_name?: string | null
           id?: string
           kind: string
           mime_type: string
@@ -14729,6 +14731,7 @@ export type Database = {
           caption?: string | null
           delete_after?: string | null
           event_id?: string | null
+          file_name?: string | null
           id?: string
           kind?: string
           mime_type?: string
