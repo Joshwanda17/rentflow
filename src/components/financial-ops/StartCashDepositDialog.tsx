@@ -42,13 +42,19 @@ export function StartCashDepositDialog({ open, onOpenChange, onIssued }: StartCa
   const digits = phone.replace(/\D/g, '');
   const amountNum = Number(amount.replace(/[^0-9]/g, ''));
   const ownerNameClean = ownerName.trim().replace(/\s+/g, ' ');
-  const canSubmit =
-    digits.length >= 9 &&
-    validatePersonNameParts(nameParts).valid &&
-    ownerNameClean.length >= 3 &&
-    Number.isFinite(amountNum) &&
-    amountNum >= 500 &&
-    !submitting;
+  const nameCheck = validatePersonNameParts(nameParts);
+  // Tell the operator exactly what is still blocking the send instead of leaving
+  // the button greyed out with no explanation.
+  const blockedReason = !nameCheck.valid
+    ? nameCheck.error || 'Enter the depositor\u2019s first and last name'
+    : ownerNameClean.length < 3
+      ? 'Enter the depositor\u2019s full name'
+      : digits.length < 9
+        ? 'Enter a valid depositor phone number (at least 9 digits)'
+        : !Number.isFinite(amountNum) || amountNum < 500
+          ? 'Enter a cash amount of at least UGX 500'
+          : null;
+  const canSubmit = !blockedReason && !submitting;
 
   const reset = () => {
     setPhone('');
@@ -216,6 +222,9 @@ export function StartCashDepositDialog({ open, onOpenChange, onIssued }: StartCa
 
           {error && (
             <p className="text-xs text-destructive">{error}</p>
+          )}
+          {!error && blockedReason && (
+            <p className="text-xs text-muted-foreground">{blockedReason}</p>
           )}
         </div>
 
