@@ -201,7 +201,7 @@ export function PendingVettingTable() {
         if (fetchError) throw fetchError;
         if (!assignment) throw new Error('Registration not found');
         if (assignment.approval_status === 'approved') throw new Error('This funder has already been approved.');
-        const { error } = await supabase
+        const { data: updated, error } = await supabase
           .from('proxy_agent_assignments')
           .update({
             approval_status: 'approved',
@@ -210,8 +210,12 @@ export function PendingVettingTable() {
             approved_at: new Date().toISOString(),
           })
           .eq('id', row.assignment_id!)
-          .eq('approval_status', 'pending');
+          .eq('approval_status', 'pending')
+          .select('id');
         if (error) throw error;
+        if (!updated || updated.length === 0) {
+          throw new Error('Approval was not saved — your role does not have permission to approve funders.');
+        }
         await supabase.from('audit_logs').insert({
           user_id: user?.id,
           action_type: 'approve_proxy_funder',
