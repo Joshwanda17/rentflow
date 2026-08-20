@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Link, useParams, Navigate } from 'react-router-dom';
-import { ArrowLeft, Bike, Smartphone, ShoppingBag, Signpost, HandCoins } from 'lucide-react';
+import { ArrowLeft, Bike, Smartphone, ShoppingBag, Signpost, HandCoins, Store } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AgentProductsPanel, type AgentProductCategory } from '@/components/executive/agent-ops/AgentProductsPanel';
 import { AgentProductsServicesReport } from '@/components/executive/agent-ops/AgentProductsServicesReport';
@@ -13,11 +13,12 @@ import { ActiveAdvancesPanel } from '@/components/ops/ActiveAdvancesPanel';
 import { AdvanceRepaymentsPanel } from '@/components/ops/AdvanceRepaymentsPanel';
 
 export const AGENT_PRODUCT_PAGES = [
-  { slug: 'motor-bikes', category: 'motor_bike' as AgentProductCategory, label: 'Agent Motor Bikes', desc: 'Spiro bike issuance, deliveries & receivables', icon: Bike, color: 'bg-orange-500' },
-  { slug: 'smart-phones', category: 'smart_phone' as AgentProductCategory, label: 'Agent Smart Phones', desc: 'Device orders, payments & outstanding balances', icon: Smartphone, color: 'bg-indigo-600' },
-  { slug: 'boutique', category: 'boutique' as AgentProductCategory, label: 'Agent Boutique', desc: 'Branded merchandise sales & recoveries', icon: ShoppingBag, color: 'bg-rose-500' },
-  { slug: 'signages', category: 'signage' as AgentProductCategory, label: 'Signages', desc: 'Shop signage production & agent contributions', icon: Signpost, color: 'bg-green-600' },
-  { slug: 'advances', category: null, label: 'Agent Advances', desc: 'Advance requests, limits & repayment queues', icon: HandCoins, color: 'bg-violet-600' },
+  { slug: 'motor-bikes', category: 'motor_bike' as AgentProductCategory, label: 'Agent Motor Bikes', desc: 'Spiro bike issuance, deliveries & receivables', icon: Bike, color: 'bg-orange-500', to: '/agent-ops/products/motor-bikes' },
+  { slug: 'smart-phones', category: 'smart_phone' as AgentProductCategory, label: 'Agent Smart Phones', desc: 'Device orders, payments & outstanding balances', icon: Smartphone, color: 'bg-indigo-600', to: '/agent-ops/products/smart-phones' },
+  { slug: 'boutique', category: 'boutique' as AgentProductCategory, label: 'Agent Boutique', desc: 'Branded merchandise sales & recoveries', icon: ShoppingBag, color: 'bg-rose-500', to: '/agent-ops/products/boutique' },
+  { slug: 'signages', category: 'signage' as AgentProductCategory, label: 'Signages', desc: 'Shop signage production & agent contributions', icon: Signpost, color: 'bg-green-600', to: '/agent-ops/products/signages' },
+  { slug: 'advances', category: null, label: 'Agent Advances', desc: 'Advance requests, limits & repayment queues', icon: HandCoins, color: 'bg-violet-600', to: '/agent-ops/products/advances' },
+  { slug: 'service-centres', category: null, label: 'Service Centres', desc: 'Service centre locations, verifications & manager assignments', icon: Store, color: 'bg-red-500', to: '/executive-hub?tab=agent-ops&section=service-centres' },
 ] as const;
 
 export const AGENT_PRODUCTS_HUB_PATH = '/executive-hub?tab=agent-ops&section=agent-products-services';
@@ -27,6 +28,7 @@ export default function AgentProductCategoryPage() {
   const entry = useMemo(() => AGENT_PRODUCT_PAGES.find((p) => p.slug === slug), [slug]);
 
   if (!entry) return <Navigate to={AGENT_PRODUCTS_HUB_PATH} replace />;
+  if (entry.slug === 'service-centres') return <Navigate to="/executive-hub?tab=agent-ops&section=service-centres" replace />;
 
   const Icon = entry.icon;
   const isAdvances = entry.slug === 'advances';
