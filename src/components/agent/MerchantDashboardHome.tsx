@@ -21,7 +21,6 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { hapticTap } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
-import { MerchantReconcilePaymentCard } from '@/components/agent/MerchantReconcilePaymentCard';
 import { MerchantFloatAvailableCard } from '@/components/agent/MerchantFloatAvailableCard';
 import {
   MerchantPayoutNumbersGate,
