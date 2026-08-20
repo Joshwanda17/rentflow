@@ -669,10 +669,12 @@ function FlowCell({ label, value, color, icon, iconBg, onClick }: {
   label: string; value: string; color: string; icon: React.ReactNode; iconBg?: string; onClick?: () => void;
 }) {
   return (
-    <button onClick={onClick} className="flex flex-col items-center gap-2 py-6 px-2 hover:bg-muted/30 transition-colors">
-      <div className={`h-12 w-12 rounded-full flex items-center justify-center ${iconBg || 'bg-muted'} ${color}`}>{icon}</div>
-      <p className="text-[11px] text-muted-foreground font-medium">{label}</p>
-      <p className={`text-2xl font-bold tabular-nums ${color}`}>{value}</p>
+    <button onClick={onClick} className="flex items-center justify-center gap-3 py-6 px-3 hover:bg-muted/30 transition-colors">
+      <div className={`h-12 w-12 rounded-full flex items-center justify-center shrink-0 ${iconBg || 'bg-muted'} ${color}`}>{icon}</div>
+      <div className="min-w-0 text-left">
+        <p className="text-[11px] text-muted-foreground font-medium">{label}</p>
+        <p className={`text-2xl font-bold tabular-nums leading-tight ${color}`}>{value}</p>
+      </div>
     </button>
   );
 }
