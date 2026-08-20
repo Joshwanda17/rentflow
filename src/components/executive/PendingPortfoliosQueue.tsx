@@ -76,15 +76,17 @@ function CommitmentLines({ portfolioId }: { portfolioId: string }) {
       const rows = (lines || []) as any[];
       if (rows.length === 0) return [];
 
-      const { data: requests } = await (supabase.from('rent_requests') as any)
-        .select('id, tenant_id, rent_amount, daily_repayment, property_location')
+      const { data: requests, error: rErr } = await (supabase.from('rent_requests') as any)
+        .select('id, tenant_id, rent_amount, daily_repayment, request_city, request_country')
         .in('id', rows.map(r => r.rent_request_id));
+      if (rErr) throw rErr;
       const reqMap = new Map<string, any>(((requests || []) as any[]).map(r => [r.id, r]));
 
       const tenantIds = Array.from(new Set(((requests || []) as any[]).map(r => r.tenant_id).filter(Boolean)));
-      const { data: profiles } = tenantIds.length
+      const { data: profiles, error: pfErr } = tenantIds.length
         ? await (supabase.from('profiles') as any).select('id, full_name, phone').in('id', tenantIds)
-        : { data: [] };
+        : { data: [], error: null };
+      if (pfErr) throw pfErr;
       const profMap = new Map<string, any>(((profiles || []) as any[]).map(p => [p.id, p]));
 
       return rows.map(r => {
@@ -93,9 +95,9 @@ function CommitmentLines({ portfolioId }: { portfolioId: string }) {
         return {
           id: r.id,
           principal: Number(r.principal) || 0,
-          tenant_name: prof.full_name || 'Tenant',
+          tenant_name: prof.full_name || 'Tenant not visible',
           tenant_phone: prof.phone || null,
-          location: req.property_location || null,
+          location: [req.request_city, req.request_country].filter(Boolean).join(', ') || null,
           daily: Number(req.daily_repayment) || 0,
         };
       });
