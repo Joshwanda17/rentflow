@@ -32,7 +32,12 @@ function formatTenantStatus(status: string) {
   return status.replace(/_/g, ' ');
 }
 
-export function SupportedTenantsSection() {
+interface SupportedTenantsSectionProps {
+  /** When embedded inside another section, hide the standalone heading/anchor. */
+  embedded?: boolean;
+}
+
+export function SupportedTenantsSection({ embedded = false }: SupportedTenantsSectionProps = {}) {
   const { tenants, isLoading, error } = useSupportedTenants();
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -57,7 +62,7 @@ export function SupportedTenantsSection() {
 
   if (isLoading) {
     return (
-      <div id="supported-tenants" className="space-y-3 scroll-mt-4">
+      <div id={embedded ? undefined : 'supported-tenants'} className="space-y-3 scroll-mt-4">
         <ListSectionSkeleton />
       </div>
     );
@@ -65,22 +70,32 @@ export function SupportedTenantsSection() {
 
   if (error) {
     return (
-      <div id="supported-tenants" className="rounded-2xl border border-destructive/40 bg-destructive/5 p-4">
+      <div id={embedded ? undefined : 'supported-tenants'} className="rounded-2xl border border-destructive/40 bg-destructive/5 p-4">
         <p className="text-sm font-semibold text-destructive">Could not load your supported tenants</p>
         <p className="text-xs text-destructive/80 mt-1">{error.message}</p>
       </div>
     );
   }
 
-  if (tenants.length === 0) return null;
+  if (tenants.length === 0) {
+    if (!embedded) return null;
+    return (
+      <div className="flex items-center gap-2 px-4 py-6 rounded-2xl border border-border/60 bg-card">
+        <Users className="h-4 w-4 text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">You have no self-funded tenants yet.</p>
+      </div>
+    );
+  }
 
   return (
-    <div id="supported-tenants" className="space-y-3 scroll-mt-4">
-      <div className="flex items-center gap-2 px-1">
-        <div className="w-1 h-5 rounded-full bg-primary" />
-        <h2 className="text-sm font-black text-foreground tracking-tight">Tenants you support</h2>
-        <Badge variant="secondary" className="text-[10px] ml-auto">{tenants.length}</Badge>
-      </div>
+    <div id={embedded ? undefined : 'supported-tenants'} className="space-y-3 scroll-mt-4">
+      {!embedded && (
+        <div className="flex items-center gap-2 px-1">
+          <div className="w-1 h-5 rounded-full bg-primary" />
+          <h2 className="text-sm font-black text-foreground tracking-tight">Tenants you support</h2>
+          <Badge variant="secondary" className="text-[10px] ml-auto">{tenants.length}</Badge>
+        </div>
+      )}
 
       {showControls && (
         <div className="relative">

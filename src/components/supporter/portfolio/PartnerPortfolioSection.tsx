@@ -1,9 +1,13 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { usePartnerPortfolios } from '@/hooks/usePartnerPortfolios';
-import { computeAccrual, summarizeAccruals, normalizePortfolioState } from '@/lib/portfolioAccrual';
-import { PortfolioSummary } from './PortfolioSummary';
+import { normalizePortfolioState } from '@/lib/portfolioAccrual';
 import { ActivePortfolioCard } from './ActivePortfolioCard';
 import { PortfolioSkeleton, PortfolioEmptyState, PortfolioErrorState } from './PortfolioStates';
+import { SupportedTenantsSection } from '@/components/supporter/SupportedTenantsSection';
+import { useSupportedTenants } from '@/hooks/useSupportedTenants';
+import { hapticTap } from '@/lib/haptics';
+
+type PortfolioView = 'portfolios' | 'self';
 
 interface Props {
   /** Opens the existing portfolio/deployed-capital drawer */
@@ -14,6 +18,8 @@ interface Props {
 
 export function PartnerPortfolioSection({ onViewPortfolios, onExploreOpportunities }: Props) {
   const { portfolios, loading, error, refetch } = usePartnerPortfolios();
+  const { tenants } = useSupportedTenants();
+  const [view, setView] = useState<PortfolioView>('portfolios');
 
   /**
    * Dashboard list = ACTIVE portfolios only (matured / withdrawn / paused live in
@@ -32,28 +38,47 @@ export function PartnerPortfolioSection({ onViewPortfolios, onExploreOpportuniti
       .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
   }, [portfolios]);
 
-  const summary = useMemo(() => summarizeAccruals(active.map(computeAccrual)), [active]);
+  
 
   const list = active.length > 0 ? active : pending;
   const shown = list.slice(0, 3);
   const hasMore = list.length > 3;
-  const showViewAll = list.length > 0;
+
+  const selfCount = tenants.length;
+  const showSelf = view === 'self';
 
   return (
     <div id="your-portfolio" className="space-y-3 scroll-mt-4">
-      <div className="flex items-center justify-between gap-2 px-1">
-        <div className="flex items-center gap-2">
-          <div className="w-1 h-5 rounded-full bg-success" />
-          <h2 className="text-sm font-black text-foreground tracking-tight">Your Portfolio</h2>
-        </div>
-        {showViewAll && !loading && !error && (
-          <button onClick={() => onViewPortfolios()} className="text-[11px] font-semibold text-primary touch-manipulation">
-            View all
+      <div className="flex items-center gap-1 p-1 rounded-xl bg-muted/60">
+        {([
+          { key: 'portfolios' as PortfolioView, label: 'Portfolios', count: list.length },
+          { key: 'self' as PortfolioView, label: 'Self funded', count: selfCount },
+        ]).map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => { hapticTap(); setView(tab.key); }}
+            className={`flex-1 py-2 rounded-lg text-[11px] font-bold transition-colors min-h-[36px] ${
+              view === tab.key
+                ? 'bg-card text-foreground shadow-sm'
+                : 'text-muted-foreground'
+            }`}
+          >
+            {tab.label} ({tab.count})
           </button>
-        )}
+        ))}
       </div>
 
-      {loading ? (
+      {showSelf ? (
+        <>
+          <div className="flex items-center justify-between gap-2 px-1 pt-1">
+            <h3 className="text-[10px] font-bold tracking-wide text-muted-foreground uppercase">
+              YOUR SELF-FUNDED TENANTS
+            </h3>
+            <span className="text-[10px] font-bold text-muted-foreground">{selfCount}</span>
+          </div>
+          <SupportedTenantsSection embedded />
+        </>
+      ) : loading ? (
         <PortfolioSkeleton />
       ) : error ? (
         <PortfolioErrorState onRetry={refetch} />
@@ -61,13 +86,6 @@ export function PartnerPortfolioSection({ onViewPortfolios, onExploreOpportuniti
         <PortfolioEmptyState onExplore={onExploreOpportunities} />
       ) : (
         <>
-          {summary.activeCount > 0 && (
-            <PortfolioSummary
-              totalDeployed={summary.totalDeployed}
-              activeCount={summary.activeCount}
-            />
-          )}
-
           <div className="flex items-center justify-between gap-2 px-1 pt-1">
             <h3 className="text-[10px] font-bold tracking-wide text-muted-foreground uppercase">
               {active.length > 0 ? 'YOUR ACTIVE PORTFOLIOS' : 'YOUR PENDING PORTFOLIOS'}

@@ -2556,11 +2556,6 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
               )}
             </div>
 
-            {/* ─── Warning ─── */}
-            <div className="flex items-start gap-2 p-2.5 bg-warning/10 rounded-lg border border-warning/20">
-              <AlertCircle className="h-3.5 w-3.5 text-warning shrink-0 mt-0.5" />
-              <p className="text-xs text-muted-foreground">Ensure all details match your {channel === 'momo' ? 'SMS' : channel === 'bank' ? 'bank receipt' : 'physical receipt'}. Incorrect info delays verification.</p>
-            </div>
 
           </div>
         )}
@@ -2632,17 +2627,6 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
           };
           return (
             <div className="border-t bg-background px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
-              {blockReason && !isSubmitting && (
-                <div
-                  id="deposit-block-reason"
-                  role="alert"
-                  aria-live="polite"
-                  className="mb-2 flex items-start gap-2 rounded-md bg-destructive/10 border border-destructive/40 px-2.5 py-2 text-[11px] text-foreground"
-                >
-                  <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" aria-hidden="true" />
-                  <span className="leading-snug flex-1">{blockReason.message}</span>
-                </div>
-              )}
               {/* Back + Continue pair — Back is always reachable so users
                   never feel trapped on the form. Both buttons are thumb-sized
                   with snappy press feedback (duration-75 + active:scale). */}
