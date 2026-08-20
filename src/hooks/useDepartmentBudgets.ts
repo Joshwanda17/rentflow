@@ -277,22 +277,19 @@ async function fetchPrimaryDepartmentId(userId: string): Promise<string | null> 
 }
 
 /**
- * Department-scoped submission list. A department id is REQUIRED: submissions
- * belong to exactly one department and must never be listed under another one,
- * so with no department resolved we return nothing rather than everything the
- * caller's role happens to be able to read.
+ * Department-scoped submission list. Served by the SECURITY DEFINER
+ * `budget_my_submissions` RPC, which resolves the caller's own home department
+ * server-side — a department id passed here can only narrow the result further,
+ * never widen it, so no department can ever list another department's budgets
+ * (enforced in the database, not the UI).
  */
 export async function fetchSubmissions(callId?: string | null, departmentId?: string | null) {
-  if (!departmentId) return [] as BudgetSubmission[];
-  let q = supabase
-    .from('budget_submissions')
-    .select('id,call_id,department_id,reference,title,purpose,total_amount,approved_total,status,version,parent_submission_id,is_late,submitted_at,reviewed_at,cfo_comment,created_at,submitted_by_user_id')
-    .eq('department_id', departmentId)
-    .order('created_at', { ascending: false });
-  if (callId) q = q.eq('call_id', callId);
-  const { data, error } = await q;
+  const { data, error } = await supabase.rpc('budget_my_submissions' as never, {
+    p_call_id: callId ?? null,
+  } as never);
   if (error) throw error;
-  return ((data ?? []) as BudgetSubmission[]).filter(s => s.department_id === departmentId);
+  const rows = ((data ?? []) as unknown as BudgetSubmission[]);
+  return departmentId ? rows.filter(s => s.department_id === departmentId) : rows;
 }
 
 export async function fetchLines(submissionId: string) {
