@@ -787,6 +787,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
   const menuItems = [
     { icon: Store, label: 'Service Center', onClick: () => { hapticTap(); navigate('/agent/service-center'); } },
+    { icon: Sparkles, label: 'Proxy Agents', onClick: () => { hapticTap(); navigate('/agent/proxy-agents'); } },
     { icon: ShoppingBag, label: 'Buy Merchandise', onClick: () => { hapticTap(); navigate('/merchandise'); } },
   ];
 
