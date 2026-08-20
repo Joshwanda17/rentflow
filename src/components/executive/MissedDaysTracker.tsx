@@ -73,6 +73,28 @@ export function MissedDaysTracker() {
   const serverDayStart = serverCounts?.day_start || '';
   const serverToday = useMemo(() => (serverDayStart ? parseISO(serverDayStart) : null), [serverDayStart]);
 
+  // Missed days are computed server-side (Kampala day grid) — one RPC call.
+  const serverAsOf = serverCounts?.day_date || '';
+  const { data: serverMissedRows } = useQuery({
+    queryKey: ['missed-days-server', serverAsOf],
+    enabled: !!serverAsOf,
+    staleTime: 120000,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_tenant_missed_days', {
+        p_window_days: 90,
+        p_as_of: serverAsOf,
+      });
+      if (error) throw error;
+      return (data || []) as { tenant_id: string; missed_days: number }[];
+    },
+  });
+
+  const serverMissedByTenant = useMemo(() => {
+    const m = new Map<string, number>();
+    (serverMissedRows || []).forEach(r => m.set(r.tenant_id, Number(r.missed_days || 0)));
+    return m;
+  }, [serverMissedRows]);
+
 
   // Active rent plans from the platform's authoritative daily-eligibility view —
   // identical population to the Tenant Ops counters and Daily Payments tool.
@@ -190,9 +212,9 @@ export function MissedDaysTracker() {
       const disbursedAt = anchor ? parseISO(anchor) : today;
       const daysSinceDisbursed = Math.max(1, differenceInDays(today, disbursedAt));
       const expectedRepaid = Math.min(dailyRepayment * daysSinceDisbursed, totalRepayment);
-      const missedDays = dailyRepayment > 0
-        ? Math.max(0, Math.round((expectedRepaid - amountRepaid) / dailyRepayment))
-        : 0;
+      // Missed days come from the server (`get_tenant_missed_days`) so the tool
+      // agrees with the Tenant Ops counters instead of recomputing in browser time.
+      const missedDays = serverMissedByTenant.get(r.tenant_id) ?? 0;
       const repaymentPct = totalRepayment > 0 ? Math.round((amountRepaid / totalRepayment) * 100) : 0;
 
       const existing = tenantMap.get(r.tenant_id);
@@ -222,7 +244,7 @@ export function MissedDaysTracker() {
     });
 
     return Array.from(tenantMap.values());
-  }, [activeRequests, profileMap, walletMap, serverToday]);
+  }, [activeRequests, profileMap, walletMap, serverToday, serverMissedByTenant]);
 
   // Risk classification
   const getRisk = (t: TenantMissedData) => {

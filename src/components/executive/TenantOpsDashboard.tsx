@@ -1046,7 +1046,7 @@ export function TenantOpsDashboard() {
       description: 'Tenants behind on payments',
       icon: CalendarX2,
       color: 'bg-destructive/10 text-destructive border-destructive/20',
-      badge: toolCounts?.missed_days_tenants ?? defaulted,
+      badge: toolCounts?.missed_days_tenants,
       badgeColor: 'bg-destructive text-white',
     },
     {
