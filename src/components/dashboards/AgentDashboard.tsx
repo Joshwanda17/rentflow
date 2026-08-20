@@ -787,7 +787,6 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
   const menuItems = [
     { icon: Store, label: 'Service Center', onClick: () => { hapticTap(); navigate('/agent/service-center'); } },
-    { icon: Sparkles, label: 'Proxy Agents', onClick: () => { hapticTap(); navigate('/agent/proxy-agents'); } },
     { icon: ShoppingBag, label: 'Buy Merchandise', onClick: () => { hapticTap(); navigate('/merchandise'); } },
   ];
 
@@ -1592,6 +1591,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               {[
                 { icon: Building2, label: 'Share Landlord', onClick: handleShareLandlordSignup },
                 { icon: UserPlus, label: 'Invite & Earn', onClick: () => navigate('/referrals') },
+                { icon: Sparkles, label: 'Proxy Agents', onClick: () => navigate('/agent/proxy-agents') },
                 { icon: Menu, label: 'All Menu', onClick: handleOpenMenu },
               ].map((a) => (
                 <button
