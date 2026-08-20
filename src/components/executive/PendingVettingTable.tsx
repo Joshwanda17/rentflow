@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import {
@@ -352,54 +352,52 @@ export function PendingVettingTable() {
           </CardContent>
         </Card>
       ) : (
-        <div className="rounded-xl border border-border/60 overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="text-xs">Who</TableHead>
-                <TableHead className="text-xs">Type</TableHead>
-                <TableHead className="text-xs text-right">Capital</TableHead>
-                <TableHead className="text-xs text-right">Tenants</TableHead>
-                <TableHead className="text-xs">Registered by</TableHead>
-                <TableHead className="text-xs">Submitted</TableHead>
-                <TableHead className="text-xs text-right">Waiting</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map(row => (
-                <TableRow
-                  key={row.key}
-                  onClick={() => setOpenRow(row)}
-                  className="cursor-pointer"
-                >
-                  <TableCell className="py-2.5">
-                    <p className="text-xs font-bold text-foreground">{row.name}</p>
-                    <p className="text-[10px] text-muted-foreground">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          {rows.map(row => (
+            <Card
+              key={row.key}
+              onClick={() => setOpenRow(row)}
+              className="cursor-pointer hover:border-primary/40 hover:bg-accent/40 transition-colors"
+            >
+              <CardContent className="p-3.5 space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-foreground truncate">{row.name}</p>
+                    <p className="text-[10px] text-muted-foreground truncate">
                       {[row.portfolio_code, row.contact].filter(Boolean).join(' · ')}
                     </p>
-                  </TableCell>
-                  <TableCell className="py-2.5">
-                    <Badge variant="secondary" className="text-[10px] whitespace-nowrap">{row.detail}</Badge>
-                  </TableCell>
-                  <TableCell className="py-2.5 text-right text-xs font-black tabular-nums">
-                    {formatUGX(row.amount)}
-                  </TableCell>
-                  <TableCell className="py-2.5 text-right text-xs tabular-nums">
-                    {row.kind === 'self_support' ? row.tenants : '—'}
-                  </TableCell>
-                  <TableCell className="py-2.5 text-xs text-muted-foreground">{row.registered_by || '—'}</TableCell>
-                  <TableCell className="py-2.5 text-xs text-muted-foreground whitespace-nowrap">
-                    {dayLabel(row.created_at)}
-                  </TableCell>
-                  <TableCell className="py-2.5 text-right">
-                    <Badge variant={row.waiting_days > 2 ? 'destructive' : 'outline'} className="text-[10px]">
-                      {row.waiting_days}d
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                  </div>
+                  <Badge variant={row.waiting_days > 2 ? 'destructive' : 'outline'} className="text-[10px] shrink-0">
+                    {row.waiting_days}d
+                  </Badge>
+                </div>
+
+                <div className="flex items-center justify-between gap-2">
+                  <Badge variant="secondary" className="text-[10px] whitespace-nowrap">{row.detail}</Badge>
+                  <p className="text-xs font-black tabular-nums text-foreground">{formatUGX(row.amount)}</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-[10px] text-muted-foreground">
+                  <div>
+                    <span className="block text-[9px] uppercase tracking-wide">Tenants</span>
+                    <span className="font-medium text-foreground">
+                      {row.kind === 'self_support' ? row.tenants : '—'}
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <span className="block text-[9px] uppercase tracking-wide">Submitted</span>
+                    <span className="font-medium text-foreground whitespace-nowrap">{dayLabel(row.created_at)}</span>
+                  </div>
+                </div>
+
+                {row.registered_by && (
+                  <p className="text-[10px] text-muted-foreground truncate">
+                    Registered by <span className="font-medium text-foreground">{row.registered_by}</span>
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          ))}
         </div>
       )}
 
