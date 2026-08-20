@@ -184,27 +184,58 @@ function isAlwaysOpen(posting: JobPosting): boolean {
   return posting.requisition_id === null && posting.closes_at === null;
 }
 
-export function rowToneClass(status: string | null, shortlistRound: number | null): string {
+function rowToneClass(
+  status: string | null,
+  shortlistRound: number | null,
+  context: 'list' | 'bin' = 'list'
+): string {
   const round = shortlistRound ?? 1;
+  if (context === 'bin') {
+    switch (status) {
+      case 'shortlisted':
+        if (round === 1) {
+          return 'border-l-2 border-violet-400/70 dark:border-violet-400/80';
+        }
+        if (round === 2) {
+          return 'border-l-2 border-violet-500/80 dark:border-violet-400/90';
+        }
+        return 'border-l-2 border-violet-600/90 dark:border-violet-500';
+      case 'contacted':
+        return 'border-l-2 border-sky-400/70 dark:border-sky-400/80';
+      case 'interviewing':
+        return 'border-l-2 border-teal-400/70 dark:border-teal-400/80';
+      case 'hold':
+        return 'border-l-2 border-amber-400/70 dark:border-amber-400/80';
+      case 'hired':
+        return 'border-l-2 border-emerald-400/70 dark:border-emerald-400/80';
+      case 'rejected':
+        return 'border-l-2 border-neutral-400/60 dark:border-neutral-400/70';
+      case 'new':
+      case null:
+      case '':
+      default:
+        return '';
+    }
+  }
   switch (status) {
     case 'shortlisted':
       if (round === 1) {
-        return 'bg-violet-500/10 border-l-2 border-violet-400/70 dark:bg-violet-500/10 dark:border-violet-400/80';
+        return 'bg-violet-500/10 border-l-2 border-violet-400/70 hover:bg-violet-500/20 dark:bg-violet-500/10 dark:border-violet-400/80 dark:hover:bg-violet-500/20';
       }
       if (round === 2) {
-        return 'bg-violet-500/20 border-l-2 border-violet-500/80 dark:bg-violet-500/15 dark:border-violet-400/90';
+        return 'bg-violet-500/20 border-l-2 border-violet-500/80 hover:bg-violet-500/30 dark:bg-violet-500/15 dark:border-violet-400/90 dark:hover:bg-violet-500/25';
       }
-      return 'bg-violet-600/25 border-l-2 border-violet-600/90 dark:bg-violet-600/20 dark:border-violet-500';
+      return 'bg-violet-600/25 border-l-2 border-violet-600/90 hover:bg-violet-600/35 dark:bg-violet-600/20 dark:border-violet-500 dark:hover:bg-violet-600/30';
     case 'contacted':
-      return 'bg-sky-500/10 border-l-2 border-sky-400/70 dark:bg-sky-500/10 dark:border-sky-400/80';
+      return 'bg-sky-500/10 border-l-2 border-sky-400/70 hover:bg-sky-500/20 dark:bg-sky-500/10 dark:border-sky-400/80 dark:hover:bg-sky-500/20';
     case 'interviewing':
-      return 'bg-teal-500/10 border-l-2 border-teal-400/70 dark:bg-teal-500/10 dark:border-teal-400/80';
+      return 'bg-teal-500/10 border-l-2 border-teal-400/70 hover:bg-teal-500/20 dark:bg-teal-500/10 dark:border-teal-400/80 dark:hover:bg-teal-500/20';
     case 'hold':
-      return 'bg-amber-500/10 border-l-2 border-amber-400/70 dark:bg-amber-500/10 dark:border-amber-400/80';
+      return 'bg-amber-500/10 border-l-2 border-amber-400/70 hover:bg-amber-500/20 dark:bg-amber-500/10 dark:border-amber-400/80 dark:hover:bg-amber-500/20';
     case 'hired':
-      return 'bg-emerald-500/10 border-l-2 border-emerald-400/70 dark:bg-emerald-500/10 dark:border-emerald-400/80';
+      return 'bg-emerald-500/10 border-l-2 border-emerald-400/70 hover:bg-emerald-500/20 dark:bg-emerald-500/10 dark:border-emerald-400/80 dark:hover:bg-emerald-500/20';
     case 'rejected':
-      return 'bg-neutral-500/10 border-l-2 border-neutral-400/60 dark:bg-neutral-500/10 dark:border-neutral-400/70';
+      return 'bg-neutral-500/10 border-l-2 border-neutral-400/60 hover:bg-neutral-500/20 dark:bg-neutral-500/10 dark:border-neutral-400/70 dark:hover:bg-neutral-500/20';
     case 'new':
     case null:
     case '':
