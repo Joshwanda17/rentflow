@@ -275,13 +275,6 @@ export function MerchantDashboardHome({
         <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
       </motion.button>
 
-      {/* Reconcile a payment — for when the app reloaded before the TID was entered */}
-      {cashoutAgentId && (
-        <MerchantReconcilePaymentCard
-          agentId={agentId}
-          cashoutAgentId={cashoutAgentId}
-        />
-      )}
     </div>
   );
 }
