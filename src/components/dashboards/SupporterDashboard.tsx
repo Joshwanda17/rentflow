@@ -535,11 +535,17 @@ export default function SupporterDashboard({
           </WidgetErrorBoundary>
 
           <WidgetErrorBoundary label="Your portfolio">
-            <PartnerPortfolioWalletCard
-              onAddCard={() => { hapticTap(); setShowPaymentPartners(true); }}
-              onPortfolios={() => { hapticTap(); setInvestmentsTab('accounts'); setShowInvestments(true); }}
-              onCalculator={() => { hapticTap(); setShowCalculator(true); }}
-              onMore={() => { hapticTap(); setShowWallet(true); }}
+            <PartnerPortfolioSection
+              onViewPortfolios={(portfolioId) => {
+                hapticTap();
+                if (portfolioId) setFocusPortfolioId(portfolioId);
+                setInvestmentsTab('accounts');
+                setShowInvestments(true);
+              }}
+              onExploreOpportunities={() => {
+                const el = document.getElementById('opportunities');
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
             />
           </WidgetErrorBoundary>
 
