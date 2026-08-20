@@ -183,7 +183,15 @@ Deno.serve(async (req) => {
     });
     if (rpcErr) {
       const msg = rpcErr.message || "";
-      if (msg.includes("NOT_AUTHORIZED")) return json({ error: "Only Partner Operations can approve portfolios." }, 403);
+      console.error("[approve-pending-portfolio] RPC failed:", caller.id, caller.email, JSON.stringify(rpcErr));
+      if (msg.includes("NOT_AUTHORIZED")) {
+        // Two distinct gates can raise this: the Partner Ops gate in the RPC,
+        // and the reviewer gate inside psm_disburse_landlord_float. Never
+        // collapse them into one misleading "you are not Partner Ops".
+        return json({
+          error: `Approval was blocked by a permission gate: ${msg}. Signed in as ${caller.email ?? caller.id}.`,
+        }, 403);
+      }
       if (msg.includes("INVALID_STATUS")) return json({ error: "This portfolio is not awaiting approval." }, 409);
       if (msg.includes("PORTFOLIO_NOT_FOUND")) return json({ error: "Portfolio not found." }, 404);
       return json({ error: `Wallet was debited but portfolio activation failed: ${msg}. Contact operations.` }, 500);
