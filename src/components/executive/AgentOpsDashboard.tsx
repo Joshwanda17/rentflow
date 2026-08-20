@@ -135,10 +135,9 @@ export function AgentOpsDashboard() {
   // Deep-linkable sections: /executive-hub?tab=agent-ops&section=products
   useEffect(() => {
     const s = searchParams.get('section');
-    if (!s) return;
+    if (!s) { setActiveView(null); return; }
     setActiveView((s === 'products' ? 'sc-products' : s) as ActiveView);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [searchParams.get('section')]);
 
   useEffect(() => {
     const next = new URLSearchParams(searchParams);
