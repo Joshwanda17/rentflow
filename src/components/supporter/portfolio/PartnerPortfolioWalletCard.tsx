@@ -62,6 +62,13 @@ export function PartnerPortfolioWalletCard({ onAddCard, onPortfolios, onCalculat
     [tenants]
   );
 
+  const activePortfolioCount = useMemo(() => active.length, [active]);
+
+  const supportingCount = useMemo(
+    () => directTenantCount + activePortfolioCount,
+    [directTenantCount, activePortfolioCount]
+  );
+
   const active = useMemo(
     () => portfolios.filter(p => normalizePortfolioState(p.status) === 'active'),
     [portfolios]
