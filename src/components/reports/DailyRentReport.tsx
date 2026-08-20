@@ -69,8 +69,7 @@ export function DailyRentReport({ mode }: Props) {
   const { data: rawCollections = [], isLoading, refetch } = useQuery({
     queryKey: ['daily-rent-report', date],
     queryFn: async () => {
-      const from = new Date(`${date}T00:00:00`).toISOString();
-      const to = new Date(`${date}T23:59:59.999`).toISOString();
+      const { start: from, end: to } = kampalaDayBounds(date);
       const { data, error } = await supabase
         .from('agent_collections')
         .select('id, created_at, amount, payment_method, tracking_id, momo_transaction_id, notes, float_before, float_after, agent_id, tenant_id, rent_request_id')
