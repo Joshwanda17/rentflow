@@ -14,7 +14,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Loader2, Clock, Download, Search, Filter, RefreshCw, ChevronLeft, ChevronRight, X, CalendarIcon, FileText, FileSpreadsheet, ChevronDown } from 'lucide-react';
+import { Loader2, Download, Search, Filter, RefreshCw, ChevronLeft, ChevronRight, X, CalendarIcon, FileText, FileSpreadsheet, ChevronDown } from 'lucide-react';
 import { format, startOfDay, endOfDay, subDays, startOfMonth } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
@@ -130,6 +130,28 @@ const FILTER_GROUPS: { label: string; value: string; categories: string[] | null
 
 const PAGE_SIZE = 25;
 
+const AVATAR_TONES = [
+  'bg-primary/15 text-primary',
+  'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400',
+  'bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400',
+  'bg-sky-100 text-sky-700 dark:bg-sky-950/50 dark:text-sky-400',
+  'bg-orange-100 text-orange-700 dark:bg-orange-950/50 dark:text-orange-400',
+];
+
+const initialsFor = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() || '')
+    .join('') || 'SY';
+
+const toneFor = (seed: string) => {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) % 997;
+  return AVATAR_TONES[h % AVATAR_TONES.length];
+};
+
 const DATE_PRESETS: { label: string; days: number | 'mtd' }[] = [
   { label: 'Last 7 days', days: 7 },
   { label: 'Last 30 days', days: 30 },
@@ -142,7 +164,7 @@ export function CFOActionsLog() {
   const [searchInput, setSearchInput] = useState('');
   const [page, setPage] = useState(0);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
   const search = useDebouncedValue(searchInput.trim(), 350);
 
 
@@ -339,7 +361,7 @@ export function CFOActionsLog() {
 
   if (isLoading) {
     return (
-      <Card className="rounded-2xl">
+      <Card className="rounded-lg shadow-sm">
         <CardContent className="p-4 flex justify-center">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         </CardContent>
@@ -348,11 +370,11 @@ export function CFOActionsLog() {
   }
 
   return (
-    <Card className="rounded-2xl">
+    <Card className="rounded-lg shadow-sm">
       <CardContent className="p-4">
         <div className="flex items-center justify-between gap-2 mb-1 flex-wrap">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            <span>CFO Actions Trail</span>
+          <div className="flex items-center gap-2 text-sm font-bold tracking-tight">
+            <span>CFO Actions Log</span>
             {total > 0 && (
               <Badge variant="secondary" className="text-[10px]">{total.toLocaleString()}</Badge>
             )}
@@ -383,10 +405,9 @@ export function CFOActionsLog() {
               type="button"
               onClick={() => setOpen((o) => !o)}
               aria-expanded={open}
-              aria-label={`${open ? 'Collapse' : 'Expand'} CFO Actions Trail`}
-              className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground shrink-0"
+              aria-label={`${open ? 'Collapse' : 'Expand'} CFO Actions Log`}
+              className="text-muted-foreground hover:text-foreground shrink-0"
             >
-              {open ? 'Hide' : 'Show'}
               <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
             </button>
           </div>
@@ -492,35 +513,33 @@ export function CFOActionsLog() {
             {filtered.map((r) => {
               const amount = Number(r.amount) || 0;
               const isOut = r.direction === 'cash_out' || r.direction === 'debit';
-              const icon = CATEGORY_ICONS[r.category] || '📋';
               const label = labelFor(r.category);
               const isCorrection = r.classification === 'admin_correction';
+              const partyName = r.actor_name && r.actor_name !== 'System' ? r.actor_name : 'System';
 
               return (
-                <div key={r.group_id} className="flex items-start gap-3 p-2.5 rounded-xl border border-border/50 hover:bg-muted/30 transition-colors">
-                  <div className="text-lg shrink-0 mt-0.5">{icon}</div>
+                <div key={r.group_id} className="flex items-start gap-3 px-1 py-2 border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors">
+                  <div className={`h-7 w-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5 ${toneFor(partyName)}`}>
+                    {initialsFor(partyName)}
+                  </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-xs font-semibold truncate">{label}</p>
-                      {amount > 0 && (
-                        <p className={`text-xs font-bold font-mono tabular-nums shrink-0 ${isOut ? 'text-destructive' : 'text-emerald-600'}`}>
-                          {isOut ? '−' : '+'}{fmt(amount)}
-                        </p>
-                      )}
-                    </div>
-                    {r.actor_name && r.actor_name !== 'System' && (
-                      <p className="text-[11px] text-foreground/80 truncate">{r.actor_name}</p>
-                    )}
-                    {r.description && (
-                      <p className="text-[10px] text-muted-foreground truncate mt-0.5">{r.description}</p>
-                    )}
-                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-2.5 w-2.5 text-muted-foreground" />
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="text-xs text-foreground truncate">{label}{partyName !== 'System' ? ` — ${partyName}` : ''}</p>
+                      <div className="shrink-0 text-right">
+                        {amount > 0 && (
+                          <p className={`text-xs font-bold tabular-nums ${isOut ? 'text-destructive' : 'text-foreground'}`}>
+                            {fmt(amount)}
+                          </p>
+                        )}
                         <p className="text-[10px] text-muted-foreground">
                           {format(new Date(r.transaction_date), 'MMM d, h:mm a')}
                         </p>
                       </div>
+                    </div>
+                    {r.description && (
+                      <p className="text-[10px] text-muted-foreground truncate mt-0.5">{r.description}</p>
+                    )}
+                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                       {r.reference_id && (
                         <span className="text-[10px] text-muted-foreground/70 font-mono truncate max-w-[140px]">
                           {r.reference_id}
