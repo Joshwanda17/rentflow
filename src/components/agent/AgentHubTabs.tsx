@@ -36,14 +36,9 @@ export function AgentHubTabs({ active, onChange, restricted = false }: AgentHubT
     mainTabs.length,
   ]);
   return (
-    <div
-      className="sticky z-20 -mx-4 px-3 pb-2"
-      style={{ top: 0, paddingTop: 'calc(0.5rem + env(safe-area-inset-top, 0px))' }}
-      role="tablist"
-      aria-label="Agent hub sections"
-    >
+    <>
       {serviceCenterTab && (
-        <div className="mb-2 flex justify-end">
+        <div className="sticky z-20 -mx-4 px-3 pb-2 flex justify-end" style={{ top: 0, paddingTop: 'calc(0.5rem + env(safe-area-inset-top, 0px))' }}>
           <button
             key={serviceCenterTab.id}
             role="tab"
@@ -69,33 +64,40 @@ export function AgentHubTabs({ active, onChange, restricted = false }: AgentHubT
         </div>
       )}
       <div
-        className="rounded-full border border-border/60 bg-background/90 backdrop-blur-xl shadow-[0_10px_34px_-8px_hsl(var(--foreground)/0.3)]"
+        className="sticky z-20 -mx-4 px-3 pb-2"
+        style={{ top: 0, paddingTop: 'calc(0.5rem + env(safe-area-inset-top, 0px))' }}
+        role="tablist"
+        aria-label="Agent hub sections"
       >
-        <FloatingNavRow containerRef={containerRef}>
-          <SlidingIndicator style={indicatorStyle} />
-          {mainTabs.map((t, i) => {
-          const isActive = active === t.id;
-          return (
-            <button
-              key={t.id}
-              ref={setItemRef(i)}
-              role="tab"
-              aria-selected={isActive}
-              aria-label={t.label}
-              onClick={() => { hapticTap(); onChange(t.id); }}
-              className={cn(
-                FLOATING_NAV_ITEM,
-                isActive ? 'text-primary font-bold' : 'text-muted-foreground'
-              )}
-              style={{ WebkitTapHighlightColor: 'transparent' }}
-            >
-              <t.icon className={cn('h-5 w-5', isActive && 'scale-110')} strokeWidth={isActive ? 2.5 : 2} />
-              <span className={FLOATING_NAV_LABEL}>{t.label}</span>
-            </button>
-          );
-          })}
-        </FloatingNavRow>
+        <div
+          className="rounded-full border border-border/60 bg-background/90 backdrop-blur-xl shadow-[0_10px_34px_-8px_hsl(var(--foreground)/0.3)]"
+        >
+          <FloatingNavRow containerRef={containerRef}>
+            <SlidingIndicator style={indicatorStyle} />
+            {mainTabs.map((t, i) => {
+            const isActive = active === t.id;
+            return (
+              <button
+                key={t.id}
+                ref={setItemRef(i)}
+                role="tab"
+                aria-selected={isActive}
+                aria-label={t.label}
+                onClick={() => { hapticTap(); onChange(t.id); }}
+                className={cn(
+                  FLOATING_NAV_ITEM,
+                  isActive ? 'text-primary font-bold' : 'text-muted-foreground'
+                )}
+                style={{ WebkitTapHighlightColor: 'transparent' }}
+              >
+                <t.icon className={cn('h-5 w-5', isActive && 'scale-110')} strokeWidth={isActive ? 2.5 : 2} />
+                <span className={FLOATING_NAV_LABEL}>{t.label}</span>
+              </button>
+            );
+            })}
+          </FloatingNavRow>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
