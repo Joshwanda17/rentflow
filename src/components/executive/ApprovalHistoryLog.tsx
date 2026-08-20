@@ -150,6 +150,22 @@ export function ApprovalHistoryLog() {
             </SelectContent>
           </Select>
         </div>
+        <div className="mt-2 space-y-2">
+          <DateWindowFilter
+            from={dateFrom}
+            to={dateTo}
+            onFromChange={setDateFrom}
+            onToChange={setDateTo}
+            fieldLabel="last activity"
+          />
+          <WindowSummary
+            visible={filtered.length}
+            loaded={rows.length}
+            from={dateFrom}
+            to={dateTo}
+          />
+          <TruncationNotice fetched={rows.length} limit={HISTORY_LIMIT} noun="approval records" />
+        </div>
       </CardHeader>
       <CardContent className="p-0">
         <div className="px-4 pb-3">
@@ -161,6 +177,7 @@ export function ApprovalHistoryLog() {
             fileSlug="tenant-approval-history"
           />
         </div>
+
         {isLoading ? (
           <div className="flex justify-center py-8">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
