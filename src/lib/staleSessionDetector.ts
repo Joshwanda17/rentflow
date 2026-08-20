@@ -51,6 +51,36 @@ let recoveryDispatched = false;
  * momentarily expired token and no network for a second or two).
  */
 let criticalDepth = 0;
+/**
+ * Timestamp until which a forced sign-out is suppressed regardless of depth.
+ * Used for two situations that are indistinguishable from a dead session but
+ * are in fact purely environmental:
+ *   1. The camera / file picker is open (the page is about to be backgrounded
+ *      and resumed, often with an expired token and no radio).
+ *   2. The page has just become visible again after being backgrounded — the
+ *      network stack typically needs a few seconds before a token refresh can
+ *      succeed.
+ */
+let suppressUntil = 0;
+const RESUME_GRACE_MS = 25_000;
+/** Longest a camera/file-picker arm may keep sign-out suppressed. */
+const ARM_MAX_MS = 5 * 60_000;
+
+/**
+ * Arm sign-out suppression for a bounded window WITHOUT needing a matching
+ * `end` call. Call this the moment a native picker/camera is opened: the page
+ * may be discarded and resumed before any `onChange` handler runs, so a
+ * depth counter alone can never cover that gap.
+ */
+export function armAuthCriticalSection(ms = 90_000): void {
+  const window_ = Math.min(Math.max(ms, 0), ARM_MAX_MS);
+  suppressUntil = Math.max(suppressUntil, Date.now() + window_);
+}
+
+/** Clear an armed suppression window early (e.g. the picker was cancelled). */
+export function disarmAuthCriticalSection(): void {
+  suppressUntil = 0;
+}
 
 /** Mark the start of an operation that must not be interrupted by a sign-out. */
 export function beginAuthCriticalSection(): void {
@@ -65,6 +95,7 @@ export function endAuthCriticalSection(): void {
 /** True while the app must not be booted to /auth (offline, backgrounded, or busy). */
 export function isSignOutSuppressed(): boolean {
   if (criticalDepth > 0) return true;
+  if (Date.now() < suppressUntil) return true;
   try {
     if (typeof navigator !== 'undefined' && navigator.onLine === false) return true;
     if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return true;
