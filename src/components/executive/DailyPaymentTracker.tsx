@@ -139,11 +139,14 @@ export function DailyPaymentTracker() {
     shareDailyPerformanceWhatsApp(buildReportData());
   };
 
-  // Today in East Africa Time (the operating day used across the platform),
-  // with explicit UTC boundaries so the query is not shifted by the browser tz.
-  const todayStr = format(new Date(Date.now() + 3 * 60 * 60 * 1000), 'yyyy-MM-dd');
-  const dayStartIso = new Date(`${todayStr}T00:00:00+03:00`).toISOString();
-  const dayEndIso = new Date(`${todayStr}T23:59:59.999+03:00`).toISOString();
+  // The operating day comes from the server (Africa/Kampala boundaries computed
+  // in `ops_tenant_ops_tool_counts`), never from the browser clock.
+  const { data: serverCounts } = useTenantOpsToolCounts();
+  const todayStr = serverCounts?.day_date || '';
+  const dayStartIso = serverCounts?.day_start || '';
+  const dayEndIso = serverCounts?.day_end || '';
+  const hasDayWindow = !!dayStartIso && !!dayEndIso;
+
 
   // Active rent plans, sourced from the platform's authoritative daily-eligibility
   // view (the same rule that drives agent daily targets and the tool badges):
