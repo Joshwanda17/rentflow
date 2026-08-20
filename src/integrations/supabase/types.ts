@@ -42686,6 +42686,18 @@ export type Database = {
         Args: { p_limit?: number; p_status?: string }
         Returns: Json
       }
+      partner_ops_pending_portfolio_lines: {
+        Args: { p_portfolio_id: string }
+        Returns: {
+          daily_repayment: number
+          line_id: string
+          location: string
+          principal: number
+          tenant_id: string
+          tenant_name: string
+          tenant_phone: string
+        }[]
+      }
       partner_ops_pending_portfolio_summary: {
         Args: never
         Returns: {
