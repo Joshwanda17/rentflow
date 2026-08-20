@@ -22,6 +22,13 @@ import {
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
+import {
+  TruncationNotice,
+  WindowSummary,
+  kampalaDayStartISO,
+  kampalaDayEndISO,
+} from '@/components/shared/QueryWindowBar';
+
 
 type AuditEntryKind = 'transfer' | 'link';
 
@@ -70,30 +77,46 @@ function statusPill(status: string | null) {
   );
 }
 
+const TRANSFER_LIMIT = 200;
+const LINK_LIMIT = 200;
+
 export function TenantTransferAuditTrail() {
   const [search, setSearch] = useState('');
   // Currently-open entry for the embedded map drawer. null => closed.
   const [mapEntry, setMapEntry] = useState<AuditEntry | null>(null);
+  // Date window is applied SERVER-side so the KPI counts and the rendered rows
+  // describe the same slice even when the per-source caps are hit.
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
-  const { data: entries, isLoading } = useQuery({
-    queryKey: ['tenant-transfer-audit-trail'],
-    queryFn: async (): Promise<AuditEntry[]> => {
+  const { data: payload, isLoading } = useQuery({
+    queryKey: ['tenant-transfer-audit-trail', dateFrom, dateTo],
+    queryFn: async (): Promise<{ entries: AuditEntry[]; transfersFetched: number; linksFetched: number }> => {
       // Pull last 200 transfers and last 200 link audit_log rows in parallel.
+      let transfersQuery = supabase
+        .from('tenant_transfers')
+        .select(
+          'id, tenant_id, from_agent_id, to_agent_id, transferred_by, reason, flag_type, rent_requests_updated, actor_latitude, actor_longitude, actor_accuracy, actor_location_status, created_at',
+        );
+      let linksQuery = supabase
+        .from('audit_logs')
+        .select('id, action_type, record_id, metadata, user_id, created_at')
+        .eq('action_type', 'agent_linked');
+      if (dateFrom) {
+        const fromIso = kampalaDayStartISO(dateFrom);
+        transfersQuery = transfersQuery.gte('created_at', fromIso);
+        linksQuery = linksQuery.gte('created_at', fromIso);
+      }
+      if (dateTo) {
+        const toIso = kampalaDayEndISO(dateTo);
+        transfersQuery = transfersQuery.lte('created_at', toIso);
+        linksQuery = linksQuery.lte('created_at', toIso);
+      }
       const [transfersRes, linksRes] = await Promise.all([
-        supabase
-          .from('tenant_transfers')
-          .select(
-            'id, tenant_id, from_agent_id, to_agent_id, transferred_by, reason, flag_type, rent_requests_updated, actor_latitude, actor_longitude, actor_accuracy, actor_location_status, created_at',
-          )
-          .order('created_at', { ascending: false })
-          .limit(200),
-        supabase
-          .from('audit_logs')
-          .select('id, action_type, record_id, metadata, user_id, created_at')
-          .eq('action_type', 'agent_linked')
-          .order('created_at', { ascending: false })
-          .limit(200),
+        transfersQuery.order('created_at', { ascending: false }).limit(TRANSFER_LIMIT),
+        linksQuery.order('created_at', { ascending: false }).limit(LINK_LIMIT),
       ]);
+
 
       const transfers = transfersRes.data || [];
       const links = (linksRes.data || []) as Array<{
@@ -178,22 +201,27 @@ export function TenantTransferAuditTrail() {
         };
       });
 
-      return [...transferEntries, ...linkEntries].sort(
-        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-      );
+      return {
+        entries: [...transferEntries, ...linkEntries].sort(
+          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+        ),
+        transfersFetched: transfers.length,
+        linksFetched: links.length,
+      };
     },
   });
 
+  const entries = payload?.entries;
+
   // Advanced filter state — each filter is independent and combines with AND.
   const [showFilters, setShowFilters] = useState(false);
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
   const [tenantFilter, setTenantFilter] = useState('all');
   const [executiveFilter, setExecutiveFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [fromAgentFilter, setFromAgentFilter] = useState('all');
   const [toAgentFilter, setToAgentFilter] = useState('all');
   const [kindFilter, setKindFilter] = useState<'all' | 'transfer' | 'link'>('all');
+
 
   // Build dropdown option lists from the loaded entries so operators only see
   // values that actually exist in the audit trail.
@@ -256,10 +284,13 @@ export function TenantTransferAuditTrail() {
     return true;
   });
 
-  const captured = (entries || []).filter((e) => e.actor_location_status === 'captured').length;
-  const missing = (entries || []).filter(
+  // KPI cards describe the SAME rows the list renders (post-filter), so the
+  // counts and the visible trail never disagree.
+  const captured = filtered.filter((e) => e.actor_location_status === 'captured').length;
+  const missing = filtered.filter(
     (e) => !e.actor_location_status || e.actor_location_status !== 'captured',
   ).length;
+
 
   // Count active filters for the toggle pill — search excluded since it has its
   // own visible field.
@@ -301,7 +332,7 @@ export function TenantTransferAuditTrail() {
           <div className="grid grid-cols-3 gap-2">
             <div className="rounded-lg border bg-card p-2.5">
               <div className="text-[10px] uppercase text-muted-foreground">Total actions</div>
-              <div className="text-lg font-bold">{entries?.length ?? 0}</div>
+              <div className="text-lg font-bold">{filtered.length}</div>
             </div>
             <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-2.5">
               <div className="text-[10px] uppercase text-emerald-700">Geo captured</div>
@@ -313,6 +344,24 @@ export function TenantTransferAuditTrail() {
             </div>
           </div>
 
+          <WindowSummary
+            visible={filtered.length}
+            loaded={entries?.length ?? 0}
+            from={dateFrom}
+            to={dateTo}
+            noun="actions"
+          />
+          <TruncationNotice
+            fetched={payload?.transfersFetched ?? 0}
+            limit={TRANSFER_LIMIT}
+            noun="transfers"
+          />
+          <TruncationNotice
+            fetched={payload?.linksFetched ?? 0}
+            limit={LINK_LIMIT}
+            noun="agent links"
+          />
+
           <TenantOpsReportToolbar
             tool="transfer_audit"
             status="all"
@@ -322,6 +371,7 @@ export function TenantTransferAuditTrail() {
           />
 
           <div className="space-y-2">
+
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
