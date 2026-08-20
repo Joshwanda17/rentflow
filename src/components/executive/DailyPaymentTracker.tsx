@@ -26,9 +26,7 @@ import { getWhatsAppLink } from '@/lib/phoneUtils';
 import { downloadDailyPerformancePdf, shareDailyPerformanceWhatsApp, type DailyPerformanceData } from '@/lib/dailyPerformanceReport';
 import { toast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
-import { format, formatDistanceToNow, parseISO } from 'date-fns';
-import { useTenantOpsToolCounts } from '@/hooks/useTenantOpsToolCounts';
-
+import { format, formatDistanceToNow } from 'date-fns';
 
 type Filter = 'all' | 'paid' | 'unpaid';
 type DeviceFilter = 'all' | 'smartphone' | 'no-smartphone';
@@ -107,7 +105,7 @@ export function DailyPaymentTracker() {
   });
 
   const buildReportData = (): DailyPerformanceData => ({
-    date: todayStr ? parseISO(todayStr) : new Date(),
+    date: new Date(),
     totalExpected: totalExpectedToday,
     totalCollected: totalCollectedToday,
     collectionRate,
@@ -141,14 +139,11 @@ export function DailyPaymentTracker() {
     shareDailyPerformanceWhatsApp(buildReportData());
   };
 
-  // The operating day comes from the server (Africa/Kampala boundaries computed
-  // in `ops_tenant_ops_tool_counts`), never from the browser clock.
-  const { data: serverCounts } = useTenantOpsToolCounts();
-  const todayStr = serverCounts?.day_date || '';
-  const dayStartIso = serverCounts?.day_start || '';
-  const dayEndIso = serverCounts?.day_end || '';
-  const hasDayWindow = !!dayStartIso && !!dayEndIso;
-
+  // Today in East Africa Time (the operating day used across the platform),
+  // with explicit UTC boundaries so the query is not shifted by the browser tz.
+  const todayStr = format(new Date(Date.now() + 3 * 60 * 60 * 1000), 'yyyy-MM-dd');
+  const dayStartIso = new Date(`${todayStr}T00:00:00+03:00`).toISOString();
+  const dayEndIso = new Date(`${todayStr}T23:59:59.999+03:00`).toISOString();
 
   // Active rent plans, sourced from the platform's authoritative daily-eligibility
   // view (the same rule that drives agent daily targets and the tool badges):
@@ -240,15 +235,15 @@ export function DailyPaymentTracker() {
     staleTime: 120000,
   });
 
-  // Fetch today's collections (server day window)
+  // Fetch today's collections
   const { data: todayCollections, isLoading: colLoading } = useQuery({
-    queryKey: ['daily-tracker-collections', dayStartIso, dayEndIso],
+    queryKey: ['daily-tracker-collections', todayStr],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('agent_collections')
         .select('tenant_id, amount')
         .gte('created_at', dayStartIso)
-        .lt('created_at', dayEndIso);
+        .lte('created_at', dayEndIso);
       if (error) throw error;
       // Aggregate by tenant
       const map = new Map<string, number>();
@@ -257,33 +252,30 @@ export function DailyPaymentTracker() {
       });
       return map;
     },
-    enabled: hasDayWindow,
     staleTime: 60000,
   });
 
   // Fetch latest allocations today (with agent + tenant), most recent first
   const { data: latestAllocations } = useQuery({
-    queryKey: ['daily-tracker-latest-allocations', dayStartIso, dayEndIso],
+    queryKey: ['daily-tracker-latest-allocations', todayStr],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('agent_collections')
         .select('id, tenant_id, agent_id, amount, created_at, payment_method, location_name')
         .gte('created_at', dayStartIso)
-        .lt('created_at', dayEndIso)
+        .lte('created_at', dayEndIso)
         .order('created_at', { ascending: false })
         .limit(30);
       if (error) throw error;
       return data || [];
     },
-    enabled: hasDayWindow,
     staleTime: 60000,
   });
 
-  const isLoading = reqLoading || colLoading || !hasDayWindow;
+  const isLoading = reqLoading || colLoading;
 
   // Realtime: listen for new agent_collections today and refresh live
   useEffect(() => {
-    if (!hasDayWindow) return;
     const channel = supabase
       .channel('daily-tracker-live-allocations')
       .on(
@@ -292,22 +284,21 @@ export function DailyPaymentTracker() {
         (payload: any) => {
           const row = payload?.new;
           if (!row?.created_at) return;
-          // Only react to allocations inside the server's operating day window
-          const created = new Date(row.created_at).getTime();
-          if (created < new Date(dayStartIso).getTime() || created >= new Date(dayEndIso).getTime()) return;
+          // Only react to TODAY's allocations
+          const created = new Date(row.created_at);
+          const now = new Date();
+          if (created.toDateString() !== now.toDateString()) return;
           if (row.id) setFlashId(String(row.id));
           setPulseTotal(true);
           setTimeout(() => setPulseTotal(false), 1200);
-          queryClient.invalidateQueries({ queryKey: ['daily-tracker-collections', dayStartIso, dayEndIso] });
-          queryClient.invalidateQueries({ queryKey: ['daily-tracker-latest-allocations', dayStartIso, dayEndIso] });
-          queryClient.invalidateQueries({ queryKey: ['tenant-ops-tool-counts'] });
+          queryClient.invalidateQueries({ queryKey: ['daily-tracker-collections', todayStr] });
+          queryClient.invalidateQueries({ queryKey: ['daily-tracker-latest-allocations', todayStr] });
           queryClient.invalidateQueries({ queryKey: ['repayment-trend-7d'] });
         }
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [queryClient, dayStartIso, dayEndIso, hasDayWindow]);
-
+  }, [queryClient, todayStr]);
 
   // Detect new IDs arriving via query refresh and pulse total
   useEffect(() => {
@@ -410,18 +401,11 @@ export function DailyPaymentTracker() {
     });
   }, [tenantList, filter, deviceFilter, search]);
 
-  // Headline "today" figures come straight from the server RPC (same 50% paid
-  // rule, computed on Kampala day boundaries). Client sums are only a fallback
-  // while the RPC has not answered yet.
-  const paidCount = serverCounts ? serverCounts.paid_today_tenants : tenantList.filter(t => t.hasPaid).length;
-  const unpaidCount = serverCounts ? serverCounts.unpaid_today_tenants : tenantList.filter(t => !t.hasPaid).length;
-  const totalCollectedToday = serverCounts ? serverCounts.collected_today : tenantList.reduce((s, t) => s + t.paidToday, 0);
-  const paymentsToday = serverCounts ? serverCounts.payments_today : (latestAllocations?.length || 0);
-  const totalExpectedToday = serverCounts && serverCounts.expected_today > 0
-    ? serverCounts.expected_today
-    : tenantList.reduce((s, t) => s + t.daily_repayment, 0);
+  const paidCount = tenantList.filter(t => t.hasPaid).length;
+  const unpaidCount = tenantList.filter(t => !t.hasPaid).length;
+  const totalCollectedToday = tenantList.reduce((s, t) => s + t.paidToday, 0);
+  const totalExpectedToday = tenantList.reduce((s, t) => s + t.daily_repayment, 0);
   const collectionRate = totalExpectedToday > 0 ? Math.round((totalCollectedToday / totalExpectedToday) * 100) : 0;
-
 
   // Pulse the headline total whenever collected actually grows
   useEffect(() => {
@@ -546,7 +530,7 @@ export function DailyPaymentTracker() {
             <Clock className="h-4 w-4 text-primary" />
             Latest Payments Allocated by Agents — Today
             <Badge variant="secondary" className="ml-auto text-[10px]">
-              {paymentsToday}
+              {latestAllocations?.length || 0}
             </Badge>
           </CardTitle>
           {/* Live vs Expected progress */}
@@ -637,7 +621,7 @@ export function DailyPaymentTracker() {
       <Card className="border shadow-sm">
         <CardHeader className="pb-2 px-3 sm:px-4">
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            Daily Payment Status — {todayStr ? format(parseISO(todayStr), 'dd MMM yyyy') : '—'}
+            Daily Payment Status — {format(new Date(), 'dd MMM yyyy')}
             {isLoading && <RefreshCw className="h-3 w-3 animate-spin text-muted-foreground" />}
           </CardTitle>
         </CardHeader>

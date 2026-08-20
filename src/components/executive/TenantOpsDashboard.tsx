@@ -445,53 +445,25 @@ export function TenantOpsDashboard() {
     `${format(from, 'yyyyMMdd')}_${format(to, 'yyyyMMdd')}`;
 
   // Fetch tenant + landlord names for a list of rent_request rows in one go.
-  // Tenants / approvers live in `profiles`; landlords live in `landlords` (column `name`).
   const enrichWithProfiles = async (rows: any[]) => {
-    const profileIds = [...new Set(rows.flatMap(r => [r.tenant_id, r.approved_by]).filter(Boolean) as string[])];
-    const landlordIds = [...new Set(rows.map(r => r.landlord_id).filter(Boolean) as string[])];
-    const map = new Map<string, any>();
-    const [profRes, landRes] = await Promise.all([
-      profileIds.length
-        ? supabase.from('profiles').select('id, full_name, phone').in('id', profileIds)
-        : Promise.resolve({ data: [] as any[] }),
-      landlordIds.length
-        ? supabase.from('landlords').select('id, name, phone').in('id', landlordIds)
-        : Promise.resolve({ data: [] as any[] }),
-    ]);
-    (profRes.data || []).forEach((p: any) => map.set(p.id, p));
-    (landRes.data || []).forEach((l: any) => map.set(l.id, { id: l.id, full_name: l.name, phone: l.phone }));
-    return map;
+    const ids = [...new Set(rows.flatMap(r => [r.tenant_id, r.landlord_id, r.approved_by]).filter(Boolean) as string[])];
+    if (!ids.length) return new Map<string, any>();
+    const { data } = await supabase.from('profiles').select('id, full_name, phone').in('id', ids);
+    return new Map((data || []).map((p: any) => [p.id, p]));
   };
-
-  // Page past PostgREST's 1,000-row ceiling (same pattern as the exec-tenant-ops query).
-  const fetchAllPaged = async (build: (rangeFrom: number, rangeTo: number) => any) => {
-    const PAGE = 1000;
-    const out: any[] = [];
-    for (let offset = 0; ; offset += PAGE) {
-      const { data, error } = await build(offset, offset + PAGE - 1);
-      if (error) throw error;
-      const chunk = data || [];
-      out.push(...chunk);
-      if (chunk.length < PAGE) break;
-      if (out.length >= 50000) break;
-    }
-    return out;
-  };
-
 
   const handleExtractApplied = async () => {
     setExtracting('applied');
     try {
       const { from, to } = resolveWindow(30);
-      const data = await fetchAllPaged((rf, rt) => supabase
+      const { data, error } = await supabase
         .from('rent_requests')
         .select('id, tenant_id, landlord_id, rent_amount, daily_repayment, duration_days, status, created_at')
         .gte('created_at', from.toISOString())
         .lte('created_at', to.toISOString())
-        .order('created_at', { ascending: false })
-        .range(rf, rt));
+        .order('created_at', { ascending: false });
+      if (error) throw error;
       if (!data || data.length === 0) { toast.error('No tenant applications in this window'); return; }
-
       const profiles = await enrichWithProfiles(data);
       const rows = data.map((r: any) => {
         const t = profiles.get(r.tenant_id); const l = profiles.get(r.landlord_id);
@@ -557,17 +529,16 @@ export function TenantOpsDashboard() {
         'repaying',
         'completed',
       ];
-      const data = await fetchAllPaged((rf, rt) => supabase
+      const { data, error } = await supabase
         .from('rent_requests')
         .select('id, tenant_id, approved_by, rent_amount, total_repayment, daily_repayment, approved_at, created_at, status')
         .in('status', POST_APPROVAL_STATUSES)
         // Pull anything that *could* fall in the window using either timestamp,
         // then filter precisely in JS.
         .or(`and(approved_at.gte.${from.toISOString()},approved_at.lte.${to.toISOString()}),and(approved_at.is.null,created_at.gte.${from.toISOString()},created_at.lte.${to.toISOString()})`)
-        .order('created_at', { ascending: false })
-        .range(rf, rt));
+        .order('created_at', { ascending: false });
+      if (error) throw error;
       if (!data || data.length === 0) { toast.error('No approvals in this window'); return; }
-
       const profiles = await enrichWithProfiles(data);
       let stamped = 0;
       let inferred = 0;
@@ -639,7 +610,7 @@ export function TenantOpsDashboard() {
         'repaying',
         'completed',
       ];
-      const data = await fetchAllPaged((rf, rt) => supabase
+      const { data, error } = await supabase
         .from('rent_requests')
         .select('id, tenant_id, approved_by, rent_amount, total_repayment, daily_repayment, amount_repaid, funded_at, approved_at, created_at, status')
         .in('status', POST_FUNDING_STATUSES)
@@ -648,10 +619,9 @@ export function TenantOpsDashboard() {
           `and(funded_at.is.null,approved_at.gte.${from.toISOString()},approved_at.lte.${to.toISOString()}),` +
           `and(funded_at.is.null,approved_at.is.null,created_at.gte.${from.toISOString()},created_at.lte.${to.toISOString()})`
         )
-        .order('created_at', { ascending: false })
-        .range(rf, rt));
+        .order('created_at', { ascending: false });
+      if (error) throw error;
       if (!data || data.length === 0) { toast.error('No funded tenants in this window'); return; }
-
       const profiles = await enrichWithProfiles(data);
       let stamped = 0;
       let inferred = 0;
@@ -1046,7 +1016,7 @@ export function TenantOpsDashboard() {
       description: 'Tenants behind on payments',
       icon: CalendarX2,
       color: 'bg-destructive/10 text-destructive border-destructive/20',
-      badge: toolCounts?.missed_days_tenants,
+      badge: toolCounts?.missed_days_tenants ?? defaulted,
       badgeColor: 'bg-destructive text-white',
     },
     {

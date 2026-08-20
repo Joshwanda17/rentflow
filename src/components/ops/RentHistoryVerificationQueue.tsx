@@ -10,16 +10,6 @@ import { Loader2, CheckCircle2, XCircle, Clock, Phone, MapPin, User, ShieldCheck
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { formatUGX } from '@/lib/businessAdvanceCalculations';
-import {
-  DateWindowFilter,
-  TruncationNotice,
-  WindowSummary,
-  kampalaDayStartISO,
-  kampalaDayEndISO,
-} from '@/components/shared/QueryWindowBar';
-
-const VERIFY_LIMIT = 200;
-
 
 type Dept = 'tenant_ops' | 'agent_ops' | 'landlord_ops';
 
@@ -65,29 +55,20 @@ export function RentHistoryVerificationQueue({ dept }: Props) {
   const cfg = DEPT_CONFIG[dept];
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  // Explicit window so the sign-off badges and the rendered cards describe the
-  // same slice (the fetch is capped at VERIFY_LIMIT rows).
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
 
   const { data: rows = [], isLoading } = useQuery({
-    queryKey: ['rent-history-verify', dept, dateFrom, dateTo],
+    queryKey: ['rent-history-verify', dept],
     queryFn: async () => {
-      let query = (supabase as any)
+      const { data, error } = await (supabase as any)
         .from('rent_history_records')
         .select('*, tenant:profiles!rent_history_records_tenant_id_fkey(full_name, phone)')
-        .in('status', ['pending', 'verified']);
-      // Window on submission time, in Africa/Kampala terms.
-      if (dateFrom) query = query.gte('created_at', kampalaDayStartISO(dateFrom));
-      if (dateTo) query = query.lte('created_at', kampalaDayEndISO(dateTo));
-      const { data, error } = await query
+        .in('status', ['pending', 'verified'])
         .order('created_at', { ascending: false })
-        .limit(VERIFY_LIMIT);
+        .limit(200);
       if (error) throw error;
       return data || [];
     },
   });
-
 
   const verifyMutation = useMutation({
     mutationFn: async ({ id, approve }: { id: string; approve: boolean }) => {
@@ -125,6 +106,14 @@ export function RentHistoryVerificationQueue({ dept }: Props) {
     return { pending, verified, total: rows.length };
   }, [rows, cfg.verifyCol]);
 
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-8">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-3">
       <div className="rounded-2xl border bg-card p-4 space-y-2">
@@ -141,38 +130,15 @@ export function RentHistoryVerificationQueue({ dept }: Props) {
             {stats.verified} signed
           </Badge>
         </div>
-        <DateWindowFilter
-          from={dateFrom}
-          to={dateTo}
-          onFromChange={setDateFrom}
-          onToChange={setDateTo}
-          fieldLabel="submitted"
-          className="pt-1"
-        />
-        <WindowSummary
-          visible={stats.total}
-          loaded={stats.total}
-          from={dateFrom}
-          to={dateTo}
-          noun="rent months"
-        />
-        <TruncationNotice fetched={rows.length} limit={VERIFY_LIMIT} noun="rent months" />
       </div>
 
-      {isLoading && (
-        <div className="flex justify-center py-8">
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-        </div>
-      )}
-
-      {!isLoading && rows.length === 0 && (
+      {rows.length === 0 && (
         <Card>
           <CardContent className="py-8 text-center">
             <Clock className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
             <p className="text-sm text-muted-foreground">No rent history records to verify yet.</p>
           </CardContent>
         </Card>
-
       )}
 
       {rows.map((row: any) => {

@@ -25,16 +25,6 @@ import { format } from 'date-fns';
 import { AgentProximitySelector } from './AgentProximitySelector';
 import { UserDrilldownDrawer } from '@/components/ops/UserDrilldownDrawer';
 import { PipelineAgentTransferDialog } from './PipelineAgentTransferDialog';
-import {
-  DateWindowFilter,
-  TruncationNotice,
-  WindowSummary,
-  kampalaDayStartISO,
-  kampalaDayEndISO,
-} from '@/components/shared/QueryWindowBar';
-
-const QUEUE_LIMIT = 1000;
-
 
 // Per-user preference key for the CFO's selected tenant filter (cross-device).
 const TENANT_FILTER_PREF_KEY = 'rentPipeline.selectedTenantId';
@@ -223,10 +213,6 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
   const [processing, setProcessing] = useState(false);
   const [quickProcessingId, setQuickProcessingId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  // Explicit fetch window (submission date) for the capped queue query.
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
-
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
@@ -665,7 +651,7 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
   };
 
   const { data: requests, isLoading } = useQuery({
-    queryKey: ['rent-pipeline', stage, additionalStatuses.join(','), dateFrom, dateTo],
+    queryKey: ['rent-pipeline', stage, additionalStatuses.join(',')],
     queryFn: async () => {
       const statuses = [stage, ...additionalStatuses];
       let query = supabase
@@ -680,12 +666,6 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
         query = query.or('registration_type.is.null,registration_type.neq.outstanding_balance');
       }
 
-      // Optional explicit window on submission date (Africa/Kampala) so the
-      // "pending" badge and the rendered queue describe the same slice even
-      // when the QUEUE_LIMIT cap is hit.
-      if (dateFrom) query = query.gte('created_at', kampalaDayStartISO(dateFrom));
-      if (dateTo) query = query.lte('created_at', kampalaDayEndISO(dateTo));
-
       const { data, error: queueError } = await query
         // FIFO by latest activity — most recently bumped/resubmitted/approved-into-stage first
         .order('resubmitted_at', { ascending: false, nullsFirst: false })
@@ -693,9 +673,8 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
         .order('created_at', { ascending: false })
         // Raised from 100: the pending stage alone holds 200+ requests, so the
         // queue was hiding more than half of the work.
-        .limit(QUEUE_LIMIT);
+        .limit(1000);
       if (queueError) throw queueError;
-
 
       if (!data || data.length === 0) return [];
 
@@ -1072,24 +1051,6 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
             {rows.length} pending
           </Badge>
         </div>
-        <div className="mt-2 space-y-2">
-          <DateWindowFilter
-            from={dateFrom}
-            to={dateTo}
-            onFromChange={setDateFrom}
-            onToChange={setDateTo}
-            fieldLabel="submitted"
-          />
-          <WindowSummary
-            visible={filtered.length}
-            loaded={rows.length}
-            from={dateFrom}
-            to={dateTo}
-            noun="requests"
-          />
-          <TruncationNotice fetched={rows.length} limit={QUEUE_LIMIT} noun="requests" />
-        </div>
-
         {/* COO Bulk Approve Controls */}
         {isCooStage && filtered.length > 0 && (
           <div className="flex items-center justify-between gap-2 mt-2 p-2 rounded-lg bg-muted/50 border">

@@ -40,12 +40,6 @@ function todayIso() {
   return format(new Date(), 'yyyy-MM-dd');
 }
 
-function kampalaDayBounds(dateIso: string) {
-  const start = new Date(`${dateIso}T00:00:00+03:00`);
-  const end = new Date(`${dateIso}T23:59:59.999+03:00`);
-  return { start: start.toISOString(), end: end.toISOString() };
-}
-
 function toCsv(headers: string[], rows: (string | number)[][]) {
   const esc = (v: any) => {
     const s = v == null ? '' : String(v);
@@ -69,7 +63,8 @@ export function DailyRentReport({ mode }: Props) {
   const { data: rawCollections = [], isLoading, refetch } = useQuery({
     queryKey: ['daily-rent-report', date],
     queryFn: async () => {
-      const { start: from, end: to } = kampalaDayBounds(date);
+      const from = new Date(`${date}T00:00:00`).toISOString();
+      const to = new Date(`${date}T23:59:59.999`).toISOString();
       const { data, error } = await supabase
         .from('agent_collections')
         .select('id, created_at, amount, payment_method, tracking_id, momo_transaction_id, notes, float_before, float_after, agent_id, tenant_id, rent_request_id')
@@ -146,8 +141,8 @@ export function DailyRentReport({ mode }: Props) {
     enabled: landlordIds.length > 0,
     queryFn: async () => {
       const map: Record<string, string> = {};
-      const { data } = await supabase.from('landlords').select('id, name').in('id', landlordIds);
-      (data ?? []).forEach((l: any) => { map[l.id] = l.name; });
+      const { data } = await supabase.from('landlords').select('id, full_name').in('id', landlordIds);
+      (data ?? []).forEach((l: any) => { map[l.id] = l.full_name; });
       return map;
     },
     staleTime: 5 * 60_000,

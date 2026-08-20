@@ -204,12 +204,9 @@ export function AgentRentCapacityPanel({
       // 2) Daily Response Rate — count distinct (rent × day) cells in the
       //    last 7 days where the tenant paid at least UGX 1. Also keep
       //    the UGX total as a secondary stat.
-      //    SOURCE: `agent_collections` — the live tenant-payment table. The
-      //    legacy `repayments` table stopped receiving writes, which made the
-      //    7-day response rate read as zero for every agent.
-      //    NOTE: today/yesterday day-sums are NOT computed here — they come
-      //    from the server-side eligibility view (Kampala TZ, also sourced
-      //    from agent_collections). See useAgentCapacityMap.ts.
+      //    NOTE: today/yesterday day-sums are NO LONGER computed here —
+      //    they come from the server-side eligibility view (Kampala TZ,
+      //    sourced from agent_collections). See useAgentCapacityMap.ts.
       const weekAgoISO = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
       const paidByAgent = new Map<string, number>();
       const respondingDaysByAgent = new Map<string, number>();
@@ -219,11 +216,10 @@ export function AgentRentCapacityPanel({
       for (let i = 0; i < activeIds.length; i += BATCH_PAY) {
         const slice = activeIds.slice(i, i + BATCH_PAY);
         const { data: pays } = await supabase
-          .from('agent_collections')
+          .from('repayments')
           .select('rent_request_id, amount, created_at, tenant_id')
           .in('rent_request_id', slice)
           .gte('created_at', weekAgoISO);
-
         const dayKeyByRent = new Map<string, Set<string>>();
         (pays || []).forEach((p: any) => {
           const amt = Number(p.amount) || 0;

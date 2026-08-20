@@ -8,14 +8,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { History, Search, CheckCircle2, XCircle, User, Clock, Loader2 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { TenantOpsReportToolbar } from './TenantOpsReportToolbar';
-import {
-  DateWindowFilter,
-  TruncationNotice,
-  WindowSummary,
-  kampalaDayStartISO,
-  kampalaDayEndISO,
-} from '@/components/shared/QueryWindowBar';
-
 
 const PIPELINE_STATUSES = [
   'tenant_ops_approved',
@@ -38,36 +30,25 @@ const STATUS_META: Record<string, { label: string; color: string; icon: 'approve
   approved: { label: 'Approved', color: 'bg-green-100 text-green-700', icon: 'approve' },
 };
 
-const HISTORY_LIMIT = 500;
-
 export function ApprovalHistoryLog() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  // Explicit window so the badge count and the rendered list always describe
-  // the same slice of history (the fetch is capped at HISTORY_LIMIT rows).
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
 
   const { data: history, isLoading } = useQuery({
-    queryKey: ['approval-history', statusFilter, dateFrom, dateTo],
+    queryKey: ['approval-history', statusFilter],
     queryFn: async () => {
       // Status filtering happens in the database — filtering a fixed page of 100
       // rows client-side made single-status views look almost empty.
       const statuses = statusFilter === 'all'
         ? [...PIPELINE_STATUSES, 'approved', 'repaying', 'fully_repaid', 'defaulted']
         : [statusFilter];
-      let query = supabase
+      const { data, error } = await supabase
         .from('rent_requests')
         .select('id, tenant_id, agent_id, rent_amount, status, created_at, updated_at, house_category, request_city, approval_comment, rejected_reason, tenant_ops_reviewed_by, tenant_ops_reviewed_at, agent_verified_by, agent_verified_at, landlord_ops_reviewed_by, landlord_ops_reviewed_at, coo_reviewed_by, coo_reviewed_at, cfo_reviewed_by, cfo_reviewed_at, assigned_agent_id, payout_method, payout_transaction_reference')
-        .in('status', statuses);
-      // Date window applies to last activity (updated_at), in Africa/Kampala time.
-      if (dateFrom) query = query.gte('updated_at', kampalaDayStartISO(dateFrom));
-      if (dateTo) query = query.lte('updated_at', kampalaDayEndISO(dateTo));
-      const { data, error } = await query
+        .in('status', statuses)
         .order('updated_at', { ascending: false })
-        .limit(HISTORY_LIMIT);
+        .limit(500);
       if (error) throw error;
-
 
       if (!data || data.length === 0) return [];
 
@@ -150,22 +131,6 @@ export function ApprovalHistoryLog() {
             </SelectContent>
           </Select>
         </div>
-        <div className="mt-2 space-y-2">
-          <DateWindowFilter
-            from={dateFrom}
-            to={dateTo}
-            onFromChange={setDateFrom}
-            onToChange={setDateTo}
-            fieldLabel="last activity"
-          />
-          <WindowSummary
-            visible={filtered.length}
-            loaded={rows.length}
-            from={dateFrom}
-            to={dateTo}
-          />
-          <TruncationNotice fetched={rows.length} limit={HISTORY_LIMIT} noun="approval records" />
-        </div>
       </CardHeader>
       <CardContent className="p-0">
         <div className="px-4 pb-3">
@@ -177,7 +142,6 @@ export function ApprovalHistoryLog() {
             fileSlug="tenant-approval-history"
           />
         </div>
-
         {isLoading ? (
           <div className="flex justify-center py-8">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
