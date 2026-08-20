@@ -41,7 +41,6 @@ import { SupporterAgreementViewModal } from '@/components/supporter/agreement/Su
 // Menu drawer
 import { SupporterMenuDrawer } from '@/components/supporter/SupporterMenuDrawer';
 import { MerchantCodePills } from '@/components/supporter/MerchantCodePills';
-import { VerificationChecklist } from '@/components/shared/VerificationChecklist';
 import { hapticTap } from '@/lib/haptics';
 // motion removed — static rendering for low-end devices
 
@@ -530,38 +529,10 @@ export default function SupporterDashboard({
             <WalletHeroSkeleton />
           )}
 
-          <VerificationChecklist userId={user.id} highlightRole="supporter" compact />
-
           {/* ═══ TENANTS YOU SUPPORT ═══ */}
           <WidgetErrorBoundary label="Tenants you support">
             <SupportedTenantsSection />
           </WidgetErrorBoundary>
-
-
-          {/* ═══ QUICK ACTIONS — Pill Style ═══ */}
-          <div className="flex gap-2">
-            <button
-              onClick={() => {
-                hapticTap();
-                if (!effectiveHasAccepted) { setShowAgreementModal(true); return; }
-                setShowPaymentPartners(true);
-              }}
-              className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-primary text-white font-bold text-sm shadow-lg shadow-primary/20 active:scale-[0.96] transition-transform touch-manipulation min-h-[48px]"
-            >
-              <CreditCard className="h-4.5 w-4.5" />
-              Add Funds
-            </button>
-
-            <button
-              onClick={() => { hapticTap(); setShowCalculator(true); }}
-              className="flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl bg-card border-2 border-border/60 text-foreground font-bold text-sm shadow-sm active:scale-[0.96] transition-transform touch-manipulation min-h-[48px]"
-            >
-              <Calculator className="h-4.5 w-4.5 text-primary" />
-              ROI
-            </button>
-
-          </div>
-
 
           <WidgetErrorBoundary label="Your portfolio">
             <PartnerPortfolioWalletCard
