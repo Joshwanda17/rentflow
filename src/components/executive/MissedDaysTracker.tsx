@@ -190,9 +190,9 @@ export function MissedDaysTracker() {
       const disbursedAt = anchor ? parseISO(anchor) : today;
       const daysSinceDisbursed = Math.max(1, differenceInDays(today, disbursedAt));
       const expectedRepaid = Math.min(dailyRepayment * daysSinceDisbursed, totalRepayment);
-      const missedDays = dailyRepayment > 0
-        ? Math.max(0, Math.round((expectedRepaid - amountRepaid) / dailyRepayment))
-        : 0;
+      // Missed days come from the server (`get_tenant_missed_days`) so the tool
+      // agrees with the Tenant Ops counters instead of recomputing in browser time.
+      const missedDays = serverMissedByTenant.get(r.tenant_id) ?? 0;
       const repaymentPct = totalRepayment > 0 ? Math.round((amountRepaid / totalRepayment) * 100) : 0;
 
       const existing = tenantMap.get(r.tenant_id);
