@@ -281,6 +281,12 @@
     <priority>0.2</priority>
   </url>
   <url>
+    <loc>https://welileapp.com/house/5KDqY9</loc>
+    <lastmod>2026-08-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://welileapp.com/house/EqGZTY</loc>
     <lastmod>2026-08-20</lastmod>
     <changefreq>weekly</changefreq>
@@ -6270,12 +6276,6 @@
   </url>
   <url>
     <loc>https://welileapp.com/house/65vVLu</loc>
-    <lastmod>2026-08-12</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://welileapp.com/house/Z3X4Nw</loc>
     <lastmod>2026-08-12</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>

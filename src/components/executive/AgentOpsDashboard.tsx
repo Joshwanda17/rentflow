@@ -281,7 +281,7 @@ export function AgentOpsDashboard() {
                 {AGENT_PRODUCT_PAGES.map((c) => (
                   <Link
                     key={c.slug}
-                    to={`/agent-ops/products/${c.slug}`}
+                    to={c.to}
                     className="group text-left rounded-2xl border bg-card p-5 shadow-sm transition-all hover:shadow-lg hover:-translate-y-0.5 hover:border-primary/40"
                   >
                     <div className={`inline-flex h-12 w-12 items-center justify-center rounded-xl ${c.color} text-white shadow-md`}>
