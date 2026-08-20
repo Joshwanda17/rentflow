@@ -397,9 +397,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
       <div className="space-y-5">
 
       {/* ── ROI PAYABLE FORECAST ── */}
-      <CollapsibleBlock title="ROI Payable Forecast" open={isOpen('roiForecast')} onToggle={() => toggleSection('roiForecast')}>
-        <ROIPayableForecast />
-      </CollapsibleBlock>
+      <ROIPayableForecast />
 
       {/* ── CFO ACTIONS LOG ── */}
       <CFOActionsLog />
@@ -410,10 +408,10 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
       </CollapsibleBlock>
 
       {/* ── SOURCES OF CASH (replaces channel breakdown) ── */}
-      <Card className="rounded-xl shadow-sm">
+      <Card className="rounded-lg shadow-sm">
         <CardContent className="p-4">
           <div className="flex items-center justify-between gap-3 mb-3">
-            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Where Our Money Comes From</p>
+            <p className="text-sm font-bold tracking-tight">Where Our Money Comes From</p>
             <SectionToggle open={isOpen('cashSources')} onToggle={() => toggleSection('cashSources')} label="Where Our Money Comes From" />
           </div>
           {isOpen('cashSources') && (
@@ -441,10 +439,10 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
       </Card>
 
       {/* ── AUTO-PAYOUTS ── */}
-      <Card className="rounded-xl shadow-sm">
+      <Card className="rounded-lg shadow-sm">
         <CardContent className="p-4">
           <div className="flex items-center justify-between gap-3 mb-3">
-            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Automatic Payments</p>
+            <p className="text-sm font-bold tracking-tight">Automatic Payments</p>
             <SectionToggle open={isOpen('autoPayments')} onToggle={() => toggleSection('autoPayments')} label="Automatic Payments" />
           </div>
           {isOpen('autoPayments') && (
