@@ -73,6 +73,11 @@ interface ActivityRow {
   agentId: string;
   name: string;
   floatReceived: number;
+  /** Float that left the desk for reasons OTHER than settling a customer payout
+   *  (float re-assigned to another user, bucket reclassifications, float used
+   *  for rent). Without this column, received − paid out never reconciles with
+   *  the closing float and the report looks wrong. */
+  floatMovedOn: number;
   payoutCount: number;
   payoutAmount: number;
   commission: number;
@@ -145,6 +150,7 @@ Deno.serve(async (req) => {
 
     // ── Section 3: Yesterday's Agent Activity ────────────────────────────
     const floatReceived = new Map<string, number>();
+    const floatMovedOn = new Map<string, number>();
     const payouts = new Map<string, { count: number; amount: number }>();
     const commissions = new Map<string, number>();
 
@@ -168,6 +174,32 @@ Deno.serve(async (req) => {
         for (const r of data ?? []) {
           const k = String((r as any).user_id);
           floatReceived.set(k, (floatReceived.get(k) ?? 0) + Number((r as any).amount || 0));
+        }
+        if (!data || data.length < PAGE) break;
+        from += PAGE;
+      }
+
+      // Float that left the desk WITHOUT settling a payout. `agent_float_settlement`
+      // is the payout deduction and is already represented by "Paid out", so it is
+      // excluded here to avoid double counting.
+      from = 0;
+      while (true) {
+        const { data, error } = await supabase
+          .from('general_ledger')
+          .select('user_id, amount')
+          .eq('direction', 'cash_out')
+          .eq('ledger_scope', 'wallet')
+          .eq('wallet_bucket', 'float')
+          .neq('category', 'agent_float_settlement')
+          .neq('classification', 'admin_correction')
+          .in('user_id', agentIds)
+          .gte('transaction_date', startIso)
+          .lt('transaction_date', endIso)
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        for (const r of data ?? []) {
+          const k = String((r as any).user_id);
+          floatMovedOn.set(k, (floatMovedOn.get(k) ?? 0) + Number((r as any).amount || 0));
         }
         if (!data || data.length < PAGE) break;
         from += PAGE;
@@ -226,6 +258,7 @@ Deno.serve(async (req) => {
       agentId: f.agentId,
       name: f.name,
       floatReceived: floatReceived.get(f.agentId) ?? 0,
+      floatMovedOn: floatMovedOn.get(f.agentId) ?? 0,
       payoutCount: payouts.get(f.agentId)?.count ?? 0,
       payoutAmount: payouts.get(f.agentId)?.amount ?? 0,
       commission: commissions.get(f.agentId) ?? 0,
@@ -234,6 +267,7 @@ Deno.serve(async (req) => {
 
     const totals = {
       floatReceived: activity.reduce((s, r) => s + r.floatReceived, 0),
+      floatMovedOn: activity.reduce((s, r) => s + r.floatMovedOn, 0),
       payoutCount: activity.reduce((s, r) => s + r.payoutCount, 0),
       payoutAmount: activity.reduce((s, r) => s + r.payoutAmount, 0),
       commission: activity.reduce((s, r) => s + r.commission, 0),
@@ -332,7 +366,7 @@ interface Payload {
   floats: FloatRow[];
   floatTotal: number;
   activity: ActivityRow[];
-  totals: { floatReceived: number; payoutCount: number; payoutAmount: number; commission: number };
+  totals: { floatReceived: number; floatMovedOn: number; payoutCount: number; payoutAmount: number; commission: number };
 }
 
 function renderHtml(p: Payload) {
@@ -342,7 +376,7 @@ function renderHtml(p: Payload) {
     .map((f) => `<tr><td style="${td}">${esc(f.name)}${f.label ? ` <span style="color:#888">(${esc(f.label)})</span>` : ''}</td><td style="${td}">${esc(f.phone)}</td><td style="${tdr}">${fmt(f.floatHeld)}</td></tr>`)
     .join('');
   const actRows = p.activity
-    .map((a) => `<tr><td style="${td}">${esc(a.name)}</td><td style="${tdr}">${fmt(a.floatReceived)}</td><td style="${tdr}">${a.payoutCount}</td><td style="${tdr}">${fmt(a.payoutAmount)}</td><td style="${tdr}">${fmt(a.commission)}</td><td style="${tdr}">${fmt(a.floatHeld)}</td></tr>`)
+    .map((a) => `<tr><td style="${td}">${esc(a.name)}</td><td style="${tdr}">${fmt(a.floatReceived)}</td><td style="${tdr}">${fmt(a.floatMovedOn)}</td><td style="${tdr}">${a.payoutCount}</td><td style="${tdr}">${fmt(a.payoutAmount)}</td><td style="${tdr}">${fmt(a.commission)}</td><td style="${tdr}">${fmt(a.floatHeld)}</td></tr>`)
     .join('');
   return `
   <div style="font-family:-apple-system,Segoe UI,Arial,sans-serif;color:#111">
@@ -369,6 +403,7 @@ function renderHtml(p: Payload) {
       <tr>
         <th style="${td};text-align:left">Agent</th>
         <th style="${td};text-align:right">Float received</th>
+        <th style="${td};text-align:right">Moved on</th>
         <th style="${td};text-align:right">Payouts</th>
         <th style="${td};text-align:right">Paid out</th>
         <th style="${td};text-align:right">Commission</th>
@@ -378,13 +413,14 @@ function renderHtml(p: Payload) {
       <tr>
         <td style="padding:6px 10px"><b>Total</b></td>
         <td style="${tdr}"><b>${fmt(p.totals.floatReceived)}</b></td>
+        <td style="${tdr}"><b>${fmt(p.totals.floatMovedOn)}</b></td>
         <td style="${tdr}"><b>${p.totals.payoutCount}</b></td>
         <td style="${tdr}"><b>${fmt(p.totals.payoutAmount)}</b></td>
         <td style="${tdr}"><b>${fmt(p.totals.commission)}</b></td>
         <td style="${tdr}"><b>${fmt(p.floatTotal)}</b></td>
       </tr>
     </table>
-    <p style="color:#666;margin:16px 0 0">Full report attached as PDF. Scope: active merchant desks only.</p>
+    <p style="color:#666;margin:16px 0 0">"Moved on" is float that left the desk without settling a payout (re-assigned to another user, bucket reclassification, float used for rent). Float received − moved on − paid out explains the closing float. Full report attached as PDF. Scope: active merchant desks only.</p>
   </div>`;
 }
 
@@ -410,9 +446,9 @@ function renderText(p: Payload) {
     `3. YESTERDAY'S AGENT ACTIVITY (${p.dateStr} EAT)`,
     ...p.activity.map(
       (a) =>
-        `  ${a.name}: received ${fmt(a.floatReceived)} | payouts ${a.payoutCount} (${fmt(a.payoutAmount)}) | commission ${fmt(a.commission)} | float now ${fmt(a.floatHeld)}`,
+        `  ${a.name}: received ${fmt(a.floatReceived)} | moved on ${fmt(a.floatMovedOn)} | payouts ${a.payoutCount} (${fmt(a.payoutAmount)}) | commission ${fmt(a.commission)} | float now ${fmt(a.floatHeld)}`,
     ),
-    `  TOTAL: received ${fmt(p.totals.floatReceived)} | payouts ${p.totals.payoutCount} (${fmt(p.totals.payoutAmount)}) | commission ${fmt(p.totals.commission)}`,
+    `  TOTAL: received ${fmt(p.totals.floatReceived)} | moved on ${fmt(p.totals.floatMovedOn)} | payouts ${p.totals.payoutCount} (${fmt(p.totals.payoutAmount)}) | commission ${fmt(p.totals.commission)}`,
   ];
   return lines.join('\n');
 }
@@ -574,11 +610,12 @@ async function buildPdf(p: Payload): Promise<Uint8Array> {
   totalRow([{ text: 'Total merchant float', x: L }, { text: fmt(p.floatTotal), right: R }]);
 
   // 3. Activity
-  section('3', `Yesterday's Agent Activity`, `Movements recorded on ${p.dateStr} (EAT).`);
-  const cFloatRecd = M + 218, cCount = M + 250, cPaid = M + 344, cComm = M + 432;
+  section('3', `Yesterday's Agent Activity`, `Movements on ${p.dateStr} (EAT). Float recd less moved on less paid out explains the closing float. Moved on = float that left the desk without settling a payout.`);
+  const cFloatRecd = M + 175, cMoved = M + 250, cCount = M + 272, cPaid = M + 355, cComm = M + 436;
   headRow([
     { text: 'Agent', x: L },
     { text: 'Float recd', right: cFloatRecd },
+    { text: 'Moved on', right: cMoved },
     { text: '#', right: cCount },
     { text: 'Paid out', right: cPaid },
     { text: 'Commission', right: cComm },
@@ -586,8 +623,9 @@ async function buildPdf(p: Payload): Promise<Uint8Array> {
   ], 7.6);
   p.activity.forEach((a, i) =>
     bodyRow([
-      { text: clip(a.name || '—', 24), x: L },
+      { text: clip(a.name || '—', 19), x: L },
       { text: fmt(a.floatReceived), right: cFloatRecd },
+      { text: fmt(a.floatMovedOn), right: cMoved },
       { text: String(a.payoutCount), right: cCount },
       { text: fmt(a.payoutAmount), right: cPaid },
       { text: fmt(a.commission), right: cComm },
@@ -597,6 +635,7 @@ async function buildPdf(p: Payload): Promise<Uint8Array> {
   totalRow([
     { text: 'Total', x: L },
     { text: fmt(p.totals.floatReceived), right: cFloatRecd },
+    { text: fmt(p.totals.floatMovedOn), right: cMoved },
     { text: String(p.totals.payoutCount), right: cCount },
     { text: fmt(p.totals.payoutAmount), right: cPaid },
     { text: fmt(p.totals.commission), right: cComm },
