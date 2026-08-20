@@ -51,17 +51,60 @@ export function ServiceCentreNewEntryDialog() {
     return () => clearTimeout(t);
   }, [agentSearch]);
 
-  const { data: agents, isLoading: agentsLoading, isFetching: agentsFetching } = useQuery({
+  const { data: agents, isLoading: agentsLoading, isFetching: agentsFetching, isError: agentsError, error: agentsErrorObj } = useQuery({
     queryKey: ['service-centre-entry-agents', debouncedSearch],
     enabled: open,
     staleTime: 30_000,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('search_all_agents' as any, {
-        p_term: debouncedSearch,
-        p_limit: 40,
+      const term = debouncedSearch;
+
+      // Live search straight against profiles so partial names / phones match
+      // every registered person, then decorate with their role.
+      let query = (supabase.from('profiles') as any)
+        .select('id, full_name, phone, email')
+        .order('full_name', { ascending: true, nullsFirst: false })
+        .limit(40);
+      if (term) {
+        const like = `%${term}%`;
+        query = query.or(
+          `full_name.ilike.${like},phone.ilike.${like},email.ilike.${like}`,
+        );
+      }
+      const { data: profiles, error } = await query;
+
+      if (error) {
+        // Fall back to the privileged RPC when RLS blocks direct profile reads.
+        const { data: rpcRows, error: rpcError } = await supabase.rpc('search_all_agents' as any, {
+          p_term: term,
+          p_limit: 40,
+        });
+        if (rpcError) throw rpcError;
+        return (rpcRows || []) as AgentRow[];
+      }
+
+      const rows = (profiles || []) as any[];
+      if (rows.length === 0) return [] as AgentRow[];
+
+      const { data: roleRows } = await (supabase.from('user_roles') as any)
+        .select('user_id, role')
+        .in('user_id', rows.map((r) => r.id));
+      const roleMap = new Map<string, string[]>();
+      ((roleRows || []) as any[]).forEach((r) => {
+        roleMap.set(r.user_id, [...(roleMap.get(r.user_id) || []), String(r.role)]);
       });
-      if (error) throw error;
-      return (data || []) as AgentRow[];
+
+      const agentish = ['agent', 'senior_agent', 'sub_agent'];
+      return rows.map((r) => {
+        const roles = roleMap.get(r.id) || [];
+        return {
+          id: r.id,
+          full_name: r.full_name || 'Unknown',
+          phone: r.phone ?? null,
+          email: r.email ?? null,
+          agent_code: String(r.id).replace(/-/g, '').slice(0, 6).toUpperCase(),
+          role: roles.find((x) => agentish.includes(x)) || roles[0] || null,
+        } as AgentRow;
+      });
     },
   });
 
@@ -162,8 +205,14 @@ export function ServiceCentreNewEntryDialog() {
             <div className="max-h-44 overflow-y-auto rounded-xl border border-border divide-y divide-border">
               {agentsLoading || agentsFetching ? (
                 <div className="flex justify-center py-4"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
+              ) : agentsError ? (
+                <p className="p-3 text-xs text-destructive">
+                  Search failed: {(agentsErrorObj as Error)?.message || 'please try again'}
+                </p>
               ) : (agents || []).length === 0 ? (
-                <p className="p-3 text-xs text-muted-foreground">No agents found.</p>
+                <p className="p-3 text-xs text-muted-foreground">
+                  {debouncedSearch ? `No match for "${debouncedSearch}".` : 'Start typing a name, phone or code.'}
+                </p>
               ) : (
                 (agents || []).map((a) => {
                   const checked = selectedAgents.includes(a.id);
