@@ -16,6 +16,8 @@ interface PortfolioRedemptionProps {
   maturity_date?: string
   next_payout_date?: string
   processed_date?: string
+  settlement_window_days?: string | number
+  expected_payout_by?: string
   currency?: string
   company_name?: string
   logo_url?: string
@@ -43,6 +45,8 @@ export function PortfolioRedemption({
   maturity_date = '',
   next_payout_date = '',
   processed_date = '',
+  settlement_window_days = 90,
+  expected_payout_by = '',
   currency = 'UGX',
   company_name = 'Welile',
   logo_url = 'https://welileapp.com/welile-logo.png',
@@ -56,6 +60,7 @@ export function PortfolioRedemption({
   const fmtPrevious = formatAmount(previous_principal, currency)
   const fmtRemaining = formatAmount(remaining_principal, currency)
   const displayId = portfolio_id || ''
+  const windowDays = Number(settlement_window_days) > 0 ? Number(settlement_window_days) : 90
 
   return (
     <Html>
