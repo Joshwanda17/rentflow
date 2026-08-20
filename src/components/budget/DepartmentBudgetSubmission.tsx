@@ -48,7 +48,7 @@ interface Props {
 /** Department-facing budget preparation and submission interface. */
 export default function DepartmentBudgetSubmission({ dashboard, departmentKeys }: Props = {}) {
   const { cycles, loading: cyclesLoading } = useBudgetCycles();
-  const { accounts, myDepartments: allMyDepartments } = useBudgetReferenceData();
+  const { accounts, myDepartments: allMyDepartments, primaryDepartmentId } = useBudgetReferenceData();
 
   /**
    * Submissions are department-specific: when the page is opened from a
@@ -87,8 +87,12 @@ export default function DepartmentBudgetSubmission({ dashboard, departmentKeys }
   }, [openCycles, cycleId]);
   useEffect(() => {
     if (!myDepartments.length) { if (departmentId) setDepartmentId(''); return; }
-    if (!myDepartments.some(d => d.id === departmentId)) setDepartmentId(myDepartments[0].id);
-  }, [myDepartments, departmentId]);
+    if (myDepartments.some(d => d.id === departmentId)) return;
+    const preferred = primaryDepartmentId
+      ? myDepartments.find(d => d.id === primaryDepartmentId)
+      : null;
+    setDepartmentId(preferred?.id ?? myDepartments[0].id);
+  }, [myDepartments, departmentId, primaryDepartmentId]);
 
   useEffect(() => {
     if (!departmentId) { setRoute(null); return; }
@@ -245,10 +249,12 @@ export default function DepartmentBudgetSubmission({ dashboard, departmentKeys }
             </div>
             <div>
               <Label className="text-xs">Department</Label>
-              <Select value={departmentId} onValueChange={setDepartmentId}>
+              <Select value={departmentId} onValueChange={setDepartmentId} disabled={myDepartments.length > 0}>
                 <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
                 <SelectContent className="z-[100]">
-                  {myDepartments.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                  {myDepartments
+                    .filter(d => d.id === departmentId)
+                    .map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
                 </SelectContent>
               </Select>
               {route && (
