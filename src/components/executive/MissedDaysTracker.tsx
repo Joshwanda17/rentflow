@@ -71,7 +71,7 @@ export function MissedDaysTracker() {
   // repayment clock never shifts with the viewer's timezone.
   const { data: serverCounts } = useTenantOpsToolCounts();
   const serverDayStart = serverCounts?.day_start || '';
-  const serverToday = serverDayStart ? parseISO(serverDayStart) : null;
+  const serverToday = useMemo(() => (serverDayStart ? parseISO(serverDayStart) : null), [serverDayStart]);
 
 
   // Active rent plans from the platform's authoritative daily-eligibility view —
