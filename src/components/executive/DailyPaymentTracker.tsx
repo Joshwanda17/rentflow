@@ -635,7 +635,7 @@ export function DailyPaymentTracker() {
       <Card className="border shadow-sm">
         <CardHeader className="pb-2 px-3 sm:px-4">
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            Daily Payment Status — {format(new Date(), 'dd MMM yyyy')}
+            Daily Payment Status — {todayStr ? format(parseISO(todayStr), 'dd MMM yyyy') : '—'}
             {isLoading && <RefreshCw className="h-3 w-3 animate-spin text-muted-foreground" />}
           </CardTitle>
         </CardHeader>
