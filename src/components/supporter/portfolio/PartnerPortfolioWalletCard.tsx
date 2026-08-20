@@ -57,14 +57,21 @@ export function PartnerPortfolioWalletCard({ onAddCard, onPortfolios, onCalculat
   const { tenants, isLoading: tenantsLoading } = useSupportedTenants();
   const [showAmount, setShowAmount] = useState(true);
 
+  const active = useMemo(
+    () => portfolios.filter(p => normalizePortfolioState(p.status) === 'active'),
+    [portfolios]
+  );
+
   const directTenantCount = useMemo(
     () => tenants.filter((t) => t.funding_mode === 'self_managed').length,
     [tenants]
   );
 
-  const active = useMemo(
-    () => portfolios.filter(p => normalizePortfolioState(p.status) === 'active'),
-    [portfolios]
+  const activePortfolioCount = useMemo(() => active.length, [active]);
+
+  const supportingCount = useMemo(
+    () => directTenantCount + activePortfolioCount,
+    [directTenantCount, activePortfolioCount]
   );
 
   const totalPrincipal = useMemo(
@@ -251,7 +258,7 @@ export function PartnerPortfolioWalletCard({ onAddCard, onPortfolios, onCalculat
           label="Supporting"
           onClick={() => document.getElementById('supported-tenants')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
           icon={<Users className="w-4 h-4" />}
-          badge={directTenantCount}
+          badge={supportingCount}
         />
         <ActionButton label="More" onClick={onMore} icon={<Menu className="w-4 h-4" />} />
       </div>
