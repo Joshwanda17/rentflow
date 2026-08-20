@@ -544,7 +544,7 @@ export function DailyPaymentTracker() {
             <Clock className="h-4 w-4 text-primary" />
             Latest Payments Allocated by Agents — Today
             <Badge variant="secondary" className="ml-auto text-[10px]">
-              {latestAllocations?.length || 0}
+              {paymentsToday}
             </Badge>
           </CardTitle>
           {/* Live vs Expected progress */}
