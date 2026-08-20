@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import WelileAIChatDrawer from './ai-chat/WelileAIChatDrawer';
+import RaiseTicketButton from './RaiseTicketButton';
 
 const GeminiSparkle = ({ size = 28 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
