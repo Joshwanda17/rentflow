@@ -1001,7 +1001,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         <AgentCashDepositCodesPanel />
 
         {/* Tab Navigation — sticky so it stays under the header and never collides with the fixed bottom role switcher */}
-        <div className="sticky top-0 z-20 -mx-4 px-4 py-2 bg-background border-b border-border/40">
+        <div className="sticky top-0 z-20 -mx-4 px-4 py-2 bg-background border-b border-border/40 overflow-x-auto overflow-y-hidden scrollbar-hide">
           <AgentHubTabs
             active={activeTab}
             restricted={isMerchant}
@@ -1013,6 +1013,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               setSlideDirection(null);
               setActiveTab(tab);
             }}
+            onProxyAgentsClick={() => navigate('/agent/proxy-agents')}
           />
         </div>
 
@@ -1590,7 +1591,6 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             <div className="grid grid-cols-2 gap-2.5">
               {[
                 { icon: Building2, label: 'Share Landlord', onClick: handleShareLandlordSignup },
-                { icon: Sparkles, label: 'Proxy Agents', onClick: () => navigate('/agent/proxy-agents') },
                 { icon: UserPlus, label: 'Invite & Earn', onClick: () => navigate('/referrals') },
                 { icon: Menu, label: 'All Menu', onClick: handleOpenMenu },
               ].map((a) => (

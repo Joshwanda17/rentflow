@@ -1445,7 +1445,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
         chase a button hidden below the fold.
       */}
       <DialogContent
-        className="p-0 gap-0 sm:max-w-md w-screen h-svh sm:h-auto sm:max-h-[90vh] sm:rounded-2xl rounded-none overflow-hidden flex flex-col"
+        className="p-0 gap-0 sm:max-w-md w-screen h-svh sm:h-auto sm:max-h-[90vh] sm:rounded-2xl rounded-none overflow-y-auto flex flex-col"
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
@@ -1458,8 +1458,8 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
             className="h-28 w-auto object-contain"
           />
         </div>
-        {/* Sticky header */}
-        <DialogHeader className="px-4 py-3 border-b bg-background sticky top-0 z-10 space-y-0">
+        {/* Header (scrolls with content) */}
+        <DialogHeader className="px-4 py-3 border-b bg-background space-y-0">
           <div className="flex items-center gap-3">
             {/* Step-aware back: only shown when there's somewhere to go back to. */}
             {step === 'form' && (
@@ -1500,8 +1500,8 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
             </div>
           </div>
         </DialogHeader>
-        {/* Scrollable body */}
-        <div className="flex-1 overflow-y-auto px-4 py-4" {...swipeHandlers}>
+        {/* Body */}
+        <div className="px-4 py-4" {...swipeHandlers}>
 
         {editLoading ? (
           <div className="py-12 text-center space-y-3">
@@ -2631,7 +2631,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
             handleSubmit();
           };
           return (
-            <div className="sticky bottom-0 left-0 right-0 border-t bg-background/95 backdrop-blur px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+            <div className="border-t bg-background px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
               {blockReason && !isSubmitting && (
                 <div
                   id="deposit-block-reason"
@@ -2641,14 +2641,6 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                 >
                   <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" aria-hidden="true" />
                   <span className="leading-snug flex-1">{blockReason.message}</span>
-                  <button
-                    type="button"
-                    onClick={handleAttempt}
-                    aria-label={`Fix: ${blockReason.message}`}
-                    className="text-[11px] font-semibold text-destructive underline underline-offset-2 shrink-0 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-1"
-                  >
-                    Fix
-                  </button>
                 </div>
               )}
               {/* Back + Continue pair — Back is always reachable so users

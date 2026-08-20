@@ -1,17 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { supabase } from '@/hr/api/client';
 
 interface Surface {
@@ -23,17 +15,6 @@ interface Surface {
 type Severity = 'critical' | 'high' | 'normal';
 type Origin = 'internal' | 'external';
 type Channel = 'phone' | 'whatsapp' | 'email' | 'in_person' | 'in_app';
-
-interface TicketRow {
-  id: string;
-  ref: string;
-  title: string;
-  severity: string;
-  raised_at: string;
-  task_id: string | null;
-  closed_no_task_at: string | null;
-  hr_ticket_surfaces?: { label: string } | null;
-}
 
 const SEVERITY_OPTIONS: { value: Severity; label: string }[] = [
   { value: 'critical', label: 'Critical' },
@@ -52,31 +33,12 @@ const CHANNEL_OPTIONS: { value: Channel; label: string }[] = [
 const selectClass =
   'h-9 w-full rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring';
 
-function formatDateTime(iso: string | null) {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-function stateOf(row: TicketRow) {
-  if (row.closed_no_task_at) return 'Closed';
-  if (row.task_id) return 'Being worked on';
-  return 'Waiting to be picked up';
-}
-
 interface RaiseTicketProps {
   staffId: string | null;
 }
 
 export default function RaiseTicket({ staffId }: RaiseTicketProps) {
   const [surfaces, setSurfaces] = useState<Surface[]>([]);
-  const [tickets, setTickets] = useState<TicketRow[]>([]);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [surfaceId, setSurfaceId] = useState('');
@@ -93,18 +55,6 @@ export default function RaiseTicket({ staffId }: RaiseTicketProps) {
   const [success, setSuccess] = useState('');
   const [failure, setFailure] = useState('');
 
-  const loadTickets = useCallback(async () => {
-    if (!staffId) return;
-    const { data } = await supabase
-      .from('hr_tickets')
-      .select(
-        'id, ref, title, severity, raised_at, task_id, closed_no_task_at, hr_ticket_surfaces(label)',
-      )
-      .eq('raised_by', staffId)
-      .order('raised_at', { ascending: false });
-    setTickets((data ?? []) as unknown as TicketRow[]);
-  }, [staffId]);
-
   useEffect(() => {
     if (!staffId) return;
     let cancelled = false;
@@ -116,11 +66,10 @@ export default function RaiseTicket({ staffId }: RaiseTicketProps) {
         .order('sort_order', { ascending: true });
       if (!cancelled) setSurfaces((data ?? []) as unknown as Surface[]);
     })();
-    void loadTickets();
     return () => {
       cancelled = true;
     };
-  }, [staffId, loadTickets]);
+  }, [staffId]);
 
   if (!staffId) return null;
 
@@ -188,7 +137,6 @@ export default function RaiseTicket({ staffId }: RaiseTicketProps) {
     setReporterWords('');
     setErrors({});
     setSuccess(`Ticket ${(data as { ref?: string } | null)?.ref ?? ''} was raised.`);
-    void loadTickets();
   };
 
   const fieldError = (key: string) =>
@@ -348,44 +296,6 @@ export default function RaiseTicket({ staffId }: RaiseTicketProps) {
           <Button onClick={submit} disabled={submitting}>
             Raise ticket
           </Button>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm">My tickets</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          {tickets.length === 0 ? (
-            <p className="p-4 text-center text-sm text-muted-foreground">
-              You have not raised any tickets yet.
-            </p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Ref</TableHead>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Area</TableHead>
-                  <TableHead>How bad</TableHead>
-                  <TableHead>Raised</TableHead>
-                  <TableHead>State</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {tickets.map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell className="font-mono text-xs">{row.ref}</TableCell>
-                    <TableCell>{row.title}</TableCell>
-                    <TableCell>{row.hr_ticket_surfaces?.label ?? '—'}</TableCell>
-                    <TableCell className="capitalize">{row.severity}</TableCell>
-                    <TableCell>{formatDateTime(row.raised_at)}</TableCell>
-                    <TableCell>{stateOf(row)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
         </CardContent>
       </Card>
     </div>

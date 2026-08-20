@@ -56,6 +56,7 @@ import { InvestmentPackageSheet } from '@/components/supporter/InvestmentPackage
 // FundingPoolCard removed from direct import
 import { FunderCapitalOpportunities } from '@/components/supporter/FunderCapitalOpportunities';
 import { SupportedTenantsSection } from '@/components/supporter/SupportedTenantsSection';
+import { PartnerPortfolioSection } from '@/components/supporter/portfolio/PartnerPortfolioSection';
 import { PartnerPortfolioWalletCard } from '@/components/supporter/portfolio/PartnerPortfolioWalletCard';
 
 import { useSupportedTenants } from '@/hooks/useSupportedTenants';
@@ -533,12 +534,27 @@ export default function SupporterDashboard({
             <SupportedTenantsSection />
           </WidgetErrorBoundary>
 
-          <WidgetErrorBoundary label="Your portfolio">
+          <WidgetErrorBoundary label="Portfolio card">
             <PartnerPortfolioWalletCard
               onAddCard={() => { hapticTap(); setShowPaymentPartners(true); }}
               onPortfolios={() => { hapticTap(); setInvestmentsTab('accounts'); setShowInvestments(true); }}
               onCalculator={() => { hapticTap(); setShowCalculator(true); }}
               onMore={() => { hapticTap(); setShowWallet(true); }}
+            />
+          </WidgetErrorBoundary>
+
+          <WidgetErrorBoundary label="Your portfolio">
+            <PartnerPortfolioSection
+              onViewPortfolios={(portfolioId) => {
+                hapticTap();
+                if (portfolioId) setFocusPortfolioId(portfolioId);
+                setInvestmentsTab('accounts');
+                setShowInvestments(true);
+              }}
+              onExploreOpportunities={() => {
+                const el = document.getElementById('opportunities');
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
             />
           </WidgetErrorBoundary>
 

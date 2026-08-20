@@ -14693,6 +14693,7 @@ export type Database = {
       hr_task_attachments: {
         Row: {
           caption: string | null
+          delete_after: string | null
           event_id: string | null
           id: string
           kind: string
@@ -14709,6 +14710,7 @@ export type Database = {
         }
         Insert: {
           caption?: string | null
+          delete_after?: string | null
           event_id?: string | null
           id?: string
           kind: string
@@ -14725,6 +14727,7 @@ export type Database = {
         }
         Update: {
           caption?: string | null
+          delete_after?: string | null
           event_id?: string | null
           id?: string
           kind?: string
@@ -37568,6 +37571,7 @@ export type Database = {
         Returns: Json
       }
       budget_has_authority: { Args: { _fn: string }; Returns: boolean }
+      budget_home_department_id: { Args: { _user_id: string }; Returns: string }
       budget_is_approver: { Args: never; Returns: boolean }
       budget_is_budgetable_account: {
         Args: { _account_code: string }
@@ -37581,6 +37585,43 @@ export type Database = {
       budget_my_position_in_department: {
         Args: { _department_id: string }
         Returns: string
+      }
+      budget_my_submissions: {
+        Args: { p_call_id?: string }
+        Returns: {
+          approved_total: number
+          call_id: string | null
+          cfo_comment: string | null
+          coo_comment: string | null
+          coo_reviewed_at: string | null
+          coo_reviewed_by: string | null
+          created_at: string
+          department_id: string
+          id: string
+          is_late: boolean
+          parent_submission_id: string | null
+          period_end: string
+          period_start: string
+          period_type: string
+          purpose: string | null
+          reference: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          submitted_at: string | null
+          submitted_by_position_id: string | null
+          submitted_by_user_id: string | null
+          title: string | null
+          total_amount: number
+          updated_at: string
+          version: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "budget_submissions"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       budget_notify: {
         Args: {

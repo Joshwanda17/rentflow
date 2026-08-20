@@ -106,6 +106,13 @@ Deno.serve(async (req) => {
 
     if (!existingDebit) {
       // Strict balance check via the single source of truth.
+      // IMPORTANT: `get_user_available_balance` subtracts `funder_pending_hold`,
+      // which holds back the amount of every *pending* funder_pending_portfolios
+      // row that has no wallet debit yet — including THIS portfolio. Left as-is
+      // the portfolio's own hold makes its own approval look unfunded (avail 0
+      // against a fully funded wallet), so the caller only ever saw a non-2xx
+      // "insufficient balance". Add this portfolio's own hold back before
+      // comparing; every other pending commitment stays held.
       const { data: strictAvailRaw, error: availErr } = await admin.rpc(
         "get_user_available_balance",
         { p_user_id: partnerId },
@@ -114,7 +121,15 @@ Deno.serve(async (req) => {
         console.error("[approve-pending-portfolio] strict balance lookup failed:", availErr);
         return json({ error: "Could not verify partner wallet balance. Please retry." }, 500);
       }
-      const strictAvail = Number(strictAvailRaw ?? 0);
+      const { data: ownHoldRow } = await admin
+        .from("funder_pending_portfolios")
+        .select("amount")
+        .eq("portfolio_id", portfolioId)
+        .eq("funder_id", partnerId)
+        .eq("status", "pending")
+        .maybeSingle();
+      const ownHold = Number(ownHoldRow?.amount ?? 0);
+      const strictAvail = Number(strictAvailRaw ?? 0) + ownHold;
       if (strictAvail < amount) {
         return json({
           error: `Insufficient partner wallet balance. Need UGX ${amount.toLocaleString()}, but only UGX ${strictAvail.toLocaleString()} is available. Top up the partner wallet before approving.`,
@@ -168,7 +183,15 @@ Deno.serve(async (req) => {
     });
     if (rpcErr) {
       const msg = rpcErr.message || "";
-      if (msg.includes("NOT_AUTHORIZED")) return json({ error: "Only Partner Operations can approve portfolios." }, 403);
+      console.error("[approve-pending-portfolio] RPC failed:", caller.id, caller.email, JSON.stringify(rpcErr));
+      if (msg.includes("NOT_AUTHORIZED")) {
+        // Two distinct gates can raise this: the Partner Ops gate in the RPC,
+        // and the reviewer gate inside psm_disburse_landlord_float. Never
+        // collapse them into one misleading "you are not Partner Ops".
+        return json({
+          error: `Approval was blocked by a permission gate: ${msg}. Signed in as ${caller.email ?? caller.id}.`,
+        }, 403);
+      }
       if (msg.includes("INVALID_STATUS")) return json({ error: "This portfolio is not awaiting approval." }, 409);
       if (msg.includes("PORTFOLIO_NOT_FOUND")) return json({ error: "Portfolio not found." }, 404);
       return json({ error: `Wallet was debited but portfolio activation failed: ${msg}. Contact operations.` }, 500);

@@ -177,7 +177,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (session) {
           setSession(session);
           setUser(session.user);
-        } else if (event === 'SIGNED_OUT') {
+        } else if (event === 'SIGNED_OUT' && !isSignOutSuppressed()) {
           setSession(null);
           setUser(null);
         }
@@ -245,6 +245,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }, 5000);
           }
         } else if (event === 'SIGNED_OUT') {
+          // A SIGNED_OUT that lands while an auth-critical action is running
+          // (camera → proof-of-payment upload) or right after the page resumed
+          // is environmental, not the user leaving. Keep the session state and
+          // let the token refresh recover instead of booting to /auth.
+          if (isSignOutSuppressed()) {
+            console.warn('[Auth] SIGNED_OUT ignored — auth-critical action in progress');
+            return;
+          }
           rolesFetched = false;
           setRole(null);
           setRolesWithRef([]);
