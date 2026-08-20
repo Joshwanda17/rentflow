@@ -50,11 +50,17 @@ function ActionButton({
  * Premium bank-card style summary of the partner's deployed capital.
  * Additive card — does not replace the wallet hero card.
  */
-export function PartnerPortfolioWalletCard({ onAddCard, onPortfolios, onCalculator, onTopUp, onMore }: Props) {
+export function PartnerPortfolioWalletCard({ onAddCard, onPortfolios, onCalculator, onMore }: Props) {
   const { user } = useAuth();
   const { profile } = useProfile();
   const { portfolios, loading } = usePartnerPortfolios();
+  const { tenants, isLoading: tenantsLoading } = useSupportedTenants();
   const [showAmount, setShowAmount] = useState(true);
+
+  const directTenantCount = useMemo(
+    () => tenants.filter((t) => t.funding_mode === 'self_managed').length,
+    [tenants]
+  );
 
   const active = useMemo(
     () => portfolios.filter(p => normalizePortfolioState(p.status) === 'active'),
@@ -82,7 +88,7 @@ export function PartnerPortfolioWalletCard({ onAddCard, onPortfolios, onCalculat
   const aiId = user?.id ? generateWelileAiId(user.id) : '';
   const name = (profile?.full_name || '').trim().toUpperCase();
 
-  if (loading) {
+  if (loading || tenantsLoading) {
     return <div className="w-full aspect-[354/200] min-h-[180px] max-h-[280px] rounded-[20px] bg-muted animate-pulse" />;
   }
 
@@ -241,7 +247,12 @@ export function PartnerPortfolioWalletCard({ onAddCard, onPortfolios, onCalculat
       <div className="bg-muted/70 backdrop-blur rounded-2xl p-2.5 shadow-md border border-border/70 flex items-center justify-around">
         <ActionButton label="Portfolios" onClick={onPortfolios} icon={<Wallet className="w-4 h-4" />} />
         <ActionButton label="Calculator" onClick={onCalculator} icon={<Calculator className="w-4 h-4" />} />
-        <ActionButton label="TopUp" onClick={onTopUp} icon={<CreditCard className="w-4 h-4" />} />
+        <ActionButton
+          label="Tenants Supported"
+          onClick={() => document.getElementById('supported-tenants')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+          icon={<Users className="w-4 h-4" />}
+          badge={directTenantCount}
+        />
         <ActionButton label="More" onClick={onMore} icon={<Menu className="w-4 h-4" />} />
       </div>
     </div>
