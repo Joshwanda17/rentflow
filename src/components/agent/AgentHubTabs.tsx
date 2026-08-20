@@ -28,7 +28,7 @@ const tabs: { id: AgentHubTab; icon: typeof Home; label: string }[] = [
   { id: 'subagents', icon: Store, label: 'Service Center' },
 ];
 
-export function AgentHubTabs({ active, onChange, restricted = false }: AgentHubTabsProps) {
+export function AgentHubTabs({ active, onChange, restricted = false, onProxyAgentsClick }: AgentHubTabsProps) {
   // Merchant Agents are locked to the Home tab only — all operational tabs are hidden.
   const visibleTabs = restricted ? tabs.filter((t) => t.id === 'home') : tabs;
   const mainTabs = visibleTabs.filter((t) => t.id !== 'subagents');
