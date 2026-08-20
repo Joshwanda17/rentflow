@@ -720,6 +720,8 @@ export default function MyWork({ embedded = false }: MyWorkProps) {
         )}
       </div>
 
+      <RaiseTicket staffId={staff?.id ?? null} />
+
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm">My open tasks</CardTitle>
