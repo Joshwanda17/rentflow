@@ -41483,6 +41483,7 @@ export type Database = {
         Args: { _user_id: string }
         Returns: boolean
       }
+      is_service_role_request: { Args: never; Returns: boolean }
       is_sub_agent: { Args: { _agent_id: string }; Returns: boolean }
       is_supporter:
         | { Args: never; Returns: boolean }

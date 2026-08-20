@@ -66,8 +66,12 @@ interface FloatRow {
   name: string;
   phone: string;
   label: string;
+  /** "Float they can spend now" on the Financial Ops board (evidenced_amount). */
   floatHeld: number;
-  floatRaw: number;
+  /** "Our cash still on their phones" (company_cash_with_agent). */
+  companyCash: number;
+  /** "Money we must send back to them" (owed_to_agent). */
+  owed: number;
 }
 interface ActivityRow {
   agentId: string;
@@ -130,19 +134,29 @@ Deno.serve(async (req) => {
     };
 
     // ── Section 2: Merchant Float — Right Now (all ACTIVE desks) ─────────
-    // Sourced strictly from cashout_agents (never proxy_agent_assignments).
-    const { data: posData, error: posErr } = await supabase.rpc('get_all_merchant_float_positions');
+    // MUST use the SAME source and the SAME three measures as the Financial Ops
+    // "Money With Merchant Agents" card, otherwise the report and the board
+    // disagree: `get_merchant_float_positions` + active desks only, with
+    // evidenced_amount / company_cash_with_agent / owed_to_agent clamped at 0
+    // exactly like MoneyWithAgentsCard does.
+    const { data: posData, error: posErr } = await supabase.rpc('get_merchant_float_positions');
     if (posErr) throw posErr;
-    const floats: FloatRow[] = (posData ?? []).map((r: any) => ({
-      deskId: String(r.desk_id),
-      agentId: String(r.agent_id),
-      name: String(r.agent_name || 'Unnamed agent'),
-      phone: String(r.agent_phone || ''),
-      label: String(r.label || ''),
-      floatHeld: Number(r.ledger_float_held || 0),
-      floatRaw: Number(r.float_balance_raw || 0),
-    })).sort((a: FloatRow, b: FloatRow) => a.floatHeld - b.floatHeld);
+    const floats: FloatRow[] = (posData ?? [])
+      .filter((r: any) => !!r.is_active)
+      .map((r: any) => ({
+        deskId: String(r.desk_id),
+        agentId: String(r.agent_id),
+        name: String(r.agent_name || 'Unnamed agent'),
+        phone: String(r.agent_phone || ''),
+        label: String(r.label || ''),
+        floatHeld: Math.max(0, Number(r.evidenced_amount || 0)),
+        companyCash: Math.max(0, Number(r.company_cash_with_agent || 0)),
+        owed: Number(r.owed_to_agent || 0),
+      }))
+      .sort((a: FloatRow, b: FloatRow) => a.floatHeld - b.floatHeld);
     const floatTotal = floats.reduce((s, r) => s + r.floatHeld, 0);
+    const companyCashTotal = floats.reduce((s, r) => s + r.companyCash, 0);
+    const owedTotal = floats.reduce((s, r) => s + r.owed, 0);
     const agentIds = [...new Set(floats.map((f) => f.agentId))];
     const deskIds = [...new Set(floats.map((f) => f.deskId))];
     const byAgent = new Map(floats.map((f) => [f.agentId, f]));
@@ -274,7 +288,7 @@ Deno.serve(async (req) => {
     };
 
     const generatedAtLabel = eatNowLabel();
-    const pdfBytes = await buildPdf({ dateStr, generatedAtLabel, phone, floats, floatTotal, activity, totals });
+    const pdfBytes = await buildPdf({ dateStr, generatedAtLabel, phone, floats, floatTotal, companyCashTotal, owedTotal, activity, totals });
 
     const baseName = `welile-merchant-float-morning-${dateStr}`;
     const pdfPath = `${dateStr}/${baseName}.pdf`;
@@ -298,8 +312,8 @@ Deno.serve(async (req) => {
       form.set('from', FROM);
       recipients.forEach((r) => form.append('to', r));
       form.set('subject', `Merchant Float Morning Report – ${dateStr} (EAT)`);
-      form.set('text', renderText({ dateStr, generatedAtLabel, phone, floats, floatTotal, activity, totals }));
-      form.set('html', renderHtml({ dateStr, generatedAtLabel, phone, floats, floatTotal, activity, totals }));
+      form.set('text', renderText({ dateStr, generatedAtLabel, phone, floats, floatTotal, companyCashTotal, owedTotal, activity, totals }));
+      form.set('html', renderHtml({ dateStr, generatedAtLabel, phone, floats, floatTotal, companyCashTotal, owedTotal, activity, totals }));
       form.set('o:tag', 'merchant-float-morning');
       form.append('attachment', new Blob([pdfBytes], { type: 'application/pdf' }), `${baseName}.pdf`);
 
@@ -330,6 +344,8 @@ Deno.serve(async (req) => {
         phone_money_total: phone.total,
         active_desks: floats.length,
         merchant_float_total: floatTotal,
+        company_cash_with_agents_total: companyCashTotal,
+        owed_to_agents_total: owedTotal,
         yesterday: totals,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
@@ -365,6 +381,8 @@ interface Payload {
   phone: PhoneMoney;
   floats: FloatRow[];
   floatTotal: number;
+  companyCashTotal: number;
+  owedTotal: number;
   activity: ActivityRow[];
   totals: { floatReceived: number; floatMovedOn: number; payoutCount: number; payoutAmount: number; commission: number };
 }
@@ -373,7 +391,7 @@ function renderHtml(p: Payload) {
   const td = 'padding:4px 10px;border-bottom:1px solid #eee';
   const tdr = `${td};text-align:right;font-variant-numeric:tabular-nums`;
   const floatRows = p.floats
-    .map((f) => `<tr><td style="${td}">${esc(f.name)}${f.label ? ` <span style="color:#888">(${esc(f.label)})</span>` : ''}</td><td style="${td}">${esc(f.phone)}</td><td style="${tdr}">${fmt(f.floatHeld)}</td></tr>`)
+    .map((f) => `<tr><td style="${td}">${esc(f.name)}${f.label ? ` <span style="color:#888">(${esc(f.label)})</span>` : ''}</td><td style="${td}">${esc(f.phone)}</td><td style="${tdr}">${fmt(f.floatHeld)}</td><td style="${tdr}">${fmt(f.companyCash)}</td><td style="${tdr}">${fmt(f.owed)}</td></tr>`)
     .join('');
   const actRows = p.activity
     .map((a) => `<tr><td style="${td}">${esc(a.name)}</td><td style="${tdr}">${fmt(a.floatReceived)}</td><td style="${tdr}">${fmt(a.floatMovedOn)}</td><td style="${tdr}">${a.payoutCount}</td><td style="${tdr}">${fmt(a.payoutAmount)}</td><td style="${tdr}">${fmt(a.commission)}</td><td style="${tdr}">${fmt(a.floatHeld)}</td></tr>`)
@@ -392,11 +410,24 @@ function renderHtml(p: Payload) {
     </table>
 
     <h3 style="margin:18px 0 6px">2. Merchant Float — Right Now (${p.floats.length} active agents, lowest first)</h3>
-    <table style="border-collapse:collapse;min-width:520px">
-      <tr><th style="${td};text-align:left">Agent</th><th style="${td};text-align:left">Float phone</th><th style="${td};text-align:right">Float balance</th></tr>
+    <table style="border-collapse:collapse;min-width:640px">
+      <tr>
+        <th style="${td};text-align:left">Agent</th>
+        <th style="${td};text-align:left">Float phone</th>
+        <th style="${td};text-align:right">Can spend now</th>
+        <th style="${td};text-align:right">Our cash on their phone</th>
+        <th style="${td};text-align:right">We owe them</th>
+      </tr>
       ${floatRows}
-      <tr><td style="padding:6px 10px"><b>Total merchant float</b></td><td></td><td style="${tdr}"><b>${fmt(p.floatTotal)}</b></td></tr>
+      <tr>
+        <td style="padding:6px 10px"><b>Totals</b></td>
+        <td></td>
+        <td style="${tdr}"><b>${fmt(p.floatTotal)}</b></td>
+        <td style="${tdr}"><b>${fmt(p.companyCashTotal)}</b></td>
+        <td style="${tdr}"><b>${fmt(p.owedTotal)}</b></td>
+      </tr>
     </table>
+    <p style="color:#666;margin:6px 0 0;font-size:12px">These three totals are the same measures shown on the Financial Ops "Money With Merchant Agents" card, from the same source.</p>
 
     <h3 style="margin:18px 0 6px">3. Yesterday's Agent Activity (${p.dateStr} EAT)</h3>
     <table style="border-collapse:collapse;min-width:640px">
@@ -440,8 +471,8 @@ function renderText(p: Payload) {
     `  TOTAL: ${fmt(p.phone.total)}`,
     '',
     `2. MERCHANT FLOAT — RIGHT NOW (${p.floats.length} active agents, lowest first)`,
-    ...p.floats.map((f) => `  ${f.name}: ${fmt(f.floatHeld)}`),
-    `  TOTAL: ${fmt(p.floatTotal)}`,
+    ...p.floats.map((f) => `  ${f.name}: can spend ${fmt(f.floatHeld)} | our cash on phone ${fmt(f.companyCash)} | we owe ${fmt(f.owed)}`),
+    `  TOTALS: can spend ${fmt(p.floatTotal)} | our cash on phones ${fmt(p.companyCashTotal)} | we owe ${fmt(p.owedTotal)}`,
     '',
     `3. YESTERDAY'S AGENT ACTIVITY (${p.dateStr} EAT)`,
     ...p.activity.map(
@@ -520,11 +551,12 @@ async function buildPdf(p: Payload): Promise<Uint8Array> {
   // KPI cards
   const kpis = [
     { label: 'PHONE MONEY NOW', value: fmt(p.phone.total) },
-    { label: 'MERCHANT FLOAT NOW', value: fmt(p.floatTotal) },
+    { label: 'CAN SPEND NOW', value: fmt(p.floatTotal) },
+    { label: 'OUR CASH ON THEIR PHONES', value: fmt(p.companyCashTotal) },
+    { label: 'WE OWE THEM', value: fmt(p.owedTotal) },
     { label: `PAID OUT ${p.dateStr.slice(5)}`, value: fmt(p.totals.payoutAmount) },
-    { label: 'FLOAT ISSUED', value: fmt(p.totals.floatReceived) },
   ];
-  const cardW = (CW - 3 * 8) / 4, cardH = 52;
+  const cardW = (CW - 4 * 8) / 5, cardH = 52;
   ensure(cardH + 14);
   kpis.forEach((k, i) => {
     const x = M + i * (cardW + 8);
@@ -532,7 +564,9 @@ async function buildPdf(p: Payload): Promise<Uint8Array> {
       x, y: y - cardH + 12, width: cardW, height: cardH,
       color: brandLite, borderColor: col(226, 216, 246), borderWidth: 0.8,
     });
-    page.drawText(k.label, { x: x + 9, y: y - 4, size: 6.6, font: bold, color: brand });
+    let ls = 6.6;
+    while (bold.widthOfTextAtSize(k.label, ls) > cardW - 14 && ls > 4.4) ls -= 0.2;
+    page.drawText(k.label, { x: x + 9, y: y - 4, size: ls, font: bold, color: brand });
     let vs = 12.5;
     while (bold.widthOfTextAtSize(k.value, vs) > cardW - 18 && vs > 7) vs -= 0.5;
     page.drawText(k.value, { x: x + 9, y: y - 25, size: vs, font: bold, color: ink });
@@ -594,20 +628,30 @@ async function buildPdf(p: Payload): Promise<Uint8Array> {
   totalRow([{ text: 'Total available now', x: L }, { text: fmt(p.phone.total), right: R }]);
 
   // 2. Merchant float
-  section('2', 'Merchant Float — Right Now', `${p.floats.length} active desks, lowest float first — top of the list needs funding.`);
+  section('2', 'Merchant Float — Right Now', `${p.floats.length} active desks, lowest float first. Same three measures as the Financial Ops board.`);
+  const cSpend = M + 300, cCash = M + 400;
   headRow([
     { text: 'Agent', x: L },
-    { text: 'Float phone', x: M + 270 },
-    { text: 'Float balance', right: R },
-  ]);
+    { text: 'Float phone', x: M + 170 },
+    { text: 'Can spend now', right: cSpend },
+    { text: 'Our cash there', right: cCash },
+    { text: 'We owe them', right: R },
+  ], 7.6);
   p.floats.forEach((f, i) =>
     bodyRow([
-      { text: clip(f.name || '—', 40), x: L },
-      { text: clip(f.phone || '—', 16), x: M + 270, c: soft },
-      { text: fmt(f.floatHeld), right: R },
-    ], i % 2 === 1),
+      { text: clip(f.name || '—', 24), x: L },
+      { text: clip(f.phone || '—', 14), x: M + 170, c: soft },
+      { text: fmt(f.floatHeld), right: cSpend },
+      { text: fmt(f.companyCash), right: cCash },
+      { text: fmt(f.owed), right: R },
+    ], i % 2 === 1, 8.4),
   );
-  totalRow([{ text: 'Total merchant float', x: L }, { text: fmt(p.floatTotal), right: R }]);
+  totalRow([
+    { text: 'Totals', x: L },
+    { text: fmt(p.floatTotal), right: cSpend },
+    { text: fmt(p.companyCashTotal), right: cCash },
+    { text: fmt(p.owedTotal), right: R },
+  ], 8.4);
 
   // 3. Activity
   section('3', `Yesterday's Agent Activity`, `Movements on ${p.dateStr} (EAT). Float recd less moved on less paid out explains the closing float. Moved on = float that left the desk without settling a payout.`);
