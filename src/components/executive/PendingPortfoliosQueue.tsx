@@ -57,50 +57,24 @@ function KpiTile({
 
 /** Tenant-level detail for a self-support commitment, loaded on expand. */
 function CommitmentLines({ portfolioId }: { portfolioId: string }) {
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ['pending-portfolio-lines', portfolioId],
     staleTime: 30_000,
     queryFn: async () => {
-      const { data: pending, error: pErr } = await (supabase.from('funder_pending_portfolios') as any)
-        .select('commitment_id')
-        .eq('portfolio_id', portfolioId)
-        .maybeSingle();
-      if (pErr) throw pErr;
-      const commitmentId = pending?.commitment_id;
-      if (!commitmentId) return [] as any[];
-
-      const { data: lines, error: lErr } = await (supabase.from('partner_self_funding_lines') as any)
-        .select('id, principal, term_months, rent_request_id')
-        .eq('commitment_id', commitmentId);
-      if (lErr) throw lErr;
-      const rows = (lines || []) as any[];
-      if (rows.length === 0) return [];
-
-      const { data: requests, error: rErr } = await (supabase.from('rent_requests') as any)
-        .select('id, tenant_id, rent_amount, daily_repayment, request_city, request_country')
-        .in('id', rows.map(r => r.rent_request_id));
-      if (rErr) throw rErr;
-      const reqMap = new Map<string, any>(((requests || []) as any[]).map(r => [r.id, r]));
-
-      const tenantIds = Array.from(new Set(((requests || []) as any[]).map(r => r.tenant_id).filter(Boolean)));
-      const { data: profiles, error: pfErr } = tenantIds.length
-        ? await (supabase.from('profiles') as any).select('id, full_name, phone').in('id', tenantIds)
-        : { data: [], error: null };
-      if (pfErr) throw pfErr;
-      const profMap = new Map<string, any>(((profiles || []) as any[]).map(p => [p.id, p]));
-
-      return rows.map(r => {
-        const req = reqMap.get(r.rent_request_id) || {};
-        const prof = profMap.get(req.tenant_id) || {};
-        return {
-          id: r.id,
-          principal: Number(r.principal) || 0,
-          tenant_name: prof.full_name || 'Tenant not visible',
-          tenant_phone: prof.phone || null,
-          location: [req.request_city, req.request_country].filter(Boolean).join(', ') || null,
-          daily: Number(req.daily_repayment) || 0,
-        };
+      // Ops roles cannot read rent_requests / profiles directly (no RLS policy),
+      // so tenant detail comes from a security-definer helper instead.
+      const { data, error } = await supabase.rpc('partner_ops_pending_portfolio_lines' as any, {
+        p_portfolio_id: portfolioId,
       });
+      if (error) throw error;
+      return ((data as any[]) || []).map(r => ({
+        id: r.line_id,
+        principal: Number(r.principal) || 0,
+        tenant_name: r.tenant_name || 'Tenant',
+        tenant_phone: r.tenant_phone || null,
+        location: r.location || null,
+        daily: Number(r.daily_repayment) || 0,
+      }));
     },
   });
 
@@ -111,7 +85,13 @@ function CommitmentLines({ portfolioId }: { portfolioId: string }) {
       </p>
     );
   }
-  if (isError) return <p className="text-xs text-muted-foreground">Tenant detail is not available for this portfolio.</p>;
+  if (isError) {
+    return (
+      <p className="text-xs text-destructive">
+        Tenant detail could not load: {(error as Error)?.message || 'unknown error'}
+      </p>
+    );
+  }
   if (!data || data.length === 0) return <p className="text-xs text-muted-foreground">No tenant lines recorded.</p>;
 
   return (
