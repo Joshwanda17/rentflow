@@ -157,6 +157,16 @@ export default function RaiseTicket({ staffId }: RaiseTicketProps) {
         } as never);
         if (rowError) {
           uploadProblems.push(`${file.name} could not be attached.`);
+          try {
+            const { error: removeError } = await supabase.storage
+              .from('task-evidence')
+              .remove([path]);
+            if (removeError) {
+              uploadProblems.push(`${file.name} could not be cleaned up.`);
+            }
+          } catch {
+            uploadProblems.push(`${file.name} could not be cleaned up.`);
+          }
         }
       }
     }
