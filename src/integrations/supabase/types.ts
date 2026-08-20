@@ -41181,6 +41181,7 @@ export type Database = {
         }
         Returns: string
       }
+      hr_claim_ticket: { Args: { p_ticket_id: string }; Returns: string }
       hr_compute_snapshots: {
         Args: { _period_end: string; _period_start: string }
         Returns: number
