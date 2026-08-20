@@ -57,6 +57,11 @@ export function PartnerPortfolioWalletCard({ onAddCard, onPortfolios, onCalculat
   const { tenants, isLoading: tenantsLoading } = useSupportedTenants();
   const [showAmount, setShowAmount] = useState(true);
 
+  const active = useMemo(
+    () => portfolios.filter(p => normalizePortfolioState(p.status) === 'active'),
+    [portfolios]
+  );
+
   const directTenantCount = useMemo(
     () => tenants.filter((t) => t.funding_mode === 'self_managed').length,
     [tenants]
@@ -67,11 +72,6 @@ export function PartnerPortfolioWalletCard({ onAddCard, onPortfolios, onCalculat
   const supportingCount = useMemo(
     () => directTenantCount + activePortfolioCount,
     [directTenantCount, activePortfolioCount]
-  );
-
-  const active = useMemo(
-    () => portfolios.filter(p => normalizePortfolioState(p.status) === 'active'),
-    [portfolios]
   );
 
   const totalPrincipal = useMemo(
