@@ -213,27 +213,67 @@ export function useBudgetReferenceData() {
   const [accounts, setAccounts] = useState<BudgetAccount[]>([]);
   const [departments, setDepartments] = useState<BudgetDepartment[]>([]);
   const [myDepartments, setMyDepartments] = useState<BudgetDepartment[]>([]);
+  const [primaryDepartmentId, setPrimaryDepartmentId] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
-      const [acc, dep, mine] = await Promise.all([
+      const { data: auth } = await supabase.auth.getUser();
+      const userId = auth.user?.id ?? null;
+
+      const [acc, dep, mine, primaryId] = await Promise.all([
         supabase.from('ledger_account_catalog').select('code,label,section,nature').order('sort_order'),
         supabase.from('hr_departments').select('id,name,key').eq('active', true).order('name'),
-        supabase.auth.getUser().then(async ({ data }) => {
-          if (!data.user) return { data: [] as string[] };
-          const { data: ids } = await supabase.rpc('budget_user_department_ids', { _user_id: data.user.id });
-          return { data: (ids ?? []) as unknown as string[] };
-        }),
+        userId
+          ? supabase.rpc('budget_user_department_ids', { _user_id: userId }).then(({ data }) => ({
+              data: (data ?? []) as unknown as string[],
+            }))
+          : Promise.resolve({ data: [] as string[] }),
+        userId ? fetchPrimaryDepartmentId(userId) : Promise.resolve<string | null>(null),
       ]);
       const deps = (dep.data ?? []) as BudgetDepartment[];
       setAccounts((acc.data ?? []) as BudgetAccount[]);
       setDepartments(deps);
       const mineIds = new Set((mine.data ?? []).map(String));
       setMyDepartments(deps.filter(d => mineIds.has(d.id)));
+      setPrimaryDepartmentId(primaryId ?? null);
     })().catch(() => undefined);
   }, []);
 
-  return { accounts, departments, myDepartments };
+  return { accounts, departments, myDepartments, primaryDepartmentId };
+}
+
+async function fetchPrimaryDepartmentId(userId: string): Promise<string | null> {
+  // Prefer the primary active HR assignment; fall back to operations_departments.
+  const { data: staff } = await supabase.from('hr_staff').select('id').eq('user_id', userId).maybeSingle();
+  if (staff?.id) {
+    const { data: assignment } = await supabase
+      .from('hr_assignments')
+      .select('department_id')
+      .eq('staff_id', staff.id)
+      .is('ended_on', null)
+      .order('is_primary', { ascending: false })
+      .order('started_on', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (assignment?.department_id) return assignment.department_id;
+  }
+
+  const { data: op } = await supabase
+    .from('operations_departments')
+    .select('department')
+    .eq('user_id', userId)
+    .limit(1)
+    .maybeSingle();
+  if (op?.department) {
+    const { data: dept } = await supabase
+      .from('hr_departments')
+      .select('id')
+      .eq('active', true)
+      .or(`key.ilike.${op.department},name.ilike.${op.department.replace(/_/g, ' ')}`)
+      .maybeSingle();
+    return dept?.id ?? null;
+  }
+  return null;
 }
 
 /**
