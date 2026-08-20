@@ -141,9 +141,6 @@ export function ServiceCentreNewEntryDialog() {
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>New Service Centre Entry</DialogTitle>
-          <DialogDescription>
-            Submission routes to Pending COO Approval → CEO Approval → Verified.
-          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-5">
