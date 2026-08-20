@@ -66,6 +66,12 @@ export function MissedDaysTracker() {
   const [callTarget, setCallTarget] = useState<TenantMissedData | null>(null);
   const [profileSheet, setProfileSheet] = useState<{ userId: string; userName: string; userPhone?: string; userType: 'tenant' | 'agent' } | null>(null);
   const { data: callSummaries } = useTenantCallSummaries();
+  // Operating day boundaries come from the server RPC (Africa/Kampala), so the
+  // repayment clock never shifts with the viewer's timezone.
+  const { data: serverCounts } = useTenantOpsToolCounts();
+  const serverDayStart = serverCounts?.day_start || '';
+  const serverToday = serverDayStart ? parseISO(serverDayStart) : null;
+
 
   // Active rent plans from the platform's authoritative daily-eligibility view —
   // identical population to the Tenant Ops counters and Daily Payments tool.
