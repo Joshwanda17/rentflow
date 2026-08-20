@@ -38,7 +38,7 @@ export function AgentHubTabs({ active, onChange, restricted = false }: AgentHubT
   return (
     <>
       {serviceCenterTab && (
-        <div className="sticky z-20 -mx-4 px-3 pb-2 flex justify-end" style={{ top: 0, paddingTop: 'calc(0.5rem + env(safe-area-inset-top, 0px))' }}>
+        <div className="-mx-4 px-3 pb-2 flex justify-end">
           <button
             key={serviceCenterTab.id}
             role="tab"
