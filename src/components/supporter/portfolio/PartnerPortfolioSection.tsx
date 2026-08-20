@@ -31,7 +31,7 @@ export function PartnerPortfolioSection({ onViewPortfolios, onExploreOpportuniti
       .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
   }, [portfolios]);
 
-  const summary = useMemo(() => summarizeAccruals(active.map(computeAccrual)), [active]);
+  
 
   const list = active.length > 0 ? active : pending;
   const shown = list.slice(0, 3);
