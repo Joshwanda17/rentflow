@@ -130,6 +130,28 @@ const FILTER_GROUPS: { label: string; value: string; categories: string[] | null
 
 const PAGE_SIZE = 25;
 
+const AVATAR_TONES = [
+  'bg-primary/15 text-primary',
+  'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400',
+  'bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400',
+  'bg-sky-100 text-sky-700 dark:bg-sky-950/50 dark:text-sky-400',
+  'bg-orange-100 text-orange-700 dark:bg-orange-950/50 dark:text-orange-400',
+];
+
+const initialsFor = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() || '')
+    .join('') || 'SY';
+
+const toneFor = (seed: string) => {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) % 997;
+  return AVATAR_TONES[h % AVATAR_TONES.length];
+};
+
 const DATE_PRESETS: { label: string; days: number | 'mtd' }[] = [
   { label: 'Last 7 days', days: 7 },
   { label: 'Last 30 days', days: 30 },
@@ -142,7 +164,7 @@ export function CFOActionsLog() {
   const [searchInput, setSearchInput] = useState('');
   const [page, setPage] = useState(0);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
   const search = useDebouncedValue(searchInput.trim(), 350);
 
 
