@@ -87,8 +87,12 @@ export default function DepartmentBudgetSubmission({ dashboard, departmentKeys }
   }, [openCycles, cycleId]);
   useEffect(() => {
     if (!myDepartments.length) { if (departmentId) setDepartmentId(''); return; }
-    if (!myDepartments.some(d => d.id === departmentId)) setDepartmentId(myDepartments[0].id);
-  }, [myDepartments, departmentId]);
+    if (myDepartments.some(d => d.id === departmentId)) return;
+    const preferred = primaryDepartmentId
+      ? myDepartments.find(d => d.id === primaryDepartmentId)
+      : null;
+    setDepartmentId(preferred?.id ?? myDepartments[0].id);
+  }, [myDepartments, departmentId, primaryDepartmentId]);
 
   useEffect(() => {
     if (!departmentId) { setRoute(null); return; }
