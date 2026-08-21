@@ -213,6 +213,11 @@ export function ServiceCentreVerificationQueue() {
           <TabsContent value="entries">
             <ServiceCentreEntriesList />
           </TabsContent>
+
+          {/* ── Service centre money (advances) ── */}
+          <TabsContent value="advances">
+            <ServiceCentreAdvancesPanel />
+          </TabsContent>
         </Tabs>
       </CardContent>
     </Card>
