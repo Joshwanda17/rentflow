@@ -119,6 +119,10 @@ export function ServiceCentreVerificationQueue() {
               <Building2 className="h-3 w-3" />
               Entries
             </TabsTrigger>
+            <TabsTrigger value="advances" className="text-xs gap-1">
+              <Wallet className="h-3 w-3" />
+              Money
+            </TabsTrigger>
           </TabsList>
 
           {/* ── Pending Verification Tab ── */}
