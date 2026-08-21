@@ -65,10 +65,12 @@ const PRESETS: Preset[] = [
   },
 ];
 
-// Unified active-book definition shared with activeTenantsReportPdf.ts.
-// Keep these in sync so the two reports reconcile on Principal/Outstanding.
-const ACTIVE_STATUSES = ['approved', 'disbursed', 'active', 'repaying', 'funded'];
+// Active-book definition MUST mirror the live Agent Ops capacity map
+// (`ACTIVE_RENT_STATUSES`); the previous literal list used statuses that do
+// not exist in `rent_requests`, which is why Tenants/Expected/Rate read 0.
+const ACTIVE_STATUSES = ACTIVE_RENT_STATUSES;
 const UNASSIGNED_AGENT_KEY = '__unassigned__';
+
 
 /**
  * Paged select helper — Supabase caps single requests at 1000 rows. The
