@@ -84,10 +84,7 @@ export function ServiceCentreVerificationQueue() {
     }
   };
 
-  const eligibleNotSubmitted = (eligibleAgents || []).filter(a => !a.has_submission);
-  const eligibleSubmitted = (eligibleAgents || []).filter(a => a.has_submission);
-
-  const isLoading = setupsLoading || eligibleLoading;
+  const isLoading = setupsLoading;
 
   return (
     <Card className="rounded-2xl">
