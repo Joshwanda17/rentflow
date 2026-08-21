@@ -35,66 +35,6 @@ export function ServiceCentreVerificationQueue() {
     staleTime: 30000,
   });
 
-  // Fetch eligible agents: those with landlord assignments AND LC1 chairpersons linked via rent_requests
-  const { data: eligibleAgents, isLoading: eligibleLoading } = useQuery({
-    queryKey: ['service-centre-eligible-agents'],
-    queryFn: async () => {
-      // 1. Get agents with landlord assignments
-      const { data: assignments } = await supabase
-        .from('agent_landlord_assignments')
-        .select('agent_id');
-      const agentLandlordMap: Record<string, number> = {};
-      (assignments || []).forEach((a: any) => {
-        agentLandlordMap[a.agent_id] = (agentLandlordMap[a.agent_id] || 0) + 1;
-      });
-
-      // 2. Get agents with LC1 chairpersons via rent_requests
-      const { data: rentReqs } = await supabase
-        .from('rent_requests')
-        .select('agent_id, lc1_id')
-        .not('agent_id', 'is', null)
-        .not('lc1_id', 'is', null);
-      const agentLc1Map: Record<string, Set<string>> = {};
-      (rentReqs || []).forEach((r: any) => {
-        if (r.agent_id && r.lc1_id) {
-          if (!agentLc1Map[r.agent_id]) agentLc1Map[r.agent_id] = new Set();
-          agentLc1Map[r.agent_id].add(r.lc1_id);
-        }
-      });
-
-      // 3. Find agents who have BOTH landlords and LC1s
-      const qualifiedIds = Object.keys(agentLandlordMap).filter(id => agentLc1Map[id]?.size > 0);
-      if (qualifiedIds.length === 0) return [];
-
-      // 4. Check which already have submissions
-      const { data: existingSetups } = await supabase
-        .from('service_centre_setups' as any)
-        .select('agent_id')
-        .in('agent_id', qualifiedIds);
-      const submittedSet = new Set((existingSetups || []).map((s: any) => s.agent_id));
-
-      // 5. Fetch profiles for qualified agents
-      const BATCH = 50;
-      const allProfiles: any[] = [];
-      for (let i = 0; i < qualifiedIds.length; i += BATCH) {
-        const { data } = await supabase.from('profiles')
-          .select('id, full_name, phone, territory')
-          .in('id', qualifiedIds.slice(i, i + BATCH));
-        if (data) allProfiles.push(...data);
-      }
-
-      return allProfiles.map(p => ({
-        id: p.id,
-        full_name: p.full_name || 'Unknown',
-        phone: p.phone || '—',
-        territory: p.territory,
-        landlord_count: agentLandlordMap[p.id] || 0,
-        lc1_count: agentLc1Map[p.id]?.size || 0,
-        has_submission: submittedSet.has(p.id),
-      })) as EligibleAgent[];
-    },
-    staleTime: 60000,
-  });
 
   const handleVerify = async (id: string) => {
     if (!user?.id) return;
