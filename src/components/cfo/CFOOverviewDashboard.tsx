@@ -219,9 +219,6 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
       </div>
 
       {/* Two-column shell: main financial surface on the left, live feeds on the right */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 items-start">
-      <div className="xl:col-span-2 space-y-5">
-
       {/* ══════════════ THREE HEADLINE CARDS ══════════════ */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <HeroCard
@@ -266,6 +263,10 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
           onClick={() => setActiveBreakdown('earnings')}
         />
       </div>
+
+      {/* Two-column shell: main financial surface on the left, live feeds on the right */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 items-start">
+      <div className="xl:col-span-2 space-y-5">
 
       {/* ══════════════ WHERE THE MONEY SITS ══════════════ */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
