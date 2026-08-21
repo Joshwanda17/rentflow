@@ -686,7 +686,7 @@ function CapacityRow({
 
   return (
     <li className="rounded-xl border border-border bg-background overflow-hidden">
-      {/* Tap-anywhere header — big, plain-language status */}
+      {/* Tap-anywhere header — compact 1-line bar when collapsed, full status card when expanded */}
       <div
         role="button"
         tabIndex={0}
@@ -695,83 +695,124 @@ function CapacityRow({
         className="w-full text-left p-3 active:bg-muted/40 transition-colors touch-manipulation cursor-pointer"
         aria-expanded={!collapsed}
       >
-        <div className="flex items-center justify-between gap-2 mb-2">
-          <div className="min-w-0 flex-1">
-            <p className="text-base font-bold text-foreground truncate leading-tight">
-              {row.name}
-            </p>
-            <p className="text-[11px] text-muted-foreground truncate">
-              {row.phone || '—'} · {row.active_count} active rent{row.active_count === 1 ? '' : 's'}
-              {row.unfunded_tenant_count > 0 && (
-                <span className="text-destructive font-bold">
-                  {' · '}{row.unfunded_tenant_count} not funded
-                </span>
+        {collapsed ? (
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-bold text-foreground truncate leading-tight">
+                  {row.name}
+                </p>
+                <p className="text-[10px] text-muted-foreground truncate">
+                  {row.phone || '—'} · {row.active_count} active rent{row.active_count === 1 ? '' : 's'}
+                  {row.unfunded_tenant_count > 0 && (
+                    <span className="text-destructive font-bold">
+                      {' · '}{row.unfunded_tenant_count} not funded
+                    </span>
+                  )}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span
+                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${statusBg} ${statusText}`}
+              >
+                <StatusIcon className="h-3 w-3" />
+                {statusHeadline}
+              </span>
+              {!isStarter && (
+                <span className={`text-[10px] font-semibold tabular-nums ${todayTone}`}>{todayPct}%</span>
               )}
-            </p>
-          </div>
-          <div className="flex items-center gap-1 shrink-0">
-            <button
-              type="button"
-              onClick={handlePrint}
-              disabled={printing}
-              title={`Print report for ${row.name}`}
-              className="inline-flex items-center justify-center h-9 w-9 rounded-lg border border-border hover:bg-muted disabled:opacity-50"
-            >
-              {printing
-                ? <Loader2 className="h-4 w-4 animate-spin" />
-                : <Printer className="h-4 w-4" />}
-            </button>
-            <div
-              className="inline-flex items-center justify-center h-9 w-9 rounded-lg border border-border"
-              aria-hidden
-            >
-              {collapsed
-                ? <ChevronDown className="h-4 w-4" />
-                : <ChevronUp className="h-4 w-4" />}
-            </div>
-          </div>
-        </div>
-
-        {/* BIG status banner — the only thing a busy person needs to see */}
-        <div className={`rounded-xl border-2 ${statusBg} p-3 flex items-center gap-3`}>
-          <StatusIcon className={`h-8 w-8 shrink-0 ${statusText}`} strokeWidth={2.5} />
-          <div className="min-w-0 flex-1">
-            <p className={`text-base font-extrabold leading-tight ${statusText}`}>
-              {statusHeadline}
-            </p>
-            <p className={`text-xs font-semibold mt-0.5 ${statusText} opacity-90`}>
-              {statusSub}
-            </p>
-          </div>
-        </div>
-
-        {/* Today's collection — large numbers everyone can read */}
-        {!isStarter && (
-          <div className="mt-2 grid grid-cols-2 gap-2">
-            <div className="rounded-lg border border-border bg-background/70 p-2">
-              <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Collected today</div>
-              <div className={`text-base font-extrabold tabular-nums ${todayTone}`}>
-                {formatUGX(row.paid_today)}
-              </div>
-              <div className="text-[10px] text-muted-foreground tabular-nums">
-                of {formatUGX(row.expected_daily)} target
+              <button
+                type="button"
+                onClick={handlePrint}
+                disabled={printing}
+                title={`Print report for ${row.name}`}
+                className="inline-flex items-center justify-center h-8 w-8 rounded-lg border border-border hover:bg-muted disabled:opacity-50"
+              >
+                {printing
+                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  : <Printer className="h-3.5 w-3.5" />}
+              </button>
+              <div
+                className="inline-flex items-center justify-center h-8 w-8 rounded-lg border border-border"
+                aria-hidden
+              >
+                <ChevronDown className="h-4 w-4" />
               </div>
             </div>
-            <div className="rounded-lg border border-border bg-background/70 p-2">
-              <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Tenants paid (7d)</div>
-              <div className="text-base font-extrabold tabular-nums text-foreground">
-                {row.paying_tenants_last_week}<span className="text-muted-foreground font-semibold text-xs"> / {row.active_tenant_count}</span>
-              </div>
-              <div className="text-[10px] text-muted-foreground">in the last 7 days</div>
-            </div>
           </div>
-        )}
+        ) : (
+          <>
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="min-w-0 flex-1">
+                <p className="text-base font-bold text-foreground truncate leading-tight">
+                  {row.name}
+                </p>
+                <p className="text-[11px] text-muted-foreground truncate">
+                  {row.phone || '—'} · {row.active_count} active rent{row.active_count === 1 ? '' : 's'}
+                  {row.unfunded_tenant_count > 0 && (
+                    <span className="text-destructive font-bold">
+                      {' · '}{row.unfunded_tenant_count} not funded
+                    </span>
+                  )}
+                </p>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={handlePrint}
+                  disabled={printing}
+                  title={`Print report for ${row.name}`}
+                  className="inline-flex items-center justify-center h-9 w-9 rounded-lg border border-border hover:bg-muted disabled:opacity-50"
+                >
+                  {printing
+                    ? <Loader2 className="h-4 w-4 animate-spin" />
+                    : <Printer className="h-4 w-4" />}
+                </button>
+                <div
+                  className="inline-flex items-center justify-center h-9 w-9 rounded-lg border border-border"
+                  aria-hidden
+                >
+                  <ChevronUp className="h-4 w-4" />
+                </div>
+              </div>
+            </div>
 
-        {/* Show "Tap for details" hint when collapsed */}
-        {collapsed && (
-          <p className="text-center text-[10px] text-muted-foreground mt-2 font-semibold">
-            Tap for full details
-          </p>
+            {/* BIG status banner — the only thing a busy person needs to see */}
+            <div className={`rounded-xl border-2 ${statusBg} p-3 flex items-center gap-3`}>
+              <StatusIcon className={`h-8 w-8 shrink-0 ${statusText}`} strokeWidth={2.5} />
+              <div className="min-w-0 flex-1">
+                <p className={`text-base font-extrabold leading-tight ${statusText}`}>
+                  {statusHeadline}
+                </p>
+                <p className={`text-xs font-semibold mt-0.5 ${statusText} opacity-90`}>
+                  {statusSub}
+                </p>
+              </div>
+            </div>
+
+            {/* Today's collection — large numbers everyone can read */}
+            {!isStarter && (
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <div className="rounded-lg border border-border bg-background/70 p-2">
+                  <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Collected today</div>
+                  <div className={`text-base font-extrabold tabular-nums ${todayTone}`}>
+                    {formatUGX(row.paid_today)}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground tabular-nums">
+                    of {formatUGX(row.expected_daily)} target
+                  </div>
+                </div>
+                <div className="rounded-lg border border-border bg-background/70 p-2">
+                  <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Tenants paid (7d)</div>
+                  <div className="text-base font-extrabold tabular-nums text-foreground">
+                    {row.paying_tenants_last_week}<span className="text-muted-foreground font-semibold text-xs"> / {row.active_tenant_count}</span>
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">in the last 7 days</div>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 
