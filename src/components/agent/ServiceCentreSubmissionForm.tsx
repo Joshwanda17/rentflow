@@ -15,6 +15,8 @@ export function ServiceCentreSubmissionForm() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [locationName, setLocationName] = useState('');
+  const [agentName, setAgentName] = useState('');
+  const [agentPhone, setAgentPhone] = useState('');
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
   const [gpsLoading, setGpsLoading] = useState(false);
