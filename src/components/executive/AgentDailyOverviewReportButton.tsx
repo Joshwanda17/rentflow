@@ -223,18 +223,34 @@ export function AgentDailyOverviewReportButton() {
         if (c.tenant_id) a.paidSet.add(c.tenant_id);
       });
 
-      const rows: AgentDailyOverviewRow[] = Array.from(map.values())
-        .map((a) => ({
-          agentName: a.agentName,
-          agentPhone: a.agentPhone,
-          activeTenants: a.tenantSet.size,
-          expectedToday: a.expectedToday,
-          collectedToday: a.collectedToday,
-          tenantsPaidToday: a.paidSet.size,
-          paymentsToday: a.paymentsToday,
-          principalPaid: a.principalPaid,
-          outstanding: a.outstanding,
-        }))
+      // Make sure every agent carrying a live book appears, even when their
+      // plans sit in a status the aggregation above did not pick up.
+      eligMap.forEach((e, agentId) => {
+        if (e.active > 0 || e.expectedDaily > 0) ensure(agentId);
+      });
+
+      const rows: AgentDailyOverviewRow[] = Array.from(map.entries())
+        .map(([agentId, a]) => {
+          const elig = eligMap.get(agentId);
+          // Live figures win; the ledger-derived fallbacks keep historical
+          // ranges and the "Unassigned" bucket meaningful.
+          const activeTenants = elig ? elig.active : a.tenantSet.size;
+          const expectedToday = elig && elig.expectedDaily > 0
+            ? elig.expectedDaily * dayCount
+            : a.expectedToday;
+          return {
+            agentName: a.agentName,
+            agentPhone: a.agentPhone,
+            activeTenants,
+            expectedToday,
+            collectedToday: a.collectedToday,
+            tenantsPaidToday: a.paidSet.size,
+            paymentsToday: a.paymentsToday,
+            principalPaid: a.principalPaid,
+            outstanding: a.outstanding,
+          };
+        })
+
         // Show best performers first: highest collection rate, then highest expected
         .sort((x, y) => {
           const rx = x.expectedToday > 0 ? x.collectedToday / x.expectedToday : 1;
