@@ -81,8 +81,16 @@ export function ServiceCentreSubmissionForm() {
   };
 
   const handleSubmit = async () => {
-    if (!user?.id || !photoFile || latitude === null || longitude === null) {
+    if (!photoFile || latitude === null || longitude === null) {
       toast.error('Please capture GPS and take a photo first.');
+      return;
+    }
+    if (!agentName.trim() || !agentPhone.trim()) {
+      toast.error('Please enter your name and phone number.');
+      return;
+    }
+    if (!user?.id) {
+      toast.error('Please sign in to submit — your details will be kept.');
       return;
     }
     if (!locationName.trim()) {
@@ -126,8 +134,8 @@ export function ServiceCentreSubmissionForm() {
           latitude,
           longitude,
           location_name: locationName.trim(),
-          agent_name: profile?.full_name || 'Unknown',
-          agent_phone: profile?.phone || '',
+          agent_name: agentName.trim(),
+          agent_phone: agentPhone.trim(),
           status: 'pending',
         } as any);
       if (insertErr) throw insertErr;
@@ -252,7 +260,7 @@ export function ServiceCentreSubmissionForm() {
 
           <Button
             onClick={handleSubmit}
-            disabled={submitting || !photoFile || latitude === null || !locationName.trim()}
+            disabled={submitting || !photoFile || latitude === null || !locationName.trim() || !agentName.trim() || !agentPhone.trim()}
             className="w-full gap-2"
           >
             {submitting ? (
