@@ -156,8 +156,10 @@ export function AgentDailyOverviewReportButton() {
         new Set([
           ...requests.map((r) => r.agent_id),
           ...collections.map((c) => c.agent_id),
+          ...Array.from(eligMap.keys()),
         ].filter(Boolean)),
       );
+
       const profileMap = new Map<string, { full_name: string | null; phone: string | null }>();
       // Profiles fetched in chunks of 500 ids to stay within URL limits.
       const chunk = 500;
