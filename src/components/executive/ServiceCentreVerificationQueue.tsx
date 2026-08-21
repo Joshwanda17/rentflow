@@ -34,7 +34,6 @@ export function ServiceCentreVerificationQueue() {
     staleTime: 30000,
   });
 
-
   const handleVerify = async (id: string) => {
     if (!user?.id) return;
     setProcessingId(id);
