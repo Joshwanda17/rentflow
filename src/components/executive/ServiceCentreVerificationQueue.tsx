@@ -20,6 +20,8 @@ export function ServiceCentreVerificationQueue() {
   const [rejectionReason, setRejectionReason] = useState('');
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('pending');
+  const [amounts, setAmounts] = useState<Record<string, string>>({});
+  const [comments, setComments] = useState<Record<string, string>>({});
 
   // Fetch pending submissions
   const { data: setups, isLoading: setupsLoading } = useQuery({
