@@ -131,6 +131,26 @@ export function AgentDailyOverviewReportButton() {
           .range(from, to),
       );
 
+      // 2b. Live eligibility snapshot — the same source the Agent Rent
+      //     Capacity panel shows on screen. It is authoritative for the
+      //     active-tenant count and the daily expected target, so the PDF
+      //     always reconciles with the dashboard.
+      const eligibility = await fetchAll<any>((from, to) =>
+        supabase
+          .from('v_agent_daily_eligibility')
+          .select('agent_id, active_count, expected_daily')
+          .range(from, to),
+      );
+      const eligMap = new Map<string, { active: number; expectedDaily: number }>();
+      eligibility.forEach((e: any) => {
+        if (!e.agent_id) return;
+        eligMap.set(e.agent_id, {
+          active: Number(e.active_count) || 0,
+          expectedDaily: Number(e.expected_daily) || 0,
+        });
+      });
+
+
       // 3. Agent profile lookup
       const agentIds = Array.from(
         new Set([
