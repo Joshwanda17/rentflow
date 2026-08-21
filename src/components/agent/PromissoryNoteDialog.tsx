@@ -273,16 +273,24 @@ export function PromissoryNoteDialog({ open, onOpenChange, supportMode = 'self' 
 
             {/* Available rent requests from the funding queue — always visible so
                 the agent can earmark plans to the partner being added. */}
-            <PromissoryPlanMatcher
-              targetAmount={parsedAmount}
-              selectedIds={selectedPlanIds}
-              onChange={setSelectedPlanIds}
-              disabled={submitting}
-              onSelectedTotalChange={(total) => {
-                if (amountTouched) return;
-                setAmount(total > 0 ? String(total) : '');
-              }}
-            />
+            {supportMode === 'self' ? (
+              <PromissoryPlanMatcher
+                targetAmount={parsedAmount}
+                selectedIds={selectedPlanIds}
+                onChange={setSelectedPlanIds}
+                disabled={submitting}
+                onSelectedTotalChange={(total) => {
+                  if (amountTouched) return;
+                  setAmount(total > 0 ? String(total) : '');
+                }}
+              />
+            ) : (
+              <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/5 p-2.5 text-[11px] text-muted-foreground">
+                <span className="block text-xs font-bold text-emerald-700">Auto support tenant</span>
+                Welile places this partner with tenants as homes come through — no picking needed here.
+              </div>
+            )}
+
 
             {parsedAmount > 0 && (
               <div className="rounded-lg bg-primary/5 border border-primary/10 p-2.5 text-[11px] space-y-0.5">
