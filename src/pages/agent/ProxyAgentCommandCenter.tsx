@@ -581,7 +581,13 @@ export default function ProxyAgentCommandCenter() {
       </main>
 
       {/* Dialogs */}
+      <SupportModeChooserDialog
+        open={supportModeOpen}
+        onOpenChange={setSupportModeOpen}
+        onSelect={(mode) => { setSupportMode(mode); setSupportModeOpen(false); setNoteOpen(true); }}
+      />
       <PromissoryNoteDialog
+        supportMode={supportMode}
         open={noteOpen}
         onOpenChange={(o) => { setNoteOpen(o); if (!o) refreshAll(); }}
       />
