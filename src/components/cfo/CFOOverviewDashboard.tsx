@@ -268,7 +268,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
       </div>
 
       {/* ══════════════ WHERE THE MONEY SITS ══════════════ */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <HeroCard
           icon={<Vault className="h-5 w-5 text-indigo-600" />}
           iconBg="bg-indigo-50 dark:bg-indigo-950/40"
@@ -295,6 +295,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
           footer="Position view — part of Money We Have, not added to it"
           footerTone="bg-sky-50/70 dark:bg-sky-950/30 text-sky-700 dark:text-sky-400 italic"
         />
+        <ROIPayableForecast />
       </div>
 
 
@@ -395,9 +396,6 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
 
       {/* ══════════════ RIGHT COLUMN — FEEDS & CONTROLS ══════════════ */}
       <div className="space-y-5">
-
-      {/* ── ROI PAYABLE FORECAST ── */}
-      <ROIPayableForecast />
 
       {/* ── CFO ACTIONS LOG ── */}
       <CFOActionsLog />
