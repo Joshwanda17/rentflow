@@ -397,9 +397,6 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
       {/* ══════════════ RIGHT COLUMN — FEEDS & CONTROLS ══════════════ */}
       <div className="space-y-5">
 
-      {/* ── ROI PAYABLE FORECAST ── */}
-      <ROIPayableForecast />
-
       {/* ── CFO ACTIONS LOG ── */}
       <CFOActionsLog />
 
