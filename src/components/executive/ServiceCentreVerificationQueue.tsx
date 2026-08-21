@@ -123,58 +123,6 @@ export function ServiceCentreVerificationQueue() {
             </TabsTrigger>
           </TabsList>
 
-          {/* ── Eligible Agents Tab ── */}
-          <TabsContent value="eligible">
-            {isLoading ? (
-              <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
-            ) : eligibleNotSubmitted.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                No new eligible agents. Agents need landlords + LC1 chairpersons to qualify.
-              </p>
-            ) : (
-              <div className="space-y-2">
-                <p className="text-xs text-muted-foreground mb-2">
-                  These agents have linked landlords & LC1 chairpersons — they qualify for a Service Centre. Notify them to submit their setup.
-                </p>
-                {eligibleNotSubmitted.map((agent) => (
-                  <div key={agent.id} className="flex items-center justify-between gap-2 rounded-xl border border-border p-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-foreground truncate">{agent.full_name}</p>
-                      <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
-                        <span className="text-xs text-muted-foreground flex items-center gap-1">
-                          <Phone className="h-3 w-3" />{agent.phone}
-                        </span>
-                        {agent.territory && (
-                          <span className="text-xs text-muted-foreground flex items-center gap-1">
-                            <MapPin className="h-3 w-3" />{agent.territory}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex gap-2 mt-1">
-                        <span className="text-xs px-1.5 py-0.5 rounded-md bg-primary/10 text-primary font-medium">
-                          {agent.landlord_count} Landlord{agent.landlord_count !== 1 ? 's' : ''}
-                        </span>
-                        <span className="text-xs px-1.5 py-0.5 rounded-md bg-secondary text-secondary-foreground font-medium">
-                          {agent.lc1_count} LC1{agent.lc1_count !== 1 ? 's' : ''}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <span className="text-xs px-2 py-1 rounded-full bg-accent text-accent-foreground font-semibold">
-                        Awaiting Setup
-                      </span>
-                    </div>
-                  </div>
-                ))}
-                {eligibleSubmitted.length > 0 && (
-                  <p className="text-xs text-muted-foreground text-center pt-2 border-t border-border mt-3">
-                    {eligibleSubmitted.length} eligible agent{eligibleSubmitted.length !== 1 ? 's have' : ' has'} already submitted.
-                  </p>
-                )}
-              </div>
-            )}
-          </TabsContent>
-
           {/* ── Pending Verification Tab ── */}
           <TabsContent value="pending">
             {setupsLoading ? (
