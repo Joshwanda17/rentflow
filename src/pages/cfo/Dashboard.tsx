@@ -87,8 +87,6 @@ import { CFOAllocationReturnApprovals } from '@/components/cfo/CFOAllocationRetu
 import { SmsDeliveryLogPanel } from '@/components/cfo/SmsDeliveryLogPanel';
 import { SmsFailureAlertsPanel } from '@/components/cfo/SmsFailureAlertsPanel';
 import { AlreadyFundedLandlordsPanel } from '@/components/cfo/AlreadyFundedLandlordsPanel';
-import { CFOQuickActionsBar } from '@/components/cfo/CFOQuickActionsBar';
-import { CFOFavoritesBar } from '@/components/cfo/CFOFavoritesBar';
 import { CFOBreadcrumbHeader } from '@/components/cfo/CFOBreadcrumbHeader';
 import { SwipeSensitivityControl } from '@/components/cfo/SwipeSensitivityControl';
 import { SwipeOnboardingHint } from '@/components/cfo/SwipeOnboardingHint';
