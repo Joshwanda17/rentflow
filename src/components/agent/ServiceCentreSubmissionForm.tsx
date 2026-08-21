@@ -218,11 +218,29 @@ export function ServiceCentreSubmissionForm() {
             />
           </div>
 
-          {/* Agent Info (auto-filled) */}
-          <div className="rounded-xl bg-muted/40 p-3 text-sm space-y-1">
-            <p><span className="font-medium text-foreground">Agent Name:</span> {profile?.full_name || '—'}</p>
-            <p><span className="font-medium text-foreground">Phone:</span> {profile?.phone || '—'}</p>
+          {/* Agent Info (auto-filled when signed in, editable otherwise) */}
+          <div className="rounded-xl bg-muted/40 p-3 space-y-3">
+            <div className="space-y-2">
+              <Label>👤 Agent Name</Label>
+              <Input
+                placeholder="Your full name"
+                value={agentName}
+                onChange={(e) => setAgentName(e.target.value)}
+                maxLength={120}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>📞 Phone</Label>
+              <Input
+                type="tel"
+                placeholder="e.g. +256700000000"
+                value={agentPhone}
+                onChange={(e) => setAgentPhone(e.target.value)}
+                maxLength={20}
+              />
+            </div>
           </div>
+
 
           <Button
             onClick={handleSubmit}
