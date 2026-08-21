@@ -177,6 +177,39 @@ export function ServiceCentreVerificationQueue() {
                     <p className="text-xs text-muted-foreground">📍 {s.location_name || 'No description'}</p>
                     <p className="text-xs text-muted-foreground">🌐 {Number(s.latitude).toFixed(5)}, {Number(s.longitude).toFixed(5)}</p>
 
+                    {rejectingId !== s.id && (
+                      <div className="space-y-2 rounded-lg border border-dashed border-border bg-muted/40 p-2.5">
+                        <p className="text-[11px] font-semibold text-foreground">Attach before verifying</p>
+                        <div className="space-y-1">
+                          <label className="text-[11px] text-muted-foreground" htmlFor={`sc-amount-${s.id}`}>
+                            Service centre amount (UGX)
+                          </label>
+                          <Input
+                            id={`sc-amount-${s.id}`}
+                            inputMode="numeric"
+                            placeholder="e.g. 350000"
+                            value={amounts[s.id] ?? ''}
+                            onChange={(e) => setAmounts((p) => ({ ...p, [s.id]: e.target.value }))}
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[11px] text-muted-foreground" htmlFor={`sc-comment-${s.id}`}>
+                            Comment / description (min 10 chars)
+                          </label>
+                          <Textarea
+                            id={`sc-comment-${s.id}`}
+                            placeholder="What was agreed, what the amount covers, any conditions…"
+                            value={comments[s.id] ?? ''}
+                            onChange={(e) => setComments((p) => ({ ...p, [s.id]: e.target.value }))}
+                            maxLength={1000}
+                            rows={3}
+                            className="text-xs"
+                          />
+                        </div>
+                      </div>
+                    )}
+
                     {rejectingId === s.id ? (
                       <div className="space-y-2">
                         <Input
