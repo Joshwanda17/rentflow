@@ -16,9 +16,11 @@ import { PromissoryPlanMatcher } from '@/components/agent/PromissoryPlanMatcher'
 interface PromissoryNoteDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** 'self' = agent hand-picks tenants for the partner; 'auto' = the desk places them. */
+  supportMode?: 'self' | 'auto';
 }
 
-export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialogProps) {
+export function PromissoryNoteDialog({ open, onOpenChange, supportMode = 'self' }: PromissoryNoteDialogProps) {
   const [submitting, setSubmitting] = useState(false);
   const [createdNote, setCreatedNote] = useState<any>(null);
   // Flat validation fee for a promissory note, read from the database.
