@@ -7,10 +7,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { MapPin, CheckCircle, XCircle, Loader2, Building2, ExternalLink } from 'lucide-react';
+import { MapPin, CheckCircle, XCircle, Loader2, Building2, ExternalLink, Wallet } from 'lucide-react';
 import { format } from 'date-fns';
 import { ServiceCentreNewEntryDialog } from './service-centres/ServiceCentreNewEntryDialog';
 import { ServiceCentreEntriesList } from './service-centres/ServiceCentreEntriesList';
+import { ServiceCentreAdvancesPanel } from './service-centres/ServiceCentreAdvancesPanel';
 
 export function ServiceCentreVerificationQueue() {
   const { user } = useAuth();
@@ -102,7 +103,7 @@ export function ServiceCentreVerificationQueue() {
       </CardHeader>
       <CardContent className="pt-0">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="w-full grid grid-cols-2 mb-3">
+          <TabsList className="w-full grid grid-cols-3 mb-3">
             <TabsTrigger
               value="pending"
               className="text-xs gap-1 relative data-[state=inactive]:animate-pulse data-[state=inactive]:bg-destructive/15 data-[state=inactive]:text-destructive"
@@ -118,6 +119,10 @@ export function ServiceCentreVerificationQueue() {
             <TabsTrigger value="entries" className="text-xs gap-1">
               <Building2 className="h-3 w-3" />
               Entries
+            </TabsTrigger>
+            <TabsTrigger value="advances" className="text-xs gap-1">
+              <Wallet className="h-3 w-3" />
+              Money
             </TabsTrigger>
           </TabsList>
 
@@ -208,6 +213,11 @@ export function ServiceCentreVerificationQueue() {
           {/* ── Entries (COO → CEO → Verified) ── */}
           <TabsContent value="entries">
             <ServiceCentreEntriesList />
+          </TabsContent>
+
+          {/* ── Service centre money (advances) ── */}
+          <TabsContent value="advances">
+            <ServiceCentreAdvancesPanel />
           </TabsContent>
         </Tabs>
       </CardContent>

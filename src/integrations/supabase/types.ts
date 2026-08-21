@@ -28939,6 +28939,62 @@ export type Database = {
           },
         ]
       }
+      service_centre_advances: {
+        Row: {
+          agent_id: string
+          amount_recovered: number
+          attached_at: string
+          attached_by: string | null
+          created_at: string
+          daily_deduction: number
+          duration_days: number
+          entry_id: string
+          id: string
+          notes: string | null
+          principal_amount: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          amount_recovered?: number
+          attached_at?: string
+          attached_by?: string | null
+          created_at?: string
+          daily_deduction?: number
+          duration_days?: number
+          entry_id: string
+          id?: string
+          notes?: string | null
+          principal_amount: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          amount_recovered?: number
+          attached_at?: string
+          attached_by?: string | null
+          created_at?: string
+          daily_deduction?: number
+          duration_days?: number
+          entry_id?: string
+          id?: string
+          notes?: string | null
+          principal_amount?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_centre_advances_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "service_centre_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       service_centre_entries: {
         Row: {
           assigned_agent_ids: string[]
