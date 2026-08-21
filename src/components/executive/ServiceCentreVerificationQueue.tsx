@@ -12,15 +12,6 @@ import { format } from 'date-fns';
 import { ServiceCentreNewEntryDialog } from './service-centres/ServiceCentreNewEntryDialog';
 import { ServiceCentreEntriesList } from './service-centres/ServiceCentreEntriesList';
 
-interface EligibleAgent {
-  id: string;
-  full_name: string;
-  phone: string;
-  territory: string | null;
-  landlord_count: number;
-  lc1_count: number;
-  has_submission: boolean;
-}
 
 export function ServiceCentreVerificationQueue() {
   const { user } = useAuth();
