@@ -92,9 +92,9 @@ export function ServiceCentreVerificationQueue() {
         <CardTitle className="flex items-center gap-2 text-sm">
           <Building2 className="h-4 w-4 text-primary" />
           Service Centre Pipeline
-          {(setups?.length || 0) + eligibleNotSubmitted.length > 0 && (
+          {(setups?.length || 0) > 0 && (
             <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded-full">
-              {(setups?.length || 0) + eligibleNotSubmitted.length}
+              {setups?.length || 0}
             </span>
           )}
           <span className="ml-auto">
