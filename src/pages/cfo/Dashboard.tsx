@@ -542,8 +542,6 @@ export default function CFODashboardPage() {
           ) : undefined
         }
       />
-      <CFOQuickActionsBar activeTab={activeTab} onJump={setActiveTab} />
-      <CFOFavoritesBar activeTab={activeTab} onJump={setActiveTab} />
       <SwipeOnboardingHint enabled={isMobile} />
       <div {...(isMobile ? swipeHandlers : {})} className="min-h-[60vh]">
         {renderContent()}
