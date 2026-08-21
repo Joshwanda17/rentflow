@@ -104,11 +104,7 @@ export function ServiceCentreVerificationQueue() {
       </CardHeader>
       <CardContent className="pt-0">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="w-full grid grid-cols-3 mb-3">
-            <TabsTrigger value="eligible" className="text-xs gap-1">
-              <Star className="h-3 w-3" />
-              Eligible ({eligibleNotSubmitted.length})
-            </TabsTrigger>
+          <TabsList className="w-full grid grid-cols-2 mb-3">
             <TabsTrigger
               value="pending"
               className="text-xs gap-1 relative data-[state=inactive]:animate-pulse data-[state=inactive]:bg-destructive/15 data-[state=inactive]:text-destructive"
