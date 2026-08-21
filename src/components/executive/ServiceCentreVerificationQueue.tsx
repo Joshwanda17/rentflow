@@ -39,18 +39,35 @@ export function ServiceCentreVerificationQueue() {
 
   const handleVerify = async (id: string) => {
     if (!user?.id) return;
+    const rawAmount = (amounts[id] ?? '').replace(/[^0-9.]/g, '');
+    const amount = Number(rawAmount);
+    const comment = (comments[id] ?? '').trim();
+    if (!rawAmount || !Number.isFinite(amount) || amount <= 0) {
+      toast.error('Enter the service centre amount (UGX) before verifying.');
+      return;
+    }
+    if (comment.length < 10) {
+      toast.error('Add a comment of at least 10 characters before verifying.');
+      return;
+    }
     setProcessingId(id);
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('service_centre_setups' as any)
         .update({
           status: 'verified',
           verified_by: user.id,
           verified_at: new Date().toISOString(),
+          verified_amount: amount,
+          verification_comment: comment,
         } as any)
-        .eq('id', id);
+        .eq('id', id)
+        .select('id, verified_amount, verification_comment');
       if (error) throw error;
-      toast.success('Service Centre verified!');
+      if (!data?.length) throw new Error('Verification did not save — no row was updated.');
+      toast.success('Service Centre verified with amount and comment attached.');
+      setAmounts((p) => ({ ...p, [id]: '' }));
+      setComments((p) => ({ ...p, [id]: '' }));
       queryClient.invalidateQueries({ queryKey: ['service-centre-pending-setups'] });
     } catch (err: any) {
       toast.error(err.message || 'Failed to verify');
