@@ -29082,6 +29082,8 @@ export type Database = {
           photo_url: string
           rejection_reason: string | null
           status: string
+          verification_comment: string | null
+          verified_amount: number | null
           verified_at: string | null
           verified_by: string | null
         }
@@ -29099,6 +29101,8 @@ export type Database = {
           photo_url: string
           rejection_reason?: string | null
           status?: string
+          verification_comment?: string | null
+          verified_amount?: number | null
           verified_at?: string | null
           verified_by?: string | null
         }
@@ -29116,6 +29120,8 @@ export type Database = {
           photo_url?: string
           rejection_reason?: string | null
           status?: string
+          verification_comment?: string | null
+          verified_amount?: number | null
           verified_at?: string | null
           verified_by?: string | null
         }
