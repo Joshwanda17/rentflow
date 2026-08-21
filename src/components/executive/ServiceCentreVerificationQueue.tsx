@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { MapPin, CheckCircle, XCircle, Loader2, Building2, ExternalLink, Star, Phone } from 'lucide-react';
+import { MapPin, CheckCircle, XCircle, Loader2, Building2, ExternalLink, Phone } from 'lucide-react';
 import { format } from 'date-fns';
 import { ServiceCentreNewEntryDialog } from './service-centres/ServiceCentreNewEntryDialog';
 import { ServiceCentreEntriesList } from './service-centres/ServiceCentreEntriesList';
