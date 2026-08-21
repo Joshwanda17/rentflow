@@ -17,6 +17,8 @@ import {
   generateAgentDailyOverviewPdf,
   type AgentDailyOverviewRow,
 } from '@/lib/agentDailyOverviewPdf';
+import { ACTIVE_RENT_STATUSES } from '@/hooks/useAgentCapacityMap';
+
 import {
   DropdownMenu,
   DropdownMenuContent,
