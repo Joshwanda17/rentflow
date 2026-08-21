@@ -35,6 +35,12 @@ export function ServiceCentreSubmissionForm() {
     enabled: !!user?.id,
   });
 
+  useEffect(() => {
+    if (profile?.full_name) setAgentName((prev) => prev || profile.full_name || '');
+    if (profile?.phone) setAgentPhone((prev) => prev || profile.phone || '');
+  }, [profile?.full_name, profile?.phone]);
+
+
   const { data: submissions, isLoading: subsLoading } = useQuery({
     queryKey: ['my-service-centre-setups', user?.id],
     queryFn: async () => {
